@@ -1,0 +1,236 @@
+// Package config defines the application configuration settings.
+package config
+
+import (
+	"crypto/rsa"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/spf13/viper"
+)
+
+type AppConfig struct {
+	Server   ServerConfig   `mapstructure:"server"`
+	Database DatabaseConfig `mapstructure:"database"`
+	Cache    CacheConfig    `mapstructure:"cache"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+	Log      LogConfig      `mapstructure:"log"`
+	CORS     CORSConfig     `mapstructure:"cors"`
+	Otel     OtelConfig     `mapstructure:"otel"`
+}
+
+type ServerConfig struct {
+	Port        int    `mapstructure:"port"`
+	ServiceName string `mapstructure:"service_name"`
+	Environment string `mapstructure:"environment"`
+	Timeout     int    `mapstructure:"timeout"` // in seconds
+}
+
+type DatabaseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
+}
+
+type CacheConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+}
+
+type JWTConfig struct {
+	Algorithm          string       `mapstructure:"algorithm"`
+	ExpiryHours        int          `mapstructure:"expiry_hours"`
+	AccessExpiryHours  int          `mapstructure:"access_expiry_hours"`
+	RefreshExpiryHours int          `mapstructure:"refresh_expiry_hours"`
+	PrivateKeyFile     string       `mapstructure:"private_key_file"`
+	PublicKeyFile      string       `mapstructure:"public_key_file"`
+	PrivateKey         string       `mapstructure:"private_key"`
+	PublicKey          string       `mapstructure:"public_key"`
+	Vault              *VaultConfig `mapstructure:"vault"`
+
+	// Internal fields to hold parsed keys
+	parsedPrivateKey *rsa.PrivateKey `mapstructure:"-"`
+	parsedPublicKey  *rsa.PublicKey  `mapstructure:"-"`
+}
+
+type VaultConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Address         string `mapstructure:"address"`
+	Token           string `mapstructure:"token"`
+	SecretPath      string `mapstructure:"secret_path"`
+	PrivateKeyField string `mapstructure:"private_key_field"`
+	PublicKeyField  string `mapstructure:"public_key_field"`
+}
+
+type CORSConfig struct {
+	AllowedOrigins   []string `mapstructure:"allowed_origins"`
+	AllowedMethods   []string `mapstructure:"allowed_methods"`
+	AllowedHeaders   []string `mapstructure:"allowed_headers"`
+	ExposedHeaders   []string `mapstructure:"exposed_headers"`
+	AllowCredentials bool     `mapstructure:"allow_credentials"`
+}
+
+type LogConfig struct {
+	Level string `mapstructure:"level"`
+}
+
+type OtelConfig struct {
+	Enabled     bool   `mapstructure:"enabled"`
+	Endpoint    string `mapstructure:"endpoint"`
+	Insecure    bool   `mapstructure:"insecure"`
+	ServiceName string `mapstructure:"service_name"`
+}
+
+var (
+	appConfig *AppConfig
+)
+
+func LoadConfig(configPath string) error {
+	// Priority 3: Default values
+	setDefaultValues()
+
+	// Priority 2: Configuration file in config.yaml format (if exists)
+	viper.AddConfigPath(configPath)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			fmt.Println("Config file not found, using defaults and environment variables.")
+		} else {
+			return fmt.Errorf("error reading config file: %w", err)
+		}
+	}
+
+	// Priority 1: Environment variables
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
+
+	err := viper.Unmarshal(&appConfig)
+	if err != nil {
+		return fmt.Errorf("unable to decode into struct: %w", err)
+	}
+
+	// Parse RSA keys
+	if err := appConfig.JWT.parseRSAKeys(); err != nil {
+		return fmt.Errorf("error parsing RSA keys: %w", err)
+	}
+
+	return nil
+}
+
+func setDefaultValues() {
+	viper.SetDefault("server.port", 8080)
+	viper.SetDefault("server.service_name", "my_service")
+	viper.SetDefault("server.environment", "development") // Options: development, production
+
+	viper.SetDefault("database.host", "localhost")
+	viper.SetDefault("database.port", 5432)
+	viper.SetDefault("database.user", "user")
+	viper.SetDefault("database.password", "password")
+	viper.SetDefault("database.dbname", "mydb")
+	viper.SetDefault("database.sslmode", "disable")
+
+	viper.SetDefault("cache.host", "localhost")
+	viper.SetDefault("cache.port", 6379)
+	viper.SetDefault("cache.password", "")
+	viper.SetDefault("cache.db", 0)
+
+	viper.SetDefault("jwt.algorithm", "RS256")
+	viper.SetDefault("jwt.expiry_hours", 72)
+	viper.SetDefault("jwt.private_key_file", "private.pem")
+	viper.SetDefault("jwt.public_key_file", "public.pem")
+	viper.SetDefault("jwt.private_key", "")
+	viper.SetDefault("jwt.public_key", "")
+	viper.SetDefault("jwt.vault.enabled", false)
+	viper.SetDefault("jwt.vault.address", "")
+	viper.SetDefault("jwt.vault.token", "")
+	viper.SetDefault("jwt.vault.secret_path", "")
+	viper.SetDefault("jwt.vault.private_key_field", "private_key_file")
+	viper.SetDefault("jwt.vault.public_key_field", "public_key_file")
+
+	viper.SetDefault("log.level", "info")
+
+	viper.SetDefault("cors.allowed_origins", []string{"*"})
+	viper.SetDefault("cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	viper.SetDefault("cors.allowed_headers", []string{"Origin", "Content-Type", "Accept", "Authorization"})
+	viper.SetDefault("cors.exposed_headers", []string{"Content-Type", "Authorization"})
+	viper.SetDefault("cors.allow_credentials", true)
+
+	viper.SetDefault("otel.enabled", true)
+	viper.SetDefault("otel.endpoint", "localhost:4317")
+	viper.SetDefault("otel.insecure", true)
+	viper.SetDefault("otel.service_name", "my_service")
+}
+
+// parseRSAKeys reads and parses the RSA private and public keys from the config.
+// It prioritizes file paths over raw key content.
+func (jc *JWTConfig) parseRSAKeys() error {
+	var privateKeyBytes, publicKeyBytes []byte
+	var err error
+
+	// --- Load Private Key ---
+	// Priority 1: From file path
+	if jc.PrivateKeyFile != "" {
+		privateKeyBytes, err = os.ReadFile(jc.PrivateKeyFile)
+		if err != nil {
+			return fmt.Errorf("could not read private key file %s: %w", jc.PrivateKeyFile, err)
+		}
+	} else if jc.PrivateKey != "" { // Priority 2: From embedded string
+		privateKeyBytes = []byte(jc.PrivateKey)
+	} else {
+		// In the future, you would add Vault logic here.
+		return fmt.Errorf("private key is not provided (either file path or raw content)")
+	}
+
+	// --- Load Public Key ---
+	// Priority 1: From file path
+	if jc.PublicKeyFile != "" {
+		publicKeyBytes, err = os.ReadFile(jc.PublicKeyFile)
+		if err != nil {
+			return fmt.Errorf("could not read public key file %s: %w", jc.PublicKeyFile, err)
+		}
+	} else if jc.PublicKey != "" { // Priority 2: From embedded string
+		publicKeyBytes = []byte(jc.PublicKey)
+	} else {
+		// In the future, you would add Vault logic here.
+		return fmt.Errorf("public key is not provided (either file path or raw content)")
+	}
+
+	// --- Parse Keys ---
+	parsedPrivKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	jc.parsedPrivateKey = parsedPrivKey
+
+	parsedPubKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse RSA public key: %w", err)
+	}
+	jc.parsedPublicKey = parsedPubKey
+
+	return nil
+}
+
+// GetAppConfig returns the loaded application configuration.
+func GetAppConfig() *AppConfig {
+	return appConfig
+}
+
+// GetPrivateKey returns the parsed private key.
+func (jc *JWTConfig) GetPrivateKey() *rsa.PrivateKey {
+	return jc.parsedPrivateKey
+}
+
+// GetPublicKey returns the parsed public key.
+func (jc *JWTConfig) GetPublicKey() *rsa.PublicKey {
+	return jc.parsedPublicKey
+}
