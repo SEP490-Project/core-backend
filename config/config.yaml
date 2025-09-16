@@ -1,0 +1,96 @@
+
+# Server configuration
+server:
+  port: 8080
+  service_name: "my_service"
+  environment: "development" # development, production
+  timeout: 30
+
+# Database configuration (PostgreSQL)
+database:
+  host: "localhost"
+  port: 5432
+  user: "user"
+  password: "password"
+  dbname: "mydb"
+  sslmode: "disable"
+
+# Cache (Valkey/Redis)
+cache:
+  host: "localhost"
+  port: 6379
+  db: 0
+  password: ""
+
+# JWT configuration
+jwt:
+  algorithm: "RS256"
+  expiry_hours: 72
+  access_expiry_hours: 1
+  refresh_expiry_hours: 72
+  private_key_file: "private.pem"
+  public_key_file: "public.pem"
+  private_key: ""
+  public_key: ""
+  vault:
+    enabled: false
+    address: ""
+    token: ""
+    secret_path: ""
+    private_key_field: "private_key_file"
+    public_key_field: "public_key_file"
+
+# Logging configuration
+log:
+  level: "info" # debug, info, warn, error
+
+# CORS configuration
+cors:
+  allowed_origins:
+    - "*"
+  allowed_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "OPTIONS"
+  allowed_headers:
+    - "Origin"
+    - "Content-Type"
+    - "Accept"
+    - "Authorization"
+  exposed_headers:
+    - "Content-Type"
+    - "Authorization"
+  allow_credentials: true
+
+# OpenTelemetry configuration
+otel:
+  enabled: true
+  endpoint: "localhost:4317"
+  insecure: true
+  service_name: "my_service"
+
+# RabbitMQ configuration
+rabbitmq:
+  url: "amqp://guest:guest@localhost:5672/"
+  exchange: "my_exchange"
+  queue: "my_queue"
+  routing_key: "my_routing_key"
+
+# Asynq (background jobs) configuration
+asynq:
+  redis_addr: "localhost:6379"
+  redis_db: 1
+  redis_password: ""
+  concurrency: 10
+  queues:
+    default: 10
+    critical: 20
+
+# WebSocket configuration
+websocket:
+  enabled: true
+  endpoint: "/ws"
+  allowed_origins:
+    - "*"
