@@ -1,5 +1,4 @@
-// Package core contains core domain models
-package core
+package model
 
 import "github.com/golang-jwt/jwt/v5"
 
