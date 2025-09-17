@@ -1,0 +1,23 @@
+log/
+logs/
+build/
+bin/
+.github/
+.vscode/
+.idea/
+
+*.exe
+*.out
+.env
+*.log
+*.pem
+
+.*_dev.*
+.*.dev.*
+
+# Test coverage profiles
+coverage.*
+
+# OS-generated files
+.DS_Store
+Thumbs.db
