@@ -10,9 +10,9 @@ server:
 database:
   host: "localhost"
   port: 5432
-  user: "user"
-  password: "password"
-  dbname: "mydb"
+  user: "postgres"
+  password: "12345"
+  dbname: "sep490_db"
   sslmode: "disable"
 
 # Cache (Valkey/Redis)
@@ -20,7 +20,7 @@ cache:
   host: "localhost"
   port: 6379
   db: 0
-  password: ""
+  password: "12345"
 
 # JWT configuration
 jwt:
@@ -74,15 +74,15 @@ otel:
 # RabbitMQ configuration
 rabbitmq:
   url: "amqp://guest:guest@localhost:5672/"
-  exchange: "my_exchange"
-  queue: "my_queue"
+  exchange: "sep490.exchange"
+  queue: "sep490.queue"
   routing_key: "my_routing_key"
 
 # Asynq (background jobs) configuration
 asynq:
   redis_addr: "localhost:6379"
   redis_db: 1
-  redis_password: ""
+  redis_password: "12345"
   concurrency: 10
   queues:
     default: 10
