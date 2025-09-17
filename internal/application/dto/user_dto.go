@@ -12,8 +12,8 @@ type UserResponse struct {
 	Email     string     `json:"email" example:"john@example.com"`
 	Role      string     `json:"role" example:"user"`
 	IsActive  bool       `json:"is_active" example:"true"`
-	CreatedAt time.Time  `json:"created_at" example:"2023-01-01T00:00:00Z"`
-	UpdatedAt time.Time  `json:"updated_at" example:"2023-01-01T00:00:00Z"`
+	CreatedAt *time.Time  `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	UpdatedAt *time.Time  `json:"updated_at" example:"2023-01-01T00:00:00Z"`
 	LastLogin *time.Time `json:"last_login,omitempty" example:"2023-01-01T00:00:00Z"`
 }
 
