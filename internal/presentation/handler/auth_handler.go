@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"core-backend/internal/application/dto"
 	"core-backend/internal/application/service"
+	"core-backend/internal/presentation/dto/request"
 	"core-backend/internal/presentation/dto/response"
 
 	"github.com/gin-gonic/gin"
@@ -29,28 +30,35 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.LoginRequest true "Login credentials"
+// @Param        request body request.LoginRequest true "Login credentials"
 // @Success      200 {object} response.APIResponse{data=dto.LoginResponse} "Login successful"
 // @Failure      400 {object} response.APIResponse "Invalid request"
 // @Failure      401 {object} response.APIResponse "Invalid credentials"
 // @Router       /api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
-	var request dto.LoginRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	var loginRequest request.LoginRequest
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	// Validate request
-	if err := h.validator.Struct(&request); err != nil {
+	if err := h.validator.Struct(&loginRequest); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
+	// Convert to application DTO
+	appLoginRequest := &dto.LoginRequest{
+		LoginIdentifier:   loginRequest.LoginIdentifier,
+		Password:          loginRequest.Password,
+		DeviceFingerprint: loginRequest.DeviceFingerprint,
+	}
+
 	// Call auth service
-	loginResponse, err := h.authService.Login(&request)
+	loginResponse, err := h.authService.Login(appLoginRequest)
 	if err != nil {
 		response := response.ErrorResponse("Login failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
@@ -67,28 +75,35 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.SignUpRequest true "User registration data"
+// @Param        request body request.SignUpRequest true "User registration data"
 // @Success      201 {object} response.APIResponse{data=dto.SignUpResponse} "User created successfully"
 // @Failure      400 {object} response.APIResponse "Invalid request"
 // @Failure      409 {object} response.APIResponse "User already exists"
 // @Router       /api/v1/auth/signup [post]
 func (h *AuthHandler) SignUp(c *gin.Context) {
-	var request dto.SignUpRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	var signUpRequest request.SignUpRequest
+	if err := c.ShouldBindJSON(&signUpRequest); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	// Validate request
-	if err := h.validator.Struct(&request); err != nil {
+	if err := h.validator.Struct(&signUpRequest); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
+	// Convert to application DTO
+	appSignUpRequest := &dto.SignUpRequest{
+		Username: signUpRequest.Username,
+		Email:    signUpRequest.Email,
+		Password: signUpRequest.Password,
+	}
+
 	// Call auth service
-	signUpResponse, err := h.authService.SignUp(&request)
+	signUpResponse, err := h.authService.SignUp(appSignUpRequest)
 	if err != nil {
 		response := response.ErrorResponse("Sign up failed: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -105,28 +120,33 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 // @Tags         Authentication
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.RefreshTokenRequest true "Refresh token"
+// @Param        request body request.RefreshTokenRequest true "Refresh token"
 // @Success      200 {object} response.APIResponse{data=dto.LoginResponse} "Token refreshed successfully"
 // @Failure      400 {object} response.APIResponse "Invalid request"
 // @Failure      401 {object} response.APIResponse "Invalid or expired refresh token"
 // @Router       /api/v1/auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var request dto.RefreshTokenRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	var refreshRequest request.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&refreshRequest); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	// Validate request
-	if err := h.validator.Struct(&request); err != nil {
+	if err := h.validator.Struct(&refreshRequest); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
+	// Convert to application DTO
+	appRefreshRequest := &dto.RefreshTokenRequest{
+		RefreshToken: refreshRequest.RefreshToken,
+	}
+
 	// Call auth service
-	loginResponse, err := h.authService.RefreshToken(&request)
+	loginResponse, err := h.authService.RefreshToken(appRefreshRequest)
 	if err != nil {
 		response := response.ErrorResponse("Token refresh failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
