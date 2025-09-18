@@ -1,0 +1,805 @@
+definitions:
+  dto.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.LogoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  dto.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.SessionInfo:
+    properties:
+      created_at:
+        type: string
+      device_fingerprint:
+        type: string
+      expiry_at:
+        type: string
+      id:
+        type: string
+      is_revoked:
+        type: boolean
+      last_used_at:
+        type: string
+    type: object
+  dto.SignUpResponse:
+    properties:
+      message:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.UpdateProfileRequest:
+    properties:
+      email:
+        example: new_email@example.com
+        type: string
+      username:
+        example: new_username
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
+  dto.UpdateUserRoleRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - user
+        - moderator
+        example: user
+        type: string
+    required:
+    - role
+    type: object
+  dto.UpdateUserStatusRequest:
+    properties:
+      is_active:
+        example: true
+        type: boolean
+    required:
+    - is_active
+    type: object
+  dto.UserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UserListResponse:
+    properties:
+      has_next:
+        example: true
+        type: boolean
+      has_prev:
+        example: false
+        type: boolean
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 100
+        type: integer
+      total_pages:
+        example: 10
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/dto.UserResponse'
+        type: array
+    type: object
+  dto.UserResponse:
+    properties:
+      created_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      last_login:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      role:
+        example: user
+        type: string
+      updated_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+  request.LoginRequest:
+    properties:
+      device_fingerprint:
+        type: string
+      login_identifier:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      remember_me:
+        type: boolean
+    required:
+    - login_identifier
+    - password
+    type: object
+  request.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  request.SignUpRequest:
+    properties:
+      confirm_password:
+        type: string
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - confirm_password
+    - email
+    - password
+    - username
+    type: object
+  response.APIResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is the core backend service for SEP490 project with authentication,
+    user management, and business features.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: SEP490 Core Backend API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with credentials
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: User Login
+      tags:
+      - Authentication
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user and invalidate refresh token
+      parameters:
+      - description: Logout request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LogoutResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: User Logout
+      tags:
+      - Authentication
+  /api/v1/auth/logout-all:
+    post:
+      consumes:
+      - application/json
+      description: Logout user from all active sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All sessions logged out successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LogoutResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout All Sessions
+      tags:
+      - Authentication
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generate new access token using refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
+  /api/v1/auth/sessions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user's active sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active sessions retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dto.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Active Sessions
+      tags:
+      - Authentication
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      consumes:
+      - application/json
+      description: Revoke a specific user session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session revoked successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.LogoutResponse'
+              type: object
+        "400":
+          description: Invalid session ID
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke Session
+      tags:
+      - Authentication
+  /api/v1/auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.SignUpResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: User Registration
+      tags:
+      - Authentication
+  /api/v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of users (admin only)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for username or email
+        in: query
+        name: search
+        type: string
+      - description: Filter by user role
+        in: query
+        name: role
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserListResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Users List
+      tags:
+      - Users
+  /api/v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a user (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete User
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Get user details by ID (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User by ID
+      tags:
+      - Users
+  /api/v1/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Update user role (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User role updated successfully
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Role
+      tags:
+      - Users
+  /api/v1/users/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update user active status (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User status updated successfully
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Status
+      tags:
+      - Users
+  /api/v1/users/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get current authenticated user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update current authenticated user's profile
+      parameters:
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dto.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "409":
+          description: Username or email already exists
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Profile
+      tags:
+      - Users
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns the health status of the application and its dependencies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "503":
+          description: Service is unhealthy
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Health Check
+      tags:
+      - Health
+  /health/live:
+    get:
+      consumes:
+      - application/json
+      description: Returns whether the application is alive and running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is alive
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Liveness Check
+      tags:
+      - Health
+  /health/ready:
+    get:
+      consumes:
+      - application/json
+      description: Returns whether the application is ready to serve requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is ready
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+        "503":
+          description: Service is not ready
+          schema:
+            $ref: '#/definitions/response.APIResponse'
+      summary: Readiness Check
+      tags:
+      - Health
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
