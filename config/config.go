@@ -2,7 +2,10 @@
 package config
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"strings"
@@ -12,13 +15,16 @@ import (
 )
 
 type AppConfig struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Cache    CacheConfig    `mapstructure:"cache"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
-	Log      LogConfig      `mapstructure:"log"`
-	CORS     CORSConfig     `mapstructure:"cors"`
-	Otel     OtelConfig     `mapstructure:"otel"`
+	Server    ServerConfig    `mapstructure:"server"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Cache     CacheConfig     `mapstructure:"cache"`
+	JWT       JWTConfig       `mapstructure:"jwt"`
+	Log       LogConfig       `mapstructure:"log"`
+	CORS      CORSConfig      `mapstructure:"cors"`
+	Otel      OtelConfig      `mapstructure:"otel"`
+	RabbitMQ  RabbitMQConfig  `mapstructure:"rabbitmq"`
+	Asynq     AsynqConfig     `mapstructure:"asynq"`
+	WebSocket WebSocketConfig `mapstructure:"websocket"`
 }
 
 type ServerConfig struct {
@@ -86,6 +92,33 @@ type OtelConfig struct {
 	Endpoint    string `mapstructure:"endpoint"`
 	Insecure    bool   `mapstructure:"insecure"`
 	ServiceName string `mapstructure:"service_name"`
+}
+
+type RabbitMQConfig struct {
+	URL         string `mapstructure:"url"`
+	Exchange    string `mapstructure:"exchange"`
+	Queue       string `mapstructure:"queue"`
+	RoutingKey  string `mapstructure:"routing_key"`
+	Durable     bool   `mapstructure:"durable"`
+	AutoDelete  bool   `mapstructure:"auto_delete"`
+	Exclusive   bool   `mapstructure:"exclusive"`
+	NoWait      bool   `mapstructure:"no_wait"`
+}
+
+type AsynqConfig struct {
+	RedisAddr     string         `mapstructure:"redis_addr"`
+	RedisDB       int            `mapstructure:"redis_db"`
+	RedisPassword string         `mapstructure:"redis_password"`
+	Concurrency   int            `mapstructure:"concurrency"`
+	Queues        map[string]int `mapstructure:"queues"`
+}
+
+type WebSocketConfig struct {
+	Enabled        bool     `mapstructure:"enabled"`
+	Endpoint       string   `mapstructure:"endpoint"`
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
+	ReadBufferSize int      `mapstructure:"read_buffer_size"`
+	WriteBufferSize int     `mapstructure:"write_buffer_size"`
 }
 
 var (
@@ -168,10 +201,35 @@ func setDefaultValues() {
 	viper.SetDefault("otel.endpoint", "localhost:4317")
 	viper.SetDefault("otel.insecure", true)
 	viper.SetDefault("otel.service_name", "my_service")
+
+	viper.SetDefault("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
+	viper.SetDefault("rabbitmq.exchange", "my_exchange")
+	viper.SetDefault("rabbitmq.queue", "my_queue")
+	viper.SetDefault("rabbitmq.routing_key", "my_routing_key")
+	viper.SetDefault("rabbitmq.durable", true)
+	viper.SetDefault("rabbitmq.auto_delete", false)
+	viper.SetDefault("rabbitmq.exclusive", false)
+	viper.SetDefault("rabbitmq.no_wait", false)
+
+	viper.SetDefault("asynq.redis_addr", "localhost:6379")
+	viper.SetDefault("asynq.redis_db", 1)
+	viper.SetDefault("asynq.redis_password", "")
+	viper.SetDefault("asynq.concurrency", 10)
+	viper.SetDefault("asynq.queues", map[string]int{
+		"default":  10,
+		"critical": 20,
+	})
+
+	viper.SetDefault("websocket.enabled", true)
+	viper.SetDefault("websocket.endpoint", "/ws")
+	viper.SetDefault("websocket.allowed_origins", []string{"*"})
+	viper.SetDefault("websocket.read_buffer_size", 1024)
+	viper.SetDefault("websocket.write_buffer_size", 1024)
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.
 // It prioritizes file paths over raw key content.
+// If key files don't exist, it generates them automatically.
 func (jc *JWTConfig) parseRSAKeys() error {
 	var privateKeyBytes, publicKeyBytes []byte
 	var err error
@@ -181,7 +239,20 @@ func (jc *JWTConfig) parseRSAKeys() error {
 	if jc.PrivateKeyFile != "" {
 		privateKeyBytes, err = os.ReadFile(jc.PrivateKeyFile)
 		if err != nil {
-			return fmt.Errorf("could not read private key file %s: %w", jc.PrivateKeyFile, err)
+			// If file doesn't exist, generate key pair
+			if os.IsNotExist(err) {
+				fmt.Printf("RSA keys not found, generating new key pair...\n")
+				if genErr := jc.generateKeyPair(); genErr != nil {
+					return fmt.Errorf("failed to generate RSA keys: %w", genErr)
+				}
+				// Try reading again after generation
+				privateKeyBytes, err = os.ReadFile(jc.PrivateKeyFile)
+				if err != nil {
+					return fmt.Errorf("could not read generated private key file %s: %w", jc.PrivateKeyFile, err)
+				}
+			} else {
+				return fmt.Errorf("could not read private key file %s: %w", jc.PrivateKeyFile, err)
+			}
 		}
 	} else if jc.PrivateKey != "" { // Priority 2: From embedded string
 		privateKeyBytes = []byte(jc.PrivateKey)
@@ -233,4 +304,57 @@ func (jc *JWTConfig) GetPrivateKey() *rsa.PrivateKey {
 // GetPublicKey returns the parsed public key.
 func (jc *JWTConfig) GetPublicKey() *rsa.PublicKey {
 	return jc.parsedPublicKey
+}
+
+// generateKeyPair generates RSA key pair and saves them to files
+func (jc *JWTConfig) generateKeyPair() error {
+	// Import necessary packages for key generation
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// Save private key
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyPEM := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+
+	privateKeyFile, err := os.Create(jc.PrivateKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to create private key file: %w", err)
+	}
+	defer privateKeyFile.Close()
+
+	if err = pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
+		return fmt.Errorf("failed to write private key: %w", err)
+	}
+
+	// Save public key
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return fmt.Errorf("failed to marshal public key: %w", err)
+	}
+
+	publicKeyPEM := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	}
+
+	publicKeyFile, err := os.Create(jc.PublicKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to create public key file: %w", err)
+	}
+	defer publicKeyFile.Close()
+
+	if err := pem.Encode(publicKeyFile, publicKeyPEM); err != nil {
+		return fmt.Errorf("failed to write public key: %w", err)
+	}
+
+	fmt.Printf("RSA key pair generated successfully:\n")
+	fmt.Printf("  Private key: %s\n", jc.PrivateKeyFile)
+	fmt.Printf("  Public key: %s\n", jc.PublicKeyFile)
+
+	return nil
 }

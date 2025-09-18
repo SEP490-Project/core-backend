@@ -155,7 +155,7 @@ func (s *UserService) mapUserToResponse(user *model.User) *dto.UserResponse {
 		IsActive:  user.IsActive,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
-		LastLogin: &user.LastLogin,
+		LastLogin: user.LastLogin,
 	}
 }
 

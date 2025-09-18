@@ -18,9 +18,9 @@ type User struct {
 	Phone        string        `json:"phone"`
 	Role         enum.UserRole `json:"role" gorm:"not null"`
 	IsActive     bool          `json:"is_active" gorm:"default:true"`
-	CreatedAt    time.Time     `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt    time.Time     `json:"updated_at" gorm:"autoUpdateTime"`
-	LastLogin    time.Time     `json:"last_login" gorm:"autoUpdateTime"`
+	CreatedAt    *time.Time    `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    *time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
+	LastLogin    *time.Time    `json:"last_login" gorm:"autoUpdateTime"`
 	ProfileData  string        `json:"profile_data" gorm:"type:jsonb"`
 
 	// Relationships

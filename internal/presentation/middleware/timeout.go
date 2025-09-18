@@ -10,7 +10,7 @@ import (
 
 func NewTimeoutMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(config.GetAppConfig().Server.Timeout))
+		ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(config.GetAppConfig().Server.Timeout)*time.Second)
 		defer cancel()
 
 		c.Request = c.Request.WithContext(ctx)

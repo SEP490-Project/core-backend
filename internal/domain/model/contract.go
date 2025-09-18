@@ -2,6 +2,7 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -11,7 +12,7 @@ type Contract struct {
 	BrandID                uuid.UUID           `json:"brand_id" gorm:"not null"`
 	InfluencerUserID       uuid.UUID           `json:"influencer_user_id" gorm:"not null"`
 	Title                  string              `json:"title" gorm:"not null"`
-	Type                   enum.ContractType   `json:"type" gorm:"type:enum('ADVERTISING','AFFILIATE','AMBASSADOR','COPRODUCE');not null"`
+	Type                   enum.ContractType   `json:"type" gorm:"not null"`
 	StartDate              string              `json:"start_date" gorm:"not null"`
 	EndDate                string              `json:"end_date" gorm:"not null"`
 	ScopeOfWork            string              `json:"scope_of_work" gorm:"not null"`
@@ -26,7 +27,7 @@ type Contract struct {
 	DisputeResolution      string              `json:"dispute_resolution" gorm:"not null"`
 	ComplianceRequirements string              `json:"compliance_requirements" gorm:"not null"`
 	PdfURL                 string              `json:"pdf_url" gorm:"not null"`
-	Status                 enum.ContractStatus `json:"status" gorm:"type:enum('ACTIVE','EXPIRED','CANCELED');not null"`
-	CreatedAt              int64               `json:"created_at" gorm:"autoCreateTime"`
+	Status                 enum.ContractStatus `json:"status" gorm:"not null"`
+	CreatedAt              *time.Time               `json:"created_at" gorm:"autoCreateTime"`
 	Signatures             string              `json:"signatures" gorm:"type:jsonb"`
 }
