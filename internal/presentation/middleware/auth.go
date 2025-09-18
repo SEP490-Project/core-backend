@@ -25,13 +25,10 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, response.APIResponse{
-				Success: false,
-				Error: &response.ErrorInfo{
-					Code:    "MISSING_TOKEN",
-					Message: "Authorization header is required",
-				},
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"MISSING_TOKEN: Authorization header is required",
+				http.StatusUnauthorized,
+			))
 			c.Abort()
 			return
 		}
@@ -39,13 +36,10 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// Extract Bearer token
 		tokenParts := strings.SplitN(authHeader, " ", 2)
 		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, response.APIResponse{
-				Success: false,
-				Error: &response.ErrorInfo{
-					Code:    "INVALID_TOKEN_FORMAT",
-					Message: "Authorization header must be Bearer token",
-				},
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"INVALID_TOKEN_FORMAT: Authorization header must be Bearer token",
+				http.StatusUnauthorized,
+			))
 			c.Abort()
 			return
 		}
@@ -53,13 +47,10 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		token := tokenParts[1]
 		claims, err := a.jwtService.ValidateAccessToken(token)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, response.APIResponse{
-				Success: false,
-				Error: &response.ErrorInfo{
-					Code:    "INVALID_TOKEN",
-					Message: "Token is invalid or expired",
-				},
-			})
+			c.JSON(http.StatusUnauthorized, response.ErrorResponse(
+				"INVALID_TOKEN: "+err.Error(),
+				http.StatusUnauthorized,
+			))
 			c.Abort()
 			return
 		}
@@ -81,13 +72,10 @@ func (a *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRoles, exists := c.Get("roles")
 		if !exists {
-			c.JSON(http.StatusForbidden, response.APIResponse{
-				Success: false,
-				Error: &response.ErrorInfo{
-					Code:    "NO_ROLE_INFO",
-					Message: "User role information not found",
-				},
-			})
+			c.JSON(http.StatusForbidden, response.ErrorResponse(
+				"NO_ROLE_INFO: User role information not found",
+				http.StatusForbidden,
+			))
 			c.Abort()
 			return
 		}
@@ -98,13 +86,10 @@ func (a *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusForbidden, response.APIResponse{
-			Success: false,
-			Error: &response.ErrorInfo{
-				Code:    "INSUFFICIENT_PERMISSIONS",
-				Message: "User does not have required permissions",
-			},
-		})
+		c.JSON(http.StatusForbidden, response.ErrorResponse(
+			"INSUFFICIENT_PERMISSIONS: User does not have required permissions",
+			http.StatusForbidden,
+		))
 		c.Abort()
 	}
 }
