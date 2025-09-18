@@ -2,84 +2,273 @@ package rabbitmq
 
 import (
 	"context"
-	"log"
+	"encoding/json"
+	"fmt"
+	"time"
 	"core-backend/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.uber.org/zap"
 )
 
 type RabbitMQ struct {
-	Conn    *amqp.Connection
-	Channel *amqp.Channel
-	Queue   amqp.Queue
+	conn     *amqp.Connection
+	channel  *amqp.Channel
+	queue    amqp.Queue
+	exchange string
+	config   *config.RabbitMQConfig
 }
 
-func NewRabbitMQ(ctx context.Context) (*RabbitMQ, error) {
+type MessageHandler func([]byte) error
+
+func NewRabbitMQ() (*RabbitMQ, error) {
 	cfg := config.GetAppConfig().RabbitMQ
+
+	// Connect to RabbitMQ
 	conn, err := amqp.Dial(cfg.URL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
-	ch, err := conn.Channel()
+
+	// Create a channel
+	channel, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to open channel: %w", err)
 	}
-	queue, err := ch.QueueDeclare(
-		cfg.Queue,
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		amqp.Table{},
-	)
+
+	rabbitmq := &RabbitMQ{
+		conn:     conn,
+		channel:  channel,
+		exchange: cfg.Exchange,
+		config:   &cfg,
+	}
+
+	// Declare exchange if specified
+	if cfg.Exchange != "" {
+		err = rabbitmq.declareExchange()
+		if err != nil {
+			rabbitmq.Close()
+			return nil, fmt.Errorf("failed to declare exchange: %w", err)
+		}
+	}
+
+	// Declare queue
+	err = rabbitmq.declareQueue()
 	if err != nil {
-		ch.Close()
-		conn.Close()
-		return nil, err
+		rabbitmq.Close()
+		return nil, fmt.Errorf("failed to declare queue: %w", err)
 	}
-	return &RabbitMQ{Conn: conn, Channel: ch, Queue: queue}, nil
+
+	// Bind queue to exchange if both are specified
+	if cfg.Exchange != "" && cfg.RoutingKey != "" {
+		err = rabbitmq.bindQueue()
+		if err != nil {
+			rabbitmq.Close()
+			return nil, fmt.Errorf("failed to bind queue: %w", err)
+		}
+	}
+
+	zap.L().Info("RabbitMQ connected successfully",
+		zap.String("url", cfg.URL),
+		zap.String("exchange", cfg.Exchange),
+		zap.String("queue", cfg.Queue),
+		zap.String("routing_key", cfg.RoutingKey))
+
+	return rabbitmq, nil
 }
 
-func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
-	return r.Channel.PublishWithContext(ctx,
-		"", // exchange
-		r.Queue.Name,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		},
+// declareExchange declares an exchange
+func (r *RabbitMQ) declareExchange() error {
+	return r.channel.ExchangeDeclare(
+		r.config.Exchange,   // exchange name
+		"direct",            // type
+		r.config.Durable,    // durable
+		r.config.AutoDelete, // auto-deleted
+		false,               // internal
+		r.config.NoWait,     // no-wait
+		nil,                 // arguments
 	)
 }
 
-func (r *RabbitMQ) Consume(ctx context.Context, handler func([]byte)) error {
-	msgs, err := r.Channel.Consume(
-		r.Queue.Name,
-		"",
-		true,
-		false,
-		false,
-		false,
-		amqp.Table{},
+// declareQueue declares a queue
+func (r *RabbitMQ) declareQueue() error {
+	queue, err := r.channel.QueueDeclare(
+		r.config.Queue,      // queue name
+		r.config.Durable,    // durable
+		r.config.AutoDelete, // delete when unused
+		r.config.Exclusive,  // exclusive
+		r.config.NoWait,     // no-wait
+		nil,                 // arguments
 	)
 	if err != nil {
 		return err
 	}
-	go func() {
-		for msg := range msgs {
-			handler(msg.Body)
-		}
-	}()
+	r.queue = queue
 	return nil
 }
 
-func (r *RabbitMQ) Close() {
-	if r.Channel != nil {
-		r.Channel.Close()
+// bindQueue binds the queue to the exchange
+func (r *RabbitMQ) bindQueue() error {
+	return r.channel.QueueBind(
+		r.queue.Name,        // queue name
+		r.config.RoutingKey, // routing key
+		r.config.Exchange,   // exchange
+		r.config.NoWait,     // no-wait
+		nil,                 // arguments
+	)
+}
+
+// Publish publishes a message to the exchange or directly to a queue
+func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
+	exchange := r.config.Exchange
+	routingKey := r.config.RoutingKey
+
+	// If no exchange is specified, publish directly to the queue
+	if exchange == "" {
+		exchange = ""
+		routingKey = r.queue.Name
 	}
-	if r.Conn != nil {
-		r.Conn.Close()
+
+	return r.channel.PublishWithContext(
+		ctx,
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+			Timestamp:   time.Now(),
+		},
+	)
+}
+
+// PublishJSON publishes a JSON message
+func (r *RabbitMQ) PublishJSON(ctx context.Context, message interface{}) error {
+	body, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
 	}
+	return r.Publish(ctx, body)
+}
+
+// Consume starts consuming messages from the queue
+func (r *RabbitMQ) Consume(ctx context.Context, handler MessageHandler) error {
+	msgs, err := r.channel.Consume(
+		r.queue.Name, // queue
+		"",           // consumer
+		true,         // auto-ack
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
+	)
+	if err != nil {
+		return fmt.Errorf("failed to register consumer: %w", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case msg := <-msgs:
+				if msg.Body != nil {
+					if err := handler(msg.Body); err != nil {
+						zap.L().Error("Failed to handle message", zap.Error(err))
+					}
+				}
+			case <-ctx.Done():
+				zap.L().Info("Consumer stopped due to context cancellation")
+				return
+			}
+		}
+	}()
+
+	zap.L().Info("Started consuming messages from queue", zap.String("queue", r.queue.Name))
+	return nil
+}
+
+// ConsumeWithManualAck starts consuming messages with manual acknowledgment
+func (r *RabbitMQ) ConsumeWithManualAck(ctx context.Context, handler func(amqp.Delivery) error) error {
+	msgs, err := r.channel.Consume(
+		r.queue.Name, // queue
+		"",           // consumer
+		false,        // auto-ack (disabled for manual ack)
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
+	)
+	if err != nil {
+		return fmt.Errorf("failed to register consumer: %w", err)
+	}
+
+	go func() {
+		for {
+			select {
+			case msg := <-msgs:
+				if msg.Body != nil {
+					if err := handler(msg); err != nil {
+						zap.L().Error("Failed to handle message", zap.Error(err))
+						// Reject message and requeue
+						msg.Nack(false, true)
+					} else {
+						// Acknowledge message
+						msg.Ack(false)
+					}
+				}
+			case <-ctx.Done():
+				zap.L().Info("Consumer stopped due to context cancellation")
+				return
+			}
+		}
+	}()
+
+	zap.L().Info("Started consuming messages from queue with manual ack", zap.String("queue", r.queue.Name))
+	return nil
+}
+
+// GetQueueInfo returns information about the queue
+func (r *RabbitMQ) GetQueueInfo() (int, int, error) {
+	queue, err := r.channel.QueueInspect(r.queue.Name)
+	if err != nil {
+		return 0, 0, err
+	}
+	return queue.Messages, queue.Consumers, nil
+}
+
+// PurgeQueue removes all messages from the queue
+func (r *RabbitMQ) PurgeQueue() (int, error) {
+	return r.channel.QueuePurge(r.queue.Name, false)
+}
+
+// Close closes the RabbitMQ connection
+func (r *RabbitMQ) Close() error {
+	var err error
+	if r.channel != nil {
+		if closeErr := r.channel.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}
+	if r.conn != nil {
+		if closeErr := r.conn.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}
+	return err
+}
+
+// IsConnected checks if the connection is still alive
+func (r *RabbitMQ) IsConnected() bool {
+	return r.conn != nil && !r.conn.IsClosed()
+}
+
+// GetConnection returns the underlying AMQP connection
+func (r *RabbitMQ) GetConnection() *amqp.Connection {
+	return r.conn
+}
+
+// GetChannel returns the underlying AMQP channel
+func (r *RabbitMQ) GetChannel() *amqp.Channel {
+	return r.channel
 }

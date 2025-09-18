@@ -1,18 +1,20 @@
+// Package presentation implements the API server and its components.
 package presentation
 
 import (
 	"context"
+	"core-backend/config"
+	"core-backend/internal/application/service"
+	"core-backend/internal/infrastructure"
+	"core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/persistence"
+	"core-backend/internal/presentation/handler"
+	"core-backend/internal/presentation/middleware"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"core-backend/config"
-	"core-backend/internal/application/service"
-	"core-backend/internal/infrastructure/gorm_repository"
-	"core-backend/internal/infrastructure/persistence"
-	"core-backend/internal/presentation/handler"
-	"core-backend/internal/presentation/middleware"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,45 +22,80 @@ import (
 )
 
 type APIServer struct {
-	router             *Router
-	handlerRegistry    *handler.HandlerRegistry
-	middlewareRegistry *middleware.MiddlewareRegistry
-	serviceRegistry    *service.ServiceRegistry
-	databaseRegistry   *gorm_repository.DatabaseRegistry
-	server             *http.Server
+	router                 *Router
+	handlerRegistry        *handler.HandlerRegistry
+	middlewareRegistry     *middleware.MiddlewareRegistry
+	serviceRegistry        *service.ServiceRegistry
+	databaseRegistry       *gorm_repository.DatabaseRegistry
+	infrastructureRegistry *infrastructure.InfrastructureRegistry
+	wsServer               *WebSocketServer
+	server                 *http.Server
+	ctx                    context.Context
+	cancel                 context.CancelFunc
 }
 
 func NewAPIServer() *APIServer {
 	db := persistence.InitDB()
 
+	// Create registries
 	databaseRegistry := gorm_repository.NewDatabaseRegistry(db)
-	serviceRegistry := service.NewServiceRegistry(databaseRegistry)
+	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db)
+	serviceRegistry := service.NewServiceRegistry(databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 
+	// Create WebSocket server
+	wsServer := NewWebSocketServer()
+
+	// Create context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &APIServer{
-		databaseRegistry:   databaseRegistry,
-		serviceRegistry:    serviceRegistry,
-		handlerRegistry:    handlerRegistry,
-		middlewareRegistry: middlewareRegistry,
-		router:             NewRouter(handlerRegistry, middlewareRegistry),
+		databaseRegistry:       databaseRegistry,
+		infrastructureRegistry: infrastructureRegistry,
+		serviceRegistry:        serviceRegistry,
+		handlerRegistry:        handlerRegistry,
+		middlewareRegistry:     middlewareRegistry,
+		wsServer:               wsServer,
+		router:                 NewRouter(handlerRegistry, middlewareRegistry),
+		ctx:                    ctx,
+		cancel:                 cancel,
 	}
 }
 
 func (s *APIServer) Start() error {
 	serverConfig := config.GetAppConfig().Server
-	if serverConfig.Environment == "production" {
+	wsConfig := config.GetAppConfig().WebSocket
+
+	switch serverConfig.Environment {
+	case "production":
 		gin.SetMode(gin.ReleaseMode)
-	} else if serverConfig.Environment == "development" {
+	case "development":
 		gin.SetMode(gin.DebugMode)
-	} else {
+	default:
 		panic("Invalid server environment, valid options are 'production' or 'development'")
+	}
+
+	// Start background services
+	zap.L().Info("Starting background services...")
+	s.infrastructureRegistry.StartBackgroundServices(s.ctx)
+
+	// Start WebSocket server if enabled
+	if wsConfig.Enabled {
+		zap.L().Info("Starting WebSocket server...")
+		s.wsServer.Start(s.ctx)
 	}
 
 	engine := gin.New()
 
+	// Setup routes
 	s.router.SetupRoutes(engine)
 	s.router.SetupV1Routes(engine)
+
+	// Setup WebSocket routes if enabled
+	if wsConfig.Enabled {
+		s.router.SetupWebSocketRoutes(engine, s.wsServer)
+	}
 
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", serverConfig.Port)
@@ -76,11 +113,11 @@ func (s *APIServer) Start() error {
 
 	// Start server in a goroutine
 	go func() {
-		zap.L().Info("Starting API server", 
+		zap.L().Info("Starting API server",
 			zap.String("address", addr),
 			zap.String("environment", serverConfig.Environment),
 		)
-		
+
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			zap.L().Fatal("Failed to start server", zap.Error(err))
 		}
@@ -90,12 +127,18 @@ func (s *APIServer) Start() error {
 	<-quit
 	zap.L().Info("Shutting down API server...")
 
-	// Create a deadline to wait for graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Cancel context to stop background services
+	s.cancel()
 
-	// Attempt graceful shutdown
-	if err := s.server.Shutdown(ctx); err != nil {
+	// Stop infrastructure services
+	s.infrastructureRegistry.StopServices()
+
+	// Create a deadline to wait for graceful shutdown
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	// Attempt graceful shutdown of HTTP server
+	if err := s.server.Shutdown(shutdownCtx); err != nil {
 		zap.L().Error("Server forced to shutdown", zap.Error(err))
 		return err
 	}
@@ -109,10 +152,16 @@ func (s *APIServer) Stop() error {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// Cancel context to stop background services
+	s.cancel()
+
+	// Stop infrastructure services
+	s.infrastructureRegistry.StopServices()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	return s.server.Shutdown(ctx)
+	return s.server.Shutdown(shutdownCtx)
 }
 
 func (s *APIServer) GetServer() *http.Server {

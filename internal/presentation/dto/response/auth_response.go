@@ -1,6 +1,10 @@
 package response
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type LoginResponse struct {
 	AccessToken  string   `json:"access_token"`
@@ -21,8 +25,8 @@ type UserInfo struct {
 type SessionInfo struct {
 	ID                uuid.UUID `json:"id"`
 	DeviceFingerprint string    `json:"device_fingerprint"`
-	CreatedAt         int64     `json:"created_at"`
-	LastUsedAt        int64     `json:"last_used_at"`
+	CreatedAt         *time.Time     `json:"created_at"`
+	LastUsedAt        *time.Time     `json:"last_used_at"`
 	IsActive          bool      `json:"is_active"`
 }
 

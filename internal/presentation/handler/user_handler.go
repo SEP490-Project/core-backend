@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"net/http"
-	"strconv"
 	"core-backend/internal/application/dto"
 	"core-backend/internal/application/service"
 	"core-backend/internal/presentation/dto/response"
+	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -90,19 +90,20 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var request dto.UpdateProfileRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err = c.ShouldBindJSON(&request); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	if err := h.validator.Struct(&request); err != nil {
+	if err = h.validator.Struct(&request); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	updatedUser, err := h.userService.UpdateProfile(userID, request.Username, request.Email)
+	var updatedUser *dto.UserResponse
+	updatedUser, err = h.userService.UpdateProfile(userID, request.Username, request.Email)
 	if err != nil {
 		response := response.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -244,13 +245,13 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	var request dto.UpdateUserStatusRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err = c.ShouldBindJSON(&request); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	if err := h.validator.Struct(&request); err != nil {
+	if err = h.validator.Struct(&request); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
@@ -297,13 +298,13 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	}
 
 	var request dto.UpdateUserRoleRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err = c.ShouldBindJSON(&request); err != nil {
 		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	if err := h.validator.Struct(&request); err != nil {
+	if err = h.validator.Struct(&request); err != nil {
 		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return

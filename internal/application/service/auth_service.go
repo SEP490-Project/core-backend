@@ -1,12 +1,12 @@
 package service
 
 import (
-	"errors"
 	"core-backend/config"
 	"core-backend/internal/application/dto"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/repository"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,7 +87,7 @@ func (s *AuthService) Login(request *dto.LoginRequest) (*dto.LoginResponse, erro
 
 	// Update user last login
 	now := time.Now()
-	user.LastLogin = now
+	user.LastLogin = &now
 	if err := s.userRepository.Update(user); err != nil {
 		zap.L().Warn("failed to update user last login", zap.Error(err))
 	}

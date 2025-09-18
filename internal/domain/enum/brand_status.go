@@ -1,8 +1,8 @@
 package enum
 
-type BrandStatus string 
+type BrandStatus string
 
 const (
-	BrandActive   BrandStatus = "ACTIVE"
-	BrandInactive BrandStatus = "INACTIVE"
+	BrandStatusActive   BrandStatus = "ACTIVE"
+	BrandStatusInactive BrandStatus = "INACTIVE"
 )
