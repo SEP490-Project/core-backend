@@ -1,8 +1,8 @@
 package gorm_repository
 
 import (
+	"core-backend/internal/application/repository"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/domain/repository"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -85,30 +85,30 @@ func (u *userRepository) GetByUsernameOrEmail(identifier string) (*model.User, e
 func (u *userRepository) GetByFilters(limit, offset int, search, role string, isActive *bool) ([]*model.User, int, error) {
 	var users []*model.User
 	var total int64
-	
+
 	query := u.db.Model(&model.User{})
-	
+
 	// Apply filters
 	if search != "" {
 		query = query.Where("username ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
 	}
-	
+
 	if role != "" {
 		query = query.Where("role = ?", role)
 	}
-	
+
 	if isActive != nil {
 		query = query.Where("is_active = ?", *isActive)
 	}
-	
+
 	// Get total count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Apply pagination and get results
 	err := query.Limit(limit).Offset(offset).Find(&users).Error
-	
+
 	return users, int(total), err
 }
 

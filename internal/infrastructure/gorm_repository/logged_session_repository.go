@@ -1,8 +1,8 @@
 package gorm_repository
 
 import (
+	"core-backend/internal/application/repository"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/domain/repository"
 	"time"
 
 	"github.com/google/uuid"

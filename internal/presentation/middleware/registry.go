@@ -2,7 +2,7 @@
 package middleware
 
 import (
-	"core-backend/internal/application/service"
+	"core-backend/internal/infrastructure"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +16,7 @@ type MiddlewareRegistry struct {
 	Auth      *AuthMiddleware
 }
 
-func NewMiddlewareRegistry(serviceRegistry *service.ServiceRegistry) *MiddlewareRegistry {
+func NewMiddlewareRegistry(serviceRegistry *infrastructure.ServiceRegistry) *MiddlewareRegistry {
 	return &MiddlewareRegistry{
 		Recovery:  NewReocoveryMiddleware(),
 		Timeout:   NewTimeoutMiddleware(),

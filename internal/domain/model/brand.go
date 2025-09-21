@@ -16,6 +16,9 @@ type Brand struct {
 	Website      string           `json:"website"`
 	Status       enum.BrandStatus `json:"status" gorm:"not null"`
 	LogoURL      string           `json:"logo_url"`
+
+	// Relationships
+	Products []Product `gorm:"foreignKey:BrandID;references:ID"`
 }
 
 func (b *Brand) BeforeCreate(tx *gorm.DB) error {
