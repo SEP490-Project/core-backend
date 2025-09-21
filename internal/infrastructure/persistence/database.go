@@ -2,9 +2,8 @@
 package persistence
 
 import (
-	"fmt"
 	"core-backend/config"
-	"core-backend/internal/domain/model"
+	"fmt"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
@@ -28,14 +27,6 @@ func InitDB() *gorm.DB {
 
 	zap.L().Info("Database connected", zap.String("host", dbCfg.Host), zap.Int("port", dbCfg.Port), zap.String("dbname", dbCfg.DBName))
 
-	// Auto migrate all models
-	err = db.AutoMigrate(
-		&model.User{},
-		&model.LoggedSession{},
-		&model.Brand{},
-		&model.Contract{},
-		&model.Campaign{},
-	)
 	if err != nil {
 		zap.L().Panic("Failed to migrate database", zap.Error(err))
 	}

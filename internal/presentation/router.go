@@ -88,6 +88,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
+		// Product routes
+		productHandler := r.handlerRegistry.ProductHandler
+		v1.GET("/products", productHandler.GetAllProducts)
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 }
