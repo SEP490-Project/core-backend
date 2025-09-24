@@ -1,0 +1,48 @@
+package enum
+
+import (
+	"database/sql/driver"
+	"fmt"
+)
+
+type PreOrderStatus string
+
+const (
+	PreOrderStatusPending         PreOrderStatus = "PENDING"
+	PreOrderStatusPreOrdered      PreOrderStatus = "PRE_ORDERED"
+	PreOrderStatusAwaitingRelease PreOrderStatus = "AWAITING_RELEASE"
+	PreOrderStatusAwaitingPickup  PreOrderStatus = "AWAITING_PICKUP"
+	PreOrderStatusConfirmed       PreOrderStatus = "CONFIRMED"
+	PreOrderStatusCancelled       PreOrderStatus = "CANCELLED"
+	PreOrderStatusInTransit       PreOrderStatus = "IN_TRANSIT"
+	PreOrderStatusDelivered       PreOrderStatus = "DELIVERED"
+	PreOrderStatusReceived        PreOrderStatus = "RECEIVED"
+)
+
+func (pos PreOrderStatus) IsValid() bool {
+	switch pos {
+	case PreOrderStatusPending, PreOrderStatusPreOrdered, PreOrderStatusAwaitingRelease, PreOrderStatusAwaitingPickup, PreOrderStatusConfirmed, PreOrderStatusCancelled, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived:
+		return true
+	}
+	return false
+}
+
+func (pos *PreOrderStatus) Scan(value any) error {
+	s, ok := value.([]byte)
+	if !ok {
+		// It might also be a string
+		str, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("failed to scan PreOrderStatus: invalid type %T", value)
+		}
+		s = []byte(str)
+	}
+
+	// Convert the byte slice to our type.
+	*pos = PreOrderStatus(s)
+	return nil
+}
+
+func (pos PreOrderStatus) Value() (driver.Value, error) {
+	return string(pos), nil
+}
