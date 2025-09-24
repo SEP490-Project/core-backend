@@ -2,31 +2,37 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Brand struct {
-	ID           uuid.UUID        `json:"id" gorm:"primaryKey"`
-	Name         string           `json:"name" gorm:"not null;unique"`
-	Description  string           `json:"description"`
-	ContactEmail string           `json:"contact_email"`
-	ContactPhone string           `json:"contact_phone"`
-	Website      string           `json:"website"`
-	Status       enum.BrandStatus `json:"status" gorm:"not null"`
-	LogoURL      string           `json:"logo_url"`
+	ID           uuid.UUID        `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	UserID       *uuid.UUID       `json:"user_id" gorm:"type:uuid;column:user_id"`
+	Name         string           `json:"name" gorm:"type:varchar(255);column:name;not null"`
+	Description  *string          `json:"description" gorm:"type:text;column:description"`
+	ContactEmail string           `json:"contact_email" gorm:"type:varchar(255);column:contact_email;not null"`
+	ContactPhone string           `json:"contact_phone" gorm:"type:varchar(20);column:contact_phone"`
+	Website      *string          `json:"website" gorm:"type:varchar(255);column:website"`
+	Status       enum.BrandStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('ACTIVE','INACTIVE')"`
+	LogoURL      *string          `json:"logo_url" gorm:"type:text;column:logo_url"`
+	CreatedAt    time.Time        `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt    time.Time        `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt    gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Products []Product `gorm:"foreignKey:BrandID;references:ID"`
+	Products []Product `json:"-" gorm:"foreignKey:BrandID"`
+	User     *User     `json:"-" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (b *Brand) BeforeCreate(tx *gorm.DB) error {
-	if b.Status == "" {
-		b.Status = enum.BrandStatusActive
-	}
 	if b.ID == uuid.Nil {
 		b.ID = uuid.New()
+	}
+	if b.Status == "" {
+		b.Status = enum.BrandStatusActive
 	}
 
 	return nil
