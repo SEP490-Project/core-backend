@@ -3,6 +3,10 @@ package responses
 
 import "net/http"
 
+const (
+	TimeFormat = "2006-01-02 15:04:05"
+)
+
 // APIResponse represents a standard API response structure.
 type APIResponse struct {
 	Success    bool   `json:"success"`
@@ -13,12 +17,12 @@ type APIResponse struct {
 }
 
 // PaginationResponse represents a paginated API response structure.
-type PaginationResponse struct {
+type PaginationResponse[T any] struct {
 	Success    bool       `json:"success"`
 	Status     string     `json:"status,omitempty"`
 	StatusCode int        `json:"status_code,omitempty"`
 	Message    string     `json:"message,omitempty"`
-	Data       any        `json:"data"`
+	Data       []T        `json:"data"`
 	Pagination Pagination `json:"pagination"`
 }
 
@@ -32,12 +36,16 @@ type Pagination struct {
 	HasPrev    bool  `json:"has_prev"`
 }
 
-// SuccessResponse creates a success API response.
-func SuccessResponse(message string, statusCode int, data any) *APIResponse {
+// SuccessResponse creates a success API response, defaulting to HTTP 200 OK if no status code is provided.
+func SuccessResponse(message string, statusCode *int, data any) *APIResponse {
+	if statusCode == nil {
+		statusCode = new(int)
+		*statusCode = http.StatusOK
+	}
 	return &APIResponse{
 		Success:    true,
-		Status:     http.StatusText(statusCode),
-		StatusCode: statusCode,
+		Status:     http.StatusText(*statusCode),
+		StatusCode: *statusCode,
 		Message:    message,
 		Data:       data,
 	}
@@ -55,18 +63,46 @@ func ErrorResponse(message string, statusCode int) *APIResponse {
 }
 
 // PaginatedResponse creates a paginated API response.
-func PaginatedResponse(
+func PaginatedResponse[T any](
 	message string,
 	statusCode int,
-	data any,
+	data []T,
 	pagination Pagination,
-) *PaginationResponse {
-	return &PaginationResponse{
+) *PaginationResponse[T] {
+	return &PaginationResponse[T]{
 		Success:    true,
 		Status:     http.StatusText(statusCode),
 		StatusCode: statusCode,
 		Message:    message,
 		Data:       data,
 		Pagination: pagination,
+	}
+}
+
+func EmptyPaginationResponse[T any](
+	message string,
+	statusCode *int,
+	page int,
+	limit int,
+) *PaginationResponse[T] {
+	if statusCode == nil {
+		statusCode = new(int)
+		*statusCode = http.StatusNoContent
+	}
+
+	return &PaginationResponse[T]{
+		Success:    true,
+		Status:     http.StatusText(*statusCode),
+		StatusCode: *statusCode,
+		Message:    message,
+		Data:       []T{},
+		Pagination: Pagination{
+			Page:       page,
+			Limit:      limit,
+			Total:      0,
+			TotalPages: 0,
+			HasNext:    false,
+			HasPrev:    false,
+		},
 	}
 }
