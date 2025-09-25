@@ -1,16 +1,17 @@
-package gorm_repository
+// Package gormrepository provides GORM-based implementations of repositories.
+package gormrepository
 
 import (
-	"core-backend/internal/application/repository"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 
 	"gorm.io/gorm"
 )
 
 type DatabaseRegistry struct {
-	UserRepository          repository.UserRepository
-	LoggedSessionRepository repository.LoggedSessionRepository
-	ProductRepository       repository.GenericRepository[model.Product]
+	UserRepository          irepository.UserRepository
+	LoggedSessionRepository irepository.LoggedSessionRepository
+	ProductRepository       irepository.GenericRepository[model.Product]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {

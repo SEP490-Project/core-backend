@@ -1,7 +1,7 @@
-package gorm_repository
+package gormrepository
 
 import (
-	"core-backend/internal/application/repository"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 	"time"
 
@@ -77,6 +77,6 @@ func (l *loggedSessionRepository) CleanExpiredSessions() error {
 	return l.db.Where("expiry_at < ? OR is_revoked = ?", time.Now().Unix(), true).Delete(&model.LoggedSession{}).Error
 }
 
-func newLoggedSessionRepository(db *gorm.DB) repository.LoggedSessionRepository {
+func newLoggedSessionRepository(db *gorm.DB) irepository.LoggedSessionRepository {
 	return &loggedSessionRepository{db: db}
 }
