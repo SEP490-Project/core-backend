@@ -95,14 +95,14 @@ type OtelConfig struct {
 }
 
 type RabbitMQConfig struct {
-	URL         string `mapstructure:"url"`
-	Exchange    string `mapstructure:"exchange"`
-	Queue       string `mapstructure:"queue"`
-	RoutingKey  string `mapstructure:"routing_key"`
-	Durable     bool   `mapstructure:"durable"`
-	AutoDelete  bool   `mapstructure:"auto_delete"`
-	Exclusive   bool   `mapstructure:"exclusive"`
-	NoWait      bool   `mapstructure:"no_wait"`
+	URL        string `mapstructure:"url"`
+	Exchange   string `mapstructure:"exchange"`
+	Queue      string `mapstructure:"queue"`
+	RoutingKey string `mapstructure:"routing_key"`
+	Durable    bool   `mapstructure:"durable"`
+	AutoDelete bool   `mapstructure:"auto_delete"`
+	Exclusive  bool   `mapstructure:"exclusive"`
+	NoWait     bool   `mapstructure:"no_wait"`
 }
 
 type AsynqConfig struct {
@@ -114,11 +114,11 @@ type AsynqConfig struct {
 }
 
 type WebSocketConfig struct {
-	Enabled        bool     `mapstructure:"enabled"`
-	Endpoint       string   `mapstructure:"endpoint"`
-	AllowedOrigins []string `mapstructure:"allowed_origins"`
-	ReadBufferSize int      `mapstructure:"read_buffer_size"`
-	WriteBufferSize int     `mapstructure:"write_buffer_size"`
+	Enabled         bool     `mapstructure:"enabled"`
+	Endpoint        string   `mapstructure:"endpoint"`
+	AllowedOrigins  []string `mapstructure:"allowed_origins"`
+	ReadBufferSize  int      `mapstructure:"read_buffer_size"`
+	WriteBufferSize int      `mapstructure:"write_buffer_size"`
 }
 
 var (
