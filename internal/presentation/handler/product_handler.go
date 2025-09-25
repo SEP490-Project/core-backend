@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"core-backend/internal/application/service"
+	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
 	"strconv"
 
@@ -10,11 +10,11 @@ import (
 )
 
 type ProductHandler struct {
-	productService service.ProductService
+	productService iservice.ProductService
 	validator      *validator.Validate
 }
 
-func NewProductHandler(productService service.ProductService) *ProductHandler {
+func NewProductHandler(productService iservice.ProductService) *ProductHandler {
 	return &ProductHandler{
 		productService: productService,
 		validator:      nil,

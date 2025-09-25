@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"net/http"
+	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/infrastructure"
-	"core-backend/internal/presentation/dto/response"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,12 +24,12 @@ func NewHealthHandler(infrastructureRegistry *infrastructure.InfrastructureRegis
 // @Tags         Health
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} response.APIResponse "Service is healthy"
-// @Failure      503 {object} response.APIResponse "Service is unhealthy"
+// @Success      200 {object} responses.APIResponse "Service is healthy"
+// @Failure      503 {object} responses.APIResponse "Service is unhealthy"
 // @Router       /health [get]
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	healthStatus := h.infrastructureRegistry.IsHealthy()
-	
+
 	// Check if any critical service is down
 	allHealthy := true
 	for _, healthy := range healthStatus {
@@ -47,12 +47,12 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	healthData := map[string]interface{}{
+	healthData := map[string]any{
 		"status":   status,
 		"services": healthStatus,
 	}
 
-	response := response.SuccessResponse("Health check completed", statusCode, healthData)
+	response := responses.SuccessResponse("Health check completed", statusCode, healthData)
 	c.JSON(statusCode, response)
 }
 
@@ -62,12 +62,12 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 // @Tags         Health
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} response.APIResponse "Service is ready"
-// @Failure      503 {object} response.APIResponse "Service is not ready"
+// @Success      200 {object} responses.APIResponse "Service is ready"
+// @Failure      503 {object} responses.APIResponse "Service is not ready"
 // @Router       /health/ready [get]
 func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	healthStatus := h.infrastructureRegistry.IsHealthy()
-	
+
 	// For readiness, we only care about critical services like database
 	ready := healthStatus["database"]
 
@@ -79,12 +79,12 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 		statusCode = http.StatusServiceUnavailable
 	}
 
-	readinessData := map[string]interface{}{
+	readinessData := map[string]any{
 		"status":   status,
 		"database": healthStatus["database"],
 	}
 
-	response := response.SuccessResponse("Readiness check completed", statusCode, readinessData)
+	response := responses.SuccessResponse("Readiness check completed", statusCode, readinessData)
 	c.JSON(statusCode, response)
 }
 
@@ -94,15 +94,15 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 // @Tags         Health
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} response.APIResponse "Service is alive"
+// @Success      200 {object} responses.APIResponse "Service is alive"
 // @Router       /health/live [get]
 func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 	// Simple liveness check - if we can respond, we're alive
-	livenessData := map[string]interface{}{
+	livenessData := map[string]any{
 		"status": "alive",
 		"uptime": "running", // You could calculate actual uptime here
 	}
 
-	response := response.SuccessResponse("Liveness check completed", http.StatusOK, livenessData)
+	response := responses.SuccessResponse("Liveness check completed", http.StatusOK, livenessData)
 	c.JSON(http.StatusOK, response)
 }

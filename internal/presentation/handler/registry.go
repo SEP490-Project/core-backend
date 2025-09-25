@@ -2,23 +2,23 @@
 package handler
 
 import (
-	"core-backend/internal/infrastructure"
+	"core-backend/internal/application"
 )
 
 type HandlerRegistry struct {
-	ServiceRegistry *infrastructure.ServiceRegistry
-	AuthHandler     *AuthHandler
-	UserHandler     *UserHandler
-	HealthHandler   *HealthHandler
-	ProductHandler  *ProductHandler
+	ApplicationRegistry *application.ApplicationRegistry
+	AuthHandler         *AuthHandler
+	UserHandler         *UserHandler
+	HealthHandler       *HealthHandler
+	ProductHandler      *ProductHandler
 }
 
-func NewHandlerRegistry(serviceRegistry *infrastructure.ServiceRegistry) *HandlerRegistry {
+func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
 	return &HandlerRegistry{
-		ServiceRegistry: serviceRegistry,
-		AuthHandler:     NewAuthHandler(serviceRegistry.AuthService),
-		UserHandler:     NewUserHandler(serviceRegistry.UserService),
-		HealthHandler:   NewHealthHandler(serviceRegistry.InfrastructureRegistry),
-		ProductHandler:  NewProductHandler(serviceRegistry.ProductService),
+		ApplicationRegistry: applicationReg,
+		AuthHandler:         NewAuthHandler(applicationReg.AuthService),
+		UserHandler:         NewUserHandler(applicationReg.UserService),
+		HealthHandler:       NewHealthHandler(applicationReg.InfrastructureRegistry),
+		ProductHandler:      NewProductHandler(applicationReg.ProductService),
 	}
 }
