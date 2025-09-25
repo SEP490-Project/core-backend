@@ -44,7 +44,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.LoginRequest"
+                            "$ref": "#/definitions/requests.LoginRequest"
                         }
                     }
                 ],
@@ -54,13 +54,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.LoginResponse"
+                                            "$ref": "#/definitions/responses.LoginResponse"
                                         }
                                     }
                                 }
@@ -70,13 +70,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Invalid credentials",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -102,12 +102,12 @@ const docTemplate = `{
                 "summary": "User Logout",
                 "parameters": [
                     {
-                        "description": "Logout request",
-                        "name": "request",
+                        "description": "Logout requests",
+                        "name": "requests",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.LogoutRequest"
+                            "$ref": "#/definitions/requests.LogoutRequest"
                         }
                     }
                 ],
@@ -117,13 +117,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.LogoutResponse"
+                                            "$ref": "#/definitions/responses.LogoutResponse"
                                         }
                                     }
                                 }
@@ -131,9 +131,9 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid requests",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -163,13 +163,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.LogoutResponse"
+                                            "$ref": "#/definitions/responses.LogoutResponse"
                                         }
                                     }
                                 }
@@ -179,13 +179,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -211,7 +211,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.RefreshTokenRequest"
+                            "$ref": "#/definitions/requests.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -221,13 +221,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.LoginResponse"
+                                            "$ref": "#/definitions/responses.LoginResponse"
                                         }
                                     }
                                 }
@@ -235,15 +235,15 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Invalid requests",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Invalid or expired refresh token",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -273,7 +273,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
@@ -281,7 +281,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/dto.SessionInfo"
+                                                "$ref": "#/definitions/responses.SessionInfo"
                                             }
                                         }
                                     }
@@ -292,13 +292,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -337,13 +337,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.LogoutResponse"
+                                            "$ref": "#/definitions/responses.LogoutResponse"
                                         }
                                     }
                                 }
@@ -353,13 +353,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid session ID",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -385,7 +385,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/request.SignUpRequest"
+                            "$ref": "#/definitions/requests.SignUpRequest"
                         }
                     }
                 ],
@@ -395,13 +395,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.SignUpResponse"
+                                            "$ref": "#/definitions/responses.SignUpResponse"
                                         }
                                     }
                                 }
@@ -411,13 +411,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
                         "description": "User already exists",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -481,13 +481,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.PaginationResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.UserListResponse"
+                                            "$ref": "#/definitions/responses.UserResponse"
                                         }
                                     }
                                 }
@@ -497,19 +497,19 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Admin access required",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -539,13 +539,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
+                                            "$ref": "#/definitions/responses.UserResponse"
                                         }
                                     }
                                 }
@@ -555,13 +555,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -590,7 +590,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateProfileRequest"
+                            "$ref": "#/definitions/requests.UpdateProfileRequest"
                         }
                     }
                 ],
@@ -600,13 +600,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
+                                            "$ref": "#/definitions/responses.UserResponse"
                                         }
                                     }
                                 }
@@ -616,19 +616,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
                         "description": "Username or email already exists",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -667,13 +667,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/response.APIResponse"
+                                    "$ref": "#/definitions/responses.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
+                                            "$ref": "#/definitions/responses.UserResponse"
                                         }
                                     }
                                 }
@@ -683,25 +683,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid user ID",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Admin access required",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -736,31 +736,31 @@ const docTemplate = `{
                     "200": {
                         "description": "User deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid user ID",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Admin access required",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -798,7 +798,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateUserRoleRequest"
+                            "$ref": "#/definitions/requests.UpdateUserRoleRequest"
                         }
                     }
                 ],
@@ -806,31 +806,31 @@ const docTemplate = `{
                     "200": {
                         "description": "User role updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Admin access required",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -868,7 +868,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdateUserStatusRequest"
+                            "$ref": "#/definitions/requests.UpdateUserStatusRequest"
                         }
                     }
                 ],
@@ -876,31 +876,31 @@ const docTemplate = `{
                     "200": {
                         "description": "User status updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "403": {
                         "description": "Forbidden - Admin access required",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -923,13 +923,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is healthy",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "503": {
                         "description": "Service is unhealthy",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -952,7 +952,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is alive",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -975,13 +975,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is ready",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "503": {
                         "description": "Service is not ready",
                         "schema": {
-                            "$ref": "#/definitions/response.APIResponse"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -989,7 +989,160 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.LoginResponse": {
+        "enum.UserRole": {
+            "type": "string",
+            "enum": [
+                "ADMIN",
+                "MARKETING_STAFF",
+                "CONTENT_STAFF",
+                "SALES_STAFF",
+                "CUSTOMER",
+                "BRAND_PARTNER"
+            ],
+            "x-enum-varnames": [
+                "UserRoleAdmin",
+                "UserRoleMarketingStaff",
+                "UserRoleContentStaff",
+                "UserRoleSalesStaff",
+                "UserRoleCustomer",
+                "UserRoleBrandPartner"
+            ]
+        },
+        "requests.LoginRequest": {
+            "type": "object",
+            "required": [
+                "login_identifier",
+                "password"
+            ],
+            "properties": {
+                "device_fingerprint": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "browser-fingerprint"
+                },
+                "login_identifier": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "password123"
+                }
+            }
+        },
+        "requests.LogoutRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.SignUpRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "example": "password123"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3,
+                    "example": "john_doe"
+                }
+            }
+        },
+        "requests.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "new_email@example.com"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3,
+                    "example": "new_username"
+                }
+            }
+        },
+        "requests.UpdateUserRoleRequest": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "ADMIN",
+                        "MARKETING_STAFF",
+                        "CONTENT_STAFF",
+                        "SALES_STAFF",
+                        "CUSTOMER",
+                        "BRAND_PARTNER"
+                    ],
+                    "example": "CUSTOMER"
+                }
+            }
+        },
+        "requests.UpdateUserStatusRequest": {
+            "type": "object",
+            "required": [
+                "is_active"
+            ],
+            "properties": {
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "responses.APIResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -1001,23 +1154,12 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string"
                 },
-                "token_type": {
-                    "type": "string"
-                },
                 "user": {
-                    "$ref": "#/definitions/dto.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfo"
                 }
             }
         },
-        "dto.LogoutRequest": {
-            "type": "object",
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.LogoutResponse": {
+        "responses.LogoutResponse": {
             "type": "object",
             "properties": {
                 "message": {
@@ -1025,7 +1167,51 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SessionInfo": {
+        "responses.Pagination": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.SessionInfo": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1048,62 +1234,18 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SignUpResponse": {
+        "responses.SignUpResponse": {
             "type": "object",
             "properties": {
                 "message": {
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/dto.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfo"
                 }
             }
         },
-        "dto.UpdateProfileRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "new_email@example.com"
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3,
-                    "example": "new_username"
-                }
-            }
-        },
-        "dto.UpdateUserRoleRequest": {
-            "type": "object",
-            "required": [
-                "role"
-            ],
-            "properties": {
-                "role": {
-                    "type": "string",
-                    "enum": [
-                        "admin",
-                        "user",
-                        "moderator"
-                    ],
-                    "example": "user"
-                }
-            }
-        },
-        "dto.UpdateUserStatusRequest": {
-            "type": "object",
-            "required": [
-                "is_active"
-            ],
-            "properties": {
-                "is_active": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "dto.UserInfo": {
+        "responses.UserInfo": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1123,42 +1265,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UserListResponse": {
-            "type": "object",
-            "properties": {
-                "has_next": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "has_prev": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "limit": {
-                    "type": "integer",
-                    "example": 10
-                },
-                "page": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "total": {
-                    "type": "integer",
-                    "example": 100
-                },
-                "total_pages": {
-                    "type": "integer",
-                    "example": 10
-                },
-                "users": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.UserResponse"
-                    }
-                }
-            }
-        },
-        "dto.UserResponse": {
+        "responses.UserResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -1182,7 +1289,11 @@ const docTemplate = `{
                     "example": "2023-01-01T00:00:00Z"
                 },
                 "role": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.UserRole"
+                        }
+                    ],
                     "example": "user"
                 },
                 "updated_at": {
@@ -1192,83 +1303,6 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
-                }
-            }
-        },
-        "request.LoginRequest": {
-            "type": "object",
-            "required": [
-                "login_identifier",
-                "password"
-            ],
-            "properties": {
-                "device_fingerprint": {
-                    "type": "string"
-                },
-                "login_identifier": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 8
-                },
-                "remember_me": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "request.RefreshTokenRequest": {
-            "type": "object",
-            "required": [
-                "refresh_token"
-            ],
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "request.SignUpRequest": {
-            "type": "object",
-            "required": [
-                "confirm_password",
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "confirm_password": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string",
-                    "minLength": 8
-                },
-                "username": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3
-                }
-            }
-        },
-        "response.APIResponse": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "status_code": {
-                    "type": "integer"
-                },
-                "success": {
-                    "type": "boolean"
                 }
             }
         }
@@ -1293,6 +1327,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "This is the core backend service for SEP490 project with authentication, user management, and business features.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {
