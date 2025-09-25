@@ -125,7 +125,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // @Param        search query string false "Search term for username or email"
 // @Param        role query string false "Filter by user role"
 // @Param        is_active query boolean false "Filter by active status"
-// @Success      200 {object} responses.PaginationResponse{data=responses.UserResponse} "Users retrieved successfully"
+// @Success      200 {object} responses.UserPaginationResponse "Users retrieved successfully"
 // @Failure      401 {object} responses.APIResponse "Unauthorized"
 // @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
 // @Failure      500 {object} responses.APIResponse "Internal server error"

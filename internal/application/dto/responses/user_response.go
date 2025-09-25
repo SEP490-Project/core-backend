@@ -33,3 +33,6 @@ func (ur *UserResponse) ToUserResponse(model *model.User) *UserResponse {
 	}
 }
 
+// UserPaginationResponse represents a paginated response for users.
+// Only used for Swaggo swagger docs generation
+type UserPaginationResponse PaginationResponse[UserResponse]
