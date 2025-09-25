@@ -54,7 +54,13 @@ type ReportGenerationPayload struct {
 }
 
 func NewAsynqClient() *AsynqClient {
+	zap.L().Info("Initializing Asynq client")
+	
 	cfg := config.GetAppConfig().Asynq
+	zap.L().Debug("Asynq client configuration loaded",
+		zap.String("redis_addr", cfg.RedisAddr),
+		zap.Int("redis_db", cfg.RedisDB))
+		
 	client := asynq.NewClient(asynq.RedisClientOpt{
 		Addr:     cfg.RedisAddr,
 		DB:       cfg.RedisDB,
@@ -69,7 +75,15 @@ func NewAsynqClient() *AsynqClient {
 }
 
 func NewAsynqServer() *AsynqServer {
+	zap.L().Info("Initializing Asynq server")
+	
 	cfg := config.GetAppConfig().Asynq
+	zap.L().Debug("Asynq server configuration loaded",
+		zap.String("redis_addr", cfg.RedisAddr),
+		zap.Int("redis_db", cfg.RedisDB),
+		zap.Int("concurrency", cfg.Concurrency),
+		zap.Any("queues", cfg.Queues))
+		
 	server := asynq.NewServer(
 		asynq.RedisClientOpt{
 			Addr:     cfg.RedisAddr,
@@ -90,6 +104,7 @@ func NewAsynqServer() *AsynqServer {
 	}
 
 	// Register task handlers
+	zap.L().Debug("Registering Asynq task handlers")
 	asynqServer.registerHandlers()
 
 	zap.L().Info("Asynq server created successfully",
@@ -102,8 +117,16 @@ func NewAsynqServer() *AsynqServer {
 
 // EnqueueEmailNotification enqueues an email notification task
 func (c *AsynqClient) EnqueueEmailNotification(payload EmailNotificationPayload, delay time.Duration) (*asynq.TaskInfo, error) {
+	zap.L().Debug("Enqueuing email notification task",
+		zap.String("recipient", payload.To),
+		zap.String("subject", payload.Subject),
+		zap.Duration("delay", delay))
+		
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
+		zap.L().Error("Failed to marshal email notification payload",
+			zap.String("recipient", payload.To),
+			zap.Error(err))
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
@@ -117,7 +140,20 @@ func (c *AsynqClient) EnqueueEmailNotification(payload EmailNotificationPayload,
 		opts = append(opts, asynq.ProcessIn(delay))
 	}
 
-	return c.client.Enqueue(task, opts...)
+	taskInfo, err := c.client.Enqueue(task, opts...)
+	if err != nil {
+		zap.L().Error("Failed to enqueue email notification task",
+			zap.String("recipient", payload.To),
+			zap.Error(err))
+		return nil, err
+	}
+	
+	zap.L().Info("Email notification task enqueued successfully",
+		zap.String("task_id", taskInfo.ID),
+		zap.String("recipient", payload.To),
+		zap.String("queue", taskInfo.Queue))
+	
+	return taskInfo, nil
 }
 
 // EnqueueFileCleanup enqueues a file cleanup task
