@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"core-backend/internal/application/dto"
-	"core-backend/internal/application/service"
-	"core-backend/internal/presentation/dto/response"
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
 	"strconv"
 
@@ -13,11 +13,11 @@ import (
 )
 
 type UserHandler struct {
-	userService *service.UserService
+	userService iservice.UserService
 	validator   *validator.Validate
 }
 
-func NewUserHandler(userService *service.UserService) *UserHandler {
+func NewUserHandler(userService iservice.UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 		validator:   validator.New(),
@@ -30,34 +30,34 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} response.APIResponse{data=dto.UserResponse} "Profile retrieved successfully"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      404 {object} response.APIResponse "User not found"
+// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "Profile retrieved successfully"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      404 {object} responses.APIResponse "User not found"
 // @Security     BearerAuth
 // @Router       /api/v1/users/profile [get]
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
-		response := response.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
+		response := responses.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	user, err := h.userService.GetUserByID(userID)
 	if err != nil {
-		response := response.ErrorResponse("Failed to get user profile: "+err.Error(), http.StatusNotFound)
+		response := responses.ErrorResponse("Failed to get user profile: "+err.Error(), http.StatusNotFound)
 		c.JSON(http.StatusNotFound, response)
 		return
 	}
 
-	response := response.SuccessResponse("Profile retrieved successfully", http.StatusOK, user)
+	response := responses.SuccessResponse("Profile retrieved successfully", http.StatusOK, user)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -67,50 +67,50 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.UpdateProfileRequest true "Profile update data"
-// @Success      200 {object} response.APIResponse{data=dto.UserResponse} "Profile updated successfully"
-// @Failure      400 {object} response.APIResponse "Invalid request"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      409 {object} response.APIResponse "Username or email already exists"
+// @Param        request body requests.UpdateProfileRequest true "Profile update data"
+// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "Profile updated successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid request"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      409 {object} responses.APIResponse "Username or email already exists"
 // @Security     BearerAuth
 // @Router       /api/v1/users/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
-		response := response.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
+		response := responses.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr.(string))
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	var request dto.UpdateProfileRequest
+	var request requests.UpdateProfileRequest
 	if err = c.ShouldBindJSON(&request); err != nil {
-		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	if err = h.validator.Struct(&request); err != nil {
-		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	var updatedUser *dto.UserResponse
+	var updatedUser *responses.UserResponse
 	updatedUser, err = h.userService.UpdateProfile(userID, request.Username, request.Email)
 	if err != nil {
-		response := response.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
+		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
 		return
 	}
 
-	response := response.SuccessResponse("Profile updated successfully", http.StatusOK, updatedUser)
+	response := responses.SuccessResponse("Profile updated successfully", http.StatusOK, updatedUser)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -125,10 +125,10 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // @Param        search query string false "Search term for username or email"
 // @Param        role query string false "Filter by user role"
 // @Param        is_active query boolean false "Filter by active status"
-// @Success      200 {object} response.APIResponse{data=dto.UserListResponse} "Users retrieved successfully"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      403 {object} response.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} response.APIResponse "Internal server error"
+// @Success      200 {object} responses.PaginationResponse{data=responses.UserResponse} "Users retrieved successfully"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      500 {object} responses.APIResponse "Internal server error"
 // @Security     BearerAuth
 // @Router       /api/v1/users [get]
 func (h *UserHandler) GetUsers(c *gin.Context) {
@@ -162,7 +162,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 
 	users, total, err := h.userService.GetUsers(page, limit, search, role, isActive)
 	if err != nil {
-		response := response.ErrorResponse("Failed to get users: "+err.Error(), http.StatusInternalServerError)
+		response := responses.ErrorResponse("Failed to get users: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
@@ -172,17 +172,17 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	hasNext := page < totalPages
 	hasPrev := page > 1
 
-	paginationData := dto.UserListResponse{
-		Users:      users,
-		Total:      total,
+	pagination := responses.Pagination{
+		Total:      int64(total),
 		Page:       page,
 		Limit:      limit,
 		TotalPages: totalPages,
 		HasNext:    hasNext,
 		HasPrev:    hasPrev,
 	}
+	paginationData := responses.PaginatedResponse("Users retrieved successfully", http.StatusOK, users, pagination)
 
-	response := response.SuccessResponse("Users retrieved successfully", http.StatusOK, paginationData)
+	response := responses.SuccessResponse("Users retrieved successfully", http.StatusOK, paginationData)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -193,30 +193,30 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
-// @Success      200 {object} response.APIResponse{data=dto.UserResponse} "User retrieved successfully"
-// @Failure      400 {object} response.APIResponse "Invalid user ID"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      403 {object} response.APIResponse "Forbidden - Admin access required"
-// @Failure      404 {object} response.APIResponse "User not found"
+// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "User retrieved successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid user ID"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      404 {object} responses.APIResponse "User not found"
 // @Security     BearerAuth
 // @Router       /api/v1/users/{id} [get]
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	user, err := h.userService.GetUserByID(userID)
 	if err != nil {
-		response := response.ErrorResponse("User not found: "+err.Error(), http.StatusNotFound)
+		response := responses.ErrorResponse("User not found: "+err.Error(), http.StatusNotFound)
 		c.JSON(http.StatusNotFound, response)
 		return
 	}
 
-	response := response.SuccessResponse("User retrieved successfully", http.StatusOK, user)
+	response := responses.SuccessResponse("User retrieved successfully", http.StatusOK, user)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -227,39 +227,39 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
-// @Param        request body dto.UpdateUserStatusRequest true "Status update data"
-// @Success      200 {object} response.APIResponse "User status updated successfully"
-// @Failure      400 {object} response.APIResponse "Invalid request"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      403 {object} response.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} response.APIResponse "Internal server error"
+// @Param        request body requests.UpdateUserStatusRequest true "Status update data"
+// @Success      200 {object} responses.APIResponse "User status updated successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid request"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      500 {object} responses.APIResponse "Internal server error"
 // @Security     BearerAuth
 // @Router       /api/v1/users/{id}/status [put]
 func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	var request dto.UpdateUserStatusRequest
+	var request requests.UpdateUserStatusRequest
 	if err = c.ShouldBindJSON(&request); err != nil {
-		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	if err = h.validator.Struct(&request); err != nil {
-		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	err = h.userService.UpdateUserStatus(userID, request.IsActive)
 	if err != nil {
-		response := response.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
+		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
@@ -269,7 +269,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		message = "User deactivated successfully"
 	}
 
-	response := response.SuccessResponse(message, http.StatusOK, nil)
+	response := responses.SuccessResponse(message, http.StatusOK, nil)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -280,44 +280,44 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
-// @Param        request body dto.UpdateUserRoleRequest true "Role update data"
-// @Success      200 {object} response.APIResponse "User role updated successfully"
-// @Failure      400 {object} response.APIResponse "Invalid request"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      403 {object} response.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} response.APIResponse "Internal server error"
+// @Param        request body requests.UpdateUserRoleRequest true "Role update data"
+// @Success      200 {object} responses.APIResponse "User role updated successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid request"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      500 {object} responses.APIResponse "Internal server error"
 // @Security     BearerAuth
 // @Router       /api/v1/users/{id}/role [put]
 func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	var request dto.UpdateUserRoleRequest
+	var request requests.UpdateUserRoleRequest
 	if err = c.ShouldBindJSON(&request); err != nil {
-		response := response.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	if err = h.validator.Struct(&request); err != nil {
-		response := response.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	err = h.userService.UpdateUserRole(userID, request.Role)
 	if err != nil {
-		response := response.ErrorResponse("Failed to update user role: "+err.Error(), http.StatusInternalServerError)
+		response := responses.ErrorResponse("Failed to update user role: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	response := response.SuccessResponse("User role updated successfully", http.StatusOK, nil)
+	response := responses.SuccessResponse("User role updated successfully", http.StatusOK, nil)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -328,29 +328,29 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
-// @Success      200 {object} response.APIResponse "User deleted successfully"
-// @Failure      400 {object} response.APIResponse "Invalid user ID"
-// @Failure      401 {object} response.APIResponse "Unauthorized"
-// @Failure      403 {object} response.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} response.APIResponse "Internal server error"
+// @Success      200 {object} responses.APIResponse "User deleted successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid user ID"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      500 {object} responses.APIResponse "Internal server error"
 // @Security     BearerAuth
 // @Router       /api/v1/users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
 	if err != nil {
-		response := response.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	err = h.userService.DeleteUser(userID)
 	if err != nil {
-		response := response.ErrorResponse("Failed to delete user: "+err.Error(), http.StatusInternalServerError)
+		response := responses.ErrorResponse("Failed to delete user: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	response := response.SuccessResponse("User deleted successfully", http.StatusOK, nil)
+	response := responses.SuccessResponse("User deleted successfully", http.StatusOK, nil)
 	c.JSON(http.StatusOK, response)
 }

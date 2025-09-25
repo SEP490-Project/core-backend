@@ -1,6 +1,9 @@
 package service
 
 import (
+	"core-backend/config"
+	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/model"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -10,11 +13,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"core-backend/config"
-	"core-backend/internal/domain/model"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.uber.org/zap"
 )
 
 type JWTService struct {
@@ -22,7 +24,7 @@ type JWTService struct {
 	privateKey *rsa.PrivateKey
 }
 
-func NewJwtService() *JWTService {
+func NewJwtService() iservice.JWTService {
 	jwtConfig := config.GetAppConfig().JWT
 
 	if jwtConfig.GetPublicKey() == nil || jwtConfig.GetPrivateKey() == nil {
@@ -96,25 +98,51 @@ func (s *JWTService) ValidateAccessToken(tokenString string) (*model.JWTClaims, 
 }
 
 func (s *JWTService) GenerateTokenPair(userID, username, email, role string) (accessToken, refreshToken string, err error) {
+	zap.L().Debug("Generating token pair for user",
+		zap.String("user_id", userID),
+		zap.String("username", username),
+		zap.String("email", email),
+		zap.String("role", string(role)))
+
 	// Generate access token (short-lived)
 	accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Minute)
 	if err != nil {
+		zap.L().Error("Failed to generate access token",
+			zap.String("user_id", userID),
+			zap.String("username", username),
+			zap.Error(err))
 		return "", "", fmt.Errorf("failed to generate access token: %w", err)
 	}
 
 	// Generate refresh token (long-lived)
 	refreshToken, err = s.GenerateRefreshToken()
 	if err != nil {
+		zap.L().Error("Failed to generate refresh token",
+			zap.String("user_id", userID),
+			zap.String("username", username),
+			zap.Error(err))
 		return "", "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
+
+	zap.L().Info("Successfully generated token pair for user",
+		zap.String("user_id", userID),
+		zap.String("username", username))
 
 	return accessToken, refreshToken, nil
 }
 
 func GenerateKeyPair(privateKeyPath, publicKeyPath string, keySize int) error {
+	zap.L().Info("Generating RSA key pair",
+		zap.String("private_key_path", privateKeyPath),
+		zap.String("public_key_path", publicKeyPath),
+		zap.Int("key_size", keySize))
+
 	// Generate private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
 	if err != nil {
+		zap.L().Error("Failed to generate RSA private key",
+			zap.Int("key_size", keySize),
+			zap.Error(err))
 		return fmt.Errorf("failed to generate private key: %w", err)
 	}
 
@@ -127,17 +155,28 @@ func GenerateKeyPair(privateKeyPath, publicKeyPath string, keySize int) error {
 
 	privateKeyFile, err := os.Create(privateKeyPath)
 	if err != nil {
+		zap.L().Error("Failed to create private key file",
+			zap.String("private_key_path", privateKeyPath),
+			zap.Error(err))
 		return fmt.Errorf("failed to create private key file: %w", err)
 	}
 	defer privateKeyFile.Close()
 
 	if err = pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
+		zap.L().Error("Failed to write private key to file",
+			zap.String("private_key_path", privateKeyPath),
+			zap.Error(err))
 		return fmt.Errorf("failed to write private key: %w", err)
 	}
+
+	zap.L().Debug("Successfully saved private key",
+		zap.String("private_key_path", privateKeyPath))
 
 	// Save public key
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
 	if err != nil {
+		zap.L().Error("Failed to marshal public key",
+			zap.Error(err))
 		return fmt.Errorf("failed to marshal public key: %w", err)
 	}
 
@@ -148,13 +187,24 @@ func GenerateKeyPair(privateKeyPath, publicKeyPath string, keySize int) error {
 
 	publicKeyFile, err := os.Create(publicKeyPath)
 	if err != nil {
+		zap.L().Error("Failed to create public key file",
+			zap.String("public_key_path", publicKeyPath),
+			zap.Error(err))
 		return fmt.Errorf("failed to create public key file: %w", err)
 	}
 	defer publicKeyFile.Close()
 
 	if err := pem.Encode(publicKeyFile, publicKeyPEM); err != nil {
+		zap.L().Error("Failed to write public key to file",
+			zap.String("public_key_path", publicKeyPath),
+			zap.Error(err))
 		return fmt.Errorf("failed to write public key: %w", err)
 	}
+
+	zap.L().Info("Successfully generated and saved RSA key pair",
+		zap.String("private_key_path", privateKeyPath),
+		zap.String("public_key_path", publicKeyPath),
+		zap.Int("key_size", keySize))
 
 	return nil
 }
