@@ -4,6 +4,7 @@ package presentation
 import (
 	"context"
 	"core-backend/config"
+	"core-backend/internal/application"
 	"core-backend/internal/infrastructure"
 	"core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
@@ -24,8 +25,8 @@ type APIServer struct {
 	router                 *Router
 	handlerRegistry        *handler.HandlerRegistry
 	middlewareRegistry     *middleware.MiddlewareRegistry
-	serviceRegistry        *infrastructure.ServiceRegistry
-	databaseRegistry       *gorm_repository.DatabaseRegistry
+	serviceRegistry        *application.ApplicationRegistry
+	databaseRegistry       *gormrepository.DatabaseRegistry
 	infrastructureRegistry *infrastructure.InfrastructureRegistry
 	wsServer               *WebSocketServer
 	server                 *http.Server
@@ -37,9 +38,9 @@ func NewAPIServer() *APIServer {
 	db := persistence.InitDB()
 
 	// Create registries
-	databaseRegistry := gorm_repository.NewDatabaseRegistry(db)
+	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
 	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db)
-	serviceRegistry := infrastructure.NewServiceRegistry(databaseRegistry, infrastructureRegistry)
+	serviceRegistry := application.NewApplicationRegistry(databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 
