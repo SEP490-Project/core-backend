@@ -1,4 +1,4 @@
-package repository
+package irepository
 
 import (
 	"core-backend/internal/domain/model"

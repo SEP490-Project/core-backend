@@ -1,20 +1,24 @@
 // Package handler implements HTTP handlers for the application.
 package handler
 
-import "core-backend/internal/application/service"
+import (
+	"core-backend/internal/application"
+)
 
 type HandlerRegistry struct {
-	ServiceRegistry *service.ServiceRegistry
-	AuthHandler     *AuthHandler
-	UserHandler     *UserHandler
-	HealthHandler   *HealthHandler
+	ApplicationRegistry *application.ApplicationRegistry
+	AuthHandler         *AuthHandler
+	UserHandler         *UserHandler
+	HealthHandler       *HealthHandler
+	ProductHandler      *ProductHandler
 }
 
-func NewHandlerRegistry(serviceRegistry *service.ServiceRegistry) *HandlerRegistry {
+func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
 	return &HandlerRegistry{
-		ServiceRegistry: serviceRegistry,
-		AuthHandler:     NewAuthHandler(serviceRegistry.AuthService),
-		UserHandler:     NewUserHandler(serviceRegistry.UserService),
-		HealthHandler:   NewHealthHandler(serviceRegistry.InfrastructureRegistry),
+		ApplicationRegistry: applicationReg,
+		AuthHandler:         NewAuthHandler(applicationReg.AuthService),
+		UserHandler:         NewUserHandler(applicationReg.UserService),
+		HealthHandler:       NewHealthHandler(applicationReg.InfrastructureRegistry),
+		ProductHandler:      NewProductHandler(applicationReg.ProductService),
 	}
 }
