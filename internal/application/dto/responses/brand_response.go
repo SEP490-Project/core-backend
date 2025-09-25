@@ -2,6 +2,8 @@ package responses
 
 import "core-backend/internal/domain/model"
 
+
+// BrandResponse represents the response structure for a brand.
 type BrandResponse struct {
 	ID           string  `json:"id"`
 	Name         string  `json:"name"`
@@ -14,6 +16,7 @@ type BrandResponse struct {
 	CreatedAt    string  `json:"created_at"`
 }
 
+// ToBrandResponse converts a Brand model to a BrandResponse DTO.
 func (br BrandResponse) ToBrandResponse(model *model.Brand) *BrandResponse {
 	br.ID = model.ID.String()
 	br.Name = model.Name
@@ -27,3 +30,7 @@ func (br BrandResponse) ToBrandResponse(model *model.Brand) *BrandResponse {
 
 	return &br
 }
+
+// BrandPaginationResponse represents a paginated response for brands.
+// Only used for Swaggo swagger docs generation
+type BrandPaginationResponse PaginationResponse[BrandResponse]

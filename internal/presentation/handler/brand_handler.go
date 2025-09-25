@@ -102,7 +102,7 @@ func (bh *BrandHandler) GetBrandByID(c *gin.Context) {
 // @Param        limit query int false "Items per page" default(10)
 // @Param        keywords query string false "Search keywords for brand name"
 // @Param        status query string false "Filter by brand status" Enums(ACTIVE, INACTIVE)
-// @Success      200 {object} responses.PaginationResponse{data=[]responses.BrandResponse} "Brands fetched successfully"
+// @Success      200 {object} responses.BrandPaginationResponse "Brands fetched successfully"
 // @Failure      400 {object} responses.APIResponse "Invalid request"
 // @Failure      500 {object} responses.APIResponse "Internal server error"
 // @Security     BearerAuth
