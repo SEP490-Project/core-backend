@@ -12,11 +12,12 @@ type genericRepository[T any] struct {
 	db *gorm.DB
 }
 
+// NewGenericRepository creates a new instance of genericRepository for the specified entity type T.
 func NewGenericRepository[T any](db *gorm.DB) irepository.GenericRepository[T] {
 	return &genericRepository[T]{db: db}
 }
 
-// GetAll với filter + include + paging
+// GetAll retrieves all entities from the database based on the given filter, includes, and pagination parameters.
 func (r *genericRepository[T]) GetAll(ctx context.Context, filter func(*gorm.DB) *gorm.DB, includes []string, pageSize, pageNumber int) ([]T, int64, error) {
 	var items []T
 	var total int64
@@ -52,7 +53,7 @@ func (r *genericRepository[T]) GetAll(ctx context.Context, filter func(*gorm.DB)
 	return items, total, nil
 }
 
-// GetByCondition
+// GetByCondition gets an entity from the database based on the given filter and includes.
 func (r *genericRepository[T]) GetByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB, includes []string, noTracking bool) (*T, error) {
 	var item T
 
@@ -77,17 +78,17 @@ func (r *genericRepository[T]) GetByCondition(ctx context.Context, filter func(*
 	return &item, nil
 }
 
-// Add
+// Add adds a new entity to the database.
 func (r *genericRepository[T]) Add(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Create(entity).Error
 }
 
-// Update
+// Update updates an existing entity in the database.
 func (r *genericRepository[T]) Update(ctx context.Context, entity *T) error {
-	return r.db.WithContext(ctx).Save(entity).Error
+	return r.db.WithContext(ctx).Updates(entity).Error
 }
 
-// Delete
+// Delete deletes an entity from the database.
 func (r *genericRepository[T]) Delete(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Delete(entity).Error
 }

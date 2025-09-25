@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,22 +50,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Convert to application DTO
-	appLoginRequest := &requests.LoginRequest{
-		LoginIdentifier:   loginRequest.LoginIdentifier,
-		Password:          loginRequest.Password,
-		DeviceFingerprint: loginRequest.DeviceFingerprint,
-	}
-
 	// Call auth service
-	loginResponse, err := h.authService.Login(appLoginRequest)
+	loginResponse, err := h.authService.Login(&loginRequest)
 	if err != nil {
 		response := responses.ErrorResponse("Login failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
-	response := responses.SuccessResponse("Login successful", http.StatusOK, loginResponse)
+	response := responses.SuccessResponse("Login successful", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -109,7 +103,9 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("User created successfully", http.StatusCreated, signUpResponse)
+	// response := responses.SuccessResponse("User created successfully", *(http.StatusCreated, signUpResponse)
+	// StatusCreated
+	response := responses.SuccessResponse("User created successfully", utils.IntPtr(http.StatusCreated), signUpResponse)
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -152,7 +148,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Token refreshed successfully", http.StatusOK, loginResponse)
+	response := responses.SuccessResponse("Token refreshed successfully", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -183,7 +179,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Logout successful", http.StatusOK, logoutResponse)
+	response := responses.SuccessResponse("Logout successful", nil, logoutResponse)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -221,7 +217,7 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("All sessions logged out successfully", http.StatusOK, logoutResponse)
+	response := responses.SuccessResponse("All sessions logged out successfully", nil, logoutResponse)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -259,7 +255,7 @@ func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Active sessions retrieved successfully", http.StatusOK, sessions)
+	response := responses.SuccessResponse("Active sessions retrieved successfully", nil, sessions)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -292,6 +288,6 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Session revoked successfully", http.StatusOK, logoutResponse)
+	response := responses.SuccessResponse("Session revoked successfully", nil, logoutResponse)
 	c.JSON(http.StatusOK, response)
 }
