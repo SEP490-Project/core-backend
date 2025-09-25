@@ -57,7 +57,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Profile retrieved successfully", http.StatusOK, user)
+	response := responses.SuccessResponse("Profile retrieved successfully", nil, user)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -110,7 +110,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("Profile updated successfully", http.StatusOK, updatedUser)
+	response := responses.SuccessResponse("Profile updated successfully", nil, updatedUser)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -182,7 +182,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	}
 	paginationData := responses.PaginatedResponse("Users retrieved successfully", http.StatusOK, users, pagination)
 
-	response := responses.SuccessResponse("Users retrieved successfully", http.StatusOK, paginationData)
+	response := responses.SuccessResponse("Users retrieved successfully", nil, paginationData)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -216,7 +216,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("User retrieved successfully", http.StatusOK, user)
+	response := responses.SuccessResponse("User retrieved successfully", nil, user)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -269,7 +269,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		message = "User deactivated successfully"
 	}
 
-	response := responses.SuccessResponse(message, http.StatusOK, nil)
+	response := responses.SuccessResponse(message, nil, nil)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -317,7 +317,7 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("User role updated successfully", http.StatusOK, nil)
+	response := responses.SuccessResponse("User role updated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -351,6 +351,6 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	response := responses.SuccessResponse("User deleted successfully", http.StatusOK, nil)
+	response := responses.SuccessResponse("User deleted successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }

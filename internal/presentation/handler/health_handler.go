@@ -52,7 +52,7 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 		"services": healthStatus,
 	}
 
-	response := responses.SuccessResponse("Health check completed", statusCode, healthData)
+	response := responses.SuccessResponse("Health check completed", &statusCode, healthData)
 	c.JSON(statusCode, response)
 }
 
@@ -84,7 +84,7 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 		"database": healthStatus["database"],
 	}
 
-	response := responses.SuccessResponse("Readiness check completed", statusCode, readinessData)
+	response := responses.SuccessResponse("Readiness check completed", &statusCode, readinessData)
 	c.JSON(statusCode, response)
 }
 
@@ -103,6 +103,6 @@ func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 		"uptime": "running", // You could calculate actual uptime here
 	}
 
-	response := responses.SuccessResponse("Liveness check completed", http.StatusOK, livenessData)
+	response := responses.SuccessResponse("Liveness check completed", nil, livenessData)
 	c.JSON(http.StatusOK, response)
 }
