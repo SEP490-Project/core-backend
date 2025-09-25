@@ -22,17 +22,30 @@ type RabbitMQ struct {
 type MessageHandler func([]byte) error
 
 func NewRabbitMQ() (*RabbitMQ, error) {
+	zap.L().Info("Initializing RabbitMQ connection")
+	
 	cfg := config.GetAppConfig().RabbitMQ
+	zap.L().Debug("RabbitMQ configuration loaded",
+		zap.String("url", cfg.URL),
+		zap.String("exchange", cfg.Exchange),
+		zap.String("queue", cfg.Queue),
+		zap.String("routing_key", cfg.RoutingKey))
 
 	// Connect to RabbitMQ
+	zap.L().Debug("Attempting to connect to RabbitMQ server")
 	conn, err := amqp.Dial(cfg.URL)
 	if err != nil {
+		zap.L().Error("Failed to connect to RabbitMQ",
+			zap.String("url", cfg.URL),
+			zap.Error(err))
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
 	}
 
 	// Create a channel
+	zap.L().Debug("Creating RabbitMQ channel")
 	channel, err := conn.Channel()
 	if err != nil {
+		zap.L().Error("Failed to open RabbitMQ channel", zap.Error(err))
 		conn.Close()
 		return nil, fmt.Errorf("failed to open channel: %w", err)
 	}
@@ -46,27 +59,49 @@ func NewRabbitMQ() (*RabbitMQ, error) {
 
 	// Declare exchange if specified
 	if cfg.Exchange != "" {
+		zap.L().Debug("Declaring RabbitMQ exchange", zap.String("exchange", cfg.Exchange))
 		err = rabbitmq.declareExchange()
 		if err != nil {
+			zap.L().Error("Failed to declare RabbitMQ exchange",
+				zap.String("exchange", cfg.Exchange),
+				zap.Error(err))
 			rabbitmq.Close()
 			return nil, fmt.Errorf("failed to declare exchange: %w", err)
 		}
+		zap.L().Debug("RabbitMQ exchange declared successfully", zap.String("exchange", cfg.Exchange))
 	}
 
 	// Declare queue
+	zap.L().Debug("Declaring RabbitMQ queue", zap.String("queue", cfg.Queue))
 	err = rabbitmq.declareQueue()
 	if err != nil {
+		zap.L().Error("Failed to declare RabbitMQ queue",
+			zap.String("queue", cfg.Queue),
+			zap.Error(err))
 		rabbitmq.Close()
 		return nil, fmt.Errorf("failed to declare queue: %w", err)
 	}
+	zap.L().Debug("RabbitMQ queue declared successfully", zap.String("queue", cfg.Queue))
 
 	// Bind queue to exchange if both are specified
 	if cfg.Exchange != "" && cfg.RoutingKey != "" {
+		zap.L().Debug("Binding queue to exchange",
+			zap.String("queue", cfg.Queue),
+			zap.String("exchange", cfg.Exchange),
+			zap.String("routing_key", cfg.RoutingKey))
 		err = rabbitmq.bindQueue()
 		if err != nil {
+			zap.L().Error("Failed to bind queue to exchange",
+				zap.String("queue", cfg.Queue),
+				zap.String("exchange", cfg.Exchange),
+				zap.String("routing_key", cfg.RoutingKey),
+				zap.Error(err))
 			rabbitmq.Close()
 			return nil, fmt.Errorf("failed to bind queue: %w", err)
 		}
+		zap.L().Debug("Queue bound to exchange successfully",
+			zap.String("queue", cfg.Queue),
+			zap.String("exchange", cfg.Exchange))
 	}
 
 	zap.L().Info("RabbitMQ connected successfully",
@@ -130,7 +165,12 @@ func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
 		routingKey = r.queue.Name
 	}
 
-	return r.channel.PublishWithContext(
+	zap.L().Debug("Publishing message to RabbitMQ",
+		zap.String("exchange", exchange),
+		zap.String("routing_key", routingKey),
+		zap.Int("message_size", len(body)))
+
+	err := r.channel.PublishWithContext(
 		ctx,
 		exchange,   // exchange
 		routingKey, // routing key
@@ -142,14 +182,33 @@ func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
 			Timestamp:   time.Now(),
 		},
 	)
+	
+	if err != nil {
+		zap.L().Error("Failed to publish message to RabbitMQ",
+			zap.String("exchange", exchange),
+			zap.String("routing_key", routingKey),
+			zap.Error(err))
+	} else {
+		zap.L().Debug("Message published successfully to RabbitMQ",
+			zap.String("exchange", exchange),
+			zap.String("routing_key", routingKey))
+	}
+	
+	return err
 }
 
 // PublishJSON publishes a JSON message
 func (r *RabbitMQ) PublishJSON(ctx context.Context, message interface{}) error {
+	zap.L().Debug("Publishing JSON message to RabbitMQ", zap.Any("message_type", fmt.Sprintf("%T", message)))
+	
 	body, err := json.Marshal(message)
 	if err != nil {
+		zap.L().Error("Failed to marshal JSON message for RabbitMQ",
+			zap.Any("message_type", fmt.Sprintf("%T", message)),
+			zap.Error(err))
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
+	
 	return r.Publish(ctx, body)
 }
 
