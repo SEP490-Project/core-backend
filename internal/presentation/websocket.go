@@ -2,11 +2,11 @@ package presentation
 
 import (
 	"context"
+	"core-backend/config"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
-	"core-backend/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -26,11 +26,11 @@ const (
 
 // WebSocketMessage represents a WebSocket message
 type WebSocketMessage struct {
-	Type      string      `json:"type"`
-	Data      interface{} `json:"data,omitempty"`
-	Timestamp time.Time   `json:"timestamp"`
-	UserID    string      `json:"user_id,omitempty"`
-	SessionID string      `json:"session_id,omitempty"`
+	Type      string    `json:"type"`
+	Data      any       `json:"data,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+	UserID    string    `json:"user_id,omitempty"`
+	SessionID string    `json:"session_id,omitempty"`
 }
 
 // Client represents a WebSocket client connection
@@ -253,7 +253,7 @@ func (h *Hub) closeAllClients() {
 }
 
 // BroadcastToAll broadcasts a message to all connected clients
-func (ws *WebSocketServer) BroadcastToAll(msgType string, data interface{}) {
+func (ws *WebSocketServer) BroadcastToAll(msgType string, data any) {
 	message := WebSocketMessage{
 		Type:      msgType,
 		Data:      data,
@@ -263,7 +263,7 @@ func (ws *WebSocketServer) BroadcastToAll(msgType string, data interface{}) {
 }
 
 // BroadcastToUser broadcasts a message to all connections of a specific user
-func (ws *WebSocketServer) BroadcastToUser(userID, msgType string, data interface{}) {
+func (ws *WebSocketServer) BroadcastToUser(userID, msgType string, data any) {
 	ws.hub.mutex.RLock()
 	userConns, exists := ws.hub.userConns[userID]
 	if !exists {
