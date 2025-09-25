@@ -1,8 +1,9 @@
-package gorm_repository
+package gormrepository
 
 import (
 	"context"
-	"core-backend/internal/application/repository"
+	"core-backend/internal/application/interfaces/irepository"
+
 	"gorm.io/gorm"
 )
 
@@ -11,7 +12,7 @@ type genericRepository[T any] struct {
 	db *gorm.DB
 }
 
-func NewGenericRepository[T any](db *gorm.DB) repository.GenericRepository[T] {
+func NewGenericRepository[T any](db *gorm.DB) irepository.GenericRepository[T] {
 	return &genericRepository[T]{db: db}
 }
 

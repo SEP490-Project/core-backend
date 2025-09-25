@@ -1,7 +1,7 @@
-package gorm_repository
+package gormrepository
 
 import (
-	"core-backend/internal/application/repository"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 
 	"github.com/google/uuid"
@@ -138,6 +138,6 @@ func (u *userRepository) Update(user *model.User) error {
 	return u.db.Save(user).Error
 }
 
-func newUserRepository(db *gorm.DB) repository.UserRepository {
+func newUserRepository(db *gorm.DB) irepository.UserRepository {
 	return &userRepository{db: db}
 }
