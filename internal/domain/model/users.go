@@ -17,7 +17,7 @@ type User struct {
 	PasswordHash string         `json:"password_hash" gorm:"type:varchar(255);column:password_hash;not null"`
 	FullName     string         `json:"full_name" gorm:"type:varchar(255);column:full_name;not null"`
 	Phone        string         `json:"phone" gorm:"type:varchar(20);column:phone"`
-	DateOfBirth  time.Time      `json:"date_of_birth" gorm:"type:date;column:date_of_birth"`
+	DateOfBirth  *time.Time     `json:"date_of_birth" gorm:"type:date;column:date_of_birth"`
 	Role         enum.UserRole  `json:"role" gorm:"type:varchar(50);column:role;not null;check:role IN ('ADMIN', 'MARKETING_STAFF', 'CONTENT_STAFF', 'SALES_STAFF', 'CUSTOMER', 'BRAND_PARTNER')"`
 	IsActive     bool           `json:"is_active" gorm:"column:is_active;not null"`
 	CreatedAt    *time.Time     `json:"created_at" gorm:"column:created_at;autoCreateTime"`
