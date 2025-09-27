@@ -4,7 +4,6 @@ package gormrepository
 import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
-
 	"gorm.io/gorm"
 )
 

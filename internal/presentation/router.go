@@ -97,6 +97,15 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
+		// File upload routes
+		s3Handler := r.handlerRegistry.FileHandler
+		fileGroup := v1.Group("/files")
+		fileGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All file routes require authentication
+		{
+			fileGroup.POST("/upload", s3Handler.UploadFile)
+			fileGroup.DELETE("/:filename", s3Handler.DeleteFile)
+		}
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 }

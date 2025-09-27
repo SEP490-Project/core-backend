@@ -12,6 +12,7 @@ type HandlerRegistry struct {
 	HealthHandler       *HealthHandler
 	ProductHandler      *ProductHandler
 	BrandHandler        *BrandHandler
+	FileHandler         *S3Handler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
@@ -22,5 +23,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		HealthHandler:       NewHealthHandler(applicationReg.InfrastructureRegistry),
 		ProductHandler:      NewProductHandler(applicationReg.ProductService),
 		BrandHandler:        NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		FileHandler:         NewS3Handler(applicationReg.FileService),
 	}
 }

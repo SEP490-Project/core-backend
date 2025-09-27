@@ -25,6 +25,7 @@ type AppConfig struct {
 	RabbitMQ  RabbitMQConfig  `mapstructure:"rabbitmq"`
 	Asynq     AsynqConfig     `mapstructure:"asynq"`
 	WebSocket WebSocketConfig `mapstructure:"websocket"`
+	S3Bucket  S3BucketConfig  `mapstructure:"aws_s3_bucket"`
 }
 
 type ServerConfig struct {
@@ -121,6 +122,14 @@ type WebSocketConfig struct {
 	WriteBufferSize int      `mapstructure:"write_buffer_size"`
 }
 
+type S3BucketConfig struct {
+	BucketName string `mapstructure:"bucket_name"`
+	Region     string `mapstructure:"region"`
+	Endpoint   string `mapstructure:"endpoint"`
+	AccessKey  string `mapstructure:"access_key"`
+	SecretKey  string `mapstructure:"secret_key"`
+}
+
 var (
 	appConfig *AppConfig
 )
@@ -164,11 +173,11 @@ func setDefaultValues() {
 	viper.SetDefault("server.service_name", "my_service")
 	viper.SetDefault("server.environment", "development") // Options: development, production
 
-	viper.SetDefault("database.host", "localhost")
+	viper.SetDefault("database.host", "postgres.trangiangkhanh.online")
 	viper.SetDefault("database.port", 5432)
-	viper.SetDefault("database.user", "user")
-	viper.SetDefault("database.password", "password")
-	viper.SetDefault("database.dbname", "mydb")
+	viper.SetDefault("database.user", "postgres")
+	viper.SetDefault("database.password", "170504")
+	viper.SetDefault("database.dbname", "sep490_db_stag")
 	viper.SetDefault("database.sslmode", "disable")
 
 	viper.SetDefault("cache.host", "localhost")
