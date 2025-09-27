@@ -2,10 +2,11 @@ package infrastructure
 
 import (
 	"context"
+	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/internal/infrastructure/queue"
 	"core-backend/internal/infrastructure/rabbitmq"
-
+	"core-backend/internal/infrastructure/third_party_repository"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -16,9 +17,10 @@ type InfrastructureRegistry struct {
 	RabbitMQ     *rabbitmq.RabbitMQ
 	AsynqClient  *queue.AsynqClient
 	AsynqServer  *queue.AsynqServer
+	S3Repository irepository_third_party.S3Repository
 }
 
-func NewInfrastructureRegistry(db *gorm.DB) *InfrastructureRegistry {
+func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *InfrastructureRegistry {
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
@@ -48,6 +50,15 @@ func NewInfrastructureRegistry(db *gorm.DB) *InfrastructureRegistry {
 	registry.AsynqClient = queue.NewAsynqClient()
 	registry.AsynqServer = queue.NewAsynqServer()
 	zap.L().Info("Asynq client and server initialized successfully")
+
+	// Initialize S3 repository
+	zap.L().Debug("Attempting to initialize S3 repository")
+	if s3Repo := third_party_repository.NewS3Repository(s3Bucket); s3Repo != nil {
+		registry.S3Repository = s3Repo
+		zap.L().Info("S3 repository initialized successfully")
+	} else {
+		zap.L().Warn("Failed to initialize S3 repository, continuing without S3 support")
+	}
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
@@ -114,13 +125,13 @@ func (r *InfrastructureRegistry) StopServices() {
 // handleRabbitMQMessage handles incoming RabbitMQ messages
 func (r *InfrastructureRegistry) handleRabbitMQMessage(message []byte) error {
 	zap.L().Info("Received RabbitMQ message", zap.ByteString("message", message))
-	
+
 	// TODO: Implement message processing logic based on your needs
 	// This could involve:
 	// - Parsing the message to determine the type
 	// - Routing to appropriate handlers
 	// - Enqueuing tasks in Asynq for processing
-	
+
 	return nil
 }
 
@@ -167,7 +178,7 @@ func (r *InfrastructureRegistry) IsHealthy() map[string]bool {
 
 	health["asynq_client"] = r.AsynqClient != nil
 	health["asynq_server"] = r.AsynqServer != nil
-	
+
 	zap.L().Debug("Asynq services health check",
 		zap.Bool("client_available", r.AsynqClient != nil),
 		zap.Bool("server_available", r.AsynqServer != nil))

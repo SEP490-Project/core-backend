@@ -1,0 +1,90 @@
+def gvFile
+def savedCommitSHA
+
+pipeline {
+    agent any
+
+    tools {
+        go 'Go_1.24.0'
+    }
+
+    environment {
+        //get from app.yaml
+        APP_NAME = sh(script: "grep 'service_name:' ./config/config.yaml | awk '{print \$2}'", returnStdout: true).trim()
+        GIT_CREDENTIALS_ID = "ssh-github-key"
+        GIT_URL = "git@github.com:SEP490-Project/core-backend.git"
+    }
+
+    parameters {
+        choice(name: 'ENVIRONMENT', choices: ['STAG', 'PROD'], description: 'Select environment for deployment')
+        booleanParam(name: 'RUN_TESTS', defaultValue: false, description: 'Run tests after build')
+    }
+
+    stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    gvFile = load 'script.groovy'
+                    def commitSHA = GIT_COMMIT.take(5)
+                    def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '')
+                    currentBuild.displayName = "${branchName}-${commitSHA}"
+
+                    //Assign SHA
+                    savedCommitSHA = "${commitSHA}"
+                }
+                sshagent (credentials: ["${GIT_CREDENTIALS_ID}"]) {
+                    sh 'ssh -o StrictHostKeyChecking=no -T git@github.com || true'
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                script {
+                    gvFile.checkoutSSH(GIT_URL, '*/master')
+                }
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    gvFile.buildDockerfile(env.APP_NAME, savedCommitSHA)
+                }
+            }
+        }
+
+        stage('Test') {
+            when {
+                expression { params.RUN_TESTS }
+            }
+            steps {
+                script {
+                    gvFile.runTests()
+                }
+            }
+        }
+
+        stage('Archive Artifact') {
+            steps {
+                script {
+                    gvFile.archiveArtifacts(env.APP_NAME, savedCommitSHA)
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                gvFile.sendSuccessNotification()
+            }
+        }
+
+        failure {
+            script {
+                gvFile.sendFailureNotification()
+            }
+        }
+    }
+}
