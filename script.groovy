@@ -29,8 +29,23 @@ def buildDockerfile(appName, sha) {
     if (!sha?.trim()) {
         echo "⚠️ FATAL: Commit SHA is empty, tagging as 'latest'"
     }
-    sh "docker build --build-arg APP_NAME=${appName} -t ${appName}:${tag} ."
+
+    def imagePrefix = "${appName}:${tag}"
+
+    // Remove any old images that start with the same short SHA
+    sh """
+        old_images=\$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^${appName}:${tag}' || true)
+        if [ -n "\$old_images" ]; then
+            echo "🗑 Removing old images with prefix ${imagePrefix}"
+            docker rmi -f \$old_images || true
+        fi
+    """
+
+    sh """
+        docker build --build-arg APP_NAME=${appName} -t ${appName}:${tag} .
+    """
 }
+
 
 def runTests() {
     sh 'go test ./... -v'
@@ -38,10 +53,18 @@ def runTests() {
 
 def archiveArtifacts(appName, sha) {
     def tag = (sha == null || sha.trim() == '') ? 'latest' : sha
-    if (!sha?.trim()) {
-        echo "⚠️ FATAL: Commit SHA is empty, tagging as 'latest'"
+    def registry = "docker.io"
+    def repo = "tgkhanhdev/bshowsell-be"
+
+    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
+                                      usernameVariable: 'DOCKER_USER',
+                                      passwordVariable: 'DOCKER_PASS')]) {
+        sh """
+            echo "\$DOCKER_PASS" | docker login ${registry} -u "\$DOCKER_USER" --password-stdin
+            docker tag ${appName}:${tag} ${repo}:${tag}
+            docker push ${repo}:${tag}
+        """
     }
-    echo "PUSH IMAGE TO REGISTRY..."
 }
 
 //TODO: =========== Notification functions ===========
@@ -55,7 +78,9 @@ def sendSuccessNotification() {
         <p>Environment: ${params.ENVIRONMENT}</p>
         <p>Xem chi tiết tại: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
         """,
-        to: getEmailRecipients()
+        attachLog: true,
+        to: getEmailRecipients(),
+        mimeType: 'text/html'
     )
 }
 
@@ -69,7 +94,9 @@ def sendFailureNotification() {
         <p>Environment: ${params.ENVIRONMENT}</p>
         <p>Xem log tại: <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a></p>
         """,
-        to: getEmailRecipients()
+        attachLog: true,
+        to: getEmailRecipients(),
+        mimeType: 'text/html'
     )
 }
 

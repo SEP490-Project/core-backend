@@ -4,13 +4,17 @@ def savedCommitSHA
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     tools {
         go 'Go_1.24.0'
     }
 
     environment {
         //get from app.yaml
-        APP_NAME = sh(script: "grep 'service_name:' ./config/config.yaml | awk '{print \$2}'", returnStdout: true).trim()
+        APP_NAME = sh( script: "awk '/^server:/ {found=1} found && /service_name:/ {print \$2; exit}' ./config/config.yaml", returnStdout: true).trim()
         GIT_CREDENTIALS_ID = "ssh-github-key"
         GIT_URL = "git@github.com:SEP490-Project/core-backend.git"
     }
@@ -41,7 +45,9 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    gvFile.checkoutSSH(GIT_URL, '*/master')
+                    def branchToCheckout = (params.ENVIRONMENT == 'STAG') ? '*/staging' : '*/master'
+                    echo "Checking out branch: ${branchToCheckout}"
+                    gvFile.checkoutSSH(GIT_URL, branchToCheckout)
                 }
             }
         }
