@@ -1,16 +1,25 @@
 package iservice
 
 import (
+	"context"
 	"core-backend/internal/application/dto/responses"
 
 	"github.com/google/uuid"
 )
 
 type UserService interface {
-	GetUserByID(userID uuid.UUID) (*responses.UserResponse, error)
-	GetUsers(page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int, error)
-	UpdateUserStatus(userID uuid.UUID, isActive bool) error
-	UpdateUserRole(userID uuid.UUID, role string) error
-	DeleteUser(userID uuid.UUID) error
-	UpdateProfile(userID uuid.UUID, username, email string) (*responses.UserResponse, error)
+	// GetUserByID retrieves a user by their ID.
+	GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error)
+	// GetUsers retrieves a paginated list of users with optional filters.
+	GetUsers(ctx context.Context, page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int64, error)
+	// UpdateUserStatus updates the active status of a user.
+	UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error
+	// UpdateUserRole updates the role of a user.
+	UpdateUserRole(ctx context.Context, userID uuid.UUID, role string) error
+	// DeleteUser soft deletes a user.
+	DeleteUser(ctx context.Context, userID uuid.UUID) error
+	// UpdateProfile updates the current user's profile.
+	UpdateProfile(ctx context.Context, userID uuid.UUID, username, email string) (*responses.UserResponse, error)
+	// ActivateBrandUser activates a user associated with a brand.
+	ActivateBrandUser(ctx context.Context, userID uuid.UUID) error
 }
