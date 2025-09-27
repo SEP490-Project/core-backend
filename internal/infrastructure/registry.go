@@ -1,7 +1,9 @@
+// Package infrastructure provides the InfrastructureRegistry struct that holds various infrastructure services.
 package infrastructure
 
 import (
 	"context"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/internal/infrastructure/queue"
 	"core-backend/internal/infrastructure/rabbitmq"
@@ -11,18 +13,20 @@ import (
 )
 
 type InfrastructureRegistry struct {
-	DB           *gorm.DB
-	ValkeyCache  *persistence.ValkeyCache
-	RabbitMQ     *rabbitmq.RabbitMQ
-	AsynqClient  *queue.AsynqClient
-	AsynqServer  *queue.AsynqServer
+	DB          *gorm.DB
+	UnitOfWork  irepository.UnitOfWork
+	ValkeyCache *persistence.ValkeyCache
+	RabbitMQ    *rabbitmq.RabbitMQ
+	AsynqClient *queue.AsynqClient
+	AsynqServer *queue.AsynqServer
 }
 
 func NewInfrastructureRegistry(db *gorm.DB) *InfrastructureRegistry {
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
-		DB: db,
+		DB:         db,
+		UnitOfWork: persistence.NewUnitOfWork(db),
 	}
 
 	// Initialize Valkey cache
@@ -114,13 +118,13 @@ func (r *InfrastructureRegistry) StopServices() {
 // handleRabbitMQMessage handles incoming RabbitMQ messages
 func (r *InfrastructureRegistry) handleRabbitMQMessage(message []byte) error {
 	zap.L().Info("Received RabbitMQ message", zap.ByteString("message", message))
-	
+
 	// TODO: Implement message processing logic based on your needs
 	// This could involve:
 	// - Parsing the message to determine the type
 	// - Routing to appropriate handlers
 	// - Enqueuing tasks in Asynq for processing
-	
+
 	return nil
 }
 
@@ -167,7 +171,7 @@ func (r *InfrastructureRegistry) IsHealthy() map[string]bool {
 
 	health["asynq_client"] = r.AsynqClient != nil
 	health["asynq_server"] = r.AsynqServer != nil
-	
+
 	zap.L().Debug("Asynq services health check",
 		zap.Bool("client_available", r.AsynqClient != nil),
 		zap.Bool("server_available", r.AsynqServer != nil))
