@@ -440,7 +440,7 @@ const docTemplate = `{
                 "tags": [
                     "Brands"
                 ],
-                "summary": "Get Brands List",
+                "summary": "Get Brands List by filter",
                 "parameters": [
                     {
                         "type": "integer",
@@ -525,6 +525,69 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Brand created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brands/with-users": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new brand with the associated inactive users",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Create Brand with Inactive Users",
+                "parameters": [
+                    {
+                        "description": "Brand creation data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateBrandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Brand and User created successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -1184,6 +1247,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/users/{id}/activate-brand": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Activate a user associated with a brand (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Activate Brand User",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Brand user activated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin access required",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/{id}/role": {
             "put": {
                 "security": [
@@ -1534,26 +1658,32 @@ const docTemplate = `{
             "properties": {
                 "contact_email": {
                     "type": "string",
-                    "maxLength": 255
+                    "maxLength": 255,
+                    "example": "acme@example.com"
                 },
                 "contact_phone": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "description": {
                     "type": "string",
-                    "maxLength": 1000
+                    "maxLength": 1000,
+                    "example": "A leading manufacturer of quality products."
                 },
                 "logo_url": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "https://www.acme.com/logo.png"
                 },
                 "name": {
                     "type": "string",
                     "maxLength": 255,
-                    "minLength": 2
+                    "minLength": 2,
+                    "example": "Acme Corp"
                 },
                 "website": {
                     "type": "string",
-                    "maxLength": 255
+                    "maxLength": 255,
+                    "example": "https://www.acme.com"
                 }
             }
         },
@@ -1635,26 +1765,32 @@ const docTemplate = `{
             "properties": {
                 "contact_email": {
                     "type": "string",
-                    "maxLength": 255
+                    "maxLength": 255,
+                    "example": "acme@example.com"
                 },
                 "contact_phone": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "description": {
                     "type": "string",
-                    "maxLength": 1000
+                    "maxLength": 1000,
+                    "example": "A leading manufacturer of quality products."
                 },
                 "logo_url": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "https://www.acme.com/logo.png"
                 },
                 "name": {
                     "type": "string",
                     "maxLength": 255,
-                    "minLength": 2
+                    "minLength": 2,
+                    "example": "Acme Corp"
                 },
                 "website": {
                     "type": "string",
-                    "maxLength": 255
+                    "maxLength": 255,
+                    "example": "https://www.acme.com"
                 }
             }
         },

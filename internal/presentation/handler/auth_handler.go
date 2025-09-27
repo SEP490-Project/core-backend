@@ -51,7 +51,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.Login(&loginRequest)
+	loginResponse, err := h.authService.Login(c.Request.Context(), &loginRequest)
 	if err != nil {
 		response := responses.ErrorResponse("Login failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
@@ -96,7 +96,7 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 	}
 
 	// Call auth service
-	signUpResponse, err := h.authService.SignUp(appSignUpRequest)
+	signUpResponse, err := h.authService.SignUp(c.Request.Context(), appSignUpRequest)
 	if err != nil {
 		response := responses.ErrorResponse("Sign up failed: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -141,7 +141,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.RefreshToken(appRefreshRequest)
+	loginResponse, err := h.authService.RefreshToken(c.Request.Context(), appRefreshRequest)
 	if err != nil {
 		response := responses.ErrorResponse("Token refresh failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
@@ -172,7 +172,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.Logout(&requests)
+	logoutResponse, err := h.authService.Logout(c.Request.Context(), &requests)
 	if err != nil {
 		response := responses.ErrorResponse("Logout failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
@@ -210,7 +210,7 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.LogoutAll(userID)
+	logoutResponse, err := h.authService.LogoutAll(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Logout all failed: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -248,7 +248,7 @@ func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 	}
 
 	// Call auth service
-	sessions, err := h.authService.GetActiveSessions(userID)
+	sessions, err := h.authService.GetActiveSessions(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to get sessions: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -281,7 +281,7 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	}
 
 	// Call auth service
-	logoutResponse, err := h.authService.RevokeSession(sessionID)
+	logoutResponse, err := h.authService.RevokeSession(c.Request.Context(), sessionID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to revoke session: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)

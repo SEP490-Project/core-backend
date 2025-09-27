@@ -26,7 +26,7 @@ type VariantAttributeValue struct {
 
 func (VariantAttributeValue) TableName() string { return "variant_attribute_value" }
 
-func (vav *VariantAttributeValue) BeforeCreate(tx any) (err error) {
+func (vav *VariantAttributeValue) BeforeCreate(tx *gorm.DB) error {
 	if vav.ID == uuid.Nil {
 		vav.ID = uuid.New()
 	}
