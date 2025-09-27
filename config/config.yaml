@@ -8,11 +8,11 @@ server:
 
 # Database configuration (PostgreSQL)
 database:
-  host: "localhost"
+  host: "postgres.trangiangkhanh.online"
   port: 5432
   user: "postgres"
-  password: "12345"
-  dbname: "sep490_db"
+  password: "170504"
+  dbname: "sep490_db_stag"
   sslmode: "disable"
 
 # Cache (Valkey/Redis)
@@ -94,3 +94,12 @@ websocket:
   endpoint: "/ws"
   allowed_origins:
     - "*"
+
+# AWS
+aws_s3_bucket:
+  # S3 configuration
+  bucket_name: "bshowsell-public"
+  region: "ap-southeast-1"
+  endpoint: "https://s3.amazonaws.com"
+  access_key: "AKIA47CRXJTI65MVDFYV"
+  secret_key: "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"

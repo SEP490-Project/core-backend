@@ -6,12 +6,14 @@ import (
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	infraService "core-backend/internal/infrastructure/service"
 )
 
 type ApplicationRegistry struct {
 	DatabaseRegistry       *gormrepository.DatabaseRegistry
 	InfrastructureRegistry *infrastructure.InfrastructureRegistry
 	JWTService             iservice.JWTService
+	FileService            iservice.FileService
 	AuthService            iservice.AuthService
 	UserService            iservice.UserService
 	ProductService         iservice.ProductService
@@ -27,6 +29,7 @@ func NewApplicationRegistry(
 		DatabaseRegistry:       databaseRegistry,
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
+		FileService:            infraService.NewS3Service(infrastructureRegistry.S3Repository),
 		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry.ProductRepository),
