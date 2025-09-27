@@ -87,14 +87,38 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
 				adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
 				adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
+				adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
 			}
 		}
+
+		r.setupBrandRoutes(v1)
 
 		// Product routes
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
+	}
+}
+
+func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
+	brandHandler := r.handlerRegistry.BrandHandler
+
+	brandGroup := group.Group("/brands")
+	{
+		brandGroup.GET("", brandHandler.GetBrandsByFilter)
+		brandGroup.GET("/:id", brandHandler.GetBrandByID)
+		brandGroup.Use(r.middlewareRegistry.Auth.RequireAuth()).POST("", brandHandler.CreateBrand)
+		brandGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff))).
+			POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
+		brandGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff), string(enum.UserRoleSalesStaff))).
+			PUT("/:id", brandHandler.UpdateBrand)
+		brandGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff), string(enum.UserRoleSalesStaff))).
+			PATCH("/:id/status", brandHandler.UpdateBrandStatus)
+
 	}
 }
 
