@@ -1,45 +1,79 @@
 package service
 
 import (
+	"context"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
 	"errors"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type UserService struct {
-	userRepository irepository.UserRepository
+	// userRepository irepository.UserRepository
+	userRepository irepository.GenericRepository[model.User]
 }
 
-func NewUserService(userRepository irepository.UserRepository) iservice.UserService {
-	return &UserService{
-		userRepository: userRepository,
+// ActivateBrandUser implements iservice.UserService.
+func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID) error {
+	zap.L().Info("Activating brand user",
+		zap.String("user_id", userID.String()),
+	)
+
+	filters := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ? AND role = ? AND is_active = ?", userID, enum.UserRoleBrandPartner, false)
 	}
+	user, err := s.userRepository.GetByCondition(ctx, filters, nil)
+	if err != nil || user == nil {
+		zap.L().Error("Failed to find brand user for activation",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return errors.New("brand user not found or already active")
+	}
+
+	zap.L().Debug("Found brand user for activation",
+		zap.String("user_id", user.ID.String()),
+		zap.String("username", user.Username),
+		zap.String("role", string(user.Role)),
+		zap.Bool("is_active", user.IsActive),
+	)
+
+	user.IsActive = true
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to activate brand user",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return errors.New("failed to activate brand user")
+	}
+
+	return nil
 }
 
 // GetUserByID retrieves a user by ID
-func (s *UserService) GetUserByID(userID uuid.UUID) (*responses.UserResponse, error) {
-	zap.L().Debug("Retrieving user by ID", 
+func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error) {
+	zap.L().Debug("Retrieving user by ID",
 		zap.String("user_id", userID.String()))
 
-	user, err := s.userRepository.GetByID(userID)
+	// user, err := s.userRepository.GetByID(userID)
+	user, err := s.userRepository.GetByID(ctx, userID, nil)
 	if err != nil {
-		zap.L().Error("Failed to retrieve user by ID", 
+		zap.L().Error("Failed to retrieve user by ID",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return nil, errors.New("user not found")
 	}
 	if user == nil {
-		zap.L().Debug("User not found by ID", 
+		zap.L().Debug("User not found by ID",
 			zap.String("user_id", userID.String()))
 		return nil, errors.New("user not found")
 	}
 
-	zap.L().Debug("User retrieved successfully", 
+	zap.L().Debug("User retrieved successfully",
 		zap.String("user_id", user.ID.String()),
 		zap.String("username", user.Username))
 
@@ -48,8 +82,8 @@ func (s *UserService) GetUserByID(userID uuid.UUID) (*responses.UserResponse, er
 }
 
 // GetUsers retrieves users with pagination and filters
-func (s *UserService) GetUsers(page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int, error) {
-	zap.L().Debug("Retrieving users with filters", 
+func (s *UserService) GetUsers(ctx context.Context, page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int64, error) {
+	zap.L().Debug("Retrieving users with filters",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
 		zap.String("search", search),
@@ -66,15 +100,24 @@ func (s *UserService) GetUsers(page, limit int, search, role string, isActive *b
 
 	offset := (page - 1) * limit
 
-	zap.L().Debug("Pagination parameters set", 
+	zap.L().Debug("Pagination parameters set",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
 		zap.Int("offset", offset))
 
 	// Get users with filters
-	users, total, err := s.userRepository.GetByFilters(limit, offset, search, role, isActive)
+	filters := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where("username ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+		}
+		if role != "" {
+			db = db.Where("role = ?", role)
+		}
+		return db
+	}
+	users, total, err := s.userRepository.GetAll(ctx, filters, nil, page, limit)
 	if err != nil {
-		zap.L().Error("Failed to retrieve users with filters", 
+		zap.L().Error("Failed to retrieve users with filters",
 			zap.Int("limit", limit),
 			zap.Int("offset", offset),
 			zap.String("search", search),
@@ -87,11 +130,11 @@ func (s *UserService) GetUsers(page, limit int, search, role string, isActive *b
 	userResponses := make([]*responses.UserResponse, len(users))
 	for i, user := range users {
 		response := &responses.UserResponse{}
-		userResponses[i] = response.ToUserResponse(user)
+		userResponses[i] = response.ToUserResponse(&user)
 	}
 
-	zap.L().Info("Users retrieved successfully", 
-		zap.Int("total_users", total),
+	zap.L().Info("Users retrieved successfully",
+		zap.Int64("total_users", total),
 		zap.Int("returned_users", len(users)),
 		zap.Int("page", page),
 		zap.Int("limit", limit))
@@ -100,14 +143,15 @@ func (s *UserService) GetUsers(page, limit int, search, role string, isActive *b
 }
 
 // UpdateUserStatus updates a user's active status
-func (s *UserService) UpdateUserStatus(userID uuid.UUID, isActive bool) error {
-	zap.L().Info("Updating user status", 
+func (s *UserService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error {
+	zap.L().Info("Updating user status",
 		zap.String("user_id", userID.String()),
 		zap.Bool("is_active", isActive))
 
-	user, err := s.userRepository.GetByID(userID)
+	// user, err := s.userRepository.GetByID(userID)
+	user, err := s.userRepository.GetByID(ctx, userID, nil)
 	if err != nil || user == nil {
-		zap.L().Error("Failed to find user for status update", 
+		zap.L().Error("Failed to find user for status update",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("user not found")
@@ -116,8 +160,8 @@ func (s *UserService) UpdateUserStatus(userID uuid.UUID, isActive bool) error {
 	oldStatus := user.IsActive
 	user.IsActive = isActive
 
-	if err := s.userRepository.Update(user); err != nil {
-		zap.L().Error("Failed to update user status", 
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to update user status",
 			zap.String("user_id", userID.String()),
 			zap.Bool("old_status", oldStatus),
 			zap.Bool("new_status", isActive),
@@ -125,7 +169,7 @@ func (s *UserService) UpdateUserStatus(userID uuid.UUID, isActive bool) error {
 		return errors.New("failed to update user status")
 	}
 
-	zap.L().Info("User status updated successfully", 
+	zap.L().Info("User status updated successfully",
 		zap.String("user_id", userID.String()),
 		zap.String("username", user.Username),
 		zap.Bool("old_status", oldStatus),
@@ -135,14 +179,14 @@ func (s *UserService) UpdateUserStatus(userID uuid.UUID, isActive bool) error {
 }
 
 // UpdateUserRole updates a user's role
-func (s *UserService) UpdateUserRole(userID uuid.UUID, role string) error {
-	zap.L().Info("Updating user role", 
+func (s *UserService) UpdateUserRole(ctx context.Context, userID uuid.UUID, role string) error {
+	zap.L().Info("Updating user role",
 		zap.String("user_id", userID.String()),
 		zap.String("new_role", role))
 
-	user, err := s.userRepository.GetByID(userID)
+	user, err := s.userRepository.GetByID(ctx, userID, nil)
 	if err != nil || user == nil {
-		zap.L().Error("Failed to find user for role update", 
+		zap.L().Error("Failed to find user for role update",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("user not found")
@@ -151,7 +195,7 @@ func (s *UserService) UpdateUserRole(userID uuid.UUID, role string) error {
 	// Validate role
 	userRole := enum.UserRole(role)
 	if !userRole.IsValid() {
-		zap.L().Debug("Invalid role provided for user role update", 
+		zap.L().Debug("Invalid role provided for user role update",
 			zap.String("user_id", userID.String()),
 			zap.String("invalid_role", role))
 		return errors.New("invalid role")
@@ -160,8 +204,8 @@ func (s *UserService) UpdateUserRole(userID uuid.UUID, role string) error {
 	oldRole := user.Role
 	user.Role = userRole
 
-	if err := s.userRepository.Update(user); err != nil {
-		zap.L().Error("Failed to update user role", 
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to update user role",
 			zap.String("user_id", userID.String()),
 			zap.String("old_role", string(oldRole)),
 			zap.String("new_role", role),
@@ -169,7 +213,7 @@ func (s *UserService) UpdateUserRole(userID uuid.UUID, role string) error {
 		return errors.New("failed to update user role")
 	}
 
-	zap.L().Info("User role updated successfully", 
+	zap.L().Info("User role updated successfully",
 		zap.String("user_id", userID.String()),
 		zap.String("username", user.Username),
 		zap.String("old_role", string(oldRole)),
@@ -179,108 +223,114 @@ func (s *UserService) UpdateUserRole(userID uuid.UUID, role string) error {
 }
 
 // DeleteUser soft deletes a user
-func (s *UserService) DeleteUser(userID uuid.UUID) error {
-	zap.L().Info("Deleting user", 
+func (s *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+	zap.L().Info("Deleting user",
 		zap.String("user_id", userID.String()))
 
-	user, err := s.userRepository.GetByID(userID)
-	if err != nil || user == nil {
-		zap.L().Error("Failed to find user for deletion", 
+	// user, err := s.userRepository.GetByID(userID)
+	userExisted, err := s.userRepository.Exists(ctx, func(db *gorm.DB) *gorm.DB { return db.Where("id = ?", userID) })
+	if err != nil || userExisted {
+		zap.L().Error("Failed to find user for deletion",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("user not found")
 	}
 
-	zap.L().Debug("Found user for deletion", 
-		zap.String("user_id", user.ID.String()),
-		zap.String("username", user.Username))
+	zap.L().Debug("Found user for deletion",
+		zap.String("user_id", userID.String()),
+	)
 
-	if err := s.userRepository.Delete(userID); err != nil {
-		zap.L().Error("Failed to delete user", 
+	if err := s.userRepository.DeleteByID(ctx, userID); err != nil {
+		zap.L().Error("Failed to delete user",
 			zap.String("user_id", userID.String()),
-			zap.String("username", user.Username),
 			zap.Error(err))
 		return errors.New("failed to delete user")
 	}
 
-	zap.L().Info("User deleted successfully", 
+	zap.L().Info("User deleted successfully",
 		zap.String("user_id", userID.String()),
-		zap.String("username", user.Username))
+	)
 
 	return nil
 }
 
 // UpdateProfile updates the current user's profile
-func (s *UserService) UpdateProfile(userID uuid.UUID, username, email string) (*responses.UserResponse, error) {
-	zap.L().Info("Updating user profile", 
+func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email string) (*responses.UserResponse, error) {
+	zap.L().Info("Updating user profile",
 		zap.String("user_id", userID.String()),
 		zap.String("new_username", username),
 		zap.String("new_email", email))
 
-	user, err := s.userRepository.GetByID(userID)
+	user, err := s.userRepository.GetByID(ctx, userID, nil)
 	if err != nil || user == nil {
-		zap.L().Error("Failed to find user for profile update", 
+		zap.L().Error("Failed to find user for profile update",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return nil, errors.New("user not found")
 	}
 
-	zap.L().Debug("Found user for profile update", 
+	zap.L().Debug("Found user for profile update",
 		zap.String("user_id", user.ID.String()),
 		zap.String("current_username", user.Username),
 		zap.String("current_email", user.Email))
 
 	// Update fields if provided
 	if username != "" && username != user.Username {
-		zap.L().Debug("Checking username availability", 
+		zap.L().Debug("Checking username availability",
 			zap.String("user_id", userID.String()),
 			zap.String("new_username", username))
 
 		// Check if username already exists
-		if exists, err := s.userRepository.IsUsernameExists(username); err != nil {
-			zap.L().Error("Failed to check username availability", 
+		filters := func(db *gorm.DB) *gorm.DB {
+			return db.Where("username = ?", username)
+		}
+		if exists, err := s.userRepository.Exists(ctx, filters); err != nil {
+			zap.L().Error("Failed to check username availability",
 				zap.String("user_id", userID.String()),
 				zap.String("username", username),
 				zap.Error(err))
 			return nil, errors.New("failed to check username availability")
 		} else if exists {
-			zap.L().Debug("Username already exists", 
+			zap.L().Debug("Username already exists",
 				zap.String("user_id", userID.String()),
 				zap.String("username", username))
 			return nil, errors.New("username already exists")
 		}
 		user.Username = username
-		zap.L().Debug("Username updated", 
+		zap.L().Debug("Username updated",
 			zap.String("user_id", userID.String()),
 			zap.String("new_username", username))
 	}
 
 	if email != "" && email != user.Email {
-		zap.L().Debug("Checking email availability", 
+		zap.L().Debug("Checking email availability",
 			zap.String("user_id", userID.String()),
 			zap.String("new_email", email))
 
 		// Check if email already exists
-		if exists, err := s.userRepository.IsEmailExists(email); err != nil {
-			zap.L().Error("Failed to check email availability", 
+		filters := func(db *gorm.DB) *gorm.DB {
+			return db.Where("email = ?", email)
+		}
+		if exists, err := s.userRepository.Exists(ctx, filters); err != nil {
+			zap.L().Error("Failed to check email availability",
 				zap.String("user_id", userID.String()),
 				zap.String("email", email),
 				zap.Error(err))
 			return nil, errors.New("failed to check email availability")
 		} else if exists {
-			zap.L().Debug("Email already exists", 
+			zap.L().Debug("Email already exists",
 				zap.String("user_id", userID.String()),
 				zap.String("email", email))
 			return nil, errors.New("email already exists")
 		}
 		user.Email = email
-		zap.L().Debug("Email updated", 
+		zap.L().Debug("Email updated",
 			zap.String("user_id", userID.String()),
 			zap.String("new_email", email))
 	}
 
-	if err := s.userRepository.Update(user); err != nil {
-		zap.L().Error("Failed to update user profile", 
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to update user profile",
 			zap.String("user_id", userID.String()),
 			zap.String("username", user.Username),
 			zap.String("email", user.Email),
@@ -288,11 +338,17 @@ func (s *UserService) UpdateProfile(userID uuid.UUID, username, email string) (*
 		return nil, errors.New("failed to update profile")
 	}
 
-	zap.L().Info("User profile updated successfully", 
+	zap.L().Info("User profile updated successfully",
 		zap.String("user_id", userID.String()),
 		zap.String("username", user.Username),
 		zap.String("email", user.Email))
 
 	response := &responses.UserResponse{}
 	return response.ToUserResponse(user), nil
+}
+
+func NewUserService(userRepository irepository.GenericRepository[model.User]) iservice.UserService {
+	return &UserService{
+		userRepository: userRepository,
+	}
 }

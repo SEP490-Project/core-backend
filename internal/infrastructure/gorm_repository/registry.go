@@ -8,16 +8,16 @@ import (
 )
 
 type DatabaseRegistry struct {
-	UserRepository          irepository.UserRepository
-	LoggedSessionRepository irepository.LoggedSessionRepository
+	UserRepository          irepository.GenericRepository[model.User]
+	LoggedSessionRepository irepository.GenericRepository[model.LoggedSession]
 	ProductRepository       irepository.GenericRepository[model.Product]
 	BrandRepository         irepository.GenericRepository[model.Brand]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
-		UserRepository:          newUserRepository(db),
-		LoggedSessionRepository: newLoggedSessionRepository(db),
+		UserRepository:          NewGenericRepository[model.User](db),
+		LoggedSessionRepository: NewGenericRepository[model.LoggedSession](db),
 		ProductRepository:       NewGenericRepository[model.Product](db),
 		BrandRepository:         NewGenericRepository[model.Brand](db),
 	}

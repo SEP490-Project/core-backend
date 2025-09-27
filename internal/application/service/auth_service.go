@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -14,18 +15,19 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type AuthService struct {
 	jwtService              iservice.JWTService
-	userRepository          irepository.UserRepository
-	loggedSessionRepository irepository.LoggedSessionRepository
+	userRepository          irepository.GenericRepository[model.User]
+	loggedSessionRepository irepository.GenericRepository[model.LoggedSession]
 }
 
 func NewAuthService(
 	jwtService iservice.JWTService,
-	userRepository irepository.UserRepository,
-	loggedSessionRepository irepository.LoggedSessionRepository,
+	userRepository irepository.GenericRepository[model.User],
+	loggedSessionRepository irepository.GenericRepository[model.LoggedSession],
 ) *AuthService {
 	return &AuthService{
 		jwtService:              jwtService,
@@ -34,7 +36,7 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Login(request *requests.LoginRequest) (*responses.LoginResponse, error) {
+func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest) (*responses.LoginResponse, error) {
 	zap.L().Info("User login attempt",
 		zap.String("login_identifier", request.LoginIdentifier),
 		zap.String("device_fingerprint", request.DeviceFingerprint))
@@ -46,7 +48,10 @@ func (s *AuthService) Login(request *requests.LoginRequest) (*responses.LoginRes
 	}
 
 	// Get user by username or email
-	user, err := s.userRepository.GetByUsernameOrEmail(request.LoginIdentifier)
+	filters := func(db *gorm.DB) *gorm.DB {
+		return db.Where("username = ? OR email = ?", request.LoginIdentifier, request.LoginIdentifier)
+	}
+	user, err := s.userRepository.GetByCondition(ctx, filters, nil)
 	if err != nil {
 		zap.L().Error("Failed to retrieve user during login",
 			zap.String("login_identifier", request.LoginIdentifier),
@@ -112,7 +117,7 @@ func (s *AuthService) Login(request *requests.LoginRequest) (*responses.LoginRes
 		IsRevoked:         false,
 	}
 
-	if err := s.loggedSessionRepository.Create(session); err != nil {
+	if err := s.loggedSessionRepository.Add(ctx, session); err != nil {
 		zap.L().Error("Failed to create session during login",
 			zap.String("user_id", user.ID.String()),
 			zap.Error(err))
@@ -126,7 +131,7 @@ func (s *AuthService) Login(request *requests.LoginRequest) (*responses.LoginRes
 	// Update user last login
 	now := time.Now()
 	user.LastLogin = &now
-	if err := s.userRepository.Update(user); err != nil {
+	if err := s.userRepository.Update(ctx, user); err != nil {
 		zap.L().Warn("Failed to update user last login",
 			zap.String("user_id", user.ID.String()),
 			zap.Error(err))
@@ -154,7 +159,7 @@ func (s *AuthService) Login(request *requests.LoginRequest) (*responses.LoginRes
 	}, nil
 }
 
-func (s *AuthService) RefreshToken(request *requests.RefreshTokenRequest) (*responses.LoginResponse, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest) (*responses.LoginResponse, error) {
 	zap.L().Debug("Token refresh attempt")
 
 	if request.RefreshToken == "" {
@@ -164,7 +169,10 @@ func (s *AuthService) RefreshToken(request *requests.RefreshTokenRequest) (*resp
 
 	refreshTokenHash := s.jwtService.HashRefreshToken(request.RefreshToken)
 
-	session, err := s.loggedSessionRepository.GetByRefreshTokenHash(refreshTokenHash)
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Where("refresh_token_hash = ?", refreshTokenHash)
+	}
+	session, err := s.loggedSessionRepository.GetByCondition(ctx, query, nil)
 	if err != nil {
 		zap.L().Error("Failed to retrieve session during token refresh",
 			zap.Error(err))
@@ -188,7 +196,7 @@ func (s *AuthService) RefreshToken(request *requests.RefreshTokenRequest) (*resp
 	}
 
 	// Get user details
-	user, err := s.userRepository.GetByID(session.UserID)
+	user, err := s.userRepository.GetByID(ctx, session.UserID, nil)
 	if err != nil || user == nil {
 		zap.L().Error("Failed to retrieve user during token refresh",
 			zap.String("user_id", session.UserID.String()),
@@ -226,7 +234,7 @@ func (s *AuthService) RefreshToken(request *requests.RefreshTokenRequest) (*resp
 	session.ExpiryAt = &expiryAt
 	session.LastUsedAt = &now
 
-	if err := s.loggedSessionRepository.Update(session); err != nil {
+	if err := s.loggedSessionRepository.Update(ctx, session); err != nil {
 		zap.L().Error("Failed to update session during token refresh",
 			zap.String("session_id", session.ID.String()),
 			zap.Error(err))
@@ -254,7 +262,7 @@ func (s *AuthService) RefreshToken(request *requests.RefreshTokenRequest) (*resp
 	}, nil
 }
 
-func (s *AuthService) SignUp(request *requests.SignUpRequest) (*responses.SignUpResponse, error) {
+func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error) {
 	zap.L().Info("User signup attempt",
 		zap.String("username", request.Username),
 		zap.String("email", request.Email))
@@ -266,7 +274,10 @@ func (s *AuthService) SignUp(request *requests.SignUpRequest) (*responses.SignUp
 	}
 
 	// Check if username exists
-	if exists, err := s.userRepository.IsUsernameExists(request.Username); err != nil {
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Where("username = ?", request.Username)
+	}
+	if exists, err := s.userRepository.Exists(ctx, query); err != nil {
 		zap.L().Error("Failed to check username availability during signup",
 			zap.String("username", request.Username),
 			zap.Error(err))
@@ -278,7 +289,10 @@ func (s *AuthService) SignUp(request *requests.SignUpRequest) (*responses.SignUp
 	}
 
 	// Check if email exists
-	if exists, err := s.userRepository.IsEmailExists(request.Email); err != nil {
+	query = func(db *gorm.DB) *gorm.DB {
+		return db.Where("email = ?", request.Email)
+	}
+	if exists, err := s.userRepository.Exists(ctx, query); err != nil {
 		zap.L().Error("Failed to check email availability during signup",
 			zap.String("email", request.Email),
 			zap.Error(err))
@@ -314,7 +328,7 @@ func (s *AuthService) SignUp(request *requests.SignUpRequest) (*responses.SignUp
 		IsActive:     true,
 	}
 
-	if err := s.userRepository.Create(user); err != nil {
+	if err := s.userRepository.Add(ctx, user); err != nil {
 		zap.L().Error("Failed to create user during signup",
 			zap.String("username", request.Username),
 			zap.String("email", request.Email),
@@ -343,7 +357,7 @@ func (s *AuthService) SignUp(request *requests.SignUpRequest) (*responses.SignUp
 	}, nil
 }
 
-func (s *AuthService) Logout(request *requests.LogoutRequest) (*responses.LogoutResponse, error) {
+func (s *AuthService) Logout(ctx context.Context, request *requests.LogoutRequest) (*responses.LogoutResponse, error) {
 	zap.L().Debug("User logout attempt")
 
 	if request.RefreshToken == "" {
@@ -352,7 +366,10 @@ func (s *AuthService) Logout(request *requests.LogoutRequest) (*responses.Logout
 	}
 
 	refreshTokenHash := s.jwtService.HashRefreshToken(request.RefreshToken)
-	session, err := s.loggedSessionRepository.GetByRefreshTokenHash(refreshTokenHash)
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Where("refresh_token_hash = ?", refreshTokenHash)
+	}
+	session, err := s.loggedSessionRepository.GetByCondition(ctx, query, nil)
 	if err != nil || session == nil {
 		zap.L().Debug("Logout failed: session not found",
 			zap.Error(err))
@@ -363,7 +380,10 @@ func (s *AuthService) Logout(request *requests.LogoutRequest) (*responses.Logout
 		zap.String("session_id", session.ID.String()),
 		zap.String("user_id", session.UserID.String()))
 
-	if err := s.loggedSessionRepository.RevokeSession(session.ID); err != nil {
+	conditions := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ? AND is_revoked = ?", session.ID, false)
+	}
+	if err := s.loggedSessionRepository.UpdateByCondition(ctx, conditions, map[string]any{"is_revoked": true}); err != nil {
 		zap.L().Error("Failed to revoke session during logout",
 			zap.String("session_id", session.ID.String()),
 			zap.Error(err))
@@ -379,11 +399,14 @@ func (s *AuthService) Logout(request *requests.LogoutRequest) (*responses.Logout
 	}, nil
 }
 
-func (s *AuthService) LogoutAll(userID uuid.UUID) (*responses.LogoutResponse, error) {
+func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error) {
 	zap.L().Info("User logout all sessions attempt",
 		zap.String("user_id", userID.String()))
 
-	if err := s.loggedSessionRepository.RevokeAllUserSessions(userID); err != nil {
+	conditions := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND is_revoked = ?", userID, false)
+	}
+	if err := s.loggedSessionRepository.UpdateByCondition(ctx, conditions, map[string]any{"is_revoked": true}); err != nil {
 		zap.L().Error("Failed to revoke all sessions during logout all",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
@@ -398,11 +421,14 @@ func (s *AuthService) LogoutAll(userID uuid.UUID) (*responses.LogoutResponse, er
 	}, nil
 }
 
-func (s *AuthService) GetActiveSessions(userID uuid.UUID) ([]*responses.SessionInfo, error) {
+func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) ([]*responses.SessionInfo, error) {
 	zap.L().Debug("Retrieving active sessions",
 		zap.String("user_id", userID.String()))
 
-	sessions, err := s.loggedSessionRepository.GetActiveSessionsByUserID(userID)
+	filtesr := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND is_revoked = ? AND expiry_at > ?", userID, false, time.Now())
+	}
+	sessions, _, err := s.loggedSessionRepository.GetAll(ctx, filtesr, nil, 0, 100)
 	if err != nil {
 		zap.L().Error("Failed to get active sessions",
 			zap.String("user_id", userID.String()),
@@ -429,11 +455,14 @@ func (s *AuthService) GetActiveSessions(userID uuid.UUID) ([]*responses.SessionI
 	return sessionInfos, nil
 }
 
-func (s *AuthService) RevokeSession(sessionID uuid.UUID) (*responses.LogoutResponse, error) {
+func (s *AuthService) RevokeSession(ctx context.Context, sessionID uuid.UUID) (*responses.LogoutResponse, error) {
 	zap.L().Info("Session revocation attempt",
 		zap.String("session_id", sessionID.String()))
 
-	if err := s.loggedSessionRepository.RevokeSession(sessionID); err != nil {
+	conditions := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ? AND is_revoked = ?", sessionID, false)
+	}
+	if err := s.loggedSessionRepository.UpdateByCondition(ctx, conditions, map[string]any{"is_revoked": true}); err != nil {
 		zap.L().Error("Failed to revoke session",
 			zap.String("session_id", sessionID.String()),
 			zap.Error(err))

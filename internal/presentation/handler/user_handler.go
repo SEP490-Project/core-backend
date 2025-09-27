@@ -50,7 +50,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.GetUserByID(userID)
+	user, err := h.userService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to get user profile: "+err.Error(), http.StatusNotFound)
 		c.JSON(http.StatusNotFound, response)
@@ -103,7 +103,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var updatedUser *responses.UserResponse
-	updatedUser, err = h.userService.UpdateProfile(userID, request.Username, request.Email)
+	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, request.Username, request.Email)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -160,7 +160,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 		}
 	}
 
-	users, total, err := h.userService.GetUsers(page, limit, search, role, isActive)
+	users, total, err := h.userService.GetUsers(c.Request.Context(), page, limit, search, role, isActive)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to get users: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -168,7 +168,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 	}
 
 	// Calculate pagination info
-	totalPages := (total + limit - 1) / limit
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
 	hasNext := page < totalPages
 	hasPrev := page > 1
 
@@ -209,7 +209,7 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.GetUserByID(userID)
+	user, err := h.userService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("User not found: "+err.Error(), http.StatusNotFound)
 		c.JSON(http.StatusNotFound, response)
@@ -257,7 +257,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserStatus(userID, request.IsActive)
+	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, request.IsActive)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -270,6 +270,40 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	response := responses.SuccessResponse(message, nil, nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// ActivateBrandUser godoc
+// @Summary      Activate Brand User
+// @Description  Activate a user associated with a brand (admin only)
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "User ID"
+// @Success      200 {object} responses.APIResponse "Brand user activated successfully"
+// @Failure      400 {object} responses.APIResponse "Invalid user ID"
+// @Failure      401 {object} responses.APIResponse "Unauthorized"
+// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
+// @Failure      500 {object} responses.APIResponse "Internal server error"
+// @Security     BearerAuth
+// @Router       /api/v1/users/{id}/activate-brand [patch]
+func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
+	userIDParam := c.Param("id")
+	userID, err := uuid.Parse(userIDParam)
+	if err != nil {
+		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = h.userService.ActivateBrandUser(c.Request.Context(), userID)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to activate brand user: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Brand user activated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -310,7 +344,7 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserRole(userID, request.Role)
+	err = h.userService.UpdateUserRole(c.Request.Context(), userID, request.Role)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user role: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -344,7 +378,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.DeleteUser(userID)
+	err = h.userService.DeleteUser(c.Request.Context(), userID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to delete user: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
