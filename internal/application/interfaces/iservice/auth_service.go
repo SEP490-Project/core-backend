@@ -1,6 +1,7 @@
 package iservice
 
 import (
+	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 
@@ -8,11 +9,11 @@ import (
 )
 
 type AuthService interface {
-	Login(request *requests.LoginRequest) (*responses.LoginResponse, error)
-	RefreshToken(request *requests.RefreshTokenRequest) (*responses.LoginResponse, error)
-	SignUp(request *requests.SignUpRequest) (*responses.SignUpResponse, error)
-	Logout(request *requests.LogoutRequest) (*responses.LogoutResponse, error)
-	LogoutAll(userID uuid.UUID) (*responses.LogoutResponse, error)
-	GetActiveSessions(userID uuid.UUID) ([]*responses.SessionInfo, error)
-	RevokeSession(sessionID uuid.UUID) (*responses.LogoutResponse, error)
+	Login(ctx context.Context, request *requests.LoginRequest) (*responses.LoginResponse, error)
+	RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest) (*responses.LoginResponse, error)
+	SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error)
+	Logout(ctx context.Context, request *requests.LogoutRequest) (*responses.LogoutResponse, error)
+	LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error)
+	GetActiveSessions(ctx context.Context, userID uuid.UUID) ([]*responses.SessionInfo, error)
+	RevokeSession(ctx context.Context, sessionID uuid.UUID) (*responses.LogoutResponse, error)
 }

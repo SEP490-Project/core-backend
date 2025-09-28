@@ -13,6 +13,8 @@ type UnitOfWork interface {
 	// Expose repos trong transaction
 	Products() GenericRepository[model.Product]
 	Users() GenericRepository[model.User]
+	Brands() GenericRepository[model.Brand]
+	LoggedSessions() GenericRepository[model.LoggedSession]
 
 	DB() *gorm.DB
 }
