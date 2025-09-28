@@ -97,9 +97,15 @@ websocket:
 
 # AWS
 aws_s3_bucket:
-  # S3 configuration
-  bucket_name: "bshowsell-public"
+  bucket_name: bshowsell-public
   region: "ap-southeast-1"
   endpoint: "https://s3.amazonaws.com"
   access_key: "AKIA47CRXJTI65MVDFYV"
   secret_key: "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"
+
+#PAYOS
+payos:
+  base_url: "https://sandbox-api.payos.io"
+  client_id: "dd413ad9-4f94-4f08-91d4-7c3597ef35ed"
+  api_key: "eb8f141c-513f-4f06-8c17-c2bf170e0d52"
+  checksum_key: "aa46d63a9fb7653696b79a13fb5613cf7c91e3bb5c6bc5358af9cde7629c99fa"
