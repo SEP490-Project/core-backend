@@ -29,7 +29,7 @@ func NewApplicationRegistry(
 		DatabaseRegistry:       databaseRegistry,
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
-		FileService:            infraService.NewS3Service(infrastructureRegistry.S3Repository),
+		FileService:            infraService.NewFileService(infrastructureRegistry.S3Repository),
 		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry.ProductRepository),

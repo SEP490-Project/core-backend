@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 )
 
-type s3Service struct {
+type fileService struct {
 	repo irepository_third_party.S3Repository
 }
 
-func (s *s3Service) UploadFile(userId string, filePath string, destination string) (string, error) {
+func (s *fileService) UploadFile(userId string, filePath string, destination string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
@@ -34,13 +34,13 @@ func (s *s3Service) UploadFile(userId string, filePath string, destination strin
 	return url, nil
 }
 
-func (s *s3Service) DeleteFile(userId string, fileName string) error {
+func (s *fileService) DeleteFile(userId string, fileName string) error {
 	key := fmt.Sprintf("%s/%s", userId, filepath.Base(fileName))
 	return s.repo.Delete(context.TODO(), key)
 }
 
-func NewS3Service(repo irepository_third_party.S3Repository) iservice.FileService {
-	return &s3Service{
+func NewFileService(repo irepository_third_party.S3Repository) iservice.FileService {
+	return &fileService{
 		repo: repo,
 	}
 }

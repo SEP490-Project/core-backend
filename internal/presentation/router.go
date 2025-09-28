@@ -94,6 +94,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
+		// PayOS payment route
+		payOsHandler := r.handlerRegistry.PayOsHandler
+		v1.POST("/payos/payment", payOsHandler.CreatePayment)
+
 		// File upload routes
 		s3Handler := r.handlerRegistry.FileHandler
 		fileGroup := v1.Group("/files")
