@@ -102,20 +102,26 @@ definitions:
   requests.CreateBrandRequest:
     properties:
       contact_email:
+        example: acme@example.com
         maxLength: 255
         type: string
       contact_phone:
+        example: "+1234567890"
         type: string
       description:
+        example: A leading manufacturer of quality products.
         maxLength: 1000
         type: string
       logo_url:
+        example: https://www.acme.com/logo.png
         type: string
       name:
+        example: Acme Corp
         maxLength: 255
         minLength: 2
         type: string
       website:
+        example: https://www.acme.com
         maxLength: 255
         type: string
     required:
@@ -175,20 +181,26 @@ definitions:
   requests.UpdateBrandRequest:
     properties:
       contact_email:
+        example: acme@example.com
         maxLength: 255
         type: string
       contact_phone:
+        example: "+1234567890"
         type: string
       description:
+        example: A leading manufacturer of quality products.
         maxLength: 1000
         type: string
       logo_url:
+        example: https://www.acme.com/logo.png
         type: string
       name:
+        example: Acme Corp
         maxLength: 255
         minLength: 2
         type: string
       website:
+        example: https://www.acme.com
         maxLength: 255
         type: string
     required:
@@ -768,7 +780,7 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Get Brands List
+      summary: Get Brands List by filter
       tags:
       - Brands
     post:
@@ -938,6 +950,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Brand Status
+      tags:
+      - Brands
+  /api/v1/brands/with-users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new brand with the associated inactive users
+      parameters:
+      - description: Brand creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateBrandRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Brand and User created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Brand with Inactive Users
       tags:
       - Brands
   /api/v1/products:
@@ -1122,6 +1171,45 @@ paths:
       security:
       - BearerAuth: []
       summary: Get User by ID
+      tags:
+      - Users
+  /api/v1/users/{id}/activate-brand:
+    patch:
+      consumes:
+      - application/json
+      description: Activate a user associated with a brand (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brand user activated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Activate Brand User
       tags:
       - Users
   /api/v1/users/{id}/role:

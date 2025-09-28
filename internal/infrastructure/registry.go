@@ -1,7 +1,9 @@
+// Package infrastructure provides the InfrastructureRegistry struct that holds various infrastructure services.
 package infrastructure
 
 import (
 	"context"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
@@ -16,11 +18,12 @@ import (
 )
 
 type InfrastructureRegistry struct {
-	DB           *gorm.DB
-	ValkeyCache  *persistence.ValkeyCache
-	RabbitMQ     *rabbitmq.RabbitMQ
-	AsynqClient  *queue.AsynqClient
-	AsynqServer  *queue.AsynqServer
+	DB          *gorm.DB
+	UnitOfWork  irepository.UnitOfWork
+	ValkeyCache *persistence.ValkeyCache
+	RabbitMQ    *rabbitmq.RabbitMQ
+	AsynqClient *queue.AsynqClient
+	AsynqServer *queue.AsynqServer
 	S3Repository irepository_third_party.S3Repository
 	PayOsService iservice_third_party.PayOSService
 }
@@ -29,7 +32,8 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *Inf
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
-		DB: db,
+		DB:         db,
+		UnitOfWork: persistence.NewUnitOfWork(db),
 	}
 
 	// Initialize Valkey cache
