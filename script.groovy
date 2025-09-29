@@ -31,7 +31,7 @@ def buildDockerfile(appName, sha) {
     }
 
     def imagePrefix = "${appName}:${tag}"
-    def imageName = "ghcr.io/tgkhanhDev/${appName}"
+    def imageName = "ghcr.io/sep-be/${appName}"
 
     // Remove any old images that start with the same short SHA
     sh """
@@ -55,7 +55,7 @@ def runTests() {
 def archiveArtifacts(appName, sha) {
     def tag = (sha == null || sha.trim() == '') ? 'latest' : sha
     def registry = "ghcr.io"
-    def imageName = "ghcr.io/tgkhanhDev/${appName}"
+    def imageName = "ghcr.io/sep-be/${appName}"
 
     withCredentials([usernamePassword(credentialsId: 'ghcr-access',
                                       usernameVariable: 'GH_USER',
