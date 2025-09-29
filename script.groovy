@@ -31,6 +31,7 @@ def buildDockerfile(appName, sha) {
     }
 
     def imagePrefix = "${appName}:${tag}"
+    def imageName = "ghcr.io/tgkhanhDev/${appName}"
 
     // Remove any old images that start with the same short SHA
     sh """
@@ -42,7 +43,7 @@ def buildDockerfile(appName, sha) {
     """
 
     sh """
-        docker build --build-arg APP_NAME=${appName} -t ${appName}:${tag} .
+        docker build --build-arg APP_NAME=${appName} -t ${imageName}:${tag} .
     """
 }
 
@@ -53,16 +54,16 @@ def runTests() {
 
 def archiveArtifacts(appName, sha) {
     def tag = (sha == null || sha.trim() == '') ? 'latest' : sha
-    def registry = "docker.io"
-    def repo = "tgkhanhdev/bshowsell-be"
+    def registry = "ghcr.io"
+    def imageName = "ghcr.io/tgkhanhDev/${appName}"
 
-    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials',
-                                      usernameVariable: 'DOCKER_USER',
-                                      passwordVariable: 'DOCKER_PASS')]) {
+    withCredentials([usernamePassword(credentialsId: 'ghcr-access',
+                                      usernameVariable: 'GH_USER',
+                                      passwordVariable: 'GH_PAT')]) {
         sh """
-            echo "\$DOCKER_PASS" | docker login ${registry} -u "\$DOCKER_USER" --password-stdin
-            docker tag ${appName}:${tag} ${repo}:${tag}
-            docker push ${repo}:${tag}
+            echo "\$GH_PAT" | docker login ${registry} -u "\$GH_USER" --password-stdin
+            docker tag ${imageName}:${tag} ${repo}:${tag}
+            docker push ${imageName}:${tag}
         """
     }
 }
