@@ -99,7 +99,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 		// PayOS payment route
 		payOsHandler := r.handlerRegistry.PayOsHandler
-		v1.POST("/payos/payment", payOsHandler.CreatePayment)
+		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
 
 		// File upload routes
 		s3Handler := r.handlerRegistry.FileHandler

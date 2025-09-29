@@ -29,11 +29,13 @@ type AppConfig struct {
 	PayOS     PayOSConfig     `mapstructure:"payos"`
 }
 
+// default configurations can be alter by Admin
 type ServerConfig struct {
-	Port        int    `mapstructure:"port"`
-	ServiceName string `mapstructure:"service_name"`
-	Environment string `mapstructure:"environment"`
-	Timeout     int    `mapstructure:"timeout"` // in seconds
+	Port            int    `mapstructure:"port"`
+	ServiceName     string `mapstructure:"service_name"`
+	Environment     string `mapstructure:"environment"`
+	Timeout         int    `mapstructure:"timeout"`           // in seconds
+	PayOSLinkExpiry int    `mapstructure:"payos_link_expiry"` // in seconds
 }
 
 type DatabaseConfig struct {
@@ -174,6 +176,8 @@ func LoadConfig(configPath string) error {
 	if err := appConfig.JWT.parseRSAKeys(); err != nil {
 		return fmt.Errorf("error parsing RSA keys: %w", err)
 	}
+
+	// Load Server configuration by Admin
 
 	return nil
 }

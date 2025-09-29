@@ -8,11 +8,13 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -24,13 +26,54 @@ type payOsService struct {
 	config                       *config.AppConfig
 }
 
-func (p payOsService) GeneratePaymentLink(req requests.PaymentRequest) (*responses.PaymentResponse, error) {
+func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse], error) {
+	// get value form config
+	url := p.config.PayOS.BaseUrl
+	secondTimeout := p.config.Server.Timeout
+
+	//build payos request
+	httpReq, err := http.NewRequest("GET", url+"/"+orderId, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-client-id", p.config.PayOS.ClientID)
+	httpReq.Header.Set("x-api-key", p.config.PayOS.ApiKey)
+
+	client := &http.Client{Timeout: time.Duration(secondTimeout) * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var payRes responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse]
+	if err := json.NewDecoder(resp.Body).Decode(&payRes); err != nil {
+		return nil, err
+	}
+
+	return &payRes, nil
+}
+
+func (p payOsService) CancelPayOSLink(paymentId string, cancellationReason string) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses.PayOSWrapperResponse[responses.PayOSLinkResponse], error) {
+	// get value form config
+	url := p.config.PayOS.BaseUrl
+	secondTimeout := p.config.Server.Timeout
+
+	//Generate orderCode
+	orderCode := generateOrderCode()
+
 	// sign request
 	signReq := requests.PaymentSignatureRequest{
 		Amount:      req.Amount,
 		CancelUrl:   req.CancelUrl,
 		Description: req.Description,
-		OrderCode:   req.OrderCode,
+		OrderCode:   int(orderCode),
 		ReturnUrl:   req.ReturnUrl,
 	}
 
@@ -44,7 +87,7 @@ func (p payOsService) GeneratePaymentLink(req requests.PaymentRequest) (*respons
 	body, _ := json.Marshal(payload)
 
 	// call payos api
-	httpReq, err := http.NewRequest("POST", "https://api-merchant.payos.vn/v2/payment-requests", bytes.NewBuffer(body))
+	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 
 	if err != nil {
 		return nil, err
@@ -54,25 +97,26 @@ func (p payOsService) GeneratePaymentLink(req requests.PaymentRequest) (*respons
 	httpReq.Header.Set("x-client-id", p.config.PayOS.ClientID)
 	httpReq.Header.Set("x-api-key", p.config.PayOS.ApiKey)
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: time.Duration(secondTimeout) * time.Second}
 	resp, err := client.Do(httpReq)
+
+	//log:
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	fmt.Printf("PAYOS response: %s\n", string(bodyBytes))
+
 	if err != nil {
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 
-	var payRes responses.PaymentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&payRes); err != nil {
+	var payRes responses.PayOSWrapperResponse[responses.PayOSLinkResponse]
+	if err := json.Unmarshal(bodyBytes, &payRes); err != nil {
 		return nil, err
 	}
 
 	return &payRes, nil
-}
-
-func (p payOsService) VerifyPayment(paymentId string) (bool, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func NewPayOsService(paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]) iservice_third_party.PayOSService {
@@ -122,8 +166,11 @@ func (p payOsService) generateSignature(req requests.PaymentSignatureRequest) (s
 
 func (p payOsService) buildPayOSRequest(req requests.PaymentRequest, signature string) requests.PayOSRequest {
 
-	//expiredTime :=
+	//custom fields
+	expiredTime := p.config.Server.PayOSLinkExpiry
+	expiredAt := time.Now().Add(time.Duration(expiredTime) * time.Second).Unix()
 
+	// build request
 	return requests.PayOSRequest{
 		PaymentSignatureRequest: requests.PaymentSignatureRequest{
 			Amount:      req.Amount,
@@ -132,15 +179,19 @@ func (p payOsService) buildPayOSRequest(req requests.PaymentRequest, signature s
 			OrderCode:   req.OrderCode,
 			ReturnUrl:   req.ReturnUrl,
 		},
-		BuyerName:        req.BuyerName,
-		BuyerCompanyName: req.BuyerCompanyName,
-		BuyerTaxCode:     req.BuyerTaxCode,
-		BuyerAddress:     req.BuyerAddress,
-		BuyerEmail:       req.BuyerEmail,
-		BuyerPhone:       req.BuyerPhone,
+		BuyerName:        utils.StrPtrOrNil(req.BuyerName),
+		BuyerCompanyName: utils.StrPtrOrNil(req.BuyerCompanyName),
+		BuyerTaxCode:     utils.StrPtrOrNil(req.BuyerTaxCode),
+		BuyerAddress:     utils.StrPtrOrNil(req.BuyerAddress),
+		BuyerEmail:       utils.StrPtrOrNil(req.BuyerEmail),
+		BuyerPhone:       utils.StrPtrOrNil(req.BuyerPhone),
 		Items:            []responses.PaymentItem{},
 		Invoice:          responses.Invoice{},
-		ExpiredAt:        time.Now().Add(24 * time.Hour).Unix(),
+		ExpiredAt:        expiredAt,
 		Signature:        signature,
 	}
+}
+
+func generateOrderCode() int64 {
+	return time.Now().UnixNano()
 }
