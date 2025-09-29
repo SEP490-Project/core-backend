@@ -6,6 +6,7 @@ import (
 )
 
 type PayOSService interface {
-	GeneratePaymentLink(req requests.PaymentRequest) (*responses.PaymentResponse, error)
-	VerifyPayment(paymentId string) (bool, error)
+	GeneratePayOSLink(req requests.PaymentRequest) (*responses.PayOSWrapperResponse[responses.PayOSLinkResponse], error)
+	CancelPayOSLink(paymentId string, cancellationReason string) (bool, error)
+	GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse], error)
 }
