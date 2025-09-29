@@ -61,9 +61,8 @@ def archiveArtifacts(appName, sha) {
                                       usernameVariable: 'GH_USER',
                                       passwordVariable: 'GH_PAT')]) {
         sh """
-            echo "\$GH_PAT" | docker login ${registry} -u "\$GH_USER" --password-stdin
-            docker tag ${imageName}:${tag} ${repo}:${tag}
-            docker push ${imageName}:${tag}
+          echo "\$GH_PAT" | docker login ${registry} -u "\$GH_USER" --password-stdin
+          docker push ${imageName}:${tag}
         """
     }
 }
