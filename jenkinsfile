@@ -30,7 +30,7 @@ pipeline {
             steps {
                 script {
                     gvFile = load 'script.groovy'
-                    def commitSHA = GIT_COMMIT.take(5)
+                    def commitSHA = GIT_COMMIT.take(7)
                     branchName = env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '')
                     currentBuild.displayName = "${branchName}-${commitSHA}"
 
