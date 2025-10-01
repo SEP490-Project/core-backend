@@ -1,5 +1,6 @@
 def gvFile
 def savedCommitSHA
+def branchName
 
 pipeline {
     agent any
@@ -30,7 +31,7 @@ pipeline {
                 script {
                     gvFile = load 'script.groovy'
                     def commitSHA = GIT_COMMIT.take(5)
-                    def branchName = env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '')
+                    branchName = env.BRANCH_NAME ?: env.GIT_BRANCH?.replaceAll('origin/', '')
                     currentBuild.displayName = "${branchName}-${commitSHA}"
 
                     //Assign SHA
@@ -74,7 +75,7 @@ pipeline {
         stage('Archive Artifact') {
             steps {
                 script {
-                    gvFile.archiveArtifacts(env.APP_NAME, savedCommitSHA)
+                    gvFile.archiveArtifacts(env.APP_NAME, savedCommitSHA, branchName)
                 }
             }
         }
