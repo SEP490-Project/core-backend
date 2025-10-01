@@ -52,17 +52,39 @@ def runTests() {
     sh 'go test ./... -v'
 }
 
-def archiveArtifacts(appName, sha) {
-    def tag = (sha == null || sha.trim() == '') ? 'latest' : sha
+def archiveArtifacts(appName, sha, branchName) {
+    if (sha == null || sha.trim() == '') {
+        error "FATAL: Commit SHA is required for archiving artifacts."
+        return
+    }
+    
     def registry = "ghcr.io"
     def imageName = "ghcr.io/sep490-project/core-backend/${appName}"
+
+    def sanitizedBranchName = branchName.replaceAll('/', '-')
+
+    def imageWithShaTag = "${imageName}:${sha}"
+    def imageWithBranchTag = "${imageName}:${sanitizedBranchName}"
+    def imageWithLatestTag = "${imageName}:latest"
 
     withCredentials([usernamePassword(credentialsId: 'ghcr-access',
                                       usernameVariable: 'GH_USER',
                                       passwordVariable: 'GH_PAT')]) {
         sh """
+          # Exit immediately if a command exits with a non-zero status.
+          set -e
+
+          echo "Logging in to Docker registry at ${registry}..."
           echo "\$GH_PAT" | docker login ${registry} -u "\$GH_USER" --password-stdin
-          docker push ${imageName}:${tag}
+
+          echo "Tagging image ${imageWithShaTag} with additional tags..."
+          docker tag ${imageWithShaTag} ${imageWithBranchTag}
+          docker tag ${imageWithShaTag} ${imageWithLatestTag}
+
+          echo "Pushing tags to the registry..."
+          docker push ${imageWithShaTag}
+          docker push ${imageWithBranchTag}
+          docker push ${imageWithLatestTag}
         """
     }
 }
