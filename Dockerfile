@@ -1,29 +1,53 @@
+# ===============================================================
 # Stage 1: Build
 FROM golang:1.24-alpine AS builder
-# arguments
-ARG APP_NAME=default-backend-service
-ENV APP_NAME=${APP_NAME}
-WORKDIR /app
-RUN apk add --no-cache git
 
-# Chỉ copy go.mod và go.sum trước để cache dependency
+ARG APP_NAME=default-backend-service
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64 \
+    PATH=$PATH:/go/bin \
+    APP_NAME=${APP_NAME}
+
+RUN apk add --no-cache busybox-static ca-certificates \
+    && mkdir -p /bin \
+    && cp /bin/busybox.static /bin/busybox \
+    && /bin/busybox --install -s /bin
+
+WORKDIR /build
+
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go install github.com/swaggo/swag/cmd/swag@latest
 
 COPY . .
 
-RUN go build -ldflags="-s -w" -o ${APP_NAME} ./cmd/server/
+RUN swag init -g ./cmd/server/main.go --output ./docs --parseInternal
+RUN go build -ldflags='-w -s -extldflags "-static"' -a -o main ./cmd/server/main.go
 
-# Stage 2: Runtime
-FROM alpine:latest
-# Cài CA certificates
-RUN apk --no-cache add ca-certificates
-ARG APP_NAME=default-backend-service
-ENV APP_NAME=${APP_NAME}
-WORKDIR /root/
-COPY --from=builder /app/${APP_NAME} .
-COPY --from=builder /app/config/*.yaml .
-COPY --from=builder /app/docs ./docs
+# ===============================================================
+# Stage 2: Final (scratch + minimal utilities)
+FROM scratch AS final
 
-EXPOSE 8080
-CMD sh -c "./${APP_NAME}"
+ARG APP_PORT=8080
+ENV APP_PORT=${APP_PORT}
+
+# Copy passwd/group (so container can exec as non-root if needed)
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+COPY --from=builder /bin /bin
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+WORKDIR /app
+
+# Copy app binary + configs/docs
+COPY --from=builder /build/main .
+COPY --from=builder /build/config/ ./config/
+COPY --from=builder /build/docs/ ./docs/
+
+EXPOSE ${APP_PORT}
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["./main", "--health-check"] || exit 1
+
+ENTRYPOINT ["./main"]
