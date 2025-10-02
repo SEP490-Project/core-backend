@@ -30,12 +30,12 @@ def buildDockerfile(appName, sha) {
         echo "⚠️ FATAL: Commit SHA is empty, tagging as 'latest'"
     }
 
-    def imagePrefix = "${appName}:${tag}"
-    def imageName = "ghcr.io/sep490-project/core-backend/${appName}"
+    def imageName = "ghcr.io/sep490-project/core-backend"
+    def imagePrefix = "${imageName}:${tag}"
 
     // Remove any old images that start with the same short SHA
     sh """
-        old_images=\$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^${appName}:${tag}' || true)
+        old_images=\$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^${imageName}:${tag}' || true)
         if [ -n "\$old_images" ]; then
             echo "🗑 Removing old images with prefix ${imagePrefix}"
             docker rmi -f \$old_images || true
@@ -59,7 +59,7 @@ def archiveArtifacts(appName, sha, branchName) {
     }
     
     def registry = "ghcr.io"
-    def imageName = "ghcr.io/sep490-project/core-backend/${appName}"
+    def imageName = "ghcr.io/sep490-project/core-backend"
 
     def sanitizedBranchName = branchName.replaceAll('/', '-')
 
