@@ -33,7 +33,7 @@ func (ctx *TaskContext) TransitionTo(state TaskState) error {
 	if !isAllowed(ctx.state, state.Name()) {
 		return errors.New("invalid state transition from " + ctx.state.Name() + " to " + state.Name() + ". Allowed: " + fmt.Sprint(PrintAllowedTransitions(ctx.state)))
 	}
-	return ctx.state.Next(ctx)
+	return ctx.state.Next(ctx, state)
 }
 
 // helper
