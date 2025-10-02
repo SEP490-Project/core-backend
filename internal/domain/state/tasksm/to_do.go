@@ -1,6 +1,9 @@
 package tasksm
 
-import "fmt"
+import (
+	"core-backend/internal/domain/enum"
+	"fmt"
+)
 
 type ToDoState struct{}
 
@@ -12,13 +15,13 @@ func (s *ToDoState) Next(ctx *TaskContext, next TaskState) error {
 	return fmt.Errorf("invalid transition: %s -> %s", s.Name(), next.Name())
 }
 
-func (s *ToDoState) AllowedTransitions() map[string]struct{} {
-	return map[string]struct{}{
-		"IN_PROGRESS": {},
-		"CANCELLED":   {},
+func (s *ToDoState) AllowedTransitions() map[enum.TaskStatus]struct{} {
+	return map[enum.TaskStatus]struct{}{
+		enum.TaskStatusInProgress: {},
+		enum.TaskStatusCancelled:  {},
 	}
 }
 
-func (s *ToDoState) Name() string {
-	return "TO_DO"
+func (s *ToDoState) Name() enum.TaskStatus {
+	return enum.TaskStatusToDo
 }

@@ -12,6 +12,7 @@ type DatabaseRegistry struct {
 	LoggedSessionRepository irepository.GenericRepository[model.LoggedSession]
 	ProductRepository       irepository.GenericRepository[model.Product]
 	BrandRepository         irepository.GenericRepository[model.Brand]
+	TaskRepository          irepository.GenericRepository[model.Task]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -20,5 +21,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		LoggedSessionRepository: NewGenericRepository[model.LoggedSession](db),
 		ProductRepository:       NewGenericRepository[model.Product](db),
 		BrandRepository:         NewGenericRepository[model.Brand](db),
+		TaskRepository:          NewGenericRepository[model.Task](db),
 	}
 }

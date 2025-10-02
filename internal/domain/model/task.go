@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
+//new : TaskStatus, Product[]
+
 type Task struct {
 	ID           uuid.UUID       `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	MilestoneID  uuid.UUID       `json:"milestone_id" gorm:"type:uuid;column:milestone_id;not null"`
@@ -24,6 +26,7 @@ type Task struct {
 
 	// Relationships
 	Milestone *Milestone `json:"-" gorm:"foreignKey:MilestoneID"`
+	Products  []*Product `json:"products" gorm:"foreignKey:TaskID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (Task) TableName() string { return "tasks" }

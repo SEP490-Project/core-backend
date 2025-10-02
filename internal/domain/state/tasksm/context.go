@@ -3,8 +3,6 @@ package tasksm
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"errors"
-	"fmt"
 	"go.uber.org/zap"
 )
 
@@ -13,32 +11,27 @@ type TaskContext struct {
 	products []*model.Product
 }
 
-func NewTaskContext(initialState TaskState) *TaskContext {
+func NewTaskContext(initialState TaskState, product []*model.Product) *TaskContext {
 	return &TaskContext{state: initialState}
 }
 
-func (ctx *TaskContext) CurrentState() TaskState {
+func (ctx *TaskContext) State() TaskState {
 	return ctx.state
 }
 
 func (ctx *TaskContext) SetState(state TaskState) {
-	zap.L().Debug("State transition",
-		zap.String("from", ctx.state.Name()),
-		zap.String("to", state.Name()),
-	)
 	ctx.state = state
-}
-
-func (ctx *TaskContext) TransitionTo(state TaskState) error {
-	if !isAllowed(ctx.state, state.Name()) {
-		return errors.New("invalid state transition from " + ctx.state.Name() + " to " + state.Name() + ". Allowed: " + fmt.Sprint(PrintAllowedTransitions(ctx.state)))
-	}
-	return ctx.state.Next(ctx, state)
 }
 
 // helper
 func (c *TaskContext) IsAllProductsActive() bool {
+	if c.products == nil || len(c.products) == 0 {
+		return false
+	}
+
 	for _, p := range c.products {
+		zap.L().Info("Product Status", zap.String("status", p.Status.String()))
+		zap.L().Info("Product Status Check", zap.Bool("is_active", p.Status == enum.ProductStatus("ACTIVED")))
 		if p.Status != enum.ProductStatus("ACTIVED") {
 			return false
 		}
