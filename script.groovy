@@ -43,7 +43,10 @@ def buildDockerfile(appName, sha) {
     """
 
     sh """
-        docker build --build-arg APP_NAME=${appName} -t ${imageName}:${tag} .
+        docker build \\
+            --build-arg APP_NAME=${appName} \\
+            --label "org.opencontainers.image.source=https://github.com/SEP490-Project/core-backend" \\
+            -t ${imageName}:${tag} .
     """
 }
 
