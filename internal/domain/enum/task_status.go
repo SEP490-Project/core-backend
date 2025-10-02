@@ -42,3 +42,7 @@ func (ts *TaskStatus) Scan(value any) error {
 func (ts TaskStatus) Value() driver.Value {
 	return string(ts)
 }
+
+func (ts TaskStatus) String() string {
+	return string(ts)
+}

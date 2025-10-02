@@ -67,13 +67,16 @@ func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses
 
 	//Generate orderCode
 	orderCode := generateOrderCode()
+	oc := int(orderCode)
+	// ensure request carries the generated order code
+	req.OrderCode = &oc
 
 	// sign request
 	signReq := requests.PaymentSignatureRequest{
 		Amount:      req.Amount,
 		CancelUrl:   req.CancelUrl,
 		Description: req.Description,
-		OrderCode:   int(orderCode),
+		OrderCode:   &oc,
 		ReturnUrl:   req.ReturnUrl,
 	}
 
@@ -134,7 +137,9 @@ func (p payOsService) generateSignature(req requests.PaymentSignatureRequest) (s
 	values["amount"] = req.Amount
 	values["cancelUrl"] = req.CancelUrl
 	values["description"] = req.Description
-	values["orderCode"] = req.OrderCode
+	if req.OrderCode != nil { // only include when present, and use its value
+		values["orderCode"] = *req.OrderCode
+	}
 	values["returnUrl"] = req.ReturnUrl
 
 	// Step 2: Sort the keys alphabetically.

@@ -97,6 +97,14 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
+		// Task routes
+		taskHandler := r.handlerRegistry.TaskHandler
+		taskGroup := v1.Group("/tasks")
+		taskGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
+		}
+
 		// PayOS payment route
 		payOsHandler := r.handlerRegistry.PayOsHandler
 		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
@@ -107,7 +115,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		fileGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All file routes require authentication
 		{
 			fileGroup.POST("/upload", s3Handler.UploadFile)
-			fileGroup.DELETE("/:filename", s3Handler.DeleteFile)
+			//fileGroup.DELETE(":filename", s3Handler.DeleteFile)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE

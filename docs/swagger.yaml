@@ -99,6 +99,19 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
+  handler.UpdateTaskStateRequest:
+    properties:
+      state:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        type: string
+    required:
+    - state
+    type: object
   requests.CreateBrandRequest:
     properties:
       contact_email:
@@ -989,6 +1002,124 @@ paths:
       summary: Create Brand with Inactive Users
       tags:
       - Brands
+  /api/v1/files/{filename}:
+    delete:
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: File name
+        in: path
+        name: filename
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a file from S3
+      tags:
+      - files
+  /api/v1/files/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: User ID
+        in: formData
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a file to S3
+      tags:
+      - files
+  /api/v1/payos/payment:
+    post:
+      consumes:
+      - application/json
+      description: Initiate a payment with PayOS
+      parameters:
+      - description: Payment Request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a PayOS payment
+      tags:
+      - payos
+  /api/v1/payos/payment/{orderCode}:
+    get:
+      description: Inspect payment detail
+      parameters:
+      - description: Order Code
+        in: path
+        name: orderCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get PayOS order info
+      tags:
+      - payos
   /api/v1/products:
     get:
       consumes:
@@ -1039,6 +1170,52 @@ paths:
       summary: Get All Products
       tags:
       - Products
+  /api/v1/tasks/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP,
+        DONE)
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Task State
+      tags:
+      - Tasks
   /api/v1/users:
     get:
       consumes:

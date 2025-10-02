@@ -1,14 +1,15 @@
 package tasksm
 
-import "fmt"
+import (
+	"core-backend/internal/domain/enum"
+	"fmt"
+)
 
 type RecapState struct{}
 
-func (r RecapState) Name() string {
-	return "RECAP"
-}
+func (r *RecapState) Name() enum.TaskStatus { return enum.TaskStatusRecap }
 
-func (r RecapState) Next(ctx *TaskContext, next TaskState) error {
+func (r *RecapState) Next(ctx *TaskContext, next TaskState) error {
 	if _, ok := r.AllowedTransitions()[next.Name()]; ok {
 		ctx.SetState(next)
 		return nil
@@ -16,8 +17,8 @@ func (r RecapState) Next(ctx *TaskContext, next TaskState) error {
 	return fmt.Errorf("invalid transition: %s -> %s", r.Name(), next.Name())
 }
 
-func (r RecapState) AllowedTransitions() map[string]struct{} {
-	return map[string]struct{}{
-		"DONE": {},
+func (r *RecapState) AllowedTransitions() map[enum.TaskStatus]struct{} {
+	return map[enum.TaskStatus]struct{}{
+		enum.TaskStatusDone: {},
 	}
 }
