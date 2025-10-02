@@ -3,6 +3,7 @@ package persistence
 
 import (
 	"core-backend/config"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -45,34 +46,38 @@ func InitDB() *gorm.DB {
 		},
 	)
 
+	var db *gorm.DB
+	var err error
 	zap.L().Debug("Attempting to connect to PostgreSQL database")
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
-	if err != nil {
-		zap.L().Error("Database connection failed",
-			zap.String("host", dbCfg.Host),
-			zap.Int("port", dbCfg.Port),
-			zap.String("dbname", dbCfg.DBName),
-			zap.Error(err))
-		zap.L().Panic("Failed to connect to database", zap.Error(err))
+	for i := range 5 {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
+		if err == nil {
+			var sqlDB *sql.DB
+			sqlDB, err = db.DB()
+			if err != nil {
+				zap.L().Error("Failed to get database instance", zap.Error(err))
+			}
+			err = sqlDB.Ping()
+			if err == nil {
+				zap.L().Info("Database connection verified successfully",
+					zap.String("host", dbCfg.Host),
+					zap.Int("port", dbCfg.Port),
+					zap.String("dbname", dbCfg.DBName))
+				return db
+			}
+			zap.L().Error("Database ping failed", zap.Error(err))
+
+		}
+
+		zap.S().Errorf("Attempt %d: Failed to connect to database, retrying after %d seconds", i+1, i+1)
+		time.Sleep(time.Duration(i+1) * time.Second)
 	}
 
-	zap.L().Info("Database connected successfully",
+	zap.L().Error("All attempts to connect to the database have failed",
 		zap.String("host", dbCfg.Host),
 		zap.Int("port", dbCfg.Port),
-		zap.String("dbname", dbCfg.DBName))
-
-	// Verify database connection
-	sqlDB, err := db.DB()
-	if err != nil {
-		zap.L().Error("Failed to get database instance", zap.Error(err))
-		zap.L().Panic("Failed to get database instance", zap.Error(err))
-	}
-
-	if err := sqlDB.Ping(); err != nil {
-		zap.L().Error("Database ping failed", zap.Error(err))
-		zap.L().Panic("Database ping failed", zap.Error(err))
-	}
-
-	zap.L().Info("Database connection verified successfully")
-	return db
+		zap.String("dbname", dbCfg.DBName),
+		zap.Error(err))
+	zap.L().Panic("Failed to connect to database after multiple attempts", zap.Error(err))
+	return nil
 }
