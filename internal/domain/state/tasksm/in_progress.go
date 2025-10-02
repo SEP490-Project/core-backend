@@ -15,7 +15,7 @@ func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 	prdStatusCheck := ctx.IsAllProductsActive()
 	zap.L().Info("is_all_products_active", zap.Bool("value", prdStatusCheck))
 
-	if prdStatusCheck {
+	if !prdStatusCheck {
 		return fmt.Errorf("cannot transition to %s: not all products are active", next.Name())
 	}
 
