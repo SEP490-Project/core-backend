@@ -10,18 +10,18 @@ import (
 )
 
 type Product struct {
-	ID           uuid.UUID        `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
-	BrandID      uuid.UUID        `json:"brand_id" gorm:"column:brand_id;not null"`
-	CategoryID   uuid.UUID        `json:"category_id" gorm:"column:category_id;not null"`
-	Name         string           `json:"name" gorm:"column:name;not null"`
-	Description  *string          `json:"description" gorm:"column:description"`
-	Price        float64          `json:"price" gorm:"column:price;not null"`
-	CurrentStock *int             `json:"current_stock" gorm:"column:current_stock"`
-	Type         enum.ProductType `json:"type" gorm:"column:type;not null;check:type in ('STANDARD', 'LIMITED')"`
-	CreatedAt    time.Time        `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt    time.Time        `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt    gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
-
+	ID           uuid.UUID          `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
+	BrandID      uuid.UUID          `json:"brand_id" gorm:"column:brand_id;not null"`
+	CategoryID   uuid.UUID          `json:"category_id" gorm:"column:category_id;not null"`
+	Name         string             `json:"name" gorm:"column:name;not null"`
+	Description  *string            `json:"description" gorm:"column:description"`
+	Price        float64            `json:"price" gorm:"column:price;not null"`
+	CurrentStock *int               `json:"current_stock" gorm:"column:current_stock"`
+	Type         enum.ProductType   `json:"type" gorm:"column:type;not null;check:type in ('STANDARD', 'LIMITED')"`
+	CreatedAt    time.Time          `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt    time.Time          `json:"updated_at" gorm:"column:updated_at"`
+	DeletedAt    gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
+	Status       enum.ProductStatus `json:"status" gorm:"column:status;not null;check:status in ('DRAFT','SUBMITTED','REVISION','APPROVED','ACTIVED','INACTIVED')"`
 	// Relationships
 	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID"`
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
