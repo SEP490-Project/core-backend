@@ -91,7 +91,6 @@ func (s *APIServer) Start() error {
 
 	// Setup routes
 	s.router.SetupRoutes(engine)
-	s.router.SetupV1Routes(engine)
 
 	// Setup WebSocket routes if enabled
 	if wsConfig.Enabled {

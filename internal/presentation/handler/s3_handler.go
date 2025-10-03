@@ -26,19 +26,19 @@ func NewS3Handler(fileService iservice.FileService) *S3Handler {
 // @Failure 400 {object} map[string]string
 // @Router /api/v1/files/upload [post]
 func (h *S3Handler) UploadFile(c *gin.Context) {
-	userId := c.PostForm("userId")
+	userID := c.PostForm("userId")
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
 		return
 	}
 	tempPath := "/tmp/" + file.Filename
-	if err := c.SaveUploadedFile(file, tempPath); err != nil {
+	if err = c.SaveUploadedFile(file, tempPath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 	defer func() { _ = os.Remove(tempPath) }()
-	url, err := h.fileService.UploadFile(userId, tempPath, file.Filename)
+	url, err := h.fileService.UploadFile(userID, tempPath, file.Filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -55,13 +55,13 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 // @Failure 400 {object} map[string]string
 // @Router /api/v1/files/{filename} [delete]
 func (h *S3Handler) DeleteFile(c *gin.Context) {
-	userId := c.Query("userId")
+	userID := c.Query("userId")
 	filename := c.Param("filename")
-	if userId == "" || filename == "" {
+	if userID == "" || filename == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userId and filename are required"})
 		return
 	}
-	err := h.fileService.DeleteFile(userId, filename)
+	err := h.fileService.DeleteFile(userID, filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

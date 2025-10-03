@@ -5,18 +5,20 @@ import (
 	"fmt"
 )
 
+// ContractStatus represents the status of a contract.
+// Possible values are: "DRAFT", "ACTIVE", "COMPLETED", "TERMINATED".
 type ContractStatus string
 
 const (
-	ContractStatusActive   ContractStatus = "ACTIVE"
-	ContractStatusPending  ContractStatus = "PENDING"
-	ContractStatusExpired  ContractStatus = "EXPIRED"
-	ContractStatusCanceled ContractStatus = "CANCELED"
+	ContractStatusDraft      ContractStatus = "DRAFT"
+	ContractStatusActive     ContractStatus = "ACTIVE"
+	ContractStatusCompleted  ContractStatus = "COMPLETED"
+	ContractStatusTerminated ContractStatus = "TERMINATED"
 )
 
 func (cs ContractStatus) IsValid() bool {
 	switch cs {
-	case ContractStatusActive, ContractStatusPending, ContractStatusExpired, ContractStatusCanceled:
+	case ContractStatusDraft, ContractStatusActive, ContractStatusCompleted, ContractStatusTerminated:
 		return true
 	}
 	return false
