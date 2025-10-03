@@ -9,8 +9,8 @@ import (
 )
 
 type AuthService interface {
-	Login(ctx context.Context, request *requests.LoginRequest) (*responses.LoginResponse, error)
-	RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest) (*responses.LoginResponse, error)
+	Login(ctx context.Context, request *requests.LoginRequest, deviceFingerprint string) (*responses.LoginResponse, error)
+	RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest, deviceFingerprint string) (*responses.LoginResponse, error)
 	SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error)
 	Logout(ctx context.Context, request *requests.LogoutRequest) (*responses.LogoutResponse, error)
 	LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error)

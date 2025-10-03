@@ -5,7 +5,9 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/pkg/utils"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -51,13 +53,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.Login(c.Request.Context(), &loginRequest)
+	loginResponse, err := h.authService.Login(c.Request.Context(), &loginRequest, h.buildDeviceFingerprint(c))
 	if err != nil {
 		response := responses.ErrorResponse("Login failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
+	c.SetCookie(
+		"refresh_token",             // name
+		loginResponse.RefreshToken,  // value
+		int(72*time.Hour.Seconds()), // maxAge (72 hours)
+		"/",                         // path
+		"",                          // domain
+		true,                        // secure (HTTPS only)
+		true,                        // httpOnly (no JavaScript access)
+	)
 	response := responses.SuccessResponse("Login successful", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
@@ -141,13 +152,22 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Call auth service
-	loginResponse, err := h.authService.RefreshToken(c.Request.Context(), appRefreshRequest)
+	loginResponse, err := h.authService.RefreshToken(c.Request.Context(), appRefreshRequest, h.buildDeviceFingerprint(c))
 	if err != nil {
 		response := responses.ErrorResponse("Token refresh failed: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
+	c.SetCookie(
+		"refresh_token",             // name
+		loginResponse.RefreshToken,  // value
+		int(72*time.Hour.Seconds()), // maxAge (72 hours)
+		"/",                         // path
+		"",                          // domain
+		true,                        // secure (HTTPS only)
+		true,                        // httpOnly (no JavaScript access)
+	)
 	response := responses.SuccessResponse("Token refreshed successfully", nil, loginResponse)
 	c.JSON(http.StatusOK, response)
 }
@@ -290,4 +310,13 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 
 	response := responses.SuccessResponse("Session revoked successfully", nil, logoutResponse)
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *AuthHandler) buildDeviceFingerprint(c *gin.Context) string {
+	userAgent := c.Request.UserAgent()
+	ip := c.ClientIP()
+	acceptLanguage := c.GetHeader("Accept-Language")
+
+	// Combine multiple factors for better device identification
+	return fmt.Sprintf("%s|%s|%s", userAgent, ip, acceptLanguage)
 }
