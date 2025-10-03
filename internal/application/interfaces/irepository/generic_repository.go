@@ -12,6 +12,7 @@ type GenericRepository[T any] interface {
 	GetByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB, includes []string) (*T, error)
 	Count(ctx context.Context, filter func(*gorm.DB) *gorm.DB) (int64, error)
 	Exists(ctx context.Context, filter func(*gorm.DB) *gorm.DB) (bool, error)
+	ExistsByID(ctx context.Context, id any) (bool, error)
 	Add(ctx context.Context, entity *T) error
 	Update(ctx context.Context, entity *T) error
 	UpdateByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB, updates map[string]any) error
