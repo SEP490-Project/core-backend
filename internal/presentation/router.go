@@ -12,6 +12,15 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+const (
+	marketing string = string(enum.UserRoleMarketingStaff)
+	sales     string = string(enum.UserRoleSalesStaff)
+	content   string = string(enum.UserRoleContentStaff)
+	admin     string = string(enum.UserRoleAdmin)
+	customer  string = string(enum.UserRoleCustomer)
+	brand     string = string(enum.UserRoleBrandPartner)
+)
+
 type Router struct {
 	handlerRegistry    *handler.HandlerRegistry
 	middlewareRegistry *middleware.MiddlewareRegistry
@@ -80,7 +89,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			// Admin only routes
 			adminUserGroup := userGroup.Group("/")
-			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleAdmin)))
+			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 			{
 				adminUserGroup.GET("", userHandler.GetUsers)
 				adminUserGroup.GET("/:id", userHandler.GetUserByID)
@@ -110,6 +119,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	}
 }
 
+// setupBrandRoutes sets up routes for brand management
 func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 	brandHandler := r.handlerRegistry.BrandHandler
 
@@ -117,17 +127,53 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 	{
 		brandGroup.GET("", brandHandler.GetBrandsByFilter)
 		brandGroup.GET("/:id", brandHandler.GetBrandByID)
-		brandGroup.Use(r.middlewareRegistry.Auth.RequireAuth()).POST("", brandHandler.CreateBrand)
 		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff))).
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
+			POST("", brandHandler.CreateBrand)
+		brandGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
 			POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
 		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff), string(enum.UserRoleSalesStaff))).
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
 			PUT("/:id", brandHandler.UpdateBrand)
 		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff), string(enum.UserRoleSalesStaff))).
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
 			PATCH("/:id/status", brandHandler.UpdateBrandStatus)
 
+	}
+}
+
+// SetupContractRoutes sets up routes for contract management
+func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
+	contractHandler := r.handlerRegistry.ContractHandler
+
+	contractGroup := group.Group("/contracts")
+	{
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
+			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin)).
+			GET("", contractHandler.GetContracts)
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, brand)).
+			GET("/:id", contractHandler.GetContractByID)
+
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
+			POST("", contractHandler.CreateContract)
+
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
+			PATCH("/:id/approve", contractHandler.ApproveContract)
+
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
+			PUT("/:id", contractHandler.UpdateContract)
+
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
+			DELETE("/:id", contractHandler.DeleteContract)
 	}
 }
 
