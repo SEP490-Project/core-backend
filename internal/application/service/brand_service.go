@@ -183,21 +183,6 @@ func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *ir
 		return nil, fmt.Errorf("brand with name %s already exists", request.Name)
 	}
 
-	brandModel := &model.Brand{
-		ID:           uuid.New(),
-		Name:         request.Name,
-		Description:  request.Description,
-		ContactEmail: request.ContactEmail,
-		ContactPhone: request.ContactPhone,
-		Website:      request.Website,
-		LogoURL:      request.LogoURL,
-		Status:       enum.BrandStatusInactive,
-	}
-	if err := brandRepo.Add(ctx, brandModel); err != nil {
-		zap.L().Error("Failed to create brand", zap.Error(err))
-		return nil, err
-	}
-
 	// Create an new inactive user with placeholder password
 	// The real password will be auto-generated after the admin verifies the creation of the brand and users
 	usersModel := &model.User{
@@ -215,6 +200,22 @@ func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *ir
 	}
 	if err := usersRepo.Add(ctx, usersModel); err != nil {
 		zap.L().Error("Failed to create inactive user for brand", zap.Error(err))
+		return nil, err
+	}
+
+	brandModel := &model.Brand{
+		ID:           uuid.New(),
+		UserID:       &usersModel.ID,
+		Name:         request.Name,
+		Description:  request.Description,
+		ContactEmail: request.ContactEmail,
+		ContactPhone: request.ContactPhone,
+		Website:      request.Website,
+		LogoURL:      request.LogoURL,
+		Status:       enum.BrandStatusInactive,
+	}
+	if err := brandRepo.Add(ctx, brandModel); err != nil {
+		zap.L().Error("Failed to create brand", zap.Error(err))
 		return nil, err
 	}
 
