@@ -7,10 +7,12 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"errors"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -20,37 +22,67 @@ type UserService struct {
 }
 
 // ActivateBrandUser implements iservice.UserService.
-func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID) error {
+func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error {
 	zap.L().Info("Activating brand user",
 		zap.String("user_id", userID.String()),
 	)
 
+	userRepo := unitOfWork.Users()
+	brandRepo := unitOfWork.Brands()
+
 	filters := func(db *gorm.DB) *gorm.DB {
-		return db.Where("id = ? AND role = ? AND is_active = ?", userID, enum.UserRoleBrandPartner, false)
+		return db.Joins("inner join brands on brands.user_id = users.id").
+			Where("users.id = ? AND users.role = ? AND users.is_active = ? AND brands.status = ?",
+				userID, enum.UserRoleBrandPartner, false, enum.BrandStatusInactive,
+			)
 	}
-	user, err := s.userRepository.GetByCondition(ctx, filters, nil)
-	if err != nil || user == nil {
+	brandUsers, err := userRepo.GetByCondition(ctx, filters, []string{"Brand"})
+	if err != nil || brandUsers == nil {
 		zap.L().Error("Failed to find brand user for activation",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("brand user not found or already active")
 	}
 
-	zap.L().Debug("Found brand user for activation",
-		zap.String("user_id", user.ID.String()),
-		zap.String("username", user.Username),
-		zap.String("role", string(user.Role)),
-		zap.Bool("is_active", user.IsActive),
-	)
+	var generatedPassword string
+	generatedPassword, err = utils.GenerateRandomPassword(16)
+	if err != nil {
+		zap.L().Error("Failed to generate password for brand user activation",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return errors.New("failed to generate password for brand user activation")
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(generatedPassword), bcrypt.DefaultCost)
+	if err != nil {
+		zap.L().Error("Failed to hash password for brand user activation",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return errors.New("failed to hash password for brand user activation")
+	}
+	brandUsers.PasswordHash = string(hashedPassword)
+	brandUsers.IsActive = true
+	brandUsers.Brand.Status = enum.BrandStatusActive
 
-	user.IsActive = true
-	if err := s.userRepository.Update(ctx, user); err != nil {
+	if err := userRepo.Update(ctx, brandUsers); err != nil {
 		zap.L().Error("Failed to activate brand user",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("failed to activate brand user")
 	}
+	if err := brandRepo.Update(ctx, brandUsers.Brand); err != nil {
+		zap.L().Error("Failed to update brand status during user activation",
+			zap.String("user_id", userID.String()),
+			zap.String("brand_id", brandUsers.Brand.ID.String()),
+			zap.Error(err))
+		return errors.New("failed to update brand status during user activation")
+	}
 
+	zap.L().Info("Brand user activated successfully",
+		zap.String("user_id", userID.String()))
+	zap.L().Debug("Generated password for brand user activation",
+		zap.String("user_id", userID.String()),
+		zap.String("username", brandUsers.Username),
+		zap.String("password", generatedPassword))
 	return nil
 }
 

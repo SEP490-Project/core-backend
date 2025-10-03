@@ -1,6 +1,6 @@
 package iservice
 
 type FileService interface {
-	UploadFile(userId string, filePath string, destination string) (string, error)
-	DeleteFile(userId string, fileName string) error
+	UploadFile(userID string, filePath string, destination string) (string, error)
+	DeleteFile(userID string, fileName string) error
 }

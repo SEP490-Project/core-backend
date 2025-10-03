@@ -128,12 +128,147 @@ definitions:
     - contact_email
     - name
     type: object
+  requests.CreateContractRequest:
+    properties:
+      brand_bank_account_number:
+        example: "0123456789"
+        maxLength: 255
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        maxLength: 255
+        type: string
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        maxLength: 255
+        type: string
+      brand_representative_name:
+        example: John Doe
+        maxLength: 255
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        maxLength: 255
+        type: string
+      brand_tax_number:
+        description: Brand information (stored in contract for record-keeping)
+        example: TAX123456
+        maxLength: 100
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        maxLength: 255
+        minLength: 2
+        type: string
+      currency:
+        description: Financial
+        example: VND
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        description: Complex JSONB fields
+      legal_terms: {}
+      parent_contract_id:
+        description: Parent contract (for amendments or related contracts)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        maxLength: 255
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        maxLength: 255
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        maxLength: 255
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        maxLength: 255
+        type: string
+      representative_name:
+        description: KOL/Representative information (the other party in the contract)
+        example: Jane Smith
+        maxLength: 255
+        minLength: 2
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        maxLength: 255
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        maxLength: 100
+        type: string
+      scope_of_work: {}
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        maxLength: 255
+        type: string
+      start_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        example: DRAFT
+        type: string
+      title:
+        description: Contract basic information
+        example: Social Media Promotion Contract
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
+        type: string
+    required:
+    - brand_id
+    - contract_number
+    - end_date
+    - financial_terms
+    - legal_terms
+    - representative_name
+    - scope_of_work
+    - signed_date
+    - start_date
+    - title
+    - type
+    type: object
   requests.LoginRequest:
     properties:
-      device_fingerprint:
-        example: browser-fingerprint
-        maxLength: 500
-        type: string
       login_identifier:
         example: user@example.com
         type: string
@@ -163,6 +298,11 @@ definitions:
     properties:
       email:
         example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
+        maxLength: 100
+        minLength: 2
         type: string
       password:
         example: password123
@@ -206,6 +346,133 @@ definitions:
     required:
     - contact_email
     - name
+    type: object
+  requests.UpdateContractRequest:
+    properties:
+      brand_bank_account_number:
+        example: "0123456789"
+        maxLength: 255
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        maxLength: 255
+        type: string
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        maxLength: 255
+        type: string
+      brand_representative_name:
+        example: John Doe
+        maxLength: 255
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        maxLength: 255
+        type: string
+      brand_tax_number:
+        description: Brand information (stored in contract for record-keeping)
+        example: TAX123456
+        maxLength: 100
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001-UPDATED
+        maxLength: 255
+        minLength: 2
+        type: string
+      currency:
+        description: Financial
+        example: USD
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        description: Complex JSONB fields (optional for updates)
+      legal_terms: {}
+      parent_contract_id:
+        description: Parent contract (for amendments or related contracts)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        maxLength: 255
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        maxLength: 255
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        maxLength: 255
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        maxLength: 255
+        type: string
+      representative_name:
+        description: KOL/Representative information
+        example: Jane Smith
+        maxLength: 255
+        minLength: 2
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        maxLength: 255
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        maxLength: 100
+        type: string
+      scope_of_work: {}
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        maxLength: 255
+        type: string
+      start_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        example: ACTIVE
+        type: string
+      title:
+        description: Contract basic information
+        example: Updated Contract Title
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
+        type: string
     type: object
   requests.UpdateProfileRequest:
     properties:
@@ -289,6 +556,223 @@ definitions:
       status:
         type: string
       website:
+        type: string
+    type: object
+  responses.BrandSummary:
+    properties:
+      address:
+        example: 123 Main St, Springfield
+        type: string
+      contact_email:
+        example: contact@acme.com
+        type: string
+      contact_phone:
+        example: "+84901234567"
+        type: string
+      id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      logo_url:
+        example: https://example.com/logo.png
+        type: string
+      name:
+        example: Acme Corp
+        type: string
+    type: object
+  responses.ContractListResponse:
+    properties:
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_name:
+        example: Acme Corp
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      created_at:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      signed_date:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      start_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        example: Social Media Promotion Contract
+        type: string
+      type:
+        example: ADVERTISING
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+    type: object
+  responses.ContractPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContractListResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ContractResponse:
+    properties:
+      brand:
+        $ref: '#/definitions/responses.BrandSummary'
+      brand_bank_account_number:
+        example: "0123456789"
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        type: string
+      brand_id:
+        description: Brand information (from relationship)
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        type: string
+      brand_representative_name:
+        example: John Doe
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        type: string
+      brand_tax_number:
+        example: TAX123456
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      created_at:
+        description: Metadata
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      currency:
+        description: Financial
+        example: VND
+        type: string
+      deleted_at:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        description: Complex JSONB fields (unmarshaled)
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      legal_terms: {}
+      parent_contract:
+        allOf:
+        - $ref: '#/definitions/responses.ContractSummary'
+        description: Parent contract summary (if exists)
+      parent_contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        type: string
+      representative_name:
+        description: KOL/Representative information
+        example: Jane Smith
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        type: string
+      scope_of_work: {}
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        type: string
+      start_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        description: Contract basic information
+        example: Social Media Promotion Contract
+        type: string
+      type:
+        example: ADVERTISING
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+    type: object
+  responses.ContractSummary:
+    properties:
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      start_date:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        example: Master Service Agreement
+        type: string
+      type:
+        example: ADVERTISING
         type: string
     type: object
   responses.LoginResponse:
@@ -989,6 +1473,430 @@ paths:
       summary: Create Brand with Inactive Users
       tags:
       - Brands
+  /api/v1/contracts:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of contracts with optional filters
+      parameters:
+      - description: Brand ID
+        format: uuid
+        in: query
+        name: brand_id
+        type: string
+      - description: Contract type
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        in: query
+        name: type
+        type: string
+      - description: Contract status
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        in: query
+        name: status
+        type: string
+      - description: Search keyword (title or contract number)
+        in: query
+        name: keyword
+        type: string
+      - description: Start date filter
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date filter
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contracts retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contracts with filters
+      tags:
+      - Contracts
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a new contract and optionally update brand information
+      parameters:
+      - description: Contract creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Contract created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new contract
+      tags:
+      - Contracts
+  /api/v1/contracts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a contract by ID
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete contract
+      tags:
+      - Contracts
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific contract
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract by ID
+      tags:
+      - Contracts
+    put:
+      consumes:
+      - application/json
+      description: Update an existing contract and optionally update brand information
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Contract update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update contract
+      tags:
+      - Contracts
+  /api/v1/contracts/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Approve a contract by ID
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract approved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve contract
+      tags:
+      - Contracts
+  /api/v1/contracts/brands/{brand_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all contracts for a specific brand
+      parameters:
+      - description: Brand ID
+        format: uuid
+        in: path
+        name: brand_id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contracts retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaginationResponse'
+        "400":
+          description: Invalid brand ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contracts by brand ID
+      tags:
+      - Contracts
+  /api/v1/files/{filename}:
+    delete:
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: File name
+        in: path
+        name: filename
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a file from S3
+      tags:
+      - files
+  /api/v1/files/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: User ID
+        in: formData
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a file to S3
+      tags:
+      - files
   /api/v1/products:
     get:
       consumes:

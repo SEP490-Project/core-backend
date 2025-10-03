@@ -3,6 +3,7 @@ package handler
 import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
 	"strconv"
@@ -14,12 +15,14 @@ import (
 
 type UserHandler struct {
 	userService iservice.UserService
+	unitOfWork  irepository.UnitOfWork
 	validator   *validator.Validate
 }
 
-func NewUserHandler(userService iservice.UserService) *UserHandler {
+func NewUserHandler(userService iservice.UserService, unitOfWork irepository.UnitOfWork) *UserHandler {
 	return &UserHandler{
 		userService: userService,
+		unitOfWork:  unitOfWork,
 		validator:   validator.New(),
 	}
 }
@@ -295,14 +298,17 @@ func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
+	h.unitOfWork.Begin()
 
-	err = h.userService.ActivateBrandUser(c.Request.Context(), userID)
+	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, h.unitOfWork)
 	if err != nil {
+		h.unitOfWork.Rollback()
 		response := responses.ErrorResponse("Failed to activate brand user: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
+	h.unitOfWork.Commit()
 	response := responses.SuccessResponse("Brand user activated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }

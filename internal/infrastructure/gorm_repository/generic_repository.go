@@ -130,6 +130,15 @@ func (r *genericRepository[T]) Exists(ctx context.Context, filter func(*gorm.DB)
 	return count > 0, nil
 }
 
+func (r *genericRepository[T]) ExistsByID(ctx context.Context, id any) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(new(T)).Where("id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, err
+}
+
 // Count counts the number of entities in the database that match the given filter.
 func (r *genericRepository[T]) Count(ctx context.Context, filter func(*gorm.DB) *gorm.DB) (int64, error) {
 	var count int64
