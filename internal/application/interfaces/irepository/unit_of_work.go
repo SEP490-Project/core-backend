@@ -15,6 +15,11 @@ type UnitOfWork interface {
 	Users() GenericRepository[model.User]
 	Brands() GenericRepository[model.Brand]
 	LoggedSessions() GenericRepository[model.LoggedSession]
+	Contracts() GenericRepository[model.Contract]
+	ContractPayments() GenericRepository[model.ContractPayment]
+	Campaigns() GenericRepository[model.Campaign]
+	Milestones() GenericRepository[model.Milestone]
+	Tasks() GenericRepository[model.Task]
 
 	DB() *gorm.DB
 }
