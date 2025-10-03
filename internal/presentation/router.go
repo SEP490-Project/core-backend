@@ -52,8 +52,12 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 	engine.GET("/health", healthHandler.HealthCheck)
 	engine.GET("/health/ready", healthHandler.ReadinessCheck)
 	engine.GET("/health/live", healthHandler.LivenessCheck)
+
+	// Setup version 1 API routes
+	r.SetupV1Routes(engine)
 }
 
+// SetupV1Routes sets up version 1 API routes
 func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	v1 := engine.Group("/api/v1")
 	{
