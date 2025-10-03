@@ -105,6 +105,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		}
 
 		r.setupBrandRoutes(v1)
+		r.SetupContractRoutes(v1)
 
 		// Product routes
 		productHandler := r.handlerRegistry.ProductHandler
