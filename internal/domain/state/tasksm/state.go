@@ -1,6 +1,15 @@
 package tasksm
 
-import "core-backend/internal/domain/enum"
+import (
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+)
+
+type TaskContext struct {
+	State    TaskState
+	Products []*model.Product
+	Contents []*model.Content
+}
 
 type TaskState interface {
 	Name() enum.TaskStatus
@@ -36,4 +45,33 @@ func PrintAllowedTransitions(state TaskState) []string {
 		transitions = append(transitions, k.String())
 	}
 	return transitions
+}
+
+// helper
+func (c *TaskContext) IsAllProductsActive() bool {
+	if c.Products == nil || len(c.Products) == 0 {
+		return false
+	}
+
+	for _, p := range c.Products {
+		if p.Status != enum.ProductStatusActived {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (c *TaskContext) IsAllContentsPosted() bool {
+	if c.Contents == nil || len(c.Contents) == 0 {
+		return false
+	}
+
+	for _, ct := range c.Contents {
+		if ct.ContentStatus != enum.ContentStatusPosted {
+			return false
+		}
+	}
+
+	return true
 }

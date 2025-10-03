@@ -2,8 +2,11 @@ package productsm
 
 import (
 	"core-backend/internal/domain/enum"
-	"core-backend/internal/domain/model"
 )
+
+type ProductContext struct {
+	State ProductState
+}
 
 type ProductState interface {
 	Name() enum.ProductStatus
@@ -11,20 +14,21 @@ type ProductState interface {
 	AllowedTransitions() map[enum.ProductStatus]struct{}
 }
 
-type ProductContext struct {
-	Product *model.Product
-	state   ProductState
-}
-
-func NewProductContext(product *model.Product, state ProductState) *ProductContext {
-	return &ProductContext{Product: product, state: state}
-}
-
-func (ctx *ProductContext) SetState(state ProductState) {
-	ctx.state = state
-	ctx.Product.Status = state.Name()
-}
-
-func (ctx *ProductContext) State() ProductState {
-	return ctx.state
+func NewProductState(status enum.ProductStatus) ProductState {
+	switch status {
+	case enum.ProductStatusDraft:
+		return &DraftState{}
+	case enum.ProductStatusSubmitted:
+		return &SubmittedState{}
+	case enum.ProductStatusRevision:
+		return &RevisionState{}
+	case enum.ProductStatusApproved:
+		return &ApprovedState{}
+	case enum.ProductStatusActived:
+		return &ActivedState{}
+	case enum.ProductStatusInactived:
+		return &InActivedState{}
+	default:
+		return nil
+	}
 }

@@ -13,7 +13,7 @@ func (a ApprovedState) Name() enum.ProductStatus {
 
 func (a ApprovedState) Next(ctx *ProductContext, next ProductState) error {
 	if _, ok := a.AllowedTransitions()[next.Name()]; ok {
-		ctx.SetState(next)
+		ctx.State = next
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", a.Name(), next.Name())
