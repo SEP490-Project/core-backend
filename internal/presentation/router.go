@@ -17,6 +17,15 @@ type Router struct {
 	middlewareRegistry *middleware.MiddlewareRegistry
 }
 
+const (
+	marketing string = string(enum.UserRoleMarketingStaff)
+	sales     string = string(enum.UserRoleSalesStaff)
+	content   string = string(enum.UserRoleContentStaff)
+	admin     string = string(enum.UserRoleAdmin)
+	customer  string = string(enum.UserRoleCustomer)
+	brand     string = string(enum.UserRoleBrandPartner)
+)
+
 func NewRouter(
 	handlerRegistry *handler.HandlerRegistry,
 	middlewareRegistry *middleware.MiddlewareRegistry,
@@ -97,9 +106,19 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
+		// Product state routes (protected)
+		stateHandler := r.handlerRegistry.TaskHandler
+		productStateGroup := v1.Group("/products")
+		//productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales))
+		productStateGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
+		}
+
 		// Task routes
 		taskHandler := r.handlerRegistry.TaskHandler
 		taskGroup := v1.Group("/tasks")
+		//taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, marketing, content, admin, brand))
 		taskGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
@@ -139,7 +158,6 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 		brandGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(string(enum.UserRoleMarketingStaff), string(enum.UserRoleSalesStaff))).
 			PATCH("/:id/status", brandHandler.UpdateBrandStatus)
-
 	}
 }
 

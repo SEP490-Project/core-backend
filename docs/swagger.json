@@ -1087,6 +1087,76 @@
                 }
             }
         },
+        "/api/v1/products/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Product State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateProductStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tasks/{id}/state": {
             "patch": {
                 "security": [
@@ -1102,7 +1172,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Tasks"
+                    "State Transfer"
                 ],
                 "summary": "Update Task State",
                 "parameters": [
@@ -1889,6 +1959,26 @@
                 "UserRoleCustomer",
                 "UserRoleBrandPartner"
             ]
+        },
+        "handler.UpdateProductStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "Allowed values must align with enum.ProductStatus constants",
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "SUBMITTED",
+                        "REVISION",
+                        "APPROVED",
+                        "ACTIVED",
+                        "INACTIVED"
+                    ]
+                }
+            }
         },
         "handler.UpdateTaskStateRequest": {
             "type": "object",

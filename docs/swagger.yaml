@@ -99,6 +99,21 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
+  handler.UpdateProductStateRequest:
+    properties:
+      state:
+        description: Allowed values must align with enum.ProductStatus constants
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        type: string
+    required:
+    - state
+    type: object
   handler.UpdateTaskStateRequest:
     properties:
       state:
@@ -1170,6 +1185,52 @@ paths:
       summary: Get All Products
       tags:
       - Products
+  /api/v1/products/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED,
+        ACTIVED, INACTIVED)
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateProductStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Product State
+      tags:
+      - State Transfer
   /api/v1/tasks/{id}/state:
     patch:
       consumes:
@@ -1215,7 +1276,7 @@ paths:
       - BearerAuth: []
       summary: Update Task State
       tags:
-      - Tasks
+      - State Transfer
   /api/v1/users:
     get:
       consumes:

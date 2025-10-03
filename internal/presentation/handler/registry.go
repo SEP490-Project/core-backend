@@ -15,7 +15,7 @@ type HandlerRegistry struct {
 	BrandHandler        *BrandHandler
 	FileHandler         *S3Handler
 	PayOsHandler        *PayOsHandler
-	TaskHandler         *TaskHandler
+	TaskHandler         *StateHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {

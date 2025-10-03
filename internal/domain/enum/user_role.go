@@ -44,3 +44,7 @@ func (us *UserRole) Scan(value any) error {
 func (us UserRole) Value() (driver.Value, error) {
 	return string(us), nil
 }
+
+func (us UserRole) String() string {
+	return string(us)
+}
