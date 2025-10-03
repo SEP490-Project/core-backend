@@ -19,7 +19,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 	return &HandlerRegistry{
 		ApplicationRegistry: applicationReg,
 		AuthHandler:         NewAuthHandler(applicationReg.AuthService),
-		UserHandler:         NewUserHandler(applicationReg.UserService),
+		UserHandler:         NewUserHandler(applicationReg.UserService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		HealthHandler:       NewHealthHandler(applicationReg.InfrastructureRegistry),
 		ProductHandler:      NewProductHandler(applicationReg.ProductService),
 		BrandHandler:        NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),

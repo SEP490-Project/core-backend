@@ -3,6 +3,7 @@ package iservice
 import (
 	"context"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
 
 	"github.com/google/uuid"
 )
@@ -21,5 +22,5 @@ type UserService interface {
 	// UpdateProfile updates the current user's profile.
 	UpdateProfile(ctx context.Context, userID uuid.UUID, username, email string) (*responses.UserResponse, error)
 	// ActivateBrandUser activates a user associated with a brand.
-	ActivateBrandUser(ctx context.Context, userID uuid.UUID) error
+	ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error
 }
