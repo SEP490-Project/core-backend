@@ -21,11 +21,11 @@
 package main
 
 import (
-	"os"
 	"core-backend/config"
 	"core-backend/internal/application/service"
 	"core-backend/internal/presentation"
 	"core-backend/pkg/logging"
+	"os"
 
 	"go.uber.org/zap"
 )
@@ -49,7 +49,7 @@ func main() {
 		logging.ShutdownLogger()
 	}()
 
-	zap.L().Info("Starting server...", 
+	zap.L().Info("Starting server...",
 		zap.String("env", appConfig.Server.Environment),
 		zap.Int("port", appConfig.Server.Port),
 	)
@@ -78,11 +78,11 @@ func ensureRSAKeys() error {
 	// Check if keys exist
 	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
 		zap.L().Info("RSA keys not found, generating new key pair...")
-		
+
 		if err := service.GenerateKeyPair(privateKeyPath, publicKeyPath, 2048); err != nil {
 			return err
 		}
-		
+
 		zap.L().Info("RSA key pair generated successfully",
 			zap.String("private_key", privateKeyPath),
 			zap.String("public_key", publicKeyPath),
