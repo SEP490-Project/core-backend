@@ -43,7 +43,7 @@ func NewContractHandler(
 // @Tags         Contracts
 // @Accept       multipart/form-data
 // @Produce      json
-// @Param 		 data formData string true "Contract creation data in JSON format"
+// @Param 		 data formData string true "Contract creation data in JSON format of struct type requests.CreateContractRequest"
 // @Param 		 file formData file true "Contract file"
 // @Success      201 {object} responses.APIResponse{data=responses.ContractResponse} "Contract created successfully"
 // @Failure      400 {object} responses.APIResponse "Invalid request or validation error"
