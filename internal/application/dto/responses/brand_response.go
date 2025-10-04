@@ -2,7 +2,6 @@ package responses
 
 import "core-backend/internal/domain/model"
 
-
 // BrandResponse represents the response structure for a brand.
 type BrandResponse struct {
 	ID           string  `json:"id"`
