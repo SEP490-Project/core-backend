@@ -15,7 +15,7 @@ type Invoice struct {
 	TaxPercentage      int  `json:"taxPercentage"`
 }
 
-// Response structs
+// PaymentResponse represents the response structure for a payment operation.
 type PaymentResponse struct {
 	Code      string            `json:"code"`
 	Desc      string            `json:"desc"`

@@ -3,7 +3,6 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -65,12 +64,12 @@ type ProductVariantResponse struct {
 	ContainerType   enum.ContainerType          `json:"container_type,omitempty"`
 	DispenserType   enum.DispenserType          `json:"dispenser_type,omitempty"`
 	Uses            string                      `json:"uses,omitempty"`
-	ManufactureDate *time.Time                  `json:"manufactring_date,omitempty"`
-	ExpiryDate      *time.Time                  `json:"expiry_date,omitempty"`
+	ManufactureDate string                      `json:"manufactring_date,omitempty"`
+	ExpiryDate      string                      `json:"expiry_date,omitempty"`
 	Instructions    string                      `json:"instructions,omitempty"`
 	IsDefault       bool                        `json:"is_default,omitempty"`
-	CreatedAt       time.Time                   `json:"created_at"`
-	UpdatedAt       time.Time                   `json:"updated_at"`
+	CreatedAt       string                      `json:"created_at"`
+	UpdatedAt       string                      `json:"updated_at"`
 	Story           []byte                      `json:"story,omitempty"`
 	Attributes      []ProductAttributesResponse `json:"attributes,omitempty"`
 }
@@ -94,12 +93,12 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		ContainerType:   variant.ContainerType,
 		DispenserType:   variant.DispenserType,
 		Uses:            variant.Uses,
-		ManufactureDate: variant.ManufactureDate,
-		ExpiryDate:      variant.ExpiryDate,
+		ManufactureDate: variant.ManufactureDate.Format(TimeFormat),
+		ExpiryDate:      variant.ExpiryDate.Format(TimeFormat),
 		Instructions:    variant.Instructions,
 		IsDefault:       variant.IsDefault,
-		CreatedAt:       variant.CreatedAt,
-		UpdatedAt:       variant.UpdatedAt,
+		CreatedAt:       variant.CreatedAt.Format(TimeFormat),
+		UpdatedAt:       variant.UpdatedAt.Format(TimeFormat),
 	}
 	if variant.Product != nil {
 		response.Name = variant.Product.Name
