@@ -3,6 +3,9 @@ package utils
 import (
 	"regexp"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // ToUsernameString converts an email or string to a valid username format
@@ -25,4 +28,11 @@ func ToUsernameString(input string) string {
 	username = reUnderscore.ReplaceAllString(username, "_")
 
 	return username
+}
+
+func ToTitleCase(input string) string {
+	regex := regexp.MustCompile("_+")
+	spacedString := regex.ReplaceAllString(input, " ")
+	titleCaser := cases.Title(language.English)
+	return titleCaser.String(spacedString)
 }
