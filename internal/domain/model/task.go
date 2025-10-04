@@ -9,6 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
+//new : TaskStatus, Product[], Content[]
+
 type Task struct {
 	ID           uuid.UUID       `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	MilestoneID  uuid.UUID       `json:"milestone_id" gorm:"type:uuid;column:milestone_id;not null"`
@@ -16,7 +18,7 @@ type Task struct {
 	Description  datatypes.JSON  `json:"description" gorm:"column:description;type:jsonb"`
 	Deadline     time.Time       `json:"deadline" gorm:"column:deadline;not null"`
 	Type         enum.TaskType   `json:"type" gorm:"column:type;not null;check:type in ('PRODUCT', 'CONTENT', 'EVENT', 'OTHER')"`
-	Status       enum.TaskStatus `json:"status" gorm:"column:status;not null;check:status in ('TO_DO', 'IN_PROGRESS', 'CANCELLED', 'SUBMITTED', 'REVISION_REQUESTED', 'APPROVED', 'ON_RELEASE', 'RECAP', 'DONE')"`
+	Status       enum.TaskStatus `json:"status" gorm:"column:status;not null;check:status in ('TODO', 'IN_PROGRESS', 'CANCELLED', 'RECAP', 'DONE')"`
 	AssignedToID *uuid.UUID      `json:"assigned_to" gorm:"type:uuid;column:assigned_to"`
 	CreatedAt    time.Time       `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time       `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
@@ -24,6 +26,8 @@ type Task struct {
 
 	// Relationships
 	Milestone *Milestone `json:"-" gorm:"foreignKey:MilestoneID"`
+	Products  []*Product `json:"products" gorm:"foreignKey:TaskID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Contents  []*Content `json:"contents" gorm:"foreignKey:TaskID;references:ID"`
 }
 
 func (Task) TableName() string { return "tasks" }
@@ -32,6 +36,20 @@ func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
+	// default status if not set
+	if !t.Status.IsValid() {
+		t.Status = enum.TaskStatusToDo
+	}
+	return nil
+}
 
+// Validate ensures the Task has a valid enum combination before persisting.
+func (t *Task) Validate() error {
+	if !t.Type.IsValid() {
+		return gorm.ErrInvalidData
+	}
+	if !t.Status.IsValid() {
+		return gorm.ErrInvalidData
+	}
 	return nil
 }

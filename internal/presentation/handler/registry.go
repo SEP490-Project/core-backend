@@ -3,6 +3,7 @@ package handler
 
 import (
 	"core-backend/internal/application"
+	"github.com/go-playground/validator/v10"
 )
 
 type HandlerRegistry struct {
@@ -13,6 +14,8 @@ type HandlerRegistry struct {
 	ProductHandler      *ProductHandler
 	BrandHandler        *BrandHandler
 	FileHandler         *S3Handler
+	PayOsHandler        *PayOsHandler
+	TaskHandler         *StateHandler
 	ContractHandler     *ContractHandler
 }
 
@@ -25,6 +28,8 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		ProductHandler:      NewProductHandler(applicationReg.ProductService),
 		BrandHandler:        NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:         NewS3Handler(applicationReg.FileService),
+		PayOsHandler:        NewPayOsHandler(applicationReg.InfrastructureRegistry.PayOsService),
+		TaskHandler:         NewTaskHandler(applicationReg.TaskService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
 		ContractHandler:     NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }
