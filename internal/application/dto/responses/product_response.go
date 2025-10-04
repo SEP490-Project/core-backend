@@ -3,6 +3,7 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 
 	"github.com/google/uuid"
 )
@@ -93,12 +94,12 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		ContainerType:   variant.ContainerType,
 		DispenserType:   variant.DispenserType,
 		Uses:            variant.Uses,
-		ManufactureDate: variant.ManufactureDate.Format(TimeFormat),
-		ExpiryDate:      variant.ExpiryDate.Format(TimeFormat),
+		ManufactureDate: utils.FormatLocalTime(*variant.ManufactureDate, ""),
+		ExpiryDate:      utils.FormatLocalTime(*variant.ExpiryDate, ""),
 		Instructions:    variant.Instructions,
 		IsDefault:       variant.IsDefault,
-		CreatedAt:       variant.CreatedAt.Format(TimeFormat),
-		UpdatedAt:       variant.UpdatedAt.Format(TimeFormat),
+		CreatedAt:       utils.FormatLocalTime(variant.CreatedAt, ""),
+		UpdatedAt:       utils.FormatLocalTime(variant.UpdatedAt, ""),
 	}
 	if variant.Product != nil {
 		response.Name = variant.Product.Name

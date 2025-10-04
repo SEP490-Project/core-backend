@@ -3,6 +3,7 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 
 	"github.com/google/uuid"
 )
@@ -26,9 +27,9 @@ func (ur *UserResponse) ToUserResponse(model *model.User) *UserResponse {
 		Email:     model.Email,
 		Role:      model.Role,
 		IsActive:  model.IsActive,
-		CreatedAt: model.CreatedAt.Format(TimeFormat),
-		UpdatedAt: model.UpdatedAt.Format(TimeFormat),
-		LastLogin: model.LastLogin.Format(TimeFormat),
+		CreatedAt: utils.FormatLocalTime(*model.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(*model.UpdatedAt, ""),
+		LastLogin: utils.FormatLocalTime(*model.LastLogin, ""),
 	}
 }
 
