@@ -24,6 +24,14 @@ FROM brands b
 WHERE c.brand_id = b.id
   AND b.tax_number IS NOT NULL;  -- Only update if brand has these fields populated
 
+ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS contract_number VARCHAR(255);
+
+-- Populate contract_number for existing rows if empty: use prefix + short id
+UPDATE contracts
+SET contract_number = ('CN-' || substring(id::text from 1 for 8))
+WHERE contract_number IS NULL;
+
 -- Step 3: Drop columns from brands table
 ALTER TABLE brands
     DROP COLUMN IF EXISTS tax_number,
@@ -40,6 +48,41 @@ ALTER TABLE contracts
     ALTER COLUMN representative_role DROP NOT NULL,
     ALTER COLUMN representative_phone DROP NOT NULL,
     ALTER COLUMN representative_email DROP NOT NULL;
+
+ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS contract_number VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS signed_date DATE,
+  ADD COLUMN IF NOT EXISTS signed_location TEXT,
+  ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'VND';
+
+-- Step 5: Map legacy status values into new enum set
+-- Assumption mapping: EXPIRED -> COMPLETED, CANCELED -> TERMINATED, ACTIVE -> ACTIVE
+UPDATE contracts
+SET status = CASE
+  WHEN status = 'EXPIRED' THEN 'COMPLETED'
+  WHEN status = 'CANCELED' THEN 'TERMINATED'
+  WHEN status = 'ACTIVE' THEN 'ACTIVE'
+  ELSE 'DRAFT'
+END
+WHERE status IS NOT NULL;
+
+-- Step 6: Replace old check constraints with new ones matching the domain model
+ALTER TABLE contracts
+  DROP CONSTRAINT IF EXISTS contracts_type_check,
+  DROP CONSTRAINT IF EXISTS contracts_status_check;
+
+ALTER TABLE contracts
+  ADD CONSTRAINT contracts_type_check CHECK (type IN ('ADVERTISING', 'AFFILIATE', 'BRAND_AMBASSADOR', 'CO_PRODUCING')),
+  ADD CONSTRAINT contracts_status_check CHECK (status IN ('DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED'));
+
+-- Step 7: Ensure JSONB columns are NOT NULL (model enforces non-null)
+UPDATE contracts SET financial_terms = '{}'::jsonb WHERE financial_terms IS NULL;
+UPDATE contracts SET scope_of_work = '{}'::jsonb WHERE scope_of_work IS NULL;
+UPDATE contracts SET legal_terms = '{}'::jsonb WHERE legal_terms IS NULL;
+ALTER TABLE contracts ALTER COLUMN financial_terms SET NOT NULL;
+ALTER TABLE contracts ALTER COLUMN scope_of_work SET NOT NULL;
+ALTER TABLE contracts ALTER COLUMN legal_terms SET NOT NULL;
+
 
 -- Step 5: Add comments for documentation
 COMMENT ON COLUMN contracts.brand_tax_number IS 'Brand tax number stored in contract for record-keeping at time of signing';

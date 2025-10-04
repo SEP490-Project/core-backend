@@ -128,145 +128,6 @@ definitions:
     - contact_email
     - name
     type: object
-  requests.CreateContractRequest:
-    properties:
-      brand_bank_account_number:
-        example: "0123456789"
-        maxLength: 255
-        type: string
-      brand_bank_name:
-        example: Vietcombank
-        maxLength: 255
-        type: string
-      brand_id:
-        example: 660e8400-e29b-41d4-a716-446655440000
-        type: string
-      brand_representative_email:
-        example: john.doe@acme.com
-        maxLength: 255
-        type: string
-      brand_representative_name:
-        example: John Doe
-        maxLength: 255
-        type: string
-      brand_representative_phone:
-        example: "+84901234567"
-        type: string
-      brand_representative_role:
-        example: CEO
-        maxLength: 255
-        type: string
-      brand_tax_number:
-        description: Brand information (stored in contract for record-keeping)
-        example: TAX123456
-        maxLength: 100
-        type: string
-      contract_file_url:
-        description: File URLs
-        example: https://example.com/contracts/contract.pdf
-        type: string
-      contract_number:
-        example: CONTRACT-2023-001
-        maxLength: 255
-        minLength: 2
-        type: string
-      currency:
-        description: Financial
-        example: VND
-        type: string
-      end_date:
-        example: "2023-12-31T23:59:59Z"
-        type: string
-      financial_terms:
-        description: Complex JSONB fields
-      legal_terms: {}
-      parent_contract_id:
-        description: Parent contract (for amendments or related contracts)
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      proposal_file_url:
-        example: https://example.com/proposals/proposal.pdf
-        type: string
-      representative_bank_account_holder:
-        example: Jane Smith
-        maxLength: 255
-        type: string
-      representative_bank_account_number:
-        example: "987654321"
-        maxLength: 255
-        type: string
-      representative_bank_name:
-        example: First National Bank
-        maxLength: 255
-        type: string
-      representative_email:
-        example: jane.smith@example.com
-        maxLength: 255
-        type: string
-      representative_name:
-        description: KOL/Representative information (the other party in the contract)
-        example: Jane Smith
-        maxLength: 255
-        minLength: 2
-        type: string
-      representative_phone:
-        example: "+84901234567"
-        type: string
-      representative_role:
-        example: Influencer
-        maxLength: 255
-        type: string
-      representative_tax_number:
-        example: TAX654321
-        maxLength: 100
-        type: string
-      scope_of_work: {}
-      signed_date:
-        description: Contract dates
-        example: "2023-10-01T12:00:00Z"
-        type: string
-      signed_location:
-        example: Springfield
-        maxLength: 255
-        type: string
-      start_date:
-        example: "2023-10-01T00:00:00Z"
-        type: string
-      status:
-        enum:
-        - DRAFT
-        - ACTIVE
-        - COMPLETED
-        - TERMINATED
-        example: DRAFT
-        type: string
-      title:
-        description: Contract basic information
-        example: Social Media Promotion Contract
-        maxLength: 255
-        minLength: 2
-        type: string
-      type:
-        enum:
-        - ADVERTISING
-        - AFFILIATE
-        - BRAND_AMBASSADOR
-        - CO_PRODUCING
-        example: ADVERTISING
-        type: string
-    required:
-    - brand_id
-    - contract_number
-    - end_date
-    - financial_terms
-    - legal_terms
-    - representative_name
-    - scope_of_work
-    - signed_date
-    - start_date
-    - title
-    - type
-    type: object
   requests.LoginRequest:
     properties:
       login_identifier:
@@ -1568,12 +1429,16 @@ paths:
       - multipart/form-data
       description: Create a new contract and optionally update brand information
       parameters:
-      - description: Contract creation data
-        in: body
-        name: request
+      - description: Contract creation data in JSON format of struct type requests.CreateContractRequest
+        in: formData
+        name: data
         required: true
-        schema:
-          $ref: '#/definitions/requests.CreateContractRequest'
+        type: string
+      - description: Contract file
+        in: formData
+        name: file
+        required: true
+        type: file
       produces:
       - application/json
       responses:

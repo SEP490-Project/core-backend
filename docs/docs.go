@@ -987,13 +987,18 @@ const docTemplate = `{
                 "summary": "Create new contract",
                 "parameters": [
                     {
-                        "description": "Contract creation data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CreateContractRequest"
-                        }
+                        "type": "string",
+                        "description": "Contract creation data in JSON format of struct type requests.CreateContractRequest",
+                        "name": "data",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Contract file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -2341,179 +2346,6 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255,
                     "example": "https://www.acme.com"
-                }
-            }
-        },
-        "requests.CreateContractRequest": {
-            "type": "object",
-            "required": [
-                "brand_id",
-                "contract_number",
-                "end_date",
-                "financial_terms",
-                "legal_terms",
-                "representative_name",
-                "scope_of_work",
-                "signed_date",
-                "start_date",
-                "title",
-                "type"
-            ],
-            "properties": {
-                "brand_bank_account_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "0123456789"
-                },
-                "brand_bank_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Vietcombank"
-                },
-                "brand_id": {
-                    "type": "string",
-                    "example": "660e8400-e29b-41d4-a716-446655440000"
-                },
-                "brand_representative_email": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "john.doe@acme.com"
-                },
-                "brand_representative_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "John Doe"
-                },
-                "brand_representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "brand_representative_role": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "CEO"
-                },
-                "brand_tax_number": {
-                    "description": "Brand information (stored in contract for record-keeping)",
-                    "type": "string",
-                    "maxLength": 100,
-                    "example": "TAX123456"
-                },
-                "contract_file_url": {
-                    "description": "File URLs",
-                    "type": "string",
-                    "example": "https://example.com/contracts/contract.pdf"
-                },
-                "contract_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "CONTRACT-2023-001"
-                },
-                "currency": {
-                    "description": "Financial",
-                    "type": "string",
-                    "example": "VND"
-                },
-                "end_date": {
-                    "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
-                },
-                "financial_terms": {
-                    "description": "Complex JSONB fields"
-                },
-                "legal_terms": {},
-                "parent_contract_id": {
-                    "description": "Parent contract (for amendments or related contracts)",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "proposal_file_url": {
-                    "type": "string",
-                    "example": "https://example.com/proposals/proposal.pdf"
-                },
-                "representative_bank_account_holder": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Jane Smith"
-                },
-                "representative_bank_account_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "987654321"
-                },
-                "representative_bank_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "First National Bank"
-                },
-                "representative_email": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "jane.smith@example.com"
-                },
-                "representative_name": {
-                    "description": "KOL/Representative information (the other party in the contract)",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "Jane Smith"
-                },
-                "representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "representative_role": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Influencer"
-                },
-                "representative_tax_number": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "example": "TAX654321"
-                },
-                "scope_of_work": {},
-                "signed_date": {
-                    "description": "Contract dates",
-                    "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
-                },
-                "signed_location": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Springfield"
-                },
-                "start_date": {
-                    "type": "string",
-                    "example": "2023-10-01T00:00:00Z"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "ACTIVE",
-                        "COMPLETED",
-                        "TERMINATED"
-                    ],
-                    "example": "DRAFT"
-                },
-                "title": {
-                    "description": "Contract basic information",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "Social Media Promotion Contract"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "ADVERTISING",
-                        "AFFILIATE",
-                        "BRAND_AMBASSADOR",
-                        "CO_PRODUCING"
-                    ],
-                    "example": "ADVERTISING"
                 }
             }
         },
