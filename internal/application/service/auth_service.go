@@ -454,9 +454,9 @@ func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) (
 		sessionInfos[i] = &responses.SessionInfo{
 			ID:                session.ID,
 			DeviceFingerprint: session.DeviceFingerprint,
-			CreatedAt:         session.CreatedAt,
-			LastUsedAt:        session.LastUsedAt,
-			ExpiryAt:          session.ExpiryAt,
+			CreatedAt:         session.CreatedAt.Format(responses.TimeFormat),
+			LastUsedAt:        session.LastUsedAt.Format(responses.TimeFormat),
+			ExpiryAt:          session.ExpiryAt.Format(responses.TimeFormat),
 			IsRevoked:         session.IsRevoked,
 		}
 	}

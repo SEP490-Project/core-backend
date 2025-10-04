@@ -3,7 +3,6 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -15,9 +14,9 @@ type UserResponse struct {
 	Email     string        `json:"email" example:"john@example.com"`
 	Role      enum.UserRole `json:"role" example:"user"`
 	IsActive  bool          `json:"is_active" example:"true"`
-	CreatedAt *time.Time    `json:"created_at" example:"2023-01-01T00:00:00Z"`
-	UpdatedAt *time.Time    `json:"updated_at" example:"2023-01-01T00:00:00Z"`
-	LastLogin *time.Time    `json:"last_login,omitempty" example:"2023-01-01T00:00:00Z"`
+	CreatedAt string        `json:"created_at" example:"2023-01-01T00:00:00Z"`
+	UpdatedAt string        `json:"updated_at" example:"2023-01-01T00:00:00Z"`
+	LastLogin string        `json:"last_login,omitempty" example:"2023-01-01T00:00:00Z"`
 }
 
 func (ur *UserResponse) ToUserResponse(model *model.User) *UserResponse {
@@ -27,9 +26,9 @@ func (ur *UserResponse) ToUserResponse(model *model.User) *UserResponse {
 		Email:     model.Email,
 		Role:      model.Role,
 		IsActive:  model.IsActive,
-		CreatedAt: model.CreatedAt,
-		UpdatedAt: model.UpdatedAt,
-		LastLogin: model.LastLogin,
+		CreatedAt: model.CreatedAt.Format(TimeFormat),
+		UpdatedAt: model.UpdatedAt.Format(TimeFormat),
+		LastLogin: model.LastLogin.Format(TimeFormat),
 	}
 }
 
