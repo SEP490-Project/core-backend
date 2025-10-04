@@ -171,14 +171,14 @@ func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
 	contractGroup := group.Group("/contracts")
 	{
 		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
-			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
-		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin)).
 			GET("", contractHandler.GetContracts)
 		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(marketing, brand)).
 			GET("/:id", contractHandler.GetContractByID)
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
+			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
 
 		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
