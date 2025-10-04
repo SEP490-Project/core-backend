@@ -36,10 +36,10 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest) (*responses.LoginResponse, error) {
+func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
 	zap.L().Info("User login attempt",
 		zap.String("login_identifier", request.LoginIdentifier),
-		zap.String("device_fingerprint", request.DeviceFingerprint))
+		zap.String("device_fingerprint", deviceFingerprint))
 
 	// Validate input
 	if request.LoginIdentifier == "" || request.Password == "" {
@@ -112,7 +112,7 @@ func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest)
 	session := &model.LoggedSession{
 		UserID:            user.ID,
 		RefreshTokenHash:  refreshTokenHash,
-		DeviceFingerprint: request.DeviceFingerprint,
+		DeviceFingerprint: deviceFingerprint,
 		ExpiryAt:          &refreshTokenExpiry,
 		IsRevoked:         false,
 	}
@@ -159,7 +159,7 @@ func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest)
 	}, nil
 }
 
-func (s *AuthService) RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest) (*responses.LoginResponse, error) {
+func (s *AuthService) RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
 	zap.L().Debug("Token refresh attempt")
 
 	if request.RefreshToken == "" {
@@ -193,6 +193,16 @@ func (s *AuthService) RefreshToken(ctx context.Context, request *requests.Refres
 			zap.String("session_id", session.ID.String()),
 			zap.Bool("is_revoked", session.IsRevoked))
 		return nil, errors.New("refresh token expired or revoked")
+	}
+
+	if session.DeviceFingerprint != deviceFingerprint {
+		zap.L().Warn("Refresh token used from different device",
+			zap.String("session_id", session.ID.String()),
+			zap.String("expected", session.DeviceFingerprint),
+			zap.String("actual", deviceFingerprint))
+
+		// Optionally revoke all sessions for security
+		return nil, errors.New("invalid device fingerprint")
 	}
 
 	// Get user details
@@ -265,7 +275,8 @@ func (s *AuthService) RefreshToken(ctx context.Context, request *requests.Refres
 func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error) {
 	zap.L().Info("User signup attempt",
 		zap.String("username", request.Username),
-		zap.String("email", request.Email))
+		zap.String("email", request.Email),
+		zap.String("full_name", request.FullName))
 
 	// Validate input
 	if request.Username == "" || request.Email == "" || request.Password == "" {
@@ -325,12 +336,14 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 		Email:        request.Email,
 		PasswordHash: string(hashedPassword),
 		Role:         enum.UserRoleCustomer, // Default role
+		FullName:     request.FullName,
 		IsActive:     true,
 	}
 
 	if err := s.userRepository.Add(ctx, user); err != nil {
 		zap.L().Error("Failed to create user during signup",
 			zap.String("username", request.Username),
+			zap.String("full_name", request.FullName),
 			zap.String("email", request.Email),
 			zap.Error(err))
 		return nil, errors.New("failed to create user")

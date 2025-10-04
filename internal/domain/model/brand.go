@@ -15,6 +15,7 @@ type Brand struct {
 	Description  *string          `json:"description" gorm:"type:text;column:description"`
 	ContactEmail string           `json:"contact_email" gorm:"type:varchar(255);column:contact_email;not null"`
 	ContactPhone string           `json:"contact_phone" gorm:"type:varchar(20);column:contact_phone"`
+	Address      *string          `json:"address" gorm:"type:varchar(255);column:address"`
 	Website      *string          `json:"website" gorm:"type:varchar(255);column:website"`
 	Status       enum.BrandStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('ACTIVE','INACTIVE')"`
 	LogoURL      *string          `json:"logo_url" gorm:"type:text;column:logo_url"`
@@ -26,6 +27,8 @@ type Brand struct {
 	Products []Product `json:"-" gorm:"foreignKey:BrandID"`
 	User     *User     `json:"-" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
+
+func (Brand) TableName() string { return "brands" }
 
 func (b *Brand) BeforeCreate(tx *gorm.DB) error {
 	if b.ID == uuid.Nil {

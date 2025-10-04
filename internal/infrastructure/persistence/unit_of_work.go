@@ -13,10 +13,15 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
-	productRepo       irepository.GenericRepository[model.Product]
-	userRepo          irepository.GenericRepository[model.User]
-	brandRepo         irepository.GenericRepository[model.Brand]
-	loggedSessionRepo irepository.GenericRepository[model.LoggedSession]
+	productRepo               irepository.GenericRepository[model.Product]
+	userRepo                  irepository.GenericRepository[model.User]
+	brandRepo                 irepository.GenericRepository[model.Brand]
+	loggedSessionRepo         irepository.GenericRepository[model.LoggedSession]
+	ContractRepository        irepository.GenericRepository[model.Contract]
+	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
+	CampaignRepository        irepository.GenericRepository[model.Campaign]
+	MilestoneRepository       irepository.GenericRepository[model.Milestone]
+	TaskRepository            irepository.GenericRepository[model.Task]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -36,6 +41,11 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.userRepo = gormrepository.NewGenericRepository[model.User](u.tx)
 	u.brandRepo = gormrepository.NewGenericRepository[model.Brand](u.tx)
 	u.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](u.tx)
+	u.ContractRepository = gormrepository.NewGenericRepository[model.Contract](u.tx)
+	u.ContractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](u.tx)
+	u.CampaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
+	u.MilestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
+	u.TaskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -91,6 +101,26 @@ func (u *unitOfWork) Brands() irepository.GenericRepository[model.Brand] {
 
 func (u *unitOfWork) LoggedSessions() irepository.GenericRepository[model.LoggedSession] {
 	return u.loggedSessionRepo
+}
+
+func (u *unitOfWork) Contracts() irepository.GenericRepository[model.Contract] {
+	return u.ContractRepository
+}
+
+func (u *unitOfWork) ContractPayments() irepository.GenericRepository[model.ContractPayment] {
+	return u.ContractPaymentRepository
+}
+
+func (u *unitOfWork) Campaigns() irepository.GenericRepository[model.Campaign] {
+	return u.CampaignRepository
+}
+
+func (u *unitOfWork) Milestones() irepository.GenericRepository[model.Milestone] {
+	return u.MilestoneRepository
+}
+
+func (u *unitOfWork) Tasks() irepository.GenericRepository[model.Task] {
+	return u.TaskRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

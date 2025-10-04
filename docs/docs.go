@@ -838,6 +838,574 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contracts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a paginated list of contracts with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Get contracts with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ADVERTISING",
+                            "AFFILIATE",
+                            "BRAND_AMBASSADOR",
+                            "CO_PRODUCING"
+                        ],
+                        "type": "string",
+                        "description": "Contract type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "ACTIVE",
+                            "COMPLETED",
+                            "TERMINATED"
+                        ],
+                        "type": "string",
+                        "description": "Contract status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword (title or contract number)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date filter",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date filter",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contracts retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContractPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new contract and optionally update brand information",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Create new contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract creation data in JSON format of struct type requests.CreateContractRequest",
+                        "name": "data",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Contract file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Contract created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Brand not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/brands/{brand_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all contracts for a specific brand",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Get contracts by brand ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contracts retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContractPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid brand ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve detailed information about a specific contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Get contract by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing contract and optionally update brand information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Update contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Contract update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateContractRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete a contract by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Delete contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/approve": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve a contract by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Approve contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract approved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -932,90 +1500,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/payos/payment": {
-            "post": {
-                "description": "Initiate a payment with PayOS",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "payos"
-                ],
-                "summary": "Create a PayOS payment",
-                "parameters": [
-                    {
-                        "description": "Payment Request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/payos/payment/{orderCode}": {
-            "get": {
-                "description": "Inspect payment detail",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "payos"
-                ],
-                "summary": "Get PayOS order info",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order Code",
-                        "name": "orderCode",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/products": {
             "get": {
                 "security": [
@@ -1089,146 +1573,6 @@ const docTemplate = `{
                                     "type": "string"
                                 }
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/products/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Product State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Product ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateProductStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Product state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Product not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/tasks/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Task State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Task ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Task state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Task not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -1967,44 +2311,6 @@ const docTemplate = `{
                 "UserRoleBrandPartner"
             ]
         },
-        "handler.UpdateProductStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "description": "Allowed values must align with enum.ProductStatus constants",
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "SUBMITTED",
-                        "REVISION",
-                        "APPROVED",
-                        "ACTIVED",
-                        "INACTIVED"
-                    ]
-                }
-            }
-        },
-        "handler.UpdateTaskStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "type": "string",
-                    "enum": [
-                        "TODO",
-                        "IN_PROGRESS",
-                        "CANCELLED",
-                        "RECAP",
-                        "DONE"
-                    ]
-                }
-            }
-        },
         "requests.CreateBrandRequest": {
             "type": "object",
             "required": [
@@ -2050,11 +2356,6 @@ const docTemplate = `{
                 "password"
             ],
             "properties": {
-                "device_fingerprint": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "example": "browser-fingerprint"
-                },
                 "login_identifier": {
                     "type": "string",
                     "example": "user@example.com"
@@ -2098,6 +2399,12 @@ const docTemplate = `{
                 "email": {
                     "type": "string",
                     "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2,
+                    "example": "John Doe"
                 },
                 "password": {
                     "type": "string",
@@ -2147,6 +2454,166 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255,
                     "example": "https://www.acme.com"
+                }
+            }
+        },
+        "requests.UpdateContractRequest": {
+            "type": "object",
+            "properties": {
+                "brand_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "0123456789"
+                },
+                "brand_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Vietcombank"
+                },
+                "brand_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "brand_representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@acme.com"
+                },
+                "brand_representative_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "John Doe"
+                },
+                "brand_representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "brand_representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "CEO"
+                },
+                "brand_tax_number": {
+                    "description": "Brand information (stored in contract for record-keeping)",
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "TAX123456"
+                },
+                "contract_file_url": {
+                    "description": "File URLs",
+                    "type": "string",
+                    "example": "https://example.com/contracts/contract.pdf"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "CONTRACT-2023-001-UPDATED"
+                },
+                "currency": {
+                    "description": "Financial",
+                    "type": "string",
+                    "example": "USD"
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "financial_terms": {
+                    "description": "Complex JSONB fields (optional for updates)"
+                },
+                "legal_terms": {},
+                "parent_contract_id": {
+                    "description": "Parent contract (for amendments or related contracts)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "proposal_file_url": {
+                    "type": "string",
+                    "example": "https://example.com/proposals/proposal.pdf"
+                },
+                "representative_bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Jane Smith"
+                },
+                "representative_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "987654321"
+                },
+                "representative_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "First National Bank"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "jane.smith@example.com"
+                },
+                "representative_name": {
+                    "description": "KOL/Representative information",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Jane Smith"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Influencer"
+                },
+                "representative_tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "TAX654321"
+                },
+                "scope_of_work": {},
+                "signed_date": {
+                    "description": "Contract dates",
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "signed_location": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Springfield"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "ACTIVE",
+                        "COMPLETED",
+                        "TERMINATED"
+                    ],
+                    "example": "ACTIVE"
+                },
+                "title": {
+                    "description": "Contract basic information",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Updated Contract Title"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ADVERTISING",
+                        "AFFILIATE",
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
+                    ],
+                    "example": "ADVERTISING"
                 }
             }
         },
@@ -2270,6 +2737,303 @@ const docTemplate = `{
                 },
                 "website": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.BrandSummary": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "123 Main St, Springfield"
+                },
+                "contact_email": {
+                    "type": "string",
+                    "example": "contact@acme.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://example.com/logo.png"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Acme Corp"
+                }
+            }
+        },
+        "responses.ContractListResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "brand_name": {
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "example": "CONTRACT-2023-001"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "signed_date": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ACTIVE"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Social Media Promotion Contract"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "ADVERTISING"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                }
+            }
+        },
+        "responses.ContractPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractListResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.ContractResponse": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "$ref": "#/definitions/responses.BrandSummary"
+                },
+                "brand_bank_account_number": {
+                    "type": "string",
+                    "example": "0123456789"
+                },
+                "brand_bank_name": {
+                    "type": "string",
+                    "example": "Vietcombank"
+                },
+                "brand_id": {
+                    "description": "Brand information (from relationship)",
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "brand_representative_email": {
+                    "type": "string",
+                    "example": "john.doe@acme.com"
+                },
+                "brand_representative_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "brand_representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "brand_representative_role": {
+                    "type": "string",
+                    "example": "CEO"
+                },
+                "brand_tax_number": {
+                    "type": "string",
+                    "example": "TAX123456"
+                },
+                "contract_file_url": {
+                    "description": "File URLs",
+                    "type": "string",
+                    "example": "https://example.com/contracts/contract.pdf"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "example": "CONTRACT-2023-001"
+                },
+                "created_at": {
+                    "description": "Metadata",
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "currency": {
+                    "description": "Financial",
+                    "type": "string",
+                    "example": "VND"
+                },
+                "deleted_at": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "financial_terms": {
+                    "description": "Complex JSONB fields (unmarshaled)"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "legal_terms": {},
+                "parent_contract": {
+                    "description": "Parent contract summary (if exists)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ContractSummary"
+                        }
+                    ]
+                },
+                "parent_contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "proposal_file_url": {
+                    "type": "string",
+                    "example": "https://example.com/proposals/proposal.pdf"
+                },
+                "representative_bank_account_holder": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "representative_bank_account_number": {
+                    "type": "string",
+                    "example": "987654321"
+                },
+                "representative_bank_name": {
+                    "type": "string",
+                    "example": "First National Bank"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "example": "jane.smith@example.com"
+                },
+                "representative_name": {
+                    "description": "KOL/Representative information",
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "example": "Influencer"
+                },
+                "representative_tax_number": {
+                    "type": "string",
+                    "example": "TAX654321"
+                },
+                "scope_of_work": {},
+                "signed_date": {
+                    "description": "Contract dates",
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "signed_location": {
+                    "type": "string",
+                    "example": "Springfield"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ACTIVE"
+                },
+                "title": {
+                    "description": "Contract basic information",
+                    "type": "string",
+                    "example": "Social Media Promotion Contract"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "ADVERTISING"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                }
+            }
+        },
+        "responses.ContractSummary": {
+            "type": "object",
+            "properties": {
+                "contract_number": {
+                    "type": "string",
+                    "example": "CONTRACT-2023-001"
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ACTIVE"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Master Service Agreement"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "ADVERTISING"
                 }
             }
         },
