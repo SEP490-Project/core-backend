@@ -2342,6 +2342,63 @@
                 }
             }
         },
+        "requests.CreateCampaignRequest": {
+            "type": "object",
+            "required": [
+                "budget_actual",
+                "budget_projected",
+                "contract_id",
+                "end_date",
+                "name",
+                "start_date",
+                "type"
+            ],
+            "properties": {
+                "budget_actual": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 5000.25
+                },
+                "budget_projected": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 10000.5
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A campaign for the summer sale."
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-08-31T23:59:59Z"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3,
+                    "example": "Summer Sale Campaign"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-06-01T00:00:00Z"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ADVERTISING",
+                        "AFFILIATE",
+                        "AMBASSADOR",
+                        "COPRODUCE"
+                    ],
+                    "example": "ADVERTISING"
+                }
+            }
+        },
         "requests.LoginRequest": {
             "type": "object",
             "required": [
@@ -2759,6 +2816,53 @@
                 "name": {
                     "type": "string",
                     "example": "Acme Corp"
+                }
+            }
+        },
+        "responses.CampaignResponse": {
+            "type": "object",
+            "properties": {
+                "budget_actual": {
+                    "type": "number"
+                },
+                "budget_projected": {
+                    "type": "number"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "contract_title": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },

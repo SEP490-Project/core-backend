@@ -128,6 +128,51 @@ definitions:
     - contact_email
     - name
     type: object
+  requests.CreateCampaignRequest:
+    properties:
+      budget_actual:
+        example: 5000.25
+        minimum: 0
+        type: number
+      budget_projected:
+        example: 10000.5
+        minimum: 0
+        type: number
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: A campaign for the summer sale.
+        maxLength: 1000
+        type: string
+      end_date:
+        example: "2023-08-31T23:59:59Z"
+        type: string
+      name:
+        example: Summer Sale Campaign
+        maxLength: 255
+        minLength: 3
+        type: string
+      start_date:
+        example: "2023-06-01T00:00:00Z"
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - AMBASSADOR
+        - COPRODUCE
+        example: ADVERTISING
+        type: string
+    required:
+    - budget_actual
+    - budget_projected
+    - contract_id
+    - end_date
+    - name
+    - start_date
+    - type
+    type: object
   requests.LoginRequest:
     properties:
       login_identifier:
@@ -438,6 +483,37 @@ definitions:
         type: string
       name:
         example: Acme Corp
+        type: string
+    type: object
+  responses.CampaignResponse:
+    properties:
+      budget_actual:
+        type: number
+      budget_projected:
+        type: number
+      contract_id:
+        type: string
+      contract_number:
+        type: string
+      contract_title:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
         type: string
     type: object
   responses.ContractListResponse:
