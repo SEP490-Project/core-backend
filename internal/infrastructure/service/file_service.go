@@ -1,3 +1,4 @@
+// Package service
 package service
 
 import (
@@ -13,7 +14,7 @@ type fileService struct {
 	repo irepository_third_party.S3Repository
 }
 
-func (s *fileService) UploadFile(userId string, filePath string, destination string) (string, error) {
+func (s *fileService) UploadFile(userID string, filePath string, destination string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
@@ -22,7 +23,7 @@ func (s *fileService) UploadFile(userId string, filePath string, destination str
 
 	// ensure filename is clean
 	fileName := filepath.Base(destination)
-	key := fmt.Sprintf("%s/%s", userId, fileName)
+	key := fmt.Sprintf("%s/%s", userID, fileName)
 
 	err = s.repo.Put(context.TODO(), key, file, "application/octet-stream")
 	if err != nil {
@@ -34,8 +35,8 @@ func (s *fileService) UploadFile(userId string, filePath string, destination str
 	return url, nil
 }
 
-func (s *fileService) DeleteFile(userId string, fileName string) error {
-	key := fmt.Sprintf("%s/%s", userId, filepath.Base(fileName))
+func (s *fileService) DeleteFile(userID string, fileName string) error {
+	key := fmt.Sprintf("%s/%s", userID, filepath.Base(fileName))
 	return s.repo.Delete(context.TODO(), key)
 }
 
