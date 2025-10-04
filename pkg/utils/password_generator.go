@@ -205,4 +205,3 @@ func ValidatePasswordStrength(password string) error {
 
 	return nil
 }
-

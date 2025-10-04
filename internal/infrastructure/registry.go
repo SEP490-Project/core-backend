@@ -5,9 +5,13 @@ import (
 	"context"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/irepository_third_party"
+	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/internal/infrastructure/queue"
 	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/internal/infrastructure/service"
 	"core-backend/internal/infrastructure/third_party_repository"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -21,6 +25,7 @@ type InfrastructureRegistry struct {
 	AsynqClient *queue.AsynqClient
 	AsynqServer *queue.AsynqServer
 	S3Repository irepository_third_party.S3Repository
+	PayOsService iservice_third_party.PayOSService
 }
 
 func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *InfrastructureRegistry {
@@ -63,6 +68,10 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *Inf
 	} else {
 		zap.L().Warn("Failed to initialize S3 repository, continuing without S3 support")
 	}
+
+	//Initialize PAYOS Service
+	zap.L().Debug("Initializing PayOS...")
+	registry.PayOsService = service.NewPayOsService(gormrepository.NewGenericRepository[model.PaymentTransaction](db))
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
