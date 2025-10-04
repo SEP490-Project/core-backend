@@ -987,13 +987,18 @@ const docTemplate = `{
                 "summary": "Create new contract",
                 "parameters": [
                     {
-                        "description": "Contract creation data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CreateContractRequest"
-                        }
+                        "type": "string",
+                        "description": "Contract creation data in JSON format of struct type requests.CreateContractRequest",
+                        "name": "data",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Contract file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {

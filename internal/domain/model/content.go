@@ -10,7 +10,7 @@ import (
 
 type Content struct {
 	ID              uuid.UUID          `json:"id" gorm:"column:id;primaryKey"`
-	TaskID          *uuid.UUID         `json:"task_id" gorm:"column:task_id"`
+	TaskID          uuid.UUID          `json:"task_id" gorm:"type:uuid;not null;index"`
 	Title           string             `json:"title" gorm:"column:title;not null;type:varchar(255)"`
 	Type            enum.ContentType   `json:"type" gorm:"column:type;not null;type:varchar(35);check:type in ('POST', 'VIDEO')"`
 	Body            string             `json:"body" gorm:"column:body;not null;type:text"`

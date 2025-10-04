@@ -6,10 +6,6 @@ def getParameters() {
     ]
 }
 
-def getEmailRecipients() {
-    return "trangiangkhanh04@gmail.com"
-}
-
 //TODO: =========== Build functions ===========
 def checkoutSSH(url, branchRegex) {
     checkout([
@@ -93,36 +89,82 @@ def archiveArtifacts(appName, sha, branchName) {
 }
 
 //TODO: =========== Notification functions ===========
+
+/**
+ * Sends a formatted notification to a Discord channel via webhook.
+ * @param status 'SUCCESS' or 'FAILURE'.
+ * @param color The decimal color code for the embed's side border.
+ */
+def sendDiscordNotification(String status, int color) {
+    // Determine the build status message and icon
+    def statusMessage = (status == 'SUCCESS') ? "Build Success" : "Build Failed"
+    def statusIcon = (status == 'SUCCESS') ? "✅" : "❌"
+
+    // Construct the JSON payload for the Discord embed
+    // Using a Groovy multiline string is clean and easy to read.
+    def jsonPayload = """
+    {
+      "username": "Jenkins CI",
+      "avatar_url": "https://www.jenkins.io/images/logos/jenkins/jenkins.png",
+      "embeds": [
+        {
+          "title": "${statusIcon} ${statusMessage}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+          "url": "${env.BUILD_URL}",
+          "color": ${color},
+          "description": "The latest build has completed. See details below.",
+          "fields": [
+            {
+              "name": "Branch",
+              "value": "${env.BRANCH_NAME}",
+              "inline": true
+            },
+            {
+              "name": "Environment",
+              "value": "${params.ENVIRONMENT}",
+              "inline": true
+            },
+            {
+              "name": "Commit SHA",
+              "value": "`${GIT_COMMIT.take(7)}`",
+              "inline": false
+            },
+            {
+              "name": "Build Logs",
+              "value": "[Click here to view the console output](${env.BUILD_URL}console)",
+              "inline": false
+            }
+          ],
+          "footer": {
+            "text": "Job: ${env.JOB_NAME}"
+          },
+          "timestamp": "${new Date().format("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", TimeZone.getTimeZone('UTC'))}"
+        }
+      ]
+    }
+    """
+
+    // Use withCredentials to securely access the webhook URL
+    withCredentials([string(credentialsId: 'discord-webhook-url', variable: 'DISCORD_WEBHOOK_URL')]) {
+        sh """
+            # Writing the JSON to a temporary file is safer than passing it directly
+            # as a command-line argument, as it avoids shell escaping issues.
+            echo '${jsonPayload}' > discord_payload.json
+
+            curl -X POST -H "Content-Type: application/json" \\
+                 --data '@discord_payload.json' \\
+                 "${DISCORD_WEBHOOK_URL}"
+        """
+    }
+}
+
 def sendSuccessNotification() {
-    emailext(
-        subject: "✅ Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-        body: """
-        <h2>Build thành công</h2>
-        <p>Job: ${env.JOB_NAME}</p>
-        <p>Build number: ${env.BUILD_NUMBER}</p>
-        <p>Environment: ${params.ENVIRONMENT}</p>
-        <p>Xem chi tiết tại: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
-        """,
-        attachLog: true,
-        to: getEmailRecipients(),
-        mimeType: 'text/html'
-    )
+    // Green color in decimal
+    sendDiscordNotification('SUCCESS', 3066993)
 }
 
 def sendFailureNotification() {
-    emailext(
-        subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-        body: """
-        <h2>Build thất bại</h2>
-        <p>Job: ${env.JOB_NAME}</p>
-        <p>Build number: ${env.BUILD_NUMBER}</p>
-        <p>Environment: ${params.ENVIRONMENT}</p>
-        <p>Xem log tại: <a href="${env.BUILD_URL}console">${env.BUILD_URL}console</a></p>
-        """,
-        attachLog: true,
-        to: getEmailRecipients(),
-        mimeType: 'text/html'
-    )
+    // Red color in decimal
+    sendDiscordNotification('FAILURE', 15158332)
 }
 
 //TODO: =========== Utility functions ===========
@@ -141,3 +183,4 @@ def deployToEnvironment(environment, appName, sha) {
 }
 
 return this
+
