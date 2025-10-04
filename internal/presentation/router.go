@@ -198,6 +198,17 @@ func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
 	}
 }
 
+func (r *Router) SetupCampaignRoutes(group *gin.RouterGroup) {
+	campaignHandler := r.handlerRegistry.CampaignHandler
+
+	campaignGroup := group.Group("/campaigns")
+	{
+		campaignGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
+			POST("", campaignHandler.CreateCampaignFromContract)
+	}
+}
+
 // SetupWebSocketRoutes sets up WebSocket routes
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
 	// WebSocket endpoint (requires authentication)

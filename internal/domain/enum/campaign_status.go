@@ -7,16 +7,15 @@ import (
 
 type CampaignStatus string
 
-// Status          enum.CampaignStatus `json:"status" gorm:"type:enum('RUNNING','COMPLETED','CANCELED');not null"`
 const (
-	CampaignRunning   CampaignStatus = "ON_GOING"
-	CampaignCompleted CampaignStatus = "COMPLETED"
-	CampaignCanceled  CampaignStatus = "CANCELED"
+	CampaignStatusRunning   CampaignStatus = "RUNNING"
+	CampaignStatusCompleted CampaignStatus = "COMPLETED"
+	CampaignStatusCanceled  CampaignStatus = "CANCELED"
 )
 
 func (cs CampaignStatus) IsValid() bool {
 	switch cs {
-	case CampaignRunning, CampaignCompleted, CampaignCanceled:
+	case CampaignStatusRunning, CampaignStatusCompleted, CampaignStatusCanceled:
 		return true
 	}
 	return false
@@ -41,3 +40,5 @@ func (cs *CampaignStatus) Scan(value any) error {
 func (cs CampaignStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
+
+func (cs CampaignStatus) String() string { return string(cs) }
