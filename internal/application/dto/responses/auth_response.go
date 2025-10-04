@@ -1,10 +1,6 @@
 package responses
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-)
+import "github.com/google/uuid"
 
 // Auth Response DTOs
 
@@ -24,12 +20,12 @@ type UserInfo struct {
 }
 
 type SessionInfo struct {
-	ID                uuid.UUID  `json:"id"`
-	DeviceFingerprint string     `json:"device_fingerprint"`
-	CreatedAt         *time.Time `json:"created_at"`
-	LastUsedAt        *time.Time `json:"last_used_at"`
-	ExpiryAt          *time.Time `json:"expiry_at"`
-	IsRevoked         bool       `json:"is_revoked"`
+	ID                uuid.UUID `json:"id"`
+	DeviceFingerprint string    `json:"device_fingerprint"`
+	CreatedAt         string    `json:"created_at,omitempty"`
+	LastUsedAt        string    `json:"last_used_at,omitempty"`
+	ExpiryAt          string    `json:"expiry_at,omitempty"`
+	IsRevoked         bool      `json:"is_revoked"`
 }
 
 type ActiveSessionsResponse struct {
