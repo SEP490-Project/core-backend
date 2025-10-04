@@ -3,6 +3,7 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
 
 	"github.com/google/uuid"
@@ -114,15 +115,15 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		RepresentativeBankName:          contract.RepresentativeBankName,
 		RepresentativeBankAccountNumber: contract.RepresentativeBankAccountNumber,
 		RepresentativeBankAccountHolder: contract.RepresentativeBankAccountHolder,
-		SignedDate:                      contract.SignedDate.Format(TimeFormat),
+		SignedDate:                      utils.FormatLocalTime(contract.SignedDate, ""),
 		SignedLocation:                  contract.SignedLocation,
-		StartDate:                       contract.StartDate.Format(TimeFormat),
-		EndDate:                         contract.EndDate.Format(TimeFormat),
+		StartDate:                       utils.FormatLocalTime(contract.StartDate, ""),
+		EndDate:                         utils.FormatLocalTime(contract.EndDate, ""),
 		Currency:                        contract.Currency,
 		ContractFileURL:                 contract.ContractFileURL,
 		ProposalFileURL:                 contract.ProposalFileURL,
-		CreatedAt:                       contract.CreatedAt.Format(TimeFormat),
-		UpdatedAt:                       contract.UpdatedAt.Format(TimeFormat),
+		CreatedAt:                       utils.FormatLocalTime(contract.CreatedAt, ""),
+		UpdatedAt:                       utils.FormatLocalTime(contract.UpdatedAt, ""),
 	}
 
 	// Set ParentContractID
@@ -178,8 +179,8 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 			ContractNumber: safeString(contract.ParentContract.ContractNumber),
 			Type:           string(contract.ParentContract.Type),
 			Status:         string(contract.ParentContract.Status),
-			StartDate:      contract.ParentContract.StartDate.Format(TimeFormat),
-			EndDate:        contract.ParentContract.EndDate.Format(TimeFormat),
+			StartDate:      utils.FormatLocalTime(contract.ParentContract.StartDate, ""),
+			EndDate:        utils.FormatLocalTime(contract.ParentContract.EndDate, ""),
 		}
 	}
 
@@ -214,11 +215,11 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 		ContractNumber: safeString(contract.ContractNumber),
 		Type:           string(contract.Type),
 		Status:         string(contract.Status),
-		StartDate:      contract.StartDate.Format(TimeFormat),
-		EndDate:        contract.EndDate.Format(TimeFormat),
-		SignedDate:     contract.SignedDate.Format(TimeFormat),
-		CreatedAt:      contract.CreatedAt.Format(TimeFormat),
-		UpdatedAt:      contract.UpdatedAt.Format(TimeFormat),
+		StartDate:      utils.FormatLocalTime(contract.StartDate, ""),
+		EndDate:        utils.FormatLocalTime(contract.EndDate, ""),
+		SignedDate:     utils.FormatLocalTime(contract.SignedDate, ""),
+		CreatedAt:      utils.FormatLocalTime(contract.CreatedAt, ""),
+		UpdatedAt:      utils.FormatLocalTime(contract.UpdatedAt, ""),
 	}
 
 	// Set BrandID

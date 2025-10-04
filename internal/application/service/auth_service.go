@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"errors"
 	"time"
 
@@ -454,9 +455,9 @@ func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) (
 		sessionInfos[i] = &responses.SessionInfo{
 			ID:                session.ID,
 			DeviceFingerprint: session.DeviceFingerprint,
-			CreatedAt:         session.CreatedAt.Format(responses.TimeFormat),
-			LastUsedAt:        session.LastUsedAt.Format(responses.TimeFormat),
-			ExpiryAt:          session.ExpiryAt.Format(responses.TimeFormat),
+			CreatedAt:         utils.FormatLocalTime(*session.CreatedAt, ""),
+			LastUsedAt:        utils.FormatLocalTime(*session.LastUsedAt, ""),
+			ExpiryAt:          utils.FormatLocalTime(*session.ExpiryAt, ""),
 			IsRevoked:         session.IsRevoked,
 		}
 	}
