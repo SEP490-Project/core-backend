@@ -26,15 +26,6 @@ type Router struct {
 	middlewareRegistry *middleware.MiddlewareRegistry
 }
 
-const (
-	marketing string = string(enum.UserRoleMarketingStaff)
-	sales     string = string(enum.UserRoleSalesStaff)
-	content   string = string(enum.UserRoleContentStaff)
-	admin     string = string(enum.UserRoleAdmin)
-	customer  string = string(enum.UserRoleCustomer)
-	brand     string = string(enum.UserRoleBrandPartner)
-)
-
 func NewRouter(
 	handlerRegistry *handler.HandlerRegistry,
 	middlewareRegistry *middleware.MiddlewareRegistry,
@@ -127,8 +118,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
 				adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
 			}
-			Task     *Task            `json:"task_id" gorm:"foreignKey:TaskID"`
-}
+		}
 
 		r.setupBrandRoutes(v1)
 		r.SetupContractRoutes(v1)
