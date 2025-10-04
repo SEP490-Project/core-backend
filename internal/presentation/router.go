@@ -219,40 +219,6 @@ func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupContractRoutes sets up routes for contract management
-func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
-	contractHandler := r.handlerRegistry.ContractHandler
-
-	contractGroup := group.Group("/contracts")
-	{
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
-			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin)).
-			GET("", contractHandler.GetContracts)
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, brand)).
-			GET("/:id", contractHandler.GetContractByID)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			POST("", contractHandler.CreateContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			PATCH("/:id/approve", contractHandler.ApproveContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
-			PUT("/:id", contractHandler.UpdateContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			DELETE("/:id", contractHandler.DeleteContract)
-	}
-}
-
 // SetupWebSocketRoutes sets up WebSocket routes
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
 	// WebSocket endpoint (requires authentication)
