@@ -1568,12 +1568,16 @@ paths:
       - multipart/form-data
       description: Create a new contract and optionally update brand information
       parameters:
-      - description: Contract creation data
-        in: body
-        name: request
+      - description: Contract creation data in JSON format of struct type requests.CreateContractRequest
+        in: formData
+        name: data
         required: true
-        schema:
-          $ref: '#/definitions/requests.CreateContractRequest'
+        type: string
+      - description: Contract file
+        in: formData
+        name: file
+        required: true
+        type: file
       produces:
       - application/json
       responses:

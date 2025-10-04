@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,18 +37,22 @@ func NewLoggingMiddleware() gin.HandlerFunc {
 			logFields = append(logFields, zap.String("request_id", requestID))
 		}
 
-		if len(c.Errors) > 0 {
-			for _, e := range c.Errors.Errors() {
-				zap.L().Error(e, logFields...)
-			}
+		if strings.HasPrefix(path, "/health") {
+			zap.L().Debug("Health check request", logFields...)
 		} else {
-			switch {
-			case statusCode >= 500:
-				zap.L().Error("HTTP request completed with server error", logFields...)
-			case statusCode >= 400:
-				zap.L().Warn("HTTP request completed with client error", logFields...)
-			default:
-				zap.L().Info("HTTP request completed successfully", logFields...)
+			if len(c.Errors) > 0 {
+				for _, e := range c.Errors.Errors() {
+					zap.L().Error(e, logFields...)
+				}
+			} else {
+				switch {
+				case statusCode >= 500:
+					zap.L().Error("HTTP request completed with server error", logFields...)
+				case statusCode >= 400:
+					zap.L().Warn("HTTP request completed with client error", logFields...)
+				default:
+					zap.L().Info("HTTP request completed successfully", logFields...)
+				}
 			}
 		}
 	}
