@@ -838,76 +838,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/campaigns/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a campaign to a target state (ON_GOING, COMPLETED, CANCELED)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Campaign State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Campaign ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateCampaignStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Campaign state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Campaign not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/contracts": {
             "get": {
                 "security": [
@@ -1476,76 +1406,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/contracts/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a contract to a target state (DRAFT, ACTIVE, COMPLETED, TERMINATED)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Contract State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Contract ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateContractStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Contract state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Contract not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -1635,76 +1495,6 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/milestones/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Milestone State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Milestone ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateMilestoneStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Milestone state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Milestone not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -2745,56 +2535,6 @@ const docTemplate = `{
                 "UserRoleBrandPartner"
             ]
         },
-        "handler.UpdateCampaignStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "type": "string",
-                    "enum": [
-                        "ON_GOING",
-                        "COMPLETED",
-                        "CANCELED"
-                    ]
-                }
-            }
-        },
-        "handler.UpdateContractStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "ACTIVE",
-                        "COMPLETED",
-                        "TERMINATED"
-                    ]
-                }
-            }
-        },
-        "handler.UpdateMilestoneStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "type": "string",
-                    "enum": [
-                        "NOT_STARTED",
-                        "ON_GOING",
-                        "CANCELLED",
-                        "COMPLETED"
-                    ]
-                }
-            }
-        },
         "handler.UpdateProductStateRequest": {
             "type": "object",
             "required": [
@@ -3308,11 +3048,11 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "id": {
                     "type": "string",
@@ -3320,11 +3060,11 @@ const docTemplate = `{
                 },
                 "signed_date": {
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-10-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",
@@ -3340,7 +3080,7 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-15T15:30:00Z"
+                    "example": "2006-01-02 15:04:05"
                 }
             }
         },
@@ -3421,20 +3161,16 @@ const docTemplate = `{
                 "created_at": {
                     "description": "Metadata",
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "currency": {
                     "description": "Financial",
                     "type": "string",
                     "example": "VND"
                 },
-                "deleted_at": {
-                    "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
-                },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "financial_terms": {
                     "description": "Complex JSONB fields (unmarshaled)"
@@ -3497,7 +3233,7 @@ const docTemplate = `{
                 "signed_date": {
                     "description": "Contract dates",
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "signed_location": {
                     "type": "string",
@@ -3505,7 +3241,7 @@ const docTemplate = `{
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-10-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",
@@ -3522,7 +3258,7 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-15T15:30:00Z"
+                    "example": "2006-01-02 15:04:05"
                 }
             }
         },
@@ -3535,7 +3271,7 @@ const docTemplate = `{
                 },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "id": {
                     "type": "string",
@@ -3543,7 +3279,7 @@ const docTemplate = `{
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",

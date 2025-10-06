@@ -1,7 +1,9 @@
 package responses
 
-import "core-backend/internal/domain/model"
-
+import (
+	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
+)
 
 // BrandResponse represents the response structure for a brand.
 type BrandResponse struct {
@@ -26,7 +28,7 @@ func (br BrandResponse) ToBrandResponse(model *model.Brand) *BrandResponse {
 	br.Website = model.Website
 	br.Status = string(model.Status)
 	br.LogoURL = model.LogoURL
-	br.CreatedAt = model.CreatedAt.Format(TimeFormat)
+	br.CreatedAt = utils.FormatLocalTime(model.CreatedAt, "")
 
 	return &br
 }

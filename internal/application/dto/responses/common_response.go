@@ -4,7 +4,8 @@ package responses
 import "net/http"
 
 const (
-	TimeFormat = "2006-01-02 15:04:05"
+	TimeFormat = "2006-12-30 15:04:05"
+	DateFormat = "2006-12-30"
 )
 
 // APIResponse represents a standard API response structure.
