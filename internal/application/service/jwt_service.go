@@ -105,7 +105,8 @@ func (s *JWTService) GenerateTokenPair(userID, username, email, role string) (ac
 		zap.String("role", string(role)))
 
 	// Generate access token (short-lived)
-	accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Minute)
+	//accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Minute)
+	accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Hour)
 	if err != nil {
 		zap.L().Error("Failed to generate access token",
 			zap.String("user_id", userID),

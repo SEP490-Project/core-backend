@@ -69,7 +69,38 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 		return
 	}
 
-	if err := h.StateTransferService.MoveTaskToState(id, target); err != nil {
+	// Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
+	roleVal, ok := c.Get("roles")
+	if !ok || roleVal == nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+		return
+	}
+
+	roleStr, _ := roleVal.(string)
+
+	if roleStr == string(enum.UserRoleAdmin) {
+		goto SkipAdminRoleCheck
+	}
+
+	if target == enum.TaskStatusDone {
+		if roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
+			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move Task to DONE", http.StatusForbidden))
+			return
+		}
+	} else if roleStr == string(enum.UserRoleBrandPartner) {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
+		return
+	}
+
+SkipAdminRoleCheck:
+
+	updatedBy, ok := c.Get("user_id")
+	if !ok || updatedBy == nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing user_id in context", http.StatusForbidden))
+		return
+	}
+
+	if err := h.StateTransferService.MoveTaskToState(id, target, id); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return
@@ -82,8 +113,11 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 }
 
 // UpdateProductStateRequest defines the request body for updating a product state
+// swagger:model UpdateProductStateRequest
 type UpdateProductStateRequest struct {
-	// Allowed values must align with enum.ProductStatus constants
+	// State is the desired target state.
+	// Enum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED
+	// example: SUBMITTED
 	State string `json:"state" validate:"required,oneof=DRAFT SUBMITTED REVISION APPROVED ACTIVED INACTIVED"`
 }
 
@@ -94,7 +128,7 @@ type UpdateProductStateRequest struct {
 // @Accept       json
 // @Produce      json
 // @Param        id    path   string                     true  "Product ID (UUID)"
-// @Param        body  body   UpdateProductStateRequest  true  "Target state payload"
+// @Param        body   UpdateProductStateRequest  true  "Target state payload"
 // @Success      200   {object} responses.APIResponse  "Product state updated"
 // @Failure      400   {object} responses.APIResponse  "Invalid request"
 // @Failure      404   {object} responses.APIResponse  "Product not found"
@@ -126,7 +160,37 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 		return
 	}
 
-	if err := h.StateTransferService.MoveProductToState(id, target); err != nil {
+	// Authorization rule with Admin bypass
+	roleVal, ok := c.Get("roles")
+	if !ok || roleVal == nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+		return
+	}
+	roleStr, _ := roleVal.(string)
+
+	if roleStr == string(enum.UserRoleAdmin) {
+		goto SkipAdminRoleCheck
+	}
+
+	if target == enum.ProductStatusRevision || target == enum.ProductStatusApproved {
+		if roleStr != string(enum.UserRoleBrandPartner) {
+			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move product to REVISION or APPROVED", http.StatusForbidden))
+			return
+		}
+	} else if roleStr == string(enum.UserRoleBrandPartner) {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
+		return
+	}
+
+SkipAdminRoleCheck:
+
+	updatedBy, ok := c.Get("user_id")
+	if !ok || updatedBy == nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing user_id in context", http.StatusForbidden))
+		return
+	}
+
+	if err := h.StateTransferService.MoveProductToState(id, target, id); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict))
 		return
 	}

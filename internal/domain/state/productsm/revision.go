@@ -21,6 +21,7 @@ func (r RevisionState) Next(ctx *ProductContext, next ProductState) error {
 
 func (r RevisionState) AllowedTransitions() map[enum.ProductStatus]struct{} {
 	return map[enum.ProductStatus]struct{}{
-		enum.ProductStatusDraft: {},
+		enum.ProductStatusDraft:     {},
+		enum.ProductStatusInactived: {},
 	}
 }

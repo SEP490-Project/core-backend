@@ -23,6 +23,8 @@ type Task struct {
 	CreatedAt    time.Time       `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time       `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt    gorm.DeletedAt
+	CreatedByID  uuid.UUID  `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID  *uuid.UUID `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 
 	// Relationships
 	Milestone *Milestone `json:"-" gorm:"foreignKey:MilestoneID"`

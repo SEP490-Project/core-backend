@@ -23,9 +23,11 @@ type Campaign struct {
 	CreatedAt       time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at;index"`
-
+	CreatedByID     uuid.UUID           `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID     *uuid.UUID          `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	// Relationships
-	Contract *Contract `json:"-" gorm:"foreignKey:ContractID"`
+	Contract   *Contract    `json:"-" gorm:"foreignKey:ContractID"`
+	Milestones []*Milestone `json:"milestones" gorm:"foreignKey:CampaignID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (Campaign) TableName() string { return "campaigns" }
