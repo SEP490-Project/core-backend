@@ -1,7 +1,7 @@
 
 # Server configuration
 server:
-  port: 8080
+  port: 8081
   service_name: bshowsell
   environment: "development" # development, production
   timeout: 30
