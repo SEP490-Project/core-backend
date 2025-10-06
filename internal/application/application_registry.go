@@ -37,7 +37,7 @@ func NewApplicationRegistry(
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry.ProductRepository),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
-		TaskService:            service.NewStateTransferService(databaseRegistry.TaskRepository, databaseRegistry.ProductRepository),
+		TaskService:            service.NewStateTransferService(databaseRegistry.ContractRepository, databaseRegistry.CampaignRepository, databaseRegistry.MilestoneRepository, databaseRegistry.TaskRepository, databaseRegistry.ProductRepository, infrastructureRegistry.UnitOfWork),
 		ContractService:        service.NewContractService(databaseRegistry.ContractRepository),
 	}
 }

@@ -23,6 +23,8 @@ type Product struct {
 	UpdatedAt    time.Time          `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt    gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
 	Status       enum.ProductStatus `json:"status" gorm:"column:status;not null;check:status in ('DRAFT','SUBMITTED','REVISION','APPROVED','ACTIVED','INACTIVED')"`
+	CreatedByID  uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
+	UpdatedByID  *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
 	// Relationships
 	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID"`
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`

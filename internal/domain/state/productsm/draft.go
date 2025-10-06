@@ -22,5 +22,6 @@ func (s DraftState) Next(ctx *ProductContext, next ProductState) error {
 func (s DraftState) AllowedTransitions() map[enum.ProductStatus]struct{} {
 	return map[enum.ProductStatus]struct{}{
 		enum.ProductStatusSubmitted: {},
+		enum.ProductStatusInactived: {},
 	}
 }
