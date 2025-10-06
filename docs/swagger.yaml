@@ -99,41 +99,6 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
-  handler.UpdateCampaignStateRequest:
-    properties:
-      state:
-        enum:
-        - ON_GOING
-        - COMPLETED
-        - CANCELED
-        type: string
-    required:
-    - state
-    type: object
-  handler.UpdateContractStateRequest:
-    properties:
-      state:
-        enum:
-        - DRAFT
-        - ACTIVE
-        - COMPLETED
-        - TERMINATED
-        type: string
-    required:
-    - state
-    type: object
-  handler.UpdateMilestoneStateRequest:
-    properties:
-      state:
-        enum:
-        - NOT_STARTED
-        - ON_GOING
-        - CANCELLED
-        - COMPLETED
-        type: string
-    required:
-    - state
-    type: object
   handler.UpdateProductStateRequest:
     properties:
       state:
@@ -515,19 +480,19 @@ definitions:
         example: CONTRACT-2023-001
         type: string
       created_at:
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       signed_date:
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       start_date:
-        example: "2023-10-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -539,7 +504,7 @@ definitions:
         example: ADVERTISING
         type: string
       updated_at:
-        example: "2023-10-15T15:30:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
     type: object
   responses.ContractPaginationResponse:
@@ -597,17 +562,14 @@ definitions:
         type: string
       created_at:
         description: Metadata
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       currency:
         description: Financial
         example: VND
         type: string
-      deleted_at:
-        example: "2023-12-31T23:59:59Z"
-        type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       financial_terms:
         description: Complex JSONB fields (unmarshaled)
@@ -653,13 +615,13 @@ definitions:
       scope_of_work: {}
       signed_date:
         description: Contract dates
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       signed_location:
         example: Springfield
         type: string
       start_date:
-        example: "2023-10-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -672,7 +634,7 @@ definitions:
         example: ADVERTISING
         type: string
       updated_at:
-        example: "2023-10-15T15:30:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
     type: object
   responses.ContractSummary:
@@ -681,13 +643,13 @@ definitions:
         example: CONTRACT-2023-001
         type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       start_date:
-        example: "2023-01-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -1397,51 +1359,6 @@ paths:
       summary: Create Brand with Inactive Users
       tags:
       - Brands
-  /api/v1/campaigns/{id}/state:
-    patch:
-      consumes:
-      - application/json
-      description: Move a campaign to a target state (ON_GOING, COMPLETED, CANCELED)
-      parameters:
-      - description: Campaign ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Target state payload
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateCampaignStateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign state updated
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Campaign not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Invalid state transition
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Update Campaign State
-      tags:
-      - State Transfer
   /api/v1/contracts:
     get:
       consumes:
@@ -1762,51 +1679,6 @@ paths:
       summary: Approve contract
       tags:
       - Contracts
-  /api/v1/contracts/{id}/state:
-    patch:
-      consumes:
-      - application/json
-      description: Move a contract to a target state (DRAFT, ACTIVE, COMPLETED, TERMINATED)
-      parameters:
-      - description: Contract ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Target state payload
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateContractStateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Contract state updated
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Invalid state transition
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Update Contract State
-      tags:
-      - State Transfer
   /api/v1/contracts/brands/{brand_id}:
     get:
       consumes:
@@ -1915,52 +1787,6 @@ paths:
       summary: Upload a file to S3
       tags:
       - files
-  /api/v1/milestones/{id}/state:
-    patch:
-      consumes:
-      - application/json
-      description: Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED,
-        COMPLETED)
-      parameters:
-      - description: Milestone ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Target state payload
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateMilestoneStateRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Milestone state updated
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Milestone not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Invalid state transition
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Update Milestone State
-      tags:
-      - State Transfer
   /api/v1/payos/payment:
     post:
       consumes:

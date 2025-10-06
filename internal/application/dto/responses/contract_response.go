@@ -3,8 +3,8 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -42,10 +42,10 @@ type ContractResponse struct {
 	RepresentativeBankAccountHolder *string `json:"representative_bank_account_holder,omitempty" example:"Jane Smith"`
 
 	// Contract dates
-	SignedDate     time.Time `json:"signed_date" example:"2023-10-01T12:00:00Z"`
-	SignedLocation *string   `json:"signed_location,omitempty" example:"Springfield"`
-	StartDate      time.Time `json:"start_date" example:"2023-10-01T00:00:00Z"`
-	EndDate        time.Time `json:"end_date" example:"2023-12-31T23:59:59Z"`
+	SignedDate     string  `json:"signed_date" example:"2006-01-02 15:04:05"`
+	SignedLocation *string `json:"signed_location,omitempty" example:"Springfield"`
+	StartDate      string  `json:"start_date" example:"2006-01-02 15:04:05"`
+	EndDate        string  `json:"end_date" example:"2006-01-02 15:04:05"`
 
 	// Financial
 	Currency *string `json:"currency,omitempty" example:"VND"`
@@ -63,20 +63,19 @@ type ContractResponse struct {
 	ParentContract *ContractSummary `json:"parent_contract,omitempty"`
 
 	// Metadata
-	CreatedAt time.Time  `json:"created_at" example:"2023-10-01T12:00:00Z"`
-	UpdatedAt time.Time  `json:"updated_at" example:"2023-10-15T15:30:00Z"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty" example:"2023-12-31T23:59:59Z"`
+	CreatedAt string `json:"created_at" example:"2006-01-02 15:04:05"`
+	UpdatedAt string `json:"updated_at" example:"2006-01-02 15:04:05"`
 }
 
 // ContractSummary represents a brief contract summary for nested relationships
 type ContractSummary struct {
-	ID             string    `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title          string    `json:"title" example:"Master Service Agreement"`
-	ContractNumber string    `json:"contract_number" example:"CONTRACT-2023-001"`
-	Type           string    `json:"type" example:"ADVERTISING"`
-	Status         string    `json:"status" example:"ACTIVE"`
-	StartDate      time.Time `json:"start_date" example:"2023-01-01T00:00:00Z"`
-	EndDate        time.Time `json:"end_date" example:"2023-12-31T23:59:59Z"`
+	ID             string `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title          string `json:"title" example:"Master Service Agreement"`
+	ContractNumber string `json:"contract_number" example:"CONTRACT-2023-001"`
+	Type           string `json:"type" example:"ADVERTISING"`
+	Status         string `json:"status" example:"ACTIVE"`
+	StartDate      string `json:"start_date" example:"2006-01-02 15:04:05"`
+	EndDate        string `json:"end_date" example:"2006-01-02 15:04:05"`
 }
 
 // BrandSummary represents a brief brand summary for contract response
@@ -116,15 +115,15 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		RepresentativeBankName:          contract.RepresentativeBankName,
 		RepresentativeBankAccountNumber: contract.RepresentativeBankAccountNumber,
 		RepresentativeBankAccountHolder: contract.RepresentativeBankAccountHolder,
-		SignedDate:                      contract.SignedDate,
+		SignedDate:                      utils.FormatLocalTime(contract.SignedDate, ""),
 		SignedLocation:                  contract.SignedLocation,
-		StartDate:                       contract.StartDate,
-		EndDate:                         contract.EndDate,
+		StartDate:                       utils.FormatLocalTime(contract.StartDate, ""),
+		EndDate:                         utils.FormatLocalTime(contract.EndDate, ""),
 		Currency:                        contract.Currency,
 		ContractFileURL:                 contract.ContractFileURL,
 		ProposalFileURL:                 contract.ProposalFileURL,
-		CreatedAt:                       contract.CreatedAt,
-		UpdatedAt:                       contract.UpdatedAt,
+		CreatedAt:                       utils.FormatLocalTime(contract.CreatedAt, ""),
+		UpdatedAt:                       utils.FormatLocalTime(contract.UpdatedAt, ""),
 	}
 
 	// Set ParentContractID
@@ -136,12 +135,6 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 	// Set BrandID
 	if contract.BrandID != nil {
 		response.BrandID = contract.BrandID.String()
-	}
-
-	// Set DeletedAt if present
-	if contract.DeletedAt.Valid {
-		deletedAt := contract.DeletedAt.Time
-		response.DeletedAt = &deletedAt
 	}
 
 	// Unmarshal JSONB fields
@@ -186,8 +179,8 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 			ContractNumber: safeString(contract.ParentContract.ContractNumber),
 			Type:           string(contract.ParentContract.Type),
 			Status:         string(contract.ParentContract.Status),
-			StartDate:      contract.ParentContract.StartDate,
-			EndDate:        contract.ParentContract.EndDate,
+			StartDate:      utils.FormatLocalTime(contract.ParentContract.StartDate, ""),
+			EndDate:        utils.FormatLocalTime(contract.ParentContract.EndDate, ""),
 		}
 	}
 
@@ -196,18 +189,18 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 
 // ContractListResponse represents a simplified contract for list views
 type ContractListResponse struct {
-	ID             string    `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title          string    `json:"title" example:"Social Media Promotion Contract"`
-	ContractNumber string    `json:"contract_number" example:"CONTRACT-2023-001"`
-	Type           string    `json:"type" example:"ADVERTISING"`
-	Status         string    `json:"status" example:"ACTIVE"`
-	BrandID        string    `json:"brand_id" example:"660e8400-e29b-41d4-a716-446655440000"`
-	BrandName      *string   `json:"brand_name,omitempty" example:"Acme Corp"`
-	StartDate      time.Time `json:"start_date" example:"2023-10-01T00:00:00Z"`
-	EndDate        time.Time `json:"end_date" example:"2023-12-31T23:59:59Z"`
-	SignedDate     time.Time `json:"signed_date" example:"2023-10-01T12:00:00Z"`
-	CreatedAt      time.Time `json:"created_at" example:"2023-10-01T12:00:00Z"`
-	UpdatedAt      time.Time `json:"updated_at" example:"2023-10-15T15:30:00Z"`
+	ID             string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title          string  `json:"title" example:"Social Media Promotion Contract"`
+	ContractNumber string  `json:"contract_number" example:"CONTRACT-2023-001"`
+	Type           string  `json:"type" example:"ADVERTISING"`
+	Status         string  `json:"status" example:"ACTIVE"`
+	BrandID        string  `json:"brand_id" example:"660e8400-e29b-41d4-a716-446655440000"`
+	BrandName      *string `json:"brand_name,omitempty" example:"Acme Corp"`
+	StartDate      string  `json:"start_date" example:"2006-01-02 15:04:05"`
+	EndDate        string  `json:"end_date" example:"2006-01-02 15:04:05"`
+	SignedDate     string  `json:"signed_date" example:"2006-01-02 15:04:05"`
+	CreatedAt      string  `json:"created_at" example:"2006-01-02 15:04:05"`
+	UpdatedAt      string  `json:"updated_at" example:"2006-01-02 15:04:05"`
 }
 
 // ToContractListResponse converts a model.Contract to ContractListResponse
@@ -222,11 +215,11 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 		ContractNumber: safeString(contract.ContractNumber),
 		Type:           string(contract.Type),
 		Status:         string(contract.Status),
-		StartDate:      contract.StartDate,
-		EndDate:        contract.EndDate,
-		SignedDate:     contract.SignedDate,
-		CreatedAt:      contract.CreatedAt,
-		UpdatedAt:      contract.UpdatedAt,
+		StartDate:      utils.FormatLocalTime(contract.StartDate, ""),
+		EndDate:        utils.FormatLocalTime(contract.EndDate, ""),
+		SignedDate:     utils.FormatLocalTime(contract.SignedDate, ""),
+		CreatedAt:      utils.FormatLocalTime(contract.CreatedAt, ""),
+		UpdatedAt:      utils.FormatLocalTime(contract.UpdatedAt, ""),
 	}
 
 	// Set BrandID
