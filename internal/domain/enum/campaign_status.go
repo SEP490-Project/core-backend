@@ -41,3 +41,7 @@ func (cs *CampaignStatus) Scan(value any) error {
 func (cs CampaignStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
+
+func (cs CampaignStatus) String() string {
+	return string(cs)
+}

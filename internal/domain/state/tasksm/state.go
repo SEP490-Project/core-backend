@@ -54,7 +54,7 @@ func (c *TaskContext) IsAllProductsActive() bool {
 	}
 
 	for _, p := range c.Products {
-		if p.Status != enum.ProductStatusActived {
+		if p.Status != enum.ProductStatusActived && p.Status != enum.ProductStatusInactived {
 			return false
 		}
 	}
@@ -74,4 +74,20 @@ func (c *TaskContext) IsAllContentsPosted() bool {
 	}
 
 	return true
+}
+
+// UpdateByID related to the Task's
+func (c *TaskContext) IsCancelAndCascade(state TaskState) {
+	if state.Name() != enum.TaskStatusCancelled {
+		return
+	}
+	// Cascade cancel status to products
+	if c.Products != nil && len(c.Products) > 0 {
+		for _, p := range c.Products {
+			if p != nil {
+				p.Status = enum.ProductStatusInactived
+			}
+		}
+	}
+	// Future: cascade to contents if required (business rule not requested yet)
 }
