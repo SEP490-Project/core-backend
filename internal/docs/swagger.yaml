@@ -1,0 +1,2365 @@
+definitions:
+  enum.AttributeUnit:
+    enum:
+    - '%'
+    - MG
+    - G
+    - ML
+    - L
+    - IU
+    - PPM
+    - NONE
+    type: string
+    x-enum-varnames:
+    - AttributeUnitPercent
+    - AttributeUnitMG
+    - AttributeUnitG
+    - AttributeUnitML
+    - AttributeUnitL
+    - AttributeUnitIU
+    - AttributeUnitPPM
+    - AttributeUnitNone
+  enum.CapacityUnit:
+    enum:
+    - ML
+    - L
+    - G
+    - KG
+    - OZ
+    type: string
+    x-enum-varnames:
+    - CapacityUnitML
+    - CapacityUnitL
+    - CapacityUnitG
+    - CapacityUnitKG
+    - CapacityUnitOZ
+  enum.ContainerType:
+    enum:
+    - BOTTLE
+    - TUBE
+    - JAR
+    - STICK
+    - PENCIL
+    - COMPACT
+    - PALLETE
+    - SACHET
+    - VIAL
+    - ROLLER_BOTTLE
+    type: string
+    x-enum-varnames:
+    - ContainerTypeBottle
+    - ContainerTypeTube
+    - ContainerTypeJar
+    - ContainerTypeStick
+    - ContainerTypePencil
+    - ContainerTypeCompact
+    - ContainerTypePallete
+    - ContainerTypeSachet
+    - ContainerTypeVial
+    - ContainerTypeRollerBottle
+  enum.DispenserType:
+    enum:
+    - PUMP
+    - SPRAY
+    - DROPPER
+    - ROLL_ON
+    - TWIST_UP
+    - SQUEEZE
+    - NONE
+    type: string
+    x-enum-varnames:
+    - DispenserTypePump
+    - DispenserTypeSpray
+    - DispenserTypeDropper
+    - DispenserTypeRollOn
+    - DispenserTypeTwistUp
+    - DispenserTypeSqueeze
+    - DispenserTypeNone
+  enum.ProductType:
+    enum:
+    - STANDARD
+    - LIMITED
+    type: string
+    x-enum-varnames:
+    - ProductTypeStandard
+    - ProductTypeLimited
+  enum.UserRole:
+    enum:
+    - ADMIN
+    - MARKETING_STAFF
+    - CONTENT_STAFF
+    - SALES_STAFF
+    - CUSTOMER
+    - BRAND_PARTNER
+    type: string
+    x-enum-varnames:
+    - UserRoleAdmin
+    - UserRoleMarketingStaff
+    - UserRoleContentStaff
+    - UserRoleSalesStaff
+    - UserRoleCustomer
+    - UserRoleBrandPartner
+  handler.UpdateTaskStateRequest:
+    properties:
+      state:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        type: string
+    required:
+    - state
+    type: object
+  requests.CreateBrandRequest:
+    properties:
+      contact_email:
+        example: acme@example.com
+        maxLength: 255
+        type: string
+      contact_phone:
+        example: "+1234567890"
+        type: string
+      description:
+        example: A leading manufacturer of quality products.
+        maxLength: 1000
+        type: string
+      logo_url:
+        example: https://www.acme.com/logo.png
+        type: string
+      name:
+        example: Acme Corp
+        maxLength: 255
+        minLength: 2
+        type: string
+      website:
+        example: https://www.acme.com
+        maxLength: 255
+        type: string
+    required:
+    - contact_email
+    - name
+    type: object
+  requests.LoginRequest:
+    properties:
+      login_identifier:
+        example: user@example.com
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+    required:
+    - login_identifier
+    - password
+    type: object
+  requests.LogoutRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  requests.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    required:
+    - refresh_token
+    type: object
+  requests.SignUpRequest:
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
+        maxLength: 100
+        minLength: 2
+        type: string
+      password:
+        example: password123
+        minLength: 8
+        type: string
+      username:
+        example: john_doe
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  requests.UpdateBrandRequest:
+    properties:
+      contact_email:
+        example: acme@example.com
+        maxLength: 255
+        type: string
+      contact_phone:
+        example: "+1234567890"
+        type: string
+      description:
+        example: A leading manufacturer of quality products.
+        maxLength: 1000
+        type: string
+      logo_url:
+        example: https://www.acme.com/logo.png
+        type: string
+      name:
+        example: Acme Corp
+        maxLength: 255
+        minLength: 2
+        type: string
+      website:
+        example: https://www.acme.com
+        maxLength: 255
+        type: string
+    required:
+    - contact_email
+    - name
+    type: object
+  requests.UpdateContractRequest:
+    properties:
+      brand_bank_account_number:
+        example: "0123456789"
+        maxLength: 255
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        maxLength: 255
+        type: string
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        maxLength: 255
+        type: string
+      brand_representative_name:
+        example: John Doe
+        maxLength: 255
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        maxLength: 255
+        type: string
+      brand_tax_number:
+        description: Brand information (stored in contract for record-keeping)
+        example: TAX123456
+        maxLength: 100
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001-UPDATED
+        maxLength: 255
+        minLength: 2
+        type: string
+      currency:
+        description: Financial
+        example: USD
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        description: Complex JSONB fields (optional for updates)
+      legal_terms: {}
+      parent_contract_id:
+        description: Parent contract (for amendments or related contracts)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        maxLength: 255
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        maxLength: 255
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        maxLength: 255
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        maxLength: 255
+        type: string
+      representative_name:
+        description: KOL/Representative information
+        example: Jane Smith
+        maxLength: 255
+        minLength: 2
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        maxLength: 255
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        maxLength: 100
+        type: string
+      scope_of_work: {}
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        maxLength: 255
+        type: string
+      start_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        example: ACTIVE
+        type: string
+      title:
+        description: Contract basic information
+        example: Updated Contract Title
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
+        type: string
+    type: object
+  requests.UpdateProfileRequest:
+    properties:
+      email:
+        example: new_email@example.com
+        type: string
+      username:
+        example: new_username
+        maxLength: 50
+        minLength: 3
+        type: string
+    type: object
+  requests.UpdateUserRoleRequest:
+    properties:
+      role:
+        enum:
+        - ADMIN
+        - MARKETING_STAFF
+        - CONTENT_STAFF
+        - SALES_STAFF
+        - CUSTOMER
+        - BRAND_PARTNER
+        example: CUSTOMER
+        type: string
+    required:
+    - role
+    type: object
+  requests.UpdateUserStatusRequest:
+    properties:
+      is_active:
+        example: true
+        type: boolean
+    required:
+    - is_active
+    type: object
+  responses.APIResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.BrandPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.BrandResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.BrandResponse:
+    properties:
+      contact_email:
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      website:
+        type: string
+    type: object
+  responses.BrandSummary:
+    properties:
+      address:
+        example: 123 Main St, Springfield
+        type: string
+      contact_email:
+        example: contact@acme.com
+        type: string
+      contact_phone:
+        example: "+84901234567"
+        type: string
+      id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      logo_url:
+        example: https://example.com/logo.png
+        type: string
+      name:
+        example: Acme Corp
+        type: string
+    type: object
+  responses.ContractListResponse:
+    properties:
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_name:
+        example: Acme Corp
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      created_at:
+        example: "2006-01-02 15:04:05"
+        type: string
+      end_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      signed_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      start_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        example: Social Media Promotion Contract
+        type: string
+      type:
+        example: ADVERTISING
+        type: string
+      updated_at:
+        example: "2006-01-02 15:04:05"
+        type: string
+    type: object
+  responses.ContractPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContractListResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ContractResponse:
+    properties:
+      brand:
+        $ref: '#/definitions/responses.BrandSummary'
+      brand_bank_account_number:
+        example: "0123456789"
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        type: string
+      brand_id:
+        description: Brand information (from relationship)
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        type: string
+      brand_representative_name:
+        example: John Doe
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        type: string
+      brand_tax_number:
+        example: TAX123456
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      created_at:
+        description: Metadata
+        example: "2006-01-02 15:04:05"
+        type: string
+      currency:
+        description: Financial
+        example: VND
+        type: string
+      end_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      financial_terms:
+        description: Complex JSONB fields (unmarshaled)
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      legal_terms: {}
+      parent_contract:
+        allOf:
+        - $ref: '#/definitions/responses.ContractSummary'
+        description: Parent contract summary (if exists)
+      parent_contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        type: string
+      representative_name:
+        description: KOL/Representative information
+        example: Jane Smith
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        type: string
+      scope_of_work: {}
+      signed_date:
+        description: Contract dates
+        example: "2006-01-02 15:04:05"
+        type: string
+      signed_location:
+        example: Springfield
+        type: string
+      start_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        description: Contract basic information
+        example: Social Media Promotion Contract
+        type: string
+      type:
+        example: ADVERTISING
+        type: string
+      updated_at:
+        example: "2006-01-02 15:04:05"
+        type: string
+    type: object
+  responses.ContractSummary:
+    properties:
+      contract_number:
+        example: CONTRACT-2023-001
+        type: string
+      end_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      start_date:
+        example: "2006-01-02 15:04:05"
+        type: string
+      status:
+        example: ACTIVE
+        type: string
+      title:
+        example: Master Service Agreement
+        type: string
+      type:
+        example: ADVERTISING
+        type: string
+    type: object
+  responses.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      user:
+        $ref: '#/definitions/responses.UserInfo'
+    type: object
+  responses.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  responses.Pagination:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  responses.ProductAttributesResponse:
+    properties:
+      description:
+        type: string
+      ingredient:
+        type: string
+      unit:
+        $ref: '#/definitions/enum.AttributeUnit'
+      value:
+        type: number
+    type: object
+  responses.ProductResponse:
+    properties:
+      brand_id:
+        type: string
+      brand_logo_url:
+        type: string
+      brand_name:
+        type: string
+      category_lv1:
+        type: string
+      category_lv2:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      variants:
+        items:
+          $ref: '#/definitions/responses.ProductVariantResponse'
+        type: array
+    type: object
+  responses.ProductVariantResponse:
+    properties:
+      attributes:
+        items:
+          $ref: '#/definitions/responses.ProductAttributesResponse'
+        type: array
+      capacity:
+        type: number
+      capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      created_at:
+        type: string
+      current_stock:
+        type: integer
+      description:
+        type: string
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      expiry_date:
+        type: string
+      id:
+        type: string
+      instructions:
+        type: string
+      is_default:
+        type: boolean
+      manufactring_date:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      story:
+        items:
+          type: integer
+        type: array
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      updated_at:
+        type: string
+      uses:
+        type: string
+    type: object
+  responses.SessionInfo:
+    properties:
+      created_at:
+        type: string
+      device_fingerprint:
+        type: string
+      expiry_at:
+        type: string
+      id:
+        type: string
+      is_revoked:
+        type: boolean
+      last_used_at:
+        type: string
+    type: object
+  responses.SignUpResponse:
+    properties:
+      message:
+        type: string
+      user:
+        $ref: '#/definitions/responses.UserInfo'
+    type: object
+  responses.UserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  responses.UserPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.UserResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.UserResponse:
+    properties:
+      created_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      last_login:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      role:
+        allOf:
+        - $ref: '#/definitions/enum.UserRole'
+        example: user
+      updated_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is the core backend service for SEP490 project with authentication,
+    user management, and business features.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: SEP490 Core Backend API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with credentials
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: User Login
+      tags:
+      - Authentication
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user and invalidate refresh token
+      parameters:
+      - description: Logout requests
+        in: body
+        name: requests
+        required: true
+        schema:
+          $ref: '#/definitions/requests.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LogoutResponse'
+              type: object
+        "400":
+          description: Invalid requests
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: User Logout
+      tags:
+      - Authentication
+  /api/v1/auth/logout-all:
+    post:
+      consumes:
+      - application/json
+      description: Logout user from all active sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All sessions logged out successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LogoutResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout All Sessions
+      tags:
+      - Authentication
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generate new access token using refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LoginResponse'
+              type: object
+        "400":
+          description: Invalid requests
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
+  /api/v1/auth/sessions:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user's active sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active sessions retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.SessionInfo'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Active Sessions
+      tags:
+      - Authentication
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      consumes:
+      - application/json
+      description: Revoke a specific user session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Session revoked successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LogoutResponse'
+              type: object
+        "400":
+          description: Invalid session ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Revoke Session
+      tags:
+      - Authentication
+  /api/v1/auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.SignUpResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: User Registration
+      tags:
+      - Authentication
+  /api/v1/brands:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of brands with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search keywords for brand name
+        in: query
+        name: keywords
+        type: string
+      - description: Filter by brand status
+        enum:
+        - ACTIVE
+        - INACTIVE
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brands fetched successfully
+          schema:
+            $ref: '#/definitions/responses.BrandPaginationResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brands List by filter
+      tags:
+      - Brands
+    post:
+      consumes:
+      - application/json
+      description: Create a new brand
+      parameters:
+      - description: Brand creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateBrandRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Brand created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Brand
+      tags:
+      - Brands
+  /api/v1/brands/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get brand details by ID
+      parameters:
+      - description: Brand ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brand fetched successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid brand ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand by ID
+      tags:
+      - Brands
+    put:
+      consumes:
+      - application/json
+      description: Update brand details by ID
+      parameters:
+      - description: Brand ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Brand update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateBrandRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brand updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Brand
+      tags:
+      - Brands
+  /api/v1/brands/{id}/status/{status}:
+    put:
+      consumes:
+      - application/json
+      description: Update brand status (ACTIVE/INACTIVE)
+      parameters:
+      - description: Brand ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Brand Status
+        enum:
+        - ACTIVE
+        - INACTIVE
+        in: path
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brand status updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Brand Status
+      tags:
+      - Brands
+  /api/v1/brands/with-users:
+    post:
+      consumes:
+      - application/json
+      description: Create a new brand with the associated inactive users
+      parameters:
+      - description: Brand creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateBrandRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Brand and User created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Brand with Inactive Users
+      tags:
+      - Brands
+  /api/v1/contracts:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of contracts with optional filters
+      parameters:
+      - description: Brand ID
+        format: uuid
+        in: query
+        name: brand_id
+        type: string
+      - description: Contract type
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        in: query
+        name: type
+        type: string
+      - description: Contract status
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        in: query
+        name: status
+        type: string
+      - description: Search keyword (title or contract number)
+        in: query
+        name: keyword
+        type: string
+      - description: Start date filter
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date filter
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contracts retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contracts with filters
+      tags:
+      - Contracts
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a new contract and optionally update brand information
+      parameters:
+      - description: Contract creation data in JSON format of struct type requests.CreateContractRequest
+        in: formData
+        name: data
+        required: true
+        type: string
+      - description: Contract file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Contract created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new contract
+      tags:
+      - Contracts
+  /api/v1/contracts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a contract by ID
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete contract
+      tags:
+      - Contracts
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific contract
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract by ID
+      tags:
+      - Contracts
+    put:
+      consumes:
+      - application/json
+      description: Update an existing contract and optionally update brand information
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Contract update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update contract
+      tags:
+      - Contracts
+  /api/v1/contracts/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Approve a contract by ID
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract approved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve contract
+      tags:
+      - Contracts
+  /api/v1/contracts/brands/{brand_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all contracts for a specific brand
+      parameters:
+      - description: Brand ID
+        format: uuid
+        in: path
+        name: brand_id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contracts retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaginationResponse'
+        "400":
+          description: Invalid brand ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contracts by brand ID
+      tags:
+      - Contracts
+  /api/v1/files/{filename}:
+    delete:
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: File name
+        in: path
+        name: filename
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete a file from S3
+      tags:
+      - files
+  /api/v1/files/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: User ID
+        in: formData
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a file to S3
+      tags:
+      - files
+  /api/v1/payos/payment:
+    post:
+      consumes:
+      - application/json
+      description: Initiate a payment with PayOS
+      parameters:
+      - description: Payment Request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a PayOS payment
+      tags:
+      - payos
+  /api/v1/payos/payment/{orderCode}:
+    get:
+      description: Inspect payment detail
+      parameters:
+      - description: Order Code
+        in: path
+        name: orderCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get PayOS order info
+      tags:
+      - payos
+  /api/v1/products:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of products with optional search
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponse'
+                type: array
+              limit:
+                type: integer
+              offset:
+                type: integer
+              total:
+                type: integer
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Products
+      tags:
+      - Products
+  /api/v1/products/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED,
+        ACTIVED, INACTIVED)
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Product State
+      tags:
+      - State Transfer
+  /api/v1/tasks/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP,
+        DONE)
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Task State
+      tags:
+      - State Transfer
+  /api/v1/users:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of users (admin only)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for username or email
+        in: query
+        name: search
+        type: string
+      - description: Filter by user role
+        in: query
+        name: role
+        type: string
+      - description: Filter by active status
+        in: query
+        name: is_active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.UserPaginationResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Users List
+      tags:
+      - Users
+  /api/v1/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a user (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete User
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Get user details by ID (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserResponse'
+              type: object
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User by ID
+      tags:
+      - Users
+  /api/v1/users/{id}/activate-brand:
+    patch:
+      consumes:
+      - application/json
+      description: Activate a user associated with a brand (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brand user activated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Activate Brand User
+      tags:
+      - Users
+  /api/v1/users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Update user role (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateUserRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User role updated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Role
+      tags:
+      - Users
+  /api/v1/users/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update user active status (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User status updated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Status
+      tags:
+      - Users
+  /api/v1/users/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get current authenticated user's profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Update current authenticated user's profile
+      parameters:
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Username or email already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User Profile
+      tags:
+      - Users
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Returns the health status of the application and its dependencies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "503":
+          description: Service is unhealthy
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Health Check
+      tags:
+      - Health
+  /health/live:
+    get:
+      consumes:
+      - application/json
+      description: Returns whether the application is alive and running
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is alive
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Liveness Check
+      tags:
+      - Health
+  /health/ready:
+    get:
+      consumes:
+      - application/json
+      description: Returns whether the application is ready to serve requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is ready
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "503":
+          description: Service is not ready
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Readiness Check
+      tags:
+      - Health
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
