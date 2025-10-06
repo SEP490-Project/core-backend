@@ -43,3 +43,7 @@ func (cs *ContractStatus) Scan(value any) error {
 func (cs ContractStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
+
+func (cs ContractStatus) String() string {
+	return string(cs)
+}

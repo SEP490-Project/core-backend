@@ -10,6 +10,7 @@ type ToDoState struct{}
 func (s *ToDoState) Next(ctx *TaskContext, next TaskState) error {
 	if _, ok := s.AllowedTransitions()[next.Name()]; ok {
 		ctx.State = next
+		ctx.IsCancelAndCascade(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", s.Name(), next.Name())
@@ -22,6 +23,4 @@ func (s *ToDoState) AllowedTransitions() map[enum.TaskStatus]struct{} {
 	}
 }
 
-func (s *ToDoState) Name() enum.TaskStatus {
-	return enum.TaskStatusToDo
-}
+func (s *ToDoState) Name() enum.TaskStatus { return enum.TaskStatusToDo }

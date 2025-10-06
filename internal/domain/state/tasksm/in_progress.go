@@ -10,20 +10,23 @@ type InProgressState struct{}
 func (i *InProgressState) Name() enum.TaskStatus { return enum.TaskStatusInProgress }
 
 func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
-	// Log state of product activation using structured logging
-	prdStatusCheck := ctx.IsAllProductsActive()
-	contentStatusCheck := ctx.IsAllContentsPosted()
-
-	if !prdStatusCheck {
-		return fmt.Errorf("cannot transition to %s: not all products are active", next.Name())
-	}
-
-	if !contentStatusCheck {
-		return fmt.Errorf("cannot transition to %s: not all contents are posted", next.Name())
-	}
 
 	if _, ok := i.AllowedTransitions()[next.Name()]; ok {
+		if next.Name() == enum.TaskStatusRecap {
+			prdStatusCheck := ctx.IsAllProductsActive()
+			contentStatusCheck := ctx.IsAllContentsPosted()
+
+			// Chỉ fail nếu cả hai đều chưa xong
+			if !prdStatusCheck && !contentStatusCheck {
+				return fmt.Errorf(
+					"cannot transition to %s: neither products are active nor contents are posted",
+					next.Name(),
+				)
+			}
+		}
+
 		ctx.State = next
+		ctx.IsCancelAndCascade(next)
 		return nil
 	}
 
@@ -32,6 +35,7 @@ func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 
 func (i *InProgressState) AllowedTransitions() map[enum.TaskStatus]struct{} {
 	return map[enum.TaskStatus]struct{}{
-		enum.TaskStatusRecap: {},
+		enum.TaskStatusRecap:     {},
+		enum.TaskStatusCancelled: {},
 	}
 }

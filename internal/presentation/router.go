@@ -130,8 +130,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// Product state routes (protected)
 		stateHandler := r.handlerRegistry.TaskHandler
 		productStateGroup := v1.Group("/products")
-		//productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales))
-		productStateGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
 		{
 			productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 		}
@@ -139,8 +138,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// Task routes
 		taskHandler := r.handlerRegistry.TaskHandler
 		taskGroup := v1.Group("/tasks")
-		//taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, marketing, content, admin, brand))
-		taskGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
 		{
 			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
 		}

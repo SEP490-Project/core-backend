@@ -16,5 +16,7 @@ func (a ActivedState) Next(ctx *ProductContext, next ProductState) error {
 }
 
 func (a ActivedState) AllowedTransitions() map[enum.ProductStatus]struct{} {
-	return map[enum.ProductStatus]struct{}{}
+	return map[enum.ProductStatus]struct{}{
+		enum.ProductStatusInactived: {},
+	}
 }
