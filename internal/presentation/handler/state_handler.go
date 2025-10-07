@@ -128,7 +128,7 @@ type UpdateProductStateRequest struct {
 // @Accept       json
 // @Produce      json
 // @Param        id    path   string                     true  "Product ID (UUID)"
-// @Param        body   UpdateProductStateRequest  true  "Target state payload"
+// @Param        body  body	  UpdateProductStateRequest  true  "Target state payload"
 // @Success      200   {object} responses.APIResponse  "Product state updated"
 // @Failure      400   {object} responses.APIResponse  "Invalid request"
 // @Failure      404   {object} responses.APIResponse  "Product not found"

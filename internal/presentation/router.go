@@ -141,6 +141,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
 		{
 			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
+			// New: list products belonging to a task
+			taskGroup.GET(":taskId/products", productHandler.GetProductsByTask)
 		}
 
 		// PayOS payment route

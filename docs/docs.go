@@ -1802,6 +1802,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tasks/{taskId}/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated products (overview) belonging to a task. Authorization: staff roles or owning brand user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get Products By Task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task ID (UUID)",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductOverviewResponse"
+                                    }
+                                },
+                                "limit": {
+                                    "type": "integer"
+                                },
+                                "offset": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users": {
             "get": {
                 "security": [
@@ -2505,6 +2606,25 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.ProductStatus": {
+            "type": "string",
+            "enum": [
+                "DRAFT",
+                "SUBMITTED",
+                "REVISION",
+                "APPROVED",
+                "ACTIVED",
+                "INACTIVED"
+            ],
+            "x-enum-varnames": [
+                "ProductStatusDraft",
+                "ProductStatusSubmitted",
+                "ProductStatusRevision",
+                "ProductStatusApproved",
+                "ProductStatusActived",
+                "ProductStatusInactived"
+            ]
+        },
         "enum.ProductType": {
             "type": "string",
             "enum": [
@@ -2542,7 +2662,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "state": {
-                    "description": "Allowed values must align with enum.ProductStatus constants",
+                    "description": "State is the desired target state.\nEnum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED\nexample: SUBMITTED",
                     "type": "string",
                     "enum": [
                         "DRAFT",
@@ -3360,6 +3480,62 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.ProductOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_logo_url": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category_id": {
+                    "type": "string"
+                },
+                "parent_category_name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ProductStatus"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                },
+                "variant_count": {
+                    "type": "integer"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.VariantMini"
+                    }
+                }
+            }
+        },
         "responses.ProductResponse": {
             "type": "object",
             "properties": {
@@ -3587,6 +3763,29 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.VariantMini": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "current_stock": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "price": {
+                    "type": "number"
                 }
             }
         }
