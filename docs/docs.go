@@ -1500,6 +1500,90 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/payos/payment": {
+            "post": {
+                "description": "Initiate a payment with PayOS",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payos"
+                ],
+                "summary": "Create a PayOS payment",
+                "parameters": [
+                    {
+                        "description": "Payment Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payos/payment/{orderCode}": {
+            "get": {
+                "description": "Inspect payment detail",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payos"
+                ],
+                "summary": "Get PayOS order info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order Code",
+                        "name": "orderCode",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products": {
             "get": {
                 "security": [
@@ -1573,6 +1657,146 @@ const docTemplate = `{
                                     "type": "string"
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Product State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Task State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -2311,6 +2535,24 @@ const docTemplate = `{
                 "UserRoleBrandPartner"
             ]
         },
+        "handler.UpdateTaskStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "CANCELLED",
+                        "RECAP",
+                        "DONE"
+                    ]
+                }
+            }
+        },
         "requests.CreateBrandRequest": {
             "type": "object",
             "required": [
@@ -2890,11 +3132,11 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "id": {
                     "type": "string",
@@ -2902,11 +3144,11 @@ const docTemplate = `{
                 },
                 "signed_date": {
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-10-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",
@@ -2922,7 +3164,7 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-15T15:30:00Z"
+                    "example": "2006-01-02 15:04:05"
                 }
             }
         },
@@ -3003,20 +3245,16 @@ const docTemplate = `{
                 "created_at": {
                     "description": "Metadata",
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "currency": {
                     "description": "Financial",
                     "type": "string",
                     "example": "VND"
                 },
-                "deleted_at": {
-                    "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
-                },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "financial_terms": {
                     "description": "Complex JSONB fields (unmarshaled)"
@@ -3079,7 +3317,7 @@ const docTemplate = `{
                 "signed_date": {
                     "description": "Contract dates",
                     "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "signed_location": {
                     "type": "string",
@@ -3087,7 +3325,7 @@ const docTemplate = `{
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-10-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",
@@ -3104,7 +3342,7 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-10-15T15:30:00Z"
+                    "example": "2006-01-02 15:04:05"
                 }
             }
         },
@@ -3117,7 +3355,7 @@ const docTemplate = `{
                 },
                 "end_date": {
                     "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "id": {
                     "type": "string",
@@ -3125,7 +3363,7 @@ const docTemplate = `{
                 },
                 "start_date": {
                     "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
+                    "example": "2006-01-02 15:04:05"
                 },
                 "status": {
                     "type": "string",

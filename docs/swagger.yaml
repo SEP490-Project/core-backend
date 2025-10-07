@@ -99,6 +99,19 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
+  handler.UpdateTaskStateRequest:
+    properties:
+      state:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        type: string
+    required:
+    - state
+    type: object
   requests.CreateBrandRequest:
     properties:
       contact_email:
@@ -528,19 +541,19 @@ definitions:
         example: CONTRACT-2023-001
         type: string
       created_at:
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       signed_date:
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       start_date:
-        example: "2023-10-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -552,7 +565,7 @@ definitions:
         example: ADVERTISING
         type: string
       updated_at:
-        example: "2023-10-15T15:30:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
     type: object
   responses.ContractPaginationResponse:
@@ -610,17 +623,14 @@ definitions:
         type: string
       created_at:
         description: Metadata
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       currency:
         description: Financial
         example: VND
         type: string
-      deleted_at:
-        example: "2023-12-31T23:59:59Z"
-        type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       financial_terms:
         description: Complex JSONB fields (unmarshaled)
@@ -666,13 +676,13 @@ definitions:
       scope_of_work: {}
       signed_date:
         description: Contract dates
-        example: "2023-10-01T12:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       signed_location:
         example: Springfield
         type: string
       start_date:
-        example: "2023-10-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -685,7 +695,7 @@ definitions:
         example: ADVERTISING
         type: string
       updated_at:
-        example: "2023-10-15T15:30:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
     type: object
   responses.ContractSummary:
@@ -694,13 +704,13 @@ definitions:
         example: CONTRACT-2023-001
         type: string
       end_date:
-        example: "2023-12-31T23:59:59Z"
+        example: "2006-01-02 15:04:05"
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       start_date:
-        example: "2023-01-01T00:00:00Z"
+        example: "2006-01-02 15:04:05"
         type: string
       status:
         example: ACTIVE
@@ -1838,6 +1848,62 @@ paths:
       summary: Upload a file to S3
       tags:
       - files
+  /api/v1/payos/payment:
+    post:
+      consumes:
+      - application/json
+      description: Initiate a payment with PayOS
+      parameters:
+      - description: Payment Request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a PayOS payment
+      tags:
+      - payos
+  /api/v1/payos/payment/{orderCode}:
+    get:
+      description: Inspect payment detail
+      parameters:
+      - description: Order Code
+        in: path
+        name: orderCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get PayOS order info
+      tags:
+      - payos
   /api/v1/products:
     get:
       consumes:
@@ -1888,6 +1954,98 @@ paths:
       summary: Get All Products
       tags:
       - Products
+  /api/v1/products/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED,
+        ACTIVED, INACTIVED)
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Product State
+      tags:
+      - State Transfer
+  /api/v1/tasks/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP,
+        DONE)
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Task State
+      tags:
+      - State Transfer
   /api/v1/users:
     get:
       consumes:

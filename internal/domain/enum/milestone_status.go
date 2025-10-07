@@ -41,3 +41,7 @@ func (ms *MilestoneStatus) Scan(value any) error {
 func (ms MilestoneStatus) Value() (driver.Value, error) {
 	return string(ms), nil
 }
+
+func (ms MilestoneStatus) String() string {
+	return string(ms)
+}
