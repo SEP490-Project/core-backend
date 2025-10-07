@@ -99,21 +99,6 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
-  handler.UpdateProductStateRequest:
-    properties:
-      state:
-        description: Allowed values must align with enum.ProductStatus constants
-        enum:
-        - DRAFT
-        - SUBMITTED
-        - REVISION
-        - APPROVED
-        - ACTIVED
-        - INACTIVED
-        type: string
-    required:
-    - state
-    type: object
   handler.UpdateTaskStateRequest:
     properties:
       state:
@@ -1910,7 +1895,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateProductStateRequest'
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
       produces:
       - application/json
       responses:
