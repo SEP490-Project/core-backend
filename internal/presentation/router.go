@@ -127,13 +127,33 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		productHandler := r.handlerRegistry.ProductHandler
 		v1.GET("/products", productHandler.GetAllProducts)
 
+		// Product state routes (protected)
+		stateHandler := r.handlerRegistry.TaskHandler
+		productStateGroup := v1.Group("/products")
+		productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
+		{
+			productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
+		}
+
+		// Task routes
+		taskHandler := r.handlerRegistry.TaskHandler
+		taskGroup := v1.Group("/tasks")
+		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+		{
+			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
+		}
+
+		// PayOS payment route
+		payOsHandler := r.handlerRegistry.PayOsHandler
+		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
+
 		// File upload routes
 		s3Handler := r.handlerRegistry.FileHandler
 		fileGroup := v1.Group("/files")
 		fileGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All file routes require authentication
 		{
 			fileGroup.POST("/upload", s3Handler.UploadFile)
-			fileGroup.DELETE("/:filename", s3Handler.DeleteFile)
+			//fileGroup.DELETE(":filename", s3Handler.DeleteFile)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
@@ -160,7 +180,6 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 		brandGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
 			PATCH("/:id/status", brandHandler.UpdateBrandStatus)
-
 	}
 }
 
@@ -171,14 +190,14 @@ func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
 	contractGroup := group.Group("/contracts")
 	{
 		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
-			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
-		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin)).
 			GET("", contractHandler.GetContracts)
 		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(marketing, brand)).
 			GET("/:id", contractHandler.GetContractByID)
+		contractGroup.
+			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
+			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
 
 		contractGroup.
 			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).

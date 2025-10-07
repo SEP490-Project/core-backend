@@ -18,6 +18,7 @@ type ApplicationRegistry struct {
 	UserService            iservice.UserService
 	ProductService         iservice.ProductService
 	BrandService           iservice.BrandService
+	TaskService            iservice.StateTransferService
 	ContractService        iservice.ContractService
 	CampaignService        iservice.CampaignService
 }
@@ -32,11 +33,12 @@ func NewApplicationRegistry(
 		DatabaseRegistry:       databaseRegistry,
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
-		FileService:            infraService.NewS3Service(infrastructureRegistry.S3Repository),
+		FileService:            infraService.NewFileService(infrastructureRegistry.S3Repository),
 		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry.ProductRepository),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
+		TaskService:            service.NewStateTransferService(databaseRegistry.ContractRepository, databaseRegistry.CampaignRepository, databaseRegistry.MilestoneRepository, databaseRegistry.TaskRepository, databaseRegistry.ProductRepository, infrastructureRegistry.UnitOfWork),
 		ContractService:        service.NewContractService(databaseRegistry.ContractRepository),
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
 	}

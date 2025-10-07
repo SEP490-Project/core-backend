@@ -21,10 +21,11 @@ type Milestone struct {
 	CreatedAt            time.Time            `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt            time.Time            `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt            gorm.DeletedAt       `json:"deleted_at" gorm:"column:deleted_at;index"`
-
+	CreatedByID          uuid.UUID            `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID          *uuid.UUID           `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	// Relationships
 	Campaign *Campaign `json:"-" gorm:"foreignKey:CampaignID"`
-	Tasks    []Task    `json:"-" gorm:"foreignKey:MilestoneID"`
+	Tasks    []*Task   `json:"-" gorm:"foreignKey:MilestoneID"`
 }
 
 func (Milestone) TableName() string { return "milestones" }

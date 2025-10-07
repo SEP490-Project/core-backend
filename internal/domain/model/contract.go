@@ -53,11 +53,14 @@ type Contract struct {
 	CreatedAt       time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at;index"`
+	CreatedByID     uuid.UUID           `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID     *uuid.UUID          `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 
 	// Relationships
 	ParentContract    *Contract  `json:"parent_contract" gorm:"foreignKey:ParentContractID;references:ID"`
 	ChildrenContracts []Contract `json:"children_contracts" gorm:"foreignKey:ParentContractID;references:ID"`
 	Brand             *Brand     `json:"brand" gorm:"foreignKey:BrandID;references:ID"`
+	Campaign          *Campaign  `json:"campaigns" gorm:"foreignKey:ContractID;references:ID"`
 }
 
 func (Contract) TableName() string { return "contracts" }
