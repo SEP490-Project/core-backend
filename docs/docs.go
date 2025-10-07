@@ -1694,7 +1694,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.UpdateProductStateRequest"
+                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
                         }
                     }
                 ],
@@ -2534,26 +2534,6 @@ const docTemplate = `{
                 "UserRoleCustomer",
                 "UserRoleBrandPartner"
             ]
-        },
-        "handler.UpdateProductStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "description": "Allowed values must align with enum.ProductStatus constants",
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "SUBMITTED",
-                        "REVISION",
-                        "APPROVED",
-                        "ACTIVED",
-                        "INACTIVED"
-                    ]
-                }
-            }
         },
         "handler.UpdateTaskStateRequest": {
             "type": "object",
