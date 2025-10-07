@@ -75,6 +75,22 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.ProductStatus:
+    enum:
+    - DRAFT
+    - SUBMITTED
+    - REVISION
+    - APPROVED
+    - ACTIVED
+    - INACTIVED
+    type: string
+    x-enum-varnames:
+    - ProductStatusDraft
+    - ProductStatusSubmitted
+    - ProductStatusRevision
+    - ProductStatusApproved
+    - ProductStatusActived
+    - ProductStatusInactived
   enum.ProductType:
     enum:
     - STANDARD
@@ -102,7 +118,10 @@ definitions:
   handler.UpdateProductStateRequest:
     properties:
       state:
-        description: Allowed values must align with enum.ProductStatus constants
+        description: |-
+          State is the desired target state.
+          Enum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED
+          example: SUBMITTED
         enum:
         - DRAFT
         - SUBMITTED
@@ -703,6 +722,43 @@ definitions:
       value:
         type: number
     type: object
+  responses.ProductOverviewResponse:
+    properties:
+      brand_id:
+        type: string
+      brand_logo_url:
+        type: string
+      brand_name:
+        type: string
+      category_id:
+        type: string
+      category_name:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      parent_category_id:
+        type: string
+      parent_category_name:
+        type: string
+      price:
+        type: number
+      status:
+        $ref: '#/definitions/enum.ProductStatus'
+      task_id:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      variant_count:
+        type: integer
+      variants:
+        items:
+          $ref: '#/definitions/responses.VariantMini'
+        type: array
+    type: object
   responses.ProductResponse:
     properties:
       brand_id:
@@ -854,6 +910,21 @@ definitions:
       username:
         example: john_doe
         type: string
+    type: object
+  responses.VariantMini:
+    properties:
+      capacity:
+        type: number
+      capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      current_stock:
+        type: integer
+      id:
+        type: string
+      is_default:
+        type: boolean
+      price:
+        type: number
     type: object
 host: localhost:8080
 info:
@@ -1985,6 +2056,72 @@ paths:
       summary: Update Task State
       tags:
       - State Transfer
+  /api/v1/tasks/{taskId}/products:
+    get:
+      consumes:
+      - application/json
+      description: 'Get paginated products (overview) belonging to a task. Authorization:
+        staff roles or owning brand user.'
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: taskId
+        required: true
+        type: string
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Number of items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductOverviewResponse'
+                type: array
+              limit:
+                type: integer
+              offset:
+                type: integer
+              total:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Products By Task
+      tags:
+      - Products
   /api/v1/users:
     get:
       consumes:
