@@ -1500,6 +1500,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/milestones/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Milestone State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Milestone ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateMilestoneStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Milestone not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/payment": {
             "post": {
                 "description": "Initiate a payment with PayOS",
@@ -1694,7 +1764,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.UpdateProductStateRequest"
+                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
                         }
                     }
                 ],
@@ -2654,6 +2724,24 @@ const docTemplate = `{
                 "UserRoleCustomer",
                 "UserRoleBrandPartner"
             ]
+        },
+        "handler.UpdateMilestoneStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "State is the desired target state.\nEnum: NOT_STARTED,ON_GOING,CANCELLED,COMPLETED\nexample: ON_GOING",
+                    "type": "string",
+                    "enum": [
+                        "NOT_STARTED",
+                        "ON_GOING",
+                        "CANCELLED",
+                        "COMPLETED"
+                    ]
+                }
+            }
         },
         "handler.UpdateProductStateRequest": {
             "type": "object",

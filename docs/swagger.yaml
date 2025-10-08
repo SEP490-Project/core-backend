@@ -115,6 +115,22 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
+  handler.UpdateMilestoneStateRequest:
+    properties:
+      state:
+        description: |-
+          State is the desired target state.
+          Enum: NOT_STARTED,ON_GOING,CANCELLED,COMPLETED
+          example: ON_GOING
+        enum:
+        - NOT_STARTED
+        - ON_GOING
+        - CANCELLED
+        - COMPLETED
+        type: string
+    required:
+    - state
+    type: object
   handler.UpdateProductStateRequest:
     properties:
       state:
@@ -1858,6 +1874,52 @@ paths:
       summary: Upload a file to S3
       tags:
       - files
+  /api/v1/milestones/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED,
+        COMPLETED)
+      parameters:
+      - description: Milestone ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateMilestoneStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Milestone not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Milestone State
+      tags:
+      - State Transfer
   /api/v1/payos/payment:
     post:
       consumes:
@@ -1981,7 +2043,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateProductStateRequest'
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
       produces:
       - application/json
       responses:

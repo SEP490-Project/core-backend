@@ -76,7 +76,7 @@ func (c *TaskContext) IsAllContentsPosted() bool {
 	return true
 }
 
-// UpdateByID related to the Task's
+// UpdateByID related to the precendence's
 func (c *TaskContext) IsCancelAndCascade(state TaskState) {
 	if state.Name() != enum.TaskStatusCancelled {
 		return
@@ -86,6 +86,7 @@ func (c *TaskContext) IsCancelAndCascade(state TaskState) {
 		for _, p := range c.Products {
 			if p != nil {
 				p.Status = enum.ProductStatusInactived
+				p.UpdatedByID = p.Task.UpdatedByID
 			}
 		}
 	}
