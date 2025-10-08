@@ -23,6 +23,8 @@ func InitS3() *S3Bucket {
 	zap.L().Debug("S3 configuration loaded",
 		zap.String("bucket", s3Cfg.BucketName),
 		zap.String("region", s3Cfg.Region),
+		zap.Bool("access_key", s3Cfg.AccessKey != ""),
+		zap.Bool("secret_key", s3Cfg.SecretKey != ""),
 	)
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
