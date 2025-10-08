@@ -145,6 +145,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			taskGroup.GET(":taskId/products", productHandler.GetProductsByTask)
 		}
 
+		// Milestone routes (state transitions)
+		milestoneGroup := v1.Group("/milestones")
+		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+		{
+			milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
+		}
+
 		// PayOS payment route
 		payOsHandler := r.handlerRegistry.PayOsHandler
 		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)

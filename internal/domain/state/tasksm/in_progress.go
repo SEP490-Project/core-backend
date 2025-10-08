@@ -16,7 +16,7 @@ func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 			prdStatusCheck := ctx.IsAllProductsActive()
 			contentStatusCheck := ctx.IsAllContentsPosted()
 
-			// Chỉ fail nếu cả hai đều chưa xong
+			// forbid if neither products are active nor contents are posted
 			if !prdStatusCheck && !contentStatusCheck {
 				return fmt.Errorf(
 					"cannot transition to %s: neither products are active nor contents are posted",

@@ -29,14 +29,16 @@ type stateTransferService struct {
 func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
 	ctx := context.Background()
-	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Products", "Contents"})
-	task.UpdatedByID = &updatedBy
+	// Preload nested product -> task to have back-reference available ("Products.Task")
+	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Products", "Products.Task", "Contents"})
 	if err != nil {
 		zap.L().Error("Failed to load task from DB",
 			zap.String("task ID", taskID.String()),
 			zap.Error(err))
 		return errors.New("Unable to find task: " + err.Error())
 	}
+	// Set updatedBy AFTER successful fetch
+	task.UpdatedByID = &updatedBy
 
 	//2. Load task context
 	taskCtx := &tasksm.TaskContext{
@@ -63,7 +65,7 @@ func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum
 		return errors.New("State transition failed: " + err.Error())
 	}
 
-	//5. Save to DB
+	//5. Persist task new state
 	task.Status = targetState
 	if err := t.taskRepository.Update(ctx, task); err != nil {
 		zap.L().Error("Failed to update task state in DB",
@@ -71,6 +73,22 @@ func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum
 			zap.String("new_state", targetState.String()),
 			zap.Error(err))
 		return errors.New("Failed to update task state in DB: " + err.Error())
+	}
+
+	//6. Cascade UpdatedByID (and any status changes applied by state machine) to products, if any
+	for _, p := range taskCtx.Products {
+		if p == nil {
+			continue
+		}
+		// Ensure task back-reference present (if not, assign for safety)
+		if p.Task == nil {
+			p.Task = task
+		}
+		p.UpdatedByID = &updatedBy
+		if err := t.productRepository.Update(ctx, p); err != nil {
+			// Log and continue; do not fail whole operation after task updated
+			zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", p.ID.String()), zap.Error(err))
+		}
 	}
 
 	return nil
@@ -137,12 +155,14 @@ func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, target
 
 	milestoneRepo := trx.Milestones()
 	// We want tasks (and optionally their products/contents if later cascades rely on them)
-	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Products", "Tasks.Contents"})
+	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Milestone", "Tasks.Products", "Tasks.Contents"})
 	if err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Failed to load milestone from DB", zap.String("milestone_id", mileStoneID.String()), zap.Error(err))
 		return errors.New("failed to load milestone from DB: " + err.Error())
 	}
+	//TODO: Set updatedBy AFTER successful fetch -> incase for cascade
+	milestone.UpdatedByID = &updatedBy
 
 	// Build milestone context
 	var tasks []*model.Task
@@ -154,7 +174,7 @@ func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, target
 		Tasks: tasks,
 	}
 
-	// Init next state
+	//3. Init target State
 	nextState := milestonesm.NewMilestoneState(targetState)
 	if nextState == nil {
 		_ = trx.Rollback()
@@ -163,6 +183,7 @@ func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, target
 	}
 
 	// Transition
+	//4. Forward state
 	if err := mCtx.State.Next(mCtx, nextState); err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Milestone state transition failed", zap.String("milestone_id", mileStoneID.String()), zap.String("from", mCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
@@ -171,43 +192,21 @@ func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, target
 
 	// Persist milestone
 	milestone.Status = targetState
-	milestone.UpdatedByID = &updatedBy
 	if err := milestoneRepo.Update(ctx, milestone); err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Failed to update milestone state", zap.String("milestone_id", mileStoneID.String()), zap.Error(err))
 		return errors.New("failed to update milestone state: " + err.Error())
 	}
 
-	// Cascade: if milestone cancelled then cancel all non-cancelled tasks in single batch
-	if targetState == enum.MilestoneStatusCancelled && len(tasks) > 0 {
-		taskRepo := trx.Tasks()
-		if err := taskRepo.UpdateByCondition(
-			ctx,
-			func(db *gorm.DB) *gorm.DB {
-				return db.Where("milestone_id = ? AND status <> ?", mileStoneID, enum.TaskStatusCancelled)
-			},
-			map[string]any{"status": enum.TaskStatusCancelled},
-		); err != nil {
-			_ = trx.Rollback()
-			zap.L().Error("Failed batch task cancellation", zap.String("milestone_id", mileStoneID.String()), zap.Error(err))
-			return errors.New("failed to cascade task cancellation: " + err.Error())
-		}
-		// Reflect in-memory for caller consistency
-		for _, tk := range tasks {
-			if tk != nil {
-				tk.Status = enum.TaskStatusCancelled
-			}
-		}
-	}
-
-	if err := trx.Commit(); err != nil {
-		zap.L().Error("Milestone transaction commit failed", zap.Error(err))
-		return errors.New("transaction commit failed: " + err.Error())
-	}
+	//if err := trx.Commit(); err != nil {
+	//	zap.L().Error("Milestone transaction commit failed", zap.Error(err))
+	//	return errors.New("transaction commit failed: " + err.Error())
+	//}
 	return nil
 }
 
 func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetState enum.CampaignStatus, updatedBy uuid.UUID) error {
+	//1. Load current task from DB
 	ctx := context.Background()
 	trx := t.uow.Begin()
 	defer func() {
@@ -218,18 +217,19 @@ func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetSt
 	}()
 
 	campaignRepo := trx.Campaigns()
-	milestoneRepo := trx.Milestones()
-	taskRepo := trx.Tasks()
-	productRepo := trx.Products()
-
-	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
+	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
 	if err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Failed to load campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to load campaign: " + err.Error())
 	}
+	//TODO: Set updatedBy AFTER successful fetch -> incase for cascade
+	campaign.UpdatedByID = &updatedBy
 
+	//2. Load task context
 	cCtx := &campaignsm.CampaignContext{State: campaignsm.NewCampaignState(campaign.Status), MileStones: campaign.Milestones}
+
+	//3. Init target State
 	nextState := campaignsm.NewCampaignState(targetState)
 	if nextState == nil {
 		_ = trx.Rollback()
@@ -237,12 +237,14 @@ func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetSt
 		return errors.New("invalid target campaign state")
 	}
 
+	//4. Forward state
 	if err := cCtx.State.Next(cCtx, nextState); err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Campaign state transition failed", zap.String("campaign_id", campaignID.String()), zap.String("from", cCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
 		return errors.New("campaign state transition failed: " + err.Error())
 	}
 
+	//5. Persist task new state
 	campaign.Status = targetState
 	if err := campaignRepo.Update(ctx, campaign); err != nil {
 		_ = trx.Rollback()
@@ -250,61 +252,6 @@ func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetSt
 		return errors.New("failed to persist campaign state: " + err.Error())
 	}
 
-	// Cascade cancellations downwards if needed
-	if targetState == enum.CampaignCanceled {
-		// 1. Cancel all milestones (batch)
-		if err := milestoneRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("campaign_id = ? AND status <> ?", campaignID, enum.MilestoneStatusCancelled)
-		}, map[string]any{"status": enum.MilestoneStatusCancelled}); err != nil {
-			_ = trx.Rollback()
-			zap.L().Error("Failed to batch cancel milestones", zap.String("campaign_id", campaignID.String()), zap.Error(err))
-			return errors.New("failed to cascade milestone cancellation: " + err.Error())
-		}
-
-		// 2. Cancel all tasks under those milestones
-		if err := taskRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("milestone_id IN (?) AND status <> ?", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", campaignID), enum.TaskStatusCancelled)
-		}, map[string]any{"status": enum.TaskStatusCancelled}); err != nil {
-			_ = trx.Rollback()
-			zap.L().Error("Failed to batch cancel tasks", zap.String("campaign_id", campaignID.String()), zap.Error(err))
-			return errors.New("failed to cascade task cancellation: " + err.Error())
-		}
-
-		// 3. Inactivate all products tied to those tasks
-		if err := productRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("task_id IN (?) AND status <> ?", db.Select("t.id").Table("tasks as t").Where("t.milestone_id IN (?)", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", campaignID)), enum.ProductStatusInactived)
-		}, map[string]any{"status": enum.ProductStatusInactived}); err != nil {
-			_ = trx.Rollback()
-			zap.L().Error("Failed to batch inactivate products", zap.String("campaign_id", campaignID.String()), zap.Error(err))
-			return errors.New("failed to cascade product inactivation: " + err.Error())
-		}
-
-		// Reflect in-memory for caller
-		for _, ms := range campaign.Milestones {
-			if ms == nil {
-				continue
-			}
-			ms.Status = enum.MilestoneStatusCancelled
-			if ms.Tasks != nil {
-				for _, tk := range ms.Tasks {
-					if tk == nil {
-						continue
-					}
-					tk.Status = enum.TaskStatusCancelled
-					for _, p := range tk.Products {
-						if p != nil {
-							p.Status = enum.ProductStatusInactived
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if err := trx.Commit(); err != nil {
-		zap.L().Error("Campaign transaction commit failed", zap.Error(err))
-		return errors.New("transaction commit failed: " + err.Error())
-	}
 	return nil
 }
 
