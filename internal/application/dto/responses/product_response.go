@@ -18,7 +18,7 @@ type ProductResponse struct {
 	Description  string           `json:"description"`
 	Price        float64          `json:"price"`
 	Type         enum.ProductType `json:"type"`
-	CategoryLv1  string           `json:"category_lv1"`
+	CategoryLv1  string           `json:"category"`
 	CategoryLv2  string           `json:"category_lv2"`
 
 	Variants []*ProductVariantResponse `json:"variants,omitempty"`
@@ -90,44 +90,49 @@ type ProductAttributesResponse struct {
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
 func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.ProductVariant) *ProductVariantResponse {
-	response := &ProductVariantResponse{
-		ID:              variant.ID,
-		Price:           variant.Price,
-		CurrentStock:    variant.CurrentStock,
-		Capacity:        variant.Capacity,
-		CapacityUnit:    variant.CapacityUnit,
-		ContainerType:   variant.ContainerType,
-		DispenserType:   variant.DispenserType,
-		Uses:            variant.Uses,
-		ManufactureDate: utils.FormatLocalTime(*variant.ManufactureDate, ""),
-		ExpiryDate:      utils.FormatLocalTime(*variant.ExpiryDate, ""),
-		Instructions:    variant.Instructions,
-		IsDefault:       variant.IsDefault,
-		CreatedAt:       utils.FormatLocalTime(variant.CreatedAt, ""),
-		UpdatedAt:       utils.FormatLocalTime(variant.UpdatedAt, ""),
+	resp := &ProductVariantResponse{
+		ID:            variant.ID,
+		Price:         variant.Price,
+		CurrentStock:  variant.CurrentStock,
+		Capacity:      variant.Capacity,
+		CapacityUnit:  variant.CapacityUnit,
+		ContainerType: variant.ContainerType,
+		DispenserType: variant.DispenserType,
+		Uses:          variant.Uses,
+		Instructions:  variant.Instructions,
+		IsDefault:     variant.IsDefault,
+		CreatedAt:     utils.FormatLocalTime(variant.CreatedAt, ""),
+		UpdatedAt:     utils.FormatLocalTime(variant.UpdatedAt, ""),
+	}
+	if variant.ManufactureDate != nil {
+		resp.ManufactureDate = utils.FormatLocalTime(*variant.ManufactureDate, "")
+	}
+	if variant.ExpiryDate != nil {
+		resp.ExpiryDate = utils.FormatLocalTime(*variant.ExpiryDate, "")
 	}
 	if variant.Product != nil {
-		response.Name = variant.Product.Name
-		response.Description = variant.Product.Description
-		response.Price = variant.Product.Price
-		response.Type = variant.Product.Type
+		resp.Name = variant.Product.Name
+		resp.Description = variant.Product.Description
+		resp.Price = variant.Product.Price // override with product base price if desired
+		resp.Type = variant.Product.Type
 	}
 	if variant.Story != nil {
-		response.Story = variant.Story.Content
+		resp.Story = variant.Story.Content
 	}
 	if len(variant.AttributeValues) > 0 {
-		attributes := make([]ProductAttributesResponse, 0, len(variant.AttributeValues))
-		for _, attr := range variant.AttributeValues {
-			attrResp := ProductAttributesResponse{
-				Ingredient:  attr.Attribute.Ingredient,
-				Description: attr.Attribute.Description,
-				Value:       attr.Value,
-				Unit:        attr.Unit,
+		attrs := make([]ProductAttributesResponse, 0, len(variant.AttributeValues))
+		for i := range variant.AttributeValues {
+			av := variant.AttributeValues[i]
+			if av.Attribute != nil { // ensure preloaded
+				attrs = append(attrs, ProductAttributesResponse{
+					Ingredient:  av.Attribute.Ingredient,
+					Description: av.Attribute.Description,
+					Value:       av.Value,
+					Unit:        av.Unit,
+				})
 			}
-			attributes = append(attributes, attrResp)
 		}
-		response.Attributes = attributes
+		resp.Attributes = attrs
 	}
-
-	return response
+	return resp
 }
