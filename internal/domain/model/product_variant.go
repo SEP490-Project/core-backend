@@ -33,7 +33,7 @@ type ProductVariant struct {
 	AttributeValues []VariantAttributeValue `json:"attributes" gorm:"foreignKey:VariantID"`
 }
 
-func (ProductVariant) TableName() string { return "product_variant" }
+func (ProductVariant) TableName() string { return "product_variants" }
 
 func (pv *ProductVariant) BeforeCreate(tx *gorm.DB) (err error) {
 	if pv.ID == uuid.Nil {

@@ -78,7 +78,7 @@ func (p productService) GetProductsPagination(limit, offset int, search string) 
 	}
 
 	// Fetch products with variants
-	products, total, err := p.repository.GetAll(ctx, filter, []string{"Variants"}, limit, offset)
+	products, total, err := p.repository.GetAll(ctx, filter, []string{"Variants", "Category", "Category.ParentCategory"}, limit, offset)
 	if err != nil {
 		zap.L().Error("Failed to fetch products from repository",
 			zap.Int("limit", limit),
