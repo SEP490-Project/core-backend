@@ -18,7 +18,7 @@ type ProductResponse struct {
 	Description  string           `json:"description"`
 	Price        float64          `json:"price"`
 	Type         enum.ProductType `json:"type"`
-	CategoryLv1  string           `json:"category_lv1"`
+	CategoryLv1  string           `json:"category"`
 	CategoryLv2  string           `json:"category_lv2"`
 
 	Variants []*ProductVariantResponse `json:"variants,omitempty"`
