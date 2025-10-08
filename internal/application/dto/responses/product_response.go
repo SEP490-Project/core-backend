@@ -25,30 +25,35 @@ type ProductResponse struct {
 }
 
 // ToProductResponse converts a Product model to a ProductResponse DTO.
-func (pr *ProductResponse) ToProductResponse(model *model.Product) *ProductResponse {
-	pr.ID = model.ID
-	pr.BrandID = model.BrandID
-	pr.BrandName = model.Brand.Name
-	pr.BrandLogoURL = model.Brand.LogoURL
-	pr.Name = model.Name
-	pr.Description = *model.Description
-	pr.Price = model.Price
-	pr.Type = model.Type
-	if model.Category != nil {
-		categoryModel := model.Category
-		pr.CategoryLv1 = categoryModel.Name
-		if categoryModel.ParentCategory != nil {
-			pr.CategoryLv2 = categoryModel.ParentCategory.Name
+func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse {
+	if pr == nil {
+		pr = &ProductResponse{}
+	}
+	pr.ID = m.ID
+	pr.BrandID = m.BrandID
+	if m.Brand != nil {
+		pr.BrandName = m.Brand.Name
+		pr.BrandLogoURL = m.Brand.LogoURL
+	}
+	pr.Name = m.Name
+	if m.Description != nil {
+		pr.Description = *m.Description
+	}
+	pr.Price = m.Price
+	pr.Type = m.Type
+	if m.Category != nil {
+		pr.CategoryLv1 = m.Category.Name
+		if m.Category.ParentCategory != nil {
+			pr.CategoryLv2 = m.Category.ParentCategory.Name
 		}
 	}
-	if len(model.Variants) > 0 {
-		variantResponse := make([]*ProductVariantResponse, len(model.Variants))
-		for _, v := range model.Variants {
-			variantResponse = append(variantResponse, ProductVariantResponse{}.ToProductVariantResponse(&v))
+	if len(m.Variants) > 0 {
+		variants := make([]*ProductVariantResponse, 0, len(m.Variants))
+		for i := range m.Variants {
+			variants = append(variants, ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
 		}
-		pr.Variants = variantResponse
+		pr.Variants = variants
 	}
-
 	return pr
 }
 

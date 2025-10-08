@@ -94,13 +94,13 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 
 SkipAdminRoleCheck:
 
-	updatedBy, ok := c.Get("user_id")
-	if !ok || updatedBy == nil {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing user_id in context", http.StatusForbidden))
+	userId, err := extractUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.StateTransferService.MoveTaskToState(id, target, id); err != nil {
+	if err := h.StateTransferService.MoveTaskToState(id, target, userId); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return
@@ -128,8 +128,8 @@ type UpdateProductStateRequest struct {
 // @Accept       json
 // @Produce      json
 // @Param        id    path   string                     true  "Product ID (UUID)"
-// @Param        body  body  UpdateTaskStateRequest  true  "Target state payload"
-//@Success      200   {object} responses.APIResponse  "Product state updated"
+// @Param        body  body	  UpdateProductStateRequest  true  "Target state payload"
+// @Success      200   {object} responses.APIResponse  "Product state updated"
 // @Failure      400   {object} responses.APIResponse  "Invalid request"
 // @Failure      404   {object} responses.APIResponse  "Product not found"
 // @Failure      409   {object} responses.APIResponse  "Invalid state transition"
@@ -184,13 +184,13 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 
 SkipAdminRoleCheck:
 
-	updatedBy, ok := c.Get("user_id")
-	if !ok || updatedBy == nil {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing user_id in context", http.StatusForbidden))
+	userId, err := extractUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.StateTransferService.MoveProductToState(id, target, id); err != nil {
+	if err := h.StateTransferService.MoveProductToState(id, target, userId); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict))
 		return
 	}
@@ -199,4 +199,92 @@ SkipAdminRoleCheck:
 		"id":    id.String(),
 		"state": target,
 	}))
+}
+
+// UpdateMilestoneStateRequest defines the request body for updating a milestone state
+// swagger:model UpdateMilestoneStateRequest
+type UpdateMilestoneStateRequest struct {
+	// State is the desired target state.
+	// Enum: NOT_STARTED,ON_GOING,CANCELLED,COMPLETED
+	// example: ON_GOING
+	State string `json:"state" validate:"required,oneof=NOT_STARTED ON_GOING CANCELLED COMPLETED"`
+}
+
+// UpdateMilestoneState godoc
+// @Summary      Update Milestone State
+// @Description  Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)
+// @Tags         State Transfer
+// @Accept       json
+// @Produce      json
+// @Param        id    path   string                        true  "Milestone ID (UUID)"
+// @Param        body  body   UpdateMilestoneStateRequest   true  "Target state payload"
+// @Success      200   {object} responses.APIResponse  "Milestone state updated"
+// @Failure      400   {object} responses.APIResponse  "Invalid request"
+// @Failure      404   {object} responses.APIResponse  "Milestone not found"
+// @Failure      409   {object} responses.APIResponse  "Invalid state transition"
+// @Failure      500   {object} responses.APIResponse  "Internal server error"
+// @Security     BearerAuth
+// @Router       /api/v1/milestones/{id}/state [patch]
+func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid milestone id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	var req UpdateMilestoneStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err := h.Validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	target := enum.MilestoneStatus(req.State)
+	if !target.IsValid() {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid target state", http.StatusBadRequest))
+		return
+	}
+
+	// Authorization logic (reuse task roles) - Admin bypass
+	roleVal, ok := c.Get("roles")
+	if !ok || roleVal == nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+		return
+	}
+	roleStr, _ := roleVal.(string)
+
+	// Example rule: only Admin or Brand Partner can cancel a milestone (adjust as needed)
+	if target == enum.MilestoneStatusCancelled && roleStr != string(enum.UserRoleAdmin) && roleStr != string(enum.UserRoleBrandPartner) {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("insufficient permission to cancel milestone", http.StatusForbidden))
+		return
+	}
+
+	userId, err := extractUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := h.StateTransferService.MoveMileStoneToState(id, target, userId); err != nil {
+		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move milestone: "+err.Error(), http.StatusConflict))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Milestone state updated", nil, map[string]any{
+		"id":    id.String(),
+		"state": target,
+	}))
+}
+
+func extractUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
+	userIDVal, ok := c.Get("user_id")
+	if !ok || userIDVal == nil {
+		return uuid.Nil, http.ErrNoCookie
+	}
+	userIDStr, _ := userIDVal.(string)
+	return uuid.Parse(userIDStr)
 }
