@@ -19,7 +19,7 @@ type ProductVariant struct {
 	ContainerType   enum.ContainerType `json:"container_type" gorm:"column:container_type;not null;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
 	DispenserType   enum.DispenserType `json:"dispenser_type" gorm:"column:dispenser_type;not null;check:dispenser_type in ('PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE')"`
 	Uses            string             `json:"uses" gorm:"type:text;column:uses"`
-	ManufactureDate *time.Time         `json:"manufactring_date" gorm:"column:manufacture_date"`
+	ManufactureDate *time.Time         `json:"manufacturing_date" gorm:"column:manufactring_date"`
 	ExpiryDate      *time.Time         `json:"expiry_date" gorm:"column:expiry_date"`
 	Instructions    string             `json:"instructions" gorm:"type:text;column:instructions"`
 	IsDefault       bool               `json:"is_default" gorm:"column:is_default;not null;default:false"`
