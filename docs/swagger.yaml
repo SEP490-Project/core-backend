@@ -2043,7 +2043,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateProductStateRequest'
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
       produces:
       - application/json
       responses:
