@@ -39,181 +39,176 @@ func NewRouter(
 func (r *Router) SetupRoutes(engine *gin.Engine) {
 	r.middlewareRegistry.ApplyGlobalMiddlewares(engine)
 
-	// Swagger documentation route
-	swaggerHandler := func() gin.HandlerFunc {
+	// Swagger docs
+	engine.GET("/swagger/*any", func(c *gin.Context) {
 		handler := ginSwagger.WrapHandler(swaggerFiles.Handler)
-
-		return func(c *gin.Context) {
-			host := c.Request.Host
-
-			docs.SwaggerInfo.Host = host
-			if strings.Contains(host, "localhost") {
-				docs.SwaggerInfo.Schemes = []string{"http"}
-			} else {
-				docs.SwaggerInfo.Schemes = []string{"https"}
-			}
-
-			handler(c)
+		host := c.Request.Host
+		docs.SwaggerInfo.Host = host
+		if strings.Contains(host, "localhost") {
+			docs.SwaggerInfo.Schemes = []string{"http"}
+		} else {
+			docs.SwaggerInfo.Schemes = []string{"https"}
 		}
-	}
-	engine.GET("/swagger/*any", swaggerHandler())
-
-	// Handle favicon to avoid 404 errors
-	engine.GET("/favicon.ico", func(c *gin.Context) {
-		c.Status(204) // No Content
+		handler(c)
 	})
 
-	// Health check routes
+	// Favicon
+	engine.GET("/favicon.ico", func(c *gin.Context) {
+		c.Status(204)
+	})
+
+	// Health check
 	healthHandler := r.handlerRegistry.HealthHandler
 	engine.GET("/health", healthHandler.HealthCheck)
 	engine.GET("/health/ready", healthHandler.ReadinessCheck)
 	engine.GET("/health/live", healthHandler.LivenessCheck)
 
-	// Setup version 1 API routes
+	// API v1
 	r.SetupV1Routes(engine)
 }
 
-// SetupV1Routes sets up version 1 API routes
+// SetupV1Routes sets up the API v1 routes with appropriate handlers and middleware.
 func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	v1 := engine.Group("/api/v1")
+
+	// ---------- AUTH ----------
+	authHandler := r.handlerRegistry.AuthHandler
+	auth := v1.Group("/auth")
 	{
-		// Public auth routes (no authentication required)
-		authHandler := r.handlerRegistry.AuthHandler
-		authGroup := v1.
-			Group("/auth")
+		// Public
+		auth.POST("/login", authHandler.Login)
+		auth.POST("/signup", authHandler.SignUp)
+		auth.POST("/refresh", authHandler.RefreshToken)
+
+		// Protected
+		authProtected := auth.Group("/")
+		authProtected.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
-			authGroup.POST("/login", authHandler.Login)
-			authGroup.POST("/signup", authHandler.SignUp)
-			authGroup.POST("/refresh", authHandler.RefreshToken)
+			authProtected.POST("/logout", authHandler.Logout)
+			authProtected.POST("/logout-all", authHandler.LogoutAll)
+			authProtected.GET("/sessions", authHandler.GetActiveSessions)
+			authProtected.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
 		}
+	}
 
-		// Protected auth routes (authentication required)
-		authProtectedGroup := v1.
-			Group("/auth").
-			Use(r.middlewareRegistry.Auth.RequireAuth())
+	// ---------- USERS ----------
+	userHandler := r.handlerRegistry.UserHandler
+	users := v1.Group("/users")
+	users.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		// Profile (any authenticated user)
+		users.GET("/profile", userHandler.GetProfile)
+		users.PUT("/profile", userHandler.UpdateProfile)
+
+		// Admin-only
+		adminGroup := users.Group("/")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 		{
-			authProtectedGroup.POST("/logout", authHandler.Logout)
-			authProtectedGroup.POST("/logout-all", authHandler.LogoutAll)
-			authProtectedGroup.GET("/sessions", authHandler.GetActiveSessions)
-			authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
+			adminGroup.GET("", userHandler.GetUsers)
+			adminGroup.GET("/:id", userHandler.GetUserByID)
+			adminGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
+			adminGroup.PUT("/:id/role", userHandler.UpdateUserRole)
+			adminGroup.DELETE("/:id", userHandler.DeleteUser)
+			adminGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
 		}
+	}
 
-		// User routes
-		userHandler := r.handlerRegistry.UserHandler
-		userGroup := v1.Group("/users")
-		userGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All user routes require authentication
+	// ---------- Routes Setups from functions ----------
+	r.setupBrandRoutes(v1)
+	r.setupContractRoutes(v1)
+	r.setupCampaignRoutes(v1)
+
+	// ---------- PRODUCTS ----------
+	productHandler := r.handlerRegistry.ProductHandler
+	stateHandler := r.handlerRegistry.StateHandler
+	products := v1.Group("/products")
+	{
+		// Public
+		products.GET("", productHandler.GetAllProducts)
+
+		// Sales / Brand restricted
+		productState := products.Group("/")
+		productState.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
 		{
-			// Current user profile routes (accessible by all authenticated users)
-			userGroup.GET("/profile", userHandler.GetProfile)
-			userGroup.PUT("/profile", userHandler.UpdateProfile)
-
-			// Admin only routes
-			adminUserGroup := userGroup.Group("/")
-			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
-			{
-				adminUserGroup.GET("", userHandler.GetUsers)
-				adminUserGroup.GET("/:id", userHandler.GetUserByID)
-				adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
-				adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
-				adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
-				adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
-			}
+			productState.PATCH("/:id/state", stateHandler.UpdateProductState)
 		}
+	}
 
-		r.setupBrandRoutes(v1)
-		r.SetupContractRoutes(v1)
+	// ---------- TASKS ----------
+	tasks := v1.Group("/tasks")
+	tasks.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+	{
+		tasks.PATCH("/:id/state", stateHandler.UpdateTaskState)
+	}
 
-		// Product routes
-		productHandler := r.handlerRegistry.ProductHandler
-		v1.GET("/products", productHandler.GetAllProducts)
+	// ---------- PAYOS ----------
+	payOsHandler := r.handlerRegistry.PayOsHandler
+	v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
 
-		// Product state routes (protected)
-		stateHandler := r.handlerRegistry.TaskHandler
-		productStateGroup := v1.Group("/products")
-		productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
-		{
-			productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
-		}
-
-		// Task routes
-		taskHandler := r.handlerRegistry.TaskHandler
-		taskGroup := v1.Group("/tasks")
-		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
-		{
-			taskGroup.PATCH(":id/state", taskHandler.UpdateTaskState)
-		}
-
-		// PayOS payment route
-		payOsHandler := r.handlerRegistry.PayOsHandler
-		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
-
-		// File upload routes
-		s3Handler := r.handlerRegistry.FileHandler
-		fileGroup := v1.Group("/files")
-		fileGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All file routes require authentication
-		{
-			fileGroup.POST("/upload", s3Handler.UploadFile)
-			//fileGroup.DELETE(":filename", s3Handler.DeleteFile)
-		}
-
-		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
+	// ---------- FILES ----------
+	fileHandler := r.handlerRegistry.FileHandler
+	files := v1.Group("/files")
+	files.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		files.POST("/upload", fileHandler.UploadFile)
 	}
 }
 
-// setupBrandRoutes sets up routes for brand management
+// =============================
+// ====== BRAND ROUTES =========
+// =============================
 func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 	brandHandler := r.handlerRegistry.BrandHandler
-
-	brandGroup := group.Group("/brands")
+	brands := group.Group("/brands")
 	{
-		brandGroup.GET("", brandHandler.GetBrandsByFilter)
-		brandGroup.GET("/:id", brandHandler.GetBrandByID)
-		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			POST("", brandHandler.CreateBrand)
-		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
-			POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
-		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
-			PUT("/:id", brandHandler.UpdateBrand)
-		brandGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			PATCH("/:id/status", brandHandler.UpdateBrandStatus)
+		// Public
+		brands.GET("", brandHandler.GetBrandsByFilter)
+		brands.GET("/:id", brandHandler.GetBrandByID)
+
+		// Marketing + Admin
+		marketingAdmin := brands.Group("/")
+		marketingAdmin.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+		{
+			marketingAdmin.POST("", brandHandler.CreateBrand)
+			marketingAdmin.PATCH("/:id/status", brandHandler.UpdateBrandStatus)
+		}
+
+		// Marketing only
+		marketingGroup := brands.Group("/")
+		marketingGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
+		{
+			marketingGroup.POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
+			marketingGroup.PUT("/:id", brandHandler.UpdateBrand)
+		}
 	}
 }
 
-// SetupContractRoutes sets up routes for contract management
-func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
+// =============================
+// ====== CONTRACT ROUTES ======
+// =============================
+func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contractHandler := r.handlerRegistry.ContractHandler
+	contracts := group.Group("/contracts")
 
-	contractGroup := group.Group("/contracts")
+	// View routes with their specific role requirements
+	contracts.GET("", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), contractHandler.GetContracts)
+	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
+	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
+
+	// Write/Modify routes for Marketing and Admins
+	adminAndMarketing := contracts.Group("/")
+	adminAndMarketing.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin)).
-			GET("", contractHandler.GetContracts)
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, brand)).
-			GET("/:id", contractHandler.GetContractByID)
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(brand)).
-			GET("/brands/:brand_id", contractHandler.GetContractsByBrandID)
+		adminAndMarketing.POST("", contractHandler.CreateContract)
+		adminAndMarketing.PATCH("/:id/approve", contractHandler.ApproveContract)
+		adminAndMarketing.DELETE("/:id", contractHandler.DeleteContract)
+	}
 
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			POST("", contractHandler.CreateContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			PATCH("/:id/approve", contractHandler.ApproveContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing)).
-			PUT("/:id", contractHandler.UpdateContract)
-
-		contractGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			DELETE("/:id", contractHandler.DeleteContract)
+	// Update route for Marketing ONLY
+	marketingOnly := contracts.Group("/")
+	marketingOnly.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
+	{
+		marketingOnly.PUT("/:id", contractHandler.UpdateContract)
 	}
 }
 
@@ -249,9 +244,8 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupWebSocketRoutes sets up WebSocket routes
+// SetupWebSocketRoutes sets up the WebSocket routes with appropriate handlers and middleware.
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
-	// WebSocket endpoint (requires authentication)
 	engine.GET("/ws",
 		r.middlewareRegistry.Auth.RequireAuth(),
 		wsServer.HandleWebSocket,
