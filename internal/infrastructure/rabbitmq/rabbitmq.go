@@ -1,11 +1,12 @@
+// Package rabbitmq provides a wrapper around the RabbitMQ client.
 package rabbitmq
 
 import (
 	"context"
+	"core-backend/config"
 	"encoding/json"
 	"fmt"
 	"time"
-	"core-backend/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"go.uber.org/zap"
@@ -23,7 +24,7 @@ type MessageHandler func([]byte) error
 
 func NewRabbitMQ() (*RabbitMQ, error) {
 	zap.L().Info("Initializing RabbitMQ connection")
-	
+
 	cfg := config.GetAppConfig().RabbitMQ
 	zap.L().Debug("RabbitMQ configuration loaded",
 		zap.String("url", cfg.URL),
@@ -182,7 +183,7 @@ func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
 			Timestamp:   time.Now(),
 		},
 	)
-	
+
 	if err != nil {
 		zap.L().Error("Failed to publish message to RabbitMQ",
 			zap.String("exchange", exchange),
@@ -193,14 +194,14 @@ func (r *RabbitMQ) Publish(ctx context.Context, body []byte) error {
 			zap.String("exchange", exchange),
 			zap.String("routing_key", routingKey))
 	}
-	
+
 	return err
 }
 
 // PublishJSON publishes a JSON message
-func (r *RabbitMQ) PublishJSON(ctx context.Context, message interface{}) error {
+func (r *RabbitMQ) PublishJSON(ctx context.Context, message any) error {
 	zap.L().Debug("Publishing JSON message to RabbitMQ", zap.Any("message_type", fmt.Sprintf("%T", message)))
-	
+
 	body, err := json.Marshal(message)
 	if err != nil {
 		zap.L().Error("Failed to marshal JSON message for RabbitMQ",
@@ -208,7 +209,7 @@ func (r *RabbitMQ) PublishJSON(ctx context.Context, message interface{}) error {
 			zap.Error(err))
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
-	
+
 	return r.Publish(ctx, body)
 }
 
@@ -289,7 +290,7 @@ func (r *RabbitMQ) ConsumeWithManualAck(ctx context.Context, handler func(amqp.D
 
 // GetQueueInfo returns information about the queue
 func (r *RabbitMQ) GetQueueInfo() (int, int, error) {
-	queue, err := r.channel.QueueInspect(r.queue.Name)
+	queue, err := r.channel.QueueDeclarePassive(r.queue.Name, true, false, false, false, nil)
 	if err != nil {
 		return 0, 0, err
 	}

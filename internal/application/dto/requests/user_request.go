@@ -23,4 +23,3 @@ type UserListRequest struct {
 	Role     *string `form:"role" json:"role" validate:"omitempty,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
 	IsActive *bool   `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
 }
-

@@ -75,6 +75,16 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.PaymentCycle:
+    enum:
+    - MONTHLY
+    - QUARTERLY
+    - ANNUALLY
+    type: string
+    x-enum-varnames:
+    - PaymentCycleMonthly
+    - PaymentCycleQuarterly
+    - PaymentCycleAnnually
   enum.ProductStatus:
     enum:
     - DRAFT
@@ -131,24 +141,6 @@ definitions:
     required:
     - state
     type: object
-  handler.UpdateProductStateRequest:
-    properties:
-      state:
-        description: |-
-          State is the desired target state.
-          Enum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED
-          example: SUBMITTED
-        enum:
-        - DRAFT
-        - SUBMITTED
-        - REVISION
-        - APPROVED
-        - ACTIVED
-        - INACTIVED
-        type: string
-    required:
-    - state
-    type: object
   handler.UpdateTaskStateRequest:
     properties:
       state:
@@ -161,6 +153,22 @@ definitions:
         type: string
     required:
     - state
+    type: object
+  requests.CapitalContribution:
+    properties:
+      company:
+        $ref: '#/definitions/requests.ContributionDescription'
+      kol:
+        $ref: '#/definitions/requests.ContributionDescription'
+    type: object
+  requests.ContributionDescription:
+    properties:
+      description:
+        example: Equipment and studio
+        type: string
+      value:
+        example: 50000000
+        type: integer
     type: object
   requests.CreateBrandRequest:
     properties:
@@ -191,6 +199,347 @@ definitions:
     - contact_email
     - name
     type: object
+  requests.CreateCampaignRequest:
+    properties:
+      budget_actual:
+        example: 5000.25
+        minimum: 0
+        type: number
+      budget_projected:
+        example: 10000.5
+        minimum: 0
+        type: number
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: A campaign for the summer sale.
+        maxLength: 1000
+        type: string
+      end_date:
+        example: "2023-08-31T23:59:59Z"
+        type: string
+      milestones:
+        items:
+          $ref: '#/definitions/requests.CreateMilestoneCampaignRequest'
+        type: array
+      name:
+        example: Summer Sale Campaign
+        maxLength: 255
+        minLength: 3
+        type: string
+      start_date:
+        example: "2023-06-01T00:00:00Z"
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - AMBASSADOR
+        - COPRODUCE
+        example: ADVERTISING
+        type: string
+    required:
+    - budget_actual
+    - budget_projected
+    - contract_id
+    - end_date
+    - name
+    - start_date
+    - type
+    type: object
+  requests.CreateContractRequest:
+    properties:
+      brand_bank_account_number:
+        example: "0123456789"
+        maxLength: 255
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        maxLength: 255
+        type: string
+      brand_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_representative_email:
+        example: john.doe@acme.com
+        maxLength: 255
+        type: string
+      brand_representative_name:
+        example: John Doe
+        maxLength: 255
+        type: string
+      brand_representative_phone:
+        example: "+84901234567"
+        type: string
+      brand_representative_role:
+        example: CEO
+        maxLength: 255
+        type: string
+      brand_tax_number:
+        description: Brand information (stored in contract for record-keeping)
+        example: TAX123456
+        maxLength: 100
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        maxLength: 255
+        minLength: 2
+        type: string
+      currency:
+        description: Financial
+        example: VND
+        type: string
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        allOf:
+        - $ref: '#/definitions/requests.FinancialTerms'
+        description: Complex JSONB fields
+      legal_terms:
+        $ref: '#/definitions/requests.LegalTerms'
+      parent_contract_id:
+        description: Parent contract (for amendments or related contracts)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        maxLength: 255
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        maxLength: 255
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        maxLength: 255
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        maxLength: 255
+        type: string
+      representative_name:
+        description: KOL/Representative information (the other party in the contract)
+        example: Jane Smith
+        maxLength: 255
+        minLength: 2
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        maxLength: 255
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        maxLength: 100
+        type: string
+      scope_of_work:
+        $ref: '#/definitions/requests.ScopeOfWork'
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        maxLength: 255
+        type: string
+      start_date:
+        example: "2023-10-02T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        example: DRAFT
+        type: string
+      title:
+        description: Contract basic information
+        example: Social Media Promotion Contract
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
+        type: string
+    required:
+    - brand_id
+    - contract_number
+    - end_date
+    - financial_terms
+    - legal_terms
+    - representative_name
+    - scope_of_work
+    - signed_date
+    - start_date
+    - title
+    - type
+    type: object
+  requests.CreateMilestoneCampaignRequest:
+    properties:
+      description:
+        example: Milestone for initial launch.
+        maxLength: 1000
+        type: string
+      due_date:
+        example: "2023-06-15T00:00:00Z"
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/requests.CreateTaskCampaignRequest'
+        type: array
+    required:
+    - due_date
+    type: object
+  requests.CreateTaskCampaignRequest:
+    properties:
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      deadline:
+        example: "2023-06-10T00:00:00Z"
+        type: string
+      description:
+        description: "@Example\t{\"details\":\"Create banner ads for the summer sale.\",\"resources\":[\"link1\",\"link2\"]}"
+      name:
+        example: Design Banner Ads
+        maxLength: 255
+        minLength: 3
+        type: string
+      type:
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        example: PRODUCT
+        type: string
+    required:
+    - deadline
+    - name
+    - type
+    type: object
+  requests.Deliverable:
+    properties:
+      channel_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      channel_link:
+        example: https://youtube.com/channel/xyz
+        type: string
+      channel_name:
+        example: YouTube
+        type: string
+      deadline:
+        example: "2023-11-30"
+        type: string
+      quantity:
+        example: 5
+        type: integer
+      type:
+        example: VIDEO
+        type: string
+    type: object
+  requests.FinancialTerms:
+    properties:
+      base_per_click:
+        example: 1000
+        type: integer
+      capital_contribution:
+        $ref: '#/definitions/requests.CapitalContribution'
+      cost_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      levels:
+        items:
+          $ref: '#/definitions/requests.Level'
+        type: array
+      model:
+        example: FIXED
+        type: string
+      payment_cycle:
+        allOf:
+        - $ref: '#/definitions/enum.PaymentCycle'
+        example: MONTHLY
+      payment_date:
+        example: "2023-11-05"
+        type: string
+      payment_method:
+        example: BANK_TRANSFER
+        type: string
+      profit_distribution_cycle:
+        allOf:
+        - $ref: '#/definitions/enum.PaymentCycle'
+        example: QUARTERLY
+      profit_distribution_date:
+        example: "2023-12-31"
+        type: string
+      profit_split_company_percent:
+        example: 60
+        type: integer
+      profit_split_kol_percent:
+        example: 40
+        type: integer
+      schedule:
+        items:
+          $ref: '#/definitions/requests.Schedule'
+        type: array
+      tax_withholding:
+        $ref: '#/definitions/requests.TaxWithholding'
+      total_cost:
+        example: 10000000
+        type: integer
+    type: object
+  requests.LegalTerms:
+    properties:
+      confidentiality:
+        example: true
+        type: boolean
+      dispute_resolution_court:
+        example: Ho Chi Minh City Court
+        type: string
+      force_majeure_notification_days:
+        example: 7
+        type: integer
+      management_board:
+        items:
+          $ref: '#/definitions/requests.ManagementBoard'
+        type: array
+      number_of_copies:
+        example: 2
+        type: integer
+      penalties:
+        $ref: '#/definitions/requests.Penalties'
+    type: object
+  requests.Level:
+    properties:
+      level:
+        example: 1
+        type: integer
+      min_clicks:
+        example: 1000
+        type: integer
+      multiplier:
+        example: 1.5
+        type: number
+    type: object
   requests.LoginRequest:
     properties:
       login_identifier:
@@ -210,6 +559,30 @@ definitions:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
+  requests.ManagementBoard:
+    properties:
+      name:
+        example: John Doe
+        type: string
+      representing:
+        example: Brand
+        type: string
+    type: object
+  requests.Penalties:
+    properties:
+      breach_of_contract_percent:
+        example: 20
+        type: integer
+      late_delivery_percent_per_day:
+        example: 0.5
+        type: number
+      late_payment_percent_per_day:
+        example: 0.3
+        type: number
+      non_delivery_penalty_percent:
+        example: 30
+        type: integer
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -217,6 +590,51 @@ definitions:
         type: string
     required:
     - refresh_token
+    type: object
+  requests.Schedule:
+    properties:
+      amount:
+        example: 3000000
+        type: integer
+      due_date:
+        example: "2023-10-15"
+        type: string
+      milestone:
+        example: Initial payment
+        type: string
+      percent:
+        example: 30
+        type: integer
+    type: object
+  requests.ScopeOfWork:
+    properties:
+      branding_restrictions:
+        example:
+        - No competitor brands
+        items:
+          type: string
+        type: array
+      co_production_roles:
+        additionalProperties:
+          type: string
+        type: object
+      deliverables:
+        items:
+          $ref: '#/definitions/requests.Deliverable'
+        type: array
+      description:
+        example: Create and publish social media content
+        type: string
+      products:
+        example:
+        - Product A
+        - Product B
+        items:
+          type: string
+        type: array
+      technical_requirements:
+        example: 4K video, professional lighting
+        type: string
     type: object
   requests.SignUpRequest:
     properties:
@@ -241,6 +659,15 @@ definitions:
     - email
     - password
     - username
+    type: object
+  requests.TaxWithholding:
+    properties:
+      rate_percent:
+        example: 10
+        type: integer
+      threshold:
+        example: 10000000
+        type: integer
     type: object
   requests.UpdateBrandRequest:
     properties:
@@ -501,6 +928,112 @@ definitions:
         type: string
       name:
         example: Acme Corp
+        type: string
+    type: object
+  responses.CampaignDetailsResponse:
+    properties:
+      budget_actual:
+        type: number
+      budget_projected:
+        type: number
+      contract_id:
+        type: string
+      contract_number:
+        type: string
+      contract_title:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      milestones:
+        items:
+          $ref: '#/definitions/responses.CampaignMilestoneInfo'
+        type: array
+      name:
+        type: string
+      number_of_tasks:
+        type: integer
+      percentage_completed:
+        type: number
+      start_date:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.CampaignInfoPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.CampaignInfoResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.CampaignInfoResponse:
+    properties:
+      budget_actual:
+        type: number
+      budget_projected:
+        type: number
+      contract_id:
+        type: string
+      contract_number:
+        type: string
+      contract_title:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.CampaignMilestoneInfo:
+    properties:
+      behind_schedule:
+        type: boolean
+      completed_at:
+        type: string
+      completion_percentage:
+        type: number
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      number_of_tasks:
+        type: integer
+      status:
         type: string
     type: object
   responses.ContractListResponse:
@@ -783,7 +1316,7 @@ definitions:
         type: string
       brand_name:
         type: string
-      category_lv1:
+      category:
         type: string
       category_lv2:
         type: string
@@ -1446,6 +1979,373 @@ paths:
       summary: Create Brand with Inactive Users
       tags:
       - Brands
+  /api/v1/campaigns:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of campaigns with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search keywords for campaign name
+        in: query
+        name: keywords
+        type: string
+      - description: Filter by campaign status
+        enum:
+        - ACTIVE
+        - INACTIVE
+        in: query
+        name: status
+        type: string
+      - description: Filter by campaign type
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaigns retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.CampaignInfoPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaigns List by filter
+      tags:
+      - Campaigns
+    post:
+      consumes:
+      - application/json
+      description: Create a new campaign based on the provided contract details.
+      parameters:
+      - description: Campaign creation data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Campaign created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignDetailsResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Campaign from Contract
+      tags:
+      - Campaigns
+  /api/v1/campaigns/brand/{brand_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of campaigns with optional filters
+      parameters:
+      - description: Brand ID
+        format: uuid
+        in: path
+        name: brand_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaigns retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.CampaignInfoPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaigns Info by Brand ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/brand/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of campaigns associated with the authenticated brand
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaigns retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.CampaignInfoPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaigns Info by authenticated brand user
+      tags:
+      - Campaigns
+  /api/v1/campaigns/contract/{contract_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get basic information about a campaign by its contract ID.
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: contract_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign info retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignInfoResponse'
+              type: object
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaign Info by Contract ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/contract/{contract_id}/details:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a campaign by its contract ID including
+        milestones and number of tasks.
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: contract_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign details retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignDetailsResponse'
+              type: object
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaign Details by Contract ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/id/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a campaign by ID
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Campaign
+      tags:
+      - Campaigns
+    get:
+      consumes:
+      - application/json
+      description: Get basic information about a campaign by its ID.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign info retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignInfoResponse'
+              type: object
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaign Info by ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/id/{id}/details:
+    get:
+      consumes:
+      - application/json
+      description: Get detailed information about a campaign by its ID including milestones
+        and number of tasks.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign details retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignDetailsResponse'
+              type: object
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaign Details by ID
+      tags:
+      - Campaigns
   /api/v1/contracts:
     get:
       consumes:
@@ -1541,6 +2441,12 @@ paths:
       - multipart/form-data
       description: Create a new contract and optionally update brand information
       parameters:
+      - description: Contract creation data (to be JSON-stringified and placed in
+          'data' form field)
+        in: body
+        name: data
+        schema:
+          $ref: '#/definitions/requests.CreateContractRequest'
       - description: Contract creation data in JSON format of struct type requests.CreateContractRequest
         in: formData
         name: data

@@ -20,17 +20,19 @@ type UserResponse struct {
 	LastLogin string        `json:"last_login,omitempty" example:"2023-01-01T00:00:00Z"`
 }
 
-func (ur *UserResponse) ToUserResponse(model *model.User) *UserResponse {
-	return &UserResponse{
+func (ur *UserResponse) ToUserResponse(model *model.User) (userResponse *UserResponse) {
+	userResponse = &UserResponse{
 		ID:        model.ID,
 		Username:  model.Username,
 		Email:     model.Email,
 		Role:      model.Role,
 		IsActive:  model.IsActive,
-		CreatedAt: utils.FormatLocalTime(*model.CreatedAt, ""),
-		UpdatedAt: utils.FormatLocalTime(*model.UpdatedAt, ""),
-		LastLogin: utils.FormatLocalTime(*model.LastLogin, ""),
+		CreatedAt: utils.FormatLocalTime(model.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(model.UpdatedAt, ""),
+		LastLogin: utils.FormatLocalTime(model.LastLogin, ""),
 	}
+
+	return
 }
 
 // UserPaginationResponse represents a paginated response for users.

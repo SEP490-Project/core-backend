@@ -25,4 +25,3 @@ type UpdateProductRequest struct {
 	Description *string `json:"description" validate:"omitempty,max=1000" example:"Updated product description"`
 	Price       float64 `json:"price" validate:"omitempty,min=0" example:"149.99"`
 }
-

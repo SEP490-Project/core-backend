@@ -3,7 +3,7 @@ package persistence
 import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/infrastructure/gorm_repository"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"

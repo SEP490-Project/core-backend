@@ -28,7 +28,7 @@ func (br BrandResponse) ToBrandResponse(model *model.Brand) *BrandResponse {
 	br.Website = model.Website
 	br.Status = string(model.Status)
 	br.LogoURL = model.LogoURL
-	br.CreatedAt = utils.FormatLocalTime(model.CreatedAt, "")
+	br.CreatedAt = utils.FormatLocalTime(&model.CreatedAt, "")
 
 	return &br
 }
