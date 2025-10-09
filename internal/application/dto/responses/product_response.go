@@ -18,37 +18,42 @@ type ProductResponse struct {
 	Description  string           `json:"description"`
 	Price        float64          `json:"price"`
 	Type         enum.ProductType `json:"type"`
-	CategoryLv1  string           `json:"category_lv1"`
+	CategoryLv1  string           `json:"category"`
 	CategoryLv2  string           `json:"category_lv2"`
 
 	Variants []*ProductVariantResponse `json:"variants,omitempty"`
 }
 
 // ToProductResponse converts a Product model to a ProductResponse DTO.
-func (pr *ProductResponse) ToProductResponse(model *model.Product) *ProductResponse {
-	pr.ID = model.ID
-	pr.BrandID = model.BrandID
-	pr.BrandName = model.Brand.Name
-	pr.BrandLogoURL = model.Brand.LogoURL
-	pr.Name = model.Name
-	pr.Description = *model.Description
-	pr.Price = model.Price
-	pr.Type = model.Type
-	if model.Category != nil {
-		categoryModel := model.Category
-		pr.CategoryLv1 = categoryModel.Name
-		if categoryModel.ParentCategory != nil {
-			pr.CategoryLv2 = categoryModel.ParentCategory.Name
+func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse {
+	if pr == nil {
+		pr = &ProductResponse{}
+	}
+	pr.ID = m.ID
+	pr.BrandID = m.BrandID
+	if m.Brand != nil {
+		pr.BrandName = m.Brand.Name
+		pr.BrandLogoURL = m.Brand.LogoURL
+	}
+	pr.Name = m.Name
+	if m.Description != nil {
+		pr.Description = *m.Description
+	}
+	pr.Price = m.Price
+	pr.Type = m.Type
+	if m.Category != nil {
+		pr.CategoryLv1 = m.Category.Name
+		if m.Category.ParentCategory != nil {
+			pr.CategoryLv2 = m.Category.ParentCategory.Name
 		}
 	}
-	if len(model.Variants) > 0 {
-		variantResponse := make([]*ProductVariantResponse, len(model.Variants))
-		for _, v := range model.Variants {
-			variantResponse = append(variantResponse, ProductVariantResponse{}.ToProductVariantResponse(&v))
+	if len(m.Variants) > 0 {
+		variants := make([]*ProductVariantResponse, 0, len(m.Variants))
+		for i := range m.Variants {
+			variants = append(variants, ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
 		}
-		pr.Variants = variantResponse
+		pr.Variants = variants
 	}
-
 	return pr
 }
 
@@ -85,7 +90,7 @@ type ProductAttributesResponse struct {
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
 func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.ProductVariant) *ProductVariantResponse {
-	response := &ProductVariantResponse{
+	resp := &ProductVariantResponse{
 		ID:              variant.ID,
 		Price:           variant.Price,
 		CurrentStock:    variant.CurrentStock,
@@ -102,27 +107,28 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
 	}
 	if variant.Product != nil {
-		response.Name = variant.Product.Name
-		response.Description = variant.Product.Description
-		response.Price = variant.Product.Price
-		response.Type = variant.Product.Type
+		resp.Name = variant.Product.Name
+		resp.Description = variant.Product.Description
+		resp.Price = variant.Product.Price // override with product base price if desired
+		resp.Type = variant.Product.Type
 	}
 	if variant.Story != nil {
-		response.Story = variant.Story.Content
+		resp.Story = variant.Story.Content
 	}
 	if len(variant.AttributeValues) > 0 {
-		attributes := make([]ProductAttributesResponse, 0, len(variant.AttributeValues))
-		for _, attr := range variant.AttributeValues {
-			attrResp := ProductAttributesResponse{
-				Ingredient:  attr.Attribute.Ingredient,
-				Description: attr.Attribute.Description,
-				Value:       attr.Value,
-				Unit:        attr.Unit,
+		attrs := make([]ProductAttributesResponse, 0, len(variant.AttributeValues))
+		for i := range variant.AttributeValues {
+			av := variant.AttributeValues[i]
+			if av.Attribute != nil { // ensure preloaded
+				attrs = append(attrs, ProductAttributesResponse{
+					Ingredient:  av.Attribute.Ingredient,
+					Description: av.Attribute.Description,
+					Value:       av.Value,
+					Unit:        av.Unit,
+				})
 			}
-			attributes = append(attributes, attrResp)
 		}
-		response.Attributes = attributes
+		resp.Attributes = attrs
 	}
-
-	return response
+	return resp
 }

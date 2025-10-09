@@ -2093,6 +2093,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/milestones/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Milestone State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Milestone ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateMilestoneStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Milestone not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/payment": {
             "post": {
                 "description": "Initiate a payment with PayOS",
@@ -2390,6 +2460,107 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{taskId}/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated products (overview) belonging to a task. Authorization: staff roles or owning brand user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get Products By Task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task ID (UUID)",
+                        "name": "taskId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductOverviewResponse"
+                                    }
+                                },
+                                "limit": {
+                                    "type": "integer"
+                                },
+                                "offset": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3111,6 +3282,25 @@ const docTemplate = `{
                 "PaymentCycleAnnually"
             ]
         },
+        "enum.ProductStatus": {
+            "type": "string",
+            "enum": [
+                "DRAFT",
+                "SUBMITTED",
+                "REVISION",
+                "APPROVED",
+                "ACTIVED",
+                "INACTIVED"
+            ],
+            "x-enum-varnames": [
+                "ProductStatusDraft",
+                "ProductStatusSubmitted",
+                "ProductStatusRevision",
+                "ProductStatusApproved",
+                "ProductStatusActived",
+                "ProductStatusInactived"
+            ]
+        },
         "enum.ProductType": {
             "type": "string",
             "enum": [
@@ -3140,6 +3330,24 @@ const docTemplate = `{
                 "UserRoleCustomer",
                 "UserRoleBrandPartner"
             ]
+        },
+        "handler.UpdateMilestoneStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "State is the desired target state.\nEnum: NOT_STARTED,ON_GOING,CANCELLED,COMPLETED\nexample: ON_GOING",
+                    "type": "string",
+                    "enum": [
+                        "NOT_STARTED",
+                        "ON_GOING",
+                        "CANCELLED",
+                        "COMPLETED"
+                    ]
+                }
+            }
         },
         "handler.UpdateTaskStateRequest": {
             "type": "object",
@@ -4701,6 +4909,62 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.ProductOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_logo_url": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category_id": {
+                    "type": "string"
+                },
+                "parent_category_name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ProductStatus"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                },
+                "variant_count": {
+                    "type": "integer"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.VariantMini"
+                    }
+                }
+            }
+        },
         "responses.ProductResponse": {
             "type": "object",
             "properties": {
@@ -4713,7 +4977,7 @@ const docTemplate = `{
                 "brand_name": {
                     "type": "string"
                 },
-                "category_lv1": {
+                "category": {
                     "type": "string"
                 },
                 "category_lv2": {
@@ -4928,6 +5192,29 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.VariantMini": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "current_stock": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "price": {
+                    "type": "number"
                 }
             }
         }
