@@ -115,15 +115,15 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		RepresentativeBankName:          contract.RepresentativeBankName,
 		RepresentativeBankAccountNumber: contract.RepresentativeBankAccountNumber,
 		RepresentativeBankAccountHolder: contract.RepresentativeBankAccountHolder,
-		SignedDate:                      utils.FormatLocalTime(contract.SignedDate, ""),
+		SignedDate:                      utils.FormatLocalTime(&contract.SignedDate, ""),
 		SignedLocation:                  contract.SignedLocation,
-		StartDate:                       utils.FormatLocalTime(contract.StartDate, ""),
-		EndDate:                         utils.FormatLocalTime(contract.EndDate, ""),
+		StartDate:                       utils.FormatLocalTime(&contract.StartDate, ""),
+		EndDate:                         utils.FormatLocalTime(&contract.EndDate, ""),
 		Currency:                        contract.Currency,
 		ContractFileURL:                 contract.ContractFileURL,
 		ProposalFileURL:                 contract.ProposalFileURL,
-		CreatedAt:                       utils.FormatLocalTime(contract.CreatedAt, ""),
-		UpdatedAt:                       utils.FormatLocalTime(contract.UpdatedAt, ""),
+		CreatedAt:                       utils.FormatLocalTime(&contract.CreatedAt, ""),
+		UpdatedAt:                       utils.FormatLocalTime(&contract.UpdatedAt, ""),
 	}
 
 	// Set ParentContractID
@@ -179,8 +179,8 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 			ContractNumber: safeString(contract.ParentContract.ContractNumber),
 			Type:           string(contract.ParentContract.Type),
 			Status:         string(contract.ParentContract.Status),
-			StartDate:      utils.FormatLocalTime(contract.ParentContract.StartDate, ""),
-			EndDate:        utils.FormatLocalTime(contract.ParentContract.EndDate, ""),
+			StartDate:      utils.FormatLocalTime(&contract.ParentContract.StartDate, ""),
+			EndDate:        utils.FormatLocalTime(&contract.ParentContract.EndDate, ""),
 		}
 	}
 
@@ -215,11 +215,11 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 		ContractNumber: safeString(contract.ContractNumber),
 		Type:           string(contract.Type),
 		Status:         string(contract.Status),
-		StartDate:      utils.FormatLocalTime(contract.StartDate, ""),
-		EndDate:        utils.FormatLocalTime(contract.EndDate, ""),
-		SignedDate:     utils.FormatLocalTime(contract.SignedDate, ""),
-		CreatedAt:      utils.FormatLocalTime(contract.CreatedAt, ""),
-		UpdatedAt:      utils.FormatLocalTime(contract.UpdatedAt, ""),
+		StartDate:      utils.FormatLocalTime(&contract.StartDate, ""),
+		EndDate:        utils.FormatLocalTime(&contract.EndDate, ""),
+		SignedDate:     utils.FormatLocalTime(&contract.SignedDate, ""),
+		CreatedAt:      utils.FormatLocalTime(&contract.CreatedAt, ""),
+		UpdatedAt:      utils.FormatLocalTime(&contract.UpdatedAt, ""),
 	}
 
 	// Set BrandID
@@ -243,7 +243,10 @@ func safeString(s *string) string {
 	return *s
 }
 
-// Financial Terms Structures (for documentation and type safety)
+// ============================================================================
+// Below are structures for complex JSONB fields for documentation and type safety
+// ============================================================================
+
 type AdvertisingFinancialTerms struct {
 	Model         string            `json:"model" example:"FIXED"`
 	PaymentMethod string            `json:"payment_method" example:"BANK_TRANSFER"`
@@ -299,8 +302,6 @@ type ContributionDescription struct {
 	Description string `json:"description" example:"Equipment and studio"`
 	Value       int    `json:"value" example:"50000000"`
 }
-
-// Scope of Work Structures
 
 type ScopeOfWork struct {
 	Description           string            `json:"description" example:"Create and publish social media content"`
