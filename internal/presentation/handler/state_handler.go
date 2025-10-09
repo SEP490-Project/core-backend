@@ -18,7 +18,7 @@ type StateHandler struct {
 	*validator.Validate
 }
 
-func NewTaskHandler(StateTransferService iservice.StateTransferService, unitOfWork irepository.UnitOfWork, validate *validator.Validate) *StateHandler {
+func NewStateHandler(StateTransferService iservice.StateTransferService, unitOfWork irepository.UnitOfWork, validate *validator.Validate) *StateHandler {
 	return &StateHandler{
 		StateTransferService: StateTransferService,
 		UnitOfWork:           unitOfWork,
