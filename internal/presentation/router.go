@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	marketing string = string(enum.UserRoleMarketingStaff)
-	sales     string = string(enum.UserRoleSalesStaff)
-	content   string = string(enum.UserRoleContentStaff)
-	admin     string = string(enum.UserRoleAdmin)
-	customer  string = string(enum.UserRoleCustomer)
-	brand     string = string(enum.UserRoleBrandPartner)
+	marketing = string(enum.UserRoleMarketingStaff)
+	sales     = string(enum.UserRoleSalesStaff)
+	content   = string(enum.UserRoleContentStaff)
+	admin     = string(enum.UserRoleAdmin)
+	customer  = string(enum.UserRoleCustomer)
+	brand     = string(enum.UserRoleBrandPartner)
 )
 
 type Router struct {

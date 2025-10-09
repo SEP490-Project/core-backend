@@ -2,6 +2,7 @@ package irepository
 
 import (
 	"core-backend/internal/domain/model"
+
 	"gorm.io/gorm"
 )
 

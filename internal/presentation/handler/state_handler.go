@@ -5,10 +5,11 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"net/http"
 )
 
 type StateHandler struct {
@@ -31,20 +32,21 @@ type UpdateTaskStateRequest struct {
 }
 
 // UpdateTaskState godoc
-// @Summary      Update Task State
-// @Description  Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
-// @Tags         State Transfer
-// @Accept       json
-// @Produce      json
-// @Param        id    path   string                  true  "Task ID (UUID)"
-// @Param        body  body   UpdateTaskStateRequest  true  "Target state payload"
-// @Success      200   {object} responses.APIResponse  "Task state updated"
-// @Failure      400   {object} responses.APIResponse  "Invalid request"
-// @Failure      404   {object} responses.APIResponse  "Task not found"
-// @Failure      409   {object} responses.APIResponse  "Invalid state transition"
-// @Failure      500   {object} responses.APIResponse  "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/tasks/{id}/state [patch]
+//
+//	@Summary		Update Task State
+//	@Description	Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
+//	@Tags			State Transfer
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Task ID (UUID)"
+//	@Param			body	body		UpdateTaskStateRequest	true	"Target state payload"
+//	@Success		200		{object}	responses.APIResponse	"Task state updated"
+//	@Failure		400		{object}	responses.APIResponse	"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse	"Task not found"
+//	@Failure		409		{object}	responses.APIResponse	"Invalid state transition"
+//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/{id}/state [patch]
 func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -122,20 +124,23 @@ type UpdateProductStateRequest struct {
 }
 
 // UpdateProductState godoc
-// @Summary      Update Product State
-// @Description  Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-// @Tags         State Transfer
-// @Accept       json
-// @Produce      json
-// @Param        id    path   string                     true  "Product ID (UUID)"
-// @Param        body  body  UpdateTaskStateRequest  true  "Target state payload"
-//@Success      200   {object} responses.APIResponse  "Product state updated"
-// @Failure      400   {object} responses.APIResponse  "Invalid request"
-// @Failure      404   {object} responses.APIResponse  "Product not found"
-// @Failure      409   {object} responses.APIResponse  "Invalid state transition"
-// @Failure      500   {object} responses.APIResponse  "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/products/{id}/state [patch]
+//
+//	@Summary		Update Product State
+//	@Description	Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Tags			State Transfer
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Product ID (UUID)"
+//	@Param			body	body		UpdateTaskStateRequest	true	"Target state payload"
+//
+//	@Success		200		{object}	responses.APIResponse	"Product state updated"
+//
+//	@Failure		400		{object}	responses.APIResponse	"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse	"Product not found"
+//	@Failure		409		{object}	responses.APIResponse	"Invalid state transition"
+//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{id}/state [patch]
 func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

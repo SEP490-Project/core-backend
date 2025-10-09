@@ -2,10 +2,10 @@ package persistence
 
 import (
 	"context"
+	"core-backend/config"
 	"fmt"
 	"strconv"
 	"time"
-	"core-backend/config"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -18,13 +18,13 @@ type ValkeyCache struct {
 
 func NewValkeyCache() *ValkeyCache {
 	zap.L().Info("Initializing Valkey cache connection")
-	
+
 	cfg := config.GetAppConfig().Cache
 	zap.L().Debug("Valkey configuration loaded",
 		zap.String("host", cfg.Host),
 		zap.Int("port", cfg.Port),
 		zap.Int("db", cfg.DB))
-	
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", cfg.Host, strconv.Itoa(cfg.Port)),
 		Password: cfg.Password,
@@ -39,15 +39,15 @@ func NewValkeyCache() *ValkeyCache {
 	// Test connection
 	zap.L().Debug("Testing Valkey connection")
 	if err := cache.Ping(); err != nil {
-		zap.L().Error("Failed to connect to Valkey", 
+		zap.L().Error("Failed to connect to Valkey",
 			zap.String("host", cfg.Host),
 			zap.Int("port", cfg.Port),
 			zap.Error(err))
 		return nil
 	}
 
-	zap.L().Info("Valkey cache connected successfully", 
-		zap.String("host", cfg.Host), 
+	zap.L().Info("Valkey cache connected successfully",
+		zap.String("host", cfg.Host),
 		zap.Int("port", cfg.Port),
 		zap.Int("db", cfg.DB))
 
@@ -64,7 +64,7 @@ func (v *ValkeyCache) Set(key string, value interface{}, expiration time.Duratio
 	zap.L().Debug("Setting cache key",
 		zap.String("key", key),
 		zap.Duration("expiration", expiration))
-		
+
 	err := v.client.Set(v.ctx, key, value, expiration).Err()
 	if err != nil {
 		zap.L().Error("Failed to set cache key",
@@ -77,19 +77,19 @@ func (v *ValkeyCache) Set(key string, value interface{}, expiration time.Duratio
 // Get retrieves a value by key
 func (v *ValkeyCache) Get(key string) (string, error) {
 	zap.L().Debug("Getting cache key", zap.String("key", key))
-	
+
 	result := v.client.Get(v.ctx, key)
 	if result.Err() == redis.Nil {
 		zap.L().Debug("Cache key not found", zap.String("key", key))
 		return "", nil // Key does not exist
 	}
-	
+
 	if result.Err() != nil {
 		zap.L().Error("Failed to get cache key",
 			zap.String("key", key),
 			zap.Error(result.Err()))
 	}
-	
+
 	return result.Result()
 }
 
@@ -119,7 +119,7 @@ func (v *ValkeyCache) GetJSON(key string, dest interface{}) error {
 	if result.Err() != nil {
 		return result.Err()
 	}
-	
+
 	// In a real implementation, you'd unmarshal JSON here
 	// For now, this is a placeholder
 	return nil
@@ -128,7 +128,7 @@ func (v *ValkeyCache) GetJSON(key string, dest interface{}) error {
 // Delete removes a key
 func (v *ValkeyCache) Delete(keys ...string) error {
 	zap.L().Debug("Deleting cache keys", zap.Strings("keys", keys))
-	
+
 	err := v.client.Del(v.ctx, keys...).Err()
 	if err != nil {
 		zap.L().Error("Failed to delete cache keys",
@@ -137,7 +137,7 @@ func (v *ValkeyCache) Delete(keys ...string) error {
 	} else {
 		zap.L().Debug("Successfully deleted cache keys", zap.Strings("keys", keys))
 	}
-	
+
 	return err
 }
 
