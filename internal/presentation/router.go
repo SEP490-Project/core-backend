@@ -217,14 +217,35 @@ func (r *Router) SetupContractRoutes(group *gin.RouterGroup) {
 	}
 }
 
-func (r *Router) SetupCampaignRoutes(group *gin.RouterGroup) {
+// =============================
+// ====== CAMPAIGN ROUTES ======
+// =============================
+func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	campaignHandler := r.handlerRegistry.CampaignHandler
+	campaigns := group.Group("/campaigns")
 
-	campaignGroup := group.Group("/campaigns")
+	editGroup := campaigns.Group("/")
+	editGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
-		campaignGroup.
-			Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin)).
-			POST("", campaignHandler.CreateCampaignFromContract)
+		editGroup.POST("", campaignHandler.CreateCampaignFromContract)
+		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
+	}
+
+	viewGroup := campaigns.Group("/")
+	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+	{
+		viewGroup.GET("/id/:id", campaignHandler.GetCampaignInfoByID)
+		viewGroup.GET("/id/:id/details", campaignHandler.GetCampaignDetailsByID)
+		viewGroup.GET("/contract/:contract_id", campaignHandler.GetCampaignInfoByContractID)
+		viewGroup.GET("/contract/:contract_id/details", campaignHandler.GetCampaignDetailsByContractID)
+		viewGroup.GET("/brand/:brand_id", campaignHandler.GetCampaignsInfoByBrandID)
+		viewGroup.GET("", campaignHandler.GetCampaignsByFilter)
+	}
+
+	brandGroup := campaigns.Group("/")
+	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
+	{
+		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
 	}
 }
 
