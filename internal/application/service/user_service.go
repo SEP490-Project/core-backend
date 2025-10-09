@@ -145,9 +145,12 @@ func (s *UserService) GetUsers(ctx context.Context, page, limit int, search, rol
 		if role != "" {
 			db = db.Where("role = ?", role)
 		}
+		if isActive != nil {
+			db = db.Where("is_active = ?", *isActive)
+		}
 		return db
 	}
-	users, total, err := s.userRepository.GetAll(ctx, filters, nil, page, limit)
+	users, total, err := s.userRepository.GetAll(ctx, filters, nil, limit, page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve users with filters",
 			zap.Int("limit", limit),
