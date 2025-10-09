@@ -244,7 +244,6 @@ func safeString(s *string) string {
 }
 
 // Financial Terms Structures (for documentation and type safety)
-
 type AdvertisingFinancialTerms struct {
 	Model         string            `json:"model" example:"FIXED"`
 	PaymentMethod string            `json:"payment_method" example:"BANK_TRANSFER"`
