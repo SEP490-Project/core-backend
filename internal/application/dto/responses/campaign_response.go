@@ -151,7 +151,7 @@ func (cdr CampaignDetailsResponse) ToCampaignMilestoneInfoList(campaign *model.C
 				NumberOfTasks:        len(milestone.Tasks),
 			}
 			if milestone.CompletedAt != nil {
-				milestoneInfo.CompletedAt = utils.FormatLocalTime(*milestone.CompletedAt, "")
+				milestoneInfo.CompletedAt = utils.FormatLocalTime(milestone.CompletedAt, "")
 			}
 
 			milestoneChan <- milestoneInfo

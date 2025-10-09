@@ -94,12 +94,12 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		ContainerType:   variant.ContainerType,
 		DispenserType:   variant.DispenserType,
 		Uses:            variant.Uses,
-		ManufactureDate: utils.FormatLocalTime(*variant.ManufactureDate, ""),
-		ExpiryDate:      utils.FormatLocalTime(*variant.ExpiryDate, ""),
+		ManufactureDate: utils.FormatLocalTime(variant.ManufactureDate, ""),
+		ExpiryDate:      utils.FormatLocalTime(variant.ExpiryDate, ""),
 		Instructions:    variant.Instructions,
 		IsDefault:       variant.IsDefault,
-		CreatedAt:       utils.FormatLocalTime(variant.CreatedAt, ""),
-		UpdatedAt:       utils.FormatLocalTime(variant.UpdatedAt, ""),
+		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
+		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
 	}
 	if variant.Product != nil {
 		response.Name = variant.Product.Name

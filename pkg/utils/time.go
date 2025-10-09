@@ -8,7 +8,10 @@ const (
 	Timezone   string = "Asia/Bangkok"
 )
 
-func FormatTimeWithTimezone(data time.Time, layout, timezone string) string {
+func FormatTimeWithTimezone(data *time.Time, layout, timezone string) string {
+	if data == nil {
+		return ""
+	}
 	if layout == "" {
 		layout = TimeFormat
 	}
@@ -20,7 +23,7 @@ func FormatTimeWithTimezone(data time.Time, layout, timezone string) string {
 	return data.In(loc).Format(layout)
 }
 
-func FormatLocalTime(data time.Time, layout string) string {
+func FormatLocalTime(data *time.Time, layout string) string {
 	if layout == "" {
 		layout = TimeFormat
 	}

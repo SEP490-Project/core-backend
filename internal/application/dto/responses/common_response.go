@@ -63,7 +63,7 @@ func ErrorResponse(message string, statusCode int) *APIResponse {
 	}
 }
 
-// PaginatedResponse creates a paginated API response.
+// NewPaginationResponse creates a paginated API response.
 func NewPaginationResponse[T any](
 	message string,
 	statusCode int,
@@ -73,10 +73,10 @@ func NewPaginationResponse[T any](
 	if pagination.TotalPages == 0 && pagination.Total > 0 && pagination.Limit > 0 {
 		pagination.TotalPages = int((pagination.Total + int64(pagination.Limit) - 1) / int64(pagination.Limit))
 	}
-	if pagination.HasNext == false && pagination.Page*pagination.Limit < int(pagination.Total) {
+	if !pagination.HasNext && pagination.Page*pagination.Limit < int(pagination.Total) {
 		pagination.HasNext = true
 	}
-	if pagination.HasPrev == false && pagination.Page > 1 {
+	if !pagination.HasPrev && pagination.Page > 1 {
 		pagination.HasPrev = true
 	}
 
