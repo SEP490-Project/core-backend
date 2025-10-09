@@ -2,10 +2,10 @@ package queue
 
 import (
 	"context"
+	"core-backend/config"
 	"encoding/json"
 	"fmt"
 	"time"
-	"core-backend/config"
 
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
@@ -55,12 +55,12 @@ type ReportGenerationPayload struct {
 
 func NewAsynqClient() *AsynqClient {
 	zap.L().Info("Initializing Asynq client")
-	
+
 	cfg := config.GetAppConfig().Asynq
 	zap.L().Debug("Asynq client configuration loaded",
 		zap.String("redis_addr", cfg.RedisAddr),
 		zap.Int("redis_db", cfg.RedisDB))
-		
+
 	client := asynq.NewClient(asynq.RedisClientOpt{
 		Addr:     cfg.RedisAddr,
 		DB:       cfg.RedisDB,
@@ -76,14 +76,14 @@ func NewAsynqClient() *AsynqClient {
 
 func NewAsynqServer() *AsynqServer {
 	zap.L().Info("Initializing Asynq server")
-	
+
 	cfg := config.GetAppConfig().Asynq
 	zap.L().Debug("Asynq server configuration loaded",
 		zap.String("redis_addr", cfg.RedisAddr),
 		zap.Int("redis_db", cfg.RedisDB),
 		zap.Int("concurrency", cfg.Concurrency),
 		zap.Any("queues", cfg.Queues))
-		
+
 	server := asynq.NewServer(
 		asynq.RedisClientOpt{
 			Addr:     cfg.RedisAddr,
@@ -121,7 +121,7 @@ func (c *AsynqClient) EnqueueEmailNotification(payload EmailNotificationPayload,
 		zap.String("recipient", payload.To),
 		zap.String("subject", payload.Subject),
 		zap.Duration("delay", delay))
-		
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		zap.L().Error("Failed to marshal email notification payload",
@@ -147,12 +147,12 @@ func (c *AsynqClient) EnqueueEmailNotification(payload EmailNotificationPayload,
 			zap.Error(err))
 		return nil, err
 	}
-	
+
 	zap.L().Info("Email notification task enqueued successfully",
 		zap.String("task_id", taskInfo.ID),
 		zap.String("recipient", payload.To),
 		zap.String("queue", taskInfo.Queue))
-	
+
 	return taskInfo, nil
 }
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
@@ -8,6 +9,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+)
+
+type ctxKey string
+
+const (
+	userIDKey ctxKey = "user_id"
 )
 
 type AuthMiddleware struct {
@@ -63,6 +70,11 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("roles", claims.Roles)
 		c.Set("claims", claims)
 
+		// Add user ID to request context
+		currentContext := c.Request.Context()
+		newContext := context.WithValue(currentContext, userIDKey, claims.UserID)
+		c.Request = c.Request.WithContext(newContext)
+
 		c.Next()
 	}
 }
@@ -109,6 +121,11 @@ func (a *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 		c.Set("email", claims.Email)
 		c.Set("roles", claims.Roles)
 		c.Set("claims", claims)
+
+		// Add user ID to request context
+		currentContext := c.Request.Context()
+		newContext := context.WithValue(currentContext, userIDKey, claims.UserID)
+		c.Request = c.Request.WithContext(newContext)
 
 		userRole := claims.Roles
 

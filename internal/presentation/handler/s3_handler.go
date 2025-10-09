@@ -2,9 +2,10 @@ package handler
 
 import (
 	"core-backend/internal/application/interfaces/iservice"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type S3Handler struct {
@@ -16,15 +17,16 @@ func NewS3Handler(fileService iservice.FileService) *S3Handler {
 }
 
 // UploadFile godoc
-// @Summary Upload a file to S3
-// @Tags files
-// @Accept multipart/form-data
-// @Produce json
-// @Param file formData file true "File to upload"
-// @Param userId formData string true "User ID"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/files/upload [post]
+//
+//	@Summary	Upload a file to S3
+//	@Tags		files
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		file	formData	file	true	"File to upload"
+//	@Param		userId	formData	string	true	"User ID"
+//	@Success	200		{object}	map[string]string
+//	@Failure	400		{object}	map[string]string
+//	@Router		/api/v1/files/upload [post]
 func (h *S3Handler) UploadFile(c *gin.Context) {
 	userID := c.PostForm("userId")
 	file, err := c.FormFile("file")
@@ -47,13 +49,14 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 }
 
 // DeleteFile godoc
-// @Summary Delete a file from S3
-// @Tags files
-// @Param userId query string true "User ID"
-// @Param filename path string true "File name"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/files/{filename} [delete]
+//
+//	@Summary	Delete a file from S3
+//	@Tags		files
+//	@Param		userId		query		string	true	"User ID"
+//	@Param		filename	path		string	true	"File name"
+//	@Success	200			{object}	map[string]string
+//	@Failure	400			{object}	map[string]string
+//	@Router		/api/v1/files/{filename} [delete]
 func (h *S3Handler) DeleteFile(c *gin.Context) {
 	userID := c.Query("userId")
 	filename := c.Param("filename")

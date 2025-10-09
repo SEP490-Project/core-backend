@@ -838,6 +838,591 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of campaigns with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaigns List by filter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keywords for campaign name",
+                        "name": "keywords",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ACTIVE",
+                            "INACTIVE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by campaign status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ADVERTISING",
+                            "AFFILIATE",
+                            "BRAND_AMBASSADOR",
+                            "CO_PRODUCING"
+                        ],
+                        "type": "string",
+                        "description": "Filter by campaign type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaigns retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.CampaignInfoPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new campaign based on the provided contract details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Create Campaign from Contract",
+                "parameters": [
+                    {
+                        "description": "Campaign creation data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Campaign created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignDetailsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/brand/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of campaigns associated with the authenticated brand user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaigns Info by authenticated brand user",
+                "responses": {
+                    "200": {
+                        "description": "Campaigns retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.CampaignInfoPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/brand/{brand_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of campaigns with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaigns Info by Brand ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaigns retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.CampaignInfoPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/contract/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get basic information about a campaign by its contract ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaign Info by Contract ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign info retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/contract/{contract_id}/details": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a campaign by its contract ID including milestones and number of tasks.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaign Details by Contract ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign details retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignDetailsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/id/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get basic information about a campaign by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaign Info by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign info retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete a campaign by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Delete Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/id/{id}/details": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get detailed information about a campaign by its ID including milestones and number of tasks.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Get Campaign Details by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign details retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignDetailsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts": {
             "get": {
                 "security": [
@@ -986,6 +1571,14 @@ const docTemplate = `{
                 ],
                 "summary": "Create new contract",
                 "parameters": [
+                    {
+                        "description": "Contract creation data (to be JSON-stringified and placed in 'data' form field)",
+                        "name": "data",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateContractRequest"
+                        }
+                    },
                     {
                         "type": "string",
                         "description": "Contract creation data in JSON format of struct type requests.CreateContractRequest",
@@ -2676,6 +3269,19 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.PaymentCycle": {
+            "type": "string",
+            "enum": [
+                "MONTHLY",
+                "QUARTERLY",
+                "ANNUALLY"
+            ],
+            "x-enum-varnames": [
+                "PaymentCycleMonthly",
+                "PaymentCycleQuarterly",
+                "PaymentCycleAnnually"
+            ]
+        },
         "enum.ProductStatus": {
             "type": "string",
             "enum": [
@@ -2743,26 +3349,6 @@ const docTemplate = `{
                 }
             }
         },
-        "handler.UpdateProductStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "description": "State is the desired target state.\nEnum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED\nexample: SUBMITTED",
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "SUBMITTED",
-                        "REVISION",
-                        "APPROVED",
-                        "ACTIVED",
-                        "INACTIVED"
-                    ]
-                }
-            }
-        },
         "handler.UpdateTaskStateRequest": {
             "type": "object",
             "required": [
@@ -2778,6 +3364,30 @@ const docTemplate = `{
                         "RECAP",
                         "DONE"
                     ]
+                }
+            }
+        },
+        "requests.CapitalContribution": {
+            "type": "object",
+            "properties": {
+                "company": {
+                    "$ref": "#/definitions/requests.ContributionDescription"
+                },
+                "kol": {
+                    "$ref": "#/definitions/requests.ContributionDescription"
+                }
+            }
+        },
+        "requests.ContributionDescription": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Equipment and studio"
+                },
+                "value": {
+                    "type": "integer",
+                    "example": 50000000
                 }
             }
         },
@@ -2819,6 +3429,464 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.CreateCampaignRequest": {
+            "type": "object",
+            "required": [
+                "budget_actual",
+                "budget_projected",
+                "contract_id",
+                "end_date",
+                "name",
+                "start_date",
+                "type"
+            ],
+            "properties": {
+                "budget_actual": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 5000.25
+                },
+                "budget_projected": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 10000.5
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A campaign for the summer sale."
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-08-31T23:59:59Z"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.CreateMilestoneCampaignRequest"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3,
+                    "example": "Summer Sale Campaign"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-06-01T00:00:00Z"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ADVERTISING",
+                        "AFFILIATE",
+                        "AMBASSADOR",
+                        "COPRODUCE"
+                    ],
+                    "example": "ADVERTISING"
+                }
+            }
+        },
+        "requests.CreateContractRequest": {
+            "type": "object",
+            "required": [
+                "brand_id",
+                "contract_number",
+                "end_date",
+                "financial_terms",
+                "legal_terms",
+                "representative_name",
+                "scope_of_work",
+                "signed_date",
+                "start_date",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "brand_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "0123456789"
+                },
+                "brand_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Vietcombank"
+                },
+                "brand_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "brand_representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@acme.com"
+                },
+                "brand_representative_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "John Doe"
+                },
+                "brand_representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "brand_representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "CEO"
+                },
+                "brand_tax_number": {
+                    "description": "Brand information (stored in contract for record-keeping)",
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "TAX123456"
+                },
+                "contract_file_url": {
+                    "description": "File URLs",
+                    "type": "string",
+                    "example": "https://example.com/contracts/contract.pdf"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "CONTRACT-2023-001"
+                },
+                "currency": {
+                    "description": "Financial",
+                    "type": "string",
+                    "example": "VND"
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "financial_terms": {
+                    "description": "Complex JSONB fields",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/requests.FinancialTerms"
+                        }
+                    ]
+                },
+                "legal_terms": {
+                    "$ref": "#/definitions/requests.LegalTerms"
+                },
+                "parent_contract_id": {
+                    "description": "Parent contract (for amendments or related contracts)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "proposal_file_url": {
+                    "type": "string",
+                    "example": "https://example.com/proposals/proposal.pdf"
+                },
+                "representative_bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Jane Smith"
+                },
+                "representative_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "987654321"
+                },
+                "representative_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "First National Bank"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "jane.smith@example.com"
+                },
+                "representative_name": {
+                    "description": "KOL/Representative information (the other party in the contract)",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Jane Smith"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Influencer"
+                },
+                "representative_tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "TAX654321"
+                },
+                "scope_of_work": {
+                    "$ref": "#/definitions/requests.ScopeOfWork"
+                },
+                "signed_date": {
+                    "description": "Contract dates",
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "signed_location": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Springfield"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-10-02T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "ACTIVE",
+                        "COMPLETED",
+                        "TERMINATED"
+                    ],
+                    "example": "DRAFT"
+                },
+                "title": {
+                    "description": "Contract basic information",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Social Media Promotion Contract"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ADVERTISING",
+                        "AFFILIATE",
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
+                    ],
+                    "example": "ADVERTISING"
+                }
+            }
+        },
+        "requests.CreateMilestoneCampaignRequest": {
+            "type": "object",
+            "required": [
+                "due_date"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Milestone for initial launch."
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2023-06-15T00:00:00Z"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.CreateTaskCampaignRequest"
+                    }
+                }
+            }
+        },
+        "requests.CreateTaskCampaignRequest": {
+            "type": "object",
+            "required": [
+                "deadline",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "assigned_to": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-06-10T00:00:00Z"
+                },
+                "description": {
+                    "description": "@Example\t{\"details\":\"Create banner ads for the summer sale.\",\"resources\":[\"link1\",\"link2\"]}"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3,
+                    "example": "Design Banner Ads"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PRODUCT",
+                        "CONTENT",
+                        "EVENT",
+                        "OTHER"
+                    ],
+                    "example": "PRODUCT"
+                }
+            }
+        },
+        "requests.Deliverable": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
+                "channel_link": {
+                    "type": "string",
+                    "example": "https://youtube.com/channel/xyz"
+                },
+                "channel_name": {
+                    "type": "string",
+                    "example": "YouTube"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-11-30"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "type": {
+                    "type": "string",
+                    "example": "VIDEO"
+                }
+            }
+        },
+        "requests.FinancialTerms": {
+            "type": "object",
+            "properties": {
+                "base_per_click": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "capital_contribution": {
+                    "$ref": "#/definitions/requests.CapitalContribution"
+                },
+                "cost_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "levels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.Level"
+                    }
+                },
+                "model": {
+                    "type": "string",
+                    "example": "FIXED"
+                },
+                "payment_cycle": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PaymentCycle"
+                        }
+                    ],
+                    "example": "MONTHLY"
+                },
+                "payment_date": {
+                    "type": "string",
+                    "example": "2023-11-05"
+                },
+                "payment_method": {
+                    "type": "string",
+                    "example": "BANK_TRANSFER"
+                },
+                "profit_distribution_cycle": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PaymentCycle"
+                        }
+                    ],
+                    "example": "QUARTERLY"
+                },
+                "profit_distribution_date": {
+                    "type": "string",
+                    "example": "2023-12-31"
+                },
+                "profit_split_company_percent": {
+                    "type": "integer",
+                    "example": 60
+                },
+                "profit_split_kol_percent": {
+                    "type": "integer",
+                    "example": 40
+                },
+                "schedule": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.Schedule"
+                    }
+                },
+                "tax_withholding": {
+                    "$ref": "#/definitions/requests.TaxWithholding"
+                },
+                "total_cost": {
+                    "type": "integer",
+                    "example": 10000000
+                }
+            }
+        },
+        "requests.LegalTerms": {
+            "type": "object",
+            "properties": {
+                "confidentiality": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "dispute_resolution_court": {
+                    "type": "string",
+                    "example": "Ho Chi Minh City Court"
+                },
+                "force_majeure_notification_days": {
+                    "type": "integer",
+                    "example": 7
+                },
+                "management_board": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.ManagementBoard"
+                    }
+                },
+                "number_of_copies": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "penalties": {
+                    "$ref": "#/definitions/requests.Penalties"
+                }
+            }
+        },
+        "requests.Level": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "min_clicks": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "multiplier": {
+                    "type": "number",
+                    "example": 1.5
+                }
+            }
+        },
         "requests.LoginRequest": {
             "type": "object",
             "required": [
@@ -2846,6 +3914,40 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ManagementBoard": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "representing": {
+                    "type": "string",
+                    "example": "Brand"
+                }
+            }
+        },
+        "requests.Penalties": {
+            "type": "object",
+            "properties": {
+                "breach_of_contract_percent": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "late_delivery_percent_per_day": {
+                    "type": "number",
+                    "example": 0.5
+                },
+                "late_payment_percent_per_day": {
+                    "type": "number",
+                    "example": 0.3
+                },
+                "non_delivery_penalty_percent": {
+                    "type": "integer",
+                    "example": 30
+                }
+            }
+        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -2855,6 +3957,71 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.Schedule": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "example": 3000000
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2023-10-15"
+                },
+                "milestone": {
+                    "type": "string",
+                    "example": "Initial payment"
+                },
+                "percent": {
+                    "type": "integer",
+                    "example": 30
+                }
+            }
+        },
+        "requests.ScopeOfWork": {
+            "type": "object",
+            "properties": {
+                "branding_restrictions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "No competitor brands"
+                    ]
+                },
+                "co_production_roles": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "deliverables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.Deliverable"
+                    }
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Create and publish social media content"
+                },
+                "products": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Product A",
+                        "Product B"
+                    ]
+                },
+                "technical_requirements": {
+                    "type": "string",
+                    "example": "4K video, professional lighting"
                 }
             }
         },
@@ -2886,6 +4053,19 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "john_doe"
+                }
+            }
+        },
+        "requests.TaxWithholding": {
+            "type": "object",
+            "properties": {
+                "rate_percent": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "threshold": {
+                    "type": "integer",
+                    "example": 10000000
                 }
             }
         },
@@ -3236,6 +4416,167 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Acme Corp"
+                }
+            }
+        },
+        "responses.CampaignDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "budget_actual": {
+                    "type": "number"
+                },
+                "budget_projected": {
+                    "type": "number"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "contract_title": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.CampaignMilestoneInfo"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_tasks": {
+                    "type": "integer"
+                },
+                "percentage_completed": {
+                    "type": "number"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.CampaignInfoPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.CampaignInfoResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.CampaignInfoResponse": {
+            "type": "object",
+            "properties": {
+                "budget_actual": {
+                    "type": "number"
+                },
+                "budget_projected": {
+                    "type": "number"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "contract_title": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.CampaignMilestoneInfo": {
+            "type": "object",
+            "properties": {
+                "behind_schedule": {
+                    "type": "boolean"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "completion_percentage": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "number_of_tasks": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -3636,7 +4977,7 @@ const docTemplate = `{
                 "brand_name": {
                     "type": "string"
                 },
-                "category_lv1": {
+                "category": {
                     "type": "string"
                 },
                 "category_lv2": {

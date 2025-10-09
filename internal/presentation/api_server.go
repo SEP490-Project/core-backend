@@ -6,7 +6,7 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application"
 	"core-backend/internal/infrastructure"
-	"core-backend/internal/infrastructure/gorm_repository"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/internal/presentation/handler"
 	"core-backend/internal/presentation/middleware"

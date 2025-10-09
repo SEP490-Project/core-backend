@@ -7,9 +7,8 @@ import (
 
 type CampaignStatus string
 
-// Status          enum.CampaignStatus `json:"status" gorm:"type:enum('RUNNING','COMPLETED','CANCELED');not null"`
 const (
-	CampaignRunning   CampaignStatus = "ON_GOING"
+	CampaignRunning   CampaignStatus = "RUNNING"
 	CampaignCompleted CampaignStatus = "COMPLETED"
 	CampaignCanceled  CampaignStatus = "CANCELED"
 )
@@ -42,6 +41,4 @@ func (cs CampaignStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
 
-func (cs CampaignStatus) String() string {
-	return string(cs)
-}
+func (cs CampaignStatus) String() string { return string(cs) }
