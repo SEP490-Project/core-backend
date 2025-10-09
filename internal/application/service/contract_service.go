@@ -51,6 +51,7 @@ func (s *ContractService) ApproveContract(ctx context.Context, contractID uuid.U
 // CreateContract implements iservice.ContractService.
 func (s *ContractService) CreateContract(
 	ctx context.Context,
+	userID uuid.UUID,
 	createRequest *requests.CreateContractRequest,
 	unitOfWork irepository.UnitOfWork,
 ) (*responses.ContractResponse, error) {
@@ -96,6 +97,7 @@ func (s *ContractService) CreateContract(
 	}
 
 	// Create contract
+	contract.CreatedByID = userID
 	if err = contractRepo.Add(ctx, contract); err != nil {
 		unitOfWork.Rollback()
 		zap.L().Error("Failed to create contract", zap.Error(err))

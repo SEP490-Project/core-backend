@@ -12,6 +12,7 @@ import (
 type ContractService interface {
 	// CreateContract creates a new contract and optionally updates brand information
 	CreateContract(ctx context.Context,
+		userID uuid.UUID,
 		createRequest *requests.CreateContractRequest,
 		unitOfWork irepository.UnitOfWork,
 	) (*responses.ContractResponse, error)
