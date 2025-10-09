@@ -41,3 +41,5 @@ func (tt *TaskType) Scan(value any) error {
 func (tt TaskType) Value() (driver.Value, error) {
 	return string(tt), nil
 }
+
+func (tt TaskType) String() string { return string(tt) }
