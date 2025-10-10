@@ -171,4 +171,4 @@ func (r *genericRepository[T]) Count(ctx context.Context, filter func(*gorm.DB) 
 	return count, nil
 }
 
-// func (r *genericRepository[T]) Count *gorm.DB {
+func (r *genericRepository[T]) DB() *gorm.DB { return r.db }
