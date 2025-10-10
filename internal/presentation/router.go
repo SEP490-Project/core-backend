@@ -81,7 +81,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			authGroup.POST("/refresh", authHandler.RefreshToken)
 
 			// Protected
-			authProtectedGroup := authGroup.Group("/")
+			authProtectedGroup := authGroup.Group("")
 			authProtectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 			{
 				authProtectedGroup.POST("/logout", authHandler.Logout)
@@ -101,7 +101,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			userGroup.PUT("/profile", userHandler.UpdateProfile)
 
 			// Admin only routes
-			adminUserGroup := userGroup.Group("/")
+			adminUserGroup := userGroup.Group("")
 			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 			{
 				adminUserGroup.GET("", userHandler.GetUsers)
@@ -127,7 +127,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			productsGroup.GET("", productHandler.GetAllProducts)
 
 			// Sales / Brand restricted
-			productStateGroup := productsGroup.Group("/")
+			productStateGroup := productsGroup.Group("")
 			productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
 			{
 				productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
@@ -176,7 +176,7 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 		brands.GET("/:id", brandHandler.GetBrandByID)
 
 		// Marketing + Admin
-		marketingAdmin := brands.Group("/")
+		marketingAdmin := brands.Group("")
 		marketingAdmin.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 		{
 			marketingAdmin.POST("", brandHandler.CreateBrand)
@@ -184,7 +184,7 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 		}
 
 		// Marketing only
-		marketingGroup := brands.Group("/")
+		marketingGroup := brands.Group("")
 		marketingGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 		{
 			marketingGroup.POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
@@ -204,7 +204,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
 
 	// Write/Modify routes for Marketing and Admins
-	adminAndMarketing := contracts.Group("/")
+	adminAndMarketing := contracts.Group("")
 	adminAndMarketing.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
 		adminAndMarketing.POST("", contractHandler.CreateContract)
@@ -213,7 +213,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	}
 
 	// Update route for Marketing ONLY
-	marketingOnly := contracts.Group("/")
+	marketingOnly := contracts.Group("")
 	marketingOnly.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 	{
 		marketingOnly.PUT("/:id", contractHandler.UpdateContract)
@@ -225,14 +225,14 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	campaignHandler := r.handlerRegistry.CampaignHandler
 	campaigns := group.Group("/campaigns")
 
-	editGroup := campaigns.Group("/")
+	editGroup := campaigns.Group("")
 	editGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
 		editGroup.POST("", campaignHandler.CreateCampaignFromContract)
 		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
 	}
 
-	viewGroup := campaigns.Group("/")
+	viewGroup := campaigns.Group("")
 	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
 	{
 		viewGroup.GET("/id/:id", campaignHandler.GetCampaignInfoByID)
@@ -243,7 +243,7 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 		viewGroup.GET("", campaignHandler.GetCampaignsByFilter)
 	}
 
-	brandGroup := campaigns.Group("/")
+	brandGroup := campaigns.Group("")
 	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
 	{
 		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
