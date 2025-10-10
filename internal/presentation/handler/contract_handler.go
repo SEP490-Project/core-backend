@@ -393,6 +393,70 @@ func (h *ContractHandler) GetContractsByBrandID(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetContractsByBrandProfile godoc
+//
+//	@Summary		Get contracts for brand profile
+//	@Description	Retrieve all contracts associated with the authenticated brand profile
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int										false	"Page number"		default(1)
+//	@Param			limit		query		int										false	"Items per page"	default(10)
+//	@Param			sort_by		query		string									false	"Sort by field"		default(created_at)
+//	@Param			sort_order	query		string									false	"Sort order"		Enums(asc, desc)	default(desc)
+//	@Param			type		query		string									false	"Contract type"		Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
+//	@Param			status		query		string									false	"Contract status"	Enums(DRAFT, ACTIVE, COMPLETED, TERMINATED)
+//	@Param			keyword		query		string									false	"Search keyword (title or contract number)"
+//	@Param			start_date	query		string									false	"Start date filter"	format(date-time)
+//	@Param			end_date	query		string									false	"End date filter"	format(date-time)
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse					"Invalid query parameters"
+//	@Failure		401			{object}	responses.APIResponse					"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse					"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/brands/profile [get]
+func (h *ContractHandler) GetContractsByBrandProfile(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+
+	var filterRequest *requests.ContractFilterRequest
+	if err = c.ShouldBindQuery(&filterRequest); err != nil {
+		responses := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	if err = h.validator.Struct(filterRequest); err != nil {
+		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	contracts, total, err := h.contractService.GetContractsByUserID(c.Request.Context(), userID, filterRequest)
+	if err != nil {
+		zap.L().Error("Failed to get contracts by brand ID", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get contracts: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Contracts retrieved successfully",
+		http.StatusOK,
+		contracts,
+		responses.Pagination{
+			Page:  filterRequest.Page,
+			Limit: filterRequest.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+}
+
 // DeleteContract godoc
 //
 //	@Summary		Delete contract

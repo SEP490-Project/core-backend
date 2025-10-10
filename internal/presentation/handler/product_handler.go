@@ -66,20 +66,21 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 }
 
 // GetProductsByTask godoc
-// @Summary      Get Products By Task
-// @Description  Get paginated products (overview) belonging to a task. Authorization: staff roles or owning brand user.
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        taskId path string true "Task ID (UUID)"
-// @Param        limit  query int false "Number of items per page" default(10)
-// @Param        offset query int false "Number of items to skip" default(0)
-// @Success      200 {object} object{data=[]responses.ProductOverviewResponse,total=int,limit=int,offset=int}
-// @Failure      400 {object} object{error=string}
-// @Failure      403 {object} object{error=string}
-// @Failure      500 {object} object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/tasks/{taskId}/products [get]
+//
+//	@Summary		Get Products By Task
+//	@Description	Get paginated products (overview) belonging to a task. Authorization: staff roles or owning brand user.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			taskId	path		string	true	"Task ID (UUID)"
+//	@Param			limit	query		int		false	"Number of items per page"	default(10)
+//	@Param			offset	query		int		false	"Number of items to skip"	default(0)
+//	@Success		200		{object}	object{data=[]responses.ProductOverviewResponse,total=int,limit=int,offset=int}
+//	@Failure		400		{object}	object{error=string}
+//	@Failure		403		{object}	object{error=string}
+//	@Failure		500		{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/{taskId}/products [get]
 func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 	// Parse path param
 	taskIDStr := c.Param("taskId")

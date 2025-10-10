@@ -26,4 +26,7 @@ type GenericRepository[T any] interface {
 	UpdateByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB, updates map[string]any) error
 	Delete(ctx context.Context, entity *T) error
 	DeleteByID(ctx context.Context, id any) error
+
+	// DB Expose the underlying gorm.DB for advanced queries if needed
+	DB() *gorm.DB
 }

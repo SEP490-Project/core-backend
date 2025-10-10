@@ -80,17 +80,10 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/users/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	userIDStr, exists := c.Get("user_id")
-	if !exists {
-		response := responses.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, response)
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := extractUserID(c)
 	if err != nil {
-		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
@@ -108,7 +101,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var updatedUser *responses.UserResponse
-	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, request.Username, request.Email)
+	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, h.unitOfWork)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
