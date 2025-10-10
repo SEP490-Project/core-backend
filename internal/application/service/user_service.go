@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UserService struct {
@@ -84,33 +86,6 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 		zap.String("username", brandUsers.Username),
 		zap.String("password", generatedPassword))
 	return nil
-}
-
-// GetUserByID retrieves a user by ID
-func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error) {
-	zap.L().Debug("Retrieving user by ID",
-		zap.String("user_id", userID.String()))
-
-	// user, err := s.userRepository.GetByID(userID)
-	user, err := s.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to retrieve user by ID",
-			zap.String("user_id", userID.String()),
-			zap.Error(err))
-		return nil, errors.New("user not found")
-	}
-	if user == nil {
-		zap.L().Debug("User not found by ID",
-			zap.String("user_id", userID.String()))
-		return nil, errors.New("user not found")
-	}
-
-	zap.L().Debug("User retrieved successfully",
-		zap.String("user_id", user.ID.String()),
-		zap.String("username", user.Username))
-
-	response := &responses.UserResponse{}
-	return response.ToUserResponse(user), nil
 }
 
 // GetUsers retrieves users with pagination and filters
@@ -289,14 +264,48 @@ func (s *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
+// GetUserByID implements iservice.UserService.
+func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error) {
+	zap.L().Debug("Retrieving user by ID",
+		zap.String("user_id", userID.String()))
+
+	// user, err := s.userRepository.GetByID(userID)
+	user, err := s.userRepository.GetByID(ctx, userID, []string{"ShippingAddress", "Sessions"})
+	if err != nil {
+		zap.L().Error("Failed to retrieve user by ID",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, errors.New("user not found")
+	}
+	if user == nil {
+		zap.L().Debug("User not found by ID",
+			zap.String("user_id", userID.String()))
+		return nil, errors.New("user not found")
+	}
+
+	zap.L().Debug("User retrieved successfully",
+		zap.String("user_id", user.ID.String()),
+		zap.String("username", user.Username))
+
+	response := &responses.UserResponse{}
+	return response.ToUserResponse(user), nil
+}
+
 // UpdateProfile updates the current user's profile
-func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, username, email string) (*responses.UserResponse, error) {
+func (s *UserService) UpdateProfile(
+	ctx context.Context,
+	userID uuid.UUID,
+	updateRequest *requests.UpdateProfileRequest,
+	uow irepository.UnitOfWork,
+) (*responses.UserResponse, error) {
 	zap.L().Info("Updating user profile",
 		zap.String("user_id", userID.String()),
-		zap.String("new_username", username),
-		zap.String("new_email", email))
+		zap.Any("request", *updateRequest))
 
-	user, err := s.userRepository.GetByID(ctx, userID, nil)
+	userRepo := uow.Users()
+	addressRepo := uow.ShippingAddresses()
+
+	user, err := userRepo.GetByID(ctx, userID, []string{"ShippingAddress"})
 	if err != nil || user == nil {
 		zap.L().Error("Failed to find user for profile update",
 			zap.String("user_id", userID.String()),
@@ -309,74 +318,58 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, usern
 		zap.String("current_username", user.Username),
 		zap.String("current_email", user.Email))
 
+	updatingUserModel, modifyingAddresses := updateRequest.ToExistingProfile(user)
+
 	// Update fields if provided
-	if username != "" && username != user.Username {
+	if updateRequest.Username != nil && *updateRequest.Username != user.Username {
 		zap.L().Debug("Checking username availability",
 			zap.String("user_id", userID.String()),
-			zap.String("new_username", username))
+			zap.String("new_username", *updateRequest.FullName))
 
 		// Check if username already exists
 		filters := func(db *gorm.DB) *gorm.DB {
-			return db.Where("username = ?", username)
+			return db.Where("username = ?", *updateRequest.FullName)
 		}
-		if exists, err := s.userRepository.Exists(ctx, filters); err != nil {
+		if exists, err := userRepo.Exists(ctx, filters); err != nil {
 			zap.L().Error("Failed to check username availability",
 				zap.String("user_id", userID.String()),
-				zap.String("username", username),
+				zap.String("username", *updateRequest.FullName),
 				zap.Error(err))
 			return nil, errors.New("failed to check username availability")
 		} else if exists {
 			zap.L().Debug("Username already exists",
 				zap.String("user_id", userID.String()),
-				zap.String("username", username))
+				zap.String("username", *updateRequest.FullName))
 			return nil, errors.New("username already exists")
 		}
-		user.Username = username
-		zap.L().Debug("Username updated",
-			zap.String("user_id", userID.String()),
-			zap.String("new_username", username))
+		updatingUserModel.Username = *updateRequest.FullName
 	}
 
-	if email != "" && email != user.Email {
-		zap.L().Debug("Checking email availability",
-			zap.String("user_id", userID.String()),
-			zap.String("new_email", email))
-
-		// Check if email already exists
-		filters := func(db *gorm.DB) *gorm.DB {
-			return db.Where("email = ?", email)
-		}
-		if exists, err := s.userRepository.Exists(ctx, filters); err != nil {
-			zap.L().Error("Failed to check email availability",
-				zap.String("user_id", userID.String()),
-				zap.String("email", email),
-				zap.Error(err))
-			return nil, errors.New("failed to check email availability")
-		} else if exists {
-			zap.L().Debug("Email already exists",
-				zap.String("user_id", userID.String()),
-				zap.String("email", email))
-			return nil, errors.New("email already exists")
-		}
-		user.Email = email
-		zap.L().Debug("Email updated",
-			zap.String("user_id", userID.String()),
-			zap.String("new_email", email))
-	}
-
-	if err := s.userRepository.Update(ctx, user); err != nil {
+	if err := userRepo.Update(ctx, user); err != nil {
 		zap.L().Error("Failed to update user profile",
 			zap.String("user_id", userID.String()),
-			zap.String("username", user.Username),
-			zap.String("email", user.Email),
 			zap.Error(err))
 		return nil, errors.New("failed to update profile")
 	}
 
-	zap.L().Info("User profile updated successfully",
+	err = addressRepo.DB().Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"type", "full_name", "phone_number", "email", "street", "address_line_2", "city", "state", "postal_code", "country", "company", "is_default"}),
+		UpdateAll: false,
+		DoNothing: false,
+	}).CreateInBatches(modifyingAddresses, len(modifyingAddresses)).Error
+	if err != nil {
+		zap.L().Error("Failed to update shipping addresses during profile update",
+			zap.String("user_id", userID.String()),
+			zap.Int("original_addresses_count", len(user.ShippingAddress)),
+			zap.Int("modified_addresses_count", len(modifyingAddresses)),
+			zap.Error(err))
+		return nil, errors.New("failed to update shipping addresses during profile update")
+	}
+
+	zap.L().Info("User profile updated successfully with addresses",
 		zap.String("user_id", userID.String()),
-		zap.String("username", user.Username),
-		zap.String("email", user.Email))
+		zap.Int("modified_addresses_count", len(modifyingAddresses)))
 
 	response := &responses.UserResponse{}
 	return response.ToUserResponse(user), nil
