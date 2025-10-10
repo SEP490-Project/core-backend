@@ -65,6 +65,11 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 
 	// API v1
 	r.SetupV1Routes(engine)
+
+	// Fallback route for undefined paths
+	engine.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"message": "Route not found"})
+	})
 }
 
 // SetupV1Routes sets up version 1 API routes
