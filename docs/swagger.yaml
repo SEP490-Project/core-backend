@@ -669,6 +669,79 @@ definitions:
         example: 10000000
         type: integer
     type: object
+  requests.UpdateAddressProfileRequest:
+    properties:
+      address_line_2:
+        example: Apt 4B
+        maxLength: 200
+        type: string
+      city:
+        example: New York
+        maxLength: 100
+        minLength: 2
+        type: string
+      company:
+        example: Acme Corp
+        maxLength: 100
+        type: string
+      country:
+        example: USA
+        maxLength: 100
+        minLength: 2
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
+        maxLength: 100
+        minLength: 3
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_default:
+        example: false
+        type: boolean
+      phone_number:
+        example: "+1234567890"
+        type: string
+      postal_code:
+        example: "10001"
+        maxLength: 20
+        minLength: 2
+        type: string
+      state:
+        example: NY
+        maxLength: 100
+        minLength: 2
+        type: string
+      street:
+        example: 123 Main St
+        maxLength: 200
+        minLength: 5
+        type: string
+      type:
+        enum:
+        - BILLING
+        - SHIPPING
+        example: SHIPPING
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - city
+    - country
+    - email
+    - full_name
+    - id
+    - phone_number
+    - postal_code
+    - street
+    - type
+    - user_id
+    type: object
   requests.UpdateBrandRequest:
     properties:
       contact_email:
@@ -827,9 +900,20 @@ definitions:
     type: object
   requests.UpdateProfileRequest:
     properties:
-      email:
-        example: new_email@example.com
+      date_of_birth:
         type: string
+      full_name:
+        example: John Doe
+        maxLength: 100
+        minLength: 3
+        type: string
+      phone:
+        example: "+1234567890"
+        type: string
+      shipping_address:
+        items:
+          $ref: '#/definitions/requests.UpdateAddressProfileRequest'
+        type: array
       username:
         example: new_username
         maxLength: 50
@@ -1395,6 +1479,57 @@ definitions:
       last_used_at:
         type: string
     type: object
+  responses.ShippingAddressResponse:
+    properties:
+      address_line_2:
+        example: Apt 4B
+        type: string
+      city:
+        example: New York
+        type: string
+      company:
+        example: Acme Corp
+        type: string
+      country:
+        example: USA
+        type: string
+      created_at:
+        example: "2023-12-30 15:04:05"
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_default:
+        example: false
+        type: boolean
+      phone_number:
+        example: "+1234567890"
+        type: string
+      postal_code:
+        example: "10001"
+        type: string
+      state:
+        example: NY
+        type: string
+      street:
+        example: 123 Main St
+        type: string
+      type:
+        example: SHIPPING
+        type: string
+      updated_at:
+        example: "2023-12-30 15:04:05"
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
   responses.SignUpResponse:
     properties:
       message:
@@ -1437,6 +1572,13 @@ definitions:
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
+      current_login_device:
+        example:
+        - '["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML'
+        - ' like Gecko) Chrome/58.0.3029.110 Safari/537.3"]'
+        items:
+          type: string
+        type: array
       email:
         example: john@example.com
         type: string
@@ -1449,10 +1591,17 @@ definitions:
       last_login:
         example: "2023-01-01T00:00:00Z"
         type: string
+      number_of_sessions:
+        example: 3
+        type: integer
       role:
         allOf:
         - $ref: '#/definitions/enum.UserRole'
         example: user
+      shipping_address:
+        items:
+          $ref: '#/definitions/responses.ShippingAddressResponse'
+        type: array
       updated_at:
         example: "2023-01-01T00:00:00Z"
         type: string
@@ -2716,6 +2865,92 @@ paths:
       security:
       - BearerAuth: []
       summary: Get contracts by brand ID
+      tags:
+      - Contracts
+  /api/v1/contracts/brands/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all contracts associated with the authenticated brand
+        profile
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: Contract type
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        in: query
+        name: type
+        type: string
+      - description: Contract status
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        in: query
+        name: status
+        type: string
+      - description: Search keyword (title or contract number)
+        in: query
+        name: keyword
+        type: string
+      - description: Start date filter
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date filter
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contracts retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contracts for brand profile
       tags:
       - Contracts
   /api/v1/files/{filename}:
