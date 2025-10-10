@@ -1639,6 +1639,130 @@
                 }
             }
         },
+        "/api/v1/contracts/brands/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all contracts associated with the authenticated brand profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Get contracts for brand profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ADVERTISING",
+                            "AFFILIATE",
+                            "BRAND_AMBASSADOR",
+                            "CO_PRODUCING"
+                        ],
+                        "type": "string",
+                        "description": "Contract type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "ACTIVE",
+                            "COMPLETED",
+                            "TERMINATED"
+                        ],
+                        "type": "string",
+                        "description": "Contract status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword (title or contract number)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date filter",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date filter",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contracts retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContractPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts/brands/{brand_id}": {
             "get": {
                 "security": [
@@ -4062,6 +4186,97 @@
                 }
             }
         },
+        "requests.UpdateAddressProfileRequest": {
+            "type": "object",
+            "required": [
+                "city",
+                "country",
+                "email",
+                "full_name",
+                "id",
+                "phone_number",
+                "postal_code",
+                "street",
+                "type",
+                "user_id"
+            ],
+            "properties": {
+                "address_line_2": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Apt 4B"
+                },
+                "city": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2,
+                    "example": "New York"
+                },
+                "company": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Acme Corp"
+                },
+                "country": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2,
+                    "example": "USA"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "John Doe"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_default": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "phone_number": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 2,
+                    "example": "10001"
+                },
+                "state": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 2,
+                    "example": "NY"
+                },
+                "street": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 5,
+                    "example": "123 Main St"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "BILLING",
+                        "SHIPPING"
+                    ],
+                    "example": "SHIPPING"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
         "requests.UpdateBrandRequest": {
             "type": "object",
             "required": [
@@ -4263,9 +4478,24 @@
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
-                "email": {
+                "date_of_birth": {
+                    "type": "string"
+                },
+                "full_name": {
                     "type": "string",
-                    "example": "new_email@example.com"
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "John Doe"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "shipping_address": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.UpdateAddressProfileRequest"
+                    }
                 },
                 "username": {
                     "type": "string",
@@ -5090,6 +5320,75 @@
                 }
             }
         },
+        "responses.ShippingAddressResponse": {
+            "type": "object",
+            "properties": {
+                "address_line_2": {
+                    "type": "string",
+                    "example": "Apt 4B"
+                },
+                "city": {
+                    "type": "string",
+                    "example": "New York"
+                },
+                "company": {
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "USA"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-12-30 15:04:05"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_default": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "phone_number": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "example": "10001"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "NY"
+                },
+                "street": {
+                    "type": "string",
+                    "example": "123 Main St"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "SHIPPING"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-12-30 15:04:05"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
         "responses.SignUpResponse": {
             "type": "object",
             "properties": {
@@ -5154,6 +5453,16 @@
                     "type": "string",
                     "example": "2023-01-01T00:00:00Z"
                 },
+                "current_login_device": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML",
+                        " like Gecko) Chrome/58.0.3029.110 Safari/537.3\"]"
+                    ]
+                },
                 "email": {
                     "type": "string",
                     "example": "john@example.com"
@@ -5170,6 +5479,10 @@
                     "type": "string",
                     "example": "2023-01-01T00:00:00Z"
                 },
+                "number_of_sessions": {
+                    "type": "integer",
+                    "example": 3
+                },
                 "role": {
                     "allOf": [
                         {
@@ -5177,6 +5490,12 @@
                         }
                     ],
                     "example": "user"
+                },
+                "shipping_address": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ShippingAddressResponse"
+                    }
                 },
                 "updated_at": {
                     "type": "string",

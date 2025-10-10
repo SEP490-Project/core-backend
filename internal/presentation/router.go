@@ -65,6 +65,11 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 
 	// API v1
 	r.SetupV1Routes(engine)
+
+	// Fallback route for undefined paths
+	engine.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"message": "Route not found"})
+	})
 }
 
 // SetupV1Routes sets up version 1 API routes
@@ -201,6 +206,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	// View routes with their specific role requirements
 	contracts.GET("", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), contractHandler.GetContracts)
 	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
+	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandProfile)
 	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
 
 	// Write/Modify routes for Marketing and Admins

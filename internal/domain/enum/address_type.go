@@ -39,3 +39,5 @@ func (at *AddressType) Scan(value any) error {
 func (at AddressType) Value() (driver.Value, error) {
 	return string(at), nil
 }
+
+func (at AddressType) String() string { return string(at) }
