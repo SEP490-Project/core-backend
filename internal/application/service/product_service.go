@@ -9,10 +9,11 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"errors"
+	"strings"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"strings"
 )
 
 type productService struct {

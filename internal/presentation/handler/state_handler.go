@@ -214,20 +214,21 @@ type UpdateMilestoneStateRequest struct {
 }
 
 // UpdateMilestoneState godoc
-// @Summary      Update Milestone State
-// @Description  Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)
-// @Tags         State Transfer
-// @Accept       json
-// @Produce      json
-// @Param        id    path   string                        true  "Milestone ID (UUID)"
-// @Param        body  body   UpdateMilestoneStateRequest   true  "Target state payload"
-// @Success      200   {object} responses.APIResponse  "Milestone state updated"
-// @Failure      400   {object} responses.APIResponse  "Invalid request"
-// @Failure      404   {object} responses.APIResponse  "Milestone not found"
-// @Failure      409   {object} responses.APIResponse  "Invalid state transition"
-// @Failure      500   {object} responses.APIResponse  "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/milestones/{id}/state [patch]
+//
+//	@Summary		Update Milestone State
+//	@Description	Move a milestone to a target state (NOT_STARTED, ON_GOING, CANCELLED, COMPLETED)
+//	@Tags			State Transfer
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Milestone ID (UUID)"
+//	@Param			body	body		UpdateMilestoneStateRequest	true	"Target state payload"
+//	@Success		200		{object}	responses.APIResponse		"Milestone state updated"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse		"Milestone not found"
+//	@Failure		409		{object}	responses.APIResponse		"Invalid state transition"
+//	@Failure		500		{object}	responses.APIResponse		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/milestones/{id}/state [patch]
 func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
