@@ -80,12 +80,18 @@ type ContractSummary struct {
 
 // BrandSummary represents a brief brand summary for contract response
 type BrandSummary struct {
-	ID           string  `json:"id" example:"660e8400-e29b-41d4-a716-446655440000"`
-	Name         string  `json:"name" example:"Acme Corp"`
-	ContactEmail string  `json:"contact_email" example:"contact@acme.com"`
-	ContactPhone string  `json:"contact_phone" example:"+84901234567"`
-	Address      *string `json:"address,omitempty" example:"123 Main St, Springfield"`
-	LogoURL      *string `json:"logo_url,omitempty" example:"https://example.com/logo.png"`
+	ID                      string  `json:"id" example:"660e8400-e29b-41d4-a716-446655440000"`
+	Name                    string  `json:"name" example:"Acme Corp"`
+	ContactEmail            string  `json:"contact_email" example:"contact@acme.com"`
+	ContactPhone            string  `json:"contact_phone" example:"+84901234567"`
+	Address                 *string `json:"address,omitempty" example:"123 Main St, Springfield"`
+	LogoURL                 *string `json:"logo_url,omitempty" example:"https://example.com/logo.png"`
+	TaxNumber               *string `json:"tax_number,omitempty" example:"TAX123456"`
+	RepresentativeName      *string `json:"representative_name,omitempty" example:"John Doe"`
+	RepresentativeRole      *string `json:"representative_role,omitempty" example:"CEO"`
+	RepresentativePhone     *string `json:"representative_phone,omitempty" example:"+84901234567"`
+	RepresentativeEmail     *string `json:"representative_email,omitempty" example:"john.doe@acme.com"`
+	RepresentativeCitizenID *string `json:"representative_citizen_id,omitempty" example:"1234567890"`
 }
 
 // ToContractResponse converts a model.Contract to ContractResponse
@@ -100,11 +106,6 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		ContractNumber:                  safeString(contract.ContractNumber),
 		Type:                            string(contract.Type),
 		Status:                          string(contract.Status),
-		BrandTaxNumber:                  contract.BrandTaxNumber,
-		BrandRepresentativeName:         contract.BrandRepresentativeName,
-		BrandRepresentativeRole:         contract.BrandRepresentativeRole,
-		BrandRepresentativePhone:        contract.BrandRepresentativePhone,
-		BrandRepresentativeEmail:        contract.BrandRepresentativeEmail,
 		BrandBankName:                   contract.BrandBankName,
 		BrandBankAccountNumber:          contract.BrandBankAccountNumber,
 		RepresentativeName:              safeString(contract.RepresentativeName),
@@ -161,13 +162,20 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 
 	// Add Brand information if loaded
 	if contract.Brand != nil {
+		tempBrand := contract.Brand
 		response.Brand = &BrandSummary{
-			ID:           contract.Brand.ID.String(),
-			Name:         contract.Brand.Name,
-			ContactEmail: contract.Brand.ContactEmail,
-			ContactPhone: contract.Brand.ContactPhone,
-			Address:      contract.Brand.Address,
-			LogoURL:      contract.Brand.LogoURL,
+			ID:                      tempBrand.ID.String(),
+			Name:                    tempBrand.Name,
+			ContactEmail:            tempBrand.ContactEmail,
+			ContactPhone:            tempBrand.ContactPhone,
+			Address:                 tempBrand.Address,
+			LogoURL:                 tempBrand.LogoURL,
+			TaxNumber:               tempBrand.TaxNumber,
+			RepresentativeName:      tempBrand.RepresentativeName,
+			RepresentativeRole:      tempBrand.RepresentativeRole,
+			RepresentativePhone:     tempBrand.RepresentativePhone,
+			RepresentativeEmail:     tempBrand.RepresentativeEmail,
+			RepresentativeCitizenID: tempBrand.RepresentativeCitizenID,
 		}
 	}
 
