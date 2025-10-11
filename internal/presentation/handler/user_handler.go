@@ -180,9 +180,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 		HasPrev:    hasPrev,
 	}
 	paginationData := responses.NewPaginationResponse("Users retrieved successfully", http.StatusOK, users, pagination)
-
-	response := responses.SuccessResponse("Users retrieved successfully", nil, paginationData)
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, paginationData)
 }
 
 // GetUserByID godoc
