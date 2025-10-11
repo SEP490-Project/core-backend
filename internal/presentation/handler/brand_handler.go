@@ -80,7 +80,7 @@ func (bh *BrandHandler) CreateBrand(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/brands/with-users [post]
 func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
-	var req requests.CreateBrandRequest
+	var req requests.CreateBrandWithUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)

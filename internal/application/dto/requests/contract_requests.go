@@ -18,18 +18,13 @@ type CreateContractRequest struct {
 	// Contract basic information
 	Title          string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
 	ContractNumber string  `json:"contract_number" validate:"required,min=2,max=255" example:"CONTRACT-2023-001"`
-	BrandID        string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
 	Type           string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
 
 	// Brand information (stored in contract for record-keeping)
-	BrandTaxNumber           *string `json:"brand_tax_number" validate:"omitempty,max=100" example:"TAX123456"`
-	BrandRepresentativeName  *string `json:"brand_representative_name" validate:"omitempty,max=255" example:"John Doe"`
-	BrandRepresentativeRole  *string `json:"brand_representative_role" validate:"omitempty,max=255" example:"CEO"`
-	BrandRepresentativePhone *string `json:"brand_representative_phone" validate:"omitempty,e164" example:"+84901234567"`
-	BrandRepresentativeEmail *string `json:"brand_representative_email" validate:"omitempty,email,max=255" example:"john.doe@acme.com"`
-	BrandBankName            *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
-	BrandBankAccountNumber   *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
+	BrandID                string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
+	BrandBankName          *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
+	BrandBankAccountNumber *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
 
 	// KOL/Representative information (the other party in the contract)
 	RepresentativeName              string  `json:"representative_name" validate:"required,min=2,max=255" example:"Jane Smith"`
@@ -222,11 +217,6 @@ func (r *CreateContractRequest) ToContract() (*model.Contract, error) {
 		Title:                           &r.Title,
 		ContractNumber:                  &r.ContractNumber,
 		BrandID:                         &brandID,
-		BrandTaxNumber:                  r.BrandTaxNumber,
-		BrandRepresentativeName:         r.BrandRepresentativeName,
-		BrandRepresentativeRole:         r.BrandRepresentativeRole,
-		BrandRepresentativePhone:        r.BrandRepresentativePhone,
-		BrandRepresentativeEmail:        r.BrandRepresentativeEmail,
 		BrandBankName:                   r.BrandBankName,
 		BrandBankAccountNumber:          r.BrandBankAccountNumber,
 		RepresentativeName:              &r.RepresentativeName,
@@ -260,18 +250,13 @@ type UpdateContractRequest struct {
 	// Contract basic information
 	Title          *string `json:"title" validate:"omitempty,min=2,max=255" example:"Updated Contract Title"`
 	ContractNumber *string `json:"contract_number" validate:"omitempty,min=2,max=255" example:"CONTRACT-2023-001-UPDATED"`
-	BrandID        *string `json:"brand_id" validate:"omitempty,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
 	Type           *string `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
 
 	// Brand information (stored in contract for record-keeping)
-	BrandTaxNumber           *string `json:"brand_tax_number" validate:"omitempty,max=100" example:"TAX123456"`
-	BrandRepresentativeName  *string `json:"brand_representative_name" validate:"omitempty,max=255" example:"John Doe"`
-	BrandRepresentativeRole  *string `json:"brand_representative_role" validate:"omitempty,max=255" example:"CEO"`
-	BrandRepresentativePhone *string `json:"brand_representative_phone" validate:"omitempty,e164" example:"+84901234567"`
-	BrandRepresentativeEmail *string `json:"brand_representative_email" validate:"omitempty,email,max=255" example:"john.doe@acme.com"`
-	BrandBankName            *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
-	BrandBankAccountNumber   *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
+	BrandID                *string `json:"brand_id" validate:"omitempty,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
+	BrandBankName          *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
+	BrandBankAccountNumber *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
 
 	// KOL/Representative information
 	RepresentativeName              *string `json:"representative_name" validate:"omitempty,min=2,max=255" example:"Jane Smith"`
@@ -357,21 +342,6 @@ func (r *UpdateContractRequest) ApplyToContract(contract *model.Contract) error 
 	}
 
 	// Update brand information (stored in contract)
-	if r.BrandTaxNumber != nil {
-		contract.BrandTaxNumber = r.BrandTaxNumber
-	}
-	if r.BrandRepresentativeName != nil {
-		contract.BrandRepresentativeName = r.BrandRepresentativeName
-	}
-	if r.BrandRepresentativeRole != nil {
-		contract.BrandRepresentativeRole = r.BrandRepresentativeRole
-	}
-	if r.BrandRepresentativePhone != nil {
-		contract.BrandRepresentativePhone = r.BrandRepresentativePhone
-	}
-	if r.BrandRepresentativeEmail != nil {
-		contract.BrandRepresentativeEmail = r.BrandRepresentativeEmail
-	}
 	if r.BrandBankName != nil {
 		contract.BrandBankName = r.BrandBankName
 	}

@@ -64,7 +64,8 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 	}
 
 	dataForm := c.PostForm("data")
-	fileForm, err := c.FormFile("file")
+	contractFileForm, err := c.FormFile("contract_file")
+	// proposalFileFOrm, err := c.FormFile("proposal_file")
 	if dataForm == "" {
 		responses := responses.ErrorResponse("Missing data in form", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
@@ -110,14 +111,14 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 	}
 
 	var fileURL string
-	tempFilePath := fmt.Sprintf("/tmp/%s", fileForm.Filename)
-	if err = c.SaveUploadedFile(fileForm, tempFilePath); err != nil {
+	tempFilePath := fmt.Sprintf("/tmp/%s", contractFileForm.Filename)
+	if err = c.SaveUploadedFile(contractFileForm, tempFilePath); err != nil {
 		responses := responses.ErrorResponse("Failed to save uploaded file: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, responses)
 		return
 	}
 	defer func() { _ = os.Remove(tempFilePath) }()
-	if fileURL, err = h.fileService.UploadFile(userID.String(), tempFilePath, fileForm.Filename); err != nil {
+	if fileURL, err = h.fileService.UploadFile(userID.String(), tempFilePath, contractFileForm.Filename); err != nil {
 		uow.Rollback()
 		responses := responses.ErrorResponse("Failed to upload file: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, responses)

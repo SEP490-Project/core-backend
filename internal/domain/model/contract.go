@@ -16,14 +16,9 @@ type Contract struct {
 	ContractNumber   *string    `json:"contract_number" gorm:"type:varchar(255);column:contract_number;not null;unique"`
 
 	// Brand information
-	BrandID                  *uuid.UUID `json:"brand_id" gorm:"type:uuid;column:brand_id"`
-	BrandTaxNumber           *string    `json:"brand_tax_number" gorm:"type:varchar(100);column:brand_tax_number"`
-	BrandRepresentativeName  *string    `json:"brand_representative_name" gorm:"type:varchar(255);column:brand_representative_name"`
-	BrandRepresentativeRole  *string    `json:"brand_representative_role" gorm:"type:varchar(255);column:brand_representative_role"`
-	BrandRepresentativePhone *string    `json:"brand_representative_phone" gorm:"type:varchar(20);column:brand_representative_phone"`
-	BrandRepresentativeEmail *string    `json:"brand_representative_email" gorm:"type:varchar(255);column:brand_representative_email"`
-	BrandBankName            *string    `json:"brand_bank_name" gorm:"type:varchar(255);column:brand_bank_name"`
-	BrandBankAccountNumber   *string    `json:"brand_account_number" gorm:"type:varchar(255);column:brand_account_number"`
+	BrandID                *uuid.UUID `json:"brand_id" gorm:"type:uuid;column:brand_id"`
+	BrandBankName          *string    `json:"brand_bank_name" gorm:"type:varchar(255);column:brand_bank_name"`
+	BrandBankAccountNumber *string    `json:"brand_account_number" gorm:"type:varchar(255);column:brand_account_number"`
 
 	// KOL Representative information
 	RepresentativeName              *string `json:"representative_name" gorm:"type:varchar(255);column:representative_name"`

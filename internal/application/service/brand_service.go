@@ -167,7 +167,12 @@ func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID,
 	return responses.BrandResponse{}.ToBrandResponse(brand), nil
 }
 
-func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *irepository.UnitOfWork, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
+// CreateBrandWithInActiveUsers implements iservice.BrandService.
+func (b *BrandService) CreateBrandWithInActiveUsers(
+	ctx context.Context,
+	uow *irepository.UnitOfWork,
+	request *requests.CreateBrandWithUserRequest,
+) (*responses.BrandResponse, error) {
 	zap.L().Info("Creating new brand with inactive useer", zap.Any("request.CreateBrandRequest", request))
 	brandRepo := (*uow).Brands()
 	usersRepo := (*uow).Users()
@@ -204,15 +209,21 @@ func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *ir
 	}
 
 	brandModel := &model.Brand{
-		ID:           uuid.New(),
-		UserID:       &usersModel.ID,
-		Name:         request.Name,
-		Description:  request.Description,
-		ContactEmail: request.ContactEmail,
-		ContactPhone: request.ContactPhone,
-		Website:      request.Website,
-		LogoURL:      request.LogoURL,
-		Status:       enum.BrandStatusInactive,
+		ID:                      uuid.New(),
+		UserID:                  &usersModel.ID,
+		Name:                    request.Name,
+		Description:             request.Description,
+		ContactEmail:            request.ContactEmail,
+		ContactPhone:            request.ContactPhone,
+		Website:                 request.Website,
+		LogoURL:                 request.LogoURL,
+		Status:                  enum.BrandStatusInactive,
+		TaxNumber:               request.TaxNumber,
+		RepresentativeName:      request.RepresentativeName,
+		RepresentativeRole:      request.RepresentativeRole,
+		RepresentativeEmail:     request.RepresentativeEmail,
+		RepresentativePhone:     request.RepresentativePhone,
+		RepresentativeCitizenID: request.RepresentativeCitizenID,
 	}
 	if err := brandRepo.Add(ctx, brandModel); err != nil {
 		zap.L().Error("Failed to create brand", zap.Error(err))
