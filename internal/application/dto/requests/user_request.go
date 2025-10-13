@@ -162,7 +162,7 @@ func (uapr UpdateAddressProfileRequest) ToExistingModel(existing *model.Shipping
 
 // UpdateUserStatusRequest represents user status update request
 type UpdateUserStatusRequest struct {
-	IsActive bool `json:"is_active" validate:"required" example:"true"`
+	IsActive *bool `json:"is_active" validate:"required" example:"true"`
 }
 
 // UpdateUserRoleRequest represents user role update request
