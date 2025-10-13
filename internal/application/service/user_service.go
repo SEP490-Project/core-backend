@@ -168,9 +168,14 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, is
 	}
 
 	oldStatus := user.IsActive
-	user.IsActive = isActive
 
-	if err := s.userRepository.Update(ctx, user); err != nil {
+	updateFields := map[string]interface{}{
+		"is_active": isActive,
+	}
+	filters := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ?", userID)
+	}
+	if err := s.userRepository.UpdateByCondition(ctx, filters, updateFields); err != nil {
 		zap.L().Error("Failed to update user status",
 			zap.String("user_id", userID.String()),
 			zap.Bool("old_status", oldStatus),
