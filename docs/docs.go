@@ -1417,12 +1417,12 @@ const docTemplate = `{
                 "tags": [
                     "files"
                 ],
-                "summary": "Upload a file to S3",
+                "summary": "Upload files to S3",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "File to upload",
-                        "name": "file",
+                        "description": "Files to upload",
+                        "name": "files",
                         "in": "formData",
                         "required": true
                     },
@@ -1440,7 +1440,10 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
-                                "type": "string"
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
                             }
                         }
                     },

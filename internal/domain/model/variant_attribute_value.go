@@ -24,7 +24,7 @@ type VariantAttributeValue struct {
 	Attribute *VariantAttribute `gorm:"foreignKey:AttributeID"`
 }
 
-func (VariantAttributeValue) TableName() string { return "variant_attribute_value" }
+func (VariantAttributeValue) TableName() string { return "variant_attribute_values" }
 
 func (vav *VariantAttributeValue) BeforeCreate(tx *gorm.DB) error {
 	if vav.ID == uuid.Nil {
