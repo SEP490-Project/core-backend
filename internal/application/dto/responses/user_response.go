@@ -14,6 +14,9 @@ type UserResponse struct {
 	Username           string                     `json:"username" example:"john_doe"`
 	Email              string                     `json:"email" example:"john@example.com"`
 	Role               enum.UserRole              `json:"role" example:"user"`
+	FullName           string                     `json:"full_name" example:"John Doe"`
+	Phone              string                     `json:"phone" example:"+1234567890"`
+	DateOfBirth        string                     `json:"date_of_birth" example:"1990-01-01"`
 	IsActive           bool                       `json:"is_active" example:"true"`
 	CreatedAt          string                     `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	UpdatedAt          string                     `json:"updated_at" example:"2023-01-01T00:00:00Z"`
@@ -26,14 +29,17 @@ type UserResponse struct {
 // ToUserResponse converts User model to UserResponse
 func (ur *UserResponse) ToUserResponse(model *model.User) (userResponse *UserResponse) {
 	userResponse = &UserResponse{
-		ID:        model.ID,
-		Username:  model.Username,
-		Email:     model.Email,
-		Role:      model.Role,
-		IsActive:  model.IsActive,
-		CreatedAt: utils.FormatLocalTime(model.CreatedAt, ""),
-		UpdatedAt: utils.FormatLocalTime(model.UpdatedAt, ""),
-		LastLogin: utils.FormatLocalTime(model.LastLogin, ""),
+		ID:          model.ID,
+		Username:    model.Username,
+		Email:       model.Email,
+		Role:        model.Role,
+		FullName:    model.FullName,
+		Phone:       model.Phone,
+		DateOfBirth: utils.FormatLocalTime(model.DateOfBirth, utils.DateFormat),
+		IsActive:    model.IsActive,
+		CreatedAt:   utils.FormatLocalTime(model.CreatedAt, ""),
+		UpdatedAt:   utils.FormatLocalTime(model.UpdatedAt, ""),
+		LastLogin:   utils.FormatLocalTime(model.LastLogin, ""),
 	}
 
 	if len(model.ShippingAddress) > 0 {
