@@ -162,6 +162,8 @@ definitions:
     required:
     - state
     type: object
+  requests.BulkVariantRequest:
+    type: object
   requests.CreateBrandRequest:
     properties:
       contact_email:
@@ -190,6 +192,44 @@ definitions:
     required:
     - contact_email
     - name
+    type: object
+  requests.CreateProductRequest:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      price:
+        example: 99.99
+        minimum: 0
+        type: number
+      task_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      type:
+        enum:
+        - STANDARD
+        - LIMITED
+        example: STANDARD
+        type: string
+    required:
+    - brand_id
+    - category_id
+    - name
+    - price
+    - task_id
+    - type
     type: object
   requests.LoginRequest:
     properties:
@@ -783,7 +823,7 @@ definitions:
         type: string
       brand_name:
         type: string
-      category_lv1:
+      category:
         type: string
       category_lv2:
         type: string
@@ -2026,6 +2066,50 @@ paths:
       summary: Get All Products
       tags:
       - Products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product (initial state DRAFT)
+      parameters:
+      - description: Product to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product
+      tags:
+      - Products
   /api/v1/products/{id}/state:
     patch:
       consumes:
@@ -2043,7 +2127,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+          $ref: '#/definitions/handler.UpdateProductStateRequest'
       produces:
       - application/json
       responses:
@@ -2072,6 +2156,56 @@ paths:
       summary: Update Product State
       tags:
       - State Transfer
+  /api/v1/products/{productId}/variants:
+    post:
+      consumes:
+      - application/json
+      description: Create a new product variant with story and attributes
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: productId
+        required: true
+        type: string
+      - description: Variant data to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BulkVariantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductVariantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product Variant
+      tags:
+      - Products
   /api/v1/tasks/{id}/state:
     patch:
       consumes:

@@ -13,15 +13,32 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
-	productRepo               irepository.GenericRepository[model.Product]
-	userRepo                  irepository.GenericRepository[model.User]
-	brandRepo                 irepository.GenericRepository[model.Brand]
-	loggedSessionRepo         irepository.GenericRepository[model.LoggedSession]
-	ContractRepository        irepository.GenericRepository[model.Contract]
-	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
-	CampaignRepository        irepository.GenericRepository[model.Campaign]
-	MilestoneRepository       irepository.GenericRepository[model.Milestone]
-	TaskRepository            irepository.GenericRepository[model.Task]
+	productRepo                irepository.GenericRepository[model.Product]
+	userRepo                   irepository.GenericRepository[model.User]
+	brandRepo                  irepository.GenericRepository[model.Brand]
+	loggedSessionRepo          irepository.GenericRepository[model.LoggedSession]
+	ContractRepository         irepository.GenericRepository[model.Contract]
+	ContractPaymentRepository  irepository.GenericRepository[model.ContractPayment]
+	CampaignRepository         irepository.GenericRepository[model.Campaign]
+	MilestoneRepository        irepository.GenericRepository[model.Milestone]
+	TaskRepository             irepository.GenericRepository[model.Task]
+	ProductStoryRepository     irepository.GenericRepository[model.ProductStory]
+	ProductVariantRepository   irepository.GenericRepository[model.ProductVariant]
+	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+	variantImageRepository     irepository.GenericRepository[model.VariantImage]
+	variantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+}
+
+func (u *unitOfWork) VariantImage() irepository.GenericRepository[model.VariantImage] {
+	return u.variantImageRepository
+}
+
+func (u *unitOfWork) ProductStory() irepository.GenericRepository[model.ProductStory] {
+	return u.ProductStoryRepository
+}
+
+func (u *unitOfWork) InTransaction() bool {
+	return u.tx != nil
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -29,6 +46,10 @@ func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
 }
 
 func (u *unitOfWork) Begin() irepository.UnitOfWork {
+	if u.tx != nil {
+		zap.L().Warn("Transaction already started")
+		return u
+	}
 	zap.L().Debug("Beginning database transaction")
 
 	u.tx = u.db.Begin()
@@ -46,6 +67,11 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.CampaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
 	u.MilestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
 	u.TaskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
+	u.ProductStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](u.tx)
+	u.ProductVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](u.tx)
+	u.VariantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
+	u.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](u.tx)
+	u.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
