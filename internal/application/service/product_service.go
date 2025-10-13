@@ -6,9 +6,11 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -16,24 +18,165 @@ import (
 )
 
 type productService struct {
-	repository irepository.GenericRepository[model.Product]
+	repository   irepository.GenericRepository[model.Product]
+	variantRepo  irepository.GenericRepository[model.ProductVariant]
+	taskRepo     irepository.GenericRepository[model.Task]
+	brandRepo    irepository.GenericRepository[model.Brand]
+	categoryRepo irepository.GenericRepository[model.ProductCategory]
+	uow          irepository.UnitOfWork
 }
 
-func NewProductService(repo irepository.GenericRepository[model.Product]) iservice.ProductService {
+func (p productService) CreateProductStory(ctx context.Context, variantID uuid.UUID, story requests.CreateProductStoryRequest, uow irepository.UnitOfWork) (*model.ProductStory, error) {
+	//TODO implement me
+	var productStory *model.ProductStory
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		//Validate variant
+		if variantID == uuid.Nil {
+			return errors.New("invalid variant id")
+		}
+		exists, err := p.variantRepo.ExistsByID(ctx, variantID)
+		if err != nil {
+			return fmt.Errorf("failed to check product variant existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("product variant with ID %s not found", variantID)
+		}
+
+		//Create product story
+		productStory = story.ToModel()
+		if err := uow.(irepository.UnitOfWork).ProductStory().Add(ctx, productStory); err != nil {
+			zap.L().Error("failed to persist product story", zap.Error(err))
+			_ = uow.Rollback()
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return productStory, nil
+}
+
+func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.UUID, image requests.CreateVariantImagesRequest, unitOfWork irepository.UnitOfWork) (*model.VariantImage, error) {
+	var variantImage *model.VariantImage
+
+	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		//Validate variant
+		if variantID == uuid.Nil {
+			return errors.New("invalid variant id")
+		}
+		exists, err := p.variantRepo.ExistsByID(ctx, variantID)
+		if err != nil {
+			return fmt.Errorf("failed to check product variant existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("product variant with ID %s not found", variantID)
+		}
+
+		//Create VariantImage
+		variantImage = image.ToModel()
+
+		if err := uow.(irepository.UnitOfWork).VariantImage().Add(ctx, variantImage); err != nil {
+			zap.L().Error("failed to persist variant image", zap.Error(err))
+			_ = uow.Rollback()
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return variantImage, nil
+}
+
+func (p productService) CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error) {
+	var productVariant *model.ProductVariant
+
+	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		//Validate product
+		if productID == uuid.Nil {
+			return errors.New("invalid product id")
+		}
+		exists, err := p.repository.ExistsByID(ctx, productID)
+		if err != nil {
+			return fmt.Errorf("failed to check product existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("product with ID %s not found", productID)
+		}
+
+		//Create ProductVariant
+		productVariant := variant.ToModel(productID, userID)
+		if err := p.variantRepo.Add(ctx, productVariant); err != nil {
+			zap.L().Error("failed to persist product variant", zap.Error(err))
+			_ = uow.Rollback()
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return productVariant, nil
+}
+
+func NewProductService(
+	repo irepository.GenericRepository[model.Product],
+	variantRepo irepository.GenericRepository[model.ProductVariant],
+	taskRepo irepository.GenericRepository[model.Task],
+	brandRepo irepository.GenericRepository[model.Brand],
+	categoryRepo irepository.GenericRepository[model.ProductCategory],
+) iservice.ProductService {
 	return &productService{
-		repository: repo,
+		repository:   repo,
+		variantRepo:  variantRepo,
+		taskRepo:     taskRepo,
+		brandRepo:    brandRepo,
+		categoryRepo: categoryRepo,
 	}
 }
 
 // CreateProduct creates a new product with default status DRAFT.
-func (p productService) CreateProduct(dto *requests.CreateProductDTO, createdBy uuid.UUID) (*responses.ProductResponse, error) {
+func (p productService) CreateProduct(dto *requests.CreateProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
 	if dto == nil {
 		return nil, errors.New("nil dto")
 	}
-
+	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
+		return nil, errors.New("task_id is required: product must depend on a task")
+	}
 	ctx := context.Background()
+	// Validate task existence
+	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
+		zap.L().Error("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		return nil, errors.New("could not verify task existence")
+	} else if found == nil {
+		return nil, errors.New("task not found")
+	} else if found.Status != enum.TaskStatusInProgress {
+		return nil, errors.New("your task may expired or overdue")
+	}
+	// Validate brand existence
+	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
+		zap.L().Error("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
+		return nil, errors.New("could not verify brand existence")
+	} else if !exists {
+		return nil, errors.New("brand not found")
+	}
+	// Validate category existence
+	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
+		zap.L().Error("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
+		return nil, errors.New("could not verify category existence")
+	} else if !exists {
+		return nil, errors.New("category not found")
+	}
+
 	entity := dto.ToModel(createdBy)
-	// Set default workflow state
 	entity.Status = enum.ProductStatusDraft
 
 	if err := p.repository.Add(ctx, entity); err != nil {
@@ -41,15 +184,13 @@ func (p productService) CreateProduct(dto *requests.CreateProductDTO, createdBy 
 		return nil, err
 	}
 
-	// Reload with relations for response mapping
+	// Reload with relations
 	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Brand", "Category", "Variants"})
 	if err != nil {
 		zap.L().Warn("created product but failed to reload with relations", zap.Error(err))
-		// Fallback to entity if reload fails
 		saved = entity
 	}
 
-	// Guard nil description for mapper
 	if saved.Description == nil {
 		empty := ""
 		saved.Description = &empty
@@ -182,4 +323,41 @@ func (p productService) GetProductsByTask(taskID uuid.UUID, requestingUserID uui
 	overview := responses.ToOverviewList(ptrProducts)
 
 	return overview, int(total), nil
+}
+
+// GetProductVariants lists variants for a product with pagination.
+func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error) {
+	ctx := context.Background()
+
+	// Optionally ensure product exists
+	exists, err := p.repository.ExistsByID(ctx, productID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !exists {
+		return nil, 0, errors.New("product not found")
+	}
+
+	// Convert offset to pageNumber expected by repository (1-based)
+	pageNumber := 1
+	if limit > 0 && offset > 0 {
+		pageNumber = (offset / limit) + 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB { return db.Where("product_id = ?", productID) }
+	includes := []string{"Product"} // preload product for response Name/Type if needed
+
+	variants, total, err := p.variantRepo.GetAll(ctx, filter, includes, limit, pageNumber)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	res := make([]*responses.ProductVariantResponse, 0, len(variants))
+	for i := range variants {
+		res = append(res, responses.ProductVariantResponse{}.ToProductVariantResponse(&variants[i]))
+	}
+	return res, int(total), nil
 }

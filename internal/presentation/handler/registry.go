@@ -25,7 +25,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		AuthHandler:         NewAuthHandler(applicationReg.AuthService),
 		UserHandler:         NewUserHandler(applicationReg.UserService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		HealthHandler:       NewHealthHandler(applicationReg.InfrastructureRegistry),
-		ProductHandler:      NewProductHandler(applicationReg.ProductService),
+		ProductHandler:      NewProductHandler(applicationReg.ProductService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		BrandHandler:        NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:         NewS3Handler(applicationReg.FileService),
 		PayOsHandler:        NewPayOsHandler(applicationReg.InfrastructureRegistry.PayOsService),

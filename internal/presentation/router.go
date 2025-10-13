@@ -125,14 +125,25 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 		// Product routes
 		productHandler := r.handlerRegistry.ProductHandler
+		// Public list (keep backward compatibility)
 		v1.GET("/products", productHandler.GetAllProducts)
+		// Protected create route (sales, brand partner, admin can create)
+		v1.POST("/products",
+			r.middlewareRegistry.Auth.RequireRole(sales, brand, admin),
+			productHandler.CreateProduct,
+		)
+		// Protected create variant route
+		v1.POST("/products/:productId/variants",
+			r.middlewareRegistry.Auth.RequireRole(sales, brand, admin),
+			productHandler.CreateProductVariant,
+		)
 
 		// Product state routes (protected)
 		stateHandler := r.handlerRegistry.TaskHandler
 		productStateGroup := v1.Group("/products")
 		productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
 		{
-			productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
+			productStateGroup.PATCH(":id/state", stateHandler.UpdateProductState)
 		}
 
 		// Task routes

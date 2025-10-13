@@ -6,32 +6,45 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateProductDTO is the refined DTO for creating a Product entity.
-// Use this when you want a strongly typed enum based request instead of raw strings.
-// It intentionally omits server managed fields (ID, Status, CreatedAt, UpdatedAt, CreatedByID, UpdatedByID).
-// Status will default in service / repository layer (e.g. DRAFT) and auditing fields are injected there.
-// Variants are not included here; they should be created via their own endpoint or extended DTO if needed.
+// CreateProductDTO internal service DTO. TaskID MUST be provided (business rule: product depends on a task).
 type CreateProductDTO struct {
-	BrandID      uuid.UUID        `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	CategoryID   uuid.UUID        `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name         string           `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
-	Description  *string          `json:"description" validate:"omitempty,max=1000" example:"Product description"`
-	Price        float64          `json:"price" validate:"required,gte=0" example:"99.99"`
-	Type         enum.ProductType `json:"type" validate:"required,oneof=STANDARD LIMITED" example:"STANDARD"`
-	CurrentStock *int             `json:"current_stock" validate:"omitempty,gte=0" example:"100"`
+	BrandID     uuid.UUID
+	CategoryID  uuid.UUID
+	TaskID      *uuid.UUID // required (non-nil)
+	Name        string
+	Description *string
+	Price       float64
+	Type        string // STANDARD | LIMITED
 }
 
-// ToModel maps the CreateProductDTO to a domain model Product.
-// createdBy is injected from the authenticated context (current user id).
-func (dto *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
+// CreateProductVariantDTO carries variant data into the service layer.
+type CreateProductVariantDTO struct {
+	Price           float64
+	CurrentStock    int
+	Capacity        float64
+	CapacityUnit    string // will be validated and cast to enum in service
+	ContainerType   string // will be validated and cast to enum in service
+	DispenserType   string // will be validated and cast to enum in service
+	Uses            string
+	ManufactureDate *string // RFC3339, parsed in service
+	ExpiryDate      *string // RFC3339, parsed in service
+	Instructions    string
+	IsDefault       bool
+}
+
+// ToModel maps the DTO to a Product domain model.
+func (d *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
+	if d == nil {
+		return nil
+	}
 	return &model.Product{
-		BrandID:      dto.BrandID,
-		CategoryID:   dto.CategoryID,
-		Name:         dto.Name,
-		Description:  dto.Description,
-		Price:        dto.Price,
-		Type:         dto.Type,
-		CurrentStock: dto.CurrentStock,
-		CreatedByID:  createdBy,
+		BrandID:     d.BrandID,
+		CategoryID:  d.CategoryID,
+		TaskID:      d.TaskID,
+		Name:        d.Name,
+		Description: d.Description,
+		Price:       d.Price,
+		Type:        enum.ProductType(d.Type),
+		CreatedByID: createdBy,
 	}
 }
