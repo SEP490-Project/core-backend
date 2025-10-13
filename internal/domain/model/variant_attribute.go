@@ -14,9 +14,11 @@ type VariantAttribute struct {
 	CreatedAt   time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time      `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	CreatedByID uuid.UUID      `json:"created_by" gorm:"column:created_by;not null"`
+	UpdatedByID *uuid.UUID     `json:"updated_by" gorm:"column:updated_by"`
 }
 
-func (VariantAttribute) TableName() string { return "variant_attribute" }
+func (VariantAttribute) TableName() string { return "variant_attributes" }
 
 func (va *VariantAttribute) BeforeCreate(tx *gorm.DB) (err error) {
 	if va.ID == uuid.Nil {

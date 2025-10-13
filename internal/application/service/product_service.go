@@ -26,6 +26,69 @@ type productService struct {
 	uow          irepository.UnitOfWork
 }
 
+func (p productService) AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error) {
+	var varitantAttributeValue *model.VariantAttributeValue
+
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		//Validate variant
+		if variantID == uuid.Nil {
+			return errors.New("invalid variant id")
+		}
+		exists, err := uow.ProductVariant().ExistsByID(ctx, variantID)
+		if err != nil {
+			return fmt.Errorf("failed to check product variant existence: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("product variant with ID %s not found", variantID)
+		}
+
+		// Validate attribute IDs
+		attrExists, err := uow.VariantAttributes().ExistsByID(ctx, attributeID)
+		if err != nil {
+			return fmt.Errorf("failed to check variant attribute existence: %w", err)
+		}
+		if !attrExists {
+			return fmt.Errorf("variant attribute with ID %s not found", attributeID)
+		}
+
+		// Create VariantAttributeValue
+		varitantAttributeValue = attributeValue.ToModel()
+		varitantAttributeValue.VariantID = variantID
+		if err := uow.VariantAttributeValue().Add(ctx, varitantAttributeValue); err != nil {
+			zap.L().Error("failed to persist variant attribute value", zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return varitantAttributeValue, nil
+}
+
+func (p productService) CreateVariantAttribute(ctx context.Context, createdByID uuid.UUID, attribute requests.CreateVariantAttributeRequest, uow irepository.UnitOfWork) (*model.VariantAttribute, error) {
+	var variantAttribute *model.VariantAttribute
+
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Create variant attribute
+		variantAttribute = attribute.ToModel(createdByID)
+		if err := uow.VariantAttributes().Add(ctx, variantAttribute); err != nil {
+			zap.L().Error("failed to persist variant attribute", zap.Error(err))
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return variantAttribute, nil
+}
+
 func (p productService) CreateProductStory(ctx context.Context, variantID uuid.UUID, story requests.CreateProductStoryRequest, uow irepository.UnitOfWork) (*model.ProductStory, error) {
 	//TODO implement me
 	var productStory *model.ProductStory
@@ -34,7 +97,7 @@ func (p productService) CreateProductStory(ctx context.Context, variantID uuid.U
 		if variantID == uuid.Nil {
 			return errors.New("invalid variant id")
 		}
-		exists, err := p.variantRepo.ExistsByID(ctx, variantID)
+		exists, err := uow.ProductVariant().ExistsByID(ctx, variantID)
 		if err != nil {
 			return fmt.Errorf("failed to check product variant existence: %w", err)
 		}
@@ -42,11 +105,13 @@ func (p productService) CreateProductStory(ctx context.Context, variantID uuid.U
 			return fmt.Errorf("product variant with ID %s not found", variantID)
 		}
 
+		// Set the correct variant ID
+		story.VariantID = variantID
+
 		//Create product story
 		productStory = story.ToModel()
-		if err := uow.(irepository.UnitOfWork).ProductStory().Add(ctx, productStory); err != nil {
-			zap.L().Error("failed to persist product story", zap.Error(err))
-			_ = uow.Rollback()
+		if err := uow.ProductStory().Add(ctx, productStory); err != nil {
+			zap.L().Info("failed to persist product story", zap.Error(err))
 			return err
 		}
 		return nil
@@ -102,19 +167,17 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if productID == uuid.Nil {
 			return errors.New("invalid product id")
 		}
-		exists, err := p.repository.ExistsByID(ctx, productID)
+		exists, err := uow.Products().ExistsByID(ctx, productID)
 		if err != nil {
 			return fmt.Errorf("failed to check product existence: %w", err)
 		}
 		if !exists {
 			return fmt.Errorf("product with ID %s not found", productID)
 		}
-
 		//Create ProductVariant
-		productVariant := variant.ToModel(productID, userID)
-		if err := p.variantRepo.Add(ctx, productVariant); err != nil {
+		productVariant = variant.ToModel(productID, userID)
+		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
 			zap.L().Error("failed to persist product variant", zap.Error(err))
-			_ = uow.Rollback()
 			return err
 		}
 

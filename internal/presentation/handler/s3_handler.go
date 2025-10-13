@@ -3,6 +3,7 @@ package handler
 import (
 	"core-backend/internal/application/interfaces/iservice"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"net/http"
 	"os"
 )
@@ -16,34 +17,52 @@ func NewS3Handler(fileService iservice.FileService) *S3Handler {
 }
 
 // UploadFile godoc
-// @Summary Upload a file to S3
+// @Summary Upload files to S3
 // @Tags files
 // @Accept multipart/form-data
 // @Produce json
-// @Param file formData file true "File to upload"
+// @Param files formData file true "Files to upload"
 // @Param userId formData string true "User ID"
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string][]string
 // @Failure 400 {object} map[string]string
 // @Router /api/v1/files/upload [post]
 func (h *S3Handler) UploadFile(c *gin.Context) {
 	userID := c.PostForm("userId")
-	file, err := c.FormFile("file")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId is required"})
+		return
+	}
+
+	form, err := c.MultipartForm()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid form data"})
 		return
 	}
-	tempPath := "/tmp/" + file.Filename
-	if err = c.SaveUploadedFile(file, tempPath); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "files are required"})
 		return
 	}
-	defer func() { _ = os.Remove(tempPath) }()
-	url, err := h.fileService.UploadFile(userID, tempPath, file.Filename)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+
+	var urls []string
+	for _, fileHeader := range files {
+		tempPath := "/tmp/" + uuid.New().String() + "_" + fileHeader.Filename
+		if err = c.SaveUploadedFile(fileHeader, tempPath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file: " + fileHeader.Filename})
+			return
+		}
+		defer func(path string) { _ = os.Remove(path) }(tempPath)
+
+		url, err := h.fileService.UploadFile(userID, tempPath, fileHeader.Filename)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+			return
+		}
+		urls = append(urls, url)
 	}
-	c.JSON(http.StatusOK, gin.H{"url": url})
+
+	c.JSON(http.StatusOK, gin.H{"urls": urls})
 }
 
 // DeleteFile godoc

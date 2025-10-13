@@ -1886,9 +1886,9 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: File to upload
+      - description: Files to upload
         in: formData
-        name: file
+        name: files
         required: true
         type: file
       - description: User ID
@@ -1903,7 +1903,9 @@ paths:
           description: OK
           schema:
             additionalProperties:
-              type: string
+              items:
+                type: string
+              type: array
             type: object
         "400":
           description: Bad Request
@@ -1911,7 +1913,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Upload a file to S3
+      summary: Upload files to S3
       tags:
       - files
   /api/v1/milestones/{id}/state:

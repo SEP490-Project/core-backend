@@ -15,9 +15,12 @@ type ProductStory struct {
 	CreatedAt time.Time      `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+
+	// Relationships
+	Variant *ProductVariant `gorm:"foreignKey:VariantID"`
 }
 
-func (ProductStory) TableName() string { return "product_story" }
+func (ProductStory) TableName() string { return "product_stories" }
 
 func (ps *ProductStory) BeforeCreate(tx *gorm.DB) (err error) {
 	if ps.ID == uuid.Nil {
