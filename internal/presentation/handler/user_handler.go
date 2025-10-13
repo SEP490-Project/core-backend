@@ -256,7 +256,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, request.IsActive)
+	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, *request.IsActive)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -264,7 +264,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	message := "User activated successfully"
-	if !request.IsActive {
+	if !*request.IsActive {
 		message = "User deactivated successfully"
 	}
 
