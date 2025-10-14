@@ -1,7 +1,11 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,13 +17,21 @@ import (
 
 type ProductHandler struct {
 	productService iservice.ProductService
+	fileService    iservice.FileService
+	unitOfWork     irepository.UnitOfWork
 	validator      *validator.Validate
 }
 
-func NewProductHandler(productService iservice.ProductService) *ProductHandler {
+func NewProductHandler(
+	productService iservice.ProductService,
+	fileService iservice.FileService,
+	unitOfWork irepository.UnitOfWork,
+) *ProductHandler {
 	return &ProductHandler{
 		productService: productService,
-		validator:      nil,
+		fileService:    fileService,
+		unitOfWork:     unitOfWork,
+		validator:      validator.New(),
 	}
 }
 
@@ -133,4 +145,175 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 		"limit":  limit,
 		"offset": offset,
 	})
+}
+
+// CreateProduct godoc
+// @Summary      Create Product
+// @Description  Create a new product (initial state DRAFT)
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        body  body  requests.CreateProductRequest  true  "Product to create"
+// @Success      201  {object} responses.ProductResponse
+// @Failure      400  {object} object{error=string}
+// @Failure      401  {object} object{error=string}
+// @Failure      500  {object} object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/products [post]
+func (h *ProductHandler) CreateProduct(c *gin.Context) {
+	var req requests.CreateProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		return
+	}
+
+	uidVal, ok := c.Get("user_id")
+	if !ok || uidVal == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id in context"})
+		return
+	}
+	uidStr, _ := uidVal.(string)
+	creatorID, err := uuid.Parse(uidStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
+		return
+	}
+
+	product, err := h.productService.CreateProduct(&req, creatorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, product)
+}
+
+// CreateProductVariant godoc
+// @Summary      Create Product Variant
+// @Description  Create a new product variant with story and attributes
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        productId  path  string  true  "Product ID (UUID)"
+//
+//	@Param        body       body  requests.BulkVariantRequest  true  "Variant data to create" example({
+//	  "price": 29.99,
+//	  "current_stock": 100,
+//	  "capacity": 500,
+//	  "capacity_unit": "ML",
+//	  "container_type": "BOTTLE",
+//	  "dispenser_type": "SPRAY",
+//	  "uses": "For daily use",
+//	  "manufacturing_date": "2023-10-01T00:00:00Z",
+//	  "expiry_date": "2025-10-01T00:00:00Z",
+//	  "instructions": "Shake well before use",
+//	  "is_default": true,
+//	  "story": {
+//	    "content": {
+//	      "description": "This is a sample story",
+//	      "details": "More details here"
+//	    }
+//	  },
+//	  "attributes": [
+//	    {
+//	      "attribute_id": "66de757a-6f2b-420c-8aac-2937596e8706",
+//	      "value": 10.5,
+//	      "unit": "MG"
+//	    }
+//	  ]
+//	})
+//
+// @Success      201        {object} responses.ProductVariantResponse
+// @Failure      400        {object} object{error=string}
+// @Failure      401        {object} object{error=string}
+// @Failure      500        {object} object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/products/{productId}/variants [post]
+func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
+		return
+	}
+
+	productIDStr := c.Param("productId")
+	productID, err := uuid.Parse(productIDStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		return
+	}
+
+	var req requests.BulkVariantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		return
+	}
+	
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin()
+
+	//Create variant
+	createdVariants := req.CreateProductVariantRequest
+	variant, err := h.productService.CreateProductVariance(ctx, userID, productID, createdVariants, uow)
+	if err != nil {
+		err := uow.Rollback()
+		if err != nil {
+			zap.L().Info(err.Error())
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	//Create story for variant
+	productStory := req.Story
+	_, err = h.productService.CreateProductStory(ctx, variant.ID, productStory, uow)
+	if err != nil {
+		zap.L().Info("Error When Create Product Story: " + err.Error())
+		err := uow.Rollback()
+		if err != nil {
+			zap.L().Info(err.Error())
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	//Add Attribute Value for variant
+	for _, attrValue := range req.Attributes {
+		_, err = h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow)
+		if err != nil {
+			zap.L().Info("Error When Add Attribute Value: " + err.Error())
+			err := uow.Rollback()
+			if err != nil {
+				zap.L().Info(err.Error())
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	err = uow.Commit()
+	if err != nil {
+		zap.L().Info("Error When Commit Transaction: " + err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Variant created successfully", "variant_id": variant.ID})
 }

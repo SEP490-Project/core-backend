@@ -154,6 +154,8 @@ definitions:
     required:
     - state
     type: object
+  requests.BulkVariantRequest:
+    type: object
   requests.CapitalContribution:
     properties:
       company:
@@ -406,6 +408,57 @@ definitions:
         type: array
     required:
     - due_date
+    type: object
+  requests.CreateProductRequest:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      price:
+        example: 99.99
+        minimum: 0
+        type: number
+      task_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      type:
+        enum:
+        - STANDARD
+        - LIMITED
+        example: STANDARD
+        type: string
+    required:
+    - brand_id
+    - category_id
+    - name
+    - price
+    - task_id
+    - type
+    type: object
+  requests.CreateProductStoryRequest:
+    properties:
+      content:
+        example: '{"description":"This is a sample story","details":"More details
+          here"}'
+        maxLength: 5000
+        type: string
+      variant_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - content
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
@@ -1579,8 +1632,14 @@ definitions:
         items:
           type: string
         type: array
+      date_of_birth:
+        example: "1990-01-01"
+        type: string
       email:
         example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -1594,6 +1653,9 @@ definitions:
       number_of_sessions:
         example: 3
         type: integer
+      phone:
+        example: "+1234567890"
+        type: string
       role:
         allOf:
         - $ref: '#/definitions/enum.UserRole'
@@ -2987,9 +3049,9 @@ paths:
       consumes:
       - multipart/form-data
       parameters:
-      - description: File to upload
+      - description: Files to upload
         in: formData
-        name: file
+        name: files
         required: true
         type: file
       - description: User ID
@@ -3004,7 +3066,9 @@ paths:
           description: OK
           schema:
             additionalProperties:
-              type: string
+              items:
+                type: string
+              type: array
             type: object
         "400":
           description: Bad Request
@@ -3012,7 +3076,7 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Upload a file to S3
+      summary: Upload files to S3
       tags:
       - files
   /api/v1/milestones/{id}/state:
@@ -3167,6 +3231,50 @@ paths:
       summary: Get All Products
       tags:
       - Products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product (initial state DRAFT)
+      parameters:
+      - description: Product to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product
+      tags:
+      - Products
   /api/v1/products/{id}/state:
     patch:
       consumes:
@@ -3213,6 +3321,56 @@ paths:
       summary: Update Product State
       tags:
       - State Transfer
+  /api/v1/products/{productId}/variants:
+    post:
+      consumes:
+      - application/json
+      description: Create a new product variant with story and attributes
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: productId
+        required: true
+        type: string
+      - description: Variant data to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BulkVariantRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductVariantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product Variant
+      tags:
+      - Products
   /api/v1/tasks/{id}/state:
     patch:
       consumes:
