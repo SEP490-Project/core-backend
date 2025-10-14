@@ -11,7 +11,9 @@ import (
 	"core-backend/internal/domain/state/milestonesm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"errors"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm" // added for UpdateByCondition filter closure
@@ -364,18 +366,15 @@ func (t stateTransferService) MoveContractToState(contractID uuid.UUID, targetSt
 }
 
 func NewStateTransferService(
-	contractRepo irepository.GenericRepository[model.Contract],
-	campaignRepo irepository.GenericRepository[model.Campaign],
-	mileStoneRepo irepository.GenericRepository[model.Milestone],
-	taskRepo irepository.GenericRepository[model.Task],
-	productRepo irepository.GenericRepository[model.Product],
-	uow irepository.UnitOfWork) iservice.StateTransferService {
+	dbReg *gormrepository.DatabaseRegistry,
+	uow irepository.UnitOfWork,
+) iservice.StateTransferService {
 	return &stateTransferService{
-		contractRepository:  contractRepo,
-		campaignRepository:  campaignRepo,
-		milestoneRepository: mileStoneRepo,
-		taskRepository:      taskRepo,
-		productRepository:   productRepo,
+		contractRepository:  dbReg.ContractRepository,
+		campaignRepository:  dbReg.CampaignRepository,
+		milestoneRepository: dbReg.MilestoneRepository,
+		taskRepository:      dbReg.TaskRepository,
+		productRepository:   dbReg.ProductRepository,
 		uow:                 uow,
 	}
 }

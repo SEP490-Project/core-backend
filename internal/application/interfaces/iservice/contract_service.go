@@ -12,6 +12,7 @@ import (
 type ContractService interface {
 	// CreateContract creates a new contract and optionally updates brand information
 	CreateContract(ctx context.Context,
+		userID uuid.UUID,
 		createRequest *requests.CreateContractRequest,
 		unitOfWork irepository.UnitOfWork,
 	) (*responses.ContractResponse, error)
@@ -33,6 +34,9 @@ type ContractService interface {
 
 	// GetContractsByBrandID retrieves all contracts for a specific brand
 	GetContractsByBrandID(ctx context.Context, brandID uuid.UUID, page, limit int) ([]*responses.ContractListResponse, int64, error)
+
+	// GetContractsByUserID retrieves all contracts associated with a specific user
+	GetContractsByUserID(ctx context.Context, userID uuid.UUID, filterRequest *requests.ContractFilterRequest) ([]*responses.ContractListResponse, int64, error)
 
 	// GetByFilter retrieves contracts based on filter criteria
 	GetByFilter(ctx context.Context, filter *requests.ContractFilterRequest) ([]*responses.ContractListResponse, int64, error)

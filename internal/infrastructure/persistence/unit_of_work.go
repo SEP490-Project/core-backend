@@ -13,10 +13,16 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
+	userRepo                  irepository.GenericRepository[model.User]
+	shippingAddressRepo       irepository.GenericRepository[model.ShippingAddress]
+	brandRepo                 irepository.GenericRepository[model.Brand]
+	loggedSessionRepo         irepository.GenericRepository[model.LoggedSession]
+	ContractRepository        irepository.GenericRepository[model.Contract]
+	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
+	CampaignRepository        irepository.GenericRepository[model.Campaign]
+	MilestoneRepository       irepository.GenericRepository[model.Milestone]
+	TaskRepository            irepository.GenericRepository[model.Task]
 	productRepo                     irepository.GenericRepository[model.Product]
-	userRepo                        irepository.GenericRepository[model.User]
-	brandRepo                       irepository.GenericRepository[model.Brand]
-	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
 	contractRepository              irepository.GenericRepository[model.Contract]
 	contractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
 	campaignRepository              irepository.GenericRepository[model.Campaign]
@@ -72,6 +78,7 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 
 	u.productRepo = gormrepository.NewGenericRepository[model.Product](u.tx)
 	u.userRepo = gormrepository.NewGenericRepository[model.User](u.tx)
+	u.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](u.tx)
 	u.brandRepo = gormrepository.NewGenericRepository[model.Brand](u.tx)
 	u.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](u.tx)
 	u.contractRepository = gormrepository.NewGenericRepository[model.Contract](u.tx)
@@ -132,6 +139,10 @@ func (u *unitOfWork) Products() irepository.GenericRepository[model.Product] {
 
 func (u *unitOfWork) Users() irepository.GenericRepository[model.User] {
 	return u.userRepo
+}
+
+func (u *unitOfWork) ShippingAddresses() irepository.GenericRepository[model.ShippingAddress] {
+	return u.shippingAddressRepo
 }
 
 func (u *unitOfWork) Brands() irepository.GenericRepository[model.Brand] {

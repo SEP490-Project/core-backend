@@ -18,15 +18,16 @@ func NewPayOsHandler(payOsService iservice_third_party.PayOSService) *PayOsHandl
 }
 
 // GeneratePaymentLink godoc
-// @Summary Create a PayOS payment
-// @Description Initiate a payment with PayOS
-// @Tags payos
-// @Accept json
-// @Produce json
-// @Param request body map[string]interface{} true "Payment Request"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/payos/payment [post]
+//
+//	@Summary		Create a PayOS payment
+//	@Description	Initiate a payment with PayOS
+//	@Tags			payos
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		map[string]interface{}	true	"Payment Request"
+//	@Success		200		{object}	map[string]interface{}
+//	@Failure		400		{object}	map[string]string
+//	@Router			/api/v1/payos/payment [post]
 func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 	var req requests.PaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -42,14 +43,15 @@ func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 }
 
 // InspectPayOSOrder godoc
-// @Summary Get PayOS order info
-// @Description Inspect payment detail
-// @Tags payos
-// @Produce json
-// @Param orderCode path string true "Order Code"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/payos/payment/{orderCode} [get]
+//
+//	@Summary		Get PayOS order info
+//	@Description	Inspect payment detail
+//	@Tags			payos
+//	@Produce		json
+//	@Param			orderCode	path		string	true	"Order Code"
+//	@Success		200			{object}	map[string]interface{}
+//	@Failure		400			{object}	map[string]string
+//	@Router			/api/v1/payos/payment/{orderCode} [get]
 func (h *PayOsHandler) InspectPayOSOrder(c *gin.Context) {
 	orderCode := c.Param("orderCode")
 	result, err := h.payOsService.GetPayOSOrderInfo(orderCode)

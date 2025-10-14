@@ -13,17 +13,18 @@ import (
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/service"
 	"core-backend/internal/infrastructure/third_party_repository"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type InfrastructureRegistry struct {
-	DB          *gorm.DB
-	UnitOfWork  irepository.UnitOfWork
-	ValkeyCache *persistence.ValkeyCache
-	RabbitMQ    *rabbitmq.RabbitMQ
-	AsynqClient *queue.AsynqClient
-	AsynqServer *queue.AsynqServer
+	DB           *gorm.DB
+	UnitOfWork   irepository.UnitOfWork
+	ValkeyCache  *persistence.ValkeyCache
+	RabbitMQ     *rabbitmq.RabbitMQ
+	AsynqClient  *queue.AsynqClient
+	AsynqServer  *queue.AsynqServer
 	S3Repository irepository_third_party.S3Repository
 	PayOsService iservice_third_party.PayOSService
 }

@@ -27,16 +27,17 @@ func NewAuthHandler(authService iservice.AuthService) *AuthHandler {
 }
 
 // Login godoc
-// @Summary      User Login
-// @Description  Authenticate user with credentials
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.LoginRequest true "Login credentials"
-// @Success      200 {object} responses.APIResponse{data=responses.LoginResponse} "Login successful"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      401 {object} responses.APIResponse "Invalid credentials"
-// @Router       /api/v1/auth/login [post]
+//
+//	@Summary		User Login
+//	@Description	Authenticate user with credentials
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.LoginRequest								true	"Login credentials"
+//	@Success		200		{object}	responses.APIResponse{data=responses.LoginResponse}	"Login successful"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse								"Invalid credentials"
+//	@Router			/api/v1/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var loginRequest requests.LoginRequest
 	if err := c.ShouldBindJSON(&loginRequest); err != nil {
@@ -74,16 +75,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 // SignUp godoc
-// @Summary      User Registration
-// @Description  Register a new user account
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.SignUpRequest true "User registration data"
-// @Success      201 {object} responses.APIResponse{data=responses.SignUpResponse} "User created successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      409 {object} responses.APIResponse "User already exists"
-// @Router       /api/v1/auth/signup [post]
+//
+//	@Summary		User Registration
+//	@Description	Register a new user account
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.SignUpRequest									true	"User registration data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.SignUpResponse}	"User created successfully"
+//	@Failure		400		{object}	responses.APIResponse									"Invalid request"
+//	@Failure		409		{object}	responses.APIResponse									"User already exists"
+//	@Router			/api/v1/auth/signup [post]
 func (h *AuthHandler) SignUp(c *gin.Context) {
 	var signUpRequest requests.SignUpRequest
 	if err := c.ShouldBindJSON(&signUpRequest); err != nil {
@@ -121,16 +123,17 @@ func (h *AuthHandler) SignUp(c *gin.Context) {
 }
 
 // RefreshToken godoc
-// @Summary      Refresh Access Token
-// @Description  Generate new access token using refresh token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.RefreshTokenRequest true "Refresh token"
-// @Success      200 {object} responses.APIResponse{data=responses.LoginResponse} "Token refreshed successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid requests"
-// @Failure      401 {object} responses.APIResponse "Invalid or expired refresh token"
-// @Router       /api/v1/auth/refresh [post]
+//
+//	@Summary		Refresh Access Token
+//	@Description	Generate new access token using refresh token
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.RefreshTokenRequest						true	"Refresh token"
+//	@Success		200		{object}	responses.APIResponse{data=responses.LoginResponse}	"Token refreshed successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid requests"
+//	@Failure		401		{object}	responses.APIResponse								"Invalid or expired refresh token"
+//	@Router			/api/v1/auth/refresh [post]
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var refreshRequest requests.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&refreshRequest); err != nil {
@@ -173,16 +176,17 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 }
 
 // Logout godoc
-// @Summary      User Logout
-// @Description  Logout user and invalidate refresh token
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        requests body requests.LogoutRequest true "Logout requests"
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "Logout successful"
-// @Failure      400 {object} responses.APIResponse "Invalid requests"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/logout [post]
+//
+//	@Summary		User Logout
+//	@Description	Logout user and invalidate refresh token
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			requests	body		requests.LogoutRequest									true	"Logout requests"
+//	@Success		200			{object}	responses.APIResponse{data=responses.LogoutResponse}	"Logout successful"
+//	@Failure		400			{object}	responses.APIResponse									"Invalid requests"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var requests requests.LogoutRequest
 	if err := c.ShouldBindJSON(&requests); err != nil {
@@ -204,16 +208,17 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // LogoutAll godoc
-// @Summary      Logout All Sessions
-// @Description  Logout user from all active sessions
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "All sessions logged out successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/logout-all [post]
+//
+//	@Summary		Logout All Sessions
+//	@Description	Logout user from all active sessions
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=responses.LogoutResponse}	"All sessions logged out successfully"
+//	@Failure		401	{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/logout-all [post]
 func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -242,16 +247,17 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 }
 
 // GetActiveSessions godoc
-// @Summary      Get Active Sessions
-// @Description  Retrieve user's active sessions
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=[]responses.SessionInfo} "Active sessions retrieved successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/sessions [get]
+//
+//	@Summary		Get Active Sessions
+//	@Description	Retrieve user's active sessions
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=[]responses.SessionInfo}	"Active sessions retrieved successfully"
+//	@Failure		401	{object}	responses.APIResponse								"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/sessions [get]
 func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -280,17 +286,18 @@ func (h *AuthHandler) GetActiveSessions(c *gin.Context) {
 }
 
 // RevokeSession godoc
-// @Summary      Revoke Session
-// @Description  Revoke a specific user session
-// @Tags         Authentication
-// @Accept       json
-// @Produce      json
-// @Param        sessionId path string true "Session ID"
-// @Success      200 {object} responses.APIResponse{data=responses.LogoutResponse} "Session revoked successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid session ID"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/auth/sessions/{sessionId} [delete]
+//
+//	@Summary		Revoke Session
+//	@Description	Revoke a specific user session
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			sessionId	path		string													true	"Session ID"
+//	@Success		200			{object}	responses.APIResponse{data=responses.LogoutResponse}	"Session revoked successfully"
+//	@Failure		400			{object}	responses.APIResponse									"Invalid session ID"
+//	@Failure		500			{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/sessions/{sessionId} [delete]
 func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	sessionIDParam := c.Param("sessionId")
 	sessionID, err := uuid.Parse(sessionIDParam)

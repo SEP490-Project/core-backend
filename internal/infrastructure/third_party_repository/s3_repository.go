@@ -5,10 +5,11 @@ import (
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
 	"fmt"
+	"io"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"io"
 )
 
 type s3Repository struct {

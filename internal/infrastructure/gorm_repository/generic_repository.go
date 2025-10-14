@@ -93,6 +93,25 @@ func (r *genericRepository[T]) Add(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Create(entity).Error
 }
 
+// BulkAdd adds multiple entities to the database in a single operation.
+// If batchSize is less than or equal to 100, the operations will be performed using the default batch size defined in config.
+func (r *genericRepository[T]) BulkAdd(ctx context.Context, entities []*T, batchSize int) (rowsAffected int64, err error) {
+	if len(entities) == 0 {
+		return 0, nil // no-op for empty slice
+	}
+
+	var result *gorm.DB
+	db := r.db.WithContext(ctx)
+
+	if batchSize <= 100 {
+		result = db.Create(entities)
+	} else {
+		result = db.CreateInBatches(entities, batchSize)
+	}
+
+	return result.RowsAffected, result.Error
+}
+
 // Update updates an existing entity in the database.
 func (r *genericRepository[T]) Update(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Updates(entity).Error
@@ -152,4 +171,4 @@ func (r *genericRepository[T]) Count(ctx context.Context, filter func(*gorm.DB) 
 	return count, nil
 }
 
-// func (r *genericRepository[T]) Count *gorm.DB {
+func (r *genericRepository[T]) DB() *gorm.DB { return r.db }

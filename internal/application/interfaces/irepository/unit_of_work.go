@@ -2,6 +2,7 @@ package irepository
 
 import (
 	"core-backend/internal/domain/model"
+
 	"gorm.io/gorm"
 )
 
@@ -14,6 +15,7 @@ type UnitOfWork interface {
 	// Expose repos trong transaction
 	Products() GenericRepository[model.Product]
 	Users() GenericRepository[model.User]
+	ShippingAddresses() GenericRepository[model.ShippingAddress]
 	Brands() GenericRepository[model.Brand]
 	LoggedSessions() GenericRepository[model.LoggedSession]
 	Contracts() GenericRepository[model.Contract]

@@ -38,29 +38,30 @@ func NewContractHandler(
 }
 
 // CreateContract godoc
-// @Summary      Create new contract
-// @Description  Create a new contract and optionally update brand information
-// @Tags         Contracts
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param 		 data formData string true "Contract creation data in JSON format of struct type requests.CreateContractRequest"
-// @Param 		 file formData file true "Contract file"
-// @Success      201 {object} responses.APIResponse{data=responses.ContractResponse} "Contract created successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request or validation error"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "Brand not found"
-// @Failure      409 {object} responses.APIResponse "Contract number already exists"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts [post]
+//
+//	@Summary		Create new contract
+//	@Description	Create a new contract and optionally update brand information
+//	@Tags			Contracts
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			data	body		requests.CreateContractRequest							false	"Contract creation data (to be JSON-stringified and placed in 'data' form field)"
+//	@Param			data	formData	string													true	"Contract creation data in JSON format of struct type requests.CreateContractRequest"
+//	@Param			file	formData	file													true	"Contract file"
+//	@Success		201		{object}	responses.APIResponse{data=responses.ContractResponse}	"Contract created successfully"
+//	@Failure		400		{object}	responses.APIResponse									"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		404		{object}	responses.APIResponse									"Brand not found"
+//	@Failure		409		{object}	responses.APIResponse									"Contract number already exists"
+//	@Failure		500		{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts [post]
 func (h *ContractHandler) CreateContract(c *gin.Context) {
-	userIDData, exists := c.Get("user_id")
-	if !exists || userIDData == "" {
-		responses := responses.ErrorResponse("Unauthorized: user_id not found in context", http.StatusUnauthorized)
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
-	userIDStr := userIDData.(string)
 
 	dataForm := c.PostForm("data")
 	fileForm, err := c.FormFile("file")
@@ -90,7 +91,7 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 	uow := h.unitOfWork.Begin()
 
 	var contractResponse *responses.ContractResponse
-	if contractResponse, err = h.contractService.CreateContract(c.Request.Context(), &req, uow); err != nil {
+	if contractResponse, err = h.contractService.CreateContract(c.Request.Context(), userID, &req, uow); err != nil {
 		uow.Rollback()
 
 		statusCode := http.StatusInternalServerError
@@ -116,7 +117,7 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 		return
 	}
 	defer func() { _ = os.Remove(tempFilePath) }()
-	if fileURL, err = h.fileService.UploadFile(userIDStr, tempFilePath, fileForm.Filename); err != nil {
+	if fileURL, err = h.fileService.UploadFile(userID.String(), tempFilePath, fileForm.Filename); err != nil {
 		uow.Rollback()
 		responses := responses.ErrorResponse("Failed to upload file: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, responses)
@@ -139,21 +140,22 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 }
 
 // UpdateContract godoc
-// @Summary      Update contract
-// @Description  Update an existing contract and optionally update brand information
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Contract ID" format(uuid)
-// @Param        request body requests.UpdateContractRequest true "Contract update data"
-// @Success      200 {object} responses.APIResponse{data=responses.ContractResponse} "Contract updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request or validation error"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "Contract not found"
-// @Failure      409 {object} responses.APIResponse "Contract number already exists"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts/{id} [put]
+//
+//	@Summary		Update contract
+//	@Description	Update an existing contract and optionally update brand information
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string													true	"Contract ID"	format(uuid)
+//	@Param			request	body		requests.UpdateContractRequest							true	"Contract update data"
+//	@Success		200		{object}	responses.APIResponse{data=responses.ContractResponse}	"Contract updated successfully"
+//	@Failure		400		{object}	responses.APIResponse									"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		404		{object}	responses.APIResponse									"Contract not found"
+//	@Failure		409		{object}	responses.APIResponse									"Contract number already exists"
+//	@Failure		500		{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id} [put]
 func (h *ContractHandler) UpdateContract(c *gin.Context) {
 	contractIDStr := c.Param("id")
 	contractID, err := uuid.Parse(contractIDStr)
@@ -201,19 +203,20 @@ func (h *ContractHandler) UpdateContract(c *gin.Context) {
 }
 
 // GetContractByID godoc
-// @Summary      Get contract by ID
-// @Description  Retrieve detailed information about a specific contract
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Contract ID" format(uuid)
-// @Success      200 {object} responses.APIResponse{data=responses.ContractResponse} "Contract retrieved successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid contract ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "Contract not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts/{id} [get]
+//
+//	@Summary		Get contract by ID
+//	@Description	Retrieve detailed information about a specific contract
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string													true	"Contract ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse{data=responses.ContractResponse}	"Contract retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse									"Invalid contract ID"
+//	@Failure		401	{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		404	{object}	responses.APIResponse									"Contract not found"
+//	@Failure		500	{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id} [get]
 func (h *ContractHandler) GetContractByID(c *gin.Context) {
 	contractIDStr := c.Param("id")
 	contractID, err := uuid.Parse(contractIDStr)
@@ -241,27 +244,28 @@ func (h *ContractHandler) GetContractByID(c *gin.Context) {
 }
 
 // GetContracts godoc
-// @Summary      Get contracts with filters
-// @Description  Retrieve a paginated list of contracts with optional filters
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        brand_id query string false "Brand ID" format(uuid)
-// @Param        type query string false "Contract type" Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
-// @Param        status query string false "Contract status" Enums(DRAFT, ACTIVE, COMPLETED, TERMINATED)
-// @Param        keyword query string false "Search keyword (title or contract number)"
-// @Param        start_date query string false "Start date filter" format(date-time)
-// @Param        end_date query string false "End date filter" format(date-time)
-// @Param        page query int false "Page number" default(1)
-// @Param        limit query int false "Items per page" default(10)
-// @Param        sort_by query string false "Sort by field" default(created_at)
-// @Param        sort_order query string false "Sort order" Enums(asc, desc) default(desc)
-// @Success      200 {object} responses.ContractPaginationResponse "Contracts retrieved successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid query parameters"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts [get]
+//
+//	@Summary		Get contracts with filters
+//	@Description	Retrieve a paginated list of contracts with optional filters
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			brand_id	query		string									false	"Brand ID"			format(uuid)
+//	@Param			type		query		string									false	"Contract type"		Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
+//	@Param			status		query		string									false	"Contract status"	Enums(DRAFT, ACTIVE, COMPLETED, TERMINATED)
+//	@Param			keyword		query		string									false	"Search keyword (title or contract number)"
+//	@Param			start_date	query		string									false	"Start date filter"	format(date-time)
+//	@Param			end_date	query		string									false	"End date filter"	format(date-time)
+//	@Param			page		query		int										false	"Page number"		default(1)
+//	@Param			limit		query		int										false	"Items per page"	default(10)
+//	@Param			sort_by		query		string									false	"Sort by field"		default(created_at)
+//	@Param			sort_order	query		string									false	"Sort order"		Enums(asc, desc)	default(desc)
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse					"Invalid query parameters"
+//	@Failure		401			{object}	responses.APIResponse					"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse					"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts [get]
 func (h *ContractHandler) GetContracts(c *gin.Context) {
 	var filterReq requests.ContractFilterRequest
 
@@ -310,7 +314,7 @@ func (h *ContractHandler) GetContracts(c *gin.Context) {
 		HasPrev:    page > 1,
 	}
 
-	response := responses.PaginatedResponse(
+	response := responses.NewPaginationResponse(
 		"Contracts retrieved successfully",
 		http.StatusOK,
 		contracts,
@@ -320,20 +324,21 @@ func (h *ContractHandler) GetContracts(c *gin.Context) {
 }
 
 // GetContractsByBrandID godoc
-// @Summary      Get contracts by brand ID
-// @Description  Retrieve all contracts for a specific brand
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        brand_id path string true "Brand ID" format(uuid)
-// @Param        page query int false "Page number" default(1)
-// @Param        limit query int false "Items per page" default(10)
-// @Success      200 {object} responses.ContractPaginationResponse "Contracts retrieved successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid brand ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts/brands/{brand_id} [get]
+//
+//	@Summary		Get contracts by brand ID
+//	@Description	Retrieve all contracts for a specific brand
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			brand_id	path		string									true	"Brand ID"			format(uuid)
+//	@Param			page		query		int										false	"Page number"		default(1)
+//	@Param			limit		query		int										false	"Items per page"	default(10)
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse					"Invalid brand ID"
+//	@Failure		401			{object}	responses.APIResponse					"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse					"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/brands/{brand_id} [get]
 func (h *ContractHandler) GetContractsByBrandID(c *gin.Context) {
 	brandIDStr := c.Param("brand_id")
 	brandID, err := uuid.Parse(brandIDStr)
@@ -379,7 +384,7 @@ func (h *ContractHandler) GetContractsByBrandID(c *gin.Context) {
 		HasPrev:    page > 1,
 	}
 
-	response := responses.PaginatedResponse(
+	response := responses.NewPaginationResponse(
 		"Contracts retrieved successfully",
 		http.StatusOK,
 		contracts,
@@ -388,20 +393,85 @@ func (h *ContractHandler) GetContractsByBrandID(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetContractsByBrandProfile godoc
+//
+//	@Summary		Get contracts for brand profile
+//	@Description	Retrieve all contracts associated with the authenticated brand profile
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int										false	"Page number"		default(1)
+//	@Param			limit		query		int										false	"Items per page"	default(10)
+//	@Param			sort_by		query		string									false	"Sort by field"		default(created_at)
+//	@Param			sort_order	query		string									false	"Sort order"		Enums(asc, desc)	default(desc)
+//	@Param			type		query		string									false	"Contract type"		Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
+//	@Param			status		query		string									false	"Contract status"	Enums(DRAFT, ACTIVE, COMPLETED, TERMINATED)
+//	@Param			keyword		query		string									false	"Search keyword (title or contract number)"
+//	@Param			start_date	query		string									false	"Start date filter"	format(date-time)
+//	@Param			end_date	query		string									false	"End date filter"	format(date-time)
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Success		200			{object}	responses.ContractPaginationResponse	"Contracts retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse					"Invalid query parameters"
+//	@Failure		401			{object}	responses.APIResponse					"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse					"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/brands/profile [get]
+func (h *ContractHandler) GetContractsByBrandProfile(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+
+	var filterRequest *requests.ContractFilterRequest
+	if err = c.ShouldBindQuery(&filterRequest); err != nil {
+		responses := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	if err = h.validator.Struct(filterRequest); err != nil {
+		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	contracts, total, err := h.contractService.GetContractsByUserID(c.Request.Context(), userID, filterRequest)
+	if err != nil {
+		zap.L().Error("Failed to get contracts by brand ID", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get contracts: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Contracts retrieved successfully",
+		http.StatusOK,
+		contracts,
+		responses.Pagination{
+			Page:  filterRequest.Page,
+			Limit: filterRequest.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+}
+
 // DeleteContract godoc
-// @Summary      Delete contract
-// @Description  Soft delete a contract by ID
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Contract ID" format(uuid)
-// @Success      200 {object} responses.APIResponse "Contract deleted successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid contract ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "Contract not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts/{id} [delete]
+//
+//	@Summary		Delete contract
+//	@Description	Soft delete a contract by ID
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"Contract ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse	"Contract deleted successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid contract ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		404	{object}	responses.APIResponse	"Contract not found"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id} [delete]
 func (h *ContractHandler) DeleteContract(c *gin.Context) {
 	contractIDStr := c.Param("id")
 	contractID, err := uuid.Parse(contractIDStr)
@@ -429,19 +499,20 @@ func (h *ContractHandler) DeleteContract(c *gin.Context) {
 }
 
 // ApproveContract godoc
-// @Summary      Approve contract
-// @Description  Approve a contract by ID
-// @Tags         Contracts
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Contract ID" format(uuid)
-// @Success      200 {object} responses.APIResponse "Contract approved successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid contract ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "Contract not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contracts/{id}/approve [patch]
+//
+//	@Summary		Approve contract
+//	@Description	Approve a contract by ID
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"Contract ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse	"Contract approved successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid contract ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		404	{object}	responses.APIResponse	"Contract not found"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id}/approve [patch]
 func (h *ContractHandler) ApproveContract(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)

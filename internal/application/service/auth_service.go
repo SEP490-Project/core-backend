@@ -279,12 +279,6 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 		zap.String("email", request.Email),
 		zap.String("full_name", request.FullName))
 
-	// Validate input
-	if request.Username == "" || request.Email == "" || request.Password == "" {
-		zap.L().Debug("Signup validation failed: missing required fields")
-		return nil, errors.New("username, email, and password are required")
-	}
-
 	// Check if username exists
 	query := func(db *gorm.DB) *gorm.DB {
 		return db.Where("username = ?", request.Username)
@@ -455,9 +449,9 @@ func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) (
 		sessionInfos[i] = &responses.SessionInfo{
 			ID:                session.ID,
 			DeviceFingerprint: session.DeviceFingerprint,
-			CreatedAt:         utils.FormatLocalTime(*session.CreatedAt, ""),
-			LastUsedAt:        utils.FormatLocalTime(*session.LastUsedAt, ""),
-			ExpiryAt:          utils.FormatLocalTime(*session.ExpiryAt, ""),
+			CreatedAt:         utils.FormatLocalTime(session.CreatedAt, ""),
+			LastUsedAt:        utils.FormatLocalTime(session.LastUsedAt, ""),
+			ExpiryAt:          utils.FormatLocalTime(session.ExpiryAt, ""),
 			IsRevoked:         session.IsRevoked,
 		}
 	}

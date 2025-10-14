@@ -2,10 +2,11 @@ package handler
 
 import (
 	"core-backend/internal/application/interfaces/iservice"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type S3Handler struct {
@@ -66,13 +67,14 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 }
 
 // DeleteFile godoc
-// @Summary Delete a file from S3
-// @Tags files
-// @Param userId query string true "User ID"
-// @Param filename path string true "File name"
-// @Success 200 {object} map[string]string
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/files/{filename} [delete]
+//
+//	@Summary	Delete a file from S3
+//	@Tags		files
+//	@Param		userId		query		string	true	"User ID"
+//	@Param		filename	path		string	true	"File name"
+//	@Success	200			{object}	map[string]string
+//	@Failure	400			{object}	map[string]string
+//	@Router		/api/v1/files/{filename} [delete]
 func (h *S3Handler) DeleteFile(c *gin.Context) {
 	userID := c.Query("userId")
 	filename := c.Param("filename")

@@ -3,11 +3,11 @@ package logging
 
 import (
 	"context"
+	"core-backend/config"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"core-backend/config"
 	"time"
 
 	"go.opentelemetry.io/contrib/bridges/otelzap"

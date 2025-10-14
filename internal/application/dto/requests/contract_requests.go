@@ -13,7 +13,7 @@ import (
 // CreateContractRequest represents the payload for creating a new contract.
 type CreateContractRequest struct {
 	// Parent contract (for amendments or related contracts)
-	ParentContractID *string `json:"parent_contract_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ParentContractID *string `json:"parent_contract_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 
 	// Contract basic information
 	Title          string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
@@ -44,20 +44,126 @@ type CreateContractRequest struct {
 	// Contract dates
 	SignedDate     time.Time `json:"signed_date" validate:"required" example:"2023-10-01T12:00:00Z"`
 	SignedLocation *string   `json:"signed_location" validate:"omitempty,max=255" example:"Springfield"`
-	StartDate      time.Time `json:"start_date" validate:"required,gtefield=SignedDate" example:"2023-10-01T00:00:00Z"`
+	StartDate      time.Time `json:"start_date" validate:"required,gtefield=SignedDate" example:"2023-10-02T00:00:00Z"`
 	EndDate        time.Time `json:"end_date" validate:"required,gtefield=StartDate" example:"2023-12-31T23:59:59Z"`
 
 	// Financial
 	Currency *string `json:"currency" validate:"omitempty,len=3" example:"VND"`
 
 	// Complex JSONB fields
-	FinancialTerms any `json:"financial_terms" validate:"required"`
-	ScopeOfWork    any `json:"scope_of_work" validate:"required"`
-	LegalTerms     any `json:"legal_terms" validate:"required"`
+	FinancialTerms FinancialTerms `json:"financial_terms" validate:"required"`
+	ScopeOfWork    ScopeOfWork    `json:"scope_of_work" validate:"required"`
+	LegalTerms     LegalTerms     `json:"legal_terms" validate:"required"`
 
 	// File URLs
 	ContractFileURL *string `json:"contract_file_url" validate:"omitempty,url" example:"https://example.com/contracts/contract.pdf"`
 	ProposalFileURL *string `json:"proposal_file_url" validate:"omitempty,url" example:"https://example.com/proposals/proposal.pdf"`
+}
+
+// ============================================================================
+// Nested Structures for JSONB fields, this is used to constraints and validate
+// the JSONB structures in the request payload
+// ============================================================================
+
+// FinancialTerms combines financial details from different contract types
+// To see the individual structures for each contract type, refers to the structs in the responses package
+// [responses.AdvertisingFinancialTerms] for ADVERTISEMENT and BRAND_AMBASSADOR type
+// [responses.AffiliateFinancialTerms] for AFFILIATE type
+// [responses.CoProducingFinancialTerms] for CO_PRODUCING type
+type FinancialTerms struct {
+	Model                   string              `json:"model,omitempty" example:"FIXED"`
+	PaymentMethod           string              `json:"payment_method,omitempty" example:"BANK_TRANSFER"`
+	TotalCost               int                 `json:"total_cost,omitempty" example:"10000000"`
+	CostBreakdown           map[string]int      `json:"cost_breakdown,omitempty"`
+	Schedule                []Schedule          `json:"schedule,omitempty"`
+	BasePerClick            int                 `json:"base_per_click,omitempty" example:"1000"`
+	Levels                  []Level             `json:"levels,omitempty"`
+	PaymentCycle            enum.PaymentCycle   `json:"payment_cycle,omitempty" example:"MONTHLY"`
+	PaymentDate             string              `json:"payment_date,omitempty" example:"2023-11-05"`
+	TaxWithholding          TaxWithholding      `json:"tax_withholding"`
+	CapitalContribution     CapitalContribution `json:"capital_contribution"`
+	CompanyPercent          int                 `json:"profit_split_company_percent,omitempty" example:"60"`
+	KolPercent              int                 `json:"profit_split_kol_percent,omitempty" example:"40"`
+	ProfitDistributionCycle enum.PaymentCycle   `json:"profit_distribution_cycle,omitempty" example:"QUARTERLY"`
+	ProfitDistributionDate  string              `json:"profit_distribution_date,omitempty" example:"2023-12-31"`
+}
+
+type Schedule struct {
+	Milestone string `json:"milestone,omitempty" example:"Initial payment"`
+	Percent   int    `json:"percent,omitempty" example:"30"`
+	Amount    int    `json:"amount,omitempty" example:"3000000"`
+	DueDate   string `json:"due_date,omitempty" example:"2023-10-15"`
+}
+
+type AffiliateFinancialTerms struct {
+	Model          string            `json:"model,omitempty" example:"COMMISSION"`
+	BasePerClick   int               `json:"base_per_click,omitempty" example:"1000"`
+	Levels         []Level           `json:"levels,omitempty"`
+	PaymentCycle   enum.PaymentCycle `json:"payment_cycle,omitempty" example:"MONTHLY"`
+	PaymentDate    string            `json:"payment_date,omitempty" example:"2023-11-05"`
+	TaxWithholding TaxWithholding    `json:"tax_withholding"`
+}
+
+type Level struct {
+	Level      int     `json:"level,omitempty" example:"1"`
+	MinClicks  int     `json:"min_clicks,omitempty" example:"1000"`
+	Multiplier float64 `json:"multiplier,omitempty" example:"1.5"`
+}
+
+type TaxWithholding struct {
+	Threshold   int `json:"threshold,omitempty" example:"10000000"`
+	RatePercent int `json:"rate_percent,omitempty" example:"10"`
+}
+
+type CapitalContribution struct {
+	Company ContributionDescription `json:"company"`
+	Kol     ContributionDescription `json:"kol"`
+}
+
+type ContributionDescription struct {
+	Description string `json:"description,omitempty" example:"Equipment and studio"`
+	Value       int    `json:"value,omitempty" example:"50000000"`
+}
+
+// ScopeOfWork Structures
+type ScopeOfWork struct {
+	Description           string            `json:"description,omitempty" example:"Create and publish social media content"`
+	Products              []string          `json:"products,omitempty" example:"Product A,Product B"`
+	TechnicalRequirements string            `json:"technical_requirements,omitempty" example:"4K video, professional lighting"`
+	Deliverables          []Deliverable     `json:"deliverables,omitempty"`
+	BrandingRestrictions  []string          `json:"branding_restrictions,omitempty" example:"No competitor brands"`
+	CoProductionRoles     map[string]string `json:"co_production_roles,omitempty"`
+}
+
+type Deliverable struct {
+	Type        string    `json:"type,omitempty" example:"VIDEO"`
+	ChannelID   uuid.UUID `json:"channel_id,omitempty" example:"770e8400-e29b-41d4-a716-446655440000"`
+	ChannelName string    `json:"channel_name,omitempty" example:"YouTube"`
+	ChannelLink string    `json:"channel_link,omitempty" example:"https://youtube.com/channel/xyz"`
+	Quantity    int       `json:"quantity,omitempty" example:"5"`
+	Deadline    string    `json:"deadline,omitempty" example:"2023-11-30"`
+}
+
+// LegalTerms Structures
+type LegalTerms struct {
+	Penalties                    Penalties         `json:"penalties"`
+	ForceMajeureNotificationDays int               `json:"force_majeure_notification_days,omitempty" example:"7"`
+	DisputeResolutionCourt       string            `json:"dispute_resolution_court,omitempty" example:"Ho Chi Minh City Court"`
+	Confidentiality              bool              `json:"confidentiality,omitempty" example:"true"`
+	ManagementBoard              []ManagementBoard `json:"management_board,omitempty"`
+	NumberOfCopies               int               `json:"number_of_copies,omitempty" example:"2"`
+}
+
+type Penalties struct {
+	LateDeliveryPercentPerDay float64 `json:"late_delivery_percent_per_day,omitempty" example:"0.5"`
+	LatePaymentPercentPerDay  float64 `json:"late_payment_percent_per_day,omitempty" example:"0.3"`
+	BreachOfContractPercent   int     `json:"breach_of_contract_percent,omitempty" example:"20"`
+	NonDeliveryPenaltyPercent int     `json:"non_delivery_penalty_percent,omitempty" example:"30"`
+}
+
+type ManagementBoard struct {
+	Name         string `json:"name,omitempty" example:"John Doe"`
+	Representing string `json:"representing,omitempty" example:"Brand"`
 }
 
 // ToContract converts CreateContractRequest to model.Contract

@@ -22,7 +22,6 @@ type CreateProductRequest struct {
 	Description *string   `json:"description" validate:"omitempty,max=1000" example:"Product description"`
 	Price       float64   `json:"price" validate:"required,min=0" example:"99.99"`
 	Type        string    `json:"type" validate:"required,oneof=STANDARD LIMITED" example:"STANDARD"`
-	//Variants    []CreateProductVariantRequest `json:"variants" validate:"required,min=1,dive"`
 }
 
 // UpdateProductRequest represents update product request
