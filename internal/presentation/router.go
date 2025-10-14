@@ -125,60 +125,60 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
-		// Protected create route (sales, brand partner, admin can create)
-		v1.POST("/products",
-			r.middlewareRegistry.Auth.RequireRole(sales, brand, admin),
-			productHandler.CreateProduct,
-		)
-		// Protected create variant route
-		v1.POST("/products/:productId/variants",
-			r.middlewareRegistry.Auth.RequireRole(sales, brand, admin),
-			productHandler.CreateProductVariant,
-		)
 		stateHandler := r.handlerRegistry.StateHandler
+
 		productsGroup := v1.Group("/products")
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
 
-			// Sales / Brand restricted
-			productStateGroup := productsGroup.Group("")
-			productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
+			// Protected (Sales, Brand, Admin)
+			protectedProducts := productsGroup.Group("")
+			protectedProducts.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand, admin))
 			{
-				productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
+				protectedProducts.POST("", productHandler.CreateProduct)
+				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 			}
 
-			// ---------- TASKS ----------
-			taskGroup := v1.Group("/tasks")
-			taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+			// State update (Sales, Brand only)
+			stateGroup := productsGroup.Group("")
+			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
 			{
-				taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
-				taskGroup.GET("/:taskId/products", productHandler.GetProductsByTask)
+				stateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 			}
-
-			// Milestone routes (state transitions)
-			milestoneGroup := v1.Group("/milestones")
-			milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
-			{
-				milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
-			}
-
-			// ---------- PAYOS ----------
-			payOsHandler := r.handlerRegistry.PayOsHandler
-			v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
-
-			// ---------- FILES ----------
-			fileHandler := r.handlerRegistry.FileHandler
-			filesGroup := v1.Group("/files")
-			filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-			{
-				filesGroup.POST("/upload", fileHandler.UploadFile)
-				//filesGroup.DELETE(":filename", fileHandler.DeleteFile)
-			}
-
-			// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 		}
+
+		// ---------- TASKS ----------
+		taskGroup := v1.Group("/tasks")
+		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+		{
+			taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
+			taskGroup.GET("/:taskId/products", productHandler.GetProductsByTask)
+		}
+
+		// Milestone routes (state transitions)
+		milestoneGroup := v1.Group("/milestones")
+		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
+		{
+			milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
+		}
+
+		// ---------- PAYOS ----------
+		payOsHandler := r.handlerRegistry.PayOsHandler
+		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
+
+		// ---------- FILES ----------
+		fileHandler := r.handlerRegistry.FileHandler
+		filesGroup := v1.Group("/files")
+		filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			filesGroup.POST("/upload", fileHandler.UploadFile)
+			//filesGroup.DELETE(":filename", fileHandler.DeleteFile)
+		}
+
+		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
+
 }
 
 // setupBrandRoutes sets up routes for brand management
