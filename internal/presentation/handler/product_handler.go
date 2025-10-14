@@ -166,9 +166,7 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
-	if h.validator == nil {
-		h.validator = validator.New()
-	}
+
 	if err := h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
 		return
@@ -237,15 +235,13 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /api/v1/products/{productId}/variants [post]
 func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
-	userIDData, exists := c.Get("user_id")
-	if !exists || userIDData == "" {
-		responses := responses.ErrorResponse("Unauthorized: user_id not found in context", http.StatusUnauthorized)
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
-	userIDStr := userIDData.(string)
-	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
 		return
@@ -264,10 +260,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
 	}
-
-	if h.validator == nil {
-		h.validator = validator.New()
-	}
+	
 	if err := h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
 		return

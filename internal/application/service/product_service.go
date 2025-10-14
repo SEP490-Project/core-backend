@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -23,7 +24,6 @@ type productService struct {
 	taskRepo     irepository.GenericRepository[model.Task]
 	brandRepo    irepository.GenericRepository[model.Brand]
 	categoryRepo irepository.GenericRepository[model.ProductCategory]
-	uow          irepository.UnitOfWork
 }
 
 func (p productService) AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error) {
@@ -191,18 +191,14 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 }
 
 func NewProductService(
-	repo irepository.GenericRepository[model.Product],
-	variantRepo irepository.GenericRepository[model.ProductVariant],
-	taskRepo irepository.GenericRepository[model.Task],
-	brandRepo irepository.GenericRepository[model.Brand],
-	categoryRepo irepository.GenericRepository[model.ProductCategory],
+	dbRegistry *gormrepository.DatabaseRegistry,
 ) iservice.ProductService {
 	return &productService{
-		repository:   repo,
-		variantRepo:  variantRepo,
-		taskRepo:     taskRepo,
-		brandRepo:    brandRepo,
-		categoryRepo: categoryRepo,
+		repository:   dbRegistry.ProductRepository,
+		variantRepo:  dbRegistry.ProductVariantRepository,
+		taskRepo:     dbRegistry.TaskRepository,
+		brandRepo:    dbRegistry.BrandRepository,
+		categoryRepo: dbRegistry.ProductCategoryRepository,
 	}
 }
 

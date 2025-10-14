@@ -36,7 +36,7 @@ func NewApplicationRegistry(
 		FileService:            infraService.NewFileService(infrastructureRegistry.S3Repository),
 		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
-		ProductService:         service.NewProductService(databaseRegistry.ProductRepository, databaseRegistry.ProductVariantRepository, databaseRegistry.TaskRepository, databaseRegistry.BrandRepository, databaseRegistry.ProductCategoryRepository),
+		ProductService:         service.NewProductService(databaseRegistry),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
 		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
 		ContractService:        service.NewContractService(databaseRegistry.ContractRepository),
