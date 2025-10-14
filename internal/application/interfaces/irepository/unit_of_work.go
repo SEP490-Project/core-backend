@@ -10,6 +10,7 @@ type UnitOfWork interface {
 	Begin() UnitOfWork
 	Commit() error
 	Rollback() error
+	InTransaction() bool
 
 	// Expose repos trong transaction
 	Products() GenericRepository[model.Product]
@@ -22,6 +23,12 @@ type UnitOfWork interface {
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
 	Tasks() GenericRepository[model.Task]
+	//Product flow
+	ProductStory() GenericRepository[model.ProductStory]
+	ProductVariant() GenericRepository[model.ProductVariant]
+	VariantAttributes() GenericRepository[model.VariantAttribute]
+	VariantImage() GenericRepository[model.VariantImage]
+	VariantAttributeValue() GenericRepository[model.VariantAttributeValue]
 
 	DB() *gorm.DB
 }

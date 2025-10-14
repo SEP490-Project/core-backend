@@ -126,16 +126,25 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
 		stateHandler := r.handlerRegistry.StateHandler
+
 		productsGroup := v1.Group("/products")
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
 
-			// Sales / Brand restricted
-			productStateGroup := productsGroup.Group("")
-			productStateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
+			// Protected (Sales, Brand, Admin)
+			protectedProducts := productsGroup.Group("")
+			protectedProducts.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand, admin))
 			{
-				productStateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
+				protectedProducts.POST("", productHandler.CreateProduct)
+				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
+			}
+
+			// State update (Sales, Brand only)
+			stateGroup := productsGroup.Group("")
+			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
+			{
+				stateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 			}
 		}
 
@@ -169,6 +178,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
+
 }
 
 // setupBrandRoutes sets up routes for brand management
