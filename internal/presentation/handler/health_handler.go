@@ -19,14 +19,15 @@ func NewHealthHandler(infrastructureRegistry *infrastructure.InfrastructureRegis
 }
 
 // HealthCheck godoc
-// @Summary      Health Check
-// @Description  Returns the health status of the application and its dependencies
-// @Tags         Health
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse "Service is healthy"
-// @Failure      503 {object} responses.APIResponse "Service is unhealthy"
-// @Router       /health [get]
+//
+//	@Summary		Health Check
+//	@Description	Returns the health status of the application and its dependencies
+//	@Tags			Health
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Service is healthy"
+//	@Failure		503	{object}	responses.APIResponse	"Service is unhealthy"
+//	@Router			/health [get]
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
 	healthStatus := h.infrastructureRegistry.IsHealthy()
 
@@ -57,14 +58,15 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 }
 
 // ReadinessCheck godoc
-// @Summary      Readiness Check
-// @Description  Returns whether the application is ready to serve requests
-// @Tags         Health
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse "Service is ready"
-// @Failure      503 {object} responses.APIResponse "Service is not ready"
-// @Router       /health/ready [get]
+//
+//	@Summary		Readiness Check
+//	@Description	Returns whether the application is ready to serve requests
+//	@Tags			Health
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Service is ready"
+//	@Failure		503	{object}	responses.APIResponse	"Service is not ready"
+//	@Router			/health/ready [get]
 func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	healthStatus := h.infrastructureRegistry.IsHealthy()
 
@@ -89,13 +91,14 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 }
 
 // LivenessCheck godoc
-// @Summary      Liveness Check
-// @Description  Returns whether the application is alive and running
-// @Tags         Health
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse "Service is alive"
-// @Router       /health/live [get]
+//
+//	@Summary		Liveness Check
+//	@Description	Returns whether the application is alive and running
+//	@Tags			Health
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Service is alive"
+//	@Router			/health/live [get]
 func (h *HealthHandler) LivenessCheck(c *gin.Context) {
 	// Simple liveness check - if we can respond, we're alive
 	livenessData := map[string]any{

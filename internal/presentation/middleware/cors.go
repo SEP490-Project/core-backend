@@ -17,6 +17,7 @@ func NewCORSMiddleware() gin.HandlerFunc {
 		AllowHeaders:     corsConfig.AllowedHeaders,
 		ExposeHeaders:    corsConfig.ExposedHeaders,
 		AllowCredentials: corsConfig.AllowCredentials,
+		AllowWebSockets:  true,
 		MaxAge:           12 * time.Hour,
 	})
 }

@@ -30,17 +30,18 @@ func NewBrandHandler(brandService iservice.BrandService, unitOfWork irepository.
 }
 
 // CreateBrand godoc
-// @Summary      Create Brand
-// @Description  Create a new brand
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.CreateBrandRequest true "Brand creation data"
-// @Success      201 {object} responses.APIResponse{data=responses.BrandResponse} "Brand created successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands [post]
+//
+//	@Summary		Create Brand
+//	@Description	Create a new brand
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.CreateBrandRequest							true	"Brand creation data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand created successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		500		{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands [post]
 func (bh *BrandHandler) CreateBrand(c *gin.Context) {
 	var req requests.CreateBrandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -66,17 +67,18 @@ func (bh *BrandHandler) CreateBrand(c *gin.Context) {
 }
 
 // CreateBrandWithInActiveUsers godoc
-// @Summary      Create Brand with Inactive Users
-// @Description  Create a new brand with the associated inactive users
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.CreateBrandRequest true "Brand creation data"
-// @Success      201 {object} responses.APIResponse{data=responses.BrandResponse} "Brand and User created successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands/with-users [post]
+//
+//	@Summary		Create Brand with Inactive Users
+//	@Description	Create a new brand with the associated inactive users
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.CreateBrandRequest							true	"Brand creation data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand and User created successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		500		{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands/with-users [post]
 func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
 	var req requests.CreateBrandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -114,18 +116,19 @@ func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
 }
 
 // GetBrandByID godoc
-// @Summary      Get Brand by ID
-// @Description  Get brand details by ID
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Brand ID"
-// @Success      200 {object} responses.APIResponse{data=responses.BrandResponse} "Brand fetched successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid brand ID"
-// @Failure      404 {object} responses.APIResponse "Brand not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands/{id} [get]
+//
+//	@Summary		Get Brand by ID
+//	@Description	Get brand details by ID
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string												true	"Brand ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand fetched successfully"
+//	@Failure		400	{object}	responses.APIResponse								"Invalid brand ID"
+//	@Failure		404	{object}	responses.APIResponse								"Brand not found"
+//	@Failure		500	{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands/{id} [get]
 func (bh *BrandHandler) GetBrandByID(c *gin.Context) {
 	brandIDStr := c.Param("id")
 	brandID, err := uuid.Parse(brandIDStr)
@@ -145,20 +148,21 @@ func (bh *BrandHandler) GetBrandByID(c *gin.Context) {
 }
 
 // GetBrandsByFilter godoc
-// @Summary      Get Brands List by filter
-// @Description  Get paginated list of brands with optional filters
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        page query int false "Page number" default(1)
-// @Param        limit query int false "Items per page" default(10)
-// @Param        keywords query string false "Search keywords for brand name"
-// @Param        status query string false "Filter by brand status" Enums(ACTIVE, INACTIVE)
-// @Success      200 {object} responses.BrandPaginationResponse "Brands fetched successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands [get]
+//
+//	@Summary		Get Brands List by filter
+//	@Description	Get paginated list of brands with optional filters
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int									false	"Page number"		default(1)
+//	@Param			limit		query		int									false	"Items per page"	default(10)
+//	@Param			keywords	query		string								false	"Search keywords for brand name"
+//	@Param			status		query		string								false	"Filter by brand status"	Enums(ACTIVE, INACTIVE)
+//	@Success		200			{object}	responses.BrandPaginationResponse	"Brands fetched successfully"
+//	@Failure		400			{object}	responses.APIResponse				"Invalid request"
+//	@Failure		500			{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands [get]
 func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 	request := requests.ListBrandsRequest{}
 	if err := c.ShouldBindQuery(&request); err != nil {
@@ -184,7 +188,7 @@ func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 	}
 
 	totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
-	paginationResponse := responses.PaginatedResponse("Successfully fetched brands", http.StatusOK, brands, responses.Pagination{
+	paginationResponse := responses.NewPaginationResponse("Successfully fetched brands", http.StatusOK, brands, responses.Pagination{
 		Page:       request.Page,
 		Limit:      request.Limit,
 		Total:      totalCount,
@@ -196,19 +200,20 @@ func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 }
 
 // UpdateBrand godoc
-// @Summary      Update Brand
-// @Description  Update brand details by ID
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Brand ID"
-// @Param        request body requests.UpdateBrandRequest true "Brand update data"
-// @Success      200 {object} responses.APIResponse{data=responses.BrandResponse} "Brand updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      404 {object} responses.APIResponse "Brand not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands/{id} [put]
+//
+//	@Summary		Update Brand
+//	@Description	Update brand details by ID
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string												true	"Brand ID"
+//	@Param			request	body		requests.UpdateBrandRequest							true	"Brand update data"
+//	@Success		200		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand updated successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse								"Brand not found"
+//	@Failure		500		{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands/{id} [put]
 func (bh *BrandHandler) UpdateBrand(c *gin.Context) {
 	brandIDStr := c.Param("id")
 	var req requests.UpdateBrandRequest
@@ -240,19 +245,20 @@ func (bh *BrandHandler) UpdateBrand(c *gin.Context) {
 }
 
 // UpdateBrandStatus godoc
-// @Summary      Update Brand Status
-// @Description  Update brand status (ACTIVE/INACTIVE)
-// @Tags         Brands
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Brand ID"
-// @Param        status path string true "Brand Status" Enums(ACTIVE, INACTIVE)
-// @Success      200 {object} responses.APIResponse{data=responses.BrandResponse} "Brand status updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      404 {object} responses.APIResponse "Brand not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/brands/{id}/status/{status} [put]
+//
+//	@Summary		Update Brand Status
+//	@Description	Update brand status (ACTIVE/INACTIVE)
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string												true	"Brand ID"
+//	@Param			status	path		string												true	"Brand Status"	Enums(ACTIVE, INACTIVE)
+//	@Success		200		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand status updated successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse								"Brand not found"
+//	@Failure		500		{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands/{id}/status/{status} [put]
 func (bh *BrandHandler) UpdateBrandStatus(c *gin.Context) {
 	brandIDStr := c.Param("id")
 	brandStatusStr := c.Param("status")

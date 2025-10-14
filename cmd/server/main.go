@@ -1,18 +1,18 @@
 // Package main provides the main application entry point.
 //
-//	@title			SEP490 Core Backend API
-//	@version		1.0
-//	@description	This is the core backend service for SEP490 project with authentication, user management, and business features.
-//	@termsOfService	http://swagger.io/terms/
+//	@title						SEP490 Core Backend API
+//	@version					1.0
+//	@description				This is the core backend service for SEP490 project with authentication, user management, and business features.
+//	@termsOfService				http://swagger.io/terms/
 //
-//	@contact.name	API Support
-//	@contact.url	http://www.swagger.io/support
-//	@contact.email	support@swagger.io
+//	@contact.name				API Support
+//	@contact.url				http://www.swagger.io/support
+//	@contact.email				support@swagger.io
 //
-//	@license.name	Apache 2.0
-//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+//	@license.name				Apache 2.0
+//	@license.url				http://www.apache.org/licenses/LICENSE-2.0.html
 //
-//	@host		localhost:8080
+//	@host						localhost:8080
 //
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header

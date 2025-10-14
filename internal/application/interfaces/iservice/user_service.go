@@ -2,6 +2,7 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 
@@ -20,7 +21,7 @@ type UserService interface {
 	// DeleteUser soft deletes a user.
 	DeleteUser(ctx context.Context, userID uuid.UUID) error
 	// UpdateProfile updates the current user's profile.
-	UpdateProfile(ctx context.Context, userID uuid.UUID, username, email string) (*responses.UserResponse, error)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, updateRequset *requests.UpdateProfileRequest, uow irepository.UnitOfWork) (*responses.UserResponse, error)
 	// ActivateBrandUser activates a user associated with a brand.
 	ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error
 }

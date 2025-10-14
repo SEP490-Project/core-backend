@@ -28,16 +28,17 @@ func NewUserHandler(userService iservice.UserService, unitOfWork irepository.Uni
 }
 
 // GetProfile godoc
-// @Summary      Get User Profile
-// @Description  Get current authenticated user's profile
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "Profile retrieved successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      404 {object} responses.APIResponse "User not found"
-// @Security     BearerAuth
-// @Router       /api/v1/users/profile [get]
+//
+//	@Summary		Get User Profile
+//	@Description	Get current authenticated user's profile
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=responses.UserResponse}	"Profile retrieved successfully"
+//	@Failure		401	{object}	responses.APIResponse								"Unauthorized"
+//	@Failure		404	{object}	responses.APIResponse								"User not found"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/profile [get]
 func (h *UserHandler) GetProfile(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")
 	if !exists {
@@ -65,30 +66,24 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 }
 
 // UpdateProfile godoc
-// @Summary      Update User Profile
-// @Description  Update current authenticated user's profile
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        request body requests.UpdateProfileRequest true "Profile update data"
-// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "Profile updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      409 {object} responses.APIResponse "Username or email already exists"
-// @Security     BearerAuth
-// @Router       /api/v1/users/profile [put]
+//
+//	@Summary		Update User Profile
+//	@Description	Update current authenticated user's profile
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.UpdateProfileRequest						true	"Profile update data"
+//	@Success		200		{object}	responses.APIResponse{data=responses.UserResponse}	"Profile updated successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse								"Unauthorized"
+//	@Failure		409		{object}	responses.APIResponse								"Username or email already exists"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/profile [put]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	userIDStr, exists := c.Get("user_id")
-	if !exists {
-		response := responses.ErrorResponse("Unauthorized: User ID not found in context", http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, response)
-		return
-	}
-
-	userID, err := uuid.Parse(userIDStr.(string))
+	userID, err := extractUserID(c)
 	if err != nil {
-		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
@@ -106,7 +101,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var updatedUser *responses.UserResponse
-	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, request.Username, request.Email)
+	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, h.unitOfWork)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
@@ -118,22 +113,23 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 }
 
 // GetUsers godoc
-// @Summary      Get Users List
-// @Description  Get paginated list of users (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        page query int false "Page number" default(1)
-// @Param        limit query int false "Items per page" default(10)
-// @Param        search query string false "Search term for username or email"
-// @Param        role query string false "Filter by user role"
-// @Param        is_active query boolean false "Filter by active status"
-// @Success      200 {object} responses.UserPaginationResponse "Users retrieved successfully"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/users [get]
+//
+//	@Summary		Get Users List
+//	@Description	Get paginated list of users (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int									false	"Page number"		default(1)
+//	@Param			limit		query		int									false	"Items per page"	default(10)
+//	@Param			search		query		string								false	"Search term for username or email"
+//	@Param			role		query		string								false	"Filter by user role"
+//	@Param			is_active	query		boolean								false	"Filter by active status"
+//	@Success		200			{object}	responses.UserPaginationResponse	"Users retrieved successfully"
+//	@Failure		401			{object}	responses.APIResponse				"Unauthorized"
+//	@Failure		403			{object}	responses.APIResponse				"Forbidden - Admin access required"
+//	@Failure		500			{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users [get]
 func (h *UserHandler) GetUsers(c *gin.Context) {
 	// Parse pagination parameters
 	page := 1
@@ -183,26 +179,25 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 		HasNext:    hasNext,
 		HasPrev:    hasPrev,
 	}
-	paginationData := responses.PaginatedResponse("Users retrieved successfully", http.StatusOK, users, pagination)
-
-	response := responses.SuccessResponse("Users retrieved successfully", nil, paginationData)
-	c.JSON(http.StatusOK, response)
+	paginationData := responses.NewPaginationResponse("Users retrieved successfully", http.StatusOK, users, pagination)
+	c.JSON(http.StatusOK, paginationData)
 }
 
 // GetUserByID godoc
-// @Summary      Get User by ID
-// @Description  Get user details by ID (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Success      200 {object} responses.APIResponse{data=responses.UserResponse} "User retrieved successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid user ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      404 {object} responses.APIResponse "User not found"
-// @Security     BearerAuth
-// @Router       /api/v1/users/{id} [get]
+//
+//	@Summary		Get User by ID
+//	@Description	Get user details by ID (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string												true	"User ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.UserResponse}	"User retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse								"Invalid user ID"
+//	@Failure		401	{object}	responses.APIResponse								"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse								"Forbidden - Admin access required"
+//	@Failure		404	{object}	responses.APIResponse								"User not found"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/{id} [get]
 func (h *UserHandler) GetUserByID(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
@@ -224,20 +219,21 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 }
 
 // UpdateUserStatus godoc
-// @Summary      Update User Status
-// @Description  Update user active status (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Param        request body requests.UpdateUserStatusRequest true "Status update data"
-// @Success      200 {object} responses.APIResponse "User status updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/users/{id}/status [put]
+//
+//	@Summary		Update User Status
+//	@Description	Update user active status (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string								true	"User ID"
+//	@Param			request	body		requests.UpdateUserStatusRequest	true	"Status update data"
+//	@Success		200		{object}	responses.APIResponse				"User status updated successfully"
+//	@Failure		400		{object}	responses.APIResponse				"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse				"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse				"Forbidden - Admin access required"
+//	@Failure		500		{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/{id}/status [put]
 func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
@@ -260,7 +256,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, request.IsActive)
+	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, *request.IsActive)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -268,7 +264,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	message := "User activated successfully"
-	if !request.IsActive {
+	if !*request.IsActive {
 		message = "User deactivated successfully"
 	}
 
@@ -277,19 +273,20 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 }
 
 // ActivateBrandUser godoc
-// @Summary      Activate Brand User
-// @Description  Activate a user associated with a brand (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Success      200 {object} responses.APIResponse "Brand user activated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid user ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/users/{id}/activate-brand [patch]
+//
+//	@Summary		Activate Brand User
+//	@Description	Activate a user associated with a brand (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"User ID"
+//	@Success		200	{object}	responses.APIResponse	"Brand user activated successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid user ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse	"Forbidden - Admin access required"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/{id}/activate-brand [patch]
 func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
@@ -314,20 +311,21 @@ func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 }
 
 // UpdateUserRole godoc
-// @Summary      Update User Role
-// @Description  Update user role (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Param        request body requests.UpdateUserRoleRequest true "Role update data"
-// @Success      200 {object} responses.APIResponse "User role updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/users/{id}/role [put]
+//
+//	@Summary		Update User Role
+//	@Description	Update user role (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string							true	"User ID"
+//	@Param			request	body		requests.UpdateUserRoleRequest	true	"Role update data"
+//	@Success		200		{object}	responses.APIResponse			"User role updated successfully"
+//	@Failure		400		{object}	responses.APIResponse			"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse			"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse			"Forbidden - Admin access required"
+//	@Failure		500		{object}	responses.APIResponse			"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/{id}/role [put]
 func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)
@@ -362,19 +360,20 @@ func (h *UserHandler) UpdateUserRole(c *gin.Context) {
 }
 
 // DeleteUser godoc
-// @Summary      Delete User
-// @Description  Soft delete a user (admin only)
-// @Tags         Users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Success      200 {object} responses.APIResponse "User deleted successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid user ID"
-// @Failure      401 {object} responses.APIResponse "Unauthorized"
-// @Failure      403 {object} responses.APIResponse "Forbidden - Admin access required"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/users/{id} [delete]
+//
+//	@Summary		Delete User
+//	@Description	Soft delete a user (admin only)
+//	@Tags			Users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"User ID"
+//	@Success		200	{object}	responses.APIResponse	"User deleted successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid user ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse	"Forbidden - Admin access required"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/{id} [delete]
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	userIDParam := c.Param("id")
 	userID, err := uuid.Parse(userIDParam)

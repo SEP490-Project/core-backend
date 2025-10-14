@@ -18,8 +18,9 @@ type ApplicationRegistry struct {
 	UserService            iservice.UserService
 	ProductService         iservice.ProductService
 	BrandService           iservice.BrandService
-	TaskService            iservice.StateTransferService
+	StateTransferService   iservice.StateTransferService
 	ContractService        iservice.ContractService
+	CampaignService        iservice.CampaignService
 }
 
 func NewApplicationRegistry(
@@ -37,7 +38,8 @@ func NewApplicationRegistry(
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry.ProductRepository, databaseRegistry.ProductVariantRepository, databaseRegistry.TaskRepository, databaseRegistry.BrandRepository, databaseRegistry.ProductCategoryRepository),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
-		TaskService:            service.NewStateTransferService(databaseRegistry.ContractRepository, databaseRegistry.CampaignRepository, databaseRegistry.MilestoneRepository, databaseRegistry.TaskRepository, databaseRegistry.ProductRepository, infrastructureRegistry.UnitOfWork),
+		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
 		ContractService:        service.NewContractService(databaseRegistry.ContractRepository),
+		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
 	}
 }

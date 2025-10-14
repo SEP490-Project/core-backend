@@ -115,7 +115,7 @@ CREATE TABLE brands
 CREATE TABLE contracts
 (
     id                                 UUID PRIMARY KEY         DEFAULT gen_random_uuid(),
-    parent_contract_id                 UUID REFERENCES contracts (id) ON DELETE SET NULL,
+    parent_contract_id                 UUID         REFERENCES contracts (id) ON DELETE SET NULL,
     title                              VARCHAR(255),
     contract_number                    VARCHAR(100) NOT NULL UNIQUE,           -- (Số Hợp đồng)
 
@@ -208,7 +208,7 @@ CREATE TABLE campaigns
     start_date       DATE         NOT NULL,
     end_date         DATE         NOT NULL,
     status           VARCHAR(50)  NOT NULL CHECK (
-        status IN ('ON_GOING', 'COMPLETED', 'CANCELED')
+        status IN ('RUNNING', 'COMPLETED', 'CANCELED')
         ),
     budget_projected DECIMAL(15, 2),
     budget_actual    DECIMAL(15, 2),
@@ -220,21 +220,21 @@ CREATE TABLE campaigns
 
 CREATE TABLE milestones
 (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    campaign_id        UUID        NOT NULL REFERENCES campaigns (id) ON DELETE CASCADE,
-    description        TEXT        NOT NULL,
-    due_date           DATE        NOT NULL,
-    completed_at       TIMESTAMPTZ,
-    completion_percent INTEGER          DEFAULT 0 CHECK (
-        completion_percent BETWEEN 0 AND 100
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id           UUID        NOT NULL REFERENCES campaigns (id) ON DELETE CASCADE,
+    description           TEXT        NOT NULL,
+    due_date              DATE        NOT NULL,
+    completed_at          TIMESTAMPTZ,
+    completion_percentage INTEGER          DEFAULT 0 CHECK (
+        completion_percentage BETWEEN 0 AND 100
         ),
-    status             VARCHAR(50) NOT NULL CHECK (
+    status                VARCHAR(50) NOT NULL CHECK (
         status IN ('NOT_STARTED', 'ON_GOING', 'CANCELLED', 'COMPLETED')
         ),
-    behind_schedule    BOOLEAN          DEFAULT FALSE,
-    created_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at         TIMESTAMPTZ
+    behind_schedule       BOOLEAN          DEFAULT FALSE,
+    created_at            TIMESTAMPTZ      DEFAULT current_timestamp,
+    updated_at            TIMESTAMPTZ      DEFAULT current_timestamp,
+    deleted_at            TIMESTAMPTZ
 );
 
 CREATE TABLE tasks
@@ -258,9 +258,7 @@ CREATE TABLE tasks
                    'DONE'
             )
         ),
-    assigned_to  UUID         NOT NULL REFERENCES users (
-                                                         id
-        ) ON DELETE SET NULL,
+    assigned_to  UUID         REFERENCES users (id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
     updated_at   TIMESTAMPTZ      DEFAULT current_timestamp,
     deleted_at   TIMESTAMPTZ
@@ -749,7 +747,6 @@ CREATE INDEX idx_shipping_addresses_user_id ON shipping_addresses (user_id);
 
 -- Campaigns & Contracts
 CREATE INDEX idx_contracts_brand_id ON contracts (brand_id);
-CREATE INDEX idx_contracts_staff_id ON contracts (staff_id);
 CREATE INDEX idx_contract_payments_contract_id ON contract_payments (
                                                                      contract_id
     );

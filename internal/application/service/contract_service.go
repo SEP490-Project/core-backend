@@ -20,6 +20,89 @@ type ContractService struct {
 	contractRepository irepository.GenericRepository[model.Contract]
 }
 
+// GetContractsByUserID implements iservice.ContractService.
+func (s *ContractService) GetContractsByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+	filterRequest *requests.ContractFilterRequest,
+) ([]*responses.ContractListResponse, int64, error) {
+	zap.L().Info("Retrieving contracts by user ID", zap.String("user_id", userID.String()))
+
+	query := func(db *gorm.DB) *gorm.DB {
+		db = db.
+			InnerJoins("INNER JOIN brands on brands.id = contracts.brand_id").
+			Where("brands.user_id = ?", userID)
+		// Filter by brand ID
+		if filterRequest.BrandID != nil && *filterRequest.BrandID != "" {
+			brandID, err := uuid.Parse(*filterRequest.BrandID)
+			if err == nil {
+				db = db.Where("brand_id = ?", brandID)
+			}
+		}
+
+		// Filter by type
+		if filterRequest.Type != nil && *filterRequest.Type != "" {
+			contractType := enum.ContractType(*filterRequest.Type)
+			if contractType.IsValid() {
+				db = db.Where("type = ?", contractType)
+			}
+		}
+
+		// Filter by status
+		if filterRequest.Status != nil && *filterRequest.Status != "" {
+			contractStatus := enum.ContractStatus(*filterRequest.Status)
+			if contractStatus.IsValid() {
+				db = db.Where("status = ?", contractStatus)
+			}
+		}
+
+		// Filter by keyword (search in title and contract number)
+		if filterRequest.Keyword != nil && *filterRequest.Keyword != "" {
+			likePattern := fmt.Sprintf("%%%s%%", *filterRequest.Keyword)
+			db = db.Where("title ILIKE ? OR contract_number ILIKE ?", likePattern, likePattern)
+		}
+
+		// Filter by date range
+		if filterRequest.StartDate != nil {
+			db = db.Where("start_date >= ?", filterRequest.StartDate)
+		}
+		if filterRequest.EndDate != nil {
+			db = db.Where("end_date <= ?", filterRequest.EndDate)
+		}
+
+		// Sorting
+		sortBy := filterRequest.SortBy
+		if sortBy == "" {
+			sortBy = "created_at"
+		}
+		sortOrder := filterRequest.SortOrder
+		if sortOrder != "asc" && sortOrder != "desc" {
+			sortOrder = "desc"
+		}
+		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+
+		return db
+	}
+	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand"}, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to retrieve campaigns by user ID",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, 0, err
+	}
+
+	var result []*responses.ContractListResponse
+	for _, contract := range contracts {
+		result = append(result, responses.ToContractListResponse(&contract))
+	}
+
+	zap.L().Info("Contracts fetched successfully",
+		zap.String("user_id", userID.String()),
+		zap.Int64("total", totalCount))
+
+	return result, totalCount, nil
+}
+
 // ApproveContract implements iservice.ContractService.
 func (s *ContractService) ApproveContract(ctx context.Context, contractID uuid.UUID) error {
 	zap.L().Info("Approving contract", zap.String("contract_id", contractID.String()))
@@ -51,6 +134,7 @@ func (s *ContractService) ApproveContract(ctx context.Context, contractID uuid.U
 // CreateContract implements iservice.ContractService.
 func (s *ContractService) CreateContract(
 	ctx context.Context,
+	userID uuid.UUID,
 	createRequest *requests.CreateContractRequest,
 	unitOfWork irepository.UnitOfWork,
 ) (*responses.ContractResponse, error) {
@@ -96,6 +180,7 @@ func (s *ContractService) CreateContract(
 	}
 
 	// Create contract
+	contract.CreatedByID = userID
 	if err = contractRepo.Add(ctx, contract); err != nil {
 		unitOfWork.Rollback()
 		zap.L().Error("Failed to create contract", zap.Error(err))

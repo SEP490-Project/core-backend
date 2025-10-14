@@ -91,24 +91,20 @@ type ProductAttributesResponse struct {
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
 func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.ProductVariant) *ProductVariantResponse {
 	resp := &ProductVariantResponse{
-		ID:            variant.ID,
-		Price:         variant.Price,
-		CurrentStock:  variant.CurrentStock,
-		Capacity:      variant.Capacity,
-		CapacityUnit:  variant.CapacityUnit,
-		ContainerType: variant.ContainerType,
-		DispenserType: variant.DispenserType,
-		Uses:          variant.Uses,
-		Instructions:  variant.Instructions,
-		IsDefault:     variant.IsDefault,
-		CreatedAt:     utils.FormatLocalTime(variant.CreatedAt, ""),
-		UpdatedAt:     utils.FormatLocalTime(variant.UpdatedAt, ""),
-	}
-	if variant.ManufactureDate != nil {
-		resp.ManufactureDate = utils.FormatLocalTime(*variant.ManufactureDate, "")
-	}
-	if variant.ExpiryDate != nil {
-		resp.ExpiryDate = utils.FormatLocalTime(*variant.ExpiryDate, "")
+		ID:              variant.ID,
+		Price:           variant.Price,
+		CurrentStock:    variant.CurrentStock,
+		Capacity:        variant.Capacity,
+		CapacityUnit:    variant.CapacityUnit,
+		ContainerType:   variant.ContainerType,
+		DispenserType:   variant.DispenserType,
+		Uses:            variant.Uses,
+		ManufactureDate: utils.FormatLocalTime(variant.ManufactureDate, ""),
+		ExpiryDate:      utils.FormatLocalTime(variant.ExpiryDate, ""),
+		Instructions:    variant.Instructions,
+		IsDefault:       variant.IsDefault,
+		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
+		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
 	}
 	if variant.Product != nil {
 		resp.Name = variant.Product.Name
