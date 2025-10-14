@@ -36,6 +36,7 @@ type ServerConfig struct {
 	Environment     string `mapstructure:"environment"`
 	Timeout         int    `mapstructure:"timeout"`           // in seconds
 	PayOSLinkExpiry int    `mapstructure:"payos_link_expiry"` // in seconds
+	Timezone        string `mapstructure:"timezone"`
 }
 
 type DatabaseConfig struct {
@@ -188,6 +189,7 @@ func setDefaultValues() {
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("server.service_name", "my_service")
 	viper.SetDefault("server.environment", "development") // Options: development, production
+	viper.SetDefault("server.timezone", "UTC")
 
 	viper.SetDefault("database.host", "postgres.trangiangkhanh.online")
 	viper.SetDefault("database.port", 5432)

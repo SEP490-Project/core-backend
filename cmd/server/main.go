@@ -26,6 +26,7 @@ import (
 	"core-backend/internal/presentation"
 	"core-backend/pkg/logging"
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -36,9 +37,15 @@ func main() {
 		panic(err)
 	}
 	appConfig := config.GetAppConfig()
+	loc, err := time.LoadLocation(appConfig.Server.Timezone)
+	if err != nil {
+		panic("Failed to load timezone: " + err.Error())
+	} else {
+		time.Local = loc
+	}
 
 	// Initialize logger
-	err := logging.InitLogger()
+	err = logging.InitLogger()
 	if err != nil {
 		panic("Failed to initialize logger: " + err.Error())
 	}
