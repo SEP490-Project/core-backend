@@ -7,30 +7,29 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateProductDTO internal service DTO. TaskID MUST be provided (business rule: product depends on a task).
 type CreateProductDTO struct {
-	BrandID     uuid.UUID
-	CategoryID  uuid.UUID
-	TaskID      *uuid.UUID // required (non-nil)
-	Name        string
-	Description *string
-	Price       float64
-	Type        string // STANDARD | LIMITED
+	BrandID     uuid.UUID        `json:"brand_id" validate:"required,uuid"`
+	CategoryID  uuid.UUID        `json:"category_id" validate:"required,uuid"`
+	TaskID      *uuid.UUID       `json:"task_id" validate:"omitempty,uuid"`
+	Name        string           `json:"name" validate:"required,min=3,max=255"`
+	Description *string          `json:"description" validate:"omitempty,max=2000"`
+	Price       float64          `json:"price" validate:"required,gte=0"`
+	Type        enum.ProductType `json:"type" validate:"required,oneof=STANDARD LIMITED"`
 }
 
 // CreateProductVariantDTO carries variant data into the service layer.
 type CreateProductVariantDTO struct {
-	Price           float64
-	CurrentStock    int
-	Capacity        float64
-	CapacityUnit    string // will be validated and cast to enum in service
-	ContainerType   string // will be validated and cast to enum in service
-	DispenserType   string // will be validated and cast to enum in service
-	Uses            string
-	ManufactureDate *string // RFC3339, parsed in service
-	ExpiryDate      *string // RFC3339, parsed in service
-	Instructions    string
-	IsDefault       bool
+	Price           float64            `json:"price" validate:"required,gte=0"`
+	CurrentStock    int                `json:"current_stock" validate:"required,gte=0"`
+	Capacity        float64            `json:"capacity" validate:"omitempty,gte=0"`
+	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" validate:"required,oneof=ML L G KG OZ"`
+	ContainerType   enum.ContainerType `json:"container_type" validate:"required,oneof=BOTTLE TUBE JAR STICK PENCIL COMPACT PALLETE SACHET VIAL ROLLER_BOTTLE"`
+	DispenserType   enum.DispenserType `json:"dispenser_type" validate:"required,oneof=PUMP SPRAY DROPPER ROLL_ON TWIST_UP SQUEEZE NONE"`
+	Uses            string             `json:"uses" validate:"required,max=5000"`
+	ManufactureDate *string            `json:"manufacturing_date" validate:"omitempty,datetime=2006-01-02"`
+	ExpiryDate      *string            `json:"expiry_date" validate:"omitempty,datetime=2006-01-02"`
+	Instructions    string             `json:"instructions" validate:"omitempty,max=5000"`
+	IsDefault       bool               `json:"is_default" gorm:"column:is_default;not null;default:false"`
 }
 
 // ToModel maps the DTO to a Product domain model.
