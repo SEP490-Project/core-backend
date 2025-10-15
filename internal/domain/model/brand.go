@@ -21,7 +21,7 @@ type Brand struct {
 	LogoURL                 *string          `json:"logo_url" gorm:"type:text;column:logo_url"`
 	TaxNumber               *string          `json:"tax_number" gorm:"type:varchar(100);column:tax_number"`
 	RepresentativeName      *string          `json:"representative_name" gorm:"type:varchar(255);column:representative_name"`
-	RepresentativeRole      *string          `json:"representative_role" gorm:"type:varchar(100);column:representative_position"`
+	RepresentativeRole      *string          `json:"representative_role" gorm:"type:varchar(100);column:representative_role"`
 	RepresentativeEmail     *string          `json:"representative_email" gorm:"type:varchar(255);column:representative_email"`
 	RepresentativePhone     *string          `json:"representative_phone" gorm:"type:varchar(25);column:representative_phone"`
 	RepresentativeCitizenID *string          `json:"representative_citizen_id" gorm:"type:varchar(100);column:representative_citizen_id"`
