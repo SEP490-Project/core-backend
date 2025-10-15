@@ -20,6 +20,7 @@ type DatabaseRegistry struct {
 	CampaignRepository        irepository.GenericRepository[model.Campaign]
 	MilestoneRepository       irepository.GenericRepository[model.Milestone]
 	TaskRepository            irepository.GenericRepository[model.Task]
+	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -35,5 +36,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		CampaignRepository:        NewGenericRepository[model.Campaign](db),
 		MilestoneRepository:       NewGenericRepository[model.Milestone](db),
 		TaskRepository:            NewGenericRepository[model.Task](db),
+		ModifiedHistoryRepository: NewGenericRepository[model.ModifiedHistory](db),
 	}
 }

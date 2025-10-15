@@ -2719,6 +2719,55 @@ paths:
       summary: Approve contract
       tags:
       - Contracts
+  /api/v1/contracts/async:
+    post:
+      consumes:
+      - application/json
+      description: Create a new contract and optionally update brand information
+      parameters:
+      - description: Contract creation data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateContractRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Contract created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new contract
+      tags:
+      - Contracts
   /api/v1/contracts/brands/{brand_id}:
     get:
       consumes:

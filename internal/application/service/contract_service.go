@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"errors"
 	"fmt"
 
@@ -17,6 +18,7 @@ import (
 )
 
 type ContractService struct {
+	brandRepository    irepository.GenericRepository[model.Brand]
 	contractRepository irepository.GenericRepository[model.Contract]
 }
 
@@ -184,14 +186,8 @@ func (s *ContractService) CreateContract(
 		return nil, errors.New("failed to create contract")
 	}
 
-	// Commit transaction
-	if err = unitOfWork.Commit(); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		return nil, errors.New("failed to save contract")
-	}
-
 	// Retrieve created contract with relationships
-	createdContract, err := s.contractRepository.GetByID(ctx, contract.ID, []string{"Brand", "ParentContract"})
+	createdContract, err := contractRepo.GetByID(ctx, contract.ID, []string{"Brand", "ParentContract"})
 	if err != nil {
 		zap.L().Error("Failed to retrieve created contract", zap.Error(err))
 		return nil, errors.New("contract created but failed to retrieve details")
@@ -472,8 +468,44 @@ func (s *ContractService) DeleteContractByID(ctx context.Context, contractID uui
 	return nil
 }
 
-func NewContractService(contractRepository irepository.GenericRepository[model.Contract]) iservice.ContractService {
+// ValidateBrandAndContractNumber implements iservice.ContractService.
+func (s *ContractService) ValidateBrandAndContractNumber(ctx context.Context, brandID uuid.UUID, contractNumber string) error {
+	zap.L().Info("Validating brand ID and contract number",
+		zap.String("brand_id", brandID.String()),
+		zap.String("contract_number", contractNumber))
+
+	brandExists, err := s.brandRepository.Exists(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ?", brandID)
+	})
+	if err != nil {
+		zap.L().Error("Failed to check brand existence", zap.Error(err))
+		return errors.New("failed to verify brand")
+	} else if !brandExists {
+		zap.L().Warn("Brand not found", zap.String("brand_id", brandID.String()))
+		return errors.New("brand not found")
+	}
+
+	// Check if contract with same brand ID and contract number exists
+	exists, err := s.contractRepository.Exists(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("brand_id = ? AND contract_number = ?", brandID, contractNumber)
+	})
+	if err != nil {
+		zap.L().Error("Failed to check contract existence", zap.Error(err))
+		return errors.New("failed to verify contract")
+	} else if exists {
+		zap.L().Warn("Contract already exists", zap.String("brand_id", brandID.String()), zap.String("contract_number", contractNumber))
+		return fmt.Errorf("contract number %s already exists", contractNumber)
+	}
+
+	zap.L().Info("Brand ID and contract number are valid",
+		zap.String("brand_id", brandID.String()),
+		zap.String("contract_number", contractNumber))
+	return nil
+}
+
+func NewContractService(repositoryRegistry *gormrepository.DatabaseRegistry) iservice.ContractService {
 	return &ContractService{
-		contractRepository: contractRepository,
+		contractRepository: repositoryRegistry.ContractRepository,
+		brandRepository:    repositoryRegistry.BrandRepository,
 	}
 }

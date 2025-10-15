@@ -13,6 +13,7 @@ import (
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/service"
 	"core-backend/internal/infrastructure/third_party_repository"
+	"fmt"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -91,22 +92,43 @@ func (r *InfrastructureRegistry) StartBackgroundServices(ctx context.Context) {
 			zap.L().Info("Asynq server started successfully")
 		}
 	}()
+}
 
-	// Start RabbitMQ consumer if RabbitMQ is available
-	if r.RabbitMQ != nil {
-		zap.L().Debug("Starting RabbitMQ consumer in background")
-		go func() {
-			if err := r.RabbitMQ.Consume(ctx, r.handleRabbitMQMessage); err != nil {
-				zap.L().Error("Failed to start RabbitMQ consumer", zap.Error(err))
-			} else {
-				zap.L().Info("RabbitMQ consumer started successfully")
-			}
-		}()
-	} else {
-		zap.L().Debug("RabbitMQ not available, skipping consumer startup")
+// RegisterRabbitMQConsumers registers consumer handlers with RabbitMQ
+// This method should be called after creating the consumer registry in the presentation layer
+func (r *InfrastructureRegistry) RegisterRabbitMQConsumers(
+	ctx context.Context,
+	handlers map[string]func(context.Context, []byte) error,
+) error {
+	if r.RabbitMQ == nil {
+		zap.L().Warn("RabbitMQ not available, skipping consumer registration")
+		return nil
 	}
 
-	zap.L().Info("Background services started successfully")
+	zap.L().Info("Registering RabbitMQ consumer handlers", zap.Int("handler_count", len(handlers)))
+
+	// Register each handler
+	for consumerName, handler := range handlers {
+		if err := r.RabbitMQ.RegisterConsumerHandlerFunc(consumerName, handler); err != nil {
+			zap.L().Error("Failed to register consumer handler",
+				zap.String("consumer", consumerName),
+				zap.Error(err))
+			return fmt.Errorf("failed to register handler for %s: %w", consumerName, err)
+		}
+		zap.L().Info("Registered consumer handler", zap.String("consumer", consumerName))
+	}
+
+	// Start all configured consumers
+	zap.L().Info("Starting RabbitMQ consumers")
+	go func() {
+		if err := r.RabbitMQ.StartConsumers(ctx); err != nil {
+			zap.L().Error("Failed to start RabbitMQ consumers", zap.Error(err))
+		} else {
+			zap.L().Info("RabbitMQ consumers started successfully")
+		}
+	}()
+
+	return nil
 }
 
 // StopServices gracefully stops all services
@@ -134,19 +156,6 @@ func (r *InfrastructureRegistry) StopServices() {
 	}
 
 	zap.L().Info("Infrastructure services stopped successfully")
-}
-
-// handleRabbitMQMessage handles incoming RabbitMQ messages
-func (r *InfrastructureRegistry) handleRabbitMQMessage(message []byte) error {
-	zap.L().Info("Received RabbitMQ message", zap.ByteString("message", message))
-
-	// TODO: Implement message processing logic based on your needs
-	// This could involve:
-	// - Parsing the message to determine the type
-	// - Routing to appropriate handlers
-	// - Enqueuing tasks in Asynq for processing
-
-	return nil
 }
 
 // IsHealthy checks if all critical infrastructure services are healthy
