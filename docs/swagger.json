@@ -574,7 +574,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.CreateBrandRequest"
+                            "$ref": "#/definitions/requests.CreateBrandWithUserRequest"
                         }
                     }
                 ],
@@ -1546,6 +1546,87 @@
                     }
                 }
             },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new contract and optionally update brand information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Create new contract",
+                "parameters": [
+                    {
+                        "description": "Contract creation data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateContractRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Contract created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Brand not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/async": {
             "post": {
                 "security": [
                     {
@@ -3923,6 +4004,73 @@
                     "maxLength": 255,
                     "minLength": 2,
                     "example": "Acme Corp"
+                },
+                "website": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://www.acme.com"
+                }
+            }
+        },
+        "requests.CreateBrandWithUserRequest": {
+            "type": "object",
+            "required": [
+                "contact_email",
+                "name"
+            ],
+            "properties": {
+                "contact_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "acme@example.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A leading manufacturer of quality products."
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://www.acme.com/logo.png"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Acme Corp"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Manager"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "123456789"
                 },
                 "website": {
                     "type": "string",
