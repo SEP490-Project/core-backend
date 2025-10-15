@@ -12,6 +12,7 @@ bin/
 .env
 *.log
 *.pem
+*__debug*
 
 .*_dev.*
 .*.dev.*
