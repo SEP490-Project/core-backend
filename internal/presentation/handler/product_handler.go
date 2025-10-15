@@ -5,8 +5,9 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"go.uber.org/zap"
+	"core-backend/pkg/utils"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -237,83 +238,221 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
-		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, responses)
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
+	productID, err := uuid.Parse(c.Param("productId"))
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
-		return
-	}
-
-	productIDStr := c.Param("productId")
-	productID, err := uuid.Parse(productIDStr)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid product ID: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	var req requests.BulkVariantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	
+
 	if err := h.validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	ctx := c.Request.Context()
 	uow := h.unitOfWork.Begin()
-
-	//Create variant
-	createdVariants := req.CreateProductVariantRequest
-	variant, err := h.productService.CreateProductVariance(ctx, userID, productID, createdVariants, uow)
-	if err != nil {
-		err := uow.Rollback()
-		if err != nil {
-			zap.L().Info(err.Error())
-			return
+	defer func() {
+		// Đảm bảo rollback khi chưa commit
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}()
+
+	// 1. Tạo variant
+	variant, err := h.productService.CreateProductVariance(ctx, userID, productID, req.CreateProductVariantRequest, uow)
+	if err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	//Create story for variant
-	productStory := req.Story
-	_, err = h.productService.CreateProductStory(ctx, variant.ID, productStory, uow)
+	// 2. Tạo story
+	_, err = h.productService.CreateProductStory(ctx, variant.ID, req.Story, uow)
 	if err != nil {
-		zap.L().Info("Error When Create Product Story: " + err.Error())
-		err := uow.Rollback()
-		if err != nil {
-			zap.L().Info(err.Error())
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	//Add Attribute Value for variant
+	// 3. Thêm attribute values
+	attributeIDs := make(map[uuid.UUID]bool)
 	for _, attrValue := range req.Attributes {
-		_, err = h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow)
-		if err != nil {
-			zap.L().Info("Error When Add Attribute Value: " + err.Error())
-			err := uow.Rollback()
-			if err != nil {
-				zap.L().Info(err.Error())
-			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if attributeIDs[attrValue.AttributeID] {
+			uow.Rollback()
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("AttributeID cannot be duplicate", http.StatusBadRequest))
+			return
+		}
+		attributeIDs[attrValue.AttributeID] = true
+
+		if _, err = h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow); err != nil {
+			uow.Rollback()
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 			return
 		}
 	}
 
-	err = uow.Commit()
-	if err != nil {
-		zap.L().Info("Error When Commit Transaction: " + err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// 4. Commit transaction
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Commit error: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Variant created successfully", "variant_id": variant.ID})
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Created successful", utils.IntPtr(http.StatusCreated), variant))
+}
+
+// CreateVariantImage godoc
+// @Summary      Create Variant Image
+// @Description  Upload and create a new image for a product variant
+// @Tags         Products
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        variantId  path      string  true   "Variant ID (UUID)"
+// @Param        file       formData  file    true   "Image file to upload"
+// @Param        alt_text   formData  string  false  "Alt text for the image"
+// @Param        is_primary formData  bool    false  "Is this the primary image" default(false)
+// @Success      201        {object}  responses.VariantImageResponse
+// @Failure      400        {object}  object{error=string}
+// @Failure      401        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/products/{productId}/variants/{variantId}/images [post]
+func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	variantID, err := uuid.Parse(c.Param("variantId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid variant ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Get file from form
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("File is required", http.StatusBadRequest))
+		return
+	}
+
+	// Parse other form fields
+	altText := c.PostForm("alt_text")
+	isPrimaryStr := c.PostForm("is_primary")
+	isPrimary := false
+	if isPrimaryStr == "true" {
+		isPrimary = true
+	}
+
+	// Save uploaded file temporarily
+	tempPath := "/tmp/" + file.Filename
+	if err := c.SaveUploadedFile(file, tempPath); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to save uploaded file", http.StatusInternalServerError))
+		return
+	}
+	defer os.Remove(tempPath) // Clean up temp file
+
+	// Upload to S3 and get URL
+	imageURL, err := h.fileService.UploadFile(userID.String(), tempPath, file.Filename)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to upload file: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// Prepare request
+	req := requests.CreateVariantImagesRequest{
+		VariantID: variantID,
+		ImageURL:  imageURL,
+		AltText:   &altText,
+		IsPrimary: isPrimary,
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	variantImage, err := h.productService.CreateVarianceImage(ctx, variantID, req, uow)
+	if err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create variant image: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Commit error: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Variant image created successfully", utils.IntPtr(http.StatusCreated), variantImage))
+}
+
+// CreateVariantAttribute godoc
+// @Summary      Create Variant Attribute
+// @Description  Create a new variant attribute
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        body  body      requests.CreateVariantAttributeRequest  true  "Attribute data"
+// @Success      201   {object}  model.VariantAttribute
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/variant-attributes [post]
+func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.CreateVariantAttributeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	variantAttribute, err := h.productService.CreateVariantAttribute(ctx, userID, req, uow)
+	if err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create variant attribute: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Commit error: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Variant attribute created successfully", utils.IntPtr(http.StatusCreated), variantAttribute))
 }
