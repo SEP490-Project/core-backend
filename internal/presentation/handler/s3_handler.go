@@ -2,9 +2,10 @@ package handler
 
 import (
 	"core-backend/internal/application/interfaces/iservice"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
+
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,15 +19,16 @@ func NewS3Handler(fileService iservice.FileService) *S3Handler {
 }
 
 // UploadFile godoc
-// @Summary Upload files to S3
-// @Tags files
-// @Accept multipart/form-data
-// @Produce json
-// @Param files formData file true "Files to upload"
-// @Param userId formData string true "User ID"
-// @Success 200 {object} map[string][]string
-// @Failure 400 {object} map[string]string
-// @Router /api/v1/files/upload [post]
+//
+//	@Summary	Upload files to S3
+//	@Tags		files
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		files	formData	file	true	"Files to upload"
+//	@Param		userId	formData	string	true	"User ID"
+//	@Success	200		{object}	map[string][]string
+//	@Failure	400		{object}	map[string]string
+//	@Router		/api/v1/files/upload [post]
 func (h *S3Handler) UploadFile(c *gin.Context) {
 	userID := c.PostForm("userId")
 	if userID == "" {

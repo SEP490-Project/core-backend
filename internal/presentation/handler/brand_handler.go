@@ -73,7 +73,7 @@ func (bh *BrandHandler) CreateBrand(c *gin.Context) {
 //	@Tags			Brands
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		requests.CreateBrandRequest							true	"Brand creation data"
+//	@Param			request	body		requests.CreateBrandWithUserRequest					true	"Brand creation data"
 //	@Success		201		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand and User created successfully"
 //	@Failure		400		{object}	responses.APIResponse								"Invalid request"
 //	@Failure		500		{object}	responses.APIResponse								"Internal server error"
