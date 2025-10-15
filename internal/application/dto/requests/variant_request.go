@@ -3,15 +3,16 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"time"
 )
 
 // BulkVariantRequest represent a compound, multi model createtion
 // include: CreateProductVariantRequest, CreateProductStoryRequest, [] CreateVariantImagesRequest
 //
-//	@example {
+//	@example	{
 //	  "price": 29.99,
 //	  "current_stock": 100,
 //	  "capacity": 500,

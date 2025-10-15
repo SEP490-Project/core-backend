@@ -149,18 +149,19 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 }
 
 // CreateProduct godoc
-// @Summary      Create Product
-// @Description  Create a new product (initial state DRAFT)
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        body  body  requests.CreateProductRequest  true  "Product to create"
-// @Success      201  {object} responses.ProductResponse
-// @Failure      400  {object} object{error=string}
-// @Failure      401  {object} object{error=string}
-// @Failure      500  {object} object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/products [post]
+//
+//	@Summary		Create Product
+//	@Description	Create a new product (initial state DRAFT)
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		requests.CreateProductRequest	true	"Product to create"
+//	@Success		201		{object}	responses.ProductResponse
+//	@Failure		400		{object}	object{error=string}
+//	@Failure		401		{object}	object{error=string}
+//	@Failure		500		{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products [post]
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	var req requests.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -195,14 +196,15 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 }
 
 // CreateProductVariant godoc
-// @Summary      Create Product Variant
-// @Description  Create a new product variant with story and attributes
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        productId  path  string  true  "Product ID (UUID)"
 //
-//	@Param        body       body  requests.BulkVariantRequest  true  "Variant data to create" example({
+//	@Summary		Create Product Variant
+//	@Description	Create a new product variant with story and attributes
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			productId	path		string						true	"Product ID (UUID)"
+//
+//	@Param			body		body		requests.BulkVariantRequest	true	"Variant data to create"	example({
 //	  "price": 29.99,
 //	  "current_stock": 100,
 //	  "capacity": 500,
@@ -229,12 +231,12 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 //	  ]
 //	})
 //
-// @Success      201        {object} responses.ProductVariantResponse
-// @Failure      400        {object} object{error=string}
-// @Failure      401        {object} object{error=string}
-// @Failure      500        {object} object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/products/{productId}/variants [post]
+//	@Success		201			{object}	responses.ProductVariantResponse
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{productId}/variants [post]
 func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
@@ -312,21 +314,22 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 }
 
 // CreateVariantImage godoc
-// @Summary      Create Variant Image
-// @Description  Upload and create a new image for a product variant
-// @Tags         Products
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        variantId  path      string  true   "Variant ID (UUID)"
-// @Param        file       formData  file    true   "Image file to upload"
-// @Param        alt_text   formData  string  false  "Alt text for the image"
-// @Param        is_primary formData  bool    false  "Is this the primary image" default(false)
-// @Success      201        {object}  responses.VariantImageResponse
-// @Failure      400        {object}  object{error=string}
-// @Failure      401        {object}  object{error=string}
-// @Failure      500        {object}  object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/products/{productId}/variants/{variantId}/images [post]
+//
+//	@Summary		Create Variant Image
+//	@Description	Upload and create a new image for a product variant
+//	@Tags			Products
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			variantId	path		string	true	"Variant ID (UUID)"
+//	@Param			file		formData	file	true	"Image file to upload"
+//	@Param			alt_text	formData	string	false	"Alt text for the image"
+//	@Param			is_primary	formData	bool	false	"Is this the primary image"	default(false)
+//	@Success		201			{object}	responses.VariantImageResponse
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{productId}/variants/{variantId}/images [post]
 func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
@@ -403,18 +406,19 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 }
 
 // CreateVariantAttribute godoc
-// @Summary      Create Variant Attribute
-// @Description  Create a new variant attribute
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        body  body      requests.CreateVariantAttributeRequest  true  "Attribute data"
-// @Success      201   {object}  model.VariantAttribute
-// @Failure      400   {object}  object{error=string}
-// @Failure      401   {object}  object{error=string}
-// @Failure      500   {object}  object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/variant-attributes [post]
+//
+//	@Summary		Create Variant Attribute
+//	@Description	Create a new variant attribute
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
+//	@Success		201		{object}	model.VariantAttribute
+//	@Failure		400		{object}	object{error=string}
+//	@Failure		401		{object}	object{error=string}
+//	@Failure		500		{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/variant-attributes [post]
 func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
