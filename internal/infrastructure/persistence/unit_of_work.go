@@ -29,6 +29,7 @@ type unitOfWork struct {
 	variantAttributeRepository      irepository.GenericRepository[model.VariantAttribute]
 	variantImageRepository          irepository.GenericRepository[model.VariantImage]
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
+	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -64,6 +65,7 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
 	u.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](u.tx)
 	u.variantAttributeValueRepository = gormrepository.NewGenericRepository[model.VariantAttributeValue](u.tx)
+	u.modifiedHistoryRepository = gormrepository.NewGenericRepository[model.ModifiedHistory](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -169,6 +171,10 @@ func (u *unitOfWork) ProductStory() irepository.GenericRepository[model.ProductS
 
 func (u *unitOfWork) InTransaction() bool {
 	return u.tx != nil
+}
+
+func (u *unitOfWork) ModifiedHistories() irepository.GenericRepository[model.ModifiedHistory] {
+	return u.modifiedHistoryRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {
