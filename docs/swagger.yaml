@@ -1,4 +1,62 @@
 definitions:
+  dtos.Level:
+    properties:
+      level:
+        example: 1
+        minimum: 1
+        type: integer
+      max_clicks:
+        example: 1000
+        minimum: 0
+        type: integer
+      multiplier:
+        example: 1
+        minimum: 1
+        type: number
+    required:
+    - level
+    - max_clicks
+    - multiplier
+    type: object
+  dtos.Schedule:
+    properties:
+      amount:
+        example: 3000000
+        minimum: 0
+        type: integer
+      due_date:
+        example: "2023-10-15"
+        type: string
+      id:
+        example: 1
+        type: integer
+      milestone:
+        example: Initial payment
+        maxLength: 255
+        type: string
+      percent:
+        example: 30
+        maximum: 100
+        minimum: 0
+        type: integer
+    required:
+    - amount
+    - due_date
+    - milestone
+    - percent
+    type: object
+  dtos.TaxWithholding:
+    properties:
+      rate_percent:
+        example: 10
+        maximum: 100
+        minimum: 0
+        type: integer
+      threshold:
+        example: 10000000
+        minimum: 0
+        type: integer
+    type: object
   enum.AttributeUnit:
     enum:
     - '%'
@@ -154,22 +212,6 @@ definitions:
     required:
     - state
     type: object
-  requests.CapitalContribution:
-    properties:
-      company:
-        $ref: '#/definitions/requests.ContributionDescription'
-      kol:
-        $ref: '#/definitions/requests.ContributionDescription'
-    type: object
-  requests.ContributionDescription:
-    properties:
-      description:
-        example: Equipment and studio
-        type: string
-      value:
-        example: 50000000
-        type: integer
-    type: object
   requests.CreateBrandRequest:
     properties:
       contact_email:
@@ -249,147 +291,6 @@ definitions:
     - type
     type: object
   requests.CreateContractRequest:
-    properties:
-      brand_bank_account_number:
-        example: "0123456789"
-        maxLength: 255
-        type: string
-      brand_bank_name:
-        example: Vietcombank
-        maxLength: 255
-        type: string
-      brand_id:
-        example: 660e8400-e29b-41d4-a716-446655440000
-        type: string
-      brand_representative_email:
-        example: john.doe@acme.com
-        maxLength: 255
-        type: string
-      brand_representative_name:
-        example: John Doe
-        maxLength: 255
-        type: string
-      brand_representative_phone:
-        example: "+84901234567"
-        type: string
-      brand_representative_role:
-        example: CEO
-        maxLength: 255
-        type: string
-      brand_tax_number:
-        description: Brand information (stored in contract for record-keeping)
-        example: TAX123456
-        maxLength: 100
-        type: string
-      contract_file_url:
-        description: File URLs
-        example: https://example.com/contracts/contract.pdf
-        type: string
-      contract_number:
-        example: CONTRACT-2023-001
-        maxLength: 255
-        minLength: 2
-        type: string
-      currency:
-        description: Financial
-        example: VND
-        type: string
-      end_date:
-        example: "2023-12-31T23:59:59Z"
-        type: string
-      financial_terms:
-        allOf:
-        - $ref: '#/definitions/requests.FinancialTerms'
-        description: Complex JSONB fields
-      legal_terms:
-        $ref: '#/definitions/requests.LegalTerms'
-      parent_contract_id:
-        description: Parent contract (for amendments or related contracts)
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      proposal_file_url:
-        example: https://example.com/proposals/proposal.pdf
-        type: string
-      representative_bank_account_holder:
-        example: Jane Smith
-        maxLength: 255
-        type: string
-      representative_bank_account_number:
-        example: "987654321"
-        maxLength: 255
-        type: string
-      representative_bank_name:
-        example: First National Bank
-        maxLength: 255
-        type: string
-      representative_email:
-        example: jane.smith@example.com
-        maxLength: 255
-        type: string
-      representative_name:
-        description: KOL/Representative information (the other party in the contract)
-        example: Jane Smith
-        maxLength: 255
-        minLength: 2
-        type: string
-      representative_phone:
-        example: "+84901234567"
-        type: string
-      representative_role:
-        example: Influencer
-        maxLength: 255
-        type: string
-      representative_tax_number:
-        example: TAX654321
-        maxLength: 100
-        type: string
-      scope_of_work:
-        $ref: '#/definitions/requests.ScopeOfWork'
-      signed_date:
-        description: Contract dates
-        example: "2023-10-01T12:00:00Z"
-        type: string
-      signed_location:
-        example: Springfield
-        maxLength: 255
-        type: string
-      start_date:
-        example: "2023-10-02T00:00:00Z"
-        type: string
-      status:
-        enum:
-        - DRAFT
-        - ACTIVE
-        - COMPLETED
-        - TERMINATED
-        example: DRAFT
-        type: string
-      title:
-        description: Contract basic information
-        example: Social Media Promotion Contract
-        maxLength: 255
-        minLength: 2
-        type: string
-      type:
-        enum:
-        - ADVERTISING
-        - AFFILIATE
-        - BRAND_AMBASSADOR
-        - CO_PRODUCING
-        example: ADVERTISING
-        type: string
-    required:
-    - brand_id
-    - contract_number
-    - end_date
-    - financial_terms
-    - legal_terms
-    - representative_name
-    - scope_of_work
-    - signed_date
-    - start_date
-    - title
-    - type
     type: object
   requests.CreateMilestoneCampaignRequest:
     properties:
@@ -435,111 +336,6 @@ definitions:
     - name
     - type
     type: object
-  requests.Deliverable:
-    properties:
-      channel_id:
-        example: 770e8400-e29b-41d4-a716-446655440000
-        type: string
-      channel_link:
-        example: https://youtube.com/channel/xyz
-        type: string
-      channel_name:
-        example: YouTube
-        type: string
-      deadline:
-        example: "2023-11-30"
-        type: string
-      quantity:
-        example: 5
-        type: integer
-      type:
-        example: VIDEO
-        type: string
-    type: object
-  requests.FinancialTerms:
-    properties:
-      base_per_click:
-        example: 1000
-        type: integer
-      capital_contribution:
-        $ref: '#/definitions/requests.CapitalContribution'
-      cost_breakdown:
-        additionalProperties:
-          type: integer
-        type: object
-      levels:
-        items:
-          $ref: '#/definitions/requests.Level'
-        type: array
-      model:
-        example: FIXED
-        type: string
-      payment_cycle:
-        allOf:
-        - $ref: '#/definitions/enum.PaymentCycle'
-        example: MONTHLY
-      payment_date:
-        example: "2023-11-05"
-        type: string
-      payment_method:
-        example: BANK_TRANSFER
-        type: string
-      profit_distribution_cycle:
-        allOf:
-        - $ref: '#/definitions/enum.PaymentCycle'
-        example: QUARTERLY
-      profit_distribution_date:
-        example: "2023-12-31"
-        type: string
-      profit_split_company_percent:
-        example: 60
-        type: integer
-      profit_split_kol_percent:
-        example: 40
-        type: integer
-      schedule:
-        items:
-          $ref: '#/definitions/requests.Schedule'
-        type: array
-      tax_withholding:
-        $ref: '#/definitions/requests.TaxWithholding'
-      total_cost:
-        example: 10000000
-        type: integer
-    type: object
-  requests.LegalTerms:
-    properties:
-      confidentiality:
-        example: true
-        type: boolean
-      dispute_resolution_court:
-        example: Ho Chi Minh City Court
-        type: string
-      force_majeure_notification_days:
-        example: 7
-        type: integer
-      management_board:
-        items:
-          $ref: '#/definitions/requests.ManagementBoard'
-        type: array
-      number_of_copies:
-        example: 2
-        type: integer
-      penalties:
-        $ref: '#/definitions/requests.Penalties'
-    type: object
-  requests.Level:
-    properties:
-      level:
-        example: 1
-        type: integer
-      min_clicks:
-        example: 1000
-        type: integer
-      multiplier:
-        example: 1.5
-        type: number
-    type: object
   requests.LoginRequest:
     properties:
       login_identifier:
@@ -559,30 +355,6 @@ definitions:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
-  requests.ManagementBoard:
-    properties:
-      name:
-        example: John Doe
-        type: string
-      representing:
-        example: Brand
-        type: string
-    type: object
-  requests.Penalties:
-    properties:
-      breach_of_contract_percent:
-        example: 20
-        type: integer
-      late_delivery_percent_per_day:
-        example: 0.5
-        type: number
-      late_payment_percent_per_day:
-        example: 0.3
-        type: number
-      non_delivery_penalty_percent:
-        example: 30
-        type: integer
-    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -590,51 +362,6 @@ definitions:
         type: string
     required:
     - refresh_token
-    type: object
-  requests.Schedule:
-    properties:
-      amount:
-        example: 3000000
-        type: integer
-      due_date:
-        example: "2023-10-15"
-        type: string
-      milestone:
-        example: Initial payment
-        type: string
-      percent:
-        example: 30
-        type: integer
-    type: object
-  requests.ScopeOfWork:
-    properties:
-      branding_restrictions:
-        example:
-        - No competitor brands
-        items:
-          type: string
-        type: array
-      co_production_roles:
-        additionalProperties:
-          type: string
-        type: object
-      deliverables:
-        items:
-          $ref: '#/definitions/requests.Deliverable'
-        type: array
-      description:
-        example: Create and publish social media content
-        type: string
-      products:
-        example:
-        - Product A
-        - Product B
-        items:
-          type: string
-        type: array
-      technical_requirements:
-        example: 4K video, professional lighting
-        type: string
     type: object
   requests.SignUpRequest:
     properties:
@@ -659,15 +386,6 @@ definitions:
     - email
     - password
     - username
-    type: object
-  requests.TaxWithholding:
-    properties:
-      rate_percent:
-        example: 10
-        type: integer
-      threshold:
-        example: 10000000
-        type: integer
     type: object
   requests.UpdateAddressProfileRequest:
     properties:
@@ -782,27 +500,8 @@ definitions:
         maxLength: 255
         type: string
       brand_id:
-        example: 660e8400-e29b-41d4-a716-446655440000
-        type: string
-      brand_representative_email:
-        example: john.doe@acme.com
-        maxLength: 255
-        type: string
-      brand_representative_name:
-        example: John Doe
-        maxLength: 255
-        type: string
-      brand_representative_phone:
-        example: "+84901234567"
-        type: string
-      brand_representative_role:
-        example: CEO
-        maxLength: 255
-        type: string
-      brand_tax_number:
         description: Brand information (stored in contract for record-keeping)
-        example: TAX123456
-        maxLength: 100
+        example: 660e8400-e29b-41d4-a716-446655440000
         type: string
       contract_file_url:
         description: File URLs
@@ -998,6 +697,12 @@ definitions:
       address:
         example: 123 Main St, Springfield
         type: string
+      bank_account_number:
+        example: "0123456789"
+        type: string
+      bank_name:
+        example: Vietcombank
+        type: string
       contact_email:
         example: contact@acme.com
         type: string
@@ -1012,6 +717,24 @@ definitions:
         type: string
       name:
         example: Acme Corp
+        type: string
+      representative_citizen_id:
+        example: "1234567890"
+        type: string
+      representative_email:
+        example: john.doe@acme.com
+        type: string
+      representative_name:
+        example: John Doe
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: CEO
+        type: string
+      tax_number:
+        example: TAX123456
         type: string
     type: object
   responses.CampaignDetailsResponse:
@@ -1179,32 +902,9 @@ definitions:
   responses.ContractResponse:
     properties:
       brand:
-        $ref: '#/definitions/responses.BrandSummary'
-      brand_bank_account_number:
-        example: "0123456789"
-        type: string
-      brand_bank_name:
-        example: Vietcombank
-        type: string
-      brand_id:
+        allOf:
+        - $ref: '#/definitions/responses.BrandSummary'
         description: Brand information (from relationship)
-        example: 660e8400-e29b-41d4-a716-446655440000
-        type: string
-      brand_representative_email:
-        example: john.doe@acme.com
-        type: string
-      brand_representative_name:
-        example: John Doe
-        type: string
-      brand_representative_phone:
-        example: "+84901234567"
-        type: string
-      brand_representative_role:
-        example: CEO
-        type: string
-      brand_tax_number:
-        example: TAX123456
-        type: string
       contract_file_url:
         description: File URLs
         example: https://example.com/contracts/contract.pdf
@@ -2587,25 +2287,15 @@ paths:
       - Contracts
     post:
       consumes:
-      - multipart/form-data
+      - application/json
       description: Create a new contract and optionally update brand information
       parameters:
-      - description: Contract creation data (to be JSON-stringified and placed in
-          'data' form field)
+      - description: Contract creation data
         in: body
         name: data
+        required: true
         schema:
           $ref: '#/definitions/requests.CreateContractRequest'
-      - description: Contract creation data in JSON format of struct type requests.CreateContractRequest
-        in: formData
-        name: data
-        required: true
-        type: string
-      - description: Contract file
-        in: formData
-        name: file
-        required: true
-        type: file
       produces:
       - application/json
       responses:
