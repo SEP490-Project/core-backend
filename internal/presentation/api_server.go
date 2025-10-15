@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
+	"core-backend/internal/presentation/consumer"
 	"core-backend/internal/presentation/handler"
 	"core-backend/internal/presentation/middleware"
 	"fmt"
@@ -26,6 +27,7 @@ type APIServer struct {
 	handlerRegistry        *handler.HandlerRegistry
 	middlewareRegistry     *middleware.MiddlewareRegistry
 	serviceRegistry        *application.ApplicationRegistry
+	consumerRegistry       *consumer.ConsumerRegistry
 	databaseRegistry       *gormrepository.DatabaseRegistry
 	infrastructureRegistry *infrastructure.InfrastructureRegistry
 	wsServer               *WebSocketServer
@@ -38,12 +40,13 @@ func NewAPIServer() *APIServer {
 	db := persistence.InitDB()
 	s3Bucket := persistence.InitS3()
 
-	// Create registries
+	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
 	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db, s3Bucket)
 	serviceRegistry := application.NewApplicationRegistry(databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
+	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry)
 
 	// Create WebSocket server
 	wsServer := NewWebSocketServer()
@@ -57,6 +60,7 @@ func NewAPIServer() *APIServer {
 		serviceRegistry:        serviceRegistry,
 		handlerRegistry:        handlerRegistry,
 		middlewareRegistry:     middlewareRegistry,
+		consumerRegistry:       consumerRegistry,
 		wsServer:               wsServer,
 		router:                 NewRouter(handlerRegistry, middlewareRegistry),
 		ctx:                    ctx,
@@ -79,7 +83,13 @@ func (s *APIServer) Start() error {
 
 	// Start background services
 	zap.L().Info("Starting background services...")
-	//s.infrastructureRegistry.StartBackgroundServices(s.ctx)
+	s.infrastructureRegistry.StartBackgroundServices(s.ctx)
+
+	// Register RabbitMQ consumer handlers
+	if err := s.registerRabbitMQConsumers(); err != nil {
+		zap.L().Error("Failed to register RabbitMQ consumers", zap.Error(err))
+		// Don't fail startup - RabbitMQ is optional
+	}
 
 	// Start WebSocket server if enabled
 	if wsConfig.Enabled {
@@ -162,6 +172,23 @@ func (s *APIServer) Stop() error {
 	defer cancel()
 
 	return s.server.Shutdown(shutdownCtx)
+}
+
+// registerRabbitMQConsumers registers all consumer handlers with RabbitMQ
+func (s *APIServer) registerRabbitMQConsumers() error {
+	zap.L().Info("Registering RabbitMQ consumer handlers")
+
+	// Map consumer names (from rabbitmq-config.yaml) to handler functions
+	handlers := map[string]func(context.Context, []byte) error{
+		"contract-create-consumer":         s.consumerRegistry.ContractCreateConsumer.Handle,
+		"contract-create-payment-consumer": s.consumerRegistry.ContractCreatePaymentConsumer.Handle,
+		"excel-import-products-consumer":   s.consumerRegistry.ExcelImportProductsConsumer.Handle,
+		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
+		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
+	}
+
+	// Register handlers with RabbitMQ
+	return s.infrastructureRegistry.RegisterRabbitMQConsumers(s.ctx, handlers)
 }
 
 func (s *APIServer) GetServer() *http.Server {
