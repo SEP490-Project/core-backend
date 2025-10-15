@@ -2,9 +2,10 @@ package requests
 
 import (
 	"core-backend/internal/domain/model"
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-	"time"
 )
 
 type CreateProductStoryRequest struct {

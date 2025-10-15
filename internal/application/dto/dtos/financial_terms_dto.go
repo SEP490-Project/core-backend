@@ -28,14 +28,14 @@ type FinancialTerms struct {
 	Levels         *[]Level           `json:"levels,omitempty" validate:"omitempty,dive"`
 	TaxWithholding *TaxWithholding    `json:"tax_withholding,omitempty" validate:"omitempty"`
 	PaymentCycle   *enum.PaymentCycle `json:"payment_cycle,omitempty" example:"MONTHLY" validate:"omitempty,oneof=MONTHLY QUARTERLY ANNUALLY"`
-	// @swaggertype object
+	//	@swaggertype	object
 	PaymentDate *any `json:"payment_date,omitempty" example:"Change this depending on PaymentCycle" validate:"omitempty"` // Change this depending on PaymentCycle
 
 	// If the model is "SHARE" and the CONTRACT_TYPE is "CO_PRODUCING"
 	CompanyPercent          *int               `json:"profit_split_company_percent,omitempty" example:"60" validate:"omitempty,min=0,max=100"`
 	KolPercent              *int               `json:"profit_split_kol_percent,omitempty" example:"40" validate:"omitempty,min=0,max=100"`
 	ProfitDistributionCycle *enum.PaymentCycle `json:"profit_distribution_cycle,omitempty" example:"QUARTERLY" validate:"omitempty,oneof=MONTHLY QUARTERLY ANNUALLY"`
-	// @swaggertype object
+	//	@swaggertype	object
 	ProfitDistributionDate *any `json:"profit_distribution_date,omitempty" example:"2023-12-31" validate:"omitempty"` // Change this depending on ProfitDistributionCycle
 }
 
