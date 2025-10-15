@@ -231,6 +231,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	adminAndMarketing.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
 		adminAndMarketing.POST("", contractHandler.CreateContract)
+		adminAndMarketing.POST("/async", contractHandler.CreateContractAsync)
 		adminAndMarketing.PATCH("/:id/approve", contractHandler.ApproveContract)
 		adminAndMarketing.DELETE("/:id", contractHandler.DeleteContract)
 	}
