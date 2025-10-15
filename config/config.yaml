@@ -76,9 +76,10 @@ otel:
 # RabbitMQ configuration
 rabbitmq:
   url: "amqp://guest:guest@localhost:5672/"
-  exchange: "sep490.exchange"
-  queue: "sep490.queue"
-  routing_key: "my_routing_key"
+  vhost: "/"
+  reconnectDelayMs: 5000
+  connectionTimeoutMs: 10000
+  heartbeat: 30
 
 # Asynq (background jobs) configuration
 asynq:
