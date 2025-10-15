@@ -169,7 +169,7 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, is
 
 	oldStatus := user.IsActive
 
-	updateFields := map[string]interface{}{
+	updateFields := map[string]any{
 		"is_active": isActive,
 	}
 	filters := func(db *gorm.DB) *gorm.DB {
@@ -335,7 +335,8 @@ func (s *UserService) UpdateProfile(
 		filters := func(db *gorm.DB) *gorm.DB {
 			return db.Where("username = ?", *updateRequest.FullName)
 		}
-		if exists, err := userRepo.Exists(ctx, filters); err != nil {
+		var exists bool
+		if exists, err = userRepo.Exists(ctx, filters); err != nil {
 			zap.L().Error("Failed to check username availability",
 				zap.String("user_id", userID.String()),
 				zap.String("username", *updateRequest.FullName),
@@ -350,7 +351,7 @@ func (s *UserService) UpdateProfile(
 		updatingUserModel.Username = *updateRequest.FullName
 	}
 
-	if err := userRepo.Update(ctx, user); err != nil {
+	if err = userRepo.Update(ctx, user); err != nil {
 		zap.L().Error("Failed to update user profile",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))

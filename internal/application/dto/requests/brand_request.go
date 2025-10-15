@@ -12,6 +12,17 @@ type CreateBrandRequest struct {
 	LogoURL      *string `json:"logo_url" validate:"omitempty,url" example:"https://www.acme.com/logo.png"`
 }
 
+// CreateBrandWithUserRequest represents the request payload for creating a new brand with user information.
+type CreateBrandWithUserRequest struct {
+	CreateBrandRequest
+	TaxNumber               *string `json:"tax_number" validate:"omitempty,max=100" example:"123456789"`
+	RepresentativeName      *string `json:"representative_name" validate:"omitempty,max=255" example:"John Doe"`
+	RepresentativeRole      *string `json:"representative_role" validate:"omitempty,max=255" example:"Manager"`
+	RepresentativeEmail     *string `json:"representative_email" validate:"omitempty,email,max=255" example:"john.doe@example.com"`
+	RepresentativePhone     *string `json:"representative_phone" validate:"omitempty,e164" example:"+1234567890"`
+	RepresentativeCitizenID *string `json:"representative_citizen_id" validate:"omitempty,max=50" example:"A123456789"`
+}
+
 // UpdateBrandRequest represents the request payload for updating an existing brand.
 type UpdateBrandRequest struct {
 	Name         string  `json:"name" validate:"required,min=2,max=255" example:"Acme Corp"`
