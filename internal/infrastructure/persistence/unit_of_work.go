@@ -13,15 +13,15 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
-	userRepo                  irepository.GenericRepository[model.User]
-	shippingAddressRepo       irepository.GenericRepository[model.ShippingAddress]
-	brandRepo                 irepository.GenericRepository[model.Brand]
-	loggedSessionRepo         irepository.GenericRepository[model.LoggedSession]
-	ContractRepository        irepository.GenericRepository[model.Contract]
-	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
-	CampaignRepository        irepository.GenericRepository[model.Campaign]
-	MilestoneRepository       irepository.GenericRepository[model.Milestone]
-	TaskRepository            irepository.GenericRepository[model.Task]
+	userRepo                        irepository.GenericRepository[model.User]
+	shippingAddressRepo             irepository.GenericRepository[model.ShippingAddress]
+	brandRepo                       irepository.GenericRepository[model.Brand]
+	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
+	ContractRepository              irepository.GenericRepository[model.Contract]
+	ContractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
+	CampaignRepository              irepository.GenericRepository[model.Campaign]
+	MilestoneRepository             irepository.GenericRepository[model.Milestone]
+	TaskRepository                  irepository.GenericRepository[model.Task]
 	productRepo                     irepository.GenericRepository[model.Product]
 	contractRepository              irepository.GenericRepository[model.Contract]
 	contractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
@@ -112,6 +112,7 @@ func (u *unitOfWork) Commit() error {
 		zap.L().Debug("Database transaction committed successfully")
 	}
 
+	u.tx = nil
 	return err
 }
 
@@ -130,6 +131,7 @@ func (u *unitOfWork) Rollback() error {
 		zap.L().Debug("Database transaction rolled back successfully")
 	}
 
+	u.tx = nil
 	return err
 }
 

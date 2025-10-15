@@ -138,15 +138,22 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			{
 				protectedProducts.POST("", productHandler.CreateProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
+				protectedProducts.POST("/:productId/variants/:variantId/images", productHandler.CreateVariantImage)
 			}
 
 			// State update (Sales, Brand only)
 			stateGroup := productsGroup.Group("")
-			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand))
+			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
 			{
 				stateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 			}
 		}
+
+		// Variant Attributes (Sales, Brand, Admin)
+		v1.POST("/variant-attributes",
+			r.middlewareRegistry.Auth.RequireRole(sales, admin),
+			productHandler.CreateVariantAttribute,
+		)
 
 		// ---------- TASKS ----------
 		taskGroup := v1.Group("/tasks")
