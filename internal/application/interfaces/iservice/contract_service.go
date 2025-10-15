@@ -17,6 +17,7 @@ type ContractService interface {
 		unitOfWork irepository.UnitOfWork,
 	) (*responses.ContractResponse, error)
 
+	// ApproveContract approves a contract by its ID
 	ApproveContract(ctx context.Context, contractID uuid.UUID) error
 
 	// UpdateContract updates an existing contract and optionally updates brand information

@@ -1,12 +1,9 @@
 package responses
 
 import (
-	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
-
-	"github.com/google/uuid"
 )
 
 // ContractResponse represents the full contract response with all details
@@ -21,15 +18,7 @@ type ContractResponse struct {
 	Status         string `json:"status" example:"ACTIVE"`
 
 	// Brand information (from relationship)
-	BrandID                  string        `json:"brand_id" example:"660e8400-e29b-41d4-a716-446655440000"`
-	Brand                    *BrandSummary `json:"brand,omitempty"`
-	BrandTaxNumber           *string       `json:"brand_tax_number,omitempty" example:"TAX123456"`
-	BrandRepresentativeName  *string       `json:"brand_representative_name,omitempty" example:"John Doe"`
-	BrandRepresentativeRole  *string       `json:"brand_representative_role,omitempty" example:"CEO"`
-	BrandRepresentativePhone *string       `json:"brand_representative_phone,omitempty" example:"+84901234567"`
-	BrandRepresentativeEmail *string       `json:"brand_representative_email,omitempty" example:"john.doe@acme.com"`
-	BrandBankName            *string       `json:"brand_bank_name,omitempty" example:"Vietcombank"`
-	BrandBankAccountNumber   *string       `json:"brand_bank_account_number,omitempty" example:"0123456789"`
+	Brand *BrandSummary `json:"brand,omitempty"`
 
 	// KOL/Representative information
 	RepresentativeName              string  `json:"representative_name" example:"Jane Smith"`
@@ -92,10 +81,12 @@ type BrandSummary struct {
 	RepresentativePhone     *string `json:"representative_phone,omitempty" example:"+84901234567"`
 	RepresentativeEmail     *string `json:"representative_email,omitempty" example:"john.doe@acme.com"`
 	RepresentativeCitizenID *string `json:"representative_citizen_id,omitempty" example:"1234567890"`
+	BankName                *string `json:"bank_name,omitempty" example:"Vietcombank"`
+	BankAccountNumber       *string `json:"bank_account_number,omitempty" example:"0123456789"`
 }
 
 // ToContractResponse converts a model.Contract to ContractResponse
-func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
+func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 	if contract == nil {
 		return nil, nil
 	}
@@ -106,8 +97,6 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		ContractNumber:                  safeString(contract.ContractNumber),
 		Type:                            string(contract.Type),
 		Status:                          string(contract.Status),
-		BrandBankName:                   contract.BrandBankName,
-		BrandBankAccountNumber:          contract.BrandBankAccountNumber,
 		RepresentativeName:              safeString(contract.RepresentativeName),
 		RepresentativeRole:              contract.RepresentativeRole,
 		RepresentativePhone:             contract.RepresentativePhone,
@@ -134,8 +123,22 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 	}
 
 	// Set BrandID
-	if contract.BrandID != nil {
-		response.BrandID = contract.BrandID.String()
+	if contract.BrandID != nil && contract.Brand != nil {
+		tempBrand := contract.Brand
+		response.Brand = &BrandSummary{
+			ID:                      tempBrand.ID.String(),
+			Name:                    tempBrand.Name,
+			ContactEmail:            tempBrand.ContactEmail,
+			ContactPhone:            tempBrand.ContactPhone,
+			Address:                 tempBrand.Address,
+			LogoURL:                 tempBrand.LogoURL,
+			TaxNumber:               tempBrand.TaxNumber,
+			RepresentativeName:      tempBrand.RepresentativeName,
+			RepresentativeRole:      tempBrand.RepresentativeRole,
+			RepresentativePhone:     tempBrand.RepresentativePhone,
+			RepresentativeEmail:     tempBrand.RepresentativeEmail,
+			RepresentativeCitizenID: tempBrand.RepresentativeCitizenID,
+		}
 	}
 
 	// Unmarshal JSONB fields
@@ -157,25 +160,6 @@ func ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
 		var legalTerms any
 		if err := json.Unmarshal(contract.LegalTerms, &legalTerms); err == nil {
 			response.LegalTerms = legalTerms
-		}
-	}
-
-	// Add Brand information if loaded
-	if contract.Brand != nil {
-		tempBrand := contract.Brand
-		response.Brand = &BrandSummary{
-			ID:                      tempBrand.ID.String(),
-			Name:                    tempBrand.Name,
-			ContactEmail:            tempBrand.ContactEmail,
-			ContactPhone:            tempBrand.ContactPhone,
-			Address:                 tempBrand.Address,
-			LogoURL:                 tempBrand.LogoURL,
-			TaxNumber:               tempBrand.TaxNumber,
-			RepresentativeName:      tempBrand.RepresentativeName,
-			RepresentativeRole:      tempBrand.RepresentativeRole,
-			RepresentativePhone:     tempBrand.RepresentativePhone,
-			RepresentativeEmail:     tempBrand.RepresentativeEmail,
-			RepresentativeCitizenID: tempBrand.RepresentativeCitizenID,
 		}
 	}
 
@@ -249,107 +233,6 @@ func safeString(s *string) string {
 		return ""
 	}
 	return *s
-}
-
-// ============================================================================
-// Below are structures for complex JSONB fields for documentation and type safety
-// ============================================================================
-
-type AdvertisingFinancialTerms struct {
-	Model         string            `json:"model" example:"FIXED"`
-	PaymentMethod string            `json:"payment_method" example:"BANK_TRANSFER"`
-	TotalCost     int               `json:"total_cost" example:"10000000"`
-	CostBreakdown map[string]int    `json:"cost_breakdown"`
-	Schedule      []Schedule        `json:"schedule"`
-	PaymentCycle  enum.PaymentCycle `json:"payment_cycle" example:"MONTHLY"`
-	PaymentDate   string            `json:"payment_date" example:"2023-11-01"`
-}
-
-type Schedule struct {
-	Milestone string `json:"milestone" example:"Initial payment"`
-	Percent   int    `json:"percent" example:"30"`
-	Amount    int    `json:"amount" example:"3000000"`
-	DueDate   string `json:"due_date" example:"2023-10-15"`
-}
-
-type AffiliateFinancialTerms struct {
-	Model          string            `json:"model" example:"COMMISSION"`
-	BasePerClick   int               `json:"base_per_click" example:"1000"`
-	Levels         []Level           `json:"levels"`
-	PaymentCycle   enum.PaymentCycle `json:"payment_cycle" example:"MONTHLY"`
-	PaymentDate    string            `json:"payment_date" example:"2023-11-05"`
-	TaxWithholding TaxWithholding    `json:"tax_withholding"`
-}
-
-type Level struct {
-	Level      int     `json:"level" example:"1"`
-	MinClicks  int     `json:"min_clicks" example:"1000"`
-	Multiplier float64 `json:"multiplier" example:"1.5"`
-}
-
-type TaxWithholding struct {
-	Threshold   int `json:"threshold" example:"10000000"`
-	RatePercent int `json:"rate_percent" example:"10"`
-}
-
-type CoProducingFinancialTerms struct {
-	Model                   string              `json:"model" example:"PROFIT_SHARING"`
-	CapitalContribution     CapitalContribution `json:"capital_contribution"`
-	CompanyPercent          int                 `json:"profit_split_company_percent" example:"60"`
-	KolPercent              int                 `json:"profit_split_kol_percent" example:"40"`
-	ProfitDistributionCycle enum.PaymentCycle   `json:"profit_distribution_cycle" example:"QUARTERLY"`
-	ProfitDistributionDate  string              `json:"profit_distribution_date" example:"2023-12-31"`
-}
-
-type CapitalContribution struct {
-	Company ContributionDescription `json:"company"`
-	Kol     ContributionDescription `json:"kol"`
-}
-
-type ContributionDescription struct {
-	Description string `json:"description" example:"Equipment and studio"`
-	Value       int    `json:"value" example:"50000000"`
-}
-
-type ScopeOfWork struct {
-	Description           string            `json:"description" example:"Create and publish social media content"`
-	Products              []string          `json:"products" example:"Product A,Product B"`
-	TechnicalRequirements string            `json:"technical_requirements" example:"4K video, professional lighting"`
-	Deliverables          []Deliverable     `json:"deliverables"`
-	BrandingRestrictions  []string          `json:"branding_restrictions" example:"No competitor brands"`
-	CoProductionRoles     map[string]string `json:"co_production_roles,omitempty"`
-}
-
-type Deliverable struct {
-	Type        string    `json:"type" example:"VIDEO"`
-	ChannelID   uuid.UUID `json:"channel_id" example:"770e8400-e29b-41d4-a716-446655440000"`
-	ChannelName string    `json:"channel_name" example:"YouTube"`
-	ChannelLink string    `json:"channel_link" example:"https://youtube.com/channel/xyz"`
-	Quantity    int       `json:"quantity" example:"5"`
-	Deadline    string    `json:"deadline" example:"2023-11-30"`
-}
-
-// Legal Terms Structures
-
-type LegalTerms struct {
-	Penalties                    Penalties         `json:"penalties"`
-	ForceMajeureNotificationDays int               `json:"force_majeure_notification_days" example:"7"`
-	DisputeResolutionCourt       string            `json:"dispute_resolution_court" example:"Ho Chi Minh City Court"`
-	Confidentiality              bool              `json:"confidentiality" example:"true"`
-	ManagementBoard              []ManagementBoard `json:"management_board"`
-	NumberOfCopies               int               `json:"number_of_copies" example:"2"`
-}
-
-type Penalties struct {
-	LateDeliveryPercentPerDay float64 `json:"late_delivery_percent_per_day" example:"0.5"`
-	LatePaymentPercentPerDay  float64 `json:"late_payment_percent_per_day" example:"0.3"`
-	BreachOfContractPercent   int     `json:"breach_of_contract_percent" example:"20"`
-	NonDeliveryPenaltyPercent int     `json:"non_delivery_penalty_percent" example:"30"`
-}
-
-type ManagementBoard struct {
-	Name         string `json:"name" example:"John Doe"`
-	Representing string `json:"representing" example:"Brand"`
 }
 
 // ContractPaginationResponse represents a paginated response for contracts

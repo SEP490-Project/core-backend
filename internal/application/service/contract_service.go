@@ -143,7 +143,7 @@ func (s *ContractService) CreateContract(
 		zap.String("title", createRequest.Title))
 
 	// Convert request to contract model
-	contract, err := createRequest.ToContract()
+	contract, err := createRequest.ToContract(ctx)
 	if err != nil {
 		zap.L().Error("Failed to convert create request to contract model", zap.Error(err))
 		return nil, err
@@ -169,12 +169,10 @@ func (s *ContractService) CreateContract(
 		return db.Where("contract_number = ?", contract.ContractNumber)
 	})
 	if err != nil {
-		unitOfWork.Rollback()
 		zap.L().Error("Failed to check contract number uniqueness", zap.Error(err))
 		return nil, errors.New("failed to validate contract number")
 	}
 	if exists {
-		unitOfWork.Rollback()
 		zap.L().Warn("Contract number already exists", zap.String("contract_number", *contract.ContractNumber))
 		return nil, fmt.Errorf("contract number %s already exists", *contract.ContractNumber)
 	}
@@ -182,7 +180,6 @@ func (s *ContractService) CreateContract(
 	// Create contract
 	contract.CreatedByID = userID
 	if err = contractRepo.Add(ctx, contract); err != nil {
-		unitOfWork.Rollback()
 		zap.L().Error("Failed to create contract", zap.Error(err))
 		return nil, errors.New("failed to create contract")
 	}
