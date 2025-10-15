@@ -40,7 +40,7 @@ func NewApplicationRegistry(
 		ProductService:         service.NewProductService(databaseRegistry),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
 		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
-		ContractService:        service.NewContractService(databaseRegistry.ContractRepository),
+		ContractService:        service.NewContractService(databaseRegistry),
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 	}
