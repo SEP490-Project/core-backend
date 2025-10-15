@@ -235,6 +235,10 @@ definitions:
     type: object
   requests.CreateBrandRequest:
     properties:
+      address:
+        example: 123 Main St, Anytown, USA
+        maxLength: 500
+        type: string
       contact_email:
         example: acme@example.com
         maxLength: 255
@@ -264,6 +268,10 @@ definitions:
     type: object
   requests.CreateBrandWithUserRequest:
     properties:
+      address:
+        example: 123 Main St, Anytown, USA
+        maxLength: 500
+        type: string
       contact_email:
         example: acme@example.com
         maxLength: 255
@@ -582,6 +590,10 @@ definitions:
     type: object
   requests.UpdateBrandRequest:
     properties:
+      address:
+        example: 123 Main St, Anytown, USA
+        maxLength: 500
+        type: string
       contact_email:
         example: acme@example.com
         maxLength: 255
@@ -605,9 +617,6 @@ definitions:
         example: https://www.acme.com
         maxLength: 255
         type: string
-    required:
-    - contact_email
-    - name
     type: object
   requests.UpdateContractRequest:
     properties:
@@ -774,6 +783,49 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.BrandDetailResponse:
+    properties:
+      contact_email:
+        type: string
+      contact_phone:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      number_of_active_contracts:
+        type: integer
+      number_of_contracts:
+        type: integer
+      representative_citizen_id:
+        example: A123456789
+        type: string
+      representative_email:
+        example: john.doe@example.com
+        type: string
+      representative_name:
+        example: John Doe
+        type: string
+      representative_phone:
+        example: "+1234567890"
+        type: string
+      representative_role:
+        example: Manager
+        type: string
+      status:
+        type: string
+      tax_number:
+        example: "123456789"
+        type: string
+      website:
+        type: string
+    type: object
   responses.BrandPaginationResponse:
     properties:
       data:
@@ -807,6 +859,10 @@ definitions:
         type: string
       name:
         type: string
+      number_of_active_contracts:
+        type: integer
+      number_of_contracts:
+        type: integer
       status:
         type: string
       website:
@@ -1831,7 +1887,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.BrandResponse'
+                  $ref: '#/definitions/responses.BrandDetailResponse'
               type: object
         "400":
           description: Invalid brand ID

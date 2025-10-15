@@ -658,7 +658,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.BrandResponse"
+                                            "$ref": "#/definitions/responses.BrandDetailResponse"
                                         }
                                     }
                                 }
@@ -3988,6 +3988,11 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -4026,6 +4031,11 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -4438,11 +4448,12 @@ const docTemplate = `{
         },
         "requests.UpdateBrandRequest": {
             "type": "object",
-            "required": [
-                "contact_email",
-                "name"
-            ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -4690,6 +4701,68 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandDetailResponse": {
+            "type": "object",
+            "properties": {
+                "contact_email": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "example": "Manager"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandPaginationResponse": {
             "type": "object",
             "properties": {
@@ -4739,6 +4812,12 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"

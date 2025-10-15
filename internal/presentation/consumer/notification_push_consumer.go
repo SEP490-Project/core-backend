@@ -13,18 +13,18 @@ import (
 // PushNotificationMessage represents the message structure for push notifications
 type PushNotificationMessage struct {
 	NotificationID uuid.UUID              `json:"notification_id"`
-	UserID         uuid.UUID              `json:"user_id"`          // Target user
-	DeviceTokens   []string               `json:"device_tokens"`    // FCM/APNS tokens
-	Title          string                 `json:"title"`            // Notification title
-	Body           string                 `json:"body"`             // Notification body
-	Data           map[string]interface{} `json:"data"`             // Custom data payload
-	ImageURL       string                 `json:"image_url"`        // Optional: notification image
-	ClickAction    string                 `json:"click_action"`     // Optional: deep link
-	Sound          string                 `json:"sound"`            // Optional: notification sound
-	Badge          int                    `json:"badge"`            // Optional: app badge count
-	Priority       string                 `json:"priority"`         // Optional: high, normal
-	Platform       string                 `json:"platform"`         // Optional: ios, android, all
-	Metadata       map[string]interface{} `json:"metadata"`         // Optional: additional metadata
+	UserID         uuid.UUID              `json:"user_id"`       // Target user
+	DeviceTokens   []string               `json:"device_tokens"` // FCM/APNS tokens
+	Title          string                 `json:"title"`         // Notification title
+	Body           string                 `json:"body"`          // Notification body
+	Data           map[string]interface{} `json:"data"`          // Custom data payload
+	ImageURL       string                 `json:"image_url"`     // Optional: notification image
+	ClickAction    string                 `json:"click_action"`  // Optional: deep link
+	Sound          string                 `json:"sound"`         // Optional: notification sound
+	Badge          int                    `json:"badge"`         // Optional: app badge count
+	Priority       string                 `json:"priority"`      // Optional: high, normal
+	Platform       string                 `json:"platform"`      // Optional: ios, android, all
+	Metadata       map[string]interface{} `json:"metadata"`      // Optional: additional metadata
 }
 
 // NotificationPushConsumer handles push notification messages from RabbitMQ

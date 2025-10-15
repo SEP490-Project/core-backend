@@ -122,11 +122,11 @@ func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
 //	@Tags			Brands
 //	@Accept			json
 //	@Produce		json
-//	@Param			id	path		string												true	"Brand ID"
-//	@Success		200	{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand fetched successfully"
-//	@Failure		400	{object}	responses.APIResponse								"Invalid brand ID"
-//	@Failure		404	{object}	responses.APIResponse								"Brand not found"
-//	@Failure		500	{object}	responses.APIResponse								"Internal server error"
+//	@Param			id	path		string														true	"Brand ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.BrandDetailResponse}	"Brand fetched successfully"
+//	@Failure		400	{object}	responses.APIResponse										"Invalid brand ID"
+//	@Failure		404	{object}	responses.APIResponse										"Brand not found"
+//	@Failure		500	{object}	responses.APIResponse										"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/brands/{id} [get]
 func (bh *BrandHandler) GetBrandByID(c *gin.Context) {

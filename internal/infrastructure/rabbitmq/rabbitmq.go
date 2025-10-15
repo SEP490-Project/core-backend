@@ -175,4 +175,3 @@ func (r *RabbitMQ) GetConnection() *amqp.Connection {
 func (r *RabbitMQ) GetConfig() *config.RabbitMQConfig {
 	return r.config
 }
-

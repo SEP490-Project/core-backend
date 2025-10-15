@@ -13,16 +13,16 @@ import (
 // EmailNotificationMessage represents the message structure for email notifications
 type EmailNotificationMessage struct {
 	NotificationID uuid.UUID              `json:"notification_id"`
-	To             string                 `json:"to"`              // Recipient email
-	ToName         string                 `json:"to_name"`         // Recipient name
-	Subject        string                 `json:"subject"`         // Email subject
-	Body           string                 `json:"body"`            // Email body (HTML or plain text)
-	TemplateID     string                 `json:"template_id"`     // Optional: template identifier
-	TemplateData   map[string]interface{} `json:"template_data"`   // Optional: template variables
-	Attachments    []EmailAttachment      `json:"attachments"`     // Optional: attachments
-	Priority       string                 `json:"priority"`        // Optional: high, normal, low
-	UserID         uuid.UUID              `json:"user_id"`         // User who triggered notification
-	Metadata       map[string]interface{} `json:"metadata"`        // Optional: additional metadata
+	To             string                 `json:"to"`            // Recipient email
+	ToName         string                 `json:"to_name"`       // Recipient name
+	Subject        string                 `json:"subject"`       // Email subject
+	Body           string                 `json:"body"`          // Email body (HTML or plain text)
+	TemplateID     string                 `json:"template_id"`   // Optional: template identifier
+	TemplateData   map[string]interface{} `json:"template_data"` // Optional: template variables
+	Attachments    []EmailAttachment      `json:"attachments"`   // Optional: attachments
+	Priority       string                 `json:"priority"`      // Optional: high, normal, low
+	UserID         uuid.UUID              `json:"user_id"`       // User who triggered notification
+	Metadata       map[string]interface{} `json:"metadata"`      // Optional: additional metadata
 }
 
 // EmailAttachment represents an email attachment
