@@ -30,7 +30,7 @@ func NewMiddlewareRegistry(applicationRegistry *application.ApplicationRegistry)
 func (reg *MiddlewareRegistry) ApplyGlobalMiddlewares(r *gin.Engine) {
 	r.Use(reg.Recovery)
 	r.Use(reg.RequestID)
-	r.Use(reg.CORS)
 	r.Use(reg.Logging)
+	r.Use(reg.CORS)
 	r.Use(reg.Timeout)
 }

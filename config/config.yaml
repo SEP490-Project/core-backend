@@ -6,6 +6,7 @@ server:
   environment: "development" # development, production
   timeout: 30
   payos_link_expiry: 300 #seconds
+  timezone: "Asia/Ho_Chi_Minh"
 
 # Database configuration (PostgreSQL)
 database:
