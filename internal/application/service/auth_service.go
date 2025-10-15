@@ -279,12 +279,6 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 		zap.String("email", request.Email),
 		zap.String("full_name", request.FullName))
 
-	// Validate input
-	if request.Username == "" || request.Email == "" || request.Password == "" {
-		zap.L().Debug("Signup validation failed: missing required fields")
-		return nil, errors.New("username, email, and password are required")
-	}
-
 	// Check if username exists
 	query := func(db *gorm.DB) *gorm.DB {
 		return db.Where("username = ?", request.Username)

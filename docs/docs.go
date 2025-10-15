@@ -2121,12 +2121,12 @@ const docTemplate = `{
                 "tags": [
                     "files"
                 ],
-                "summary": "Upload a file to S3",
+                "summary": "Upload files to S3",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "File to upload",
-                        "name": "file",
+                        "description": "Files to upload",
+                        "name": "files",
                         "in": "formData",
                         "required": true
                     },
@@ -2144,7 +2144,10 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
-                                "type": "string"
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
                             }
                         }
                     },
@@ -2434,6 +2437,76 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new product (initial state DRAFT)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Create Product",
+                "parameters": [
+                    {
+                        "description": "Product to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/products/{id}/state": {
@@ -2501,6 +2574,175 @@ const docTemplate = `{
                         "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/{productId}/variants": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new product variant with story and attributes",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Create Product Variant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID (UUID)",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Variant data to create",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.BulkVariantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductVariantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/{productId}/variants/{variantId}/images": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload and create a new image for a product variant",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Create Variant Image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Variant ID (UUID)",
+                        "name": "variantId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file to upload",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Alt text for the image",
+                        "name": "alt_text",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Is this the primary image",
+                        "name": "is_primary",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.VariantImageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
                         }
                     }
                 }
@@ -3209,6 +3451,78 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/variant-attributes": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new variant attribute",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Create Variant Attribute",
+                "parameters": [
+                    {
+                        "description": "Attribute data",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateVariantAttributeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.VariantAttribute"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns the health status of the application and its dependencies",
@@ -3554,6 +3868,38 @@ const docTemplate = `{
                 }
             }
         },
+        "model.VariantAttribute": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ingredient": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.BulkVariantRequest": {
+            "type": "object"
+        },
         "requests.CreateBrandRequest": {
             "type": "object",
             "required": [
@@ -3681,6 +4027,55 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.CreateProductRequest": {
+            "type": "object",
+            "required": [
+                "brand_id",
+                "category_id",
+                "name",
+                "price",
+                "task_id",
+                "type"
+            ],
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Product description"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Product Name"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 99.99
+                },
+                "task_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "STANDARD",
+                        "LIMITED"
+                    ],
+                    "example": "STANDARD"
+                }
+            }
+        },
         "requests.CreateTaskCampaignRequest": {
             "type": "object",
             "required": [
@@ -3715,6 +4110,20 @@ const docTemplate = `{
                         "OTHER"
                     ],
                     "example": "PRODUCT"
+                }
+            }
+        },
+        "requests.CreateVariantAttributeRequest": {
+            "type": "object",
+            "required": [
+                "ingredient"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "ingredient": {
+                    "type": "string"
                 }
             }
         },
@@ -5045,9 +5454,17 @@ const docTemplate = `{
                         " like Gecko) Chrome/58.0.3029.110 Safari/537.3\"]"
                     ]
                 },
+                "date_of_birth": {
+                    "type": "string",
+                    "example": "1990-01-01"
+                },
                 "email": {
                     "type": "string",
                     "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "id": {
                     "type": "string",
@@ -5064,6 +5481,10 @@ const docTemplate = `{
                 "number_of_sessions": {
                     "type": "integer",
                     "example": 3
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "role": {
                     "allOf": [
@@ -5086,6 +5507,38 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.VariantImageResponse": {
+            "type": "object",
+            "properties": {
+                "alt_text": {
+                    "type": "string",
+                    "example": "Sample image"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
+                },
+                "is_primary": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "variant_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
                 }
             }
         },

@@ -26,11 +26,14 @@ type ProductVariant struct {
 	CreatedAt       time.Time          `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" gorm:"column:updated_at"`
 	DeletedAt       gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
+	CreatedByID     uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
+	UpdatedByID     *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
 
 	//Relationship
 	Product         *Product                `json:"-" gorm:"foreignKey:ProductID"`
 	Story           *ProductStory           `json:"story" gorm:"foreignKey:VariantID"`
 	AttributeValues []VariantAttributeValue `json:"attributes" gorm:"foreignKey:VariantID"`
+	Images          []VariantImage          `json:"images" gorm:"foreignKey:VariantID"`
 }
 
 func (ProductVariant) TableName() string { return "product_variants" }

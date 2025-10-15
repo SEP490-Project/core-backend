@@ -7,32 +7,44 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateProductDTO is the refined DTO for creating a Product entity.
-// Use this when you want a strongly typed enum based request instead of raw strings.
-// It intentionally omits server managed fields (ID, Status, CreatedAt, UpdatedAt, CreatedByID, UpdatedByID).
-// Status will default in service / repository layer (e.g. DRAFT) and auditing fields are injected there.
-// Variants are not included here; they should be created via their own endpoint or extended DTO if needed.
 type CreateProductDTO struct {
-	BrandID      uuid.UUID        `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	CategoryID   uuid.UUID        `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name         string           `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
-	Description  *string          `json:"description" validate:"omitempty,max=1000" example:"Product description"`
-	Price        float64          `json:"price" validate:"required,gte=0" example:"99.99"`
-	Type         enum.ProductType `json:"type" validate:"required,oneof=STANDARD LIMITED" example:"STANDARD"`
-	CurrentStock *int             `json:"current_stock" validate:"omitempty,gte=0" example:"100"`
+	BrandID     uuid.UUID        `json:"brand_id" validate:"required,uuid"`
+	CategoryID  uuid.UUID        `json:"category_id" validate:"required,uuid"`
+	TaskID      *uuid.UUID       `json:"task_id" validate:"omitempty,uuid"`
+	Name        string           `json:"name" validate:"required,min=3,max=255"`
+	Description *string          `json:"description" validate:"omitempty,max=2000"`
+	Price       float64          `json:"price" validate:"required,gte=0"`
+	Type        enum.ProductType `json:"type" validate:"required,oneof=STANDARD LIMITED"`
 }
 
-// ToModel maps the CreateProductDTO to a domain model Product.
-// createdBy is injected from the authenticated context (current user id).
-func (dto *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
+// CreateProductVariantDTO carries variant data into the service layer.
+type CreateProductVariantDTO struct {
+	Price           float64            `json:"price" validate:"required,gte=0"`
+	CurrentStock    int                `json:"current_stock" validate:"required,gte=0"`
+	Capacity        float64            `json:"capacity" validate:"omitempty,gte=0"`
+	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" validate:"required,oneof=ML L G KG OZ"`
+	ContainerType   enum.ContainerType `json:"container_type" validate:"required,oneof=BOTTLE TUBE JAR STICK PENCIL COMPACT PALLETE SACHET VIAL ROLLER_BOTTLE"`
+	DispenserType   enum.DispenserType `json:"dispenser_type" validate:"required,oneof=PUMP SPRAY DROPPER ROLL_ON TWIST_UP SQUEEZE NONE"`
+	Uses            string             `json:"uses" validate:"required,max=5000"`
+	ManufactureDate *string            `json:"manufacturing_date" validate:"omitempty,datetime=2006-01-02"`
+	ExpiryDate      *string            `json:"expiry_date" validate:"omitempty,datetime=2006-01-02"`
+	Instructions    string             `json:"instructions" validate:"omitempty,max=5000"`
+	IsDefault       bool               `json:"is_default" gorm:"column:is_default;not null;default:false"`
+}
+
+// ToModel maps the DTO to a Product domain model.
+func (d *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
+	if d == nil {
+		return nil
+	}
 	return &model.Product{
-		BrandID:      dto.BrandID,
-		CategoryID:   dto.CategoryID,
-		Name:         dto.Name,
-		Description:  dto.Description,
-		Price:        dto.Price,
-		Type:         dto.Type,
-		CurrentStock: dto.CurrentStock,
-		CreatedByID:  createdBy,
+		BrandID:     d.BrandID,
+		CategoryID:  d.CategoryID,
+		TaskID:      d.TaskID,
+		Name:        d.Name,
+		Description: d.Description,
+		Price:       d.Price,
+		Type:        enum.ProductType(d.Type),
+		CreatedByID: createdBy,
 	}
 }

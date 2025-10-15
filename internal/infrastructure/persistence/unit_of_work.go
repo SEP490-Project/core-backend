@@ -3,7 +3,7 @@ package persistence
 import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
-	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/gorm_repository"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -13,16 +13,22 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
-	productRepo               irepository.GenericRepository[model.Product]
-	userRepo                  irepository.GenericRepository[model.User]
-	shippingAddressRepo       irepository.GenericRepository[model.ShippingAddress]
-	brandRepo                 irepository.GenericRepository[model.Brand]
-	loggedSessionRepo         irepository.GenericRepository[model.LoggedSession]
-	ContractRepository        irepository.GenericRepository[model.Contract]
-	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
-	CampaignRepository        irepository.GenericRepository[model.Campaign]
-	MilestoneRepository       irepository.GenericRepository[model.Milestone]
-	TaskRepository            irepository.GenericRepository[model.Task]
+	userRepo                        irepository.GenericRepository[model.User]
+	shippingAddressRepo             irepository.GenericRepository[model.ShippingAddress]
+	brandRepo                       irepository.GenericRepository[model.Brand]
+	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
+	TaskRepository                  irepository.GenericRepository[model.Task]
+	productRepo                     irepository.GenericRepository[model.Product]
+	contractRepository              irepository.GenericRepository[model.Contract]
+	contractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
+	campaignRepository              irepository.GenericRepository[model.Campaign]
+	milestoneRepository             irepository.GenericRepository[model.Milestone]
+	taskRepository                  irepository.GenericRepository[model.Task]
+	productStoryRepository          irepository.GenericRepository[model.ProductStory]
+	productVariantRepository        irepository.GenericRepository[model.ProductVariant]
+	variantAttributeRepository      irepository.GenericRepository[model.VariantAttribute]
+	variantImageRepository          irepository.GenericRepository[model.VariantImage]
+	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -30,6 +36,10 @@ func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
 }
 
 func (u *unitOfWork) Begin() irepository.UnitOfWork {
+	if u.tx != nil {
+		zap.L().Warn("Transaction already started")
+		return u
+	}
 	zap.L().Debug("Beginning database transaction")
 
 	u.tx = u.db.Begin()
@@ -43,11 +53,17 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](u.tx)
 	u.brandRepo = gormrepository.NewGenericRepository[model.Brand](u.tx)
 	u.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](u.tx)
-	u.ContractRepository = gormrepository.NewGenericRepository[model.Contract](u.tx)
-	u.ContractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](u.tx)
-	u.CampaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
-	u.MilestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
-	u.TaskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
+	u.contractRepository = gormrepository.NewGenericRepository[model.Contract](u.tx)
+	u.contractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](u.tx)
+	u.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
+	u.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
+	u.taskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
+	//Product flow
+	u.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](u.tx)
+	u.productVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](u.tx)
+	u.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
+	u.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](u.tx)
+	u.variantAttributeValueRepository = gormrepository.NewGenericRepository[model.VariantAttributeValue](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -68,6 +84,7 @@ func (u *unitOfWork) Commit() error {
 		zap.L().Debug("Database transaction committed successfully")
 	}
 
+	u.tx = nil
 	return err
 }
 
@@ -86,6 +103,7 @@ func (u *unitOfWork) Rollback() error {
 		zap.L().Debug("Database transaction rolled back successfully")
 	}
 
+	u.tx = nil
 	return err
 }
 
@@ -110,23 +128,47 @@ func (u *unitOfWork) LoggedSessions() irepository.GenericRepository[model.Logged
 }
 
 func (u *unitOfWork) Contracts() irepository.GenericRepository[model.Contract] {
-	return u.ContractRepository
+	return u.contractRepository
 }
 
 func (u *unitOfWork) ContractPayments() irepository.GenericRepository[model.ContractPayment] {
-	return u.ContractPaymentRepository
+	return u.contractPaymentRepository
 }
 
 func (u *unitOfWork) Campaigns() irepository.GenericRepository[model.Campaign] {
-	return u.CampaignRepository
+	return u.campaignRepository
 }
 
 func (u *unitOfWork) Milestones() irepository.GenericRepository[model.Milestone] {
-	return u.MilestoneRepository
+	return u.milestoneRepository
 }
 
 func (u *unitOfWork) Tasks() irepository.GenericRepository[model.Task] {
-	return u.TaskRepository
+	return u.taskRepository
+}
+
+func (u *unitOfWork) ProductVariant() irepository.GenericRepository[model.ProductVariant] {
+	return u.productVariantRepository
+}
+
+func (u *unitOfWork) VariantAttributes() irepository.GenericRepository[model.VariantAttribute] {
+	return u.variantAttributeRepository
+}
+
+func (u *unitOfWork) VariantAttributeValue() irepository.GenericRepository[model.VariantAttributeValue] {
+	return u.variantAttributeValueRepository
+}
+
+func (u *unitOfWork) VariantImage() irepository.GenericRepository[model.VariantImage] {
+	return u.variantImageRepository
+}
+
+func (u *unitOfWork) ProductStory() irepository.GenericRepository[model.ProductStory] {
+	return u.productStoryRepository
+}
+
+func (u *unitOfWork) InTransaction() bool {
+	return u.tx != nil
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

@@ -180,9 +180,7 @@ func (h *UserHandler) GetUsers(c *gin.Context) {
 		HasPrev:    hasPrev,
 	}
 	paginationData := responses.NewPaginationResponse("Users retrieved successfully", http.StatusOK, users, pagination)
-
-	response := responses.SuccessResponse("Users retrieved successfully", nil, paginationData)
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, paginationData)
 }
 
 // GetUserByID godoc
@@ -258,7 +256,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, request.IsActive)
+	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, *request.IsActive)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
@@ -266,7 +264,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 	}
 
 	message := "User activated successfully"
-	if !request.IsActive {
+	if !*request.IsActive {
 		message = "User deactivated successfully"
 	}
 

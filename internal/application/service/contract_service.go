@@ -201,7 +201,7 @@ func (s *ContractService) CreateContract(
 		zap.String("contract_id", contract.ID.String()),
 		zap.String("contract_number", *contract.ContractNumber))
 
-	return responses.ToContractResponse(createdContract)
+	return responses.ContractResponse{}.ToContractResponse(createdContract)
 }
 
 // UpdateContract implements iservice.ContractService.
@@ -285,7 +285,7 @@ func (s *ContractService) UpdateContract(
 	zap.L().Info("Contract updated successfully",
 		zap.String("contract_id", contractID.String()))
 
-	return responses.ToContractResponse(updatedContract)
+	return responses.ContractResponse{}.ToContractResponse(updatedContract)
 }
 
 // UpdateContractFileURL implements iservice.ContractService.
@@ -332,7 +332,7 @@ func (s *ContractService) GetContractByID(ctx context.Context, contractID uuid.U
 		return nil, errors.New("failed to fetch contract")
 	}
 
-	return responses.ToContractResponse(contract)
+	return responses.ContractResponse{}.ToContractResponse(contract)
 }
 
 // GetContractsByBrandID implements iservice.ContractService.
