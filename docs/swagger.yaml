@@ -154,6 +154,25 @@ definitions:
     required:
     - state
     type: object
+  model.VariantAttribute:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      ingredient:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
   requests.BulkVariantRequest:
     type: object
   requests.CapitalContribution:
@@ -447,19 +466,6 @@ definitions:
     - task_id
     - type
     type: object
-  requests.CreateProductStoryRequest:
-    properties:
-      content:
-        example: '{"description":"This is a sample story","details":"More details
-          here"}'
-        maxLength: 5000
-        type: string
-      variant_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    required:
-    - content
-    type: object
   requests.CreateTaskCampaignRequest:
     properties:
       assigned_to:
@@ -487,6 +493,15 @@ definitions:
     - deadline
     - name
     - type
+    type: object
+  requests.CreateVariantAttributeRequest:
+    properties:
+      description:
+        type: string
+      ingredient:
+        type: string
+    required:
+    - ingredient
     type: object
   requests.Deliverable:
     properties:
@@ -1669,6 +1684,29 @@ definitions:
         type: string
       username:
         example: john_doe
+        type: string
+    type: object
+  responses.VariantImageResponse:
+    properties:
+      alt_text:
+        example: Sample image
+        type: string
+      created_at:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      image_url:
+        example: https://example.com/image.jpg
+        type: string
+      is_primary:
+        type: boolean
+      updated_at:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      variant_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
         type: string
     type: object
   responses.VariantMini:
@@ -3371,6 +3409,64 @@ paths:
       summary: Create Product Variant
       tags:
       - Products
+  /api/v1/products/{productId}/variants/{variantId}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload and create a new image for a product variant
+      parameters:
+      - description: Variant ID (UUID)
+        in: path
+        name: variantId
+        required: true
+        type: string
+      - description: Image file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Alt text for the image
+        in: formData
+        name: alt_text
+        type: string
+      - default: false
+        description: Is this the primary image
+        in: formData
+        name: is_primary
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.VariantImageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Variant Image
+      tags:
+      - Products
   /api/v1/tasks/{id}/state:
     patch:
       consumes:
@@ -3816,6 +3912,51 @@ paths:
       summary: Update User Profile
       tags:
       - Users
+  /api/v1/variant-attributes:
+    post:
+      consumes:
+      - application/json
+      description: Create a new variant attribute
+      parameters:
+      - description: Attribute data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateVariantAttributeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.VariantAttribute'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Variant Attribute
+      tags:
+      - Products
   /health:
     get:
       consumes:
