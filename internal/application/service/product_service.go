@@ -55,7 +55,7 @@ func (p productService) AddVariantAttributeValue(ctx context.Context, variantID 
 		varitantAttributeValue = attributeValue.ToModel()
 		varitantAttributeValue.VariantID = variantID
 		if err := uow.VariantAttributeValue().Add(ctx, varitantAttributeValue); err != nil {
-			zap.L().Error("failed to persist variant attribute value", zap.Error(err))
+			zap.L().Info("failed to persist variant attribute value", zap.Error(err))
 			return err
 		}
 
@@ -76,7 +76,7 @@ func (p productService) CreateVariantAttribute(ctx context.Context, createdByID 
 		// Create variant attribute
 		variantAttribute = attribute.ToModel(createdByID)
 		if err := uow.VariantAttributes().Add(ctx, variantAttribute); err != nil {
-			zap.L().Error("failed to persist variant attribute", zap.Error(err))
+			zap.L().Info("failed to persist variant attribute", zap.Error(err))
 			return err
 		}
 		return nil
@@ -145,7 +145,6 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 
 		if err := uow.(irepository.UnitOfWork).VariantImage().Add(ctx, variantImage); err != nil {
 			zap.L().Error("failed to persist variant image", zap.Error(err))
-			_ = uow.Rollback()
 			return err
 		}
 
@@ -177,7 +176,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		//Create ProductVariant
 		productVariant = variant.ToModel(productID, userID)
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
-			zap.L().Error("failed to persist product variant", zap.Error(err))
+			zap.L().Info("failed to persist product variant", zap.Error(err))
 			return err
 		}
 
@@ -213,7 +212,7 @@ func (p productService) CreateProduct(dto *requests.CreateProductRequest, create
 	ctx := context.Background()
 	// Validate task existence
 	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
-		zap.L().Error("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
 		return nil, errors.New("could not verify task existence")
 	} else if found == nil {
 		return nil, errors.New("task not found")
@@ -222,14 +221,14 @@ func (p productService) CreateProduct(dto *requests.CreateProductRequest, create
 	}
 	// Validate brand existence
 	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
-		zap.L().Error("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
+		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
 		return nil, errors.New("could not verify brand existence")
 	} else if !exists {
 		return nil, errors.New("brand not found")
 	}
 	// Validate category existence
 	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
-		zap.L().Error("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
+		zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
 		return nil, errors.New("could not verify category existence")
 	} else if !exists {
 		return nil, errors.New("category not found")
@@ -239,7 +238,7 @@ func (p productService) CreateProduct(dto *requests.CreateProductRequest, create
 	entity.Status = enum.ProductStatusDraft
 
 	if err := p.repository.Add(ctx, entity); err != nil {
-		zap.L().Error("failed to persist product", zap.Error(err))
+		zap.L().Info("failed to persist product", zap.Error(err))
 		return nil, err
 	}
 
@@ -280,7 +279,7 @@ func (p productService) GetProductsPagination(limit, offset int, search string) 
 	// Fetch products with variants
 	products, total, err := p.repository.GetAll(ctx, filter, []string{"Variants", "Category", "Category.ParentCategory"}, limit, offset)
 	if err != nil {
-		zap.L().Error("Failed to fetch products from repository",
+		zap.L().Info("Failed to fetch products from repository",
 			zap.Int("limit", limit),
 			zap.Int("offset", offset),
 			zap.String("search", search),

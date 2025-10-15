@@ -46,12 +46,12 @@ type BulkVariantRequest struct {
 // CreateProductVariantRequest represents a variant payload when creating a product
 // Date fields use RFC3339 strings; service will parse to time.Time
 type CreateProductVariantRequest struct {
-	Price           float64            `json:"price" form:"price" validate:"required,min=0" example:"29.99"`
+	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"1000"`
 	CurrentStock    int                `json:"current_stock" form:"current_stock" validate:"required,min=0" example:"100"`
 	Capacity        float64            `json:"capacity" form:"capacity" validate:"omitempty,min=0" example:"500"`
-	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" example:"ML"`
-	ContainerType   enum.ContainerType `json:"container_type" form:"container_type" example:"BOTTLE"`
-	DispenserType   enum.DispenserType `json:"dispenser_type" form:"dispenser_type" example:"SPRAY"`
+	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" validate:"required,oneof=ML L GALLON"` // add valid units
+	ContainerType   enum.ContainerType `json:"container_type" form:"container_type" validate:"required,oneof=BOTTLE BOX CAN"`
+	DispenserType   enum.DispenserType `json:"dispenser_type" form:"dispenser_type" validate:"required,oneof=SPRAY PUMP"`
 	Uses            string             `json:"uses" form:"uses" example:"For daily use"`
 	ManufactureDate *string            `json:"manufacturing_date" form:"manufacturing_date" example:"2023-10-01T00:00:00Z"`
 	ExpiryDate      *string            `json:"expiry_date" form:"expiry_date" example:"2025-10-01T00:00:00Z"`
