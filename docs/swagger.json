@@ -574,7 +574,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.CreateBrandRequest"
+                            "$ref": "#/definitions/requests.CreateBrandWithUserRequest"
                         }
                     }
                 ],
@@ -651,7 +651,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.BrandResponse"
+                                            "$ref": "#/definitions/responses.BrandDetailResponse"
                                         }
                                     }
                                 }
@@ -3900,6 +3900,11 @@
                 "name"
             ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -3923,6 +3928,78 @@
                     "maxLength": 255,
                     "minLength": 2,
                     "example": "Acme Corp"
+                },
+                "website": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://www.acme.com"
+                }
+            }
+        },
+        "requests.CreateBrandWithUserRequest": {
+            "type": "object",
+            "required": [
+                "contact_email",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
+                "contact_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "acme@example.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A leading manufacturer of quality products."
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://www.acme.com/logo.png"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Acme Corp"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Manager"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "123456789"
                 },
                 "website": {
                     "type": "string",
@@ -4283,11 +4360,12 @@
         },
         "requests.UpdateBrandRequest": {
             "type": "object",
-            "required": [
-                "contact_email",
-                "name"
-            ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -4535,6 +4613,68 @@
                 }
             }
         },
+        "responses.BrandDetailResponse": {
+            "type": "object",
+            "properties": {
+                "contact_email": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "example": "Manager"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandPaginationResponse": {
             "type": "object",
             "properties": {
@@ -4584,6 +4724,12 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
                 },
                 "status": {
                     "type": "string"
