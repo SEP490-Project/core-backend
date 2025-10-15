@@ -29,6 +29,7 @@ type UnitOfWork interface {
 	VariantAttributes() GenericRepository[model.VariantAttribute]
 	VariantImage() GenericRepository[model.VariantImage]
 	VariantAttributeValue() GenericRepository[model.VariantAttributeValue]
+	ModifiedHistories() GenericRepository[model.ModifiedHistory]
 
 	DB() *gorm.DB
 }

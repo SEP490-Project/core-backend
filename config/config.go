@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// region: ============== Configuration Structs ==============
+
 type AppConfig struct {
 	Server    ServerConfig    `mapstructure:"server"`
 	Database  DatabaseConfig  `mapstructure:"database"`
@@ -29,7 +31,6 @@ type AppConfig struct {
 	PayOS     PayOSConfig     `mapstructure:"payos"`
 }
 
-// default configurations can be alter by Admin
 type ServerConfig struct {
 	Port            int    `mapstructure:"port"`
 	ServiceName     string `mapstructure:"service_name"`
@@ -100,14 +101,14 @@ type OtelConfig struct {
 }
 
 type RabbitMQConfig struct {
-	URL        string `mapstructure:"url"`
-	Exchange   string `mapstructure:"exchange"`
-	Queue      string `mapstructure:"queue"`
-	RoutingKey string `mapstructure:"routing_key"`
-	Durable    bool   `mapstructure:"durable"`
-	AutoDelete bool   `mapstructure:"auto_delete"`
-	Exclusive  bool   `mapstructure:"exclusive"`
-	NoWait     bool   `mapstructure:"no_wait"`
+	URL                 string                   `mapstructure:"url"`
+	VHost               string                   `mapstructure:"vhost"`
+	ReconnectDelayMs    int                      `mapstructure:"reconnect_delay_ms"`
+	ConnectionTimeoutMs int                      `mapstructure:"connection_timeout_ms"`
+	Heartbeat           int                      `mapstructure:"heartbeat"`
+	Topology            RabbitMQTopologyConfig   `mapstructure:"topology" json:"topology" yaml:"topology"`
+	Producers           []RabbitMQProducerConfig `mapstructure:"producers" json:"producers" yaml:"producers"`
+	Consumers           []RabbitMQConsumerConfig `mapstructure:"consumers" json:"consumers" yaml:"consumers"`
 }
 
 type AsynqConfig struct {
@@ -140,6 +141,8 @@ type PayOSConfig struct {
 	ApiKey      string `mapstructure:"api_key"`
 	ChecksumKey string `mapstructure:"checksum_key"`
 }
+
+// endregion
 
 var (
 	appConfig *AppConfig
@@ -180,7 +183,12 @@ func LoadConfig(configPath string) error {
 		return fmt.Errorf("error parsing RSA keys: %w", err)
 	}
 
-	// Load Server configuration by Admin
+	// Load RabbitMQ advanced configuration from separate file
+	if err := loadRabbitMQConfig(configPath); err != nil {
+		// Log warning but don't fail - RabbitMQ advanced config is optional
+		fmt.Printf("Warning: Could not load RabbitMQ advanced config: %v\n", err)
+		fmt.Println("Continuing with basic RabbitMQ configuration...")
+	}
 
 	return nil
 }
@@ -230,13 +238,10 @@ func setDefaultValues() {
 	viper.SetDefault("otel.service_name", "my_service")
 
 	viper.SetDefault("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
-	viper.SetDefault("rabbitmq.exchange", "my_exchange")
-	viper.SetDefault("rabbitmq.queue", "my_queue")
-	viper.SetDefault("rabbitmq.routing_key", "my_routing_key")
-	viper.SetDefault("rabbitmq.durable", true)
-	viper.SetDefault("rabbitmq.auto_delete", false)
-	viper.SetDefault("rabbitmq.exclusive", false)
-	viper.SetDefault("rabbitmq.no_wait", false)
+	viper.SetDefault("rabbitmq.vhost", "/")
+	viper.SetDefault("rabbitmq.reconnect_delay_ms", 5000)
+	viper.SetDefault("rabbitmq.connection_timeout_ms", 10000)
+	viper.SetDefault("rabbitmq.heartbeat", 10)
 
 	viper.SetDefault("asynq.redis_addr", "localhost:6379")
 	viper.SetDefault("asynq.redis_db", 1)

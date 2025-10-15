@@ -8,6 +8,7 @@ import (
 type ModifiedType string
 
 const (
+	ModifiedTypeContract  ModifiedType = "CONTRACT"
 	ModifiedTypeCampaign  ModifiedType = "CAMPAIGN"
 	ModifiedTypeMilestone ModifiedType = "MILESTONE"
 	ModifiedTypeTask      ModifiedType = "TASK"
@@ -18,7 +19,7 @@ const (
 
 func (mt ModifiedType) IsValid() bool {
 	switch mt {
-	case ModifiedTypeCampaign, ModifiedTypeMilestone, ModifiedTypeTask, ModifiedTypeContent, ModifiedTypeProduct, ModifiedTypeBlog:
+	case ModifiedTypeContract, ModifiedTypeCampaign, ModifiedTypeMilestone, ModifiedTypeTask, ModifiedTypeContent, ModifiedTypeProduct, ModifiedTypeBlog:
 		return true
 	}
 	return false
