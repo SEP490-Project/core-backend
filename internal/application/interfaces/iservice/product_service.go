@@ -12,7 +12,8 @@ import (
 
 // ProductService defines product related operations.
 type ProductService interface {
-	CreateProduct(dto *requests.CreateProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
+	CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
+	CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
 	GetProductsPagination(limit, offset int, search string) ([]*responses.ProductResponse, int, error)
 	GetProductByID(id string) (*responses.ProductResponse, error)
 	// GetProductsByTask returns overview list of products belonging to a task (with pagination) after authorization.

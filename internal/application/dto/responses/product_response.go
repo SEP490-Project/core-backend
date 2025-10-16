@@ -10,18 +10,20 @@ import (
 
 // ProductResponse represents the response structure for a product.
 type ProductResponse struct {
-	ID           uuid.UUID        `json:"id"`
-	BrandID      uuid.UUID        `json:"brand_id"`
-	BrandName    string           `json:"brand_name"`
-	BrandLogoURL *string          `json:"brand_logo_url"`
-	Name         string           `json:"name"`
-	Description  string           `json:"description"`
-	Price        float64          `json:"price"`
-	Type         enum.ProductType `json:"type"`
-	CategoryLv1  string           `json:"category"`
-	CategoryLv2  string           `json:"category_lv2"`
-
-	Variants []*ProductVariantResponse `json:"variants,omitempty"`
+	ID           uuid.UUID                 `json:"id"`
+	BrandID      uuid.UUID                 `json:"brand_id"`
+	BrandLogoURL *string                   `json:"brand_logo_url,omitempty"`
+	BrandName    string                    `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *string                   `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool                      `json:"is_active"`
+	CategoryLv1  string                    `json:"category"`
+	CategoryLv2  string                    `json:"category_lv2"`
+	Description  string                    `json:"description"`
+	Name         string                    `json:"name"`
+	Price        float64                   `json:"price"`
+	Type         enum.ProductType          `json:"type"`
+	Variants     []*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt    string                    `json:"created_at"` // FE parse về Date
 }
 
 // ToProductResponse converts a Product model to a ProductResponse DTO.
@@ -29,24 +31,40 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 	if pr == nil {
 		pr = &ProductResponse{}
 	}
+
+	// IDs & Brand
 	pr.ID = m.ID
 	pr.BrandID = m.BrandID
 	if m.Brand != nil {
 		pr.BrandName = m.Brand.Name
-		pr.BrandLogoURL = m.Brand.LogoURL
+		pr.BrandLogoURL = m.Brand.LogoURL // *string
 	}
+
+	// Basic
 	pr.Name = m.Name
 	if m.Description != nil {
 		pr.Description = *m.Description
 	}
 	pr.Price = m.Price
 	pr.Type = m.Type
+
+	// Category level 1/2
 	if m.Category != nil {
 		pr.CategoryLv1 = m.Category.Name
 		if m.Category.ParentCategory != nil {
 			pr.CategoryLv2 = m.Category.ParentCategory.Name
 		}
 	}
+
+	// Trạng thái & thời gian
+	// Lưu ý: cần field IsActive trong model.Product
+	//pr.IsActive = m.IsActive
+	pr.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
+
+	// Thumbnail: ưu tiên ảnh primary của variant default, fallback ảnh đầu tiên
+	pr.ThumbnailURL = primaryProductImageURL(m)
+
+	// Variants
 	if len(m.Variants) > 0 {
 		variants := make([]*ProductVariantResponse, 0, len(m.Variants))
 		for i := range m.Variants {
@@ -54,7 +72,40 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 		}
 		pr.Variants = variants
 	}
+
 	return pr
+}
+
+func primaryProductImageURL(p *model.Product) *string {
+	if p == nil || len(p.Variants) == 0 {
+		return nil
+	}
+
+	// 1) chọn variant default nếu có
+	var pick *model.ProductVariant
+	for i := range p.Variants {
+		if p.Variants[i].IsDefault {
+			pick = &p.Variants[i]
+			break
+		}
+	}
+	// 2) fallback variant đầu tiên
+	if pick == nil {
+		pick = &p.Variants[0]
+	}
+
+	// 3) lấy ảnh primary của variant
+	// Đổi tên trường cho khớp model của bạn nếu khác (vd: pick.VariantImages)
+	for _, img := range pick.Images {
+		if img.IsPrimary {
+			return &img.ImageURL // *string trả về cho thumbnail_url
+		}
+	}
+	// 4) fallback ảnh đầu nếu có
+	if len(pick.Images) > 0 {
+		return &pick.Images[0].ImageURL
+	}
+	return nil
 }
 
 // ProductVariantResponse represents the response structure for a product variant.

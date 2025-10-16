@@ -136,7 +136,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			protectedProducts := productsGroup.Group("")
 			protectedProducts.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand, admin))
 			{
-				protectedProducts.POST("", productHandler.CreateProduct)
+				protectedProducts.POST("/standard", productHandler.CreateStandardProduct)
+				protectedProducts.POST("/limited", productHandler.CreateLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/:productId/variants/:variantId/images", productHandler.CreateVariantImage)
 			}
