@@ -136,10 +136,14 @@ type S3BucketConfig struct {
 }
 
 type PayOSConfig struct {
-	BaseUrl     string `mapstructure:"base_url"`
-	ClientID    string `mapstructure:"client_id"`
-	ApiKey      string `mapstructure:"api_key"`
-	ChecksumKey string `mapstructure:"checksum_key"`
+	BaseUrl           string `mapstructure:"base_url"`
+	ClientID          string `mapstructure:"client_id"`
+	ApiKey            string `mapstructure:"api_key"`
+	ChecksumKey       string `mapstructure:"checksum_key"`
+	CancelUrl         string `mapstructure:"cancel_url"`
+	ReturnUrl         string `mapstructure:"return_url"`
+	FrontendCancelUrl string `mapstructure:"frontend_cancel_url"`
+	FrontendReturnUrl string `mapstructure:"frontend_return_url"`
 }
 
 // endregion

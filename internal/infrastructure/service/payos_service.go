@@ -14,10 +14,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"sort"
-	"strings"
 	"time"
 )
 
@@ -26,12 +25,20 @@ type payOsService struct {
 	config                       *config.AppConfig
 }
 
+func (p payOsService) UpdatePaymentStatus(orderId int64, status string, reason string) error {
+	//TODO implement me
+	zap.L().Info("UPDATE PAYMENT STATUS", zap.Int("orderId", int(orderId)), zap.String("status", status), zap.String("reason", reason))
+	// 1. Tìm payment transaction theo orderId
+	// 2. Cập nhật trạng thái payment transaction
+	// 3. Nếu trạng thái là thành công, cập nhật đơn hàng tương ứng
+	// 4. Xử lý các trạng thái khác nếu cần thiết
+	return nil
+}
+
 func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse], error) {
-	// get value form config
 	url := p.config.PayOS.BaseUrl
 	secondTimeout := p.config.Server.Timeout
 
-	//build payos request
 	httpReq, err := http.NewRequest("GET", url+"/"+orderId, nil)
 	if err != nil {
 		return nil, err
@@ -46,12 +53,12 @@ func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapper
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close() // <-- thêm dòng này
 
 	var payRes responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse]
 	if err := json.NewDecoder(resp.Body).Decode(&payRes); err != nil {
 		return nil, err
 	}
-
 	return &payRes, nil
 }
 
@@ -61,37 +68,32 @@ func (p payOsService) CancelPayOSLink(paymentId string, cancellationReason strin
 }
 
 func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses.PayOSWrapperResponse[responses.PayOSLinkResponse], error) {
-	// get value form config
-	url := p.config.PayOS.BaseUrl
-	secondTimeout := p.config.Server.Timeout
-
-	//Generate orderCode
+	// 1) setup
 	orderCode := generateOrderCode()
-	oc := int(orderCode)
-	// ensure request carries the generated order code
-	req.OrderCode = &oc
+	cancelUrl := p.config.PayOS.CancelUrl
+	returnUrl := p.config.PayOS.ReturnUrl
 
-	// sign request
-	signReq := requests.PaymentSignatureRequest{
-		Amount:      req.Amount,
-		CancelUrl:   req.CancelUrl,
-		Description: req.Description,
-		OrderCode:   &oc,
-		ReturnUrl:   req.ReturnUrl,
+	if len([]rune(req.Description)) > 9 {
+		req.Description = string([]rune(req.Description)[:9])
 	}
 
-	sig, err := p.generateSignature(signReq)
+	sig, err := p.generateSignature(
+		req.Amount,
+		cancelUrl,
+		req.Description,
+		orderCode,
+		returnUrl,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	// build payos request
-	payload := p.buildPayOSRequest(req, sig)
+	// 2) Build payload
+	payload := p.buildPayOSRequest(req, orderCode, cancelUrl, returnUrl, sig)
 	body, _ := json.Marshal(payload)
 
-	// call payos api
-	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-
+	// 3) Call PayOS
+	httpReq, err := http.NewRequest("POST", p.config.PayOS.BaseUrl, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
@@ -100,25 +102,20 @@ func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses
 	httpReq.Header.Set("x-client-id", p.config.PayOS.ClientID)
 	httpReq.Header.Set("x-api-key", p.config.PayOS.ApiKey)
 
-	client := &http.Client{Timeout: time.Duration(secondTimeout) * time.Second}
+	client := &http.Client{Timeout: time.Duration(p.config.Server.Timeout) * time.Second}
 	resp, err := client.Do(httpReq)
-
-	//log:
-
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	fmt.Printf("PAYOS response: %s\n", string(bodyBytes))
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	fmt.Printf("PAYOS response: %s\n", string(bodyBytes))
 
 	var payRes responses.PayOSWrapperResponse[responses.PayOSLinkResponse]
 	if err := json.Unmarshal(bodyBytes, &payRes); err != nil {
 		return nil, err
 	}
-
 	return &payRes, nil
 }
 
@@ -130,59 +127,48 @@ func NewPayOsService(paymentTransactionRepository irepository.GenericRepository[
 }
 
 // PRIVATE
-func (p payOsService) generateSignature(req requests.PaymentSignatureRequest) (string, error) {
-	values := make(map[string]interface{})
+// generateSignature tạo HMAC-SHA256 signature cho PayOS theo đúng thứ tự trường.
+func (p payOsService) generateSignature(amount int64, cancelUrl, description string, orderCode int64, returnUrl string) (string, error) {
+	data := fmt.Sprintf(
+		"amount=%d&cancelUrl=%s&description=%s&orderCode=%d&returnUrl=%s",
+		amount, cancelUrl, description, orderCode, returnUrl,
+	)
+	mac := hmac.New(sha256.New, []byte(p.config.PayOS.ChecksumKey))
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil)), nil
+}
 
-	// Add fields unconditionally that are always required
-	values["amount"] = req.Amount
-	values["cancelUrl"] = req.CancelUrl
-	values["description"] = req.Description
-	if req.OrderCode != nil { // only include when present, and use its value
-		values["orderCode"] = *req.OrderCode
+func (p payOsService) buildPayOSRequest(
+	req requests.PaymentRequest,
+	orderCode int64,
+	cancelUrl, returnUrl, signature string,
+) requests.PayOSRequest {
+	expiredAt := time.Now().Add(time.Duration(p.config.Server.PayOSLinkExpiry) * time.Second).Unix()
+
+	items := make([]responses.PaymentItem, 0, len(req.Items))
+	for _, it := range req.Items {
+		items = append(items, responses.PaymentItem{
+			Name:     it.Name,
+			Quantity: it.Quantity,
+			Price:    float64(it.Price),
+		})
 	}
-	values["returnUrl"] = req.ReturnUrl
 
-	// Step 2: Sort the keys alphabetically.
-	keys := make([]string, 0, len(values))
-	for k := range values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	// Step 3: Build the canonical data string (key1=value1&key2=value2...).
-	var sb strings.Builder
-	for i, k := range keys {
-		valAsString := fmt.Sprintf("%v", values[k])
-		sb.WriteString(fmt.Sprintf("%s=%s", k, valAsString))
-		if i < len(keys)-1 {
-			sb.WriteString("&")
+	var inv responses.Invoice
+	if req.Invoice != nil {
+		inv = responses.Invoice{
+			BuyerNotGetInvoice: false,
+			TaxPercentage:      0,
 		}
 	}
 
-	dataToSign := sb.String()
-	fmt.Printf("checksum key: %s\n", p.config.PayOS.ChecksumKey)
-	fmt.Printf("Data to sign: %s\n", dataToSign) // This will now be different if fields were empty
-
-	// Step 4 & 5: Compute HMAC and encode
-	h := hmac.New(sha256.New, []byte(p.config.PayOS.ChecksumKey))
-	h.Write([]byte(dataToSign))
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-func (p payOsService) buildPayOSRequest(req requests.PaymentRequest, signature string) requests.PayOSRequest {
-
-	//custom fields
-	expiredTime := p.config.Server.PayOSLinkExpiry
-	expiredAt := time.Now().Add(time.Duration(expiredTime) * time.Second).Unix()
-
-	// build request
 	return requests.PayOSRequest{
 		PaymentSignatureRequest: requests.PaymentSignatureRequest{
 			Amount:      req.Amount,
-			CancelUrl:   req.CancelUrl,
+			CancelUrl:   cancelUrl,
 			Description: req.Description,
-			OrderCode:   req.OrderCode,
-			ReturnUrl:   req.ReturnUrl,
+			OrderCode:   orderCode,
+			ReturnUrl:   returnUrl,
 		},
 		BuyerName:        utils.StrPtrOrNil(req.BuyerName),
 		BuyerCompanyName: utils.StrPtrOrNil(req.BuyerCompanyName),
@@ -190,13 +176,15 @@ func (p payOsService) buildPayOSRequest(req requests.PaymentRequest, signature s
 		BuyerAddress:     utils.StrPtrOrNil(req.BuyerAddress),
 		BuyerEmail:       utils.StrPtrOrNil(req.BuyerEmail),
 		BuyerPhone:       utils.StrPtrOrNil(req.BuyerPhone),
-		Items:            []responses.PaymentItem{},
-		Invoice:          responses.Invoice{},
+		Items:            items,
+		Invoice:          inv,
 		ExpiredAt:        expiredAt,
 		Signature:        signature,
 	}
 }
 
 func generateOrderCode() int64 {
-	return time.Now().UnixNano()
+	now := time.Now().Unix()
+	randPart := time.Now().UnixNano() % 1e3
+	return now*1000 + randPart
 }
