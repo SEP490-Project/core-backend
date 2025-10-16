@@ -575,6 +575,14 @@ definitions:
         example: 10000000
         type: integer
     type: object
+  requests.InvoiceRequest:
+    properties:
+      invoiceCode:
+        type: string
+      invoiceDate:
+        format: date-time
+        type: string
+    type: object
   requests.LegalTerms:
     properties:
       confidentiality:
@@ -635,6 +643,40 @@ definitions:
       representing:
         example: Brand
         type: string
+    type: object
+  requests.PaymentItemRequest:
+    properties:
+      name:
+        type: string
+      price:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  requests.PaymentRequest:
+    properties:
+      amount:
+        type: integer
+      buyerAddress:
+        type: string
+      buyerCompanyName:
+        type: string
+      buyerEmail:
+        type: string
+      buyerName:
+        type: string
+      buyerPhone:
+        type: string
+      buyerTaxCode:
+        type: string
+      description:
+        type: string
+      invoice:
+        $ref: '#/definitions/requests.InvoiceRequest'
+      items:
+        items:
+          $ref: '#/definitions/requests.PaymentItemRequest'
+        type: array
     type: object
   requests.Penalties:
     properties:
@@ -1411,6 +1453,44 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  responses.PayOSLinkResponse:
+    properties:
+      accountName:
+        type: string
+      accountNumber:
+        type: string
+      amount:
+        type: number
+      bin:
+        type: string
+      checkoutUrl:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      expiredAt:
+        type: integer
+      orderCode:
+        type: integer
+      paymentLinkId:
+        type: string
+      qrCode:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.PaymentResponse:
+    properties:
+      code:
+        type: string
+      data:
+        $ref: '#/definitions/responses.PayOSLinkResponse'
+      desc:
+        type: string
+      signature:
+        type: string
     type: object
   responses.ProductAttributesResponse:
     properties:
@@ -3167,25 +3247,24 @@ paths:
     post:
       consumes:
       - application/json
-      description: Initiate a payment with PayOS
+      description: Initiate a payment with PayOS. Backend sẽ tự set `cancelUrl` và
+        `returnUrl` từ config, KHÔNG lấy từ client.
       parameters:
-      - description: Payment Request
+      - description: Payment Request (client should NOT send cancelUrl/returnUrl)
         in: body
         name: request
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/requests.PaymentRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: PayOS wrapper response
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/responses.PaymentResponse'
         "400":
-          description: Bad Request
+          description: error
           schema:
             additionalProperties:
               type: string
