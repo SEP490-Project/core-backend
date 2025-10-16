@@ -32,7 +32,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		FileHandler:         NewS3Handler(applicationReg.FileService),
 		PayOsHandler:        NewPayOsHandler(applicationReg.InfrastructureRegistry.PayOsService),
 		StateHandler:        NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
-		ContractHandler:     NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		ContractHandler:     NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		CampaignHandler:     NewCampaignHandler(applicationReg.CampaignService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }

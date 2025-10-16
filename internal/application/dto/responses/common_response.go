@@ -17,6 +17,21 @@ type APIResponse struct {
 	Data       any    `json:"data,omitempty"`
 }
 
+type APIValidationErrorResponse struct {
+	Success    bool                    `json:"success"`
+	Status     string                  `json:"status,omitempty"`
+	StatusCode int                     `json:"status_code,omitempty"`
+	Message    string                  `json:"message,omitempty"`
+	Errors     []ValidationErrorDetail `json:"errors"`
+}
+
+type ValidationErrorDetail struct {
+	JSONField   string `json:"field"`
+	StructField string `json:"struct_field,omitempty"`
+	Value       string `json:"value"`
+	Message     string `json:"message,omitempty"`
+}
+
 // PaginationResponse represents a paginated API response structure.
 type PaginationResponse[T any] struct {
 	Success    bool       `json:"success"`
@@ -60,6 +75,15 @@ func ErrorResponse(message string, statusCode int) *APIResponse {
 		StatusCode: statusCode,
 		Message:    message,
 		Data:       nil,
+	}
+}
+
+func ValidationErrorResponse(errorCode int, message string, errors ...ValidationErrorDetail) *APIValidationErrorResponse {
+	return &APIValidationErrorResponse{
+		Success:    false,
+		Status:     http.StatusText(errorCode),
+		StatusCode: errorCode,
+		Errors:     errors,
 	}
 }
 

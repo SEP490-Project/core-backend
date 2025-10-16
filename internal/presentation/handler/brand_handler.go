@@ -73,14 +73,14 @@ func (bh *BrandHandler) CreateBrand(c *gin.Context) {
 //	@Tags			Brands
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		requests.CreateBrandRequest							true	"Brand creation data"
+//	@Param			request	body		requests.CreateBrandWithUserRequest					true	"Brand creation data"
 //	@Success		201		{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand and User created successfully"
 //	@Failure		400		{object}	responses.APIResponse								"Invalid request"
 //	@Failure		500		{object}	responses.APIResponse								"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/brands/with-users [post]
 func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
-	var req requests.CreateBrandRequest
+	var req requests.CreateBrandWithUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
@@ -122,11 +122,11 @@ func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
 //	@Tags			Brands
 //	@Accept			json
 //	@Produce		json
-//	@Param			id	path		string												true	"Brand ID"
-//	@Success		200	{object}	responses.APIResponse{data=responses.BrandResponse}	"Brand fetched successfully"
-//	@Failure		400	{object}	responses.APIResponse								"Invalid brand ID"
-//	@Failure		404	{object}	responses.APIResponse								"Brand not found"
-//	@Failure		500	{object}	responses.APIResponse								"Internal server error"
+//	@Param			id	path		string														true	"Brand ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.BrandDetailResponse}	"Brand fetched successfully"
+//	@Failure		400	{object}	responses.APIResponse										"Invalid brand ID"
+//	@Failure		404	{object}	responses.APIResponse										"Brand not found"
+//	@Failure		500	{object}	responses.APIResponse										"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/brands/{id} [get]
 func (bh *BrandHandler) GetBrandByID(c *gin.Context) {

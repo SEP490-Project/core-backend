@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/responses"
+	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -43,4 +47,33 @@ func extractParamID(c *gin.Context, paramName string) (paramID uuid.UUID, err er
 		return uuid.Nil, fmt.Errorf("invalid %s format: %v", paramName, err)
 	}
 	return
+}
+
+// processValidationError processes validation errors from the validator package and returns a structured APIValidationErrorResponse.
+func processValidationError(err error) *responses.APIValidationErrorResponse {
+	if err == nil {
+		return nil
+	}
+
+	ve, ok := err.(validator.ValidationErrors)
+	if ok {
+		details := make([]responses.ValidationErrorDetail, 0, len(ve))
+		for _, fe := range ve {
+			// The param field of the ValidationError are not usually used, so it is used as a workaround for custom error messages
+			msg := fe.Param()
+			if msg == "" {
+				msg = fmt.Sprintf("%s failed on '%s' validation", fe.Field(), fe.Tag())
+			}
+
+			details = append(details, responses.ValidationErrorDetail{
+				JSONField:   fe.Field(),
+				StructField: fe.StructField(),
+				Value:       utils.ToString(fe.Value()),
+				Message:     msg,
+			})
+		}
+
+		return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
+	}
+	return responses.ValidationErrorResponse(400, "Validation Error, Unable to process the validation errors")
 }

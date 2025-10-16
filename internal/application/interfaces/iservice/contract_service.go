@@ -17,6 +17,10 @@ type ContractService interface {
 		unitOfWork irepository.UnitOfWork,
 	) (*responses.ContractResponse, error)
 
+	// ValidateBrandAndContractNumber checks if a contract with the same brand ID and contract number already exists
+	ValidateBrandAndContractNumber(ctx context.Context, brandID uuid.UUID, contractNumber string) error
+
+	// ApproveContract approves a contract by its ID
 	ApproveContract(ctx context.Context, contractID uuid.UUID) error
 
 	// UpdateContract updates an existing contract and optionally updates brand information

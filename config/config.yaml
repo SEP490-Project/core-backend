@@ -6,6 +6,7 @@ server:
   environment: "development" # development, production
   timeout: 30
   payos_link_expiry: 300 #seconds
+  timezone: "Asia/Ho_Chi_Minh"
 
 # Database configuration (PostgreSQL)
 database:
@@ -75,9 +76,10 @@ otel:
 # RabbitMQ configuration
 rabbitmq:
   url: "amqp://guest:guest@localhost:5672/"
-  exchange: "sep490.exchange"
-  queue: "sep490.queue"
-  routing_key: "my_routing_key"
+  vhost: "/"
+  reconnectDelayMs: 5000
+  connectionTimeoutMs: 10000
+  heartbeat: 30
 
 # Asynq (background jobs) configuration
 asynq:
@@ -113,5 +115,5 @@ payos:
   cancel_url: "https://localhost:8080/api/v1/payos/cancel"
   return_url: "https://www.facebook.com"
   notify_url: "http://localhost:8080/api/v1/payos/notify"
-  frontend_url_cancel: "https://www.google.com"
+  frontend_url_cancel: "https://localhost:3000"
   frontend_url_return: "https://www.facebook.com"

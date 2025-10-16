@@ -581,7 +581,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.CreateBrandRequest"
+                            "$ref": "#/definitions/requests.CreateBrandWithUserRequest"
                         }
                     }
                 ],
@@ -658,7 +658,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.BrandResponse"
+                                            "$ref": "#/definitions/responses.BrandDetailResponse"
                                         }
                                     }
                                 }
@@ -1561,7 +1561,7 @@ const docTemplate = `{
                 ],
                 "description": "Create a new contract and optionally update brand information",
                 "consumes": [
-                    "multipart/form-data"
+                    "application/json"
                 ],
                 "produces": [
                     "application/json"
@@ -1572,26 +1572,94 @@ const docTemplate = `{
                 "summary": "Create new contract",
                 "parameters": [
                     {
-                        "description": "Contract creation data (to be JSON-stringified and placed in 'data' form field)",
+                        "description": "Contract creation data",
                         "name": "data",
                         "in": "body",
+                        "required": true,
                         "schema": {
                             "$ref": "#/definitions/requests.CreateContractRequest"
                         }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Contract created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Brand not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/async": {
+            "post": {
+                "security": [
                     {
-                        "type": "string",
-                        "description": "Contract creation data in JSON format of struct type requests.CreateContractRequest",
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new contract and optionally update brand information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Create new contract",
+                "parameters": [
+                    {
+                        "description": "Contract creation data",
                         "name": "data",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "Contract file",
-                        "name": "file",
-                        "in": "formData",
-                        "required": true
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateContractRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -2292,7 +2360,7 @@ const docTemplate = `{
         },
         "/api/v1/payos/payment": {
             "post": {
-                "description": "Initiate a payment with PayOS. Backend sẽ tự set ` + "`" + `cancelUrl` + "`" + ` và ` + "`" + `returnUrl` + "`" + ` từ config, KHÔNG lấy từ client.",
+                "description": "Initiate a payment with PayOS",
                 "consumes": [
                     "application/json"
                 ],
@@ -2305,24 +2373,26 @@ const docTemplate = `{
                 "summary": "Create a PayOS payment",
                 "parameters": [
                     {
-                        "description": "Payment Request (client should NOT send cancelUrl/returnUrl)",
+                        "description": "Payment Request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.PaymentRequest"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "PayOS wrapper response",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/responses.PaymentResponse"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "error",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -3617,6 +3687,82 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dtos.Level": {
+            "type": "object",
+            "required": [
+                "level",
+                "max_clicks",
+                "multiplier"
+            ],
+            "properties": {
+                "level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
+                "max_clicks": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1000
+                },
+                "multiplier": {
+                    "type": "number",
+                    "minimum": 1,
+                    "example": 1
+                }
+            }
+        },
+        "dtos.Schedule": {
+            "type": "object",
+            "required": [
+                "amount",
+                "due_date",
+                "milestone",
+                "percent"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 3000000
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2023-10-15"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "milestone": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Initial payment"
+                },
+                "percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 30
+                }
+            }
+        },
+        "dtos.TaxWithholding": {
+            "type": "object",
+            "properties": {
+                "rate_percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 10
+                },
+                "threshold": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10000000
+                }
+            }
+        },
         "enum.AttributeUnit": {
             "type": "string",
             "enum": [
@@ -3835,30 +3981,6 @@ const docTemplate = `{
         "requests.BulkVariantRequest": {
             "type": "object"
         },
-        "requests.CapitalContribution": {
-            "type": "object",
-            "properties": {
-                "company": {
-                    "$ref": "#/definitions/requests.ContributionDescription"
-                },
-                "kol": {
-                    "$ref": "#/definitions/requests.ContributionDescription"
-                }
-            }
-        },
-        "requests.ContributionDescription": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string",
-                    "example": "Equipment and studio"
-                },
-                "value": {
-                    "type": "integer",
-                    "example": 50000000
-                }
-            }
-        },
         "requests.CreateBrandRequest": {
             "type": "object",
             "required": [
@@ -3866,6 +3988,11 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -3889,6 +4016,78 @@ const docTemplate = `{
                     "maxLength": 255,
                     "minLength": 2,
                     "example": "Acme Corp"
+                },
+                "website": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "https://www.acme.com"
+                }
+            }
+        },
+        "requests.CreateBrandWithUserRequest": {
+            "type": "object",
+            "required": [
+                "contact_email",
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
+                "contact_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "acme@example.com"
+                },
+                "contact_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "A leading manufacturer of quality products."
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://www.acme.com/logo.png"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Acme Corp"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Manager"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "123456789"
                 },
                 "website": {
                     "type": "string",
@@ -3961,186 +4160,7 @@ const docTemplate = `{
             }
         },
         "requests.CreateContractRequest": {
-            "type": "object",
-            "required": [
-                "brand_id",
-                "contract_number",
-                "end_date",
-                "financial_terms",
-                "legal_terms",
-                "representative_name",
-                "scope_of_work",
-                "signed_date",
-                "start_date",
-                "title",
-                "type"
-            ],
-            "properties": {
-                "brand_bank_account_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "0123456789"
-                },
-                "brand_bank_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Vietcombank"
-                },
-                "brand_id": {
-                    "type": "string",
-                    "example": "660e8400-e29b-41d4-a716-446655440000"
-                },
-                "brand_representative_email": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "john.doe@acme.com"
-                },
-                "brand_representative_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "John Doe"
-                },
-                "brand_representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "brand_representative_role": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "CEO"
-                },
-                "brand_tax_number": {
-                    "description": "Brand information (stored in contract for record-keeping)",
-                    "type": "string",
-                    "maxLength": 100,
-                    "example": "TAX123456"
-                },
-                "contract_file_url": {
-                    "description": "File URLs",
-                    "type": "string",
-                    "example": "https://example.com/contracts/contract.pdf"
-                },
-                "contract_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "CONTRACT-2023-001"
-                },
-                "currency": {
-                    "description": "Financial",
-                    "type": "string",
-                    "example": "VND"
-                },
-                "end_date": {
-                    "type": "string",
-                    "example": "2023-12-31T23:59:59Z"
-                },
-                "financial_terms": {
-                    "description": "Complex JSONB fields",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/requests.FinancialTerms"
-                        }
-                    ]
-                },
-                "legal_terms": {
-                    "$ref": "#/definitions/requests.LegalTerms"
-                },
-                "parent_contract_id": {
-                    "description": "Parent contract (for amendments or related contracts)",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "proposal_file_url": {
-                    "type": "string",
-                    "example": "https://example.com/proposals/proposal.pdf"
-                },
-                "representative_bank_account_holder": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Jane Smith"
-                },
-                "representative_bank_account_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "987654321"
-                },
-                "representative_bank_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "First National Bank"
-                },
-                "representative_email": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "jane.smith@example.com"
-                },
-                "representative_name": {
-                    "description": "KOL/Representative information (the other party in the contract)",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "Jane Smith"
-                },
-                "representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "representative_role": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Influencer"
-                },
-                "representative_tax_number": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "example": "TAX654321"
-                },
-                "scope_of_work": {
-                    "$ref": "#/definitions/requests.ScopeOfWork"
-                },
-                "signed_date": {
-                    "description": "Contract dates",
-                    "type": "string",
-                    "example": "2023-10-01T12:00:00Z"
-                },
-                "signed_location": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "Springfield"
-                },
-                "start_date": {
-                    "type": "string",
-                    "example": "2023-10-02T00:00:00Z"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "ACTIVE",
-                        "COMPLETED",
-                        "TERMINATED"
-                    ],
-                    "example": "DRAFT"
-                },
-                "title": {
-                    "description": "Contract basic information",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "Social Media Promotion Contract"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "ADVERTISING",
-                        "AFFILIATE",
-                        "BRAND_AMBASSADOR",
-                        "CO_PRODUCING"
-                    ],
-                    "example": "ADVERTISING"
-                }
-            }
+            "type": "object"
         },
         "requests.CreateMilestoneCampaignRequest": {
             "type": "object",
@@ -4265,171 +4285,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.Deliverable": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string",
-                    "example": "770e8400-e29b-41d4-a716-446655440000"
-                },
-                "channel_link": {
-                    "type": "string",
-                    "example": "https://youtube.com/channel/xyz"
-                },
-                "channel_name": {
-                    "type": "string",
-                    "example": "YouTube"
-                },
-                "deadline": {
-                    "type": "string",
-                    "example": "2023-11-30"
-                },
-                "quantity": {
-                    "type": "integer",
-                    "example": 5
-                },
-                "type": {
-                    "type": "string",
-                    "example": "VIDEO"
-                }
-            }
-        },
-        "requests.FinancialTerms": {
-            "type": "object",
-            "properties": {
-                "base_per_click": {
-                    "type": "integer",
-                    "example": 1000
-                },
-                "capital_contribution": {
-                    "$ref": "#/definitions/requests.CapitalContribution"
-                },
-                "cost_breakdown": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                },
-                "levels": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.Level"
-                    }
-                },
-                "model": {
-                    "type": "string",
-                    "example": "FIXED"
-                },
-                "payment_cycle": {
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.PaymentCycle"
-                        }
-                    ],
-                    "example": "MONTHLY"
-                },
-                "payment_date": {
-                    "type": "string",
-                    "example": "2023-11-05"
-                },
-                "payment_method": {
-                    "type": "string",
-                    "example": "BANK_TRANSFER"
-                },
-                "profit_distribution_cycle": {
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.PaymentCycle"
-                        }
-                    ],
-                    "example": "QUARTERLY"
-                },
-                "profit_distribution_date": {
-                    "type": "string",
-                    "example": "2023-12-31"
-                },
-                "profit_split_company_percent": {
-                    "type": "integer",
-                    "example": 60
-                },
-                "profit_split_kol_percent": {
-                    "type": "integer",
-                    "example": 40
-                },
-                "schedule": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.Schedule"
-                    }
-                },
-                "tax_withholding": {
-                    "$ref": "#/definitions/requests.TaxWithholding"
-                },
-                "total_cost": {
-                    "type": "integer",
-                    "example": 10000000
-                }
-            }
-        },
-        "requests.InvoiceRequest": {
-            "type": "object",
-            "properties": {
-                "invoiceCode": {
-                    "type": "string"
-                },
-                "invoiceDate": {
-                    "type": "string",
-                    "format": "date-time"
-                }
-            }
-        },
-        "requests.LegalTerms": {
-            "type": "object",
-            "properties": {
-                "confidentiality": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "dispute_resolution_court": {
-                    "type": "string",
-                    "example": "Ho Chi Minh City Court"
-                },
-                "force_majeure_notification_days": {
-                    "type": "integer",
-                    "example": 7
-                },
-                "management_board": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.ManagementBoard"
-                    }
-                },
-                "number_of_copies": {
-                    "type": "integer",
-                    "example": 2
-                },
-                "penalties": {
-                    "$ref": "#/definitions/requests.Penalties"
-                }
-            }
-        },
-        "requests.Level": {
-            "type": "object",
-            "properties": {
-                "level": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "min_clicks": {
-                    "type": "integer",
-                    "example": 1000
-                },
-                "multiplier": {
-                    "type": "number",
-                    "example": 1.5
-                }
-            }
-        },
         "requests.LoginRequest": {
             "type": "object",
             "required": [
@@ -4457,92 +4312,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.ManagementBoard": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "representing": {
-                    "type": "string",
-                    "example": "Brand"
-                }
-            }
-        },
-        "requests.PaymentItemRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "integer"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "requests.PaymentRequest": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer"
-                },
-                "buyerAddress": {
-                    "type": "string"
-                },
-                "buyerCompanyName": {
-                    "type": "string"
-                },
-                "buyerEmail": {
-                    "type": "string"
-                },
-                "buyerName": {
-                    "type": "string"
-                },
-                "buyerPhone": {
-                    "type": "string"
-                },
-                "buyerTaxCode": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "invoice": {
-                    "$ref": "#/definitions/requests.InvoiceRequest"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.PaymentItemRequest"
-                    }
-                }
-            }
-        },
-        "requests.Penalties": {
-            "type": "object",
-            "properties": {
-                "breach_of_contract_percent": {
-                    "type": "integer",
-                    "example": 20
-                },
-                "late_delivery_percent_per_day": {
-                    "type": "number",
-                    "example": 0.5
-                },
-                "late_payment_percent_per_day": {
-                    "type": "number",
-                    "example": 0.3
-                },
-                "non_delivery_penalty_percent": {
-                    "type": "integer",
-                    "example": 30
-                }
-            }
-        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -4552,71 +4321,6 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                }
-            }
-        },
-        "requests.Schedule": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "integer",
-                    "example": 3000000
-                },
-                "due_date": {
-                    "type": "string",
-                    "example": "2023-10-15"
-                },
-                "milestone": {
-                    "type": "string",
-                    "example": "Initial payment"
-                },
-                "percent": {
-                    "type": "integer",
-                    "example": 30
-                }
-            }
-        },
-        "requests.ScopeOfWork": {
-            "type": "object",
-            "properties": {
-                "branding_restrictions": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "No competitor brands"
-                    ]
-                },
-                "co_production_roles": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
-                },
-                "deliverables": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/requests.Deliverable"
-                    }
-                },
-                "description": {
-                    "type": "string",
-                    "example": "Create and publish social media content"
-                },
-                "products": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "Product A",
-                        "Product B"
-                    ]
-                },
-                "technical_requirements": {
-                    "type": "string",
-                    "example": "4K video, professional lighting"
                 }
             }
         },
@@ -4648,19 +4352,6 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "john_doe"
-                }
-            }
-        },
-        "requests.TaxWithholding": {
-            "type": "object",
-            "properties": {
-                "rate_percent": {
-                    "type": "integer",
-                    "example": 10
-                },
-                "threshold": {
-                    "type": "integer",
-                    "example": 10000000
                 }
             }
         },
@@ -4757,11 +4448,12 @@ const docTemplate = `{
         },
         "requests.UpdateBrandRequest": {
             "type": "object",
-            "required": [
-                "contact_email",
-                "name"
-            ],
             "properties": {
+                "address": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "123 Main St, Anytown, USA"
+                },
                 "contact_email": {
                     "type": "string",
                     "maxLength": 255,
@@ -4807,33 +4499,9 @@ const docTemplate = `{
                     "example": "Vietcombank"
                 },
                 "brand_id": {
-                    "type": "string",
-                    "example": "660e8400-e29b-41d4-a716-446655440000"
-                },
-                "brand_representative_email": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "john.doe@acme.com"
-                },
-                "brand_representative_name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "John Doe"
-                },
-                "brand_representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "brand_representative_role": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "CEO"
-                },
-                "brand_tax_number": {
                     "description": "Brand information (stored in contract for record-keeping)",
                     "type": "string",
-                    "maxLength": 100,
-                    "example": "TAX123456"
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
                 },
                 "contract_file_url": {
                     "description": "File URLs",
@@ -5033,6 +4701,68 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandDetailResponse": {
+            "type": "object",
+            "properties": {
+                "contact_email": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "example": "A123456789"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "example": "john.doe@example.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "example": "Manager"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandPaginationResponse": {
             "type": "object",
             "properties": {
@@ -5083,6 +4813,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "number_of_active_contracts": {
+                    "type": "integer"
+                },
+                "number_of_contracts": {
+                    "type": "integer"
+                },
                 "status": {
                     "type": "string"
                 },
@@ -5097,6 +4833,14 @@ const docTemplate = `{
                 "address": {
                     "type": "string",
                     "example": "123 Main St, Springfield"
+                },
+                "bank_account_number": {
+                    "type": "string",
+                    "example": "0123456789"
+                },
+                "bank_name": {
+                    "type": "string",
+                    "example": "Vietcombank"
                 },
                 "contact_email": {
                     "type": "string",
@@ -5117,6 +4861,30 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Acme Corp"
+                },
+                "representative_citizen_id": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "example": "john.doe@acme.com"
+                },
+                "representative_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "example": "CEO"
+                },
+                "tax_number": {
+                    "type": "string",
+                    "example": "TAX123456"
                 }
             }
         },
@@ -5364,40 +5132,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "brand": {
-                    "$ref": "#/definitions/responses.BrandSummary"
-                },
-                "brand_bank_account_number": {
-                    "type": "string",
-                    "example": "0123456789"
-                },
-                "brand_bank_name": {
-                    "type": "string",
-                    "example": "Vietcombank"
-                },
-                "brand_id": {
                     "description": "Brand information (from relationship)",
-                    "type": "string",
-                    "example": "660e8400-e29b-41d4-a716-446655440000"
-                },
-                "brand_representative_email": {
-                    "type": "string",
-                    "example": "john.doe@acme.com"
-                },
-                "brand_representative_name": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "brand_representative_phone": {
-                    "type": "string",
-                    "example": "+84901234567"
-                },
-                "brand_representative_role": {
-                    "type": "string",
-                    "example": "CEO"
-                },
-                "brand_tax_number": {
-                    "type": "string",
-                    "example": "TAX123456"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.BrandSummary"
+                        }
+                    ]
                 },
                 "contract_file_url": {
                     "description": "File URLs",
@@ -5590,64 +5330,6 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
-                }
-            }
-        },
-        "responses.PayOSLinkResponse": {
-            "type": "object",
-            "properties": {
-                "accountName": {
-                    "type": "string"
-                },
-                "accountNumber": {
-                    "type": "string"
-                },
-                "amount": {
-                    "type": "number"
-                },
-                "bin": {
-                    "type": "string"
-                },
-                "checkoutUrl": {
-                    "type": "string"
-                },
-                "currency": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "expiredAt": {
-                    "type": "integer"
-                },
-                "orderCode": {
-                    "type": "integer"
-                },
-                "paymentLinkId": {
-                    "type": "string"
-                },
-                "qrCode": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "responses.PaymentResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "data": {
-                    "$ref": "#/definitions/responses.PayOSLinkResponse"
-                },
-                "desc": {
-                    "type": "string"
-                },
-                "signature": {
-                    "type": "string"
                 }
             }
         },
