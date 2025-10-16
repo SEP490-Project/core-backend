@@ -8,22 +8,23 @@ import (
 	"github.com/google/uuid"
 )
 
+/*===========================PRODUCTS Overview=====================================*/
 // ProductResponse represents the response structure for a product.
 type ProductResponse struct {
-	ID           uuid.UUID                 `json:"id"`
-	BrandID      uuid.UUID                 `json:"brand_id"`
-	BrandLogoURL *string                   `json:"brand_logo_url,omitempty"`
-	BrandName    string                    `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *string                   `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                      `json:"is_active"`
-	CategoryLv1  string                    `json:"category"`
-	CategoryLv2  string                    `json:"category_lv2"`
-	Description  string                    `json:"description"`
-	Name         string                    `json:"name"`
-	Price        float64                   `json:"price"`
-	Type         enum.ProductType          `json:"type"`
-	Variants     []*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedAt    string                    `json:"created_at"` // FE parse về Date
+	ID           uuid.UUID                  `json:"id"`
+	BrandID      uuid.UUID                  `json:"brand_id"`
+	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
+	BrandName    string                     `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool                       `json:"is_active"`
+	CategoryLv1  string                     `json:"category"`
+	CategoryLv2  string                     `json:"category_lv2"`
+	Description  string                     `json:"description"`
+	Name         string                     `json:"name"`
+	Price        float64                    `json:"price"`
+	Type         enum.ProductType           `json:"type"`
+	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt    string                     `json:"created_at"` // FE parse về Date
 }
 
 // ToProductResponse converts a Product model to a ProductResponse DTO.
@@ -56,12 +57,11 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 		}
 	}
 
-	// Trạng thái & thời gian
-	// Lưu ý: cần field IsActive trong model.Product
-	//pr.IsActive = m.IsActive
+	// Status & time
+	pr.IsActive = m.Status == enum.ProductStatusActived
 	pr.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
 
-	// Thumbnail: ưu tiên ảnh primary của variant default, fallback ảnh đầu tiên
+	// Thumbnail
 	pr.ThumbnailURL = primaryProductImageURL(m)
 
 	// Variants
@@ -70,42 +70,55 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 		for i := range m.Variants {
 			variants = append(variants, ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
 		}
-		pr.Variants = variants
+		pr.Variants = &variants
 	}
 
 	return pr
 }
 
-func primaryProductImageURL(p *model.Product) *string {
+/*===========================PRODUCTS DETAIL=====================================*/
+type ProductDetailResponse struct {
+	ID           uuid.UUID                  `json:"id"`
+	BrandID      uuid.UUID                  `json:"brand_id"`
+	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
+	BrandName    string                     `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool                       `json:"is_active"`
+	CategoryLv1  string                     `json:"category"`
+	CategoryLv2  string                     `json:"category_lv2"`
+	Description  string                     `json:"description"`
+	Name         string                     `json:"name"`
+	Price        float64                    `json:"price"`
+	Type         enum.ProductType           `json:"type"`
+	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt    string                     `json:"created_at"` // FE parse về Date
+}
+
+func primaryProductImageURL(p *model.Product) *[]string {
 	if p == nil || len(p.Variants) == 0 {
 		return nil
 	}
 
-	// 1) chọn variant default nếu có
-	var pick *model.ProductVariant
+	thumnail := []string{}
+	fallback := []string{}
+
 	for i := range p.Variants {
-		if p.Variants[i].IsDefault {
-			pick = &p.Variants[i]
-			break
+		for j := range p.Variants[i].Images {
+			if p.Variants[i].Images[j].IsPrimary {
+				thumnail = append(thumnail, p.Variants[i].Images[j].ImageURL)
+			}
+			// fallback first image
+			if len(fallback) == 0 {
+				fallback = append(fallback, p.Variants[i].Images[j].ImageURL)
+			}
 		}
-	}
-	// 2) fallback variant đầu tiên
-	if pick == nil {
-		pick = &p.Variants[0]
 	}
 
-	// 3) lấy ảnh primary của variant
-	// Đổi tên trường cho khớp model của bạn nếu khác (vd: pick.VariantImages)
-	for _, img := range pick.Images {
-		if img.IsPrimary {
-			return &img.ImageURL // *string trả về cho thumbnail_url
-		}
+	if len(thumnail) > 0 {
+		return &thumnail
+	} else {
+		return &fallback
 	}
-	// 4) fallback ảnh đầu nếu có
-	if len(pick.Images) > 0 {
-		return &pick.Images[0].ImageURL
-	}
-	return nil
 }
 
 // ProductVariantResponse represents the response structure for a product variant.
@@ -141,7 +154,7 @@ type ProductAttributesResponse struct {
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
 func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.ProductVariant) *ProductVariantResponse {
-	resp := &ProductVariantResponse{
+	resp := ProductVariantResponse{
 		ID:              variant.ID,
 		Price:           variant.Price,
 		CurrentStock:    variant.CurrentStock,
@@ -181,5 +194,5 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		}
 		resp.Attributes = attrs
 	}
-	return resp
+	return &resp
 }

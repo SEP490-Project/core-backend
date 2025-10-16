@@ -46,6 +46,8 @@ func NewProductHandler(
 //	@Param			limit	query		int																		false	"Number of items per page"	default(10)
 //	@Param			offset	query		int																		false	"Number of items to skip"	default(0)
 //	@Param			search	query		string																	false	"Search term for product name"
+//	@Param			category_id	query		string																	false	"Filter category of products"
+//	@Param			type	query		string																	false	"Filter type of products"
 //	@Success		200		{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
 //	@Failure		500		{object}	object{error=string}													"Internal server error"
 //	@Security		BearerAuth
@@ -54,6 +56,8 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "10")
 	offsetStr := c.DefaultQuery("offset", "0")
 	search := c.DefaultQuery("search", "")
+	category := c.DefaultQuery("category_id", "")
+	ptype := c.DefaultQuery("type", "")
 
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
@@ -64,7 +68,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 		offset = 0
 	}
 
-	products, total, err := (h.productService).GetProductsPagination(limit, offset, search)
+	products, total, err := (h.productService).GetProductsPagination(limit, offset, search, category, ptype)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -313,7 +317,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	ctx := c.Request.Context()
 	uow := h.unitOfWork.Begin()
 	defer func() {
-		// Đảm bảo rollback khi chưa commit
+		// Ensure rollback on panic; ignore rollback error
 		if r := recover(); r != nil {
 			uow.Rollback()
 			panic(r)
@@ -413,7 +417,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to save uploaded file", http.StatusInternalServerError))
 		return
 	}
-	defer os.Remove(tempPath) // Clean up temp file
+	defer func() { _ = os.Remove(tempPath) }()
 
 	// Upload to S3 and get URL
 	imageURL, err := h.fileService.UploadFile(userID.String(), tempPath, file.Filename)
@@ -508,4 +512,53 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, responses.SuccessResponse("Variant attribute created successfully", utils.IntPtr(http.StatusCreated), variantAttribute))
+}
+
+// GetProductDetail godoc
+// @Summary      Get Product Detail
+// @Description  Retrieve full product detail by ID
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Product ID (UUID)"
+// @Success      200  {object}  responses.ProductResponse
+// @Failure      400  {object}  object{error=string}
+// @Failure      404  {object}  object{error=string}
+// @Failure      500  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/products/{id} [get]
+func (h *ProductHandler) GetProductDetail(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id: " + err.Error()})
+		return
+	}
+
+	// support both service signatures if available
+	var resp *responses.ProductResponse
+	// try concrete optional method first
+	if svcWithDetail, ok := h.productService.(interface {
+		GetProductDetail(uuid.UUID) (*responses.ProductResponse, error)
+	}); ok {
+		resp, err = svcWithDetail.GetProductDetail(id)
+	} else if svcByID, ok := h.productService.(interface {
+		GetProductByID(string) (*responses.ProductResponse, error)
+	}); ok {
+		resp, err = svcByID.GetProductByID(id.String())
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "service does not implement required method"})
+		return
+	}
+
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, responses.SuccessResponse("Fetched successful", utils.IntPtr(http.StatusOK), resp))
+
 }
