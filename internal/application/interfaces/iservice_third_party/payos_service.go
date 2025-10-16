@@ -9,4 +9,5 @@ type PayOSService interface {
 	GeneratePayOSLink(req requests.PaymentRequest) (*responses.PayOSWrapperResponse[responses.PayOSLinkResponse], error)
 	CancelPayOSLink(paymentId string, cancellationReason string) (bool, error)
 	GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse], error)
+	UpdatePaymentStatus(orderId int64, status string, reason string) error
 }

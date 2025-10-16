@@ -2292,7 +2292,7 @@ const docTemplate = `{
         },
         "/api/v1/payos/payment": {
             "post": {
-                "description": "Initiate a payment with PayOS",
+                "description": "Initiate a payment with PayOS. Backend sẽ tự set ` + "`" + `cancelUrl` + "`" + ` và ` + "`" + `returnUrl` + "`" + ` từ config, KHÔNG lấy từ client.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2305,26 +2305,24 @@ const docTemplate = `{
                 "summary": "Create a PayOS payment",
                 "parameters": [
                     {
-                        "description": "Payment Request",
+                        "description": "Payment Request (client should NOT send cancelUrl/returnUrl)",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/requests.PaymentRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "PayOS wrapper response",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/responses.PaymentResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -4373,6 +4371,18 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.InvoiceRequest": {
+            "type": "object",
+            "properties": {
+                "invoiceCode": {
+                    "type": "string"
+                },
+                "invoiceDate": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
         "requests.LegalTerms": {
             "type": "object",
             "properties": {
@@ -4457,6 +4467,58 @@ const docTemplate = `{
                 "representing": {
                     "type": "string",
                     "example": "Brand"
+                }
+            }
+        },
+        "requests.PaymentItemRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "requests.PaymentRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "buyerAddress": {
+                    "type": "string"
+                },
+                "buyerCompanyName": {
+                    "type": "string"
+                },
+                "buyerEmail": {
+                    "type": "string"
+                },
+                "buyerName": {
+                    "type": "string"
+                },
+                "buyerPhone": {
+                    "type": "string"
+                },
+                "buyerTaxCode": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "invoice": {
+                    "$ref": "#/definitions/requests.InvoiceRequest"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.PaymentItemRequest"
+                    }
                 }
             }
         },
@@ -5528,6 +5590,64 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.PayOSLinkResponse": {
+            "type": "object",
+            "properties": {
+                "accountName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "bin": {
+                    "type": "string"
+                },
+                "checkoutUrl": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "expiredAt": {
+                    "type": "integer"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "paymentLinkId": {
+                    "type": "string"
+                },
+                "qrCode": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.PaymentResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/responses.PayOSLinkResponse"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
                 }
             }
         },

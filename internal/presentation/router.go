@@ -173,7 +173,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// ---------- PAYOS ----------
 		payOsHandler := r.handlerRegistry.PayOsHandler
 		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
-
+		v1.POST("/payos/cancel", payOsHandler.CancelCallback)
 		// ---------- FILES ----------
 		fileHandler := r.handlerRegistry.FileHandler
 		filesGroup := v1.Group("/files")
