@@ -131,6 +131,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
+			productsGroup.GET("/:id", productHandler.GetProductDetail)
 
 			// Protected (Sales, Brand, Admin)
 			protectedProducts := productsGroup.Group("")
