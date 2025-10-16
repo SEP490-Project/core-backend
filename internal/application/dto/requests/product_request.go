@@ -14,15 +14,16 @@ type ProductListRequest struct {
 	Type   *string `form:"type" json:"type" validate:"omitempty,oneof=STANDARD LIMITED" example:"STANDARD"`
 }
 
-// CreateProductRequest represents create product request
-type CreateProductRequest struct {
-	BrandID     uuid.UUID `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	CategoryID  uuid.UUID `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	TaskID      uuid.UUID `json:"task_id" validate:"required,uuid" example:"660e8400-e29b-41d4-a716-446655440000"`
-	Name        string    `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
-	Description *string   `json:"description" validate:"omitempty,max=1000" example:"Product description"`
-	Price       float64   `json:"price" validate:"required,min=0" example:"99.99"`
-	Type        string    `json:"type" validate:"required,oneof=STANDARD LIMITED" example:"STANDARD"`
+/*===========================STANDARD PRODUCTS=====================================*/
+// CreateStandardProductRequest represents create product request
+type CreateStandardProductRequest struct {
+	BrandID    uuid.UUID `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CategoryID uuid.UUID `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	//TaskID      uuid.UUID `json:"task_id" validate:"required,uuid" example:"660e8400-e29b-41d4-a716-446655440000"`
+	Name        string  `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
+	Description *string `json:"description" validate:"omitempty,max=1000" example:"Product description"`
+	Price       float64 `json:"price" validate:"required,min=0" example:"99.99"`
+	//Type        string    `json:"type" validate:"required,oneof=STANDARD LIMITED" example:"STANDARD"`
 }
 
 // UpdateProductRequest represents update product request
@@ -32,18 +33,54 @@ type UpdateProductRequest struct {
 	Price       float64 `json:"price" validate:"omitempty,min=0" example:"149.99"`
 }
 
-func (d *CreateProductRequest) ToModel(createdBy uuid.UUID) *model.Product {
+func (d *CreateStandardProductRequest) ToStandardModel(createdBy uuid.UUID) *model.Product {
 	if d == nil {
 		return nil
 	}
 	return &model.Product{
 		BrandID:     d.BrandID,
 		CategoryID:  d.CategoryID,
-		TaskID:      &d.TaskID,
+		TaskID:      nil,
 		Name:        d.Name,
 		Description: d.Description,
 		Price:       d.Price,
-		Type:        enum.ProductType(d.Type),
+		Type:        enum.ProductTypeStandard,
+		CreatedByID: createdBy,
+	}
+}
+
+/*===========================LIMITED PRODUCTS=====================================*/
+type CreateLimitedProductRequest struct {
+	BrandID          uuid.UUID                `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CategoryID       uuid.UUID                `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	TaskID           uuid.UUID                `json:"task_id" validate:"required,uuid" example:"660e8400-e29b-41d4-a716-446655440000"`
+	Name             string                   `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
+	Description      *string                  `json:"description" validate:"omitempty,max=1000" example:"Product description"`
+	Price            float64                  `json:"price" validate:"required,min=0" example:"99.99"`
+	LimitedAttribute LimitedProductAttributes `json:"limited_attribute" validate:"required"`
+}
+
+type LimitedProductAttributes struct {
+	MaxStock              int     `json:"max_stock" validate:"required,min=0" example:"100"`
+	IsFreeShipping        bool    `json:"is_free_shipping" example:"false"`
+	BoughtLimit           int     `json:"bought_limit" validate:"required,min=1" example:"1"`
+	PremiereDate          *string `json:"premiere_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
+	AvailabilityStartDate *string `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
+	AvailabilityEndDate   *string `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-31T10:00:00Z"`
+}
+
+func (d *CreateLimitedProductRequest) ToLimitedModel(createdBy uuid.UUID) *model.Product {
+	if d == nil {
+		return nil
+	}
+	return &model.Product{
+		BrandID:     d.BrandID,
+		CategoryID:  d.CategoryID,
+		TaskID:      nil,
+		Name:        d.Name,
+		Description: d.Description,
+		Price:       d.Price,
+		Type:        enum.ProductTypeLimited,
 		CreatedByID: createdBy,
 	}
 }
