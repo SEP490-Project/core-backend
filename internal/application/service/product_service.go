@@ -195,20 +195,8 @@ func (p productService) CreateStandardProduct(dto *requests.CreateStandardProduc
 	if dto == nil {
 		return nil, errors.New("nil dto")
 	}
-	//if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
-	//	return nil, errors.New("task_id is required: product must depend on a task")
-	//}
-	ctx := context.Background()
 
-	// Validate task existence
-	//if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
-	//	zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
-	//	return nil, errors.New("could not verify task existence")
-	//} else if found == nil {
-	//	return nil, errors.New("task not found")
-	//} else if found.Status != enum.TaskStatusInProgress {
-	//	return nil, errors.New("your task may expired or overdue")
-	//}
+	ctx := context.Background()
 
 	// Validate brand existence
 	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
@@ -307,26 +295,50 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 	return resp.ToProductResponse(saved), nil
 }
 
-func (p productService) GetProductsPagination(limit, offset int, search string) ([]*responses.ProductResponse, int, error) {
+func (p productService) GetProductsPagination(limit, offset int, search string, categoryID string, productType string) (*[]*responses.ProductResponse, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("limit", limit),
 		zap.Int("offset", offset),
-		zap.String("search", search))
+		zap.String("search", search),
+		zap.String("category_id", categoryID),
+		zap.String("product_type", productType),
+	)
 
 	ctx := context.Background()
 
-	// Build filter for search
-	var filter func(*gorm.DB) *gorm.DB
-	if search != "" {
-		filter = func(db *gorm.DB) *gorm.DB {
-			return db.Where("name ILIKE ?", "%"+search+"%")
+	filter := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
-		zap.L().Debug("Applied search filter to product query",
-			zap.String("search_term", search))
+		if categoryID != "" {
+			if cid, err := uuid.Parse(categoryID); err == nil {
+				db = db.Where(`category_id = ?`, cid)
+			} else {
+				zap.L().Warn("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
+			}
+		}
+		if productType != "" {
+			switch productType {
+			case "STANDARD", "LIMITED":
+				db = db.Where(`type = ?`, productType)
+			default:
+				zap.L().Warn("invalid product type provided, ignoring", zap.String("product_type", productType))
+			}
+		}
+		// Order để phân trang ổn định
+		return db.Order("products.created_at DESC").Order("products.id")
 	}
 
-	// Fetch products with variants
-	products, total, err := p.repository.GetAll(ctx, filter, []string{"Variants", "Category", "Category.ParentCategory"}, limit, offset)
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		//"Variants.AttributeValues", "Variants.AttributeValues.Attribute",
+	}
+
+	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, offset)
 	if err != nil {
 		zap.L().Info("Failed to fetch products from repository",
 			zap.Int("limit", limit),
@@ -340,16 +352,10 @@ func (p productService) GetProductsPagination(limit, offset int, search string) 
 		zap.Int("products_count", len(products)),
 		zap.Int64("total_products", total))
 
-	// Map to DTOs
 	productResponses := make([]*responses.ProductResponse, 0, len(products))
-	for _, prod := range products {
+	for i := range products {
 		resp := &responses.ProductResponse{}
-		// ensure non-nil description for mapper
-		if prod.Description == nil {
-			empty := ""
-			prod.Description = &empty
-		}
-		productResponses = append(productResponses, resp.ToProductResponse(&prod))
+		productResponses = append(productResponses, resp.ToProductResponse(&products[i]))
 	}
 
 	zap.L().Info("Successfully retrieved products with pagination",
@@ -357,14 +363,35 @@ func (p productService) GetProductsPagination(limit, offset int, search string) 
 		zap.Int("total_count", int(total)),
 		zap.String("search_term", search))
 
-	return productResponses, int(total), nil
+	return &productResponses, int(total), nil
 }
 
-func (p productService) GetProductByID(id string) (*responses.ProductResponse, error) {
-	zap.L().Debug("Fetching product by ID - method not implemented",
-		zap.String("product_id", id))
-	// TODO: implement me
-	panic("implement me")
+func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductResponse, error) {
+	ctx := context.Background()
+	res := responses.ProductResponse{}
+
+	// Use actual struct field names for nested preloads to avoid unsupported relation errors
+	includes := []string{
+		"Brand",
+		"Brand.User",
+		"Category",
+		"Category.ParentCategory",
+		"Variants",
+		"Variants.Images",
+		"Variants.AttributeValues",
+		"Variants.Story",
+	}
+
+	product, err := p.repository.GetByID(ctx, id, includes)
+	if err != nil {
+		zap.L().Info("failed to get product by id", zap.String("product_id", id.String()), zap.Error(err))
+		return nil, err
+	}
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+
+	return res.ToProductResponse(product), nil
 }
 
 func isStaffRole(role string) bool {
@@ -376,7 +403,6 @@ func isStaffRole(role string) bool {
 
 func (p productService) GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error) {
 	ctx := context.Background()
-
 	// Convert offset to pageNumber expected by repository (1-based)
 	pageNumber := 1
 	if limit > 0 && offset > 0 {
@@ -433,7 +459,7 @@ func (p productService) GetProductsByTask(taskID uuid.UUID, requestingUserID uui
 }
 
 // GetProductVariants lists variants for a product with pagination.
-func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error) {
+func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) (*[]*responses.ProductVariantResponse, int, error) {
 	ctx := context.Background()
 
 	// Optionally ensure product exists
@@ -466,7 +492,7 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 	for i := range variants {
 		res = append(res, responses.ProductVariantResponse{}.ToProductVariantResponse(&variants[i]))
 	}
-	return res, int(total), nil
+	return &res, int(total), nil
 }
 
 func NewProductService(
