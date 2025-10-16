@@ -3,7 +3,7 @@ package persistence
 import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/infrastructure/gorm_repository"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -17,10 +17,6 @@ type unitOfWork struct {
 	shippingAddressRepo             irepository.GenericRepository[model.ShippingAddress]
 	brandRepo                       irepository.GenericRepository[model.Brand]
 	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
-	ContractRepository              irepository.GenericRepository[model.Contract]
-	ContractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
-	CampaignRepository              irepository.GenericRepository[model.Campaign]
-	MilestoneRepository             irepository.GenericRepository[model.Milestone]
 	TaskRepository                  irepository.GenericRepository[model.Task]
 	productRepo                     irepository.GenericRepository[model.Product]
 	contractRepository              irepository.GenericRepository[model.Contract]
@@ -33,30 +29,7 @@ type unitOfWork struct {
 	variantAttributeRepository      irepository.GenericRepository[model.VariantAttribute]
 	variantImageRepository          irepository.GenericRepository[model.VariantImage]
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
-}
-
-func (u *unitOfWork) ProductVariant() irepository.GenericRepository[model.ProductVariant] {
-	return u.productVariantRepository
-}
-
-func (u *unitOfWork) VariantAttributes() irepository.GenericRepository[model.VariantAttribute] {
-	return u.variantAttributeRepository
-}
-
-func (u *unitOfWork) VariantAttributeValue() irepository.GenericRepository[model.VariantAttributeValue] {
-	return u.variantAttributeValueRepository
-}
-
-func (u *unitOfWork) VariantImage() irepository.GenericRepository[model.VariantImage] {
-	return u.variantImageRepository
-}
-
-func (u *unitOfWork) ProductStory() irepository.GenericRepository[model.ProductStory] {
-	return u.productStoryRepository
-}
-
-func (u *unitOfWork) InTransaction() bool {
-	return u.tx != nil
+	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -92,6 +65,7 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
 	u.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](u.tx)
 	u.variantAttributeValueRepository = gormrepository.NewGenericRepository[model.VariantAttributeValue](u.tx)
+	u.modifiedHistoryRepository = gormrepository.NewGenericRepository[model.ModifiedHistory](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -173,6 +147,34 @@ func (u *unitOfWork) Milestones() irepository.GenericRepository[model.Milestone]
 
 func (u *unitOfWork) Tasks() irepository.GenericRepository[model.Task] {
 	return u.taskRepository
+}
+
+func (u *unitOfWork) ProductVariant() irepository.GenericRepository[model.ProductVariant] {
+	return u.productVariantRepository
+}
+
+func (u *unitOfWork) VariantAttributes() irepository.GenericRepository[model.VariantAttribute] {
+	return u.variantAttributeRepository
+}
+
+func (u *unitOfWork) VariantAttributeValue() irepository.GenericRepository[model.VariantAttributeValue] {
+	return u.variantAttributeValueRepository
+}
+
+func (u *unitOfWork) VariantImage() irepository.GenericRepository[model.VariantImage] {
+	return u.variantImageRepository
+}
+
+func (u *unitOfWork) ProductStory() irepository.GenericRepository[model.ProductStory] {
+	return u.productStoryRepository
+}
+
+func (u *unitOfWork) InTransaction() bool {
+	return u.tx != nil
+}
+
+func (u *unitOfWork) ModifiedHistories() irepository.GenericRepository[model.ModifiedHistory] {
+	return u.modifiedHistoryRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

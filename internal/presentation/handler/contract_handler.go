@@ -1,14 +1,14 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"encoding/json"
+	"core-backend/internal/infrastructure/rabbitmq"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -22,18 +22,24 @@ type ContractHandler struct {
 	fileService     iservice.FileService
 	unitOfWork      irepository.UnitOfWork
 	validator       *validator.Validate
+	rabbitmq        *rabbitmq.RabbitMQ
 }
 
 func NewContractHandler(
 	contractService iservice.ContractService,
 	fileService iservice.FileService,
 	unitOfWork irepository.UnitOfWork,
+	rabbitmq *rabbitmq.RabbitMQ,
 ) *ContractHandler {
+	validator := validator.New()
+	validator.RegisterStructValidation(requests.CreateContractRequestValidator, requests.CreateContractRequest{})
+
 	return &ContractHandler{
 		contractService: contractService,
 		fileService:     fileService,
 		unitOfWork:      unitOfWork,
-		validator:       validator.New(),
+		validator:       validator,
+		rabbitmq:        rabbitmq,
 	}
 }
 
@@ -42,11 +48,9 @@ func NewContractHandler(
 //	@Summary		Create new contract
 //	@Description	Create a new contract and optionally update brand information
 //	@Tags			Contracts
-//	@Accept			multipart/form-data
+//	@Accept			json
 //	@Produce		json
-//	@Param			data	body		requests.CreateContractRequest							false	"Contract creation data (to be JSON-stringified and placed in 'data' form field)"
-//	@Param			data	formData	string													true	"Contract creation data in JSON format of struct type requests.CreateContractRequest"
-//	@Param			file	formData	file													true	"Contract file"
+//	@Param			data	body		requests.CreateContractRequest							true	"Contract creation data"
 //	@Success		201		{object}	responses.APIResponse{data=responses.ContractResponse}	"Contract created successfully"
 //	@Failure		400		{object}	responses.APIResponse									"Invalid request or validation error"
 //	@Failure		401		{object}	responses.APIResponse									"Unauthorized"
@@ -63,27 +67,14 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 		return
 	}
 
-	dataForm := c.PostForm("data")
-	fileForm, err := c.FormFile("file")
-	if dataForm == "" {
-		responses := responses.ErrorResponse("Missing data in form", http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
-		return
-	} else if err != nil {
-		responses := responses.ErrorResponse("Failed to get file from form: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
-		return
-	}
-
 	var req requests.CreateContractRequest
-	if err = json.Unmarshal([]byte(dataForm), &req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
 		return
 	}
 	if err = h.validator.Struct(&req); err != nil {
-		zap.L().Debug("Validation failed", zap.Error(err))
-		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		response := processValidationError(err)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
@@ -109,34 +100,99 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 		return
 	}
 
-	var fileURL string
-	tempFilePath := fmt.Sprintf("/tmp/%s", fileForm.Filename)
-	if err = c.SaveUploadedFile(fileForm, tempFilePath); err != nil {
-		responses := responses.ErrorResponse("Failed to save uploaded file: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, responses)
-		return
-	}
-	defer func() { _ = os.Remove(tempFilePath) }()
-	if fileURL, err = h.fileService.UploadFile(userID.String(), tempFilePath, fileForm.Filename); err != nil {
-		uow.Rollback()
-		responses := responses.ErrorResponse("Failed to upload file: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, responses)
-		return
-	}
-
-	contractID, _ := uuid.Parse(contractResponse.ID)
-	if err = h.contractService.UpdateContractFileURL(c.Request.Context(), contractID, fileURL, uow); err != nil {
-		uow.Rollback()
-		responses := responses.ErrorResponse("Failed to update contract with file URL: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, responses)
-		return
-	}
-
 	uow.Commit()
 
 	statusCode := http.StatusCreated
 	response := responses.SuccessResponse("Contract created successfully", &statusCode, contractResponse)
 	c.JSON(http.StatusCreated, response)
+}
+
+// CreateContractAsync godoc
+//
+//	@Summary		Create new contract
+//	@Description	Create a new contract and optionally update brand information
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.CreateContractRequest							true	"Contract creation data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.ContractResponse}	"Contract created successfully"
+//	@Failure		400		{object}	responses.APIResponse									"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse									"Unauthorized"
+//	@Failure		404		{object}	responses.APIResponse									"Brand not found"
+//	@Failure		409		{object}	responses.APIResponse									"Contract number already exists"
+//	@Failure		500		{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/async [post]
+func (h *ContractHandler) CreateContractAsync(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+
+	var req requests.CreateContractRequest
+	if err = c.ShouldBindJSON(&req); err != nil {
+		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	if err = h.validator.Struct(&req); err != nil {
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+	brandID, err := uuid.Parse(req.BrandID)
+	if err != nil {
+		responses := responses.ErrorResponse("Invalid brand ID: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	var contractResponse *responses.ContractResponse
+	if err = h.contractService.ValidateBrandAndContractNumber(c.Request.Context(), brandID, req.ContractNumber); err != nil {
+		statusCode := http.StatusInternalServerError
+		errorStr := err.Error()
+		if errorStr == "brand not found" {
+			statusCode = http.StatusNotFound
+		} else if errorStr == fmt.Sprintf("contract number %s already exists", req.ContractNumber) ||
+			errorStr == "failed to validate contract number" {
+			statusCode = http.StatusConflict
+		}
+
+		zap.L().Error("Failed to create contract", zap.Error(err))
+		response := responses.ErrorResponse("Failed to create contract: "+err.Error(), statusCode)
+		c.JSON(statusCode, response)
+		return
+	}
+	var contractCreateProducer *rabbitmq.Producer
+	contractCreateProducer, err = h.rabbitmq.GetProducer("contract-create-producer")
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		errorStr := err.Error()
+		if errorStr == "producer not found" {
+			statusCode = http.StatusNotFound
+		}
+		zap.L().Error("Failed to create contract", zap.Error(err))
+		response := responses.ErrorResponse("Failed to create contract: "+err.Error(), statusCode)
+		c.JSON(statusCode, response)
+		return
+	}
+	contractCreateMessage := &consumers.ContractCreateMessage{
+		Contract: req,
+		UserID:   userID,
+	}
+	err = contractCreateProducer.PublishJSON(c.Request.Context(), contractCreateMessage)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to publish contract creation message: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusCreated
+	response := responses.SuccessResponse("Contract created successfully", &statusCode, contractResponse)
+	c.JSON(http.StatusCreated, response)
+
 }
 
 // UpdateContract godoc

@@ -41,6 +41,7 @@ func (b *BrandService) CreateBrand(ctx context.Context, request *requests.Create
 		Description:  request.Description,
 		ContactEmail: request.ContactEmail,
 		ContactPhone: request.ContactPhone,
+		Address:      request.Address,
 		Website:      request.Website,
 		LogoURL:      request.LogoURL,
 		Status:       enum.BrandStatusActive,
@@ -88,15 +89,43 @@ func (b *BrandService) GetByFilter(ctx context.Context, request *requests.ListBr
 		zap.L().Debug("No brands found matching the filter criteria")
 		return brandResponses, 0, nil
 	}
+
+	brandIDs := utils.MapSlice(brands, func(b model.Brand) uuid.UUID { return b.ID })
+
+	type BrandCount struct {
+		ID                      uuid.UUID
+		NumberOfContracts       int
+		NumberOfActiveContracts int
+	}
+
+	brandCounts := make([]BrandCount, 0, len(brandIDs))
+	b.BrandRepository.DB().
+		Model(&model.Brand{}).
+		InnerJoins("INNER JOIN contracts ON contracts.brand_id = brands.id").
+		Where("brands.id IN ?", brandIDs).
+		Select("brands.id, COUNT(contracts.id) AS number_of_contracts, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
+		Group("brands.id").
+		Scan(&brandCounts)
+
+	brandCountsMap := utils.MapKeyFromSlice(brandCounts, func(bc BrandCount) (uuid.UUID, BrandCount) {
+		return bc.ID, bc
+	})
+
 	for _, brand := range brands {
-		brandResponses = append(brandResponses, *responses.BrandResponse{}.ToBrandResponse(&brand))
+		response := responses.BrandResponse{}.ToBrandResponse(&brand)
+		count, ok := brandCountsMap[brand.ID]
+		if ok {
+			response.NumberOfContracts = count.NumberOfContracts
+			response.NumberOfActiveContracts = count.NumberOfActiveContracts
+		}
+		brandResponses = append(brandResponses, *response)
 	}
 
 	return brandResponses, totalCount, nil
 }
 
 // GetByID implements iservice.BrandService.
-func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandResponse, error) {
+func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandDetailResponse, error) {
 	zap.L().Info("Fetching brand by ID", zap.String("brand_id", brandID.String()))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -112,7 +141,7 @@ func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*respons
 		return nil, fmt.Errorf("brand with ID %s not found", brandID.String())
 	}
 
-	return responses.BrandResponse{}.ToBrandResponse(brand), nil
+	return responses.BrandDetailResponse{}.ToBrandDetailResponse(brand), nil
 }
 
 // UpdateBrand implements iservice.BrandService.
@@ -167,7 +196,12 @@ func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID,
 	return responses.BrandResponse{}.ToBrandResponse(brand), nil
 }
 
-func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *irepository.UnitOfWork, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
+// CreateBrandWithInActiveUsers implements iservice.BrandService.
+func (b *BrandService) CreateBrandWithInActiveUsers(
+	ctx context.Context,
+	uow *irepository.UnitOfWork,
+	request *requests.CreateBrandWithUserRequest,
+) (*responses.BrandResponse, error) {
 	zap.L().Info("Creating new brand with inactive useer", zap.Any("request.CreateBrandRequest", request))
 	brandRepo := (*uow).Brands()
 	usersRepo := (*uow).Users()
@@ -204,15 +238,22 @@ func (b *BrandService) CreateBrandWithInActiveUsers(ctx context.Context, uow *ir
 	}
 
 	brandModel := &model.Brand{
-		ID:           uuid.New(),
-		UserID:       &usersModel.ID,
-		Name:         request.Name,
-		Description:  request.Description,
-		ContactEmail: request.ContactEmail,
-		ContactPhone: request.ContactPhone,
-		Website:      request.Website,
-		LogoURL:      request.LogoURL,
-		Status:       enum.BrandStatusInactive,
+		ID:                      uuid.New(),
+		UserID:                  &usersModel.ID,
+		Name:                    request.Name,
+		Description:             request.Description,
+		ContactEmail:            request.ContactEmail,
+		ContactPhone:            request.ContactPhone,
+		Address:                 request.Address,
+		Website:                 request.Website,
+		LogoURL:                 request.LogoURL,
+		Status:                  enum.BrandStatusInactive,
+		TaxNumber:               request.TaxNumber,
+		RepresentativeName:      request.RepresentativeName,
+		RepresentativeRole:      request.RepresentativeRole,
+		RepresentativeEmail:     request.RepresentativeEmail,
+		RepresentativePhone:     request.RepresentativePhone,
+		RepresentativeCitizenID: request.RepresentativeCitizenID,
 	}
 	if err := brandRepo.Add(ctx, brandModel); err != nil {
 		zap.L().Error("Failed to create brand", zap.Error(err))
