@@ -2360,7 +2360,7 @@ const docTemplate = `{
         },
         "/api/v1/payos/payment": {
             "post": {
-                "description": "Initiate a payment with PayOS",
+                "description": "Initiate a payment with PayOS. Backend sẽ tự set ` + "`" + `cancelUrl` + "`" + ` và ` + "`" + `returnUrl` + "`" + ` từ config, KHÔNG lấy từ client.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2373,26 +2373,24 @@ const docTemplate = `{
                 "summary": "Create a PayOS payment",
                 "parameters": [
                     {
-                        "description": "Payment Request",
+                        "description": "Payment Request (client should NOT send cancelUrl/returnUrl)",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/requests.PaymentRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "PayOS wrapper response",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/responses.PaymentResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2518,7 +2516,76 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/api/v1/products/limited": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a limited product with stock/availability constraints. Requires authenticated user (creatorID lấy từ context).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Create a limited product",
+                "parameters": [
+                    {
+                        "description": "Limited product payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateLimitedProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created product",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request / validation failed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "missing or invalid user id",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/standard": {
             "post": {
                 "security": [
                     {
@@ -2543,7 +2610,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.CreateProductRequest"
+                            "$ref": "#/definitions/requests.CreateStandardProductRequest"
                         }
                     }
                 ],
@@ -4162,6 +4229,50 @@ const docTemplate = `{
         "requests.CreateContractRequest": {
             "type": "object"
         },
+        "requests.CreateLimitedProductRequest": {
+            "type": "object",
+            "required": [
+                "brand_id",
+                "category_id",
+                "limited_attribute",
+                "name",
+                "price",
+                "task_id"
+            ],
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Product description"
+                },
+                "limited_attribute": {
+                    "$ref": "#/definitions/requests.LimitedProductAttributes"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Product Name"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 99.99
+                },
+                "task_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
         "requests.CreateMilestoneCampaignRequest": {
             "type": "object",
             "required": [
@@ -4185,15 +4296,13 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.CreateProductRequest": {
+        "requests.CreateStandardProductRequest": {
             "type": "object",
             "required": [
                 "brand_id",
                 "category_id",
                 "name",
-                "price",
-                "task_id",
-                "type"
+                "price"
             ],
             "properties": {
                 "brand_id": {
@@ -4210,6 +4319,7 @@ const docTemplate = `{
                     "example": "Product description"
                 },
                 "name": {
+                    "description": "TaskID      uuid.UUID ` + "`" + `json:\"task_id\" validate:\"required,uuid\" example:\"660e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
@@ -4219,18 +4329,6 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 0,
                     "example": 99.99
-                },
-                "task_id": {
-                    "type": "string",
-                    "example": "660e8400-e29b-41d4-a716-446655440000"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "STANDARD",
-                        "LIMITED"
-                    ],
-                    "example": "STANDARD"
                 }
             }
         },
@@ -4285,6 +4383,57 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.InvoiceRequest": {
+            "type": "object",
+            "properties": {
+                "invoiceCode": {
+                    "type": "string"
+                },
+                "invoiceDate": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            }
+        },
+        "requests.LimitedProductAttributes": {
+            "type": "object",
+            "required": [
+                "availability_end_date",
+                "availability_start_date",
+                "bought_limit",
+                "is_free_shipping",
+                "max_stock",
+                "premiere_date"
+            ],
+            "properties": {
+                "availability_end_date": {
+                    "type": "string",
+                    "example": "2023-10-31T10:00:00Z"
+                },
+                "availability_start_date": {
+                    "type": "string",
+                    "example": "2023-10-01T10:00:00Z"
+                },
+                "bought_limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
+                "is_free_shipping": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "max_stock": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 100
+                },
+                "premiere_date": {
+                    "type": "string",
+                    "example": "2023-10-01T10:00:00Z"
+                }
+            }
+        },
         "requests.LoginRequest": {
             "type": "object",
             "required": [
@@ -4309,6 +4458,58 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.PaymentItemRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "requests.PaymentRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "buyerAddress": {
+                    "type": "string"
+                },
+                "buyerCompanyName": {
+                    "type": "string"
+                },
+                "buyerEmail": {
+                    "type": "string"
+                },
+                "buyerName": {
+                    "type": "string"
+                },
+                "buyerPhone": {
+                    "type": "string"
+                },
+                "buyerTaxCode": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "invoice": {
+                    "$ref": "#/definitions/requests.InvoiceRequest"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.PaymentItemRequest"
+                    }
                 }
             }
         },
@@ -5330,6 +5531,64 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.PayOSLinkResponse": {
+            "type": "object",
+            "properties": {
+                "accountName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "bin": {
+                    "type": "string"
+                },
+                "checkoutUrl": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "expiredAt": {
+                    "type": "integer"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "paymentLinkId": {
+                    "type": "string"
+                },
+                "qrCode": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.PaymentResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/responses.PayOSLinkResponse"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
                 }
             }
         },
