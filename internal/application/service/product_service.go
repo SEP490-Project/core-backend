@@ -190,36 +190,26 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 	return productVariant, nil
 }
 
-func NewProductService(
-	dbRegistry *gormrepository.DatabaseRegistry,
-) iservice.ProductService {
-	return &productService{
-		repository:   dbRegistry.ProductRepository,
-		variantRepo:  dbRegistry.ProductVariantRepository,
-		taskRepo:     dbRegistry.TaskRepository,
-		brandRepo:    dbRegistry.BrandRepository,
-		categoryRepo: dbRegistry.ProductCategoryRepository,
-	}
-}
-
-// CreateProduct creates a new product with default status DRAFT.
-func (p productService) CreateProduct(dto *requests.CreateProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
+// CreateStandardProduct creates a new product with default status DRAFT.
+func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
 	if dto == nil {
 		return nil, errors.New("nil dto")
 	}
-	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
-		return nil, errors.New("task_id is required: product must depend on a task")
-	}
+	//if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
+	//	return nil, errors.New("task_id is required: product must depend on a task")
+	//}
 	ctx := context.Background()
+
 	// Validate task existence
-	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
-		zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
-		return nil, errors.New("could not verify task existence")
-	} else if found == nil {
-		return nil, errors.New("task not found")
-	} else if found.Status != enum.TaskStatusInProgress {
-		return nil, errors.New("your task may expired or overdue")
-	}
+	//if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
+	//	zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+	//	return nil, errors.New("could not verify task existence")
+	//} else if found == nil {
+	//	return nil, errors.New("task not found")
+	//} else if found.Status != enum.TaskStatusInProgress {
+	//	return nil, errors.New("your task may expired or overdue")
+	//}
+
 	// Validate brand existence
 	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
 		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
@@ -235,7 +225,65 @@ func (p productService) CreateProduct(dto *requests.CreateProductRequest, create
 		return nil, errors.New("category not found")
 	}
 
-	entity := dto.ToModel(createdBy)
+	entity := dto.ToStandardModel(createdBy)
+	entity.Status = enum.ProductStatusDraft
+
+	if err := p.repository.Add(ctx, entity); err != nil {
+		zap.L().Info("failed to persist product", zap.Error(err))
+		return nil, err
+	}
+
+	// Reload with relations
+	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Brand", "Category", "Variants"})
+	if err != nil {
+		zap.L().Warn("created product but failed to reload with relations", zap.Error(err))
+		saved = entity
+	}
+
+	if saved.Description == nil {
+		empty := ""
+		saved.Description = &empty
+	}
+
+	resp := &responses.ProductResponse{}
+	return resp.ToProductResponse(saved), nil
+}
+
+func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
+	if dto == nil {
+		return nil, errors.New("nil dto")
+	}
+	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
+		return nil, errors.New("Task is required: Limited product must depend on a task")
+	}
+	ctx := context.Background()
+
+	// Validate task existence
+	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
+		zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		return nil, errors.New("could not verify task existence")
+	} else if found == nil {
+		return nil, errors.New("task not found")
+	} else if found.Status != enum.TaskStatusInProgress {
+		return nil, errors.New("your task may expired or overdue")
+	}
+
+	// Validate brand existence
+	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
+		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
+		return nil, errors.New("could not verify brand existence")
+	} else if !exists {
+		return nil, errors.New("brand not found")
+	}
+	// Validate category existence
+	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
+		zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
+		return nil, errors.New("could not verify category existence")
+	} else if !exists {
+		return nil, errors.New("category not found")
+	}
+
+	entity := dto.ToLimitedModel(createdBy)
 	entity.Status = enum.ProductStatusDraft
 
 	if err := p.repository.Add(ctx, entity); err != nil {
@@ -419,4 +467,16 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 		res = append(res, responses.ProductVariantResponse{}.ToProductVariantResponse(&variants[i]))
 	}
 	return res, int(total), nil
+}
+
+func NewProductService(
+	dbRegistry *gormrepository.DatabaseRegistry,
+) iservice.ProductService {
+	return &productService{
+		repository:   dbRegistry.ProductRepository,
+		variantRepo:  dbRegistry.ProductVariantRepository,
+		taskRepo:     dbRegistry.TaskRepository,
+		brandRepo:    dbRegistry.BrandRepository,
+		categoryRepo: dbRegistry.ProductCategoryRepository,
+	}
 }

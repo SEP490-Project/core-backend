@@ -148,22 +148,22 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 	})
 }
 
-// CreateProduct godoc
+// CreateStandardProduct godoc
 //
 //	@Summary		Create Product
 //	@Description	Create a new product (initial state DRAFT)
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		requests.CreateProductRequest	true	"Product to create"
+//	@Param			body	body		requests.CreateStandardProductRequest true	"Product to create"
 //	@Success		201		{object}	responses.ProductResponse
 //	@Failure		400		{object}	object{error=string}
 //	@Failure		401		{object}	object{error=string}
 //	@Failure		500		{object}	object{error=string}
 //	@Security		BearerAuth
-//	@Router			/api/v1/products [post]
-func (h *ProductHandler) CreateProduct(c *gin.Context) {
-	var req requests.CreateProductRequest
+//	@Router			/api/v1/products/standard [post]
+func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
+	var req requests.CreateStandardProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
 		return
@@ -186,7 +186,56 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	product, err := h.productService.CreateProduct(&req, creatorID)
+	product, err := h.productService.CreateStandardProduct(&req, creatorID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, product)
+}
+
+// CreateLimitedProduct godoc
+//
+//	@Summary		Create a limited product
+//	@Description	Create a limited product with stock/availability constraints. Requires authenticated user (creatorID lấy từ context).
+//	@Tags			Products
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
+//	@Success		201		{object}	map[string]interface{}				"Created product"
+//	@Failure		400		{object}	map[string]string					"invalid request / validation failed"
+//	@Failure		401		{object}	map[string]string					"missing or invalid user id"
+//	@Failure		500		{object}	map[string]string					"internal server error"
+//	@Router			/api/v1/products/limited [post]
+func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
+
+	var req requests.CreateLimitedProductRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		return
+	}
+
+	uidVal, ok := c.Get("user_id")
+	if !ok || uidVal == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id in context"})
+		return
+	}
+	uidStr, _ := uidVal.(string)
+	creatorID, err := uuid.Parse(uidStr)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
+		return
+	}
+
+	product, err := h.productService.CreateLimitedProduct(&req, creatorID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

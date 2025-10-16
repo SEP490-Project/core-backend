@@ -373,6 +373,40 @@ definitions:
     type: object
   requests.CreateContractRequest:
     type: object
+  requests.CreateLimitedProductRequest:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Product description
+        maxLength: 1000
+        type: string
+      limited_attribute:
+        $ref: '#/definitions/requests.LimitedProductAttributes'
+      name:
+        example: Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      price:
+        example: 99.99
+        minimum: 0
+        type: number
+      task_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - brand_id
+    - category_id
+    - limited_attribute
+    - name
+    - price
+    - task_id
+    type: object
   requests.CreateMilestoneCampaignRequest:
     properties:
       description:
@@ -389,7 +423,7 @@ definitions:
     required:
     - due_date
     type: object
-  requests.CreateProductRequest:
+  requests.CreateStandardProductRequest:
     properties:
       brand_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -402,6 +436,8 @@ definitions:
         maxLength: 1000
         type: string
       name:
+        description: TaskID      uuid.UUID `json:"task_id" validate:"required,uuid"
+          example:"660e8400-e29b-41d4-a716-446655440000"`
         example: Product Name
         maxLength: 255
         minLength: 1
@@ -410,22 +446,11 @@ definitions:
         example: 99.99
         minimum: 0
         type: number
-      task_id:
-        example: 660e8400-e29b-41d4-a716-446655440000
-        type: string
-      type:
-        enum:
-        - STANDARD
-        - LIMITED
-        example: STANDARD
-        type: string
     required:
     - brand_id
     - category_id
     - name
     - price
-    - task_id
-    - type
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
@@ -464,6 +489,44 @@ definitions:
     required:
     - ingredient
     type: object
+  requests.InvoiceRequest:
+    properties:
+      invoiceCode:
+        type: string
+      invoiceDate:
+        format: date-time
+        type: string
+    type: object
+  requests.LimitedProductAttributes:
+    properties:
+      availability_end_date:
+        example: "2023-10-31T10:00:00Z"
+        type: string
+      availability_start_date:
+        example: "2023-10-01T10:00:00Z"
+        type: string
+      bought_limit:
+        example: 1
+        minimum: 1
+        type: integer
+      is_free_shipping:
+        example: false
+        type: boolean
+      max_stock:
+        example: 100
+        minimum: 0
+        type: integer
+      premiere_date:
+        example: "2023-10-01T10:00:00Z"
+        type: string
+    required:
+    - availability_end_date
+    - availability_start_date
+    - bought_limit
+    - is_free_shipping
+    - max_stock
+    - premiere_date
+    type: object
   requests.LoginRequest:
     properties:
       login_identifier:
@@ -482,6 +545,40 @@ definitions:
       refresh_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
+    type: object
+  requests.PaymentItemRequest:
+    properties:
+      name:
+        type: string
+      price:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  requests.PaymentRequest:
+    properties:
+      amount:
+        type: integer
+      buyerAddress:
+        type: string
+      buyerCompanyName:
+        type: string
+      buyerEmail:
+        type: string
+      buyerName:
+        type: string
+      buyerPhone:
+        type: string
+      buyerTaxCode:
+        type: string
+      description:
+        type: string
+      invoice:
+        $ref: '#/definitions/requests.InvoiceRequest'
+      items:
+        items:
+          $ref: '#/definitions/requests.PaymentItemRequest'
+        type: array
     type: object
   requests.RefreshTokenRequest:
     properties:
@@ -1219,6 +1316,44 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  responses.PayOSLinkResponse:
+    properties:
+      accountName:
+        type: string
+      accountNumber:
+        type: string
+      amount:
+        type: number
+      bin:
+        type: string
+      checkoutUrl:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      expiredAt:
+        type: integer
+      orderCode:
+        type: integer
+      paymentLinkId:
+        type: string
+      qrCode:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.PaymentResponse:
+    properties:
+      code:
+        type: string
+      data:
+        $ref: '#/definitions/responses.PayOSLinkResponse'
+      desc:
+        type: string
+      signature:
+        type: string
     type: object
   responses.ProductAttributesResponse:
     properties:
@@ -3014,25 +3149,24 @@ paths:
     post:
       consumes:
       - application/json
-      description: Initiate a payment with PayOS
+      description: Initiate a payment with PayOS. Backend sẽ tự set `cancelUrl` và
+        `returnUrl` từ config, KHÔNG lấy từ client.
       parameters:
-      - description: Payment Request
+      - description: Payment Request (client should NOT send cancelUrl/returnUrl)
         in: body
         name: request
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/requests.PaymentRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: PayOS wrapper response
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/responses.PaymentResponse'
         "400":
-          description: Bad Request
+          description: error
           schema:
             additionalProperties:
               type: string
@@ -3114,50 +3248,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get All Products
-      tags:
-      - Products
-    post:
-      consumes:
-      - application/json
-      description: Create a new product (initial state DRAFT)
-      parameters:
-      - description: Product to create
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CreateProductRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/responses.ProductResponse'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create Product
       tags:
       - Products
   /api/v1/products/{id}/state:
@@ -3312,6 +3402,95 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Image
+      tags:
+      - Products
+  /api/v1/products/limited:
+    post:
+      consumes:
+      - application/json
+      description: Create a limited product with stock/availability constraints. Requires
+        authenticated user (creatorID lấy từ context).
+      parameters:
+      - description: Limited product payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateLimitedProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created product
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request / validation failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: missing or invalid user id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a limited product
+      tags:
+      - Products
+  /api/v1/products/standard:
+    post:
+      consumes:
+      - application/json
+      description: Create a new product (initial state DRAFT)
+      parameters:
+      - description: Product to create
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateStandardProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product
       tags:
       - Products
   /api/v1/tasks/{id}/state:
