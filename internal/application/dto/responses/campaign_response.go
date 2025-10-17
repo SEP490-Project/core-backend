@@ -11,73 +11,70 @@ import (
 
 // CampaignInfoResponse represents the basic information of a campaign.
 type CampaignInfoResponse struct {
-	ID              string  `json:"id"`
-	ContractID      string  `json:"contract_id"`
-	ContractTitle   string  `json:"contract_title"`
-	ContractNumber  string  `json:"contract_number"`
-	Name            string  `json:"name"`
-	Description     *string `json:"description"`
-	StartDate       string  `json:"start_date"`
-	EndDate         string  `json:"end_date"`
-	Status          string  `json:"status"`
-	BudgetProjected float64 `json:"budget_projected"`
-	BudgetActual    float64 `json:"budget_actual"`
-	Type            string  `json:"type"`
-	CreatedAt       string  `json:"created_at"`
-	UpdatedAt       string  `json:"updated_at"`
+	ID             string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractID     string  `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractTitle  string  `json:"contract_title" example:"Q2 Marketing Contract"`
+	ContractNumber string  `json:"contract_number" example:"contract_20251017_AD"`
+	Name           string  `json:"name" example:"Summer Sale Campaign"`
+	Description    *string `json:"description" example:"A campaign for the summer sale."`
+	StartDate      string  `json:"start_date" example:"2023-06-01 00:00:00"`
+	EndDate        string  `json:"end_date" example:"2023-08-31 23:59:59"`
+	Status         string  `json:"status" example:"RUNNING"`
+	Budget         float64 `json:"budget" example:"100000000"`
+	Type           string  `json:"type" example:"ADVERTISING"`
+	CreatedAt      string  `json:"created_at" example:"2023-06-01 00:00:00"`
+	UpdatedAt      string  `json:"updated_at" example:"2023-06-15 12:00:00"`
 }
 
 // CampaignDetailsResponse represents the details of a campaign.
 type CampaignDetailsResponse struct {
-	ID                  string                  `json:"id"`
-	ContractID          string                  `json:"contract_id"`
-	ContractTitle       string                  `json:"contract_title"`
-	ContractNumber      string                  `json:"contract_number"`
-	Name                string                  `json:"name"`
-	Description         *string                 `json:"description"`
-	StartDate           string                  `json:"start_date"`
-	EndDate             string                  `json:"end_date"`
-	Status              string                  `json:"status"`
-	BudgetProjected     float64                 `json:"budget_projected"`
-	BudgetActual        float64                 `json:"budget_actual"`
-	Type                string                  `json:"type"`
+	ID                  string                  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractID          string                  `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractTitle       string                  `json:"contract_title" example:"Q2 Marketing Contract"`
+	ContractNumber      string                  `json:"contract_number" example:"contract_20251017_AD"`
+	Name                string                  `json:"name" example:"Summer Sale Campaign"`
+	Description         *string                 `json:"description" example:"A campaign for the summer sale."`
+	StartDate           string                  `json:"start_date" example:"2023-06-01 00:00:00"`
+	EndDate             string                  `json:"end_date" example:"2023-08-31 23:59:59"`
+	Status              string                  `json:"status" example:"RUNNING"`
+	Budget              float64                 `json:"budget" example:"100000000"`
+	Type                string                  `json:"type" example:"ADVERTISING"`
 	Milestones          []CampaignMilestoneInfo `json:"milestones"`
-	NumberOfTasks       int                     `json:"number_of_tasks"`
-	PercentageCompleted float64                 `json:"percentage_completed"`
-	CreatedAt           string                  `json:"created_at"`
-	UpdatedAt           string                  `json:"updated_at"`
+	NumberOfTasks       int                     `json:"number_of_tasks" example:"25"`
+	PercentageCompleted float64                 `json:"percentage_completed" example:"60.5"`
+	CreatedAt           string                  `json:"created_at" example:"2023-06-01 00:00:00"`
+	UpdatedAt           string                  `json:"updated_at" example:"2023-06-15 12:00:00"`
 }
 
 // CampaignMilestoneInfo represents the details of milestone within a campaign.
 type CampaignMilestoneInfo struct {
-	ID                   string  `json:"id,omitempty"`
-	Description          string  `json:"description,omitempty"`
-	DueDate              string  `json:"due_date,omitempty"`
-	CompletedAt          string  `json:"completed_at,omitempty"`
-	CompletionPercentage float64 `json:"completion_percentage,omitempty"`
-	Status               string  `json:"status,omitempty"`
-	BehindSchedule       bool    `json:"behind_schedule,omitempty"`
-	NumberOfTasks        int     `json:"number_of_tasks,omitempty"`
+	ID                   string  `json:"id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Description          string  `json:"description,omitempty" example:"Milestone for initial launch."`
+	DueDate              string  `json:"due_date,omitempty" example:"2023-06-15 00:00:00"`
+	CompletedAt          string  `json:"completed_at,omitempty" example:"2023-06-15 00:00:00"`
+	CompletionPercentage float64 `json:"completion_percentage,omitempty" example:"60.5"`
+	Status               string  `json:"status,omitempty" example:"NOT_STARTED"`
+	BehindSchedule       bool    `json:"behind_schedule,omitempty" example:"false"`
+	NumberOfTasks        int     `json:"number_of_tasks,omitempty" example:"25"`
 }
 
 // ToCampaignInfoResponse maps a Campaign model to a CampaignInfoResponse DTO.
 // Only need basic info of the Campaign model
 func (cir CampaignInfoResponse) ToCampaignInfoResponse(model *model.Campaign) *CampaignInfoResponse {
 	return &CampaignInfoResponse{
-		ID:              model.ID.String(),
-		ContractID:      model.ContractID.String(),
-		ContractTitle:   *model.Contract.Title,
-		ContractNumber:  *model.Contract.ContractNumber,
-		Name:            model.Name,
-		Description:     model.Description,
-		StartDate:       model.StartDate.String(),
-		EndDate:         model.EndDate.String(),
-		Status:          model.Status.String(),
-		BudgetProjected: model.BudgetProjected,
-		BudgetActual:    model.BudgetActual,
-		Type:            model.Type.String(),
-		CreatedAt:       model.CreatedAt.String(),
-		UpdatedAt:       model.UpdatedAt.String(),
+		ID:             model.ID.String(),
+		ContractID:     model.ContractID.String(),
+		ContractTitle:  *model.Contract.Title,
+		ContractNumber: *model.Contract.ContractNumber,
+		Name:           model.Name,
+		Description:    model.Description,
+		StartDate:      model.StartDate.String(),
+		EndDate:        model.EndDate.String(),
+		Status:         model.Status.String(),
+		Budget:         model.Budget,
+		Type:           model.Type.String(),
+		CreatedAt:      model.CreatedAt.String(),
+		UpdatedAt:      model.UpdatedAt.String(),
 	}
 }
 
@@ -114,8 +111,7 @@ func (cdr CampaignDetailsResponse) ToCampaignDetailsResponse(model *model.Campai
 		StartDate:           model.StartDate.String(),
 		EndDate:             model.EndDate.String(),
 		Status:              model.Status.String(),
-		BudgetProjected:     model.BudgetProjected,
-		BudgetActual:        model.BudgetActual,
+		Budget:              model.Budget,
 		Type:                model.Type.String(),
 		Milestones:          milestones,
 		NumberOfTasks:       totalTasks,
