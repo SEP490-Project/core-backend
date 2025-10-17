@@ -7,3 +7,13 @@ alter table modified_histories
     add constraint modified_histories_operation_chk CHECK (operation in ('CREATE','UPDATE','DELETE')),
     alter column reference_id drop not null;
 
+
+alter table campaigns
+    rename budget_projected to budget;
+alter table campaigns
+    drop column budget_actual;
+
+alter table configs 
+    add column value_type varchar(20) not null default 'STRING' CHECK (value_type in ('STRING', 'NUMBER', 'BOOLEAN', 'JSON')),
+    add column updated_by uuid references users(id) on delete set null;
+
