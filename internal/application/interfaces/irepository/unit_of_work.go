@@ -31,5 +31,8 @@ type UnitOfWork interface {
 	VariantAttributeValue() GenericRepository[model.VariantAttributeValue]
 	ModifiedHistories() GenericRepository[model.ModifiedHistory]
 
+	// Product Category
+	ProductCategory() GenericRepository[model.ProductCategory]
+
 	DB() *gorm.DB
 }

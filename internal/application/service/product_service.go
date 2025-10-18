@@ -193,7 +193,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 // CreateStandardProduct creates a new product with default status DRAFT.
 func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
 	if dto == nil {
-		return nil, errors.New("nil dto")
+		return nil, errors.New("null request")
 	}
 
 	ctx := context.Background()
@@ -295,16 +295,17 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 	return resp.ToProductResponse(saved), nil
 }
 
-func (p productService) GetProductsPagination(limit, offset int, search string, categoryID string, productType string) (*[]*responses.ProductResponse, int, error) {
+func (p productService) GetProductsPagination(page, limit int, search, categoryID, productType string) ([]*responses.ProductResponse, int, error) {
 	zap.L().Debug("Fetching products with pagination",
+		zap.Int("page", page),
 		zap.Int("limit", limit),
-		zap.Int("offset", offset),
 		zap.String("search", search),
 		zap.String("category_id", categoryID),
 		zap.String("product_type", productType),
 	)
 
 	ctx := context.Background()
+	offset := (page - 1) * limit
 
 	filter := func(db *gorm.DB) *gorm.DB {
 		if search != "" {
@@ -335,7 +336,6 @@ func (p productService) GetProductsPagination(limit, offset int, search string, 
 		"Variants.Images",
 		"Category",
 		"Category.ParentCategory",
-		//"Variants.AttributeValues", "Variants.AttributeValues.Attribute",
 	}
 
 	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, offset)
@@ -363,7 +363,7 @@ func (p productService) GetProductsPagination(limit, offset int, search string, 
 		zap.Int("total_count", int(total)),
 		zap.String("search_term", search))
 
-	return &productResponses, int(total), nil
+	return productResponses, int(total), nil
 }
 
 func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductResponse, error) {
@@ -459,7 +459,7 @@ func (p productService) GetProductsByTask(taskID uuid.UUID, requestingUserID uui
 }
 
 // GetProductVariants lists variants for a product with pagination.
-func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) (*[]*responses.ProductVariantResponse, int, error) {
+func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error) {
 	ctx := context.Background()
 
 	// Optionally ensure product exists
@@ -492,7 +492,7 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 	for i := range variants {
 		res = append(res, responses.ProductVariantResponse{}.ToProductVariantResponse(&variants[i]))
 	}
-	return &res, int(total), nil
+	return res, int(total), nil
 }
 
 func NewProductService(

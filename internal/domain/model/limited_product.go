@@ -18,6 +18,10 @@ type LimitedProduct struct {
 
 	// Relationships
 	Product Product `json:"product" gorm:"foreignKey:Id;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+
+	// Concept relation (nullable)
+	ConceptID *uuid.UUID `json:"concept_id" gorm:"column:concept_id;type:uuid"`
+	Concept   *Concept   `json:"concept" gorm:"foreignKey:ConceptID;references:Id"`
 }
 
 func (LimitedProduct) TableName() string { return "limited_products" }

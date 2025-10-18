@@ -140,7 +140,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				protectedProducts.POST("/standard", productHandler.CreateStandardProduct)
 				protectedProducts.POST("/limited", productHandler.CreateLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
-				protectedProducts.POST("/:productId/variants/:variantId/images", productHandler.CreateVariantImage)
+				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
 			}
 
 			// State update (Sales, Brand only)
@@ -156,6 +156,25 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			r.middlewareRegistry.Auth.RequireRole(sales, admin),
 			productHandler.CreateVariantAttribute,
 		)
+
+		// ---------- CATEGORIES ----------
+		categoryHandler := r.handlerRegistry.CategoryHandler
+		categoriesGroup := v1.Group("/categories")
+		{
+			categoriesGroup.GET("", categoryHandler.GetAllCategories)
+			categoriesGroup.POST("",
+				r.middlewareRegistry.Auth.RequireRole(sales, admin),
+				categoryHandler.CreateCategory,
+			)
+			categoriesGroup.PATCH("/:id/parent",
+				r.middlewareRegistry.Auth.RequireRole(sales, admin),
+				categoryHandler.AssignParentCategory,
+			)
+			categoriesGroup.PATCH("/:id",
+				r.middlewareRegistry.Auth.RequireRole(sales, admin),
+				categoryHandler.DeleteCategory,
+			)
+		}
 
 		// ---------- TASKS ----------
 		taskGroup := v1.Group("/tasks")
