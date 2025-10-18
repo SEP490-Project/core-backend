@@ -44,7 +44,7 @@ func NewProductHandler(
 //	@Accept			json
 //	@Produce		json
 //	@Param			limit	query		int																		false	"Number of items per page"	default(10)
-//	@Param			offset	query		int																		false	"Number of items to skip"	default(0)
+//	@Param			page	query		int																		false	"Number of items to skip"	default(0)
 //	@Param			search	query		string																	false	"Search term for product name"
 //	@Param			category_id	query		string																	false	"Filter category of products"
 //	@Param			type	query		string																	false	"Filter type of products"
@@ -53,33 +53,54 @@ func NewProductHandler(
 //	@Security		BearerAuth
 //	@Router			/api/v1/products [get]
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
-	search := c.DefaultQuery("search", "")
-	category := c.DefaultQuery("category_id", "")
-	ptype := c.DefaultQuery("type", "")
 
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
 		limit = 10
 	}
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
+	if limit > 100 {
+		limit = 100
 	}
 
-	products, total, err := (h.productService).GetProductsPagination(limit, offset, search, category, ptype)
+	search := c.DefaultQuery("search", "")
+	category := c.DefaultQuery("category_id", "")
+	prdType := c.DefaultQuery("type", "")
+
+	products, total, err := h.productService.GetProductsPagination(page, limit, search, category, prdType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":   products,
-		"total":  total,
-		"limit":  limit,
-		"offset": offset,
-	})
+	// --- Tính toán phân trang ---
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	// --- Response  ---
+	response := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		products,
+		pagination,
+	)
+	c.JSON(http.StatusOK, response)
 }
 
 // GetProductsByTask godoc
@@ -159,7 +180,7 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		requests.CreateStandardProductRequest true	"Product to create"
+//	@Param		data	body		requests.CreateStandardProductRequest true	"Product to create"
 //	@Success		201		{object}	responses.ProductResponse
 //	@Failure		400		{object}	object{error=string}
 //	@Failure		401		{object}	object{error=string}
@@ -169,28 +190,25 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 	var req requests.CreateStandardProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	if err := h.validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	uidVal, ok := c.Get("user_id")
-	if !ok || uidVal == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id in context"})
-		return
-	}
-	uidStr, _ := uidVal.(string)
-	creatorID, err := uuid.Parse(uidStr)
+	uidVal, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
+		response := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
-	product, err := h.productService.CreateStandardProduct(&req, creatorID)
+	product, err := h.productService.CreateStandardProduct(&req, uidVal)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -218,30 +236,28 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 	var req requests.CreateLimitedProductRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	if err := h.validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed: " + err.Error()})
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	uidVal, ok := c.Get("user_id")
-	if !ok || uidVal == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user id in context"})
-		return
-	}
-	uidStr, _ := uidVal.(string)
-	creatorID, err := uuid.Parse(uidStr)
+	creatorID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user id in context"})
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
 	product, err := h.productService.CreateLimitedProduct(&req, creatorID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response := responses.ErrorResponse("Failed to create Limited Product: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
@@ -257,7 +273,7 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 //	@Produce		json
 //	@Param			productId	path		string						true	"Product ID (UUID)"
 //
-//	@Param			body		body		requests.BulkVariantRequest	true	"Variant data to create"	example({
+//	@Param			data		body		requests.BulkVariantRequest	true	"Variant data to create"	example({
 //	  "price": 29.99,
 //	  "current_stock": 100,
 //	  "capacity": 500,
@@ -317,9 +333,8 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	ctx := c.Request.Context()
 	uow := h.unitOfWork.Begin()
 	defer func() {
-		// Ensure rollback on panic; ignore rollback error
 		if r := recover(); r != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			panic(r)
 		}
 	}()
@@ -327,7 +342,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	// 1. Tạo variant
 	variant, err := h.productService.CreateProductVariance(ctx, userID, productID, req.CreateProductVariantRequest, uow)
 	if err != nil {
-		uow.Rollback()
+		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -335,7 +350,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	// 2. Tạo story
 	_, err = h.productService.CreateProductStory(ctx, variant.ID, req.Story, uow)
 	if err != nil {
-		uow.Rollback()
+		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -344,14 +359,14 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	attributeIDs := make(map[uuid.UUID]bool)
 	for _, attrValue := range req.Attributes {
 		if attributeIDs[attrValue.AttributeID] {
-			uow.Rollback()
+			_ = uow.Rollback()
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse("AttributeID cannot be duplicate", http.StatusBadRequest))
 			return
 		}
 		attributeIDs[attrValue.AttributeID] = true
 
 		if _, err = h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow); err != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 			return
 		}
@@ -382,7 +397,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 //	@Failure		401			{object}	object{error=string}
 //	@Failure		500			{object}	object{error=string}
 //	@Security		BearerAuth
-//	@Router			/api/v1/products/{productId}/variants/{variantId}/images [post]
+//	@Router			/api/v1/products/variants/{variantId}/images [post]
 func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
@@ -438,14 +453,14 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	uow := h.unitOfWork.Begin()
 	defer func() {
 		if r := recover(); r != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			panic(r)
 		}
 	}()
 
 	variantImage, err := h.productService.CreateVarianceImage(ctx, variantID, req, uow)
 	if err != nil {
-		uow.Rollback()
+		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create variant image: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
@@ -465,7 +480,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
+//	@Param			data	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
 //	@Success		201		{object}	model.VariantAttribute
 //	@Failure		400		{object}	object{error=string}
 //	@Failure		401		{object}	object{error=string}
@@ -494,14 +509,14 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	uow := h.unitOfWork.Begin()
 	defer func() {
 		if r := recover(); r != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			panic(r)
 		}
 	}()
 
 	variantAttribute, err := h.productService.CreateVariantAttribute(ctx, userID, req, uow)
 	if err != nil {
-		uow.Rollback()
+		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create variant attribute: "+err.Error(), http.StatusInternalServerError))
 		return
 	}

@@ -423,6 +423,19 @@ definitions:
     required:
     - due_date
     type: object
+  requests.CreateProductCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      parent_category_id:
+        type: string
+    required:
+    - name
+    type: object
   requests.CreateStandardProductRequest:
     properties:
       brand_id:
@@ -529,10 +542,10 @@ definitions:
   requests.LoginRequest:
     properties:
       login_identifier:
-        example: user@example.com
+        example: abc@gmail.com
         type: string
       password:
-        example: password123
+        example: "12345678"
         minLength: 8
         type: string
     required:
@@ -1364,6 +1377,25 @@ definitions:
         $ref: '#/definitions/enum.AttributeUnit'
       value:
         type: number
+    type: object
+  responses.ProductCategoryResponse:
+    properties:
+      child_categories:
+        items:
+          $ref: '#/definitions/responses.ProductCategoryResponse'
+        type: array
+      create_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      parent_category:
+        $ref: '#/definitions/responses.ProductCategoryResponse'
+      update_at:
+        type: string
     type: object
   responses.ProductOverviewResponse:
     properties:
@@ -2548,6 +2580,160 @@ paths:
       summary: Get Campaign Details by ID
       tags:
       - Campaigns
+  /api/v1/categories:
+    get:
+      consumes:
+      - application/json
+      description: Returns a paginated list of product categories. Optional search
+        by name.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for category name
+        in: query
+        name: search
+        type: string
+      - default: false
+        description: Include deleted categories (null - get all, true - only deleted,
+          false - only active)
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/responses.ProductCategoryResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get product categories
+      tags:
+      - Categories
+    post:
+      consumes:
+      - application/json
+      description: Create a new product category
+      parameters:
+      - description: Create category payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateProductCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductCategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a product category
+      tags:
+      - Categories
+  /api/v1/categories/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Delete category by id
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a product category
+      tags:
+      - Categories
+  /api/v1/categories/{id}/parent:
+    patch:
+      consumes:
+      - application/json
+      description: Set a parent category for an existing category
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Parent category ID
+        in: query
+        name: parent_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductCategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign parent category
+      tags:
+      - Categories
   /api/v1/contracts:
     get:
       consumes:
@@ -3224,7 +3410,7 @@ paths:
       - default: 0
         description: Number of items to skip
         in: query
-        name: offset
+        name: page
         type: integer
       - description: Search term for product name
         in: query
@@ -3371,7 +3557,7 @@ paths:
         type: string
       - description: Variant data to create
         in: body
-        name: body
+        name: data
         required: true
         schema:
           $ref: '#/definitions/requests.BulkVariantRequest'
@@ -3408,7 +3594,96 @@ paths:
       summary: Create Product Variant
       tags:
       - Products
-  /api/v1/products/{productId}/variants/{variantId}/images:
+  /api/v1/products/limited:
+    post:
+      consumes:
+      - application/json
+      description: Create a limited product with stock/availability constraints. Requires
+        authenticated user (creatorID lấy từ context).
+      parameters:
+      - description: Limited product payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateLimitedProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created product
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request / validation failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: missing or invalid user id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a limited product
+      tags:
+      - Products
+  /api/v1/products/standard:
+    post:
+      consumes:
+      - application/json
+      description: Create a new product (initial state DRAFT)
+      parameters:
+      - description: Product to create
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateStandardProductRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Product
+      tags:
+      - Products
+  /api/v1/products/variants/{variantId}/images:
     post:
       consumes:
       - multipart/form-data
@@ -3464,95 +3739,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Image
-      tags:
-      - Products
-  /api/v1/products/limited:
-    post:
-      consumes:
-      - application/json
-      description: Create a limited product with stock/availability constraints. Requires
-        authenticated user (creatorID lấy từ context).
-      parameters:
-      - description: Limited product payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CreateLimitedProductRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created product
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: invalid request / validation failed
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: missing or invalid user id
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create a limited product
-      tags:
-      - Products
-  /api/v1/products/standard:
-    post:
-      consumes:
-      - application/json
-      description: Create a new product (initial state DRAFT)
-      parameters:
-      - description: Product to create
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CreateStandardProductRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/responses.ProductResponse'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Create Product
       tags:
       - Products
   /api/v1/tasks/{id}/state:
@@ -4008,7 +4194,7 @@ paths:
       parameters:
       - description: Attribute data
         in: body
-        name: body
+        name: data
         required: true
         schema:
           $ref: '#/definitions/requests.CreateVariantAttributeRequest'
