@@ -2,8 +2,8 @@ package requests
 
 // LoginRequest represents login request data
 type LoginRequest struct {
-	LoginIdentifier string `json:"login_identifier" validate:"required" example:"user@example.com"`
-	Password        string `json:"password" validate:"required,min=8" example:"password123"`
+	LoginIdentifier string `json:"login_identifier" validate:"required" example:"abc@gmail.com"`
+	Password        string `json:"password" validate:"required,min=8" example:"12345678"`
 }
 
 // RefreshTokenRequest represents refresh token request data

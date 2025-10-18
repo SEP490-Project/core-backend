@@ -22,6 +22,7 @@ type ApplicationRegistry struct {
 	ContractService        iservice.ContractService
 	CampaignService        iservice.CampaignService
 	ModifiedHistoryService iservice.ModifiedHistoryService
+	ProductCategoryService iservice.ProductCategoryService
 }
 
 func NewApplicationRegistry(
@@ -43,5 +44,6 @@ func NewApplicationRegistry(
 		ContractService:        service.NewContractService(databaseRegistry),
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
+		ProductCategoryService: service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 	}
 }
