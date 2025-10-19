@@ -2,8 +2,9 @@ package requests
 
 import (
 	"core-backend/internal/domain/model"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type CreateProductCategoryRequest struct {

@@ -11,9 +11,10 @@ import (
 	"core-backend/internal/infrastructure/third_party_repository"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
+
+	"go.uber.org/zap"
 )
 
 type fileService struct {
@@ -130,6 +131,7 @@ func (s *fileService) appendChunkToFile(path string, data []byte) error {
 	defer func(f *os.File) {
 		err := f.Close()
 		if err != nil {
+			zap.L().Error("Failed to close file", zap.Error(err))
 		}
 	}(f)
 
