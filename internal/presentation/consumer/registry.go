@@ -14,6 +14,7 @@ type ConsumerRegistry struct {
 	ExcelImportProductsConsumer   *ExcelImportProductsConsumer
 	NotificationEmailConsumer     *NotificationEmailConsumer
 	NotificationPushConsumer      *NotificationPushConsumer
+	VideoUploadConsumer           *VideoUploadConsumer
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
@@ -26,6 +27,7 @@ func NewConsumerRegistry(appRegistry *application.ApplicationRegistry) *Consumer
 		ExcelImportProductsConsumer:   NewExcelImportProductsConsumer(appRegistry),
 		NotificationEmailConsumer:     NewNotificationEmailConsumer(appRegistry),
 		NotificationPushConsumer:      NewNotificationPushConsumer(appRegistry),
+		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 	}
 
 	zap.L().Info("Consumer registry initialized successfully")

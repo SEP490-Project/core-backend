@@ -20,3 +20,7 @@ ALTER TABLE limited_products
     ADD CONSTRAINT limited_products_concept_id_fkey
         FOREIGN KEY (concept_id) REFERENCES concepts (id)
             ON DELETE SET NULL;
+
+--1--1--
+ALTER TABLE limited_products
+    ADD CONSTRAINT limited_products_concept_id_unique UNIQUE (concept_id);

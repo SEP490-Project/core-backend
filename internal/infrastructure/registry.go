@@ -4,7 +4,6 @@ package infrastructure
 import (
 	"context"
 	"core-backend/internal/application/interfaces/irepository"
-	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -20,17 +19,17 @@ import (
 )
 
 type InfrastructureRegistry struct {
-	DB           *gorm.DB
-	UnitOfWork   irepository.UnitOfWork
-	ValkeyCache  *persistence.ValkeyCache
-	RabbitMQ     *rabbitmq.RabbitMQ
-	AsynqClient  *queue.AsynqClient
-	AsynqServer  *queue.AsynqServer
-	S3Repository irepository_third_party.S3Repository
-	PayOsService iservice_third_party.PayOSService
+	DB                *gorm.DB
+	ThirdPartyStorage *third_party_repository.ThirdPartyStorageRegistry
+	UnitOfWork        irepository.UnitOfWork
+	ValkeyCache       *persistence.ValkeyCache
+	RabbitMQ          *rabbitmq.RabbitMQ
+	AsynqClient       *queue.AsynqClient
+	AsynqServer       *queue.AsynqServer
+	PayOsService      iservice_third_party.PayOSService
 }
 
-func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *InfrastructureRegistry {
+func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket, s3StreamBucket *persistence.S3StreamingBucket) *InfrastructureRegistry {
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
@@ -59,17 +58,15 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket) *Inf
 	// Initialize Asynq
 	zap.L().Debug("Initializing Asynq client and server")
 	registry.AsynqClient = queue.NewAsynqClient()
-	registry.AsynqServer = queue.NewAsynqServer()
+	registry.AsynqServer = queue.NewAsynqServer(db)
 	zap.L().Info("Asynq client and server initialized successfully")
 
-	// Initialize S3 repository
-	zap.L().Debug("Attempting to initialize S3 repository")
-	if s3Repo := third_party_repository.NewS3Repository(s3Bucket); s3Repo != nil {
-		registry.S3Repository = s3Repo
-		zap.L().Info("S3 repository initialized successfully")
-	} else {
-		zap.L().Warn("Failed to initialize S3 repository, continuing without S3 support")
-	}
+	//Initialize Third Party Storage Registry
+	zap.L().Debug("Initializing Third Party Storage Registry...")
+	registry.ThirdPartyStorage = third_party_repository.NewThirdPartyStorageRegistry(
+		s3Bucket,
+		s3StreamBucket,
+	)
 
 	//Initialize PAYOS Service
 	zap.L().Debug("Initializing PayOS...")

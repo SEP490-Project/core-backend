@@ -17,18 +17,19 @@ import (
 // region: ============== Configuration Structs ==============
 
 type AppConfig struct {
-	Server    ServerConfig    `mapstructure:"server"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Cache     CacheConfig     `mapstructure:"cache"`
-	JWT       JWTConfig       `mapstructure:"jwt"`
-	Log       LogConfig       `mapstructure:"log"`
-	CORS      CORSConfig      `mapstructure:"cors"`
-	Otel      OtelConfig      `mapstructure:"otel"`
-	RabbitMQ  RabbitMQConfig  `mapstructure:"rabbitmq"`
-	Asynq     AsynqConfig     `mapstructure:"asynq"`
-	WebSocket WebSocketConfig `mapstructure:"websocket"`
-	S3Bucket  S3BucketConfig  `mapstructure:"aws_s3_bucket"`
-	PayOS     PayOSConfig     `mapstructure:"payos"`
+	Server            ServerConfig            `mapstructure:"server"`
+	Database          DatabaseConfig          `mapstructure:"database"`
+	Cache             CacheConfig             `mapstructure:"cache"`
+	JWT               JWTConfig               `mapstructure:"jwt"`
+	Log               LogConfig               `mapstructure:"log"`
+	CORS              CORSConfig              `mapstructure:"cors"`
+	Otel              OtelConfig              `mapstructure:"otel"`
+	RabbitMQ          RabbitMQConfig          `mapstructure:"rabbitmq"`
+	Asynq             AsynqConfig             `mapstructure:"asynq"`
+	WebSocket         WebSocketConfig         `mapstructure:"websocket"`
+	S3Bucket          S3BucketConfig          `mapstructure:"aws_s3_bucket"`
+	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
+	PayOS             PayOSConfig             `mapstructure:"payos"`
 }
 
 type ServerConfig struct {
@@ -133,6 +134,14 @@ type S3BucketConfig struct {
 	Endpoint   string `mapstructure:"endpoint"`
 	AccessKey  string `mapstructure:"access_key"`
 	SecretKey  string `mapstructure:"secret_key"`
+}
+
+type S3StreamingBucketConfig struct {
+	BucketName       string `mapstructure:"bucket_name"`
+	Region           string `mapstructure:"region"`
+	CloudfrontDomain string `mapstructure:"cloudfront_domain"`
+	AccessKey        string `mapstructure:"access_key"`
+	SecretKey        string `mapstructure:"secret_key"`
 }
 
 type PayOSConfig struct {

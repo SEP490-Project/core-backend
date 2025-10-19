@@ -1,9 +1,14 @@
 package handler
 
 import (
-	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/dto/responses"
+	"github.com/aws/smithy-go/ptr"
+	"io"
 	"net/http"
 	"os"
+	"strconv"
+
+	"core-backend/internal/application/interfaces/iservice"
 
 	"github.com/google/uuid"
 
@@ -72,7 +77,7 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 //
 //	@Summary	Delete a file from S3
 //	@Tags		files
-//	@Param		userId		query		string	true	"User ID"
+//	@Param		userId	query		string	true	"User ID"
 //	@Param		filename	path		string	true	"File name"
 //	@Success	200			{object}	map[string]string
 //	@Failure	400			{object}	map[string]string
@@ -90,4 +95,93 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "file deleted"})
+}
+
+// Videos
+
+// UploadVideoChunk godoc
+// @Summary Upload a video chunk (streaming upload)
+// @Tags files
+// @Accept multipart/form-data
+// @Produce json
+// @Param userId formData string true "User ID"
+// @Param fileName formData string true "Final file name (eg myvideo.mp4)"
+// @Param isLastChunk formData boolean true "Whether this is the final chunk"
+// @Param chunk formData file true "Chunk file"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/files/videos/upload-chunk [post]
+func (h *S3Handler) UploadVideoChunk(c *gin.Context) {
+	userID := c.PostForm("userId")
+	fileName := c.PostForm("fileName")
+	isLastStr := c.PostForm("isLastChunk")
+
+	if userID == "" || fileName == "" || isLastStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId, fileName and isLastChunk are required"})
+		return
+	}
+
+	isLast, err := strconv.ParseBool(isLastStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "isLastChunk must be boolean"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("chunk")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "chunk file is required"})
+		return
+	}
+
+	fh, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open chunk"})
+		return
+	}
+	defer fh.Close()
+
+	data, err := io.ReadAll(fh)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read chunk data"})
+		return
+	}
+
+	paths, err := h.fileService.UploadVideoStream(userID, fileName, data, isLast, nil)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if isLast {
+		resp := responses.SuccessResponse("Video receives", ptr.Int(http.StatusOK), paths)
+		c.JSON(http.StatusOK, resp)
+	} else {
+		resp := responses.SuccessResponse("Chunk received", ptr.Int(http.StatusPartialContent), nil)
+		c.JSON(http.StatusPartialContent, resp)
+	}
+}
+
+// DeleteVideo godoc
+// @Summary Delete uploaded video
+// @Tags files
+// @Param userId query string true "User ID"
+// @Param fileName query string true "File name"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/files/videos [delete]
+func (h *S3Handler) DeleteVideo(c *gin.Context) {
+	userID := c.Query("userId")
+	fileName := c.Query("fileName")
+	if userID == "" || fileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId and fileName are required"})
+		return
+	}
+	if err := h.fileService.DeleteVideoStream(userID, fileName); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
