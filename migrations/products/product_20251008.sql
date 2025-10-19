@@ -22,3 +22,7 @@ ADD CONSTRAINT variant_attributes_created_by_fkey
 ADD CONSTRAINT variant_attributes_updated_by_fkey
     FOREIGN KEY (updated_by) REFERENCES "users" ("id")
     ON DELETE SET NULL;
+
+-- Remove NOT NULL constraint from current_stock
+ALTER TABLE product_variants
+    ALTER COLUMN current_stock DROP NOT NULL;
