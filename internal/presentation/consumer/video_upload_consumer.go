@@ -7,8 +7,9 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 type VideoUploadConsumer struct {

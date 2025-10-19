@@ -43,13 +43,13 @@ func NewProductHandler(
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit	query		int																		false	"Number of items per page"	default(10)
-//	@Param			page	query		int																		false	"Number of items to skip"	default(0)
-//	@Param			search	query		string																	false	"Search term for product name"
+//	@Param			limit		query		int																		false	"Number of items per page"	default(10)
+//	@Param			page		query		int																		false	"Number of items to skip"	default(0)
+//	@Param			search		query		string																	false	"Search term for product name"
 //	@Param			category_id	query		string																	false	"Filter category of products"
-//	@Param			type	query		string																	false	"Filter type of products"
-//	@Success		200		{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//	@Failure		500		{object}	object{error=string}													"Internal server error"
+//	@Param			type		query		string																	false	"Filter type of products"
+//	@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//	@Failure		500			{object}	object{error=string}													"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products [get]
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
@@ -180,7 +180,7 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param		data	body		requests.CreateStandardProductRequest true	"Product to create"
+//	@Param			data	body		requests.CreateStandardProductRequest	true	"Product to create"
 //	@Success		201		{object}	responses.ProductResponse
 //	@Failure		400		{object}	object{error=string}
 //	@Failure		401		{object}	object{error=string}
@@ -226,10 +226,10 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
-//	@Success		201		{object}	map[string]interface{}				"Created product"
-//	@Failure		400		{object}	map[string]string					"invalid request / validation failed"
-//	@Failure		401		{object}	map[string]string					"missing or invalid user id"
-//	@Failure		500		{object}	map[string]string					"internal server error"
+//	@Success		201		{object}	map[string]interface{}					"Created product"
+//	@Failure		400		{object}	map[string]string						"invalid request / validation failed"
+//	@Failure		401		{object}	map[string]string						"missing or invalid user id"
+//	@Failure		500		{object}	map[string]string						"internal server error"
 //	@Router			/api/v1/products/limited [post]
 func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 
@@ -532,18 +532,19 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 }
 
 // GetProductDetail godoc
-// @Summary      Get Product Detail
-// @Description  Retrieve full product detail by ID
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string  true  "Product ID (UUID)"
-// @Success      200  {object}  responses.ProductResponse
-// @Failure      400  {object}  object{error=string}
-// @Failure      404  {object}  object{error=string}
-// @Failure      500  {object}  object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/products/{id} [get]
+//
+//	@Summary		Get Product Detail
+//	@Description	Retrieve full product detail by ID
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Product ID (UUID)"
+//	@Success		200	{object}	responses.ProductResponse
+//	@Failure		400	{object}	object{error=string}
+//	@Failure		404	{object}	object{error=string}
+//	@Failure		500	{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{id} [get]
 func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
