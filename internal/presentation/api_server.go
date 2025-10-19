@@ -82,10 +82,6 @@ func (s *APIServer) Start() error {
 		panic("Invalid server environment, valid options are 'production' or 'development'")
 	}
 
-	// Start background services
-	zap.L().Info("Starting background services...")
-	s.infrastructureRegistry.StartBackgroundServices(s.ctx)
-
 	// Register RabbitMQ consumer handlers
 	if err := s.registerRabbitMQConsumers(); err != nil {
 		zap.L().Error("Failed to register RabbitMQ consumers", zap.Error(err))

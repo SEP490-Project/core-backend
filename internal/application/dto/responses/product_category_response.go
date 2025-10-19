@@ -2,8 +2,9 @@ package responses
 
 import (
 	"core-backend/internal/domain/model"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ProductCategoryResponse struct {
