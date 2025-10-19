@@ -12,21 +12,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type s3Repository struct {
+type s3Storage struct {
 	client     *s3.Client
 	bucketName string
 	region     string
 }
 
-func NewS3Repository(bucket *persistence.S3Bucket) irepository_third_party.S3Repository {
-	return &s3Repository{
+func NewS3Storage(bucket *persistence.S3Bucket) irepository_third_party.S3Storage {
+	return &s3Storage{
 		client:     bucket.Client,
 		bucketName: bucket.BucketName,
 		region:     bucket.Region,
 	}
 }
 
-func (r *s3Repository) Put(ctx context.Context, key string, body io.Reader, contentType string) error {
+func (r *s3Storage) Put(ctx context.Context, key string, body io.Reader, contentType string) error {
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -44,7 +44,7 @@ func (r *s3Repository) Put(ctx context.Context, key string, body io.Reader, cont
 	return nil
 }
 
-func (r *s3Repository) Delete(ctx context.Context, key string) error {
+func (r *s3Storage) Delete(ctx context.Context, key string) error {
 	_, err := r.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(r.bucketName),
 		Key:    aws.String(key),
@@ -55,6 +55,6 @@ func (r *s3Repository) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-func (r *s3Repository) BuildUrl(key string) string {
+func (r *s3Storage) BuildUrl(key string) string {
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", r.bucketName, r.region, key)
 }

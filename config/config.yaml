@@ -106,6 +106,13 @@ aws_s3_bucket:
   access_key: "AKIA47CRXJTI65MVDFYV"
   secret_key: "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"
 
+aws_s3_streaming_bucket:
+  bucket_name: bshowsell-video-streaming
+  region: "ap-southeast-1"
+  cloudfront_domain: "https://d3tw0hc5fnbr4p.cloudfront.net/"
+  access_key: "AKIA47CRXJTI65MVDFYV"
+  secret_key: "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"
+
 #PAYOS
 payos:
   base_url: "https://api-merchant.payos.vn/v2/payment-requests"

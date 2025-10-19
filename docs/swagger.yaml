@@ -2699,7 +2699,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Set a parent category for an existing category
+      description: Set a parent category for an existing category. If parent_id is
+        not provided, the parent category will be removed.
       parameters:
       - description: Category ID
         in: path
@@ -3293,6 +3294,90 @@ paths:
               type: string
             type: object
       summary: Upload files to S3
+      tags:
+      - files
+  /api/v1/files/videos:
+    delete:
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: File name
+        in: query
+        name: fileName
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete uploaded video
+      tags:
+      - files
+  /api/v1/files/videos/upload-chunk:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: User ID
+        in: formData
+        name: userId
+        required: true
+        type: string
+      - description: Final file name (eg myvideo.mp4)
+        in: formData
+        name: fileName
+        required: true
+        type: string
+      - description: Whether this is the final chunk
+        in: formData
+        name: isLastChunk
+        required: true
+        type: boolean
+      - description: Chunk file
+        in: formData
+        name: chunk
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a video chunk (streaming upload)
       tags:
       - files
   /api/v1/milestones/{id}/state:
