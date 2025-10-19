@@ -140,14 +140,14 @@ type S3StreamingBucketConfig struct {
 }
 
 type PayOSConfig struct {
-	BaseUrl           string `mapstructure:"base_url"`
+	BaseURL           string `mapstructure:"base_url"`
 	ClientID          string `mapstructure:"client_id"`
-	ApiKey            string `mapstructure:"api_key"`
+	APIKey            string `mapstructure:"api_key"`
 	ChecksumKey       string `mapstructure:"checksum_key"`
-	CancelUrl         string `mapstructure:"cancel_url"`
-	ReturnUrl         string `mapstructure:"return_url"`
-	FrontendCancelUrl string `mapstructure:"frontend_cancel_url"`
-	FrontendReturnUrl string `mapstructure:"frontend_return_url"`
+	CancelURL         string `mapstructure:"cancel_url"`
+	ReturnURL         string `mapstructure:"return_url"`
+	FrontendCancelURL string `mapstructure:"frontend_cancel_url"`
+	FrontendReturnURL string `mapstructure:"frontend_return_url"`
 }
 
 // endregion
