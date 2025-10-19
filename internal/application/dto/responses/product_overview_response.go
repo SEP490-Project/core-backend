@@ -34,7 +34,7 @@ type VariantMini struct {
 	ID           uuid.UUID         `json:"id"`
 	Price        float64           `json:"price"`
 	IsDefault    bool              `json:"is_default"`
-	CurrentStock int               `json:"current_stock"`
+	CurrentStock *int              `json:"current_stock"`
 	Capacity     float64           `json:"capacity"`
 	CapacityUnit enum.CapacityUnit `json:"capacity_unit"`
 }
