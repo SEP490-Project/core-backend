@@ -348,11 +348,13 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	// 2. Tạo story
-	_, err = h.productService.CreateProductStory(ctx, variant.ID, req.Story, uow)
-	if err != nil {
-		_ = uow.Rollback()
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
-		return
+	if req.Story != nil {
+		_, err = h.productService.CreateProductStory(ctx, variant.ID, *req.Story, uow)
+		if err != nil {
+			_ = uow.Rollback()
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+			return
+		}
 	}
 
 	// 3. Thêm attribute values
