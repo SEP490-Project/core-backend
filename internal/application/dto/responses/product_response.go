@@ -128,13 +128,13 @@ type ProductVariantResponse struct {
 	Description     *string                     `json:"description,omitempty"`
 	Price           float64                     `json:"price,omitempty"`
 	Type            enum.ProductType            `json:"type,omitempty"`
-	CurrentStock    int                         `json:"current_stock,omitempty"`
+	CurrentStock    *int                        `json:"current_stock,omitempty"`
 	Capacity        float64                     `json:"capacity,omitempty"`
 	CapacityUnit    enum.CapacityUnit           `json:"capacity_unit,omitempty"`
 	ContainerType   enum.ContainerType          `json:"container_type,omitempty"`
 	DispenserType   enum.DispenserType          `json:"dispenser_type,omitempty"`
 	Uses            string                      `json:"uses,omitempty"`
-	ManufactureDate string                      `json:"manufactring_date,omitempty"`
+	ManufactureDate string                      `json:"manufacturing_date,omitempty"`
 	ExpiryDate      string                      `json:"expiry_date,omitempty"`
 	Instructions    string                      `json:"instructions,omitempty"`
 	IsDefault       bool                        `json:"is_default,omitempty"`

@@ -39,7 +39,7 @@ import (
 //	}
 type BulkVariantRequest struct {
 	CreateProductVariantRequest
-	Story      CreateProductStoryRequest            `json:"story" example:"{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"content\":{\"description\":\"This is a sample story\"}}"`
+	Story      *CreateProductStoryRequest           `json:"story" validate:"omitempty" example:"{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"content\":{\"description\":\"This is a sample story\"}}"`
 	Attributes []CreateVariantAttributeValueRequest `json:"attributes" example:"[{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"attribute_id\":\"550e8400-e29b-41d4-a716-446655440001\",\"value\":10.5,\"unit\":\"MG\"}]"`
 	//Images []CreateVariantImagesRequest
 }
@@ -48,7 +48,7 @@ type BulkVariantRequest struct {
 // Date fields use RFC3339 strings; service will parse to time.Time
 type CreateProductVariantRequest struct {
 	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"1000"`
-	CurrentStock    int                `json:"current_stock" form:"current_stock" validate:"required,min=0" example:"100"`
+	CurrentStock    *int               `json:"current_stock" form:"current_stock" validate:"omitempty" example:"100"`
 	Capacity        float64            `json:"capacity" form:"capacity" validate:"omitempty,min=0" example:"500"`
 	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" validate:"required,oneof=ML L GALLON"` // add valid units
 	ContainerType   enum.ContainerType `json:"container_type" form:"container_type" validate:"required,oneof=BOTTLE BOX CAN"`

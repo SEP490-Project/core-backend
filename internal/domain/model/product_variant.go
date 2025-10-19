@@ -13,7 +13,7 @@ type ProductVariant struct {
 	ID              uuid.UUID          `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	ProductID       uuid.UUID          `json:"product_id" gorm:"type:uuid;column:product_id;not null"`
 	Price           float64            `json:"price" gorm:"column:price;not null"`
-	CurrentStock    int                `json:"current_stock" gorm:"column:current_stock;not null"`
+	CurrentStock    *int               `json:"current_stock" gorm:"column:current_stock"`
 	Capacity        float64            `json:"capacity" gorm:"column:capacity"`
 	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" gorm:"column:capacity_unit;not null;check:capacity_unit in ('ML', 'L', 'G', 'KG', 'OZ')"`
 	ContainerType   enum.ContainerType `json:"container_type" gorm:"column:container_type;not null;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
@@ -39,6 +39,7 @@ type ProductVariant struct {
 func (ProductVariant) TableName() string { return "product_variants" }
 
 func (pv *ProductVariant) BeforeCreate(tx *gorm.DB) (err error) {
+	_ = tx
 	if pv.ID == uuid.Nil {
 		pv.ID = uuid.New()
 	}
@@ -50,9 +51,9 @@ func (pv *ProductVariant) BeforeCreate(tx *gorm.DB) (err error) {
 		zap.L().Warn("Capacity is less than 0, setting to 0")
 		pv.Capacity = 0
 	}
-	if pv.CurrentStock < 0 {
+	if pv.CurrentStock != nil && *pv.CurrentStock < 0 {
 		zap.L().Warn("CurrentStock is less than 0, setting to 0")
-		pv.CurrentStock = 0
+		*pv.CurrentStock = 0
 	}
 
 	return nil
