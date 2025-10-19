@@ -8,7 +8,6 @@ import (
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
-	"core-backend/internal/infrastructure/queue"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/service"
 	"core-backend/internal/infrastructure/third_party_repository"
@@ -24,8 +23,6 @@ type InfrastructureRegistry struct {
 	UnitOfWork        irepository.UnitOfWork
 	ValkeyCache       *persistence.ValkeyCache
 	RabbitMQ          *rabbitmq.RabbitMQ
-	AsynqClient       *queue.AsynqClient
-	AsynqServer       *queue.AsynqServer
 	PayOsService      iservice_third_party.PayOSService
 }
 
@@ -55,12 +52,6 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket, s3St
 		zap.L().Info("RabbitMQ initialized successfully")
 	}
 
-	// Initialize Asynq
-	zap.L().Debug("Initializing Asynq client and server")
-	registry.AsynqClient = queue.NewAsynqClient()
-	registry.AsynqServer = queue.NewAsynqServer(db)
-	zap.L().Info("Asynq client and server initialized successfully")
-
 	//Initialize Third Party Storage Registry
 	zap.L().Debug("Initializing Third Party Storage Registry...")
 	registry.ThirdPartyStorage = third_party_repository.NewThirdPartyStorageRegistry(
@@ -74,21 +65,6 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket, s3St
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
-}
-
-// StartBackgroundServices starts all background services
-func (r *InfrastructureRegistry) StartBackgroundServices(ctx context.Context) {
-	zap.L().Info("Starting background services")
-
-	// Start Asynq server in a goroutine
-	zap.L().Debug("Starting Asynq server in background")
-	go func() {
-		if err := r.AsynqServer.Start(); err != nil {
-			zap.L().Error("Asynq server failed", zap.Error(err))
-		} else {
-			zap.L().Info("Asynq server started successfully")
-		}
-	}()
 }
 
 // RegisterRabbitMQConsumers registers consumer handlers with RabbitMQ
@@ -133,15 +109,6 @@ func (r *InfrastructureRegistry) StopServices() {
 	zap.L().Info("Stopping infrastructure services...")
 
 	// Stop Asynq server
-	if r.AsynqServer != nil {
-		r.AsynqServer.Stop()
-	}
-
-	// Close Asynq client
-	if r.AsynqClient != nil {
-		r.AsynqClient.Close()
-	}
-
 	// Close RabbitMQ connection
 	if r.RabbitMQ != nil {
 		r.RabbitMQ.Close()
@@ -195,13 +162,6 @@ func (r *InfrastructureRegistry) IsHealthy() map[string]bool {
 		health["database"] = false
 		zap.L().Debug("Database not available for health check")
 	}
-
-	health["asynq_client"] = r.AsynqClient != nil
-	health["asynq_server"] = r.AsynqServer != nil
-
-	zap.L().Debug("Asynq services health check",
-		zap.Bool("client_available", r.AsynqClient != nil),
-		zap.Bool("server_available", r.AsynqServer != nil))
 
 	zap.L().Info("Infrastructure health check completed", zap.Any("health_status", health))
 	return health

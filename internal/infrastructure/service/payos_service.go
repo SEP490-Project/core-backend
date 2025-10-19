@@ -14,10 +14,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type payOsService struct {
@@ -25,9 +26,9 @@ type payOsService struct {
 	config                       *config.AppConfig
 }
 
-func (p payOsService) UpdatePaymentStatus(orderId int64, status string, reason string) error {
+func (p payOsService) UpdatePaymentStatus(orderID int64, status string, reason string) error {
 	//TODO implement me
-	zap.L().Info("UPDATE PAYMENT STATUS", zap.Int("orderId", int(orderId)), zap.String("status", status), zap.String("reason", reason))
+	zap.L().Info("UPDATE PAYMENT STATUS", zap.Int("orderId", int(orderID)), zap.String("status", status), zap.String("reason", reason))
 	// 1. Tìm payment transaction theo orderId
 	// 2. Cập nhật trạng thái payment transaction
 	// 3. Nếu trạng thái là thành công, cập nhật đơn hàng tương ứng
@@ -36,7 +37,7 @@ func (p payOsService) UpdatePaymentStatus(orderId int64, status string, reason s
 }
 
 func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse], error) {
-	url := p.config.PayOS.BaseUrl
+	url := p.config.PayOS.BaseURL
 	secondTimeout := p.config.Server.Timeout
 
 	httpReq, err := http.NewRequest("GET", url+"/"+orderId, nil)
@@ -46,7 +47,7 @@ func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapper
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-client-id", p.config.PayOS.ClientID)
-	httpReq.Header.Set("x-api-key", p.config.PayOS.ApiKey)
+	httpReq.Header.Set("x-api-key", p.config.PayOS.APIKey)
 
 	client := &http.Client{Timeout: time.Duration(secondTimeout) * time.Second}
 	resp, err := client.Do(httpReq)
@@ -70,8 +71,8 @@ func (p payOsService) CancelPayOSLink(paymentId string, cancellationReason strin
 func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses.PayOSWrapperResponse[responses.PayOSLinkResponse], error) {
 	// 1) setup
 	orderCode := generateOrderCode()
-	cancelUrl := p.config.PayOS.CancelUrl
-	returnUrl := p.config.PayOS.ReturnUrl
+	cancelUrl := p.config.PayOS.CancelURL
+	returnUrl := p.config.PayOS.ReturnURL
 
 	if len([]rune(req.Description)) > 9 {
 		req.Description = string([]rune(req.Description)[:9])
@@ -93,14 +94,14 @@ func (p payOsService) GeneratePayOSLink(req requests.PaymentRequest) (*responses
 	body, _ := json.Marshal(payload)
 
 	// 3) Call PayOS
-	httpReq, err := http.NewRequest("POST", p.config.PayOS.BaseUrl, bytes.NewBuffer(body))
+	httpReq, err := http.NewRequest("POST", p.config.PayOS.BaseURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-client-id", p.config.PayOS.ClientID)
-	httpReq.Header.Set("x-api-key", p.config.PayOS.ApiKey)
+	httpReq.Header.Set("x-api-key", p.config.PayOS.APIKey)
 
 	client := &http.Client{Timeout: time.Duration(p.config.Server.Timeout) * time.Second}
 	resp, err := client.Do(httpReq)
@@ -141,7 +142,7 @@ func (p payOsService) generateSignature(amount int64, cancelUrl, description str
 func (p payOsService) buildPayOSRequest(
 	req requests.PaymentRequest,
 	orderCode int64,
-	cancelUrl, returnUrl, signature string,
+	cancelURL, returnURL, signature string,
 ) requests.PayOSRequest {
 	expiredAt := time.Now().Add(time.Duration(p.config.Server.PayOSLinkExpiry) * time.Second).Unix()
 
@@ -165,10 +166,10 @@ func (p payOsService) buildPayOSRequest(
 	return requests.PayOSRequest{
 		PaymentSignatureRequest: requests.PaymentSignatureRequest{
 			Amount:      req.Amount,
-			CancelUrl:   cancelUrl,
+			CancelUrl:   cancelURL,
 			Description: req.Description,
 			OrderCode:   orderCode,
-			ReturnUrl:   returnUrl,
+			ReturnUrl:   returnURL,
 		},
 		BuyerName:        utils.StrPtrOrNil(req.BuyerName),
 		BuyerCompanyName: utils.StrPtrOrNil(req.BuyerCompanyName),
