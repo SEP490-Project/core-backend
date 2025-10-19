@@ -84,16 +84,6 @@ rabbitmq:
   connectionTimeoutMs: 10000
   heartbeat: 30
 
-# Asynq (background jobs) configuration
-asynq:
-  redis_addr: "localhost:6379"
-  redis_db: 1
-  redis_password: "12345"
-  concurrency: 10
-  queues:
-    default: 10
-    critical: 20
-
 # WebSocket configuration
 websocket:
   enabled: true

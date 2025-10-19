@@ -25,7 +25,6 @@ type AppConfig struct {
 	CORS              CORSConfig              `mapstructure:"cors"`
 	Otel              OtelConfig              `mapstructure:"otel"`
 	RabbitMQ          RabbitMQConfig          `mapstructure:"rabbitmq"`
-	Asynq             AsynqConfig             `mapstructure:"asynq"`
 	WebSocket         WebSocketConfig         `mapstructure:"websocket"`
 	S3Bucket          S3BucketConfig          `mapstructure:"aws_s3_bucket"`
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
@@ -114,14 +113,6 @@ type RabbitMQConfig struct {
 	Topology            RabbitMQTopologyConfig   `mapstructure:"topology" json:"topology" yaml:"topology"`
 	Producers           []RabbitMQProducerConfig `mapstructure:"producers" json:"producers" yaml:"producers"`
 	Consumers           []RabbitMQConsumerConfig `mapstructure:"consumers" json:"consumers" yaml:"consumers"`
-}
-
-type AsynqConfig struct {
-	RedisAddr     string         `mapstructure:"redis_addr"`
-	RedisDB       int            `mapstructure:"redis_db"`
-	RedisPassword string         `mapstructure:"redis_password"`
-	Concurrency   int            `mapstructure:"concurrency"`
-	Queues        map[string]int `mapstructure:"queues"`
 }
 
 type WebSocketConfig struct {
@@ -269,14 +260,6 @@ func setDefaultValues() {
 	viper.SetDefault("rabbitmq.connection_timeout_ms", 10000)
 	viper.SetDefault("rabbitmq.heartbeat", 10)
 
-	viper.SetDefault("asynq.redis_addr", "localhost:6379")
-	viper.SetDefault("asynq.redis_db", 1)
-	viper.SetDefault("asynq.redis_password", "")
-	viper.SetDefault("asynq.concurrency", 10)
-	viper.SetDefault("asynq.queues", map[string]int{
-		"default":  10,
-		"critical": 20,
-	})
 	viper.SetDefault("websocket.enabled", true)
 	viper.SetDefault("websocket.endpoint", "/ws")
 	viper.SetDefault("websocket.allowed_origins", []string{"*"})
