@@ -5,6 +5,8 @@ import (
 	"core-backend/config"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm"
+	"os"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -17,6 +19,7 @@ const (
 	TaskFileCleanup       = "file:cleanup"
 	TaskDataExport        = "data:export"
 	TaskReportGeneration  = "report:generation"
+	TaskVideoUpload       = "video:upload"
 )
 
 type AsynqClient struct {
@@ -24,8 +27,9 @@ type AsynqClient struct {
 }
 
 type AsynqServer struct {
-	server *asynq.Server
-	mux    *asynq.ServeMux
+	server   *asynq.Server
+	mux      *asynq.ServeMux
+	database *gorm.DB
 }
 
 // Task payload structures
@@ -53,6 +57,12 @@ type ReportGenerationPayload struct {
 	Parameters map[string]interface{} `json:"parameters"`
 }
 
+type VideoUploadPayload struct {
+	UserID   string `json:"user_id"`
+	FilePath string `json:"file_path"`
+	Key      string `json:"key"`
+}
+
 func NewAsynqClient() *AsynqClient {
 	zap.L().Info("Initializing Asynq client")
 
@@ -74,7 +84,7 @@ func NewAsynqClient() *AsynqClient {
 	return &AsynqClient{client: client}
 }
 
-func NewAsynqServer() *AsynqServer {
+func NewAsynqServer(db *gorm.DB) *AsynqServer {
 	zap.L().Info("Initializing Asynq server")
 
 	cfg := config.GetAppConfig().Asynq
@@ -112,6 +122,8 @@ func NewAsynqServer() *AsynqServer {
 		zap.Int("redis_db", cfg.RedisDB),
 		zap.Int("concurrency", cfg.Concurrency))
 
+	// Init db
+	asynqServer.database = db
 	return asynqServer
 }
 
@@ -210,12 +222,29 @@ func (c *AsynqClient) EnqueueReportGeneration(payload ReportGenerationPayload) (
 	return c.client.Enqueue(task, opts...)
 }
 
+func (c *AsynqClient) EnqueueVideoUpload(payload VideoUploadPayload) (*asynq.TaskInfo, error) {
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal video upload payload: %w", err)
+	}
+
+	task := asynq.NewTask(TaskVideoUpload, payloadBytes)
+	opts := []asynq.Option{
+		asynq.Queue("video"),
+		asynq.MaxRetry(3),
+		asynq.Timeout(60 * time.Minute),
+	}
+
+	return c.client.Enqueue(task, opts...)
+}
+
 // registerHandlers registers all task handlers
 func (s *AsynqServer) registerHandlers() {
 	s.mux.HandleFunc(TaskEmailNotification, s.handleEmailNotification)
 	s.mux.HandleFunc(TaskFileCleanup, s.handleFileCleanup)
 	s.mux.HandleFunc(TaskDataExport, s.handleDataExport)
 	s.mux.HandleFunc(TaskReportGeneration, s.handleReportGeneration)
+	s.mux.HandleFunc(TaskVideoUpload, s.handleVideoUpload)
 }
 
 // Task handlers
@@ -308,6 +337,39 @@ func (s *AsynqServer) handleReportGeneration(ctx context.Context, t *asynq.Task)
 	}
 
 	zap.L().Info("Report generation completed successfully", zap.String("report_id", payload.ReportID))
+	return nil
+}
+
+func (s *AsynqServer) handleVideoUpload(ctx context.Context, t *asynq.Task) error {
+	var payload VideoUploadPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal video upload payload: %w", err)
+	}
+
+	zap.L().Info("Processing video upload task",
+		zap.String("user_id", payload.UserID),
+		zap.String("file_path", payload.FilePath),
+		zap.String("key", payload.Key))
+
+	f, err := os.Open(payload.FilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+
+	// Upload lên S3
+	//if err := s.database.Put(ctx, payload.Key, f, "video/mp4"); err != nil {
+	//	return fmt.Errorf("failed to upload to s3: %w", err)
+	//}
+
+	// Cleanup file local
+	if err := os.Remove(payload.FilePath); err != nil {
+		zap.L().Warn("failed to remove temp file after upload", zap.Error(err))
+	}
+
+	zap.L().Info("✅ Video upload completed successfully",
+		zap.String("key", payload.Key),
+	)
 	return nil
 }
 

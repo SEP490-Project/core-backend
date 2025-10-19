@@ -38,7 +38,6 @@ func NewRouter(
 
 func (r *Router) SetupRoutes(engine *gin.Engine) {
 	r.middlewareRegistry.ApplyGlobalMiddlewares(engine)
-
 	// Swagger docs
 	engine.GET("/swagger/*any", func(c *gin.Context) {
 		handler := ginSwagger.WrapHandler(swaggerFiles.Handler)
@@ -65,6 +64,9 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 
 	// API v1
 	r.SetupV1Routes(engine)
+
+	//File test
+	engine.Static("/tmp", "./tmp")
 
 	// Fallback route for undefined paths
 	engine.NoRoute(func(c *gin.Context) {
@@ -198,10 +200,20 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// ---------- FILES ----------
 		fileHandler := r.handlerRegistry.FileHandler
 		filesGroup := v1.Group("/files")
-		filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		//filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			filesGroup.POST("/upload", fileHandler.UploadFile)
 			//filesGroup.DELETE(":filename", fileHandler.DeleteFile)
+
+			// ---------------- Videos ----------------
+			videosGroup := filesGroup.Group("/videos")
+			{
+				// Upload chunk video (stream)
+				videosGroup.POST("/upload-chunk", fileHandler.UploadVideoChunk)
+
+				// Xóa video
+				videosGroup.DELETE("", fileHandler.DeleteVideo)
+			}
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
