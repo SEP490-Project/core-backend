@@ -103,6 +103,10 @@ type OtelConfig struct {
 
 type RabbitMQConfig struct {
 	URL                 string                   `mapstructure:"url"`
+	Host                string                   `mapstructure:"host"`
+	Username            string                   `mapstructure:"username"`
+	Password            string                   `mapstructure:"password"`
+	Port                int                      `mapstructure:"port"`
 	VHost               string                   `mapstructure:"vhost"`
 	ReconnectDelayMs    int                      `mapstructure:"reconnect_delay_ms"`
 	ConnectionTimeoutMs int                      `mapstructure:"connection_timeout_ms"`
@@ -189,6 +193,11 @@ func LoadConfig(configPath string) error {
 		return fmt.Errorf("unable to decode into struct: %w", err)
 	}
 
+	// Override RabbitMQ URL if individual components are set in config
+	if appConfig.RabbitMQ.Host != "" && appConfig.RabbitMQ.Username != "" && appConfig.RabbitMQ.Password != "" {
+		appConfig.RabbitMQ.URL = fmt.Sprintf("amqp://%s:%s@%s:%d/", appConfig.RabbitMQ.Username, appConfig.RabbitMQ.Password, appConfig.RabbitMQ.Host, appConfig.RabbitMQ.Port)
+	}
+
 	fmt.Println("Loaded server port from config:", appConfig.Server.Port)
 
 	// Parse RSA keys
@@ -251,6 +260,10 @@ func setDefaultValues() {
 	viper.SetDefault("otel.service_name", "my_service")
 
 	viper.SetDefault("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
+	viper.SetDefault("rabbitmq.host", "localhost")
+	viper.SetDefault("rabbitmq.username", "guest")
+	viper.SetDefault("rabbitmq.password", "guest")
+	viper.SetDefault("rabbitmq.port", 5672)
 	viper.SetDefault("rabbitmq.vhost", "/")
 	viper.SetDefault("rabbitmq.reconnect_delay_ms", 5000)
 	viper.SetDefault("rabbitmq.connection_timeout_ms", 10000)
@@ -264,7 +277,6 @@ func setDefaultValues() {
 		"default":  10,
 		"critical": 20,
 	})
-
 	viper.SetDefault("websocket.enabled", true)
 	viper.SetDefault("websocket.endpoint", "/ws")
 	viper.SetDefault("websocket.allowed_origins", []string{"*"})
