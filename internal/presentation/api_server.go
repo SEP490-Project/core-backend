@@ -39,10 +39,11 @@ type APIServer struct {
 func NewAPIServer() *APIServer {
 	db := persistence.InitDB()
 	s3Bucket := persistence.InitS3()
+	s3StreamBucket := persistence.InitS3StreamingBucket()
 
 	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
-	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db, s3Bucket)
+	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(db, s3Bucket, s3StreamBucket)
 	serviceRegistry := application.NewApplicationRegistry(databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
@@ -185,6 +186,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"excel-import-products-consumer":   s.consumerRegistry.ExcelImportProductsConsumer.Handle,
 		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
 		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
+		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
 	}
 
 	// Register handlers with RabbitMQ

@@ -6,6 +6,7 @@ bin/
 .vscode/
 .idea/
 **/docs/*
+tmp/
 
 *.exe
 *.out

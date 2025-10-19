@@ -79,6 +79,23 @@ topology:
             exponentialMultiply: 1.5
           dlq:
             enabled: true
+    - name: exchange.video_upload
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.video.upload
+          routingKey: video.upload
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -122,6 +139,16 @@ producers:
       maxAttempts: 5
       backoffMs: 2000
       exponentialMultiply: 2.0
+  - name: video-upload-producer
+    exchange: exchange.video_upload
+    routingKey: video.upload
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 5
+      backoffMs: 2000
+      exponentialMultiply: 2.0
 
 consumers:
   - name: notification-email-consumer
@@ -157,6 +184,13 @@ consumers:
     queue: queue.contract.create_payment
     prefetch: 1
     concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: video-upload-consumer
+    queue: queue.video.upload
+    prefetch: 1
+    concurrency: 2
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
