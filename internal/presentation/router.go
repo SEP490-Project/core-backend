@@ -38,6 +38,7 @@ func NewRouter(
 
 func (r *Router) SetupRoutes(engine *gin.Engine) {
 	r.middlewareRegistry.ApplyGlobalMiddlewares(engine)
+
 	// Swagger docs
 	engine.GET("/swagger/*any", func(c *gin.Context) {
 		handler := ginSwagger.WrapHandler(swaggerFiles.Handler)
@@ -124,6 +125,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
+		r.SetupContractPaymentRoutes(v1)
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
 
@@ -321,6 +323,19 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 		configGroup.GET("", adminConfigHandler.GetAllConfigValues)
 	}
 }
+
+// SetupContractPaymentRoutes sets up routes for contract payment management
+func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
+	contractPaymentHandler := r.handlerRegistry.ContractPaymentHandler
+	cPaymentGroup := group.Group("contract_payments")
+	{
+		marketingGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(marketing))
+		{
+			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
+		}
+	}
+}
+
 // SetupWebSocketRoutes sets up WebSocket routes
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
 	engine.GET("/ws",
