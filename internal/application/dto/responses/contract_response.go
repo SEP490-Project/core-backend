@@ -16,6 +16,8 @@ type ContractResponse struct {
 	ContractNumber string `json:"contract_number" example:"CONTRACT-2023-001"`
 	Type           string `json:"type" example:"ADVERTISING"`
 	Status         string `json:"status" example:"ACTIVE"`
+	DepositPercent *int   `json:"deposit_percent,omitempty" example:"30"`
+	DepositAmount  *int   `json:"deposit_amount,omitempty" example:"3000000"`
 
 	// Brand information (from relationship)
 	Brand *BrandSummary `json:"brand,omitempty"`
@@ -97,6 +99,8 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 		ContractNumber:                  safeString(contract.ContractNumber),
 		Type:                            string(contract.Type),
 		Status:                          string(contract.Status),
+		DepositPercent:                  contract.DepositPercent,
+		DepositAmount:                   contract.DepositAmount,
 		RepresentativeName:              safeString(contract.RepresentativeName),
 		RepresentativeRole:              contract.RepresentativeRole,
 		RepresentativePhone:             contract.RepresentativePhone,
