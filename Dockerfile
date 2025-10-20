@@ -10,7 +10,7 @@ ENV GO111MODULE=on \
     PATH=$PATH:/go/bin \
     APP_NAME=${APP_NAME}
 
-RUN apk add --no-cache busybox-static ca-certificates \
+RUN apk add --no-cache busybox-static ca-certificates tzdata \
     && mkdir -p /bin \
     && cp /bin/busybox.static /bin/busybox \
     && /bin/busybox --install -s /bin
