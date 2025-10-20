@@ -1,9 +1,11 @@
+// Package contractsm implement the finite state machine pattern specifically for managing contract states and their transitions.
 package contractsm
 
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/campaignsm"
+	"fmt"
 )
 
 type ContractContext struct {
@@ -21,6 +23,8 @@ func NewContractState(state enum.ContractStatus) ContractState {
 	switch state {
 	case enum.ContractStatusDraft:
 		return &DraftState{}
+	case enum.ContractStatusApproved:
+		return &ApprovedState{}
 	case enum.ContractStatusActive:
 		return &ActiveState{}
 	case enum.ContractStatusCompleted:
@@ -32,7 +36,22 @@ func NewContractState(state enum.ContractStatus) ContractState {
 	}
 }
 
-// helper
+// region: ================ Helper Methods ================
+
+// transition is a helper function to manage state transitions and apply side effects if needed
+func transition(ctx *ContractContext, current, next ContractState, effects func(next ContractState)) error {
+	if _, ok := current.AllowedTransitions()[next.Name()]; ok {
+		ctx.State = next
+		if effects != nil {
+			effects(next)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("invalid transition: %s -> %s", current.Name(), next.Name())
+}
+
+// IsCampaignCompleted checks if the associated campaign is completed
 func (c *ContractContext) IsCampaignCompleted() bool {
 	if c.Campaign == nil {
 		return false
@@ -41,6 +60,7 @@ func (c *ContractContext) IsCampaignCompleted() bool {
 	return c.Campaign.Status == enum.CampaignCompleted
 }
 
+// IsTerminatedAndCascade checks if the contract is terminated and cascades the termination to the associated campaign
 func (c *ContractContext) IsTerminatedAndCascade(state ContractState) {
 	if state.Name() != enum.ContractStatusTerminated {
 		return
@@ -56,3 +76,5 @@ func (c *ContractContext) IsTerminatedAndCascade(state ContractState) {
 		c.Campaign.Status = campaignCtx.State.Name()
 	}
 }
+
+// endregion

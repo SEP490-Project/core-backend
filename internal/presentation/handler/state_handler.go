@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -102,7 +104,7 @@ SkipAdminRoleCheck:
 		return
 	}
 
-	if err := h.StateTransferService.MoveTaskToState(id, target, userId); err != nil {
+	if err := h.StateTransferService.MoveTaskToState(c.Request.Context(), id, target, userId); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return
@@ -193,7 +195,7 @@ SkipAdminRoleCheck:
 		return
 	}
 
-	if err := h.StateTransferService.MoveProductToState(id, target, userId); err != nil {
+	if err := h.StateTransferService.MoveProductToState(c.Request.Context(), id, target, userId); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict))
 		return
 	}
@@ -273,7 +275,7 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 		return
 	}
 
-	if err := h.StateTransferService.MoveMileStoneToState(id, target, userId); err != nil {
+	if err := h.StateTransferService.MoveMileStoneToState(c.Request.Context(), id, target, userId); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move milestone: "+err.Error(), http.StatusConflict))
 		return
 	}
@@ -282,6 +284,91 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 		"id":    id.String(),
 		"state": target,
 	}))
+}
+
+// UpdateContractState godoc
+//
+//	@Summary		Update Contract State
+//	@Description	Move a contract to a target state (DRAFT, APPROVED, ACTIVE, COMPLETED, TERMINATED, INACTIVE)
+//	@Tags			State Transfer
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string								true	"Contract ID"	format(uuid)
+//	@Param			request	body		requests.UpdateContractStateRequest	true	"Target state payload"
+//	@Success		200		{object}	responses.APIResponse				"Contract state updated"
+//	@Failure		400		{object}	responses.APIResponse				"Invalid request"
+//	@Failure		401		{object}	responses.APIResponse				"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse				"Forbidden"
+//	@Failure		404		{object}	responses.APIResponse				"Contract not found"
+//	@Failure		409		{object}	responses.APIResponse				"Invalid state transition"
+//	@Failure		500		{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id}/state [patch]
+func (h *StateHandler) UpdateContractState(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+	userRole, err := extractUserRoles(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+
+	var contractID uuid.UUID
+	contractID, err = uuid.Parse(c.Param("id"))
+	if err != nil {
+		responses := responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	var req *requests.UpdateContractStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	if err := h.Struct(&req); err != nil {
+		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	targetState := enum.ContractStatus(req.State)
+	if !targetState.IsValid() {
+		responses := responses.ErrorResponse("Invalid target state", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	switch *userRole {
+	case enum.UserRoleBrandPartner.String():
+		if targetState != enum.ContractStatusApproved {
+			resposnes := responses.ErrorResponse("Forbidden: BRAND_PARTNER can only move contract to APPROVED", http.StatusForbidden)
+			c.JSON(http.StatusForbidden, resposnes)
+			return
+		}
+	case enum.UserRoleMarketingStaff.String():
+		if targetState != enum.ContractStatusCompleted && targetState != enum.ContractStatusTerminated {
+			resposnes := responses.ErrorResponse("Forbidden: MARKETING_STAFF can only move contract to COMPLETED or TERMINATED", http.StatusForbidden)
+			c.JSON(http.StatusForbidden, resposnes)
+			return
+		}
+	}
+
+	if err := h.MoveContractToState(c.Request.Context(), contractID, targetState, userID); err != nil {
+		response := responses.ErrorResponse("Failed to move contract: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Contract state updated", utils.IntPtr(http.StatusOK), map[string]any{
+		"id":    contractID.String(),
+		"state": req.State,
+	})
+	c.JSON(http.StatusOK, response)
 }
 
 func extractUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
