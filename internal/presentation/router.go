@@ -201,13 +201,14 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		payOsHandler := r.handlerRegistry.PayOsHandler
 		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
 		v1.POST("/payos/cancel", payOsHandler.CancelCallback)
+
 		// ---------- FILES ----------
 		fileHandler := r.handlerRegistry.FileHandler
 		filesGroup := v1.Group("/files")
 		//filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			filesGroup.POST("/upload", fileHandler.UploadFile)
-			//filesGroup.DELETE(":filename", fileHandler.DeleteFile)
+			filesGroup.DELETE(":filename", fileHandler.DeleteFile)
 
 			// ---------------- Videos ----------------
 			videosGroup := filesGroup.Group("/videos")

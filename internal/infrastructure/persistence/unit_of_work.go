@@ -31,7 +31,7 @@ type unitOfWork struct {
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
 	configRepository                irepository.GenericRepository[model.Config]
-	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
+	productCategoryRepository       irepository.GenericRepository[model.ProductCategory]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
