@@ -21,6 +21,7 @@ type HandlerRegistry struct {
 	CampaignHandler     *CampaignHandler
 	CategoryHandler     *ProductCategoryHandler
 	AdminConfigHandler     *AdminConfigHandler
+	ContractPaymentHandler *ContractPaymentHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
@@ -38,5 +39,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		CampaignHandler:     NewCampaignHandler(applicationReg.CampaignService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		CategoryHandler:     NewCategoryHandler(applicationReg.ProductCategoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AdminConfigHandler:     NewAdminConfigHandler(applicationReg.AdminConfigService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		ContractPaymentHandler: NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }
