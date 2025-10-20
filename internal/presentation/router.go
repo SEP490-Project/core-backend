@@ -255,6 +255,7 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 // setupContractRoutes sets up routes for contract management
 func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contractHandler := r.handlerRegistry.ContractHandler
+	stateHandler := r.handlerRegistry.StateHandler
 	contracts := group.Group("/contracts")
 
 	// View routes with their specific role requirements
@@ -262,6 +263,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
 	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandProfile)
 	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
+	contracts.PATCH("/:id/state", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), stateHandler.UpdateContractState)
 
 	// Write/Modify routes for Marketing and Admins
 	adminAndMarketing := contracts.Group("")
