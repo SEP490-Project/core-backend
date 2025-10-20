@@ -34,7 +34,7 @@ func (c *ContractPaymentService) CreateContractPaymentsFromContract(
 		zap.String("contract_id", contractID.String()))
 
 	contractRepo := uow.Contracts()
-	configRepo := uow.Configs()
+	configRepo := uow.AdminConfigs()
 	contractPaymentRepo := uow.ContractPayments()
 
 	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand"})

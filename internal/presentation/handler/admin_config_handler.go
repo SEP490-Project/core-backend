@@ -4,7 +4,6 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

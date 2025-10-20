@@ -71,12 +71,12 @@ func (a *AdminConfigService) GetConfigValueByKey(ctx context.Context, key string
 func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork) error {
 	zap.L().Debug("Updating configuration by key", zap.String("key", key), zap.String("value", value))
 
-	configRepo := uow.Configs()
+	configRepo := uow.AdminConfigs()
 
 	filter := func(db *gorm.DB) *gorm.DB {
 		return db.Where("key = ?", key)
 	}
-	err := configRepo.UpdateByCondition(ctx, filter, map[string]interface{}{"value": value})
+	err := configRepo.UpdateByCondition(ctx, filter, map[string]any{"value": value})
 	if err != nil {
 		zap.L().Error("Failed to update configuration", zap.Error(err))
 		return err
