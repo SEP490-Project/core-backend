@@ -17,6 +17,52 @@
     },
     "host": "localhost:8080",
     "paths": {
+        "/api/v1/admin/config": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all config values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get all config values",
+                "responses": {
+                    "200": {
+                        "description": "Config values retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.AdminConfigListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with credentials",
@@ -1651,6 +1697,84 @@
                 }
             }
         },
+        "/api/v1/contract_payments/contract/{contract_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Payments"
+                ],
+                "summary": "Create contract payments based on a contract ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Brand not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts": {
             "get": {
                 "security": [
@@ -2406,6 +2530,89 @@
                     },
                     "404": {
                         "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a contract to a target state (DRAFT, APPROVED, ACTIVE, COMPLETED, TERMINATED, INACTIVE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Contract State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateContractStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -4602,8 +4809,6 @@
         "requests.CreateCampaignRequest": {
             "type": "object",
             "required": [
-                "budget_actual",
-                "budget_projected",
                 "contract_id",
                 "end_date",
                 "name",
@@ -4611,16 +4816,6 @@
                 "type"
             ],
             "properties": {
-                "budget_actual": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 5000.25
-                },
-                "budget_projected": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 10000.5
-                },
                 "contract_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -5276,6 +5471,26 @@
                 }
             }
         },
+        "requests.UpdateContractStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "APPROVED",
+                        "ACTIVE",
+                        "COMPLETED",
+                        "TERMINATED",
+                        "INACTIVE"
+                    ],
+                    "example": "TERMINATED"
+                }
+            }
+        },
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
@@ -5355,6 +5570,9 @@
                     "type": "boolean"
                 }
             }
+        },
+        "responses.AdminConfigListResponse": {
+            "type": "object"
         },
         "responses.BrandDetailResponse": {
             "type": "object",
@@ -5546,32 +5764,37 @@
         "responses.CampaignDetailsResponse": {
             "type": "object",
             "properties": {
-                "budget_actual": {
-                    "type": "number"
-                },
-                "budget_projected": {
-                    "type": "number"
+                "budget": {
+                    "type": "number",
+                    "example": 100000000
                 },
                 "contract_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "contract_number": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "contract_20251017_AD"
                 },
                 "contract_title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Q2 Marketing Contract"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-01 00:00:00"
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "A campaign for the summer sale."
                 },
                 "end_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-08-31 23:59:59"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "milestones": {
                     "type": "array",
@@ -5580,25 +5803,32 @@
                     }
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Summer Sale Campaign"
                 },
                 "number_of_tasks": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 25
                 },
                 "percentage_completed": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 60.5
                 },
                 "start_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-01 00:00:00"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "RUNNING"
                 },
                 "type": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "ADVERTISING"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-15 12:00:00"
                 }
             }
         },
@@ -5631,47 +5861,57 @@
         "responses.CampaignInfoResponse": {
             "type": "object",
             "properties": {
-                "budget_actual": {
-                    "type": "number"
-                },
-                "budget_projected": {
-                    "type": "number"
+                "budget": {
+                    "type": "number",
+                    "example": 100000000
                 },
                 "contract_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "contract_number": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "contract_20251017_AD"
                 },
                 "contract_title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Q2 Marketing Contract"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-01 00:00:00"
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "A campaign for the summer sale."
                 },
                 "end_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-08-31 23:59:59"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Summer Sale Campaign"
                 },
                 "start_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-01 00:00:00"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "RUNNING"
                 },
                 "type": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "ADVERTISING"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-15 12:00:00"
                 }
             }
         },
@@ -5679,28 +5919,36 @@
             "type": "object",
             "properties": {
                 "behind_schedule": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": false
                 },
                 "completed_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-15 00:00:00"
                 },
                 "completion_percentage": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 60.5
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Milestone for initial launch."
                 },
                 "due_date": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-06-15 00:00:00"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "number_of_tasks": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 25
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "NOT_STARTED"
                 }
             }
         },
@@ -5812,6 +6060,14 @@
                     "description": "Financial",
                     "type": "string",
                     "example": "VND"
+                },
+                "deposit_amount": {
+                    "type": "integer",
+                    "example": 3000000
+                },
+                "deposit_percent": {
+                    "type": "integer",
+                    "example": 30
                 },
                 "end_date": {
                     "type": "string",
@@ -6246,7 +6502,7 @@
                 "is_default": {
                     "type": "boolean"
                 },
-                "manufactring_date": {
+                "manufacturing_date": {
                     "type": "string"
                 },
                 "name": {
