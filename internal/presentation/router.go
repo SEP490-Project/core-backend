@@ -124,6 +124,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
+		r.SetupAdminConfigRouter(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -307,6 +308,15 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 }
 
+
+// SetupAdminConfigRouter sets up routes for admin configuration management
+func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
+	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
+	configGroup := group.Group("configs").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		configGroup.GET("", adminConfigHandler.GetAllConfigValues)
+	}
+}
 // SetupWebSocketRoutes sets up WebSocket routes
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
 	engine.GET("/ws",
