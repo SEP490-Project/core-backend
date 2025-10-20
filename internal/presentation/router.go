@@ -124,6 +124,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
+		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
 
 		// ---------- PRODUCTS ----------
@@ -308,6 +309,9 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 }
 
+// SetupModifiedHistoryRouter sets up routes for modified history management
+func (r *Router) SetupModifiedHistoryRouter(group *gin.RouterGroup) {
+}
 
 // SetupAdminConfigRouter sets up routes for admin configuration management
 func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
