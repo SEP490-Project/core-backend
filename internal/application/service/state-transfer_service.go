@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
@@ -12,6 +13,7 @@ import (
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/rabbitmq"
 	"errors"
 
 	"github.com/google/uuid"
@@ -26,11 +28,11 @@ type stateTransferService struct {
 	taskRepository      irepository.GenericRepository[model.Task]
 	productRepository   irepository.GenericRepository[model.Product]
 	uow                 irepository.UnitOfWork
+	rabbitMQ            *rabbitmq.RabbitMQ
 }
 
-func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
+func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
-	ctx := context.Background()
 	// Preload nested product -> task to have back-reference available ("Products.Task")
 	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Products", "Products.Task", "Contents"})
 	if err != nil {
@@ -54,7 +56,7 @@ func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum
 		zap.L().Error("Invalid target state",
 			zap.String("user_id", taskID.String()),
 			zap.String("target_state", targetState.String()))
-		return errors.New("Invalid target state")
+		return errors.New("invalid target state")
 	}
 
 	//4. Forward state
@@ -96,9 +98,7 @@ func (t stateTransferService) MoveTaskToState(taskID uuid.UUID, targetState enum
 	return nil
 }
 
-func (t stateTransferService) MoveProductToState(productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {
-	ctx := context.Background()
-
+func (t stateTransferService) MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {
 	product, err := t.productRepository.GetByID(ctx, productID, []string{})
 	product.UpdatedByID = &updatedBy
 
@@ -119,7 +119,7 @@ func (t stateTransferService) MoveProductToState(productID uuid.UUID, targetStat
 	if nextProductState == nil {
 		zap.L().Error("Invalid target state",
 			zap.String("target_state", targetState.String()))
-		return errors.New("Invalid target state")
+		return errors.New("invalid target state")
 	}
 
 	//4. Forward state
@@ -145,8 +145,7 @@ func (t stateTransferService) MoveProductToState(productID uuid.UUID, targetStat
 	return nil
 }
 
-func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, targetState enum.MilestoneStatus, updatedBy uuid.UUID) error {
-	ctx := context.Background()
+func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileStoneID uuid.UUID, targetState enum.MilestoneStatus, updatedBy uuid.UUID) error {
 	trx := t.uow.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -207,9 +206,8 @@ func (t stateTransferService) MoveMileStoneToState(mileStoneID uuid.UUID, target
 	return nil
 }
 
-func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetState enum.CampaignStatus, updatedBy uuid.UUID) error {
+func (t stateTransferService) MoveCampaignToState(ctx context.Context, campaignID uuid.UUID, targetState enum.CampaignStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
-	ctx := context.Background()
 	trx := t.uow.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -257,8 +255,7 @@ func (t stateTransferService) MoveCampaignToState(campaignID uuid.UUID, targetSt
 	return nil
 }
 
-func (t stateTransferService) MoveContractToState(contractID uuid.UUID, targetState enum.ContractStatus, updatedBy uuid.UUID) error {
-	ctx := context.Background()
+func (t stateTransferService) MoveContractToState(ctx context.Context, contractID uuid.UUID, targetState enum.ContractStatus, updatedBy uuid.UUID) error {
 	trx := t.uow.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -278,10 +275,15 @@ func (t stateTransferService) MoveContractToState(contractID uuid.UUID, targetSt
 		_ = trx.Rollback()
 		zap.L().Error("Failed to load contract", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return errors.New("failed to load contract: " + err.Error())
+	} else if contract == nil {
+		_ = trx.Rollback()
+		zap.L().Error("Contract not found", zap.String("contract_id", contractID.String()))
+		return errors.New("contract not found")
 	}
+	oldStatus := contract.Status
 
 	// Preload deeper campaign tree if contract has a campaign
-	if contract != nil && contract.Campaign != nil {
+	if contract.Campaign != nil {
 		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
 		if err2 == nil {
 			contract.Campaign = camp
@@ -309,8 +311,13 @@ func (t stateTransferService) MoveContractToState(contractID uuid.UUID, targetSt
 		return errors.New("failed to update contract: " + err.Error())
 	}
 
-	// Cascade if terminated
-	if targetState == enum.ContractStatusTerminated && contract.Campaign != nil {
+	// Side-effects after state transitioning
+	switch targetState {
+	// Terminate contract -> cascade cancel related campaign, milestones, tasks, contents, and products
+	case enum.ContractStatusTerminated:
+		if contract.Campaign == nil {
+			break
+		}
 		camp := contract.Campaign
 		// Batch cancel milestones
 		if err := milestoneRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
@@ -340,22 +347,54 @@ func (t stateTransferService) MoveContractToState(contractID uuid.UUID, targetSt
 		// Reflect memory
 		camp.Status = enum.CampaignCanceled
 		for _, ms := range camp.Milestones {
-			if ms != nil {
-				ms.Status = enum.MilestoneStatusCancelled
-				if ms.Tasks != nil {
-					for _, tk := range ms.Tasks {
-						if tk != nil {
-							tk.Status = enum.TaskStatusCancelled
-							for _, p := range tk.Products {
-								if p != nil {
-									p.Status = enum.ProductStatusInactived
-								}
-							}
-						}
+			if ms == nil {
+				continue
+			}
+			ms.Status = enum.MilestoneStatusCancelled
+
+			if ms.Tasks == nil {
+				continue
+			}
+			for _, tk := range ms.Tasks {
+				if tk == nil {
+					continue
+				}
+				tk.Status = enum.TaskStatusCancelled
+				for _, p := range tk.Products {
+					if p != nil {
+						p.Status = enum.ProductStatusInactived
 					}
 				}
 			}
 		}
+
+	case enum.ContractStatusApproved:
+		// Create contract payment based on the contract by publishing to RabbitMQ exchange
+		contractCreatePaymentProducer, err := t.rabbitMQ.GetProducer("")
+		if err != nil {
+			zap.L().Error("Failed to get contract create payment producer", zap.Error(err))
+			return errors.New("failed to get contract create payment producer: " + err.Error())
+		}
+		message := &consumers.ContractCreatePaymentMessage{
+			UserID:     updatedBy.String(),
+			ContractID: contractID.String(),
+		}
+		err = contractCreatePaymentProducer.PublishJSON(ctx, message)
+		if err != nil {
+			zap.L().Error("Failed to publish contract create payment message", zap.Error(err))
+			return errors.New("failed to publish contract create payment message: " + err.Error())
+		}
+
+		zap.L().Info("Successfully published contract create payment message",
+			zap.String("contract_id", contractID.String()),
+			zap.String("user_id", updatedBy.String()))
+
+	default:
+		zap.L().Debug("There are no side-effects to be applied to the contract after transitioning",
+			zap.String("contract_id", contractID.String()),
+			zap.String("old_status", oldStatus.String()),
+			zap.String("new_status", nextState.Name().String()),
+		)
 	}
 
 	if err := trx.Commit(); err != nil {
