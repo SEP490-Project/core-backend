@@ -54,6 +54,7 @@ func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 	if err != nil || page < 1 {
 		page = 1
 	}
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit < 1 {
 		limit = 10
@@ -62,18 +63,16 @@ func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 		limit = 100
 	}
 
-	// Tính offset cho truy vấn DB
-	offset := (page - 1) * limit
-
-	categories, total, err := h.categoryService.GetAllCategories(limit, offset, search, deleted)
+	// --- Call service ---
+	categories, total, err := h.categoryService.GetAllCategories(page, limit, search, deleted)
 	if err != nil {
 		zap.L().Error("Failed to get categories", zap.Error(err))
-		response := responses.ErrorResponse("Failed to get categories: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, response)
+		resp := responses.ErrorResponse("Failed to get categories: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, resp)
 		return
 	}
 
-	// Tính toán phân trang
+	// --- Pagination info ---
 	totalPages := int(total) / limit
 	if int(total)%limit != 0 {
 		totalPages++
@@ -88,14 +87,14 @@ func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 		HasPrev:    page > 1,
 	}
 
-	// Trả response chuẩn
-	response := responses.NewPaginationResponse(
+	// --- Success response ---
+	resp := responses.NewPaginationResponse(
 		"Categories retrieved successfully",
 		http.StatusOK,
 		categories,
 		pagination,
 	)
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateCategory godoc
@@ -113,8 +112,8 @@ func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 func (h *ProductCategoryHandler) CreateCategory(c *gin.Context) {
 	var req requests.CreateProductCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		errResp := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, errResp)
 		return
 	}
 
@@ -162,11 +161,6 @@ func (h *ProductCategoryHandler) AssignParentCategory(c *gin.Context) {
 		parentUUID, err = uuid.Parse(parentID)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid category's parentID: "+err.Error(), http.StatusBadRequest))
-			return
-		}
-
-		if parentUUID == curUUID {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("Category cannot be its own parent", http.StatusBadRequest))
 			return
 		}
 	}
