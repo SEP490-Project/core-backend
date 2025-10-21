@@ -45,7 +45,7 @@ func (a *AdminConfigService) GetConfigByKey(ctx context.Context, key string) (*r
 		return nil, fmt.Errorf("configuration with key %s not found", key)
 	}
 
-	return responses.AdminConfigResponse{}.ToResponse(config), nil
+	return responses.AdminConfigResponse{}.ToResponse(*config), nil
 }
 
 // GetConfigValueByKey implements iservice.AdminConfigService.

@@ -19,6 +19,7 @@ type Contract struct {
 	BrandID                *uuid.UUID `json:"brand_id" gorm:"type:uuid;column:brand_id"`
 	BrandBankName          *string    `json:"brand_bank_name" gorm:"type:varchar(255);column:brand_bank_name"`
 	BrandBankAccountNumber *string    `json:"brand_account_number" gorm:"type:varchar(255);column:brand_account_number"`
+	BrandBankAccountHolder *string    `json:"brand_account_holder" gorm:"type:varchar(100);column:brand_account_holder"`
 
 	// KOL Representative information
 	RepresentativeName              *string `json:"representative_name" gorm:"type:varchar(255);column:representative_name"`

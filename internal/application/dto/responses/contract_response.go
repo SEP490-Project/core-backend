@@ -85,6 +85,7 @@ type BrandSummary struct {
 	RepresentativeCitizenID *string `json:"representative_citizen_id,omitempty" example:"1234567890"`
 	BankName                *string `json:"bank_name,omitempty" example:"Vietcombank"`
 	BankAccountNumber       *string `json:"bank_account_number,omitempty" example:"0123456789"`
+	BankAccountHolder       *string `json:"bank_account_holder,omitempty" example:"Acme Corp"`
 }
 
 // ToContractResponse converts a model.Contract to ContractResponse
@@ -142,6 +143,9 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 			RepresentativePhone:     tempBrand.RepresentativePhone,
 			RepresentativeEmail:     tempBrand.RepresentativeEmail,
 			RepresentativeCitizenID: tempBrand.RepresentativeCitizenID,
+			BankName:                contract.BrandBankName,
+			BankAccountNumber:       contract.BrandBankAccountNumber,
+			BankAccountHolder:       contract.BrandBankAccountHolder,
 		}
 	}
 

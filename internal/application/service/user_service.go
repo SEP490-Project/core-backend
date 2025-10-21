@@ -10,6 +10,8 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -89,67 +91,55 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 }
 
 // GetUsers retrieves users with pagination and filters
-func (s *UserService) GetUsers(ctx context.Context, page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int64, error) {
+func (s *UserService) GetUsers(ctx context.Context, filterRequest *requests.UserFilterRequest) ([]*responses.UserListResponse, int64, error) {
 	zap.L().Debug("Retrieving users with filters",
-		zap.Int("page", page),
-		zap.Int("limit", limit),
-		zap.String("search", search),
-		zap.String("role", role),
-		zap.Any("is_active", isActive))
-
-	// Set default pagination values
-	if page <= 0 {
-		page = 1
-	}
-	if limit <= 0 || limit > 100 {
-		limit = 10
-	}
-
-	offset := (page - 1) * limit
-
-	zap.L().Debug("Pagination parameters set",
-		zap.Int("page", page),
-		zap.Int("limit", limit),
-		zap.Int("offset", offset))
+		zap.Any("request", *filterRequest))
 
 	// Get users with filters
 	filters := func(db *gorm.DB) *gorm.DB {
-		if search != "" {
-			db = db.Where("username ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+		if filterRequest.Search != nil {
+			db = db.Where("username ILIKE ? OR email ILIKE ?", "%"+*filterRequest.Search+"%", "%"+*filterRequest.Search+"%")
 		}
-		if role != "" {
-			db = db.Where("role = ?", role)
+		if filterRequest.Role != nil {
+			db = db.Where("role = ?", *filterRequest.Role)
 		}
-		if isActive != nil {
-			db = db.Where("is_active = ?", *isActive)
+		if filterRequest.IsActive != nil {
+			db = db.Where("is_active = ?", *filterRequest.IsActive)
 		}
+		if filterRequest.IsBrandAccount != nil {
+			var condition string
+			if *filterRequest.IsBrandAccount {
+				condition = "brands.id is not null"
+			} else {
+				condition = "brands.id is null"
+			}
+			db = db.Joins("left join brands on brands.user_id = users.id").Where(condition)
+		}
+
+		// Sorting
+		sortBy := filterRequest.SortBy
+		if sortBy == "" {
+			sortBy = "created_at"
+		}
+		sortOrder := strings.ToLower(filterRequest.SortOrder)
+		if sortOrder != "asc" && sortOrder != "desc" {
+			sortOrder = "desc"
+		}
+		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+
 		return db
 	}
-	users, total, err := s.userRepository.GetAll(ctx, filters, nil, limit, page)
+	users, total, err := s.userRepository.GetAll(ctx, filters, []string{"Brand"}, filterRequest.Limit, filterRequest.Page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve users with filters",
-			zap.Int("limit", limit),
-			zap.Int("offset", offset),
-			zap.String("search", search),
-			zap.String("role", role),
 			zap.Error(err))
+		if err == gorm.ErrRecordNotFound {
+			return nil, 0, err
+		}
 		return nil, 0, errors.New("failed to retrieve users")
 	}
 
-	// Map to response DTOs
-	userResponses := make([]*responses.UserResponse, len(users))
-	for i, user := range users {
-		response := &responses.UserResponse{}
-		userResponses[i] = response.ToUserResponse(&user)
-	}
-
-	zap.L().Info("Users retrieved successfully",
-		zap.Int64("total_users", total),
-		zap.Int("returned_users", len(users)),
-		zap.Int("page", page),
-		zap.Int("limit", limit))
-
-	return userResponses, total, nil
+	return responses.UserListResponse{}.ToListResponse(users), total, nil
 }
 
 // UpdateUserStatus updates a user's active status
