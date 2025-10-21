@@ -314,8 +314,8 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 
 	creatorID, err := extractUserID(c)
 	if err != nil {
-		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, responses)
+		resp := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, resp)
 		return
 	}
 
@@ -653,35 +653,24 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 // @Tags         Products
 // @Accept       json
 // @Produce      json
-// @Param        id    path      string  true  "Limited Product ID (UUID)"
-// @Param        body  body      object{concept_id=string}  true  "Concept payload"
+// @Param        limited-id  path      string  true  "Limited Product ID (UUID)"
+// @Param        concept-id  path      string  false  "Concept ID (UUID)"
 // @Success      200   {object}  map[string]interface{}
 // @Failure      400   {object}  object{error=string}
 // @Failure      401   {object}  object{error=string}
 // @Failure      500   {object}  object{error=string}
 // @Security     BearerAuth
-// @Router       /api/v1/products/limited/{id}/concept [post]
+// @Router       /api/v1/products/limited/{limited-id}/concept/{concept-id} [post]
 func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
-	limitedIDStr := c.Param("id")
+	limitedIDStr := c.Param("limited-id")
 	limitedID, err := uuid.Parse(limitedIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid limited product id: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	var payload struct {
-		ConceptID string `json:"concept_id" validate:"required,uuid"`
-	}
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
-		return
-	}
-	if err := h.validator.Struct(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
-		return
-	}
-
-	conceptID, err := uuid.Parse(payload.ConceptID)
+	conceptIDStr := c.Param("concept-id")
+	conceptID, err := uuid.Parse(conceptIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid concept id: "+err.Error(), http.StatusBadRequest))
 		return

@@ -146,7 +146,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			{
 				protectedProducts.POST("/standard", productHandler.CreateStandardProduct)
 				protectedProducts.POST("/limited", productHandler.CreateLimitedProduct)
-				protectedProducts.POST("/limited/concept/:id", productHandler.AddConceptToLimitedProduct)
+				protectedProducts.POST("/limited/:limited-id/concept/:concept-id", productHandler.AddConceptToLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
 			}
