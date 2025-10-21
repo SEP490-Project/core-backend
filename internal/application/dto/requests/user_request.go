@@ -15,7 +15,8 @@ type UpdateProfileRequest struct {
 	Username        *string                        `json:"username" validate:"omitempty,min=3,max=50,alphanum" example:"new_username"`
 	FullName        *string                        `json:"full_name" validate:"omitempty,min=3,max=100" example:"John Doe"`
 	Phone           *string                        `json:"phone" validate:"omitempty,e164" example:"+1234567890"`
-	DateOfBirth     *time.Time                     `json:"date_of_birth" gorm:"type:date;column:date_of_birth"`
+	DateOfBirth     *time.Time                     `json:"date_of_birth" validate:"omitempty" example:"1990-01-01"`
+	AvatarURL       *string                        `json:"avatar_url" validate:"omitempty,url" example:"https://example.com/avatar.jpg"`
 	ShippingAddress []*UpdateAddressProfileRequest `json:"shipping_address" validate:"omitempty,dive"`
 }
 
@@ -56,6 +57,9 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 	}
 	if upr.DateOfBirth != nil {
 		userModel.DateOfBirth = upr.DateOfBirth
+	}
+	if upr.AvatarURL != nil {
+		userModel.AvatarURL = upr.AvatarURL
 	}
 	if len(upr.ShippingAddress) > 0 {
 		// Create existing addresses map for quick lookup
@@ -170,10 +174,11 @@ type UpdateUserRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
 }
 
-// UserListRequest represents user list query parameters
-type UserListRequest struct {
+// UserFilterRequest represents user list query parameters
+type UserFilterRequest struct {
 	PaginationRequest
-	Search   *string `form:"search" json:"search" validate:"omitempty,max=100" example:"john"`
-	Role     *string `form:"role" json:"role" validate:"omitempty,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
-	IsActive *bool   `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
+	Search         *string `form:"search" json:"search" validate:"omitempty,max=100" example:"john"`
+	Role           *string `form:"role" json:"role" validate:"omitempty,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
+	IsActive       *bool   `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
+	IsBrandAccount *bool   `form:"is_brand_account" json:"is_brand_account" validate:"omitempty" example:"true"`
 }
