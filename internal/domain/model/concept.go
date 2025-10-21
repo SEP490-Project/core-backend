@@ -20,6 +20,9 @@ type Concept struct {
 	UpdatedAt      time.Time          `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	BannerURL      *string            `json:"banner_url" gorm:"column:banner_url"`
 	VideoThumbnail *string            `json:"video_thumbnail" gorm:"column:video_thumbnail"`
+
+	// Relationship: one-to-one with LimitedProduct. LimitedProduct holds ConceptID foreign key.
+	LimitedProduct *LimitedProduct `json:"limited_product" gorm:"foreignKey:ConceptID;references:ID"`
 }
 
 func (Concept) TableName() string { return "concepts" }

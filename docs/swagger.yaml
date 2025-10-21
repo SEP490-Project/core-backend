@@ -233,6 +233,40 @@ definitions:
     type: object
   requests.BulkVariantRequest:
     type: object
+  requests.ConceptRequest:
+    properties:
+      banner_url:
+        example: https://example.com/banner.jpg
+        type: string
+      description:
+        example: Concept description
+        maxLength: 1000
+        type: string
+      end_date:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+      name:
+        example: Concept Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      start_date:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - INACTIVE
+        example: DRAFT
+        type: string
+      video_thumbnail:
+        example: https://example.com/thumbnail.jpg
+        type: string
+    required:
+    - name
+    - status
+    type: object
   requests.CreateBrandRequest:
     properties:
       address:
@@ -1850,6 +1884,15 @@ definitions:
         type: string
       username:
         example: john_doe
+        type: string
+    type: object
+  responses.VariantAttributeResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      ingredient:
         type: string
     type: object
   responses.VariantImageResponse:
@@ -4705,6 +4748,51 @@ paths:
       tags:
       - Users
   /api/v1/variant-attributes:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of variant attributes (public view). Returns
+        lightweight attribute responses suitable for front-end listing.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.VariantAttributeResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Variant Attributes (Public)
+      tags:
+      - Variant-Attributes
     post:
       consumes:
       - application/json
@@ -4748,7 +4836,53 @@ paths:
       - BearerAuth: []
       summary: Create Variant Attribute
       tags:
-      - Products
+      - Variant-Attributes
+  /api/v1/variant-attributes/admin:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of variant attributes for administrative usage.
+        Returns full model details.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.VariantAttributeResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Variant Attributes (Admin)
+      tags:
+      - Variant-Attributes
   /health:
     get:
       consumes:
