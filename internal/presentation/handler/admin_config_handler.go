@@ -36,11 +36,11 @@ func NewAdminConfigHandler(
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.AdminConfigListResponse	"Config values retrieved successfully"
-//	@Failure		500	{object}	responses.APIResponse			"Internal server error"
-//	@Failure		401	{object}	responses.APIResponse			"Unauthorized"
-//	@Failure		403	{object}	responses.APIResponse			"Forbidden"
+//	@Failure		500	{object}	responses.APIResponse				"Internal server error"
+//	@Failure		401	{object}	responses.APIResponse				"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse				"Forbidden"
 //	@Security		BearerAuth
-//	@Router			/api/v1/admin/config [get]
+//	@Router			/api/v1/configs [get]
 func (h *AdminConfigHandler) GetAllConfigValues(c *gin.Context) {
 	configResponses, err := h.adminConfigService.GetAllConfig(c.Request.Context())
 	if err != nil {
@@ -49,7 +49,6 @@ func (h *AdminConfigHandler) GetAllConfigValues(c *gin.Context) {
 		return
 	}
 
-	// response := responses.SuccessResponse("Successfully retrieved all config values", utils.IntPtr(http.StatusOK), configResponses)
 	response := responses.NewPaginationResponse("Successfully retrieved all config values",
 		http.StatusOK,
 		configResponses,
