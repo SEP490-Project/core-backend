@@ -3942,7 +3942,7 @@ paths:
       summary: Create a limited product
       tags:
       - Products
-  /api/v1/products/limited/{id}/concept:
+  /api/v1/products/limited/{limited-id}/concept/{concept-id}:
     post:
       consumes:
       - application/json
@@ -3950,18 +3950,14 @@ paths:
       parameters:
       - description: Limited Product ID (UUID)
         in: path
-        name: id
+        name: limited-id
         required: true
         type: string
-      - description: Concept payload
-        in: body
-        name: body
+      - description: Concept ID (UUID)
+        in: path
+        name: concept-id
         required: true
-        schema:
-          properties:
-            concept_id:
-              type: string
-          type: object
+        type: string
       produces:
       - application/json
       responses:

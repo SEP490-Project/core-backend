@@ -3165,7 +3165,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/products/limited/{id}/concept": {
+        "/api/v1/products/limited/{limited-id}/concept/{concept-id}": {
             "post": {
                 "security": [
                     {
@@ -3187,23 +3187,16 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Limited Product ID (UUID)",
-                        "name": "id",
+                        "name": "limited-id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Concept payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "concept_id": {
-                                    "type": "string"
-                                }
-                            }
-                        }
+                        "type": "string",
+                        "description": "Concept ID (UUID)",
+                        "name": "concept-id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
