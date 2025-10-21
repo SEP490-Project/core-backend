@@ -21,7 +21,7 @@ type LimitedProduct struct {
 
 	// Concept relation (nullable)
 	ConceptID *uuid.UUID `json:"concept_id" gorm:"column:concept_id;type:uuid"`
-	Concept   *Concept   `json:"concept" gorm:"foreignKey:ConceptID;references:Id"`
+	Concept   *Concept   `json:"concept" gorm:"foreignKey:ConceptID;references:ID"`
 }
 
 func (LimitedProduct) TableName() string { return "limited_products" }

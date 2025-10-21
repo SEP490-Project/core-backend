@@ -30,7 +30,7 @@ type Product struct {
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
 	Variants []ProductVariant `json:"-" gorm:"foreignKey:ProductID"`
 	Task     *Task            `json:"task" gorm:"foreignKey:TaskID"`
-	Limited  *LimitedProduct  `json:"limited" gorm:"foreignKey:Id"`
+	Limited  *LimitedProduct  `json:"limited" gorm:"foreignKey:Id;references:ID"`
 }
 
 func (Product) TableName() string { return "products" }
