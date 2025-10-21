@@ -25,6 +25,7 @@ type DatabaseRegistry struct {
 	//Limited Product and Concept
 	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
 	ConceptRepository       irepository.GenericRepository[model.Concept]
+	AdminConfigRepository     irepository.GenericRepository[model.Config]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -43,5 +44,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ModifiedHistoryRepository: NewGenericRepository[model.ModifiedHistory](db),
 		LimitedProductRepository:  NewGenericRepository[model.LimitedProduct](db),
 		ConceptRepository:        NewGenericRepository[model.Concept](db),
+		AdminConfigRepository:     NewGenericRepository[model.Config](db),
 	}
 }

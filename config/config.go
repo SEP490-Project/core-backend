@@ -25,7 +25,6 @@ type AppConfig struct {
 	CORS              CORSConfig              `mapstructure:"cors"`
 	Otel              OtelConfig              `mapstructure:"otel"`
 	RabbitMQ          RabbitMQConfig          `mapstructure:"rabbitmq"`
-	Asynq             AsynqConfig             `mapstructure:"asynq"`
 	WebSocket         WebSocketConfig         `mapstructure:"websocket"`
 	S3Bucket          S3BucketConfig          `mapstructure:"aws_s3_bucket"`
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
@@ -103,6 +102,10 @@ type OtelConfig struct {
 
 type RabbitMQConfig struct {
 	URL                 string                   `mapstructure:"url"`
+	Host                string                   `mapstructure:"host"`
+	Username            string                   `mapstructure:"username"`
+	Password            string                   `mapstructure:"password"`
+	Port                int                      `mapstructure:"port"`
 	VHost               string                   `mapstructure:"vhost"`
 	ReconnectDelayMs    int                      `mapstructure:"reconnect_delay_ms"`
 	ConnectionTimeoutMs int                      `mapstructure:"connection_timeout_ms"`
@@ -110,14 +113,6 @@ type RabbitMQConfig struct {
 	Topology            RabbitMQTopologyConfig   `mapstructure:"topology" json:"topology" yaml:"topology"`
 	Producers           []RabbitMQProducerConfig `mapstructure:"producers" json:"producers" yaml:"producers"`
 	Consumers           []RabbitMQConsumerConfig `mapstructure:"consumers" json:"consumers" yaml:"consumers"`
-}
-
-type AsynqConfig struct {
-	RedisAddr     string         `mapstructure:"redis_addr"`
-	RedisDB       int            `mapstructure:"redis_db"`
-	RedisPassword string         `mapstructure:"redis_password"`
-	Concurrency   int            `mapstructure:"concurrency"`
-	Queues        map[string]int `mapstructure:"queues"`
 }
 
 type WebSocketConfig struct {
@@ -145,14 +140,14 @@ type S3StreamingBucketConfig struct {
 }
 
 type PayOSConfig struct {
-	BaseUrl           string `mapstructure:"base_url"`
+	BaseURL           string `mapstructure:"base_url"`
 	ClientID          string `mapstructure:"client_id"`
-	ApiKey            string `mapstructure:"api_key"`
+	APIKey            string `mapstructure:"api_key"`
 	ChecksumKey       string `mapstructure:"checksum_key"`
-	CancelUrl         string `mapstructure:"cancel_url"`
-	ReturnUrl         string `mapstructure:"return_url"`
-	FrontendCancelUrl string `mapstructure:"frontend_cancel_url"`
-	FrontendReturnUrl string `mapstructure:"frontend_return_url"`
+	CancelURL         string `mapstructure:"cancel_url"`
+	ReturnURL         string `mapstructure:"return_url"`
+	FrontendCancelURL string `mapstructure:"frontend_cancel_url"`
+	FrontendReturnURL string `mapstructure:"frontend_return_url"`
 }
 
 // endregion
@@ -181,12 +176,19 @@ func LoadConfig(configPath string) error {
 	// Priority 1: Environment variables
 	viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
 	viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
+	viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
+	viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	err := viper.Unmarshal(&appConfig)
 	if err != nil {
 		return fmt.Errorf("unable to decode into struct: %w", err)
+	}
+
+	// Override RabbitMQ URL if individual components are set in config
+	if appConfig.RabbitMQ.Host != "" && appConfig.RabbitMQ.Username != "" && appConfig.RabbitMQ.Password != "" {
+		appConfig.RabbitMQ.URL = fmt.Sprintf("amqp://%s:%s@%s:%d/", appConfig.RabbitMQ.Username, appConfig.RabbitMQ.Password, appConfig.RabbitMQ.Host, appConfig.RabbitMQ.Port)
 	}
 
 	fmt.Println("Loaded server port from config:", appConfig.Server.Port)
@@ -251,19 +253,14 @@ func setDefaultValues() {
 	viper.SetDefault("otel.service_name", "my_service")
 
 	viper.SetDefault("rabbitmq.url", "amqp://guest:guest@localhost:5672/")
+	viper.SetDefault("rabbitmq.host", "localhost")
+	viper.SetDefault("rabbitmq.username", "guest")
+	viper.SetDefault("rabbitmq.password", "guest")
+	viper.SetDefault("rabbitmq.port", 5672)
 	viper.SetDefault("rabbitmq.vhost", "/")
 	viper.SetDefault("rabbitmq.reconnect_delay_ms", 5000)
 	viper.SetDefault("rabbitmq.connection_timeout_ms", 10000)
 	viper.SetDefault("rabbitmq.heartbeat", 10)
-
-	viper.SetDefault("asynq.redis_addr", "localhost:6379")
-	viper.SetDefault("asynq.redis_db", 1)
-	viper.SetDefault("asynq.redis_password", "")
-	viper.SetDefault("asynq.concurrency", 10)
-	viper.SetDefault("asynq.queues", map[string]int{
-		"default":  10,
-		"critical": 20,
-	})
 
 	viper.SetDefault("websocket.enabled", true)
 	viper.SetDefault("websocket.endpoint", "/ws")

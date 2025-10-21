@@ -5,10 +5,11 @@ import (
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"os"
 	"strings"
+
+	"go.uber.org/zap"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"

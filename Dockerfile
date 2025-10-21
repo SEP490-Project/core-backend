@@ -10,7 +10,7 @@ ENV GO111MODULE=on \
     PATH=$PATH:/go/bin \
     APP_NAME=${APP_NAME}
 
-RUN apk add --no-cache busybox-static ca-certificates \
+RUN apk add --no-cache busybox-static ca-certificates tzdata \
     && mkdir -p /bin \
     && cp /bin/busybox.static /bin/busybox \
     && /bin/busybox --install -s /bin
@@ -30,13 +30,15 @@ RUN go build -ldflags='-w -s -extldflags "-static"' -a -o main ./cmd/server/main
 FROM scratch AS final
 
 ARG APP_PORT=8080
-ENV APP_PORT=${APP_PORT}
+ENV APP_PORT=${APP_PORT} \
+    TZ=Asia/Ho_Chi_Minh
 
 # Copy passwd/group (so container can exec as non-root if needed)
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 COPY --from=builder /bin /bin
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 WORKDIR /app
 

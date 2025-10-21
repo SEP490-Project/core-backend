@@ -324,14 +324,6 @@ definitions:
     type: object
   requests.CreateCampaignRequest:
     properties:
-      budget_actual:
-        example: 5000.25
-        minimum: 0
-        type: number
-      budget_projected:
-        example: 10000.5
-        minimum: 0
-        type: number
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -363,8 +355,6 @@ definitions:
         example: ADVERTISING
         type: string
     required:
-    - budget_actual
-    - budget_projected
     - contract_id
     - end_date
     - name
@@ -838,6 +828,21 @@ definitions:
         example: ADVERTISING
         type: string
     type: object
+  requests.UpdateContractStateRequest:
+    properties:
+      state:
+        enum:
+        - DRAFT
+        - APPROVED
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        - INACTIVE
+        example: TERMINATED
+        type: string
+    required:
+    - state
+    type: object
   requests.UpdateProfileRequest:
     properties:
       date_of_birth:
@@ -894,6 +899,8 @@ definitions:
         type: integer
       success:
         type: boolean
+    type: object
+  responses.AdminConfigListResponse:
     type: object
   responses.BrandDetailResponse:
     properties:
@@ -1027,41 +1034,54 @@ definitions:
     type: object
   responses.CampaignDetailsResponse:
     properties:
-      budget_actual:
-        type: number
-      budget_projected:
+      budget:
+        example: 100000000
         type: number
       contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       contract_number:
+        example: contract_20251017_AD
         type: string
       contract_title:
+        example: Q2 Marketing Contract
         type: string
       created_at:
+        example: "2023-06-01 00:00:00"
         type: string
       description:
+        example: A campaign for the summer sale.
         type: string
       end_date:
+        example: "2023-08-31 23:59:59"
         type: string
       id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       milestones:
         items:
           $ref: '#/definitions/responses.CampaignMilestoneInfo'
         type: array
       name:
+        example: Summer Sale Campaign
         type: string
       number_of_tasks:
+        example: 25
         type: integer
       percentage_completed:
+        example: 60.5
         type: number
       start_date:
+        example: "2023-06-01 00:00:00"
         type: string
       status:
+        example: RUNNING
         type: string
       type:
+        example: ADVERTISING
         type: string
       updated_at:
+        example: "2023-06-15 12:00:00"
         type: string
     type: object
   responses.CampaignInfoPaginationResponse:
@@ -1083,52 +1103,71 @@ definitions:
     type: object
   responses.CampaignInfoResponse:
     properties:
-      budget_actual:
-        type: number
-      budget_projected:
+      budget:
+        example: 100000000
         type: number
       contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       contract_number:
+        example: contract_20251017_AD
         type: string
       contract_title:
+        example: Q2 Marketing Contract
         type: string
       created_at:
+        example: "2023-06-01 00:00:00"
         type: string
       description:
+        example: A campaign for the summer sale.
         type: string
       end_date:
+        example: "2023-08-31 23:59:59"
         type: string
       id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       name:
+        example: Summer Sale Campaign
         type: string
       start_date:
+        example: "2023-06-01 00:00:00"
         type: string
       status:
+        example: RUNNING
         type: string
       type:
+        example: ADVERTISING
         type: string
       updated_at:
+        example: "2023-06-15 12:00:00"
         type: string
     type: object
   responses.CampaignMilestoneInfo:
     properties:
       behind_schedule:
+        example: false
         type: boolean
       completed_at:
+        example: "2023-06-15 00:00:00"
         type: string
       completion_percentage:
+        example: 60.5
         type: number
       description:
+        example: Milestone for initial launch.
         type: string
       due_date:
+        example: "2023-06-15 00:00:00"
         type: string
       id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       number_of_tasks:
+        example: 25
         type: integer
       status:
+        example: NOT_STARTED
         type: string
     type: object
   responses.ContractListResponse:
@@ -1208,6 +1247,12 @@ definitions:
         description: Financial
         example: VND
         type: string
+      deposit_amount:
+        example: 3000000
+        type: integer
+      deposit_percent:
+        example: 30
+        type: integer
       end_date:
         example: "2006-01-02 15:04:05"
         type: string
@@ -1767,6 +1812,35 @@ info:
   title: SEP490 Core Backend API
   version: "1.0"
 paths:
+  /api/v1/admin/config:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all config values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config values retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.AdminConfigListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all config values
+      tags:
+      - Admin Config
   /api/v1/auth/login:
     post:
       consumes:
@@ -2778,6 +2852,53 @@ paths:
       summary: Assign parent category
       tags:
       - Categories
+  /api/v1/contract_payments/contract/{contract_id}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Contract ID
+        in: path
+        name: contract_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Brand not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract number already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create contract payments based on a contract ID
+      tags:
+      - Contract Payments
   /api/v1/contracts:
     get:
       consumes:
@@ -3094,6 +3215,61 @@ paths:
       summary: Approve contract
       tags:
       - Contracts
+  /api/v1/contracts/{id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a contract to a target state (DRAFT, APPROVED, ACTIVE, COMPLETED,
+        TERMINATED, INACTIVE)
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateContractStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Contract State
+      tags:
+      - State Transfer
   /api/v1/contracts/async:
     post:
       consumes:

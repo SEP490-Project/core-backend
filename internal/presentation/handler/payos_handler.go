@@ -31,9 +31,9 @@ func NewPayOsHandler(payOsService iservice_third_party.PayOSService) *PayOsHandl
 //	@Tags			payos
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		requests.PaymentRequest	true	"Payment Request (client should NOT send cancelUrl/returnUrl)"
-//	@Success 200    {object} responses.PaymentResponse "PayOS wrapper response"
-//	@Failure		400		{object}	map[string]string		"error"
+//	@Param			request	body		requests.PaymentRequest		true	"Payment Request (client should NOT send cancelUrl/returnUrl)"
+//	@Success		200		{object}	responses.PaymentResponse	"PayOS wrapper response"
+//	@Failure		400		{object}	map[string]string			"error"
 //	@Router			/api/v1/payos/payment [post]
 func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 	var req requests.PaymentRequest
@@ -112,8 +112,6 @@ func (h *PayOsHandler) CancelCallback(c *gin.Context) {
 	}
 
 	//return to FE
-	target := h.config.PayOS.FrontendCancelUrl
+	target := h.config.PayOS.FrontendCancelURL
 	c.Redirect(http.StatusFound, target)
-	return
-
 }
