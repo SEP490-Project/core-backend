@@ -6,11 +6,11 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type UserHandler struct {
@@ -119,67 +119,54 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
-//	@Param			page		query		int									false	"Page number"		default(1)
-//	@Param			limit		query		int									false	"Items per page"	default(10)
-//	@Param			search		query		string								false	"Search term for username or email"
-//	@Param			role		query		string								false	"Filter by user role"
-//	@Param			is_active	query		boolean								false	"Filter by active status"
-//	@Success		200			{object}	responses.UserPaginationResponse	"Users retrieved successfully"
-//	@Failure		401			{object}	responses.APIResponse				"Unauthorized"
-//	@Failure		403			{object}	responses.APIResponse				"Forbidden - Admin access required"
-//	@Failure		500			{object}	responses.APIResponse				"Internal server error"
+//	@Param			page				query		int									false	"Page number"				default(1)
+//	@Param			limit				query		int									false	"Items per page"			default(10)
+//	@Param			sort_by				query		string								false	"Field to sort by"			default(created_at)
+//	@Param			sort_order			query		string								false	"Sort order (asc or desc)"	default(asc)
+//	@Param			search				query		string								false	"Search term for username or email"
+//	@Param			role				query		string								false	"Filter by user role"
+//	@Param			is_active			query		boolean								false	"Filter by active status"
+//	@Param			is_brand_account	query		boolean								false	"Filter by brand account status"
+//	@Success		200					{object}	responses.UserPaginationResponse	"Users retrieved successfully"
+//	@Failure		401					{object}	responses.APIResponse				"Unauthorized"
+//	@Failure		403					{object}	responses.APIResponse				"Forbidden - Admin access required"
+//	@Failure		500					{object}	responses.APIResponse				"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/users [get]
 func (h *UserHandler) GetUsers(c *gin.Context) {
-	// Parse pagination parameters
-	page := 1
-	limit := 10
-
-	if pageParam := c.Query("page"); pageParam != "" {
-		if p, err := strconv.Atoi(pageParam); err == nil && p > 0 {
-			page = p
-		}
-	}
-
-	if limitParam := c.Query("limit"); limitParam != "" {
-		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 && l <= 100 {
-			limit = l
-		}
-	}
-
-	// Parse search parameters
-	search := c.Query("search")
-	role := c.Query("role")
-	isActiveParam := c.Query("is_active")
-
-	var isActive *bool
-	if isActiveParam != "" {
-		if active, err := strconv.ParseBool(isActiveParam); err == nil {
-			isActive = &active
-		}
-	}
-
-	users, total, err := h.userService.GetUsers(c.Request.Context(), page, limit, search, role, isActive)
-	if err != nil {
-		response := responses.ErrorResponse("Failed to get users: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, response)
+	var userFilterRequest *requests.UserFilterRequest
+	if err := c.ShouldBindQuery(&userFilterRequest); err != nil {
+		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	// Calculate pagination info
-	totalPages := int((total + int64(limit) - 1) / int64(limit))
-	hasNext := page < totalPages
-	hasPrev := page > 1
-
-	pagination := responses.Pagination{
-		Total:      int64(total),
-		Page:       page,
-		Limit:      limit,
-		TotalPages: totalPages,
-		HasNext:    hasNext,
-		HasPrev:    hasPrev,
+	users, total, err := h.userService.GetUsers(c.Request.Context(), userFilterRequest)
+	if err != nil {
+		var response *responses.APIResponse
+		var statusCode int
+		switch err.Error() {
+		case gorm.ErrRecordNotFound.Error():
+			response = responses.ErrorResponse("No users found", http.StatusNotFound)
+			statusCode = http.StatusNotFound
+		default:
+			response = responses.ErrorResponse("Failed to get users: "+err.Error(), http.StatusInternalServerError)
+			statusCode = http.StatusInternalServerError
+		}
+		c.JSON(statusCode, response)
+		return
 	}
-	paginationData := responses.NewPaginationResponse("Users retrieved successfully", http.StatusOK, users, pagination)
+
+	paginationData := responses.NewPaginationResponse(
+		"Users retrieved successfully",
+		http.StatusOK,
+		users,
+		responses.Pagination{
+			Total: total,
+			Page:  userFilterRequest.Page,
+			Limit: userFilterRequest.Limit,
+		},
+	)
 	c.JSON(http.StatusOK, paginationData)
 }
 

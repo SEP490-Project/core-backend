@@ -722,6 +722,10 @@ definitions:
     type: object
   requests.UpdateContractRequest:
     properties:
+      brand_bank_account_holder:
+        example: ABC Company Ltd.
+        maxLength: 255
+        type: string
       brand_bank_account_number:
         example: "0123456789"
         maxLength: 255
@@ -845,7 +849,11 @@ definitions:
     type: object
   requests.UpdateProfileRequest:
     properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
       date_of_birth:
+        example: "1990-01-01"
         type: string
       full_name:
         example: John Doe
@@ -901,6 +909,48 @@ definitions:
         type: boolean
     type: object
   responses.AdminConfigListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.AdminConfigResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.AdminConfigResponse:
+    properties:
+      created_at:
+        example: "2006-01-02 15:04:05"
+        type: string
+      description:
+        example: The name of the site
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      key:
+        example: site_name
+        type: string
+      updated_at:
+        example: "2006-01-02 15:04:05"
+        type: string
+      updated_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      value:
+        example: My Awesome Site
+        type: string
+      value_type:
+        example: STRING
+        type: string
     type: object
   responses.BrandDetailResponse:
     properties:
@@ -991,6 +1041,9 @@ definitions:
     properties:
       address:
         example: 123 Main St, Springfield
+        type: string
+      bank_account_holder:
+        example: Acme Corp
         type: string
       bank_account_number:
         example: "0123456789"
@@ -1691,11 +1744,45 @@ definitions:
       username:
         type: string
     type: object
+  responses.UserListResponse:
+    properties:
+      created_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      is_brand_account:
+        example: false
+        type: boolean
+      number_of_sessions:
+        example: 3
+        type: integer
+      role:
+        allOf:
+        - $ref: '#/definitions/enum.UserRole'
+        example: user
+      updated_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
   responses.UserPaginationResponse:
     properties:
       data:
         items:
-          $ref: '#/definitions/responses.UserResponse'
+          $ref: '#/definitions/responses.UserListResponse'
         type: array
       message:
         type: string
@@ -1710,6 +1797,9 @@ definitions:
     type: object
   responses.UserResponse:
     properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
@@ -1734,6 +1824,9 @@ definitions:
         type: string
       is_active:
         example: true
+        type: boolean
+      is_brand_account:
+        example: false
         type: boolean
       last_login:
         example: "2023-01-01T00:00:00Z"
@@ -1812,35 +1905,6 @@ info:
   title: SEP490 Core Backend API
   version: "1.0"
 paths:
-  /api/v1/admin/config:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve all config values
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Config values retrieved successfully
-          schema:
-            $ref: '#/definitions/responses.AdminConfigListResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get all config values
-      tags:
-      - Admin Config
   /api/v1/auth/login:
     post:
       consumes:
@@ -2852,6 +2916,35 @@ paths:
       summary: Assign parent category
       tags:
       - Categories
+  /api/v1/configs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all config values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config values retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.AdminConfigListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all config values
+      tags:
+      - Admin Config
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:
@@ -3956,7 +4049,6 @@ paths:
       - description: Concept ID (UUID)
         in: path
         name: concept-id
-        required: true
         type: string
       produces:
       - application/json
@@ -4281,6 +4373,16 @@ paths:
         in: query
         name: limit
         type: integer
+      - default: created_at
+        description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - default: asc
+        description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
       - description: Search term for username or email
         in: query
         name: search
@@ -4292,6 +4394,10 @@ paths:
       - description: Filter by active status
         in: query
         name: is_active
+        type: boolean
+      - description: Filter by brand account status
+        in: query
+        name: is_brand_account
         type: boolean
       produces:
       - application/json
