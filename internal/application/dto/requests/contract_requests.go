@@ -32,6 +32,8 @@ type CreateContractRequest struct {
 	ContractNumber string  `json:"contract_number" validate:"required,min=2,max=255" example:"CONTRACT-2023-001"`
 	Type           string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
+	DepositPercent *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
+	DepositAmount  *int    `json:"deposit_amount" validate:"omitempty,min=0" example:"3000000"`
 
 	// Brand information (stored in contract for record-keeping)
 	BrandID                string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
@@ -102,6 +104,12 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		status = contractStatus
 	}
 
+	if r.ContractNumber == "" {
+		r.ContractNumber = fmt.Sprintf("CONTRACT-%s-%s",
+			time.Now().Format("20060102"),
+			utils.AbbreviateString(contractType.String(), 3))
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(3)
 	errorsChan := make(chan error)
@@ -128,6 +136,11 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 			if financialTermsErr != nil {
 				errorsChan <- fmt.Errorf("invalid financial_terms: %v", financialTermsErr)
 				return
+			}
+
+			if r.DepositAmount == nil || *r.DepositAmount <= 0 {
+				calculatedAmount := int(float64((advertisingFinancialTerms.TotalCost * *r.DepositPercent) / 100))
+				r.DepositAmount = &calculatedAmount
 			}
 
 			for _, schedule := range advertisingFinancialTerms.Schedules {
@@ -166,6 +179,8 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 				return
 			}
 
+			r.DepositPercent = nil
+
 			financialTermsJSON, financialTermsErr = json.Marshal(coProducingFinancialTerms)
 			if financialTermsErr != nil {
 				errorsChan <- errors.New("invalid financial_terms: failed to marshal co-producing financial terms to JSON")
@@ -178,6 +193,8 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 				errorsChan <- fmt.Errorf("invalid financial_terms: %v", financialTermsErr)
 				return
 			}
+
+			r.DepositPercent = nil
 
 			financialTermsJSON, financialTermsErr = json.Marshal(affiliateFinancialTerms)
 			if financialTermsErr != nil {
@@ -315,6 +332,8 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		Status:                          status,
 		SignedDate:                      r.SignedDate,
 		SignedLocation:                  r.SignedLocation,
+		DepositPercent:                  r.DepositPercent,
+		DepositAmount:                   r.DepositAmount,
 		StartDate:                       r.StartDate,
 		EndDate:                         r.EndDate,
 		Currency:                        r.Currency,
@@ -544,6 +563,11 @@ type ContractFilterRequest struct {
 func CreateContractRequestValidator(sl validator.StructLevel) {
 	contract := sl.Current().Interface().(CreateContractRequest)
 
+	// Validate deposit percent and amount
+	if contract.DepositAmount == nil && contract.DepositPercent == nil {
+		sl.ReportError(contract.DepositAmount, "deposit_amount", "DepositAmount", "depositinfo", "at least one of deposit_amount or deposit_percent must be provided")
+	}
+
 	contractType := enum.ContractType(contract.Type)
 	if !contractType.IsValid() {
 		sl.ReportError(contract.Type, "type", "Type", "contracttype", "")
@@ -584,10 +608,17 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 				break
 			}
 
-			// if err = sl.Validator().Struct(financialTerms); err != nil {
-			// 	sl.ReportError(contract.FinancialTerms, "financial_terms", "FinancialTerms", "financialterms_advertising", "")
-			// 	errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms", StructName: "FinancialTerms", Tag: "financialterms_advertising", Param: "", Error: err}
-			// }
+			if err = sl.Validator().Struct(financialTerms); err != nil {
+				sl.ReportError(contract.FinancialTerms, "financial_terms", "FinancialTerms", "financialterms_advertising", "")
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms", StructName: "FinancialTerms", Tag: "financialterms_advertising", Param: "", Error: err}
+			}
+
+			if contract.DepositAmount != nil && contract.DepositPercent != nil {
+				calculatedDepositAmount := int(math.Round(float64((financialTerms.TotalCost * (*contract.DepositPercent)) / 100)))
+				if *contract.DepositAmount != calculatedDepositAmount {
+					errorsChan <- ValidateError{CurrentValue: contract.DepositAmount, JSONName: "deposit_amount", StructName: "DepositAmount", Tag: "depositamount", Param: "", Error: fmt.Errorf("deposit_amount does not match deposit_percent and total_cost. Expected %d but got %d", calculatedDepositAmount, *contract.DepositAmount)}
+				}
+			}
 
 			// Validate Model field is valid enum
 			financialModel := enum.FinancialTermsModel(financialTerms.Model)
@@ -648,6 +679,14 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 				if financialTerms != enum.FinancialTermsModelShare {
 					sl.ReportError(contract.FinancialTerms, "financial_terms.model", "Model", "financialtermsmodel", "")
 				}
+			}
+
+			if err = sl.Validator().Struct(financialTerms); err != nil {
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms", StructName: "FinancialTerms", Tag: "financialterms_coproducing", Param: "", Error: err}
+			}
+
+			if contract.DepositAmount == nil || *contract.DepositAmount <= 0 {
+				errorsChan <- ValidateError{CurrentValue: contract.DepositAmount, JSONName: "deposit_amount", StructName: "DepositAmount", Tag: "depositamount", Param: "", Error: errors.New("deposit_amount must be provided and greater than 0 for Co-Producing contracts")}
 			}
 
 			// Validate the ProfitDistributionDate of the first and last Distribution Cycle are within the contract period
@@ -761,6 +800,14 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 				if financialTerms != enum.FinancialTermsModelLevels {
 					sl.ReportError(contract.FinancialTerms, "financial_terms.model", "Model", "financialtermsmodel", "")
 				}
+			}
+
+			if err = sl.Validator().Struct(financialTerms); err != nil {
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms", StructName: "FinancialTerms", Tag: "financialterms_affiliate", Param: "", Error: err}
+			}
+
+			if contract.DepositAmount == nil || *contract.DepositAmount <= 0 {
+				errorsChan <- ValidateError{CurrentValue: contract.DepositAmount, JSONName: "deposit_amount", StructName: "DepositAmount", Tag: "depositamount", Param: "", Error: errors.New("deposit_amount must be provided and greater than 0 for AFFILIATE contracts")}
 			}
 
 			// Validate Levels to ensure max_clicks are in ascending order

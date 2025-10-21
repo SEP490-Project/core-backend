@@ -36,3 +36,32 @@ func ToTitleCase(input string) string {
 	titleCaser := cases.Title(language.English)
 	return titleCaser.String(spacedString)
 }
+
+// AbbreviateString abbreviates a string to fit within the specified maxLength.
+// It keeps the first part of the string intact and abbreviates subsequent parts
+// by taking only their first character, separated by underscores.
+func AbbreviateString(input string, maxLength int) string {
+	if len(input) <= maxLength {
+		return input
+	}
+
+	// Normalize string to be uppercase and seperated by '_'
+	normalizedString := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(input), "[\\s_-]*", "_"))
+	parts := strings.Split(normalizedString, "_")
+
+	abbreviatedString := parts[0]
+	var i int
+	for i = 1; i < len(parts); i++ {
+		abbreviatedString += "_" + parts[i][:1] // Take only the first character of each subsequent part
+		if len(abbreviatedString) >= maxLength {
+			break
+		}
+	}
+	if len(abbreviatedString) > maxLength {
+		abbreviatedString = abbreviatedString[:maxLength]
+	} else if len(abbreviatedString) < maxLength {
+		abbreviatedString += parts[i-1][1:(maxLength - len(abbreviatedString) + 1)]
+	}
+
+	return abbreviatedString
+}

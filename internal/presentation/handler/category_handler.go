@@ -5,13 +5,14 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"net/http"
+	"strconv"
+
 	"github.com/aws/smithy-go/ptr"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"net/http"
-	"strconv"
 )
 
 type ProductCategoryHandler struct {
@@ -32,18 +33,19 @@ func NewCategoryHandler(
 }
 
 // GetAllCategories godoc
-// @Summary      Get product categories
-// @Description  Returns a paginated list of product categories. Optional search by name.
-// @Tags         Categories
-// @Accept       json
-// @Produce      json
-// @Param        page   query    int    false  "Page number"  default(1)
-// @Param        limit  query    int    false  "Items per page" default(10)
-// @Param        search query   string false  "Search term for category name"
-// @Param		 deleted query   bool   false  "Include deleted categories (null - get all, true - only deleted, false - only active)"  default(false)
-// @Success      200    {array}  responses.ProductCategoryResponse
-// @Failure      500    {object} map[string]string
-// @Router       /api/v1/categories [get]
+//
+//	@Summary		Get product categories
+//	@Description	Returns a paginated list of product categories. Optional search by name.
+//	@Tags			Categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number"		default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search term for category name"
+//	@Param			deleted	query		bool	false	"Include deleted categories (null - get all, true - only deleted, false - only active)"	default(false)
+//	@Success		200		{array}		responses.ProductCategoryResponse
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/categories [get]
 func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -98,17 +100,18 @@ func (h *ProductCategoryHandler) GetAllCategories(c *gin.Context) {
 }
 
 // CreateCategory godoc
-// @Summary      Create a product category
-// @Description  Create a new product category
-// @Tags         Categories
-// @Accept       json
-// @Produce      json
-// @Param        data  body  	 requests.CreateProductCategoryRequest  true  "Create category payload"
-// @Success      201   {object}  responses.ProductCategoryResponse
-// @Failure      400   {object}  map[string]string
-// @Failure      500   {object}  map[string]string
-// @Security	 BearerAuth
-// @Router       /api/v1/categories [post]
+//
+//	@Summary		Create a product category
+//	@Description	Create a new product category
+//	@Tags			Categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.CreateProductCategoryRequest	true	"Create category payload"
+//	@Success		201		{object}	responses.ProductCategoryResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/categories [post]
 func (h *ProductCategoryHandler) CreateCategory(c *gin.Context) {
 	var req requests.CreateProductCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -134,18 +137,19 @@ func (h *ProductCategoryHandler) CreateCategory(c *gin.Context) {
 }
 
 // AssignParentCategory godoc
-// @Summary      Assign parent category
-// @Description  Set a parent category for an existing category. If parent_id is not provided, the parent category will be removed.
-// @Tags         Categories
-// @Accept       json
-// @Produce      json
-// @Param        id        path    string  true  "Category ID"
-// @Param        parent_id query   string  false  "Parent category ID"
-// @Success      200       {object}  responses.ProductCategoryResponse
-// @Failure      400       {object}  map[string]string
-// @Failure      500       {object}  map[string]string
-// @Security	 BearerAuth
-// @Router       /api/v1/categories/{id}/parent [patch]
+//
+//	@Summary		Assign parent category
+//	@Description	Set a parent category for an existing category. If parent_id is not provided, the parent category will be removed.
+//	@Tags			Categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			id			path		string	true	"Category ID"
+//	@Param			parent_id	query		string	false	"Parent category ID"
+//	@Success		200			{object}	responses.ProductCategoryResponse
+//	@Failure		400			{object}	map[string]string
+//	@Failure		500			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/categories/{id}/parent [patch]
 func (h *ProductCategoryHandler) AssignParentCategory(c *gin.Context) {
 	currentID := c.Param("id")
 	parentID := c.Query("parent_id")
@@ -176,17 +180,18 @@ func (h *ProductCategoryHandler) AssignParentCategory(c *gin.Context) {
 }
 
 // DeleteCategory godoc
-// @Summary      Delete a product category
-// @Description  Delete category by id
-// @Tags         Categories
-// @Accept       json
-// @Produce      json
-// @Param        id   path    string  true  "Category ID"
-// @Success      204  {string}  string  ""
-// @Failure      400  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Security	 BearerAuth
-// @Router       /api/v1/categories/{id} [patch]
+//
+//	@Summary		Delete a product category
+//	@Description	Delete category by id
+//	@Tags			Categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Category ID"
+//	@Success		204	{string}	string	""
+//	@Failure		400	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/categories/{id} [patch]
 func (h *ProductCategoryHandler) DeleteCategory(c *gin.Context) {
 	id := c.Param("id")
 	cateUUID, err := uuid.Parse(id)

@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"core-backend/config"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
@@ -26,6 +27,24 @@ func extractUserID(c *gin.Context) (userID uuid.UUID, err error) {
 	userID, err = uuid.Parse(userIDStr)
 	if err != nil {
 		return uuid.Nil, err
+	}
+
+	return
+}
+
+// extractUserReoles utility extracts and validate the user roles from the Gin context.
+func extractUserRoles(c *gin.Context) (userRoles *string, err error) {
+	rolesData, exists := c.Get("roles")
+	if !exists {
+		return nil, errors.New("user roles not found in context")
+	}
+	var ok bool
+	userRoles, ok = rolesData.(*string)
+	if !ok {
+		return nil, errors.New("invalid user roles format")
+	}
+	if !enum.UserRole(*userRoles).IsValid() {
+		return nil, fmt.Errorf("invalid user role: %s", *userRoles)
 	}
 
 	return

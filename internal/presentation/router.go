@@ -38,6 +38,7 @@ func NewRouter(
 
 func (r *Router) SetupRoutes(engine *gin.Engine) {
 	r.middlewareRegistry.ApplyGlobalMiddlewares(engine)
+
 	// Swagger docs
 	engine.GET("/swagger/*any", func(c *gin.Context) {
 		handler := ginSwagger.WrapHandler(swaggerFiles.Handler)
@@ -124,6 +125,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
+		r.SetupContractPaymentRoutes(v1)
+		r.SetupModifiedHistoryRouter(v1)
+		r.SetupAdminConfigRouter(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -199,13 +203,14 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		payOsHandler := r.handlerRegistry.PayOsHandler
 		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
 		v1.POST("/payos/cancel", payOsHandler.CancelCallback)
+
 		// ---------- FILES ----------
 		fileHandler := r.handlerRegistry.FileHandler
 		filesGroup := v1.Group("/files")
 		//filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			filesGroup.POST("/upload", fileHandler.UploadFile)
-			//filesGroup.DELETE(":filename", fileHandler.DeleteFile)
+			filesGroup.DELETE(":filename", fileHandler.DeleteFile)
 
 			// ---------------- Videos ----------------
 			videosGroup := filesGroup.Group("/videos")
@@ -253,6 +258,7 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 // setupContractRoutes sets up routes for contract management
 func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contractHandler := r.handlerRegistry.ContractHandler
+	stateHandler := r.handlerRegistry.StateHandler
 	contracts := group.Group("/contracts")
 
 	// View routes with their specific role requirements
@@ -260,6 +266,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
 	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandProfile)
 	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
+	contracts.PATCH("/:id/state", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), stateHandler.UpdateContractState)
 
 	// Write/Modify routes for Marketing and Admins
 	adminAndMarketing := contracts.Group("")
@@ -306,6 +313,31 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
 	{
 		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
+	}
+}
+
+// SetupModifiedHistoryRouter sets up routes for modified history management
+func (r *Router) SetupModifiedHistoryRouter(group *gin.RouterGroup) {
+}
+
+// SetupAdminConfigRouter sets up routes for admin configuration management
+func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
+	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
+	configGroup := group.Group("configs").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		configGroup.GET("", adminConfigHandler.GetAllConfigValues)
+	}
+}
+
+// SetupContractPaymentRoutes sets up routes for contract payment management
+func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
+	contractPaymentHandler := r.handlerRegistry.ContractPaymentHandler
+	cPaymentGroup := group.Group("contract_payments")
+	{
+		marketingGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(marketing))
+		{
+			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
+		}
 	}
 }
 

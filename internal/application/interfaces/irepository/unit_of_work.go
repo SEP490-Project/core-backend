@@ -30,6 +30,7 @@ type UnitOfWork interface {
 	VariantImage() GenericRepository[model.VariantImage]
 	VariantAttributeValue() GenericRepository[model.VariantAttributeValue]
 	ModifiedHistories() GenericRepository[model.ModifiedHistory]
+	AdminConfigs() GenericRepository[model.Config]
 
 	// Product Category
 	ProductCategory() GenericRepository[model.ProductCategory]

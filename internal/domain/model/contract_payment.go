@@ -20,6 +20,8 @@ type ContractPayment struct {
 	Note                  *string                    `json:"note" gorm:"type:text;column:note"`
 	CreatedAt             time.Time                  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt             time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	CreatedBy             *uuid.UUID                 `json:"created_by" gorm:"type:uuid;column:created_by"`
+	UpdatedBy             *uuid.UUID                 `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	DeletedAt             gorm.DeletedAt             `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
@@ -31,6 +33,9 @@ func (ContractPayment) TableName() string { return "contract_payments" }
 func (cp *ContractPayment) BeforeCreate(tx *gorm.DB) error {
 	if cp.ID == uuid.Nil {
 		cp.ID = uuid.New()
+	}
+	if cp.Status == "" {
+		cp.Status = enum.ContractPaymentStatusPending
 	}
 	if cp.InstallmentPercentage < 0 {
 		zap.L().Warn("InstallmentPercentage is less than 0, setting to 0")
