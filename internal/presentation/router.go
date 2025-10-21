@@ -125,22 +125,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
-
-		// ---------- CONCEPTS ----------
-		conceptHandler := r.handlerRegistry.ConceptHandler
-		conceptsGroup := v1.Group("/concepts")
-		{
-			// Public list
-			conceptsGroup.GET("", conceptHandler.GetConcepts)
-
-			// Protected (marketing, admin)
-			protected := conceptsGroup.Group("")
-			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
-			{
-				protected.POST("", conceptHandler.CreateConcept)
-				protected.DELETE("/:id", conceptHandler.DeleteConcept)
-			}
-		}
+		r.SetupContractPaymentRoutes(v1)
+		r.SetupModifiedHistoryRouter(v1)
+		r.SetupAdminConfigRouter(v1)
+		r.SetupChannelRoutes(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -240,6 +228,22 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 				// Xóa video
 				videosGroup.DELETE("", fileHandler.DeleteVideo)
+			}
+		}
+
+		// ---------- CONCEPTS ----------
+		conceptHandler := r.handlerRegistry.ConceptHandler
+		conceptsGroup := v1.Group("/concepts")
+		{
+			// Public list
+			conceptsGroup.GET("", conceptHandler.GetConcepts)
+
+			// Protected (marketing, admin)
+			protected := conceptsGroup.Group("")
+			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+			{
+				protected.POST("", conceptHandler.CreateConcept)
+				protected.DELETE("/:id", conceptHandler.DeleteConcept)
 			}
 		}
 
@@ -357,6 +361,23 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		marketingGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 		{
 			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
+		}
+	}
+}
+
+// SetupChannelRoutes sets up routes for channel management
+func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
+	channelHandler := r.handlerRegistry.ChannelHandler
+	channelGroup := group.Group("/channels")
+	{
+		channelGroup.GET("", channelHandler.GetAllChannels)
+		channelGroup.GET("/:id", channelHandler.GetChannelByID)
+
+		authenticatedGroup := channelGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales))
+		{
+			authenticatedGroup.POST("", channelHandler.CreateChannel)
+			authenticatedGroup.PUT("/:id", channelHandler.UpdateChannel)
+			authenticatedGroup.DELETE("/:id", channelHandler.DeleteChannel)
 		}
 	}
 }
