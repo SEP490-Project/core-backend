@@ -13,7 +13,7 @@ type UserService interface {
 	// GetUserByID retrieves a user by their ID.
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error)
 	// GetUsers retrieves a paginated list of users with optional filters.
-	GetUsers(ctx context.Context, page, limit int, search, role string, isActive *bool) ([]*responses.UserResponse, int64, error)
+	GetUsers(ctx context.Context, filterRequest *requests.UserFilterRequest) ([]*responses.UserListResponse, int64, error)
 	// UpdateUserStatus updates the active status of a user.
 	UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error
 	// UpdateUserRole updates the role of a user.

@@ -3,6 +3,7 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -14,9 +15,9 @@ type Config struct {
 	ValueType   enum.ConfigValueType `json:"value_type" gorm:"type:varchar(50);column:value_type;not null;check:value_type IN ('STRING', 'NUMBER', 'BOOLEAN', 'JSON')"`
 	Value       string               `json:"value" gorm:"type:text;column:value;not null"`
 	Description *string              `json:"description" gorm:"type:text;column:description"`
-	CreatedAt   int64                `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   int64                `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	UpdatedByID *uuid.UUID           `json:"updated_by" gorm:"type:uuid;column:updated_by"`
+	CreatedAt   time.Time            `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time            `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	UpdatedByID uuid.UUID            `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	DeletedAt   gorm.DeletedAt       `json:"deleted_at" gorm:"column:deleted_at;index"`
 }
 
