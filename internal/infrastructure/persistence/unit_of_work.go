@@ -37,7 +37,7 @@ type unitOfWork struct {
 	//Concept & LimitedProduct
 	limitProductRepository irepository.GenericRepository[model.LimitedProduct]
 	conceptRepository      irepository.GenericRepository[model.Concept]
-	configRepository                irepository.GenericRepository[model.Config]
+	configRepository       irepository.GenericRepository[model.Config]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {

@@ -21,11 +21,11 @@ type DatabaseRegistry struct {
 	MilestoneRepository       irepository.GenericRepository[model.Milestone]
 	TaskRepository            irepository.GenericRepository[model.Task]
 	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
+	AdminConfigRepository     irepository.GenericRepository[model.Config]
 
 	//Limited Product and Concept
 	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
-	ConceptRepository       irepository.GenericRepository[model.Concept]
-	AdminConfigRepository     irepository.GenericRepository[model.Config]
+	ConceptRepository        irepository.GenericRepository[model.Concept]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -43,7 +43,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		TaskRepository:            NewGenericRepository[model.Task](db),
 		ModifiedHistoryRepository: NewGenericRepository[model.ModifiedHistory](db),
 		LimitedProductRepository:  NewGenericRepository[model.LimitedProduct](db),
-		ConceptRepository:        NewGenericRepository[model.Concept](db),
+		ConceptRepository:         NewGenericRepository[model.Concept](db),
 		AdminConfigRepository:     NewGenericRepository[model.Config](db),
 	}
 }
