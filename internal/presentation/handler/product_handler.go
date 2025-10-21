@@ -43,9 +43,9 @@ func NewProductHandler(
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit	query		int																		false	"Number of items per page"	default(10)
-//	@Param			page	query		int																		false	"Number of items to skip"	default(1)
-//	@Param			search	query		string																	false	"Search term for product name"
+//	@Param			limit		query		int																		false	"Number of items per page"	default(10)
+//	@Param			page		query		int																		false	"Number of items to skip"	default(1)
+//	@Param			search		query		string																	false	"Search term for product name"
 //	@Param			category_id	query		string																	false	"Filter category of products"
 //	@Param			type		query		string																	false	"Filter type of products"
 //	@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
@@ -109,13 +109,13 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit	query		int																		false	"Number of items per page"	default(10)
-//	@Param			page	query		int																		false	"Number of items to skip"	default(1)
-//	@Param			search	query		string																	false	"Search term for product name"
-//	@Param			category_id	query		string																	false	"Filter category of products"
-//	@Param			type	query		string																	false	"Filter type of products"
-//	@Success		200		{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//	@Failure		500		{object}	object{error=string}													"Internal server error"
+//	@Param			limit		query		int																			false	"Number of items per page"	default(10)
+//	@Param			page		query		int																			false	"Number of items to skip"	default(1)
+//	@Param			search		query		string																		false	"Search term for product name"
+//	@Param			category_id	query		string																		false	"Filter category of products"
+//	@Param			type		query		string																		false	"Filter type of products"
+//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//	@Failure		500			{object}	object{error=string}														"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/v2 [get]
 func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
@@ -648,19 +648,20 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 }
 
 // AddConceptToLimitedProduct godoc
-// @Summary      Add Concept to Limited Product
-// @Description  Associate an existing concept to a limited product
-// @Tags         Products
-// @Accept       json
-// @Produce      json
-// @Param        limited-id  path      string  true  "Limited Product ID (UUID)"
-// @Param        concept-id  path      string  false  "Concept ID (UUID)"
-// @Success      200   {object}  map[string]interface{}
-// @Failure      400   {object}  object{error=string}
-// @Failure      401   {object}  object{error=string}
-// @Failure      500   {object}  object{error=string}
-// @Security     BearerAuth
-// @Router       /api/v1/products/limited/{limited-id}/concept/{concept-id} [post]
+//
+//	@Summary		Add Concept to Limited Product
+//	@Description	Associate an existing concept to a limited product
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
+//	@Param			concept-id	path		string	false	"Concept ID (UUID)"
+//	@Success		200			{object}	map[string]interface{}
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/limited/{limited-id}/concept/{concept-id} [post]
 func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	limitedIDStr := c.Param("limited-id")
 	limitedID, err := uuid.Parse(limitedIDStr)
