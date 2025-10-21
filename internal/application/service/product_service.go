@@ -27,6 +27,8 @@ type productService struct {
 	categoryRepo       irepository.GenericRepository[model.ProductCategory]
 	conceptRepo        irepository.GenericRepository[model.Concept]
 	limitedProductRepo irepository.GenericRepository[model.LimitedProduct]
+
+	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
 }
 
 func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error) {
@@ -110,7 +112,7 @@ func (p productService) CreateVariantAttribute(ctx context.Context, createdByID 
 
 	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// Create variant attribute
-		variantAttribute = attribute.ToModel(createdByID)
+		variantAttribute = attribute.ToCreationalModel(createdByID)
 		if err := uow.VariantAttributes().Add(ctx, variantAttribute); err != nil {
 			zap.L().Info("failed to persist variant attribute", zap.Error(err))
 			return err
@@ -625,7 +627,6 @@ func (p productService) GetProductsByTask(taskID uuid.UUID, requestingUserID uui
 func (p productService) GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error) {
 	ctx := context.Background()
 
-	// Optionally ensure product exists
 	exists, err := p.repository.ExistsByID(ctx, productID)
 	if err != nil {
 		return nil, 0, err
@@ -634,7 +635,6 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 		return nil, 0, errors.New("product not found")
 	}
 
-	// Convert offset to pageNumber expected by repository (1-based)
 	pageNumber := 1
 	if limit > 0 && offset > 0 {
 		pageNumber = (offset / limit) + 1
@@ -658,16 +658,167 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 	return res, int(total), nil
 }
 
+func (p productService) GetVariantAttributePagination(limit, page int, search string) ([]responses.VariantAttributeResponse, int, error) {
+	ctx := context.Background()
+	pageNum := limit
+	pageSize := page
+	if pageSize <= 0 {
+		pageNum = page
+		pageSize = limit
+	}
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (pageNum - 1) * pageSize
+
+	// --- Tạo filter chính ---
+	filter := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			// VariantAttribute model uses Ingredient column
+			db = db.Where(`ingredient ILIKE ?`, "%"+search+"%")
+		}
+		return db.Order("variant_attributes.created_at DESC").Order("variant_attributes.id")
+	}
+
+	includes := []string{}
+
+	var variantAttributeIDs []uuid.UUID
+	idFilter := filter
+
+	// Query danh sách ID cho trang này
+	err := p.variantAttributeRepo.DB().
+		WithContext(ctx).
+		Model(&model.VariantAttribute{}).
+		Scopes(idFilter).
+		Select("variant_attributes.id").
+		Limit(pageSize).
+		Offset(offset).
+		Pluck("variant_attributes.id", &variantAttributeIDs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(variantAttributeIDs) == 0 {
+		return []responses.VariantAttributeResponse{}, 0, nil
+	}
+
+	// === Bước 2: Lấy total record (không preload) ===
+	// Use variantAttributeRepo for counting
+	// Build count scope without ORDER to avoid DISTINCT+ORDER BY issues
+	countScope := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where(`ingredient ILIKE ?`, "%"+search+"%")
+		}
+		return db
+	}
+	var total int64
+	if err := p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
+		zap.L().Error("Failed to count variant attributes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// === Bước 3: Lấy thực thể kèm quan hệ theo ID ===
+	finalFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("variant_attributes.id IN ?", variantAttributeIDs).Order("variant_attributes.created_at DESC")
+	}
+
+	variantAttributes, _, err := p.variantAttributeRepo.GetAll(ctx, finalFilter, includes, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch products with includes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// === Bước 4: Map sang DTO ===
+	variantAttributeResp := make([]responses.VariantAttributeResponse, 0, len(variantAttributes))
+	for i := range variantAttributes {
+		resp := responses.VariantAttributeResponse{}
+		variantAttributeResp = append(variantAttributeResp, resp.ToVariantAttributeResponse(variantAttributes[i]))
+	}
+
+	zap.L().Info("Successfully retrieved products with pagination",
+		zap.Int("returned_count", len(variantAttributeResp)),
+		zap.Int("total_count", int(total)),
+		zap.String("search_term", search),
+	)
+
+	return variantAttributeResp, int(total), nil
+}
+
+func (p productService) GetVariantAttributePaginationAdmin(limit, page int, search string) ([]model.VariantAttribute, int, error) {
+	ctx := context.Background()
+	pageNum := limit
+	pageSize := page
+	if pageSize <= 0 {
+		pageNum = page
+		pageSize = limit
+	}
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (pageNum - 1) * pageSize
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where(`ingredient ILIKE ?`, "%"+search+"%")
+		}
+		return db.Order("variant_attributes.created_at DESC").Order("variant_attributes.id")
+	}
+
+	includes := []string{}
+
+	var variantAttributeIDs []uuid.UUID
+	// Query IDs for this page
+	err := p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(filter).Select("variant_attributes.id").Limit(pageSize).Offset(offset).Pluck("variant_attributes.id", &variantAttributeIDs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(variantAttributeIDs) == 0 {
+		return []model.VariantAttribute{}, 0, nil
+	}
+
+	// Count
+	countScope := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where(`ingredient ILIKE ?`, "%"+search+"%")
+		}
+		return db
+	}
+	var total int64
+	if err := p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
+		zap.L().Error("Failed to count variant attributes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	finalFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("variant_attributes.id IN ?", variantAttributeIDs).Order("variant_attributes.created_at DESC")
+	}
+
+	variantAttributes, _, err := p.variantAttributeRepo.GetAll(ctx, finalFilter, includes, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch variant attributes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	return variantAttributes, int(total), nil
+}
+
 func NewProductService(
 	dbRegistry *gormrepository.DatabaseRegistry,
 ) iservice.ProductService {
 	return &productService{
-		repository:         dbRegistry.ProductRepository,
-		variantRepo:        dbRegistry.ProductVariantRepository,
-		taskRepo:           dbRegistry.TaskRepository,
-		brandRepo:          dbRegistry.BrandRepository,
-		categoryRepo:       dbRegistry.ProductCategoryRepository,
-		conceptRepo:        dbRegistry.ConceptRepository,
-		limitedProductRepo: dbRegistry.LimitedProductRepository,
+		repository:           dbRegistry.ProductRepository,
+		variantRepo:          dbRegistry.ProductVariantRepository,
+		taskRepo:             dbRegistry.TaskRepository,
+		brandRepo:            dbRegistry.BrandRepository,
+		categoryRepo:         dbRegistry.ProductCategoryRepository,
+		conceptRepo:          dbRegistry.ConceptRepository,
+		limitedProductRepo:   dbRegistry.LimitedProductRepository,
+		variantAttributeRepo: dbRegistry.VariantAttributeRepository,
 	}
 }

@@ -545,7 +545,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 //
 //	@Summary		Create Variant Attribute
 //	@Description	Create a new variant attribute
-//	@Tags			Products
+//	@Tags			Variant-Attributes
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
@@ -703,4 +703,126 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Concept associated successfully", utils.IntPtr(http.StatusOK), res))
+}
+
+// GetVariantAttributePagination godoc
+// @Summary      List Variant Attributes (Public)
+// @Description  Get paginated list of variant attributes (public view). Returns lightweight attribute responses suitable for front-end listing.
+// @Tags         Variant-Attributes
+// @Accept       json
+// @Produce      json
+// @Param        page    query     int     false  "Page number"           default(1)
+// @Param        limit   query     int     false  "Items per page"        default(10)
+// @Param        search  query     string  false  "Search term for name"
+// @Success      200     {object}  responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
+// @Failure      500     {object}  responses.APIResponse
+// @Security     BearerAuth
+// @Router       /api/v1/variant-attributes [get]
+func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := c.DefaultQuery("search", "")
+
+	variantAttributes, total, err := h.productService.GetVariantAttributePagination(page, limit, search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	// --- Response  ---
+	response := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		variantAttributes,
+		pagination,
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetVariantAttributePaginationAdmin godoc
+// @Summary      List Variant Attributes (Admin)
+// @Description  Get paginated list of variant attributes for administrative usage. Returns full model details.
+// @Tags         Variant-Attributes
+// @Accept       json
+// @Produce      json
+// @Param        page    query     int     false  "Page number"           default(1)
+// @Param        limit   query     int     false  "Items per page"        default(10)
+// @Param        search  query     string  false  "Search term for name"
+// @Success      200     {object}  responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
+// @Failure      500     {object}  responses.APIResponse
+// @Security     BearerAuth
+// @Router       /api/v1/variant-attributes/admin [get]
+func (h *ProductHandler) GetVariantAttributePaginationAdmin(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := c.DefaultQuery("search", "")
+
+	variantAttributes, total, err := h.productService.GetVariantAttributePaginationAdmin(page, limit, search)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	// --- Response  ---
+	response := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		variantAttributes,
+		pagination,
+	)
+	c.JSON(http.StatusOK, response)
 }
