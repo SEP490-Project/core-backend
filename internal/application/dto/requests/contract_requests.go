@@ -39,6 +39,7 @@ type CreateContractRequest struct {
 	BrandID                string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
 	BrandBankName          *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
 	BrandBankAccountNumber *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
+	BrandBankAccountHolder *string `json:"brand_bank_account_holder" validate:"omitempty,max=255" example:"ABC Company Ltd."`
 
 	// KOL/Representative information (the other party in the contract)
 	RepresentativeName              string  `json:"representative_name" validate:"required,min=2,max=255" example:"Jane Smith"`
@@ -320,6 +321,7 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		BrandID:                         &brandID,
 		BrandBankName:                   r.BrandBankName,
 		BrandBankAccountNumber:          r.BrandBankAccountNumber,
+		BrandBankAccountHolder:          r.BrandBankAccountHolder,
 		RepresentativeName:              &r.RepresentativeName,
 		RepresentativeRole:              r.RepresentativeRole,
 		RepresentativePhone:             r.RepresentativePhone,
@@ -364,6 +366,7 @@ type UpdateContractRequest struct {
 	BrandID                *string `json:"brand_id" validate:"omitempty,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
 	BrandBankName          *string `json:"brand_bank_name" validate:"omitempty,max=255" example:"Vietcombank"`
 	BrandBankAccountNumber *string `json:"brand_bank_account_number" validate:"omitempty,max=255" example:"0123456789"`
+	BrandBankAccountHolder *string `json:"brand_bank_account_holder" validate:"omitempty,max=255" example:"ABC Company Ltd."`
 
 	// KOL/Representative information
 	RepresentativeName              *string `json:"representative_name" validate:"omitempty,min=2,max=255" example:"Jane Smith"`
