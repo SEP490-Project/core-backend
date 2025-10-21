@@ -728,7 +728,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 
 				case enum.PaymentCycleQuarterly:
 					distributionDateQuarterlyInterface, ok := financialTerms.ProfitDistributionDate.([]any)
-					if !ok || len(distributionDateQuarterlyInterface) != 4 {
+					if !ok {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: for QUARTERLY profit_distribution_cycle, profit_distribbution_date must be an array 4 PaymentDate objects")}
 					}
 					var distributionDateQuarterly []dtos.PaymentDate
@@ -748,13 +748,14 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 					}
 
 					// Convert PaymentDate to time.Time slices with sorting by date
-					paymentQuarterSlices := make([]time.Time, 4)
+					quarterDateLen := len(distributionDateQuarterly)
+					paymentQuarterSlices := make([]time.Time, quarterDateLen)
 					for i, pd := range distributionDateQuarterly {
 						slice := time.Date(int(pd.Year), time.Month(pd.Month), int(pd.Day), 0, 0, 0, 0, time.Local)
 						paymentQuarterSlices[i] = slice
 					}
 					slices.SortFunc(paymentQuarterSlices, func(a, b time.Time) int { return a.Compare(b) })
-					for i := 1; i < len(paymentQuarterSlices); i++ {
+					for i := 1; i < quarterDateLen; i++ {
 						if paymentQuarterSlices[i].Equal(paymentQuarterSlices[i-1]) {
 							errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: payment dates must be unique")}
 						}
@@ -764,7 +765,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 					if paymentQuarterSlices[0].Before(contractStartDate) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the first payment date must be on or after the contract start_date")}
 					}
-					if paymentQuarterSlices[3].After(contractEndDate) {
+					if paymentQuarterSlices[quarterDateLen-1].After(contractEndDate) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
 					}
 
@@ -861,12 +862,13 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 					}
 				case enum.PaymentCycleQuarterly:
 					paymentDateQuarterly, ok := financialTerms.PaymentDate.([]dtos.PaymentDate)
-					if !ok || len(paymentDateQuarterly) != 4 {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: for QUARTERLY payment_cycle, payment_date must be an array 4 PaymentDate objects")}
+					if !ok {
+						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: for QUARTERLY payment_cycle, payment_date must be an array of PaymentDate objects")}
 					}
 
 					// Convert PaymentDate to time.Time slices with sorting by date
-					paymentQuarterSlices := make([]time.Time, 4)
+					quarterDateLen := len(paymentDateQuarterly)
+					paymentQuarterSlices := make([]time.Time, quarterDateLen)
 					for i, pd := range paymentDateQuarterly {
 						slice := time.Date(int(pd.Year), time.Month(pd.Month), int(pd.Day), 0, 0, 0, 0, time.Local)
 						if i == 0 {
