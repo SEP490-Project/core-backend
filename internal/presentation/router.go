@@ -137,6 +137,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
+			productsGroup.GET("/v2", productHandler.GetAllProductsV2)
 			productsGroup.GET("/:id", productHandler.GetProductDetail)
 
 			// Protected (Sales, Brand, Admin)
@@ -145,6 +146,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			{
 				protectedProducts.POST("/standard", productHandler.CreateStandardProduct)
 				protectedProducts.POST("/limited", productHandler.CreateLimitedProduct)
+				protectedProducts.POST("/limited/concept/:id", productHandler.AddConceptToLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
 			}

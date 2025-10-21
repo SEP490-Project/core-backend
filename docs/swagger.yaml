@@ -512,6 +512,9 @@ definitions:
         example: 1
         minimum: 1
         type: integer
+      concept_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
       is_free_shipping:
         example: false
         type: boolean
@@ -1517,6 +1520,42 @@ definitions:
           $ref: '#/definitions/responses.ProductVariantResponse'
         type: array
     type: object
+  responses.ProductResponseV2:
+    properties:
+      brand_id:
+        type: string
+      brand_logo_url:
+        type: string
+      brand_name:
+        description: optional
+        type: string
+      category:
+        $ref: '#/definitions/responses.ProductCategoryResponse'
+      created_at:
+        description: FE parse về Date
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      thumbnail_url:
+        description: optional
+        items:
+          type: string
+        type: array
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      variants:
+        items:
+          $ref: '#/definitions/responses.ProductVariantResponse'
+        type: array
+    type: object
   responses.ProductVariantResponse:
     properties:
       attributes:
@@ -1541,6 +1580,10 @@ definitions:
         type: string
       id:
         type: string
+      images:
+        items:
+          $ref: '#/definitions/responses.VariantImageResponse'
+        type: array
       instructions:
         type: string
       is_default:
@@ -3668,7 +3711,7 @@ paths:
         in: query
         name: limit
         type: integer
-      - default: 0
+      - default: 1
         description: Number of items to skip
         in: query
         name: page
@@ -3899,6 +3942,60 @@ paths:
       summary: Create a limited product
       tags:
       - Products
+  /api/v1/products/limited/{id}/concept:
+    post:
+      consumes:
+      - application/json
+      description: Associate an existing concept to a limited product
+      parameters:
+      - description: Limited Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Concept payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            concept_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add Concept to Limited Product
+      tags:
+      - Products
   /api/v1/products/standard:
     post:
       consumes:
@@ -3942,6 +4039,64 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Product
+      tags:
+      - Products
+  /api/v1/products/v2:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of products with optional search
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Number of items to skip
+        in: query
+        name: page
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      - description: Filter category of products
+        in: query
+        name: category_id
+        type: string
+      - description: Filter type of products
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponseV2'
+                type: array
+              limit:
+                type: integer
+              offset:
+                type: integer
+              total:
+                type: integer
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Products
       tags:
       - Products
   /api/v1/products/variants/{variantId}/images:
