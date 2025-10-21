@@ -231,12 +231,12 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 
 		case enum.PaymentCycleQuarterly:
 			paymentQuarterData, ok := affiliateFinancialTerms.PaymentDate.([]any)
-			if !ok || len(paymentQuarterData) != 4 {
+			if !ok {
 				zap.L().Error("Invalid payment date format for quarterly payment cycle", zap.Any("payment_date", affiliateFinancialTerms.PaymentDate))
 				err = fmt.Errorf("invalid payment date format for quarterly payment cycle")
 				return
 			}
-			paymentQuarter := make([]dtos.PaymentDate, 4)
+			paymentQuarter := make([]dtos.PaymentDate, len(paymentQuarterData))
 			for i, item := range paymentQuarterData {
 				temp, ok := item.(dtos.PaymentDate)
 				if !ok {
@@ -273,9 +273,10 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
 			}
 
-			lastPaymentQuarter := time.Date(int(paymentQuarter[3].Year), time.Month(paymentQuarter[3].Month), int(paymentQuarter[3].Day), 0, 0, 0, 0, time.Local)
+			lastPaymentQuarterItem := paymentQuarter[len(paymentQuarterData)-1]
+			lastPaymentQuarter := time.Date(int(lastPaymentQuarterItem.Year), time.Month(lastPaymentQuarterItem.Month), int(lastPaymentQuarterItem.Day), 0, 0, 0, 0, time.Local)
 			if lastPaymentQuarter.Before(contractEndDate) && !lastPaymentQuarter.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d BEFORE DUE DATE) Final affiliate payment for contract number %s, due date %s",
+				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final affiliate payment for contract number %s, due date %s",
 					minimumDayBeforeDueDate,
 					*contract.ContractNumber,
 					contractEndDate.Format(utils.DateFormat))
@@ -412,12 +413,12 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 
 		case enum.PaymentCycleQuarterly:
 			paymentQuarterData, ok := coProducingFinancialTerms.ProfitDistributionDate.([]any)
-			if !ok || len(paymentQuarterData) != 4 {
+			if !ok {
 				zap.L().Error("Invalid payment date format for quarterly profit distribution cycle", zap.Any("payment_date", coProducingFinancialTerms.ProfitDistributionDate))
 				err = fmt.Errorf("invalid payment date format for quarterly profit distribution cycle")
 				return
 			}
-			paymentQuarter := make([]dtos.PaymentDate, 4)
+			paymentQuarter := make([]dtos.PaymentDate, len(paymentQuarterData))
 			for i, item := range paymentQuarterData {
 				var rawBytes []byte
 				rawBytes, err = json.Marshal(item)
@@ -459,9 +460,10 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
 			}
 
-			lastPaymentQuarter := time.Date(int(paymentQuarter[3].Year), time.Month(paymentQuarter[3].Month), int(paymentQuarter[3].Day), 0, 0, 0, 0, time.Local)
+			lastPaymentQuarterItem := paymentQuarter[len(paymentQuarterData)-1]
+			lastPaymentQuarter := time.Date(int(lastPaymentQuarterItem.Year), time.Month(lastPaymentQuarterItem.Month), int(lastPaymentQuarterItem.Day), 0, 0, 0, 0, time.Local)
 			if lastPaymentQuarter.Before(contractEndDate) && !lastPaymentQuarter.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
+				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
 					minimumDayBeforeDueDate,
 					*contract.ContractNumber,
 					contractEndDate.Format(utils.DateFormat))
@@ -509,7 +511,7 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
 			}
 			if paymentDate.Before(contractEndDate) && !paymentDate.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
+				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
 					minimumDayBeforeDueDate,
 					*contract.ContractNumber,
 					contractEndDate.Format(utils.DateFormat))
