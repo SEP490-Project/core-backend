@@ -30,8 +30,14 @@ type unitOfWork struct {
 	variantImageRepository          irepository.GenericRepository[model.VariantImage]
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
+
+	//ProductCategory
+	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
+
+	//Concept & LimitedProduct
+	limitProductRepository irepository.GenericRepository[model.LimitedProduct]
+	conceptRepository      irepository.GenericRepository[model.Concept]
 	configRepository                irepository.GenericRepository[model.Config]
-	productCategoryRepository       irepository.GenericRepository[model.ProductCategory]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -70,6 +76,10 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.modifiedHistoryRepository = gormrepository.NewGenericRepository[model.ModifiedHistory](u.tx)
 	u.configRepository = gormrepository.NewGenericRepository[model.Config](u.tx)
 	u.productCategoryRepository = gormrepository.NewGenericRepository[model.ProductCategory](u.tx)
+
+	//Concept & LimitProduct
+	u.limitProductRepository = gormrepository.NewGenericRepository[model.LimitedProduct](u.tx)
+	u.conceptRepository = gormrepository.NewGenericRepository[model.Concept](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -187,6 +197,14 @@ func (u *unitOfWork) AdminConfigs() irepository.GenericRepository[model.Config] 
 
 func (u *unitOfWork) ProductCategory() irepository.GenericRepository[model.ProductCategory] {
 	return u.productCategoryRepository
+}
+
+func (u *unitOfWork) Concepts() irepository.GenericRepository[model.Concept] {
+	return u.conceptRepository
+}
+
+func (u *unitOfWork) LimitedProducts() irepository.GenericRepository[model.LimitedProduct] {
+	return u.limitProductRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {
