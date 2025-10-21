@@ -5,7 +5,6 @@ import (
 	"core-backend/config"
 	"fmt"
 	"net/http"
-	"runtime/debug"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,13 +40,12 @@ func NewTimeoutMiddleware() gin.HandlerFunc {
 				zap.Any("panic_value", p),
 				zap.String("path", c.Request.URL.Path),
 				zap.String("method", c.Request.Method),
-				zap.ByteString("stack", debug.Stack()),
 			)
 
 			if !c.Writer.Written() {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"code":    500,
-					"message": "Internal Server Error",
+					"message": fmt.Sprintf("Internal server error: Panic occured \n%s", p),
 					"data":    nil,
 				})
 			}
