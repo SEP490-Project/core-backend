@@ -24,52 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/admin/config": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieve all config values",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Config"
-                ],
-                "summary": "Get all config values",
-                "responses": {
-                    "200": {
-                        "description": "Config values retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.AdminConfigListResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with credentials",
@@ -1704,6 +1658,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/configs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all config values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get all config values",
+                "responses": {
+                    "200": {
+                        "description": "Config values retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.AdminConfigListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contract_payments/contract/{contract_id}": {
             "post": {
                 "security": [
@@ -3195,8 +3195,7 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Concept ID (UUID)",
                         "name": "concept-id",
-                        "in": "path",
-                        "required": true
+                        "in": "path"
                     }
                 ],
                 "responses": {
@@ -3920,6 +3919,20 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "default": "created_at",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "asc",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Search term for username or email",
                         "name": "search",
                         "in": "query"
@@ -3934,6 +3947,12 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "Filter by active status",
                         "name": "is_active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by brand account status",
+                        "name": "is_brand_account",
                         "in": "query"
                     }
                 ],
@@ -5517,6 +5536,11 @@ const docTemplate = `{
         "requests.UpdateContractRequest": {
             "type": "object",
             "properties": {
+                "brand_bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "ABC Company Ltd."
+                },
                 "brand_bank_account_number": {
                     "type": "string",
                     "maxLength": 255,
@@ -5673,8 +5697,13 @@ const docTemplate = `{
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
                 "date_of_birth": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1990-01-01"
                 },
                 "full_name": {
                     "type": "string",
@@ -5751,7 +5780,67 @@ const docTemplate = `{
             }
         },
         "responses.AdminConfigListResponse": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AdminConfigResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.AdminConfigResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2006-01-02 15:04:05"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "The name of the site"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "key": {
+                    "type": "string",
+                    "example": "site_name"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2006-01-02 15:04:05"
+                },
+                "updated_by": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "My Awesome Site"
+                },
+                "value_type": {
+                    "type": "string",
+                    "example": "STRING"
+                }
+            }
         },
         "responses.BrandDetailResponse": {
             "type": "object",
@@ -5885,6 +5974,10 @@ const docTemplate = `{
                 "address": {
                     "type": "string",
                     "example": "123 Main St, Springfield"
+                },
+                "bank_account_holder": {
+                    "type": "string",
+                    "example": "Acme Corp"
                 },
                 "bank_account_number": {
                     "type": "string",
@@ -6889,13 +6982,62 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.UserListResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "is_brand_account": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "number_of_sessions": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "role": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.UserRole"
+                        }
+                    ],
+                    "example": "user"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "john_doe"
+                }
+            }
+        },
         "responses.UserPaginationResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.UserResponse"
+                        "$ref": "#/definitions/responses.UserListResponse"
                     }
                 },
                 "message": {
@@ -6918,6 +7060,10 @@ const docTemplate = `{
         "responses.UserResponse": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2023-01-01T00:00:00Z"
@@ -6951,6 +7097,10 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean",
                     "example": true
+                },
+                "is_brand_account": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "last_login": {
                     "type": "string",
