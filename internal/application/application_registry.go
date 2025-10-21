@@ -25,6 +25,7 @@ type ApplicationRegistry struct {
 	ProductCategoryService iservice.ProductCategoryService
 	AdminConfigService     iservice.AdminConfigService
 	ContractPaymentService iservice.ContractPaymentService
+	ConceptService         iservice.ConceptService
 }
 
 func NewApplicationRegistry(
@@ -49,5 +50,6 @@ func NewApplicationRegistry(
 		ProductCategoryService: service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:     service.NewAdminConfigService(databaseRegistry.AdminConfigRepository),
 		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
+		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
 	}
 }

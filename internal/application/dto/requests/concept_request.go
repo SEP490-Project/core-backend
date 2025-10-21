@@ -30,7 +30,6 @@ func (d *ConceptRequest) ToModel() *model.Concept {
 		VideoThumbnail: d.VideoThumbnail,
 	}
 }
-
 func parseNullableTime(date *string) *time.Time {
 	if date == nil {
 		return nil

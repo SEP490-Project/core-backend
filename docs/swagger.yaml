@@ -233,6 +233,40 @@ definitions:
     type: object
   requests.BulkVariantRequest:
     type: object
+  requests.ConceptRequest:
+    properties:
+      banner_url:
+        example: https://example.com/banner.jpg
+        type: string
+      description:
+        example: Concept description
+        maxLength: 1000
+        type: string
+      end_date:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+      name:
+        example: Concept Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      start_date:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - INACTIVE
+        example: DRAFT
+        type: string
+      video_thumbnail:
+        example: https://example.com/thumbnail.jpg
+        type: string
+    required:
+    - name
+    - status
+    type: object
   requests.CreateBrandRequest:
     properties:
       address:
@@ -1759,6 +1793,15 @@ definitions:
         example: john_doe
         type: string
     type: object
+  responses.VariantAttributeResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      ingredient:
+        type: string
+    type: object
   responses.VariantImageResponse:
     properties:
       alt_text:
@@ -2852,6 +2895,102 @@ paths:
       summary: Assign parent category
       tags:
       - Categories
+  /api/v1/concepts:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of concepts (and their products flattened)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get Concepts
+      tags:
+      - Concepts
+    post:
+      consumes:
+      - application/json
+      description: Create a new concept
+      parameters:
+      - description: Concept payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ConceptRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Concept
+      tags:
+      - Concepts
+  /api/v1/concepts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a concept by ID
+      parameters:
+      - description: Concept ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Concept
+      tags:
+      - Concepts
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:
@@ -3956,7 +4095,6 @@ paths:
       - description: Concept ID (UUID)
         in: path
         name: concept-id
-        required: true
         type: string
       produces:
       - application/json
@@ -4599,6 +4737,51 @@ paths:
       tags:
       - Users
   /api/v1/variant-attributes:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of variant attributes (public view). Returns
+        lightweight attribute responses suitable for front-end listing.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.VariantAttributeResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Variant Attributes (Public)
+      tags:
+      - Variant-Attributes
     post:
       consumes:
       - application/json
@@ -4642,7 +4825,53 @@ paths:
       - BearerAuth: []
       summary: Create Variant Attribute
       tags:
-      - Products
+      - Variant-Attributes
+  /api/v1/variant-attributes/admin:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of variant attributes for administrative usage.
+        Returns full model details.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.VariantAttributeResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Variant Attributes (Admin)
+      tags:
+      - Variant-Attributes
   /health:
     get:
       consumes:

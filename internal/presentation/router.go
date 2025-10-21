@@ -125,9 +125,22 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
-		r.SetupContractPaymentRoutes(v1)
-		r.SetupModifiedHistoryRouter(v1)
-		r.SetupAdminConfigRouter(v1)
+
+		// ---------- CONCEPTS ----------
+		conceptHandler := r.handlerRegistry.ConceptHandler
+		conceptsGroup := v1.Group("/concepts")
+		{
+			// Public list
+			conceptsGroup.GET("", conceptHandler.GetConcepts)
+
+			// Protected (marketing, admin)
+			protected := conceptsGroup.Group("")
+			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+			{
+				protected.POST("", conceptHandler.CreateConcept)
+				protected.DELETE("/:id", conceptHandler.DeleteConcept)
+			}
+		}
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -163,6 +176,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		v1.POST("/variant-attributes",
 			r.middlewareRegistry.Auth.RequireRole(sales, admin),
 			productHandler.CreateVariantAttribute,
+		)
+		// Public listing for variant attributes
+		v1.GET("/variant-attributes", productHandler.GetVariantAttributePagination)
+		// Admin listing for variant attributes (protected)
+		v1.GET("/variant-attributes/admin",
+			r.middlewareRegistry.Auth.RequireRole(sales, admin),
+			productHandler.GetVariantAttributePaginationAdmin,
 		)
 
 		// ---------- CATEGORIES ----------

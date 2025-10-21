@@ -12,7 +12,7 @@ type CreateVariantAttributeRequest struct {
 	Description *string `json:"description" validate:"omitempty"`
 }
 
-func (va *CreateVariantAttributeRequest) ToModel(createdByID uuid.UUID) *model.VariantAttribute {
+func (va *CreateVariantAttributeRequest) ToCreationalModel(createdByID uuid.UUID) *model.VariantAttribute {
 	now := time.Now().UTC()
 
 	return &model.VariantAttribute{
