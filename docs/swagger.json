@@ -2822,7 +2822,7 @@
                     },
                     {
                         "type": "integer",
-                        "default": 0,
+                        "default": 1,
                         "description": "Number of items to skip",
                         "name": "page",
                         "in": "query"
@@ -2951,6 +2951,91 @@
                 }
             }
         },
+        "/api/v1/products/limited/{id}/concept": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Associate an existing concept to a limited product",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Add Concept to Limited Product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Limited Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concept payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "concept_id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products/standard": {
             "post": {
                 "security": [
@@ -3011,6 +3096,96 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/v2": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of products with optional search",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get All Products",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Number of items to skip",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term for product name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter category of products",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter type of products",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Products retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductResponseV2"
+                                    }
+                                },
+                                "limit": {
+                                    "type": "integer"
+                                },
+                                "offset": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -4873,6 +5048,10 @@
                     "minimum": 1,
                     "example": 1
                 },
+                "concept_id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
                 "is_free_shipping": {
                     "type": "boolean",
                     "example": false
@@ -6204,6 +6383,59 @@
                 }
             }
         },
+        "responses.ProductResponseV2": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_logo_url": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "description": "optional",
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/responses.ProductCategoryResponse"
+                },
+                "created_at": {
+                    "description": "FE parse về Date",
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "thumbnail_url": {
+                    "description": "optional",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ProductVariantResponse"
+                    }
+                }
+            }
+        },
         "responses.ProductVariantResponse": {
             "type": "object",
             "properties": {
@@ -6240,13 +6472,19 @@
                 "id": {
                     "type": "string"
                 },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.VariantImageResponse"
+                    }
+                },
                 "instructions": {
                     "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
                 },
-                "manufactring_date": {
+                "manufacturing_date": {
                     "type": "string"
                 },
                 "name": {

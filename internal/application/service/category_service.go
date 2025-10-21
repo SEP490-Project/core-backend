@@ -19,33 +19,84 @@ type productCategoryService struct {
 	categoryRepository irepository.GenericRepository[model.ProductCategory]
 }
 
-func (c productCategoryService) GetAllCategories(limit, offset int, search string, deleted string) ([]*responses.ProductCategoryResponse, int64, error) {
-	ctx := context.Background()
+func (c productCategoryService) GetAllCategories(
+	page, limit int,
+	search string,
+	deleted string,
+) ([]*responses.ProductCategoryResponse, int64, error) {
 
+	ctx := context.Background()
+	offset := (page - 1) * limit
+
+	// === 1. Build filter cơ bản ===
 	filter := func(db *gorm.DB) *gorm.DB {
 		if search != "" {
-			return db.Where("name ILIKE ?", "%"+search+"%")
+			db = db.Where("name ILIKE ?", "%"+search+"%")
 		}
 
 		if deleted == "true" {
-			db.Unscoped().Where("deleted_at IS NOT NULL")
+			db = db.Unscoped().Where("deleted_at IS NOT NULL")
 		} else if deleted == "false" {
-			db.Where("deleted_at IS NULL")
+			db = db.Where("deleted_at IS NULL")
 		}
-		return db.Order("product_categories.Created_at DESC")
+
+		// ⚠ Không order ở đây — để tránh lỗi DISTINCT + ORDER BY
+		return db
 	}
 
-	includes := []string{"ParentCategory", "ChildCategories"}
-	categories, total, err := c.categoryRepository.GetAll(ctx, filter, includes, limit, offset)
+	includes := []string{
+		"ParentCategory",
+		"ChildCategories",
+	}
 
+	// === 2. Lấy danh sách ID của page ===
+	var ids []uuid.UUID
+	err := c.categoryRepository.DB().
+		WithContext(ctx).
+		Model(&model.ProductCategory{}).
+		Scopes(filter).
+		Distinct("product_categories.id").
+		Select("product_categories.id").
+		Limit(limit).
+		Offset(offset).
+		Pluck("product_categories.id", &ids).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
+	if len(ids) == 0 {
+		return []*responses.ProductCategoryResponse{}, 0, nil
+	}
+
+	// === 3. Đếm total ===
+	var total int64
+	err = c.categoryRepository.DB().
+		WithContext(ctx).
+		Model(&model.ProductCategory{}).
+		Scopes(filter).
+		Distinct("product_categories.id").
+		Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// === 4. Lấy data kèm preload ===
+	finalFilter := func(db *gorm.DB) *gorm.DB {
+		return db.
+			Where("product_categories.id IN ?", ids).
+			Order("product_categories.created_at DESC")
+	}
+
+	categories, _, err := c.categoryRepository.GetAll(ctx, finalFilter, includes, 0, 0)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// === 5. Map sang DTO ===
 	categoryResponses := make([]*responses.ProductCategoryResponse, 0, len(categories))
-	for _, category := range categories {
-		categoryResponse := (&responses.ProductCategoryResponse{}).ToModelResponse(&category)
-		categoryResponses = append(categoryResponses, categoryResponse)
+	for _, cat := range categories {
+		categoryResponses = append(categoryResponses,
+			(&responses.ProductCategoryResponse{}).ToModelResponse(&cat))
 	}
 
 	return categoryResponses, total, nil
@@ -62,11 +113,10 @@ func (c productCategoryService) CreateCategory(request requests.CreateProductCat
 			zap.L().Debug("Parent Category Not Found", zap.Error(err))
 			return nil, errors.New("parent Category Not Found")
 		}
-	}
-
-	isParent, _ := c.isParentCategory(categoryModel.ParentCategoryID)
-	if !isParent {
-		return nil, errors.New("this category is a child of another, cannot set as parent category")
+		isParent, _ := c.isParentCategory(categoryModel.ParentCategoryID)
+		if !isParent {
+			return nil, errors.New("this category is a child of another, cannot set as parent category")
+		}
 	}
 
 	if err := c.categoryRepository.Add(ctx, categoryModel); err != nil {
@@ -88,17 +138,42 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 	} else if found == nil {
 		return nil, errors.New("category not found")
 	}
+
+	if parentID == currentID {
+		return nil, errors.New("cannot set category as its own parent")
+	}
+
 	//check parent category existence
 	if parentID == uuid.Nil {
 		found.ParentCategoryID = nil
 		found.ParentCategory = nil //build response
 	} else {
+		// First try to get the parent in the normal (non-unscoped) way
 		parentFound, err := c.categoryRepository.GetByID(ctx, parentID, []string{})
 		if err != nil {
+			// If not found, check if it exists but was soft-deleted and give a clearer message
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				var tmp model.ProductCategory
+				// Use Unscoped to check soft-deleted records
+				if unErr := c.categoryRepository.DB().Unscoped().Where("id = ?", parentID).First(&tmp).Error; unErr == nil {
+					zap.L().Debug("Parent category exists but is soft-deleted", zap.String("parent_id", parentID.String()))
+					return nil, errors.New("parent category is deleted")
+				}
+				zap.L().Debug("Parent Category Not Found by ID", zap.String("parent_id", parentID.String()))
+				return nil, errors.New("parent category not found")
+			}
+			zap.L().Error("failed to query parent category", zap.Error(err))
 			return nil, err
-		} else if parentFound == nil {
-			return nil, errors.New("parent category not found")
-		} else if parentFound.ParentCategoryID != nil {
+		}
+
+		// If retrieved, check soft-delete flag for clearer message
+		//if parentFound.DeletedAt.Valid {
+		//	zap.L().Debug("Parent category is soft-deleted", zap.String("parent_id", parentID.String()))
+		//	return nil, errors.New("parent category is deleted")
+		//}
+
+		// Prevent assigning a child as a parent
+		if parentFound.ParentCategoryID != nil {
 			return nil, errors.New("this category is a child of another, cannot set as parent category")
 		}
 
@@ -122,6 +197,15 @@ func (c productCategoryService) DeleteCategory(ctx context.Context, categoryID u
 		//check category existence
 		found, err := c.categoryRepository.GetByID(ctx, categoryID, []string{"ParentCategory", "ChildCategories"})
 		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				var tmp model.ProductCategory
+				// Use Unscoped to check soft-deleted records
+				if unErr := c.categoryRepository.DB().Unscoped().Where("id = ?", categoryID).First(&tmp).Error; unErr == nil {
+					return errors.New("category is deleted")
+				}
+				zap.L().Debug("Parent Category Not Found by ID", zap.String("parent_id", categoryID.String()))
+				return errors.New("parent category not found")
+			}
 			return err
 		} else if found == nil {
 			return errors.New("category not found")

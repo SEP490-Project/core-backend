@@ -10,7 +10,7 @@ import (
 
 // Concept represents a marketing/product concept persisted in DB (table: concepts)
 type Concept struct {
-	Id             uuid.UUID          `json:"id" gorm:"type:uuid;column:id;primaryKey;default:gen_random_uuid()"`
+	ID             uuid.UUID          `json:"id" gorm:"type:uuid;column:id;primaryKey;default:gen_random_uuid()"`
 	Name           string             `json:"name" gorm:"column:name;not null"`
 	Description    *string            `json:"description" gorm:"column:description"`
 	Status         enum.ConceptStatus `json:"status" gorm:"column:status;type:concept_status;not null;default:'DRAFT'"`

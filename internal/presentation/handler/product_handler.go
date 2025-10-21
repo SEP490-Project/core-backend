@@ -44,7 +44,7 @@ func NewProductHandler(
 //	@Accept			json
 //	@Produce		json
 //	@Param			limit	query		int																		false	"Number of items per page"	default(10)
-//	@Param			page	query		int																		false	"Number of items to skip"	default(0)
+//	@Param			page	query		int																		false	"Number of items to skip"	default(1)
 //	@Param			search	query		string																	false	"Search term for product name"
 //	@Param			category_id	query		string																	false	"Filter category of products"
 //	@Param			type	query		string																	false	"Filter type of products"
@@ -78,7 +78,72 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 		return
 	}
 
-	// --- Tính toán phân trang ---
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	// --- Response  ---
+	response := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		products,
+		pagination,
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetAllProductsV2 godoc
+//
+//	@Summary		Get All Products
+//	@Description	Get paginated list of products with optional search
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit	query		int																		false	"Number of items per page"	default(10)
+//	@Param			page	query		int																		false	"Number of items to skip"	default(1)
+//	@Param			search	query		string																	false	"Search term for product name"
+//	@Param			category_id	query		string																	false	"Filter category of products"
+//	@Param			type	query		string																	false	"Filter type of products"
+//	@Success		200		{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//	@Failure		500		{object}	object{error=string}													"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/v2 [get]
+func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := c.DefaultQuery("search", "")
+	category := c.DefaultQuery("category_id", "")
+	prdType := c.DefaultQuery("type", "")
+
+	products, total, err := h.productService.GetProductsPaginationV2(page, limit, search, category, prdType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	totalPages := int(total) / limit
 	if total%limit != 0 {
 		totalPages++
@@ -326,7 +391,8 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	if err := h.validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
@@ -578,4 +644,73 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, responses.SuccessResponse("Fetched successful", utils.IntPtr(http.StatusOK), resp))
 
+}
+
+// AddConceptToLimitedProduct godoc
+// @Summary      Add Concept to Limited Product
+// @Description  Associate an existing concept to a limited product
+// @Tags         Products
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string  true  "Limited Product ID (UUID)"
+// @Param        body  body      object{concept_id=string}  true  "Concept payload"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /api/v1/products/limited/{id}/concept [post]
+func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
+	limitedIDStr := c.Param("id")
+	limitedID, err := uuid.Parse(limitedIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid limited product id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	var payload struct {
+		ConceptID string `json:"concept_id" validate:"required,uuid"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err := h.validator.Struct(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	conceptID, err := uuid.Parse(payload.ConceptID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid concept id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			_ = uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	res, err := h.productService.AddConceptToLimitedProduct(ctx, limitedID, conceptID, uow)
+	if err != nil {
+		_ = uow.Rollback()
+		// If service returned not found-like errors, map to 400/404 accordingly
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("commit error: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Concept associated successfully", utils.IntPtr(http.StatusOK), res))
 }

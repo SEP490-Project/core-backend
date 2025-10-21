@@ -34,5 +34,10 @@ type UnitOfWork interface {
 	// Product Category
 	ProductCategory() GenericRepository[model.ProductCategory]
 
+	//Concepts
+	Concepts() GenericRepository[model.Concept]
+	LimitedProducts() GenericRepository[model.LimitedProduct]
+
+	// DB Get raw gorm instance
 	DB() *gorm.DB
 }

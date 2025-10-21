@@ -40,7 +40,7 @@ import (
 type BulkVariantRequest struct {
 	CreateProductVariantRequest
 	Story      *CreateProductStoryRequest           `json:"story" validate:"omitempty" example:"{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"content\":{\"description\":\"This is a sample story\"}}"`
-	Attributes []CreateVariantAttributeValueRequest `json:"attributes" example:"[{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"attribute_id\":\"550e8400-e29b-41d4-a716-446655440001\",\"value\":10.5,\"unit\":\"MG\"}]"`
+	Attributes []CreateVariantAttributeValueRequest `json:"attributes" validate:"dive" example:"[{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"attribute_id\":\"550e8400-e29b-41d4-a716-446655440001\",\"value\":10.5,\"unit\":\"MG\"}]"`
 	//Images []CreateVariantImagesRequest
 }
 

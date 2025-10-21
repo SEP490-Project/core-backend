@@ -3,6 +3,7 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -61,15 +62,31 @@ type CreateLimitedProductRequest struct {
 }
 
 type LimitedProductAttributes struct {
-	MaxStock              int     `json:"max_stock" validate:"required,min=0" example:"100"`
-	IsFreeShipping        bool    `json:"is_free_shipping" example:"false"`
-	BoughtLimit           int     `json:"bought_limit" validate:"required,min=1" example:"1"`
-	PremiereDate          *string `json:"premiere_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
-	AvailabilityStartDate *string `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
-	AvailabilityEndDate   *string `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-31T10:00:00Z"`
+	MaxStock              int        `json:"max_stock" validate:"required,min=0" example:"100"`
+	IsFreeShipping        bool       `json:"is_free_shipping" example:"false"`
+	BoughtLimit           int        `json:"bought_limit" validate:"required,min=1" example:"1"`
+	PremiereDate          *string    `json:"premiere_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
+	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
+	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-31T10:00:00Z"`
+	ConceptID             *uuid.UUID `json:"concept_id" validate:"omitempty,uuid" example:"770e8400-e29b-41d4-a716-446655440000"`
 }
 
-func (d *CreateLimitedProductRequest) ToLimitedModel(createdBy uuid.UUID) *model.Product {
+func (l *LimitedProductAttributes) ToLimitedProductModel() *model.LimitedProduct {
+	if l == nil {
+		return nil
+	}
+	return &model.LimitedProduct{
+		MaxStock:              l.MaxStock,
+		IsFreeShipping:        l.IsFreeShipping,
+		BoughtLimit:           l.BoughtLimit,
+		PremiereDate:          parseTime(l.PremiereDate),
+		AvailabilityStartDate: parseTime(l.AvailabilityStartDate),
+		AvailabilityEndDate:   parseTime(l.AvailabilityEndDate),
+		ConceptID:             l.ConceptID,
+	}
+}
+
+func (d *CreateLimitedProductRequest) ToProductWithLimitedModel(createdBy uuid.UUID) *model.Product {
 	if d == nil {
 		return nil
 	}
@@ -82,5 +99,17 @@ func (d *CreateLimitedProductRequest) ToLimitedModel(createdBy uuid.UUID) *model
 		Price:       d.Price,
 		Type:        enum.ProductTypeLimited,
 		CreatedByID: createdBy,
+		Limited:     d.LimitedAttribute.ToLimitedProductModel(),
 	}
+}
+
+func parseTime(date *string) time.Time {
+	if date == nil {
+		return time.Time{}
+	}
+	parsedTime, err := time.Parse(time.RFC3339, *date)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsedTime
 }
