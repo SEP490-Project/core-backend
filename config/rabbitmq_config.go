@@ -90,14 +90,14 @@ func loadRabbitMQConfig(configPath string) error {
 	if err := rabbitViper.ReadInConfig(); err != nil {
 		// If file doesn't exist, that's okay - return nil (optional config)
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			return fmt.Errorf("rabbitmq-config.yaml not found (this is optional)")
+			return fmt.Errorf("rabbitmq_config.yaml not found (this is optional)")
 		}
-		return fmt.Errorf("error reading rabbitmq-config.yaml: %w", err)
+		return fmt.Errorf("error reading rabbitmq_config.yaml: %w", err)
 	}
 
 	var rabbitMQConfig RabbitMQConfig
 	if err := rabbitViper.Unmarshal(&rabbitMQConfig); err != nil {
-		return fmt.Errorf("unable to decode rabbitmq-config.yaml into struct: %w", err)
+		return fmt.Errorf("unable to decode rabbitmq_config.yaml into struct: %w", err)
 	}
 
 	applyRabbitMQConfigDefaults(&rabbitMQConfig)
