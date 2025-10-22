@@ -129,6 +129,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
 		r.SetupChannelRoutes(v1)
+		r.SetupContentRoutes(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -322,6 +323,12 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
 	}
 
+	suggestGroup := campaigns.Group("")
+	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+	{
+		suggestGroup.POST("/suggest", campaignHandler.SuggestCampaign)
+	}
+
 	viewGroup := campaigns.Group("")
 	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
 	{
@@ -387,6 +394,46 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 			authenticatedGroup.PUT("/:id", channelHandler.UpdateChannel)
 			authenticatedGroup.DELETE("/:id", channelHandler.DeleteChannel)
 		}
+	}
+}
+
+// SetupContentRoutes sets up routes for content management
+func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
+	contentHandler := r.handlerRegistry.ContentHandler
+	contentGroup := group.Group("/contents").Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		contentGroup.POST("", contentHandler.Create)
+		contentGroup.GET("", contentHandler.List)
+		contentGroup.GET("/:id", contentHandler.GetByID)
+		contentGroup.PUT("/:id", contentHandler.Update)
+		contentGroup.DELETE("/:id", contentHandler.Delete)
+		contentGroup.POST("/:id/submit", contentHandler.Submit)
+	}
+
+	// Approval routes - restricted to admin, sales staff, and marketing staff
+	approvalGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, sales, marketing))
+	{
+		approvalGroup.POST("/:id/approve", contentHandler.Approve)
+		approvalGroup.POST("/:id/reject", contentHandler.Reject)
+	}
+
+	// Publish routes - restricted to admin and content staff
+	publishGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	{
+		publishGroup.POST("/:id/publish", contentHandler.Publish)
+	}
+
+	// Blog routes - restricted to admin and content staff
+	blogHandler := r.handlerRegistry.BlogHandler
+	blogGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	{
+		blogGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
 	}
 }
 

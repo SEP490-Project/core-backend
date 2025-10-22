@@ -42,4 +42,7 @@ type CampaignService interface {
 
 	// DeleteCampaign deletes the campaign with the provided ID.
 	DeleteCampaign(ctx context.Context, id uuid.UUID) error
+
+	// SuggestCampaignFromContract generates campaign suggestions based on contract deliverables.
+	SuggestCampaignFromContract(ctx context.Context, contractID uuid.UUID) (*responses.CampaignSuggestionResponse, error)
 }
