@@ -68,7 +68,7 @@ func (c *TaskContext) IsAllContentsPosted() bool {
 	}
 
 	for _, ct := range c.Contents {
-		if ct.ContentStatus != enum.ContentStatusPosted {
+		if ct.Status != enum.ContentStatusPosted {
 			return false
 		}
 	}

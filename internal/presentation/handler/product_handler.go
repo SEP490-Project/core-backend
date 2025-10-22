@@ -707,18 +707,19 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 }
 
 // GetVariantAttributePagination godoc
-// @Summary      List Variant Attributes (Public)
-// @Description  Get paginated list of variant attributes (public view). Returns lightweight attribute responses suitable for front-end listing.
-// @Tags         Variant-Attributes
-// @Accept       json
-// @Produce      json
-// @Param        page    query     int     false  "Page number"           default(1)
-// @Param        limit   query     int     false  "Items per page"        default(10)
-// @Param        search  query     string  false  "Search term for name"
-// @Success      200     {object}  responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
-// @Failure      500     {object}  responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/variant-attributes [get]
+//
+//	@Summary		List Variant Attributes (Public)
+//	@Description	Get paginated list of variant attributes (public view). Returns lightweight attribute responses suitable for front-end listing.
+//	@Tags			Variant-Attributes
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number"		default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search term for name"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/variant-attributes [get]
 func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -768,18 +769,19 @@ func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 }
 
 // GetVariantAttributePaginationAdmin godoc
-// @Summary      List Variant Attributes (Admin)
-// @Description  Get paginated list of variant attributes for administrative usage. Returns full model details.
-// @Tags         Variant-Attributes
-// @Accept       json
-// @Produce      json
-// @Param        page    query     int     false  "Page number"           default(1)
-// @Param        limit   query     int     false  "Items per page"        default(10)
-// @Param        search  query     string  false  "Search term for name"
-// @Success      200     {object}  responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
-// @Failure      500     {object}  responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/variant-attributes/admin [get]
+//
+//	@Summary		List Variant Attributes (Admin)
+//	@Description	Get paginated list of variant attributes for administrative usage. Returns full model details.
+//	@Tags			Variant-Attributes
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number"		default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search term for name"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/variant-attributes/admin [get]
 func (h *ProductHandler) GetVariantAttributePaginationAdmin(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
