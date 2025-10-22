@@ -27,6 +27,11 @@ type DatabaseRegistry struct {
 	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
 	ConceptRepository        irepository.GenericRepository[model.Concept]
 	AdminConfigRepository    irepository.GenericRepository[model.Config]
+
+	//Orders & Payment
+	OrderRepository              irepository.GenericRepository[model.Order]
+	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
+	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
