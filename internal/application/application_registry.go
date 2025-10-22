@@ -27,11 +27,8 @@ type ApplicationRegistry struct {
 	ProductCategoryService iservice.ProductCategoryService
 	AdminConfigService     iservice.AdminConfigService
 	ContractPaymentService iservice.ContractPaymentService
-<<<<<<< HEAD
 	ConceptService         iservice.ConceptService
-=======
 	ChannelService         iservice.ChannelService
->>>>>>> 9846261 (feat(channel): Create API implementation for channel)
 }
 
 func NewApplicationRegistry(
