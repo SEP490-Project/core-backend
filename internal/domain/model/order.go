@@ -20,8 +20,9 @@ type Order struct {
 	DeletedAt   gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
-	User    User            `json:"-" gorm:"foreignKey:UserID"`
-	Address ShippingAddress `json:"-" gorm:"foreignKey:AddressID"`
+	User       User            `json:"-" gorm:"foreignKey:UserID"`
+	Address    ShippingAddress `json:"-" gorm:"foreignKey:AddressID"`
+	OrderItems []OrderItem     `json:"order_items" gorm:"foreignKey:OrderID"` //
 }
 
 func (Order) TableName() string { return "orders" }
