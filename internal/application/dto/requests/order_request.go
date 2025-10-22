@@ -15,14 +15,15 @@ type OrderRequest struct {
 	Items     []OrderItemRequest `json:"items" validate:"required,dive,required"`
 }
 
-func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, now time.Time) model.Order {
+func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, now time.Time) *model.Order {
+
 	//Calc total amount:
 	var totalAmount float64 = 0
 	for _, item := range orderItems {
 		totalAmount += item.Subtotal
 	}
 
-	return model.Order{
+	return &model.Order{
 		UserID:      userID,
 		Status:      enum.OrderStatusPending,
 		TotalAmount: totalAmount,
@@ -40,7 +41,7 @@ type OrderItemRequest struct {
 	//Subtotal  int    `json:"subtotal" validate:"required,min=1"`
 
 	//Copy of ProductVariant fields
-	ProductVariantID string `json:"product_variant_id" validate:"required,uuid4"`
+	ProductVariantID uuid.UUID `json:"product_variant_id" validate:"required,uuid4"`
 
 	//UnitPrice             float64          `json:"unit_price" validate:"required,min=1"`
 	//Capacity              *float64         `json:"capacity" validate:"omitempty"`
@@ -59,8 +60,8 @@ type OrderItemRequest struct {
 }
 
 // ToModel converts OrderItemRequest to OrderItem model. The purpose of "now" parameter is to set CreatedAt and UpdatedAt fields sync with Order.
-func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Time) model.OrderItem {
-	return model.OrderItem{
+func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Time) *model.OrderItem {
+	return &model.OrderItem{
 		VariantID:             prdVariant.ID,
 		Quantity:              oi.Quantity,
 		Subtotal:              float64(oi.Quantity) * prdVariant.Price,
