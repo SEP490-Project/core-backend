@@ -15,6 +15,9 @@ type Channel struct {
 	CreatedAt   time.Time  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt   *time.Time `json:"deleted_at" gorm:"column:deleted_at;index"`
+
+	// Relationships
+	ContentChannels []ContentChannel `json:"-" gorm:"foreignKey:ChannelID"`
 }
 
 func (Channel) TableName() string { return "channels" }

@@ -25,17 +25,18 @@ func NewConceptHandler(conceptService iservice.ConceptService) *ConceptHandler {
 }
 
 // GetConcepts godoc
-// @Summary Get Concepts
-// @Description Get paginated list of concepts (and their products flattened)
-// @Tags Concepts
-// @Accept json
-// @Produce json
-// @Param page query int false "Page number" default(1)
-// @Param limit query int false "Items per page" default(10)
-// @Param search query string false "Search term"
-// @Success 200 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Router /api/v1/concepts [get]
+//
+//	@Summary		Get Concepts
+//	@Description	Get paginated list of concepts (and their products flattened)
+//	@Tags			Concepts
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number"		default(1)
+//	@Param			limit	query		int		false	"Items per page"	default(10)
+//	@Param			search	query		string	false	"Search term"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Router			/api/v1/concepts [get]
 func (h *ConceptHandler) GetConcepts(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -79,17 +80,18 @@ func (h *ConceptHandler) GetConcepts(c *gin.Context) {
 }
 
 // CreateConcept godoc
-// @Summary Create Concept
-// @Description Create a new concept
-// @Tags Concepts
-// @Accept json
-// @Produce json
-// @Param data body requests.ConceptRequest true "Concept payload"
-// @Success 201 {object} responses.APIResponse
-// @Failure 400 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/concepts [post]
+//
+//	@Summary		Create Concept
+//	@Description	Create a new concept
+//	@Tags			Concepts
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.ConceptRequest	true	"Concept payload"
+//	@Success		201		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/concepts [post]
 func (h *ConceptHandler) CreateConcept(c *gin.Context) {
 	var req requests.ConceptRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,17 +112,18 @@ func (h *ConceptHandler) CreateConcept(c *gin.Context) {
 }
 
 // DeleteConcept godoc
-// @Summary Delete Concept
-// @Description Delete a concept by ID
-// @Tags Concepts
-// @Accept json
-// @Produce json
-// @Param id path string true "Concept ID"
-// @Success 204 {string} string ""
-// @Failure 400 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/concepts/{id} [delete]
+//
+//	@Summary		Delete Concept
+//	@Description	Delete a concept by ID
+//	@Tags			Concepts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Concept ID"
+//	@Success		204	{string}	string	""
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/concepts/{id} [delete]
 func (h *ConceptHandler) DeleteConcept(c *gin.Context) {
 	idStr := c.Param("id")
 	if idStr == "" {

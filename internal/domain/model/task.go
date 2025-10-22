@@ -9,8 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-//new : TaskStatus, Product[], Content[]
-
 type Task struct {
 	ID           uuid.UUID       `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	MilestoneID  uuid.UUID       `json:"milestone_id" gorm:"type:uuid;column:milestone_id;not null"`
