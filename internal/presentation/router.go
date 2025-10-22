@@ -347,9 +347,17 @@ func (r *Router) SetupModifiedHistoryRouter(group *gin.RouterGroup) {
 // SetupAdminConfigRouter sets up routes for admin configuration management
 func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
-	configGroup := group.Group("configs").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	configGroup := group.Group("configs")
 	{
-		configGroup.GET("", adminConfigHandler.GetAllConfigValues)
+		writeGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			writeGroup.GET("", adminConfigHandler.GetAllConfigValues)
+		}
+
+		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
+		{
+			readGroup.GET("/representative", adminConfigHandler.GetRepresentativeConfigs)
+		}
 	}
 }
 

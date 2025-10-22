@@ -2,6 +2,7 @@
 package application
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
@@ -10,6 +11,7 @@ import (
 )
 
 type ApplicationRegistry struct {
+	configs                *config.AppConfig
 	DatabaseRegistry       *gormrepository.DatabaseRegistry
 	InfrastructureRegistry *infrastructure.InfrastructureRegistry
 	JWTService             iservice.JWTService
@@ -33,12 +35,14 @@ type ApplicationRegistry struct {
 }
 
 func NewApplicationRegistry(
+	configs *config.AppConfig,
 	databaseRegistry *gormrepository.DatabaseRegistry,
 	infrastructureRegistry *infrastructure.InfrastructureRegistry,
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService()
 
 	return &ApplicationRegistry{
+		configs:                configs,
 		DatabaseRegistry:       databaseRegistry,
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
@@ -52,7 +56,7 @@ func NewApplicationRegistry(
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService: service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
-		AdminConfigService:     service.NewAdminConfigService(databaseRegistry.AdminConfigRepository),
+		AdminConfigService:     service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
 		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
 		ChannelService:         service.NewChannelService(databaseRegistry.ChannelRepository),
