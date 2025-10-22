@@ -30,6 +30,8 @@ type unitOfWork struct {
 	variantImageRepository          irepository.GenericRepository[model.VariantImage]
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
+	channelRepository               irepository.GenericRepository[model.Channel]
+	contentRepository               irepository.GenericRepository[model.Content]
 
 	//ProductCategory
 	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
@@ -67,6 +69,9 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
 	u.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
 	u.taskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
+	u.channelRepository = gormrepository.NewGenericRepository[model.Channel](u.tx)
+	u.contentRepository = gormrepository.NewGenericRepository[model.Content](u.tx)
+
 	//Product flow
 	u.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](u.tx)
 	u.productVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](u.tx)
@@ -205,6 +210,14 @@ func (u *unitOfWork) Concepts() irepository.GenericRepository[model.Concept] {
 
 func (u *unitOfWork) LimitedProducts() irepository.GenericRepository[model.LimitedProduct] {
 	return u.limitProductRepository
+}
+
+func (u *unitOfWork) Channels() irepository.GenericRepository[model.Channel] {
+	return u.channelRepository
+}
+
+func (u *unitOfWork) Contents() irepository.GenericRepository[model.Content] {
+	return u.contentRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

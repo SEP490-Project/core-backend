@@ -23,6 +23,9 @@ type UnitOfWork interface {
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
 	Tasks() GenericRepository[model.Task]
+	Channels() GenericRepository[model.Channel]
+	Contents() GenericRepository[model.Content]
+
 	//Product flow
 	ProductStory() GenericRepository[model.ProductStory]
 	ProductVariant() GenericRepository[model.ProductVariant]

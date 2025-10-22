@@ -395,6 +395,27 @@ definitions:
     - start_date
     - type
     type: object
+  requests.CreateChannelRequest:
+    properties:
+      description:
+        example: This is a social media channel.
+        maxLength: 100
+        minLength: 3
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
   requests.CreateContractRequest:
     type: object
   requests.CreateLimitedProductRequest:
@@ -752,6 +773,25 @@ definitions:
       website:
         example: https://www.acme.com
         maxLength: 255
+        type: string
+    type: object
+  requests.UpdateChannelRequest:
+    properties:
+      description:
+        example: This is a social media channel.
+        maxLength: 100
+        minLength: 3
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        maxLength: 100
+        minLength: 3
         type: string
     type: object
   requests.UpdateContractRequest:
@@ -1255,6 +1295,47 @@ definitions:
         type: integer
       status:
         example: NOT_STARTED
+        type: string
+    type: object
+  responses.ChannelListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ChannelResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ChannelResponse:
+    properties:
+      created_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      description:
+        example: This is a social media channel.
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        type: string
+      updated_at:
+        example: "2023-01-01T00:00:00Z"
         type: string
     type: object
   responses.ContractListResponse:
@@ -1780,6 +1861,9 @@ definitions:
     type: object
   responses.UserListResponse:
     properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
@@ -2959,6 +3043,177 @@ paths:
       summary: Assign parent category
       tags:
       - Categories
+  /api/v1/channels:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all channels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channels retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ChannelListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get all channels
+      tags:
+      - Channels
+    post:
+      consumes:
+      - application/json
+      description: Create a new channel
+      parameters:
+      - description: Channel to create
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Channel created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to create channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a channel
+      tags:
+      - Channels
+  /api/v1/channels/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a channel by its ID
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid channel ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to delete channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a channel
+      tags:
+      - Channels
+    get:
+      consumes:
+      - application/json
+      description: Get channel by ID
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid channel ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get channel by ID
+      tags:
+      - Channels
+    put:
+      consumes:
+      - application/json
+      description: Update an existing channel
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Channel to update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to update channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a channel
+      tags:
+      - Channels
   /api/v1/configs:
     get:
       consumes:
@@ -2986,6 +3241,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all config values
+      tags:
+      - Admin Config
+  /api/v1/configs/representative:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve representative config values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Representative config values retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get representative config values
       tags:
       - Admin Config
   /api/v1/contract_payments/contract/{contract_id}:
