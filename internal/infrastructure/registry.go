@@ -3,6 +3,7 @@ package infrastructure
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
@@ -18,6 +19,7 @@ import (
 )
 
 type InfrastructureRegistry struct {
+	Config            *config.AppConfig
 	DB                *gorm.DB
 	ThirdPartyStorage *third_party_repository.ThirdPartyStorageRegistry
 	UnitOfWork        irepository.UnitOfWork
@@ -26,10 +28,16 @@ type InfrastructureRegistry struct {
 	PayOsService      iservice_third_party.PayOSService
 }
 
-func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket, s3StreamBucket *persistence.S3StreamingBucket) *InfrastructureRegistry {
+func NewInfrastructureRegistry(
+	config *config.AppConfig,
+	db *gorm.DB,
+	s3Bucket *persistence.S3Bucket,
+	s3StreamBucket *persistence.S3StreamingBucket,
+) *InfrastructureRegistry {
 	zap.L().Info("Initializing infrastructure registry")
 
 	registry := &InfrastructureRegistry{
+		Config:     config,
 		DB:         db,
 		UnitOfWork: persistence.NewUnitOfWork(db),
 	}
@@ -62,6 +70,13 @@ func NewInfrastructureRegistry(db *gorm.DB, s3Bucket *persistence.S3Bucket, s3St
 	//Initialize PAYOS Service
 	zap.L().Debug("Initializing PayOS...")
 	registry.PayOsService = service.NewPayOsService(gormrepository.NewGenericRepository[model.PaymentTransaction](db))
+
+	// Override AdminConfig from Database
+	zap.L().Debug("Overriding AdminConfig from database")
+	err := registry.OverrideAdminConfig()
+	if err != nil {
+		zap.L().Error("Failed to override admin config", zap.Error(err))
+	}
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
@@ -101,6 +116,24 @@ func (r *InfrastructureRegistry) RegisterRabbitMQConsumers(
 		}
 	}()
 
+	return nil
+}
+
+// OverrideAdminConfig overrides the AdminConfig with values from the database
+func (r *InfrastructureRegistry) OverrideAdminConfig() error {
+	var adminConfig []model.Config
+	query := r.DB.Model(&model.Config{}).Find(&adminConfig)
+	if err := query.Error; err != nil {
+		zap.L().Error("Failed to load admin config from database", zap.Error(err))
+		return err
+	}
+	zap.L().Info("Loaded admin config from database", zap.Int("config_count", len(adminConfig)),
+		zap.Any("configs", r.Config.AdminConfig))
+	err := r.Config.AdminConfig.Override(adminConfig)
+	if err != nil {
+		zap.L().Error("Failed to override admin config from database", zap.Error(err))
+		return err
+	}
 	return nil
 }
 
