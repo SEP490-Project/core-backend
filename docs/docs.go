@@ -1980,6 +1980,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/configs/representative": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve representative config values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get representative config values",
+                "responses": {
+                    "200": {
+                        "description": "Representative config values retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contract_payments/contract/{contract_id}": {
             "post": {
                 "security": [
@@ -5530,6 +5576,10 @@ const docTemplate = `{
                     "minLength": 3,
                     "example": "This is a social media channel."
                 },
+                "home_page_url": {
+                    "type": "string",
+                    "example": "https://www.facebook.com"
+                },
                 "is_active": {
                     "type": "boolean",
                     "example": true
@@ -6032,6 +6082,10 @@ const docTemplate = `{
                     "maxLength": 100,
                     "minLength": 3,
                     "example": "This is a social media channel."
+                },
+                "home_page_url": {
+                    "type": "string",
+                    "example": "https://www.facebook.com"
                 },
                 "is_active": {
                     "type": "boolean",
@@ -6772,6 +6826,10 @@ const docTemplate = `{
                 "description": {
                     "type": "string",
                     "example": "This is a social media channel."
+                },
+                "home_page_url": {
+                    "type": "string",
+                    "example": "https://www.facebook.com"
                 },
                 "id": {
                     "type": "string",

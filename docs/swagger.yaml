@@ -402,6 +402,9 @@ definitions:
         maxLength: 100
         minLength: 3
         type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
       is_active:
         example: true
         type: boolean
@@ -778,6 +781,9 @@ definitions:
         example: This is a social media channel.
         maxLength: 100
         minLength: 3
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
         type: string
       is_active:
         example: true
@@ -1315,6 +1321,9 @@ definitions:
         type: string
       description:
         example: This is a social media channel.
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
         type: string
       id:
         example: 123e4567-e89b-12d3-a456-426614174000
@@ -3232,6 +3241,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Get all config values
+      tags:
+      - Admin Config
+  /api/v1/configs/representative:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve representative config values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Representative config values retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get representative config values
       tags:
       - Admin Config
   /api/v1/contract_payments/contract/{contract_id}:
