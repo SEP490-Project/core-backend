@@ -67,7 +67,7 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 		return
 	}
 
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
 	if err := h.contractPaymentService.CreateContractPaymentsFromContract(c.Request.Context(), userID, contractID, uow); err != nil {
 		uow.Rollback()

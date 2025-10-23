@@ -50,7 +50,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		ConceptHandler:         NewConceptHandler(applicationReg.ConceptService),
 		OrderHandler:           NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ChannelHandler:         NewChannelHandler(applicationReg.ChannelService, applicationReg.InfrastructureRegistry.UnitOfWork),
-		ContentHandler:         NewContentHandler(applicationReg.ContentService),
+		ContentHandler:         NewContentHandler(applicationReg.ContentService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		BlogHandler:            NewBlogHandler(applicationReg.BlogService),
 	}
 }

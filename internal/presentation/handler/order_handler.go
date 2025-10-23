@@ -59,7 +59,7 @@ func (h *OrderHandler) PlaceOrder(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		// ensure transaction ended if still open
 		if uow.InTransaction() {
@@ -180,7 +180,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if uow.InTransaction() {
 			_ = uow.Rollback()

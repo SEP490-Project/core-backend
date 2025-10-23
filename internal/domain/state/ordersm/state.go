@@ -17,15 +17,15 @@ func NewOrderState(status enum.OrderStatus) OrderState {
 	case enum.OrderStatusPending:
 		return &PendingState{}
 	case enum.OrderStatusPaid:
-		return &Pai{}
+		return &PaidState{}
 	case enum.OrderStatusConfirmed:
-		return &ShippedState{}
+		return &ConfirmedState{}
 	case enum.OrderStatusShipped:
-		return &DeliveredState{}
+		return &ShippedState{}
 	case enum.OrderStatusInTransit:
-		return &CancelledState{}
+		return &InTransitState{}
 	case enum.OrderStatusDelivered:
-		return &CompletedState{}
+		return &DeliveredState{}
 	case enum.OrderStatusReceived:
 		return nil
 	default:

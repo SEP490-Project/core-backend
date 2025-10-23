@@ -100,13 +100,18 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	uow := h.unitOfWork.Begin(c.Request.Context())
+
 	var updatedUser *responses.UserResponse
-	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, h.unitOfWork)
+	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, uow)
 	if err != nil {
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
 		return
 	}
+
+	uow.Commit()
 
 	response := responses.SuccessResponse("Profile updated successfully", nil, updatedUser)
 	c.JSON(http.StatusOK, response)
@@ -282,17 +287,17 @@ func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
-	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, h.unitOfWork)
+	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, uow)
 	if err != nil {
-		h.unitOfWork.Rollback()
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to activate brand user: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	h.unitOfWork.Commit()
+	uow.Commit()
 	response := responses.SuccessResponse("Brand user activated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }

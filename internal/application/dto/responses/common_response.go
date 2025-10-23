@@ -81,6 +81,7 @@ func ErrorResponse(message string, statusCode int) *APIResponse {
 func ValidationErrorResponse(errorCode int, message string, errors ...ValidationErrorDetail) *APIValidationErrorResponse {
 	return &APIValidationErrorResponse{
 		Success:    false,
+		Message:    message,
 		Status:     http.StatusText(errorCode),
 		StatusCode: errorCode,
 		Errors:     errors,

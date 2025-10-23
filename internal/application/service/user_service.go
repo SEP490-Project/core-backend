@@ -36,8 +36,8 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 
 	filters := func(db *gorm.DB) *gorm.DB {
 		return db.Joins("inner join brands on brands.user_id = users.id").
-			Where("users.id = ? AND users.role = ? AND users.is_active = ? AND brands.status = ?",
-				userID, enum.UserRoleBrandPartner, false, enum.BrandStatusInactive,
+			Where("users.id = ? AND users.role = ? AND users.is_active = ?",
+				userID, enum.UserRoleBrandPartner, false,
 			)
 	}
 	brandUsers, err := userRepo.GetByCondition(ctx, filters, []string{"Brand"})
@@ -65,8 +65,14 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 	}
 	brandUsers.PasswordHash = string(hashedPassword)
 	brandUsers.IsActive = true
-	brandUsers.Brand.Status = enum.BrandStatusActive
+	if brandUsers.Brand.Status == enum.BrandStatusActive {
+		zap.L().Info("Brand is already active during user activation, skipped brand status update",
+			zap.String("user_id", userID.String()),
+			zap.String("brand_id", brandUsers.Brand.ID.String()))
+		return nil
+	}
 
+	brandUsers.Brand.Status = enum.BrandStatusActive
 	if err := userRepo.Update(ctx, brandUsers); err != nil {
 		zap.L().Error("Failed to activate brand user",
 			zap.String("user_id", userID.String()),

@@ -334,12 +334,6 @@ definitions:
       updated_by:
         type: string
     type: object
-  requests.ApproveContentRequest:
-    properties:
-      message:
-        maxLength: 500
-        type: string
-    type: object
   requests.BlogFieldsDTO:
     properties:
       author_id:
@@ -357,13 +351,6 @@ definitions:
     - author_id
     type: object
   requests.BulkVariantRequest:
-    type: object
-  requests.CampaignSuggestionRequest:
-    properties:
-      contract_id:
-        type: string
-    required:
-    - contract_id
     type: object
   requests.ConceptRequest:
     properties:
@@ -830,11 +817,6 @@ definitions:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
     type: object
-  requests.PublishContentRequest:
-    properties:
-      publish_date:
-        type: string
-    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -842,14 +824,6 @@ definitions:
         type: string
     required:
     - refresh_token
-    type: object
-  requests.RejectContentRequest:
-    properties:
-      feedback:
-        maxLength: 1000
-        type: string
-    required:
-    - feedback
     type: object
   requests.SignUpRequest:
     properties:
@@ -874,12 +848,6 @@ definitions:
     - email
     - password
     - username
-    type: object
-  requests.SubmitContentRequest:
-    properties:
-      message:
-        maxLength: 500
-        type: string
     type: object
   requests.UpdateAddressProfileRequest:
     properties:
@@ -2994,6 +2962,60 @@ paths:
       summary: Create Campaign from Contract
       tags:
       - Campaigns
+  /api/v1/campaigns/{campaign_id}/suggest:
+    get:
+      consumes:
+      - application/json
+      description: Generate campaign suggestions based on contract deliverables. Only
+        ACTIVE contracts can be used for suggestions.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: campaign_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign suggestion generated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignSuggestionResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Requires ADMIN or SALES_STAFF role
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract is not ACTIVE or has no deliverables
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest Campaign from Contract
+      tags:
+      - Campaigns
   /api/v1/campaigns/brand/{brand_id}:
     get:
       consumes:
@@ -3259,60 +3281,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Campaign Details by ID
-      tags:
-      - Campaigns
-  /api/v1/campaigns/suggest:
-    post:
-      consumes:
-      - application/json
-      description: Generate campaign suggestions based on contract deliverables. Only
-        ACTIVE contracts can be used for suggestions.
-      parameters:
-      - description: Campaign suggestion request
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CampaignSuggestionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign suggestion generated successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.CampaignSuggestionResponse'
-              type: object
-        "400":
-          description: Invalid request or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - Requires ADMIN or SALES_STAFF role
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Contract is not ACTIVE or has no deliverables
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Suggest Campaign from Contract
       tags:
       - Campaigns
   /api/v1/categories:
@@ -3802,16 +3770,30 @@ paths:
       description: Retrieves paginated content with optional filters, search, and
         sorting
       parameters:
-      - default: 1
-        description: 'Page number (default: 1)'
+      - description: 'Page number (default: 1)'
         in: query
         name: page
         type: integer
-      - default: 10
-        description: 'Items per page (default: 10, max: 100)'
+      - description: 'Items per page (default: 10, max: 100)'
         in: query
         name: limit
         type: integer
+      - description: Sort by field
+        enum:
+        - created_at
+        - updated_at
+        - publish_date
+        - title
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
       - description: Filter by status
         enum:
         - DRAFT
@@ -3849,16 +3831,6 @@ paths:
       - description: Filter to date (YYYY-MM-DD)
         in: query
         name: to_date
-        type: string
-      - default: created_at_desc
-        description: Sort order
-        enum:
-        - created_at_asc
-        - created_at_desc
-        - updated_at_desc
-        - title_asc
-        in: query
-        name: sort
         type: string
       produces:
       - application/json
@@ -4052,22 +4024,16 @@ paths:
       tags:
       - Content
   /api/v1/contents/{id}/approve:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Approves content that is awaiting review
+      description: Transitions content from AWAIT_STAFF/AWAIT_BRAND to APPROVED
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Approval request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.ApproveContentRequest'
       produces:
       - application/json
       responses:
@@ -4078,26 +4044,19 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - insufficient permissions
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
@@ -4156,76 +4115,22 @@ paths:
       tags:
       - Blog
   /api/v1/contents/{id}/publish:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Publishes approved content to POSTED status with optional publish
+      description: Transitions content from APPROVED to POSTED with optional publish
         date
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Publish request with optional publish_date
+      - description: Optional publish date
         in: body
-        name: request
+        name: body
         schema:
-          $ref: '#/definitions/requests.PublishContentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Content published successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ContentResponse'
-              type: object
-        "400":
-          description: Invalid request or content not approved
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Insufficient permissions
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Content not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Publish approved content
-      tags:
-      - Content
-  /api/v1/contents/{id}/reject:
-    post:
-      consumes:
-      - application/json
-      description: Rejects content that is awaiting review with feedback
-      parameters:
-      - description: Content ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Rejection request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.RejectContentRequest'
+          type: object
       produces:
       - application/json
       responses:
@@ -4236,26 +4141,67 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - insufficient permissions
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Publish content
+      tags:
+      - Content
+  /api/v1/contents/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Transitions content from AWAIT_STAFF/AWAIT_BRAND to REJECTED with
+        feedback
+      parameters:
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rejection reason
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
@@ -4264,22 +4210,17 @@ paths:
       tags:
       - Content
   /api/v1/contents/{id}/submit:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Submits content for staff or brand approval based on selected channels
+      description: Transitions content from DRAFT/REJECTED to AWAIT_STAFF or AWAIT_BRAND
+        based on channels
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Submit request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.SubmitContentRequest'
       produces:
       - application/json
       responses:
@@ -4290,22 +4231,19 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:

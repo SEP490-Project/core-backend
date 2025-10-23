@@ -51,7 +51,7 @@ func NewApplicationRegistry(
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
-		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
+		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
 		ContractService:        service.NewContractService(databaseRegistry),
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),

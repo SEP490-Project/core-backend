@@ -67,7 +67,7 @@ func (h *CampaignHandler) CreateCampaignFromContract(c *gin.Context) {
 		return
 	}
 
-	uow := h.uow.Begin()
+	uow := h.uow.Begin(c.Request.Context())
 	var campaignResponse *responses.CampaignDetailsResponse
 	campaignResponse, err = h.campaignService.CreateCampaignFromContract(c.Request.Context(), userID, request, uow)
 	if err != nil {
@@ -416,34 +416,26 @@ func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 //	@Tags			Campaigns
 //	@Accept			json
 //	@Produce		json
-//	@Param			data	body		requests.CampaignSuggestionRequest									true	"Campaign suggestion request"
-//	@Success		200		{object}	responses.APIResponse{data=responses.CampaignSuggestionResponse}	"Campaign suggestion generated successfully"
-//	@Failure		400		{object}	responses.APIResponse												"Invalid request or validation error"
-//	@Failure		401		{object}	responses.APIResponse												"Unauthorized"
-//	@Failure		403		{object}	responses.APIResponse												"Forbidden - Requires ADMIN or SALES_STAFF role"
-//	@Failure		404		{object}	responses.APIResponse												"Contract not found"
-//	@Failure		409		{object}	responses.APIResponse												"Contract is not ACTIVE or has no deliverables"
-//	@Failure		500		{object}	responses.APIResponse												"Internal server error"
+//	@Param			campaign_id	path		string																true	"Campaign ID"	format(uuid)
+//	@Success		200			{object}	responses.APIResponse{data=responses.CampaignSuggestionResponse}	"Campaign suggestion generated successfully"
+//	@Failure		400			{object}	responses.APIResponse												"Invalid request or validation error"
+//	@Failure		401			{object}	responses.APIResponse												"Unauthorized"
+//	@Failure		403			{object}	responses.APIResponse												"Forbidden - Requires ADMIN or SALES_STAFF role"
+//	@Failure		404			{object}	responses.APIResponse												"Contract not found"
+//	@Failure		409			{object}	responses.APIResponse												"Contract is not ACTIVE or has no deliverables"
+//	@Failure		500			{object}	responses.APIResponse												"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/campaigns/suggest [post]
+//	@Router			/api/v1/campaigns/{campaign_id}/suggest [get]
 func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
-	var req requests.CampaignSuggestionRequest
-
-	// Bind and validate request
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
-		return
-	}
-
-	if err := h.validartor.Struct(&req); err != nil {
-		response := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+	campaignID, err := extractParamID(c, "campaign_id")
+	if err != nil {
+		response := responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
 	// Call service to generate campaign suggestion
-	suggestion, err := h.campaignService.SuggestCampaignFromContract(c.Request.Context(), req.ContractID)
+	suggestion, err := h.campaignService.SuggestCampaignFromContract(c.Request.Context(), campaignID)
 	if err != nil {
 		// Determine appropriate status code based on error message
 		statusCode := http.StatusInternalServerError

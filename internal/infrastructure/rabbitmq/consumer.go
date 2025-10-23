@@ -204,12 +204,31 @@ func (c *Consumer) worker(ctx context.Context, workerID int, deliveries <-chan a
 func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp.Delivery, workerID int) {
 	startTime := time.Now()
 
-	zap.L().Debug("Processing message",
+	zap.L().Info("Processing message",
 		zap.String("consumer", c.name),
 		zap.Int("worker_id", workerID),
 		zap.String("message_id", delivery.MessageId),
 		zap.Uint64("delivery_tag", delivery.DeliveryTag),
 		zap.Int("message_size", len(delivery.Body)))
+
+	zap.L().Debug("Message details",
+		zap.String("consumer", c.name),
+		zap.Int("worker_id", workerID),
+		zap.Uint64("delivery_tag", delivery.DeliveryTag),
+		zap.Any("headers", delivery.Headers),
+		zap.Any("body", delivery.Body),
+	)
+
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Panic recovered while processing message",
+				zap.String("consumer", c.name),
+				zap.Int("worker_id", workerID),
+				zap.Uint64("delivery_tag", delivery.DeliveryTag),
+				zap.Any("panic", r))
+			c.handleError(delivery, fmt.Errorf("panic: %v", r), workerID, time.Since(startTime))
+		}
+	}()
 
 	// Call the message handler
 	err := c.handler.Handle(ctx, delivery.Body)

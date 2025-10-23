@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
@@ -303,7 +304,7 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	}
 
 	// Validate contract status - only ACTIVE contracts can be used for suggestions
-	if contract.Status != "ACTIVE" {
+	if contract.Status != enum.ContractStatusActive {
 		zap.L().Warn("Contract is not active", zap.String("contract_id", contractID.String()), zap.String("status", string(contract.Status)))
 		return nil, errors.New("only ACTIVE contracts can be used for campaign suggestions")
 	}
@@ -315,8 +316,8 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	}
 
 	// Parse scope of work
-	var scopeOfWork map[string]interface{}
-	if err := json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+	var scopeOfWork map[string]any
+	if err = json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
 		zap.L().Error("Failed to parse scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return nil, errors.New("invalid scope of work format")
 	}
@@ -358,35 +359,35 @@ func (c *CampaignService) SuggestCampaignFromContract(
 
 // extractAdvertisingTasks extracts tasks from ADVERTISING contract deliverables
 func (c *CampaignService) extractAdvertisingTasks(
-	scopeOfWork map[string]interface{},
+	scopeOfWork map[string]any,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	deliverables, ok := scopeOfWork["deliverables"].([]any)
 	if !ok || len(deliverables) == 0 {
 		return nil, errors.New("no deliverables found in scope of work")
 	}
 
 	var tasks []responses.SuggestedTask
 	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]interface{})
+		deliverable, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
 
 		// Extract advertised_items array
-		advertisedItems, ok := deliverable["advertised_items"].([]interface{})
+		advertisedItems, ok := deliverable["advertised_items"].([]any)
 		if !ok || len(advertisedItems) == 0 {
 			continue
 		}
 
 		for _, adItem := range advertisedItems {
-			adItemMap, ok := adItem.(map[string]interface{})
+			adItemMap, ok := adItem.(map[string]any)
 			if !ok {
 				continue
 			}
 
 			taskName := fmt.Sprintf("Advertise %s", adItemMap["name"])
-			taskDesc := map[string]interface{}{
+			taskDesc := map[string]any{
 				"item_name":        adItemMap["name"],
 				"item_description": adItemMap["description"],
 				"quantity":         adItemMap["quantity"],
@@ -423,7 +424,7 @@ func (c *CampaignService) extractAdvertisingTasks(
 
 // extractAffiliateTasks extracts tasks from AFFILIATE contract deliverables
 func (c *CampaignService) extractAffiliateTasks(
-	scopeOfWork map[string]interface{},
+	scopeOfWork map[string]any,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
 	// Affiliate contracts extend advertising with tracking links
@@ -433,9 +434,9 @@ func (c *CampaignService) extractAffiliateTasks(
 	}
 
 	// Add tracking link information to each task
-	deliverables, _ := scopeOfWork["deliverables"].([]interface{})
+	deliverables, _ := scopeOfWork["deliverables"].([]any)
 	for i, item := range deliverables {
-		deliverable, ok := item.(map[string]interface{})
+		deliverable, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -446,7 +447,7 @@ func (c *CampaignService) extractAffiliateTasks(
 		if i < len(suggestedCampaign.Milestones[0].Tasks) {
 			task := &suggestedCampaign.Milestones[0].Tasks[i]
 			if task.DescriptionJSON == nil {
-				task.DescriptionJSON = make(map[string]interface{})
+				task.DescriptionJSON = make(map[string]any)
 			}
 			task.DescriptionJSON["tracking_link"] = trackingLink
 			task.DescriptionJSON["affiliate_platform"] = platform
@@ -464,29 +465,29 @@ func (c *CampaignService) extractAffiliateTasks(
 
 // extractBrandAmbassadorTasks extracts tasks from BRAND_AMBASSADOR contract deliverables
 func (c *CampaignService) extractBrandAmbassadorTasks(
-	scopeOfWork map[string]interface{},
+	scopeOfWork map[string]any,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	deliverables, ok := scopeOfWork["deliverables"].([]any)
 	if !ok || len(deliverables) == 0 {
 		return nil, errors.New("no deliverables found in scope of work")
 	}
 
 	var tasks []responses.SuggestedTask
 	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]interface{})
+		deliverable, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
 
 		// Extract events array
-		events, ok := deliverable["events"].([]interface{})
+		events, ok := deliverable["events"].([]any)
 		if !ok || len(events) == 0 {
 			continue
 		}
 
 		for _, evt := range events {
-			eventMap, ok := evt.(map[string]interface{})
+			eventMap, ok := evt.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -494,7 +495,7 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 			eventName, _ := eventMap["name"].(string)
 			taskName := fmt.Sprintf("Represent Brand at %s", eventName)
 
-			taskDesc := map[string]interface{}{
+			taskDesc := map[string]any{
 				"event_name":    eventMap["name"],
 				"event_date":    eventMap["date"],
 				"location":      eventMap["location"],
@@ -533,10 +534,10 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 
 // extractCoProducingStructure extracts milestones and tasks from CO_PRODUCING contract deliverables
 func (c *CampaignService) extractCoProducingStructure(
-	scopeOfWork map[string]interface{},
+	scopeOfWork map[string]any,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	deliverables, ok := scopeOfWork["deliverables"].([]any)
 	if !ok || len(deliverables) == 0 {
 		return nil, errors.New("no deliverables found in scope of work")
 	}
@@ -545,18 +546,18 @@ func (c *CampaignService) extractCoProducingStructure(
 
 	// Each product becomes a milestone
 	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]interface{})
+		deliverable, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		products, ok := deliverable["products"].([]interface{})
+		products, ok := deliverable["products"].([]any)
 		if !ok || len(products) == 0 {
 			continue
 		}
 
 		for _, prod := range products {
-			productMap, ok := prod.(map[string]interface{})
+			productMap, ok := prod.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -567,10 +568,10 @@ func (c *CampaignService) extractCoProducingStructure(
 			var tasks []responses.SuggestedTask
 
 			// Each concept within a product becomes a task
-			concepts, ok := productMap["concepts"].([]interface{})
+			concepts, ok := productMap["concepts"].([]any)
 			if ok && len(concepts) > 0 {
 				for _, concept := range concepts {
-					conceptMap, ok := concept.(map[string]interface{})
+					conceptMap, ok := concept.(map[string]any)
 					if !ok {
 						continue
 					}
@@ -578,7 +579,7 @@ func (c *CampaignService) extractCoProducingStructure(
 					conceptName, _ := conceptMap["name"].(string)
 					taskName := fmt.Sprintf("Develop Concept: %s", conceptName)
 
-					taskDesc := map[string]interface{}{
+					taskDesc := map[string]any{
 						"product_name":        productName,
 						"concept_name":        conceptName,
 						"concept_description": conceptMap["description"],
