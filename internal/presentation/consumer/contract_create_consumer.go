@@ -32,6 +32,13 @@ func NewContractCreateConsumer(appRegistry *application.ApplicationRegistry) *Co
 
 // Handle processes contract creation messages
 func (c *ContractCreateConsumer) Handle(ctx context.Context, body []byte) error {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Recovered from panic in ContractCreateConsumer.Handle",
+				zap.Any("panic", r))
+		}
+	}()
+
 	zap.L().Info("Received contract creation message",
 		zap.Int("message_size", len(body)))
 
@@ -48,7 +55,7 @@ func (c *ContractCreateConsumer) Handle(ctx context.Context, body []byte) error 
 		zap.String("user_id", msg.UserID.String()))
 
 	success := true
-	uow := c.unitOfWork.Begin()
+	uow := c.unitOfWork.Begin(ctx)
 
 	history, err := c.appRegistry.ModifiedHistoryService.AddWithUOW(ctx, &requests.CreateModifiedHistoryRequest{
 		ReferenceType: enum.ModifiedTypeContract.String(),
@@ -64,7 +71,7 @@ func (c *ContractCreateConsumer) Handle(ctx context.Context, body []byte) error 
 
 	// Create contract using ContractService
 	var contract *responses.ContractResponse
-	contract, err = c.appRegistry.ContractService.CreateContract(ctx, msg.UserID, &msg.Contract, c.unitOfWork)
+	contract, err = c.appRegistry.ContractService.CreateContract(ctx, msg.UserID, &msg.Contract, uow)
 	if err != nil {
 		success = false
 		zap.L().Error("Failed to create contract", zap.Error(err))

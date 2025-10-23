@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -33,21 +34,21 @@ func extractUserID(c *gin.Context) (userID uuid.UUID, err error) {
 }
 
 // extractUserReoles utility extracts and validate the user roles from the Gin context.
-func extractUserRoles(c *gin.Context) (userRoles *string, err error) {
+func extractUserRoles(c *gin.Context) (*string, error) {
 	rolesData, exists := c.Get("roles")
 	if !exists {
 		return nil, errors.New("user roles not found in context")
 	}
 	var ok bool
-	userRoles, ok = rolesData.(*string)
+	userRoles, ok := rolesData.(string)
 	if !ok {
 		return nil, errors.New("invalid user roles format")
 	}
-	if !enum.UserRole(*userRoles).IsValid() {
-		return nil, fmt.Errorf("invalid user role: %s", *userRoles)
+	if !enum.UserRole(userRoles).IsValid() {
+		return nil, fmt.Errorf("invalid user role: %s", userRoles)
 	}
 
-	return
+	return &userRoles, nil
 }
 
 // extractParamID utility extracts a UUID parameter from the path param based on the provided parameter name.
@@ -74,25 +75,36 @@ func processValidationError(err error) *responses.APIValidationErrorResponse {
 		return nil
 	}
 
-	ve, ok := err.(validator.ValidationErrors)
-	if ok {
-		details := make([]responses.ValidationErrorDetail, 0, len(ve))
-		for _, fe := range ve {
-			// The param field of the ValidationError are not usually used, so it is used as a workaround for custom error messages
-			msg := fe.Param()
-			if msg == "" {
-				msg = fmt.Sprintf("%s failed on '%s' validation", fe.Field(), fe.Tag())
+	errorValue := reflect.ValueOf(err)
+	switch errorValue.Type().String() {
+	case "validator.ValidationErrors":
+		ve, ok := err.(validator.ValidationErrors)
+		if ok {
+			details := make([]responses.ValidationErrorDetail, 0, len(ve))
+			for _, fe := range ve {
+				// The param field of the ValidationError are not usually used, so it is used as a workaround for custom error messages
+				msg := fe.Param()
+				if msg == "" {
+					msg = fmt.Sprintf("%s failed on '%s' validation", fe.Field(), fe.Tag())
+				}
+
+				details = append(details, responses.ValidationErrorDetail{
+					JSONField:   fe.Field(),
+					StructField: fe.StructField(),
+					Value:       utils.ToString(fe.Value()),
+					Message:     msg,
+				})
 			}
 
-			details = append(details, responses.ValidationErrorDetail{
-				JSONField:   fe.Field(),
-				StructField: fe.StructField(),
-				Value:       utils.ToString(fe.Value()),
-				Message:     msg,
-			})
+			return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
 		}
-
-		return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
+	case "*validator.InvalidValidationError":
+		errorStr := err.Error()
+		return responses.ValidationErrorResponse(400, "Invalid validation error:"+errorStr)
+	default:
+		errorStr := errorValue.Type().String()
+		return responses.ValidationErrorResponse(400, "Unknown validation error"+errorStr)
 	}
+
 	return responses.ValidationErrorResponse(400, "Validation Error, Unable to process the validation errors")
 }

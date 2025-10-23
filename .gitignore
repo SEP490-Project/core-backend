@@ -8,6 +8,7 @@ bin/
 **/docs/*
 tmp/
 .specify/
+specs/
 
 *.exe
 *.out

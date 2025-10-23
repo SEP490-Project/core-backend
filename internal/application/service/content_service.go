@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"encoding/json"
@@ -61,7 +62,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 	}
 
 	// Start transaction
-	uow := s.uow.Begin()
+	uow := s.uow.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
@@ -302,7 +303,7 @@ func (s *ContentService) validateAffiliateLink(ctx context.Context, content *mod
 
 	// Parse task description to get contract info
 	if task.Description != nil {
-		var descMap map[string]interface{}
+		var descMap map[string]any
 		if err := json.Unmarshal(task.Description, &descMap); err == nil {
 			if contractType, ok := descMap["contract_type"].(string); ok {
 				if contractType == "AFFILIATE" {
@@ -341,7 +342,7 @@ func (s *ContentService) Submit(ctx context.Context, contentID uuid.UUID, submit
 	}
 
 	// Validate affiliate link if needed
-	if err := s.validateAffiliateLink(ctx, content); err != nil {
+	if err = s.validateAffiliateLink(ctx, content); err != nil {
 		return err
 	}
 
@@ -484,8 +485,78 @@ func (s *ContentService) Publish(ctx context.Context, contentID uuid.UUID, publi
 	return nil
 }
 
+// SetRejectionFeedback stores rejection feedback for a content item
+// This is called AFTER state transition through FSM
+func (s *ContentService) SetRejectionFeedback(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, feedback string) error {
+	content, err := uow.Contents().GetByID(ctx, contentID, nil)
+	if err != nil {
+		return errors.New("content not found")
+	}
+
+	content.RejectionFeedback = &feedback
+	if err := uow.Contents().Update(ctx, content); err != nil {
+		zap.L().Error("Failed to store rejection feedback",
+			zap.String("content_id", contentID.String()),
+			zap.Error(err))
+		return errors.New("failed to store rejection feedback")
+	}
+
+	return nil
+}
+
+// SetPublishDate stores publish date for a content item
+// This is called AFTER state transition through FSM
+func (s *ContentService) SetPublishDate(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, publishDate *string) error {
+	content, err := uow.Contents().GetByID(ctx, contentID, nil)
+	if err != nil {
+		return errors.New("content not found")
+	}
+
+	// Set publish date
+	if publishDate != nil && *publishDate != "" {
+		parsedDate, err := time.Parse(time.RFC3339, *publishDate)
+		if err != nil {
+			return errors.New("invalid publish_date format, use ISO8601 format")
+		}
+		content.PublishDate = &parsedDate
+	} else {
+		now := time.Now()
+		content.PublishDate = &now
+	}
+
+	if err := uow.Contents().Update(ctx, content); err != nil {
+		zap.L().Error("Failed to update publish date",
+			zap.String("content_id", contentID.String()),
+			zap.Error(err))
+		return errors.New("failed to update publish date")
+	}
+
+	return nil
+}
+
+// ValidateForSubmission validates content is ready for submission
+func (s *ContentService) ValidateForSubmission(ctx context.Context, contentID uuid.UUID) error {
+	content, err := s.contentRepo.GetByID(ctx, contentID, nil)
+	if err != nil {
+		return errors.New("content not found")
+	}
+
+	// Validate required fields
+	if content.Title == "" || content.Body == "" {
+		return errors.New("title and body are required fields")
+	}
+
+	// Validate affiliate link if needed
+	return s.validateAffiliateLink(ctx, content)
+}
+
+// DetermineWorkflowRoute determines target status based on selected channels
+func (s *ContentService) DetermineWorkflowRoute(ctx context.Context, contentID uuid.UUID) (enum.ContentStatus, error) {
+	return s.determineWorkflowRoute(ctx, contentID)
+}
+
 // List retrieves paginated content with filters, search, and sorting
-func (s *ContentService) List(ctx context.Context, req *requests.ContentListRequest) ([]*responses.ContentResponse, int64, error) {
+func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentResponse, int64, error) {
 	// Set defaults
 	page := 1
 	if req.Page > 0 {
@@ -548,20 +619,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentListRequ
 		}
 
 		// Sorting
-		sort := "created_at DESC" // Default sort
-		if req.Sort != nil && *req.Sort != "" {
-			switch *req.Sort {
-			case "created_at_asc":
-				sort = "created_at ASC"
-			case "created_at_desc":
-				sort = "created_at DESC"
-			case "updated_at_desc":
-				sort = "updated_at DESC"
-			case "title_asc":
-				sort = "title ASC"
-			}
-		}
-		db = db.Order(sort)
+		db = db.Order(helper.ConvertToSortString(req.PaginationRequest))
 
 		return db
 	}

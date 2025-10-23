@@ -85,7 +85,7 @@ type BrandAmbassadorEvent struct {
 	Location            string    `json:"location" example:"Jakarta Convention Center" validate:"max=512"`
 	Date                string    `json:"date" example:"2023-10-01 15:00:00" validate:"datetime=2006-01-02 15:04:05"`
 	ExpectedDuration    string    `json:"expected_duration" example:"3H" validate:"omitempty,max=100"`
-	Activities          string    `json:"activities" example:"Product demonstration, Q&A session" validate:"omitempty,max=1000"`
+	Activities          []string  `json:"activities" example:"Product demonstration, Q&A session" validate:"omitempty,max=1000"`
 	RepresentationRules []string  `json:"representation_rules,omitempty" example:"Must wear formal attire with long leggings" validate:"omitempty,dive,max=1000"`
 	KPIs                []KPIGoal `json:"kpis,omitempty" validate:"dive"`
 }
