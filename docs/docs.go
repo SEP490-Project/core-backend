@@ -1423,8 +1423,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/campaigns/suggest": {
-            "post": {
+        "/api/v1/campaigns/{campaign_id}/suggest": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -1443,13 +1443,12 @@ const docTemplate = `{
                 "summary": "Suggest Campaign from Contract",
                 "parameters": [
                     {
-                        "description": "Campaign suggestion request",
-                        "name": "data",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CampaignSuggestionRequest"
-                        }
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "campaign_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -2283,16 +2282,36 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 1,
                         "description": "Page number (default: 1)",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "default": 10,
                         "description": "Items per page (default: 10, max: 100)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "updated_at",
+                            "publish_date",
+                            "title"
+                        ],
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
                         "in": "query"
                     },
                     {
@@ -2347,19 +2366,6 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter to date (YYYY-MM-DD)",
                         "name": "to_date",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "created_at_asc",
-                            "created_at_desc",
-                            "updated_at_desc",
-                            "title_asc"
-                        ],
-                        "type": "string",
-                        "default": "created_at_desc",
-                        "description": "Sort order",
-                        "name": "sort",
                         "in": "query"
                     }
                 ],
@@ -2665,13 +2671,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/approve": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Approves content that is awaiting review",
+                "description": "Transitions content from AWAIT_STAFF/AWAIT_BRAND to APPROVED",
                 "consumes": [
                     "application/json"
                 ],
@@ -2685,19 +2691,10 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Approval request data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.ApproveContentRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -2712,7 +2709,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2720,31 +2718,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -2829,13 +2815,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/publish": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Publishes approved content to POSTED status with optional publish date",
+                "description": "Transitions content from APPROVED to POSTED with optional publish date",
                 "consumes": [
                     "application/json"
                 ],
@@ -2845,27 +2831,27 @@ const docTemplate = `{
                 "tags": [
                     "Content"
                 ],
-                "summary": "Publish approved content",
+                "summary": "Publish content",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Publish request with optional publish_date",
-                        "name": "request",
+                        "description": "Optional publish date",
+                        "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/requests.PublishContentRequest"
+                            "type": "object"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Content published successfully",
+                        "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
@@ -2875,7 +2861,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2883,31 +2870,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or content not approved",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -2916,13 +2891,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/reject": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Rejects content that is awaiting review with feedback",
+                "description": "Transitions content from AWAIT_STAFF/AWAIT_BRAND to REJECTED with feedback",
                 "consumes": [
                     "application/json"
                 ],
@@ -2936,18 +2911,18 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Rejection request data",
-                        "name": "request",
+                        "description": "Rejection reason",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.RejectContentRequest"
+                            "type": "object"
                         }
                     }
                 ],
@@ -2963,7 +2938,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2971,31 +2947,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3004,13 +2968,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/submit": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Submits content for staff or brand approval based on selected channels",
+                "description": "Transitions content from DRAFT/REJECTED to AWAIT_STAFF or AWAIT_BRAND based on channels",
                 "consumes": [
                     "application/json"
                 ],
@@ -3024,19 +2988,10 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Submit request data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.SubmitContentRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -3051,7 +3006,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -3059,25 +3015,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6767,15 +6717,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.ApproveContentRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "maxLength": 500
-                }
-            }
-        },
         "requests.BlogFieldsDTO": {
             "type": "object",
             "required": [
@@ -6802,17 +6743,6 @@ const docTemplate = `{
         },
         "requests.BulkVariantRequest": {
             "type": "object"
-        },
-        "requests.CampaignSuggestionRequest": {
-            "type": "object",
-            "required": [
-                "contract_id"
-            ],
-            "properties": {
-                "contract_id": {
-                    "type": "string"
-                }
-            }
         },
         "requests.ConceptRequest": {
             "type": "object",
@@ -7444,14 +7374,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.PublishContentRequest": {
-            "type": "object",
-            "properties": {
-                "publish_date": {
-                    "type": "string"
-                }
-            }
-        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -7461,18 +7383,6 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                }
-            }
-        },
-        "requests.RejectContentRequest": {
-            "type": "object",
-            "required": [
-                "feedback"
-            ],
-            "properties": {
-                "feedback": {
-                    "type": "string",
-                    "maxLength": 1000
                 }
             }
         },
@@ -7504,15 +7414,6 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "john_doe"
-                }
-            }
-        },
-        "requests.SubmitContentRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "maxLength": 500
                 }
             }
         },
