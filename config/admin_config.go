@@ -52,7 +52,6 @@ func loadAdminConfig(configPath string) error {
 	if err := adminViper.Unmarshal(&adminConfig); err != nil {
 		fmt.Printf("Unable to decode admin config into struct: %v\n", err)
 	}
-	fmt.Printf("Loaded admin config: %+v\n", adminConfig)
 
 	appConfig.AdminConfig = adminConfig
 
