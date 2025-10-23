@@ -79,7 +79,7 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 		return
 	}
 
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
 	var contractResponse *responses.ContractResponse
 	if contractResponse, err = h.contractService.CreateContract(c.Request.Context(), userID, &req, uow); err != nil {

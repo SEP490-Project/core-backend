@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type StateHandler struct {
@@ -319,21 +320,22 @@ func (h *StateHandler) UpdateContractState(c *gin.Context) {
 	}
 
 	var contractID uuid.UUID
-	contractID, err = uuid.Parse(c.Param("id"))
+	contractID, err = extractParamID(c, "id")
 	if err != nil {
-		responses := responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		response := responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	var req *requests.UpdateContractStateRequest
+
+	var req requests.UpdateContractStateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
 		return
 	}
 	if err := h.Struct(&req); err != nil {
-		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 	targetState := enum.ContractStatus(req.State)
@@ -358,12 +360,28 @@ func (h *StateHandler) UpdateContractState(c *gin.Context) {
 		}
 	}
 
-	if err := h.MoveContractToState(c.Request.Context(), contractID, targetState, userID); err != nil {
+	uow := h.UnitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			_ = uow.Rollback()
+			zap.L().Error("panic recovered in MoveContractToState", zap.Any("recover", r))
+			panic(r)
+		}
+	}()
+
+	if err := h.MoveContractToState(c.Request.Context(), uow, contractID, targetState, userID); err != nil {
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to move contract: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
+	if err := uow.Commit(); err != nil {
+		uow.Rollback()
+		response := responses.ErrorResponse("Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
 	response := responses.SuccessResponse("Contract state updated", utils.IntPtr(http.StatusOK), map[string]any{
 		"id":    contractID.String(),
 		"state": req.State,

@@ -211,7 +211,7 @@ func (s *ContractService) UpdateContract(
 		zap.String("contract_id", contractID.String()))
 
 	// Begin transaction
-	uow := unitOfWork.Begin()
+	uow := unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()

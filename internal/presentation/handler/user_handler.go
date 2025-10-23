@@ -282,7 +282,7 @@ func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	h.unitOfWork.Begin()
+	h.unitOfWork.Begin(c.Request.Context())
 
 	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, h.unitOfWork)
 	if err != nil {
