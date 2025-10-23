@@ -1,13 +1,14 @@
 package irepository
 
 import (
+	"context"
 	"core-backend/internal/domain/model"
 
 	"gorm.io/gorm"
 )
 
 type UnitOfWork interface {
-	Begin() UnitOfWork
+	Begin(ctx context.Context) UnitOfWork
 	Commit() error
 	Rollback() error
 	InTransaction() bool

@@ -48,7 +48,7 @@ func (c *ContractCreateConsumer) Handle(ctx context.Context, body []byte) error 
 		zap.String("user_id", msg.UserID.String()))
 
 	success := true
-	uow := c.unitOfWork.Begin()
+	uow := c.unitOfWork.Begin(ctx)
 
 	history, err := c.appRegistry.ModifiedHistoryService.AddWithUOW(ctx, &requests.CreateModifiedHistoryRequest{
 		ReferenceType: enum.ModifiedTypeContract.String(),

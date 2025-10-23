@@ -397,7 +397,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -518,7 +518,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -574,7 +574,7 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -678,7 +678,7 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()

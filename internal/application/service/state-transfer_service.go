@@ -146,7 +146,7 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 }
 
 func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileStoneID uuid.UUID, targetState enum.MilestoneStatus, updatedBy uuid.UUID) error {
-	trx := t.uow.Begin()
+	trx := t.uow.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = trx.Rollback()
@@ -208,7 +208,7 @@ func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileSton
 
 func (t stateTransferService) MoveCampaignToState(ctx context.Context, campaignID uuid.UUID, targetState enum.CampaignStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
-	trx := t.uow.Begin()
+	trx := t.uow.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = trx.Rollback()
@@ -255,15 +255,7 @@ func (t stateTransferService) MoveCampaignToState(ctx context.Context, campaignI
 	return nil
 }
 
-func (t stateTransferService) MoveContractToState(ctx context.Context, contractID uuid.UUID, targetState enum.ContractStatus, updatedBy uuid.UUID) error {
-	trx := t.uow.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			_ = trx.Rollback()
-			zap.L().Error("panic recovered in MoveContractToState", zap.Any("recover", r))
-		}
-	}()
-
+func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepository.UnitOfWork, contractID uuid.UUID, targetState enum.ContractStatus, updatedBy uuid.UUID) error {
 	contractRepo := trx.Contracts()
 	campaignRepo := trx.Campaigns()
 	milestoneRepo := trx.Milestones()
@@ -272,11 +264,9 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 
 	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand", "Campaign"})
 	if err != nil {
-		_ = trx.Rollback()
 		zap.L().Error("Failed to load contract", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return errors.New("failed to load contract: " + err.Error())
 	} else if contract == nil {
-		_ = trx.Rollback()
 		zap.L().Error("Contract not found", zap.String("contract_id", contractID.String()))
 		return errors.New("contract not found")
 	}
@@ -293,20 +283,20 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 	cCtx := &contractsm.ContractContext{State: contractsm.NewContractState(contract.Status), Campaign: contract.Campaign}
 	nextState := contractsm.NewContractState(targetState)
 	if nextState == nil {
-		_ = trx.Rollback()
 		zap.L().Error("Invalid contract target state", zap.String("contract_id", contractID.String()), zap.String("target_state", targetState.String()))
 		return errors.New("invalid target contract state")
 	}
 
 	if err := cCtx.State.Next(cCtx, nextState); err != nil {
-		_ = trx.Rollback()
 		zap.L().Error("Contract state transition failed", zap.String("contract_id", contractID.String()), zap.String("from", cCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
 		return errors.New("contract state transition failed: " + err.Error())
 	}
 
 	contract.Status = targetState
-	if err := contractRepo.Update(ctx, contract); err != nil {
-		_ = trx.Rollback()
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ?", contractID)
+	}
+	if err := contractRepo.UpdateByCondition(ctx, filterQuery, map[string]any{"status": targetState}); err != nil {
 		zap.L().Error("Failed updating contract", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return errors.New("failed to update contract: " + err.Error())
 	}
@@ -323,7 +313,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 		if err := milestoneRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("campaign_id = ? AND status <> ?", camp.ID, enum.MilestoneStatusCancelled)
 		}, map[string]any{"status": enum.MilestoneStatusCancelled}); err != nil {
-			_ = trx.Rollback()
 			zap.L().Error("Failed cancel milestones (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
 			return errors.New("cascade milestone cancel failed: " + err.Error())
 		}
@@ -331,7 +320,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 		if err := taskRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("milestone_id IN (?) AND status <> ?", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", camp.ID), enum.TaskStatusCancelled)
 		}, map[string]any{"status": enum.TaskStatusCancelled}); err != nil {
-			_ = trx.Rollback()
 			zap.L().Error("Failed cancel tasks (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
 			return errors.New("cascade task cancel failed: " + err.Error())
 		}
@@ -339,7 +327,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 		if err := productRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("task_id IN (?) AND status <> ?", db.Select("t.id").Table("tasks as t").Where("t.milestone_id IN (?)", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", camp.ID)), enum.ProductStatusInactived)
 		}, map[string]any{"status": enum.ProductStatusInactived}); err != nil {
-			_ = trx.Rollback()
 			zap.L().Error("Failed inactivate products (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
 			return errors.New("cascade product inactivate failed: " + err.Error())
 		}
@@ -370,7 +357,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 
 	case enum.ContractStatusApproved:
 		// Create contract payment based on the contract by publishing to RabbitMQ exchange
-		contractCreatePaymentProducer, err := t.rabbitMQ.GetProducer("")
+		contractCreatePaymentProducer, err := t.rabbitMQ.GetProducer("contract-create-payment-producer")
 		if err != nil {
 			zap.L().Error("Failed to get contract create payment producer", zap.Error(err))
 			return errors.New("failed to get contract create payment producer: " + err.Error())
@@ -407,6 +394,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, contractI
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
 	uow irepository.UnitOfWork,
+	rabbitmq *rabbitmq.RabbitMQ,
 ) iservice.StateTransferService {
 	return &stateTransferService{
 		contractRepository:  dbReg.ContractRepository,
@@ -415,5 +403,6 @@ func NewStateTransferService(
 		taskRepository:      dbReg.TaskRepository,
 		productRepository:   dbReg.ProductRepository,
 		uow:                 uow,
+		rabbitMQ:            rabbitmq,
 	}
 }

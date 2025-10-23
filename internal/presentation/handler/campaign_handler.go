@@ -67,7 +67,7 @@ func (h *CampaignHandler) CreateCampaignFromContract(c *gin.Context) {
 		return
 	}
 
-	uow := h.uow.Begin()
+	uow := h.uow.Begin(c.Request.Context())
 	var campaignResponse *responses.CampaignDetailsResponse
 	campaignResponse, err = h.campaignService.CreateCampaignFromContract(c.Request.Context(), userID, request, uow)
 	if err != nil {
