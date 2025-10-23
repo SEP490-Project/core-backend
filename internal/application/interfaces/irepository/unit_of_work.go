@@ -44,6 +44,11 @@ type UnitOfWork interface {
 	Concepts() GenericRepository[model.Concept]
 	LimitedProducts() GenericRepository[model.LimitedProduct]
 
+	//Orders & Payment
+	Order() GenericRepository[model.Order]
+	OrderItem() GenericRepository[model.OrderItem]
+	PaymentTransaction() GenericRepository[model.PaymentTransaction]
+
 	// DB Get raw gorm instance
 	DB() *gorm.DB
 }

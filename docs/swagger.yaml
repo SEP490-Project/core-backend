@@ -157,6 +157,28 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.OrderStatus:
+    enum:
+    - PENDING
+    - PAID
+    - REFUNDED
+    - CONFIRMED
+    - CANCELLED
+    - SHIPPED
+    - IN_TRANSIT
+    - DELIVERED
+    - RECEIVED
+    type: string
+    x-enum-varnames:
+    - OrderStatusPending
+    - OrderStatusPaid
+    - OrderStatusRefunded
+    - OrderStatusConfirmed
+    - OrderStatusCancelled
+    - OrderStatusShipped
+    - OrderStatusInTransit
+    - OrderStatusDelivered
+    - OrderStatusReceived
   enum.PaymentCycle:
     enum:
     - MONTHLY
@@ -235,6 +257,63 @@ definitions:
         type: string
     required:
     - state
+    type: object
+  model.Order:
+    properties:
+      address_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_items:
+        items:
+          $ref: '#/definitions/model.OrderItem'
+        type: array
+      status:
+        $ref: '#/definitions/enum.OrderStatus'
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.OrderItem:
+    properties:
+      capacity:
+        type: number
+      capacity_unit:
+        type: string
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      expiry_date:
+        type: string
+      id:
+        type: string
+      instructions:
+        type: string
+      manufacturing_date:
+        type: string
+      order_id:
+        type: string
+      quantity:
+        type: integer
+      status:
+        $ref: '#/definitions/enum.OrderStatus'
+      subtotal:
+        type: number
+      unit_price:
+        type: number
+      updated_at:
+        description: CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+        type: string
+      uses:
+        type: string
+      variant_id:
+        type: string
     type: object
   model.VariantAttribute:
     properties:
@@ -690,6 +769,32 @@ definitions:
       refresh_token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
+    type: object
+  requests.OrderItemRequest:
+    properties:
+      quantity:
+        example: 1
+        minimum: 1
+        type: integer
+      variant_id:
+        example: 69700831-4112-44fd-bf7f-07b015f56218
+        type: string
+    required:
+    - quantity
+    - variant_id
+    type: object
+  requests.OrderRequest:
+    properties:
+      address_id:
+        example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/requests.OrderItemRequest'
+        type: array
+    required:
+    - address_id
+    - items
     type: object
   requests.PaymentItemRequest:
     properties:
@@ -5001,6 +5106,145 @@ paths:
       summary: Update Milestone State
       tags:
       - State Transfer
+  /api/v1/orders:
+    get:
+      consumes:
+      - application/json
+      description: This handler extracts pagination parameters (`page`, `limit`) and
+        an optional search term from the query string.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Number of items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for filtering orders by order number
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get paginated orders by user ID
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Create an order for the authenticated user
+      parameters:
+      - description: Order payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.OrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Place an order
+      tags:
+      - Orders
+  /api/v1/orders/{id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Generate payment link and create payment transaction for the given
+        order
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Initiate payment for an order
+      tags:
+      - Orders
   /api/v1/payos/payment:
     post:
       consumes:

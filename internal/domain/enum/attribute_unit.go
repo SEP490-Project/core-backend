@@ -45,3 +45,7 @@ func (au *AttributeUnit) Scan(value any) error {
 func (au AttributeUnit) Value() (driver.Value, error) {
 	return string(au), nil
 }
+
+func (au AttributeUnit) String() string {
+	return string(au)
+}

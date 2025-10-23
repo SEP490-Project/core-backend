@@ -17,11 +17,12 @@ type Order struct {
 	AddressID   uuid.UUID        `json:"address_id" gorm:"type:uuid;column:address_id;not null"`
 	CreatedAt   time.Time        `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time        `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt   gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
+	//DeletedAt   gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
-	User    User            `json:"-" gorm:"foreignKey:UserID"`
-	Address ShippingAddress `json:"-" gorm:"foreignKey:AddressID"`
+	User       User            `json:"-" gorm:"foreignKey:UserID"`
+	Address    ShippingAddress `json:"-" gorm:"foreignKey:AddressID"`
+	OrderItems []OrderItem     `json:"order_items" gorm:"foreignKey:OrderID"` //
 }
 
 func (Order) TableName() string { return "orders" }

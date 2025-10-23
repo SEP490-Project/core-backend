@@ -47,3 +47,7 @@ func (ct *ContainerType) Scan(value any) error {
 func (ct ContainerType) Value() (driver.Value, error) {
 	return string(ct), nil
 }
+
+func (ct ContainerType) String() string {
+	return string(ct)
+}

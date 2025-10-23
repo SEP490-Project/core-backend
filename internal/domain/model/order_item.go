@@ -22,17 +22,18 @@ type OrderItem struct {
 	ContainerType         *enum.ContainerType `json:"container_type" gorm:"type:varchar(255);column:container_type;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
 	DispenserType         *enum.DispenserType `json:"dispenser_type" gorm:"type:varchar(255);column:dispenser_type;check:dispenser_type in ('PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE')"`
 	Uses                  *string             `json:"uses" gorm:"type:text;column:uses"`
-	ManufactureDate       *time.Time          `json:"manufacture_date" gorm:"column:manufacture_date"`
+	ManufactureDate       *time.Time          `json:"manufacturing_date" gorm:"column:manufacturing_date"`
 	ExpiryDate            *time.Time          `json:"expiry_date" gorm:"column:expiry_date"`
 	Instructions          *string             `json:"instructions" gorm:"type:text;column:instructions"`
-	AttributesDescription *datatypes.JSON     `json:"attributes_description" gorm:"column:attributes_description;type:jsonb"`
-	ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PAID', 'REFUNDED', 'CONFIRMED', 'CANCELED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
-	CreatedAt             time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt             time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt             gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at;index"`
+	AttributesDescription *datatypes.JSON     `json:"attributes_description" gorm:"column:attributes_description;type:jsonb" swaggerignore:"true"`
+	ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;check:status in ('PENDING', 'PAID', 'REFUNDED', 'CONFIRMED', 'CANCELED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
+	//CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	//DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Order *Order `json:"-" gorm:"foreignKey:OrderID"`
+	Variant ProductVariant `json:"-" gorm:"foreignKey:VariantID"`
+	Order   *Order         `json:"-" gorm:"foreignKey:OrderID"`
 }
 
 func (OrderItem) TableName() string { return "order_items" }
