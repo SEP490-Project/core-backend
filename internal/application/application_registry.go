@@ -52,6 +52,6 @@ func NewApplicationRegistry(
 		AdminConfigService:     service.NewAdminConfigService(databaseRegistry.AdminConfigRepository),
 		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
 		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:           service.NewOrderService(databaseRegistry),
+		OrderService:           service.NewOrderService(databaseRegistry, infrastructureRegistry.PayOsService),
 	}
 }

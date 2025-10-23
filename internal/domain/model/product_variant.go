@@ -29,7 +29,7 @@ type ProductVariant struct {
 	CreatedByID     uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
 	UpdatedByID     *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
 
-	//Relationship
+	//RelationshiExistsByIDp
 	Product         *Product                `json:"-" gorm:"foreignKey:ProductID"`
 	Story           *ProductStory           `json:"story" gorm:"foreignKey:VariantID"`
 	AttributeValues []VariantAttributeValue `json:"attributes" gorm:"foreignKey:VariantID"`
