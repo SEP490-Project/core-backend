@@ -2,6 +2,7 @@ package requests
 
 import (
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/model"
 	"time"
 )
 
@@ -52,4 +53,17 @@ type PayOSRequest struct {
 
 	ExpiredAt int64  `json:"expiredAt"`
 	Signature string `json:"signature"`
+}
+
+// Mapping PayOSRequest from OrderItem
+func MapPaymentItemsFromOrderItems(orderItems []model.OrderItem) []PaymentItemRequest {
+	paymentItems := make([]PaymentItemRequest, 0, len(orderItems))
+	for _, item := range orderItems {
+		paymentItems = append(paymentItems, PaymentItemRequest{
+			Name:     item.Variant.Product.Name,
+			Quantity: item.Quantity,
+			Price:    int64(item.UnitPrice),
+		})
+	}
+	return paymentItems
 }

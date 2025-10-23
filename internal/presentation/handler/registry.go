@@ -24,6 +24,7 @@ type HandlerRegistry struct {
 	AdminConfigHandler     *AdminConfigHandler
 	ContractPaymentHandler *ContractPaymentHandler
 	ConceptHandler         *ConceptHandler
+	OrderHandler           *OrderHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
@@ -44,5 +45,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		AdminConfigHandler:     NewAdminConfigHandler(applicationReg.AdminConfigService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ContractPaymentHandler: NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ConceptHandler:         NewConceptHandler(applicationReg.ConceptService),
+		OrderHandler:           NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }
