@@ -421,15 +421,15 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 			editGroup.GET("/:id", contentHandler.GetByID)
 			editGroup.PUT("/:id", contentHandler.Update)
 			editGroup.DELETE("/:id", contentHandler.Delete)
-			editGroup.POST("/:id/submit", contentHandler.Submit)
-			editGroup.POST("/:id/publish", contentHandler.Publish)
+			editGroup.PATCH("/:id/submit", contentHandler.Submit)
+			editGroup.PATCH("/:id/publish", contentHandler.Publish)
 			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
 		}
 
 		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))
 		{
-			reviewGroup.PUT("/:id/approve", contentHandler.Approve)
-			reviewGroup.PUT("/:id/reject", contentHandler.Reject)
+			reviewGroup.PATCH("/:id/approve", contentHandler.Approve)
+			reviewGroup.PATCH("/:id/reject", contentHandler.Reject)
 		}
 	}
 }

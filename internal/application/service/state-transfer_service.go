@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/campaignsm"
+	"core-backend/internal/domain/state/contentsm"
 	"core-backend/internal/domain/state/contractsm"
 	"core-backend/internal/domain/state/milestonesm"
 	"core-backend/internal/domain/state/productsm"
@@ -388,6 +389,72 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		zap.L().Error("Contract transaction commit failed", zap.Error(err))
 		return errors.New("transaction commit failed: " + err.Error())
 	}
+	return nil
+}
+
+func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, targetState enum.ContentStatus, updatedBy uuid.UUID) error {
+	// Use transactional repository from UnitOfWork
+	contentRepo := uow.Contents()
+
+	// 1. Load current content from DB with relationships
+	content, err := contentRepo.GetByID(ctx, contentID, []string{"ContentChannels", "ContentChannels.Channel"})
+	if err != nil {
+		zap.L().Error("Failed to load content from DB",
+			zap.String("content_id", contentID.String()),
+			zap.Error(err))
+		return errors.New("unable to find content: " + err.Error())
+	}
+
+	// 2. Load content context for FSM
+	currentState, err := contentsm.NewContentState(content.Status)
+	if err != nil {
+		zap.L().Error("Failed to create current state",
+			zap.String("content_id", contentID.String()),
+			zap.String("current_status", string(content.Status)),
+			zap.Error(err))
+		return errors.New("failed to create current state: " + err.Error())
+	}
+
+	contentCtx := &contentsm.ContentContext{
+		State:           currentState,
+		ContentChannels: content.ContentChannels,
+	}
+
+	// 3. Initialize target state
+	nextState, err := contentsm.NewContentState(targetState)
+	if err != nil {
+		zap.L().Error("Invalid target state",
+			zap.String("content_id", contentID.String()),
+			zap.String("target_state", string(targetState)),
+			zap.Error(err))
+		return errors.New("invalid target state: " + err.Error())
+	}
+
+	// 4. Validate and forward state through FSM
+	if err := contentCtx.State.Next(contentCtx, nextState); err != nil {
+		zap.L().Error("State transition failed",
+			zap.String("content_id", contentID.String()),
+			zap.String("from", string(contentCtx.State.Name())),
+			zap.String("to", string(targetState)),
+			zap.Error(err))
+		return errors.New("state transition failed: " + err.Error())
+	}
+
+	// 5. Persist new state to database using transactional repository
+	content.Status = targetState
+	if err := contentRepo.Update(ctx, content); err != nil {
+		zap.L().Error("Failed to update content state in DB",
+			zap.String("content_id", contentID.String()),
+			zap.String("new_state", string(targetState)),
+			zap.Error(err))
+		return errors.New("failed to update content state in DB: " + err.Error())
+	}
+
+	zap.L().Info("Content state transition successful",
+		zap.String("content_id", contentID.String()),
+		zap.String("new_state", string(targetState)),
+		zap.String("updated_by", updatedBy.String()))
+
 	return nil
 }
 
