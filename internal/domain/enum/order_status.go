@@ -12,7 +12,7 @@ const (
 	OrderStatusPaid      OrderStatus = "PAID"
 	OrderStatusRefunded  OrderStatus = "REFUNDED"
 	OrderStatusConfirmed OrderStatus = "CONFIRMED"
-	OrderStatusCanceled  OrderStatus = "CANCELED"
+	OrderStatusCancelled OrderStatus = "CANCELLED"
 	OrderStatusShipped   OrderStatus = "SHIPPED"
 	OrderStatusInTransit OrderStatus = "IN_TRANSIT"
 	OrderStatusDelivered OrderStatus = "DELIVERED"
@@ -21,7 +21,7 @@ const (
 
 func (os OrderStatus) IsValid() bool {
 	switch os {
-	case OrderStatusPending, OrderStatusPaid, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCanceled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived:
+	case OrderStatusPending, OrderStatusPaid, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCancelled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived:
 		return true
 	}
 	return false

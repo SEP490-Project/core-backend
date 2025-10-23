@@ -28,6 +28,7 @@ type ApplicationRegistry struct {
 	AdminConfigService     iservice.AdminConfigService
 	ContractPaymentService iservice.ContractPaymentService
 	ConceptService         iservice.ConceptService
+	OrderService           iservice.OrderService
 	ChannelService         iservice.ChannelService
 	ContentService         iservice.ContentService
 	BlogService            iservice.BlogService
@@ -58,6 +59,7 @@ func NewApplicationRegistry(
 		AdminConfigService:     service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
 		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
+		OrderService:           service.NewOrderService(databaseRegistry, infrastructureRegistry.PayOsService),
 		ChannelService:         service.NewChannelService(databaseRegistry.ChannelRepository),
 		ContentService: service.NewContentService(
 			databaseRegistry.ContentRepository,

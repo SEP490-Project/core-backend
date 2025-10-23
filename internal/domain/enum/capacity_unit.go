@@ -42,3 +42,7 @@ func (cu *CapacityUnit) Scan(value any) error {
 func (cu CapacityUnit) Value() (driver.Value, error) {
 	return string(cu), nil
 }
+
+func (cu CapacityUnit) String() string {
+	return string(cu)
+}

@@ -44,3 +44,7 @@ func (dt *DispenserType) Scan(value any) error {
 func (dt DispenserType) Value() (driver.Value, error) {
 	return string(dt), nil
 }
+
+func (dt DispenserType) String() string {
+	return string(dt)
+}

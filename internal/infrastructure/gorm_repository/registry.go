@@ -28,9 +28,15 @@ type DatabaseRegistry struct {
 	AdminConfigRepository     irepository.GenericRepository[model.Config]
 
 	//Limited Product and Concept
-	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
-	ConceptRepository          irepository.GenericRepository[model.Concept]
-	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
+	ConceptRepository        irepository.GenericRepository[model.Concept]
+	AdminConfigRepository    irepository.GenericRepository[model.Config]
+  VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+	
+  //Orders & Payment
+	OrderRepository              irepository.GenericRepository[model.Order]
+	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
+	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -55,5 +61,8 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ContentRepository:          NewGenericRepository[model.Content](db),
 		ContentChannelRepository:   NewGenericRepository[model.ContentChannel](db),
 		BlogRepository:             NewGenericRepository[model.Blog](db),
+    OrderRepository:              NewGenericRepository[model.Order](db),
+		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
+		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
 	}
 }

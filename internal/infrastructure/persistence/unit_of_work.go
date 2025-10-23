@@ -42,6 +42,11 @@ type unitOfWork struct {
 	limitProductRepository irepository.GenericRepository[model.LimitedProduct]
 	conceptRepository      irepository.GenericRepository[model.Concept]
 	configRepository       irepository.GenericRepository[model.Config]
+
+	//Orders & Payment
+	orderRepository              irepository.GenericRepository[model.Order]
+	orderItemRepository          irepository.GenericRepository[model.OrderItem]
+	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -89,6 +94,11 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	//Concept & LimitProduct
 	u.limitProductRepository = gormrepository.NewGenericRepository[model.LimitedProduct](u.tx)
 	u.conceptRepository = gormrepository.NewGenericRepository[model.Concept](u.tx)
+
+	//Orders & Payment
+	u.orderRepository = gormrepository.NewGenericRepository[model.Order](u.tx)
+	u.orderItemRepository = gormrepository.NewGenericRepository[model.OrderItem](u.tx)
+	u.paymentTransactionRepository = gormrepository.NewGenericRepository[model.PaymentTransaction](u.tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return u
@@ -214,6 +224,18 @@ func (u *unitOfWork) Concepts() irepository.GenericRepository[model.Concept] {
 
 func (u *unitOfWork) LimitedProducts() irepository.GenericRepository[model.LimitedProduct] {
 	return u.limitProductRepository
+}
+
+func (u *unitOfWork) Order() irepository.GenericRepository[model.Order] {
+	return u.orderRepository
+}
+
+func (u *unitOfWork) OrderItem() irepository.GenericRepository[model.OrderItem] {
+	return u.orderItemRepository
+}
+
+func (u *unitOfWork) PaymentTransaction() irepository.GenericRepository[model.PaymentTransaction] {
+	return u.paymentTransactionRepository
 }
 
 func (u *unitOfWork) Channels() irepository.GenericRepository[model.Channel] {

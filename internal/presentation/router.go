@@ -232,6 +232,17 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
+		// ---------- ORDERS ----------
+		orderHandler := r.handlerRegistry.OrderHandler
+		ordersGroup := v1.Group("/orders")
+		ordersGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			// Get orders for current user with pagination
+			ordersGroup.GET("", orderHandler.GetOrdersByUserIDWithPagination)
+			ordersGroup.POST("", orderHandler.PlaceOrder)
+			ordersGroup.POST("/:id/pay", orderHandler.PayOrder)
+		}
+    
 		// ---------- CONCEPTS ----------
 		conceptHandler := r.handlerRegistry.ConceptHandler
 		conceptsGroup := v1.Group("/concepts")
@@ -247,7 +258,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				protected.DELETE("/:id", conceptHandler.DeleteConcept)
 			}
 		}
-
+    
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
