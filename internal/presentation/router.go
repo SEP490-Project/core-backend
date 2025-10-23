@@ -125,22 +125,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
-
-		// ---------- CONCEPTS ----------
-		conceptHandler := r.handlerRegistry.ConceptHandler
-		conceptsGroup := v1.Group("/concepts")
-		{
-			// Public list
-			conceptsGroup.GET("", conceptHandler.GetConcepts)
-
-			// Protected (marketing, admin)
-			protected := conceptsGroup.Group("")
-			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
-			{
-				protected.POST("", conceptHandler.CreateConcept)
-				protected.DELETE("/:id", conceptHandler.DeleteConcept)
-			}
-		}
+		r.SetupContractPaymentRoutes(v1)
+		r.SetupModifiedHistoryRouter(v1)
+		r.SetupAdminConfigRouter(v1)
+		r.SetupChannelRoutes(v1)
+		r.SetupContentRoutes(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -253,6 +242,23 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.POST("", orderHandler.PlaceOrder)
 			ordersGroup.POST("/:id/pay", orderHandler.PayOrder)
 		}
+    
+		// ---------- CONCEPTS ----------
+		conceptHandler := r.handlerRegistry.ConceptHandler
+		conceptsGroup := v1.Group("/concepts")
+		{
+			// Public list
+			conceptsGroup.GET("", conceptHandler.GetConcepts)
+
+			// Protected (marketing, admin)
+			protected := conceptsGroup.Group("")
+			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+			{
+				protected.POST("", conceptHandler.CreateConcept)
+				protected.DELETE("/:id", conceptHandler.DeleteConcept)
+			}
+		}
+    
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
@@ -328,6 +334,12 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
 	}
 
+	suggestGroup := campaigns.Group("")
+	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+	{
+		suggestGroup.POST("/suggest", campaignHandler.SuggestCampaign)
+	}
+
 	viewGroup := campaigns.Group("")
 	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
 	{
@@ -353,9 +365,17 @@ func (r *Router) SetupModifiedHistoryRouter(group *gin.RouterGroup) {
 // SetupAdminConfigRouter sets up routes for admin configuration management
 func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
-	configGroup := group.Group("configs").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	configGroup := group.Group("configs")
 	{
-		configGroup.GET("", adminConfigHandler.GetAllConfigValues)
+		writeGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			writeGroup.GET("", adminConfigHandler.GetAllConfigValues)
+		}
+
+		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
+		{
+			readGroup.GET("/representative", adminConfigHandler.GetRepresentativeConfigs)
+		}
 	}
 }
 
@@ -368,6 +388,63 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		{
 			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
 		}
+	}
+}
+
+// SetupChannelRoutes sets up routes for channel management
+func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
+	channelHandler := r.handlerRegistry.ChannelHandler
+	channelGroup := group.Group("/channels")
+	{
+		channelGroup.GET("", channelHandler.GetAllChannels)
+		channelGroup.GET("/:id", channelHandler.GetChannelByID)
+
+		authenticatedGroup := channelGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales))
+		{
+			authenticatedGroup.POST("", channelHandler.CreateChannel)
+			authenticatedGroup.PUT("/:id", channelHandler.UpdateChannel)
+			authenticatedGroup.DELETE("/:id", channelHandler.DeleteChannel)
+		}
+	}
+}
+
+// SetupContentRoutes sets up routes for content management
+func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
+	contentHandler := r.handlerRegistry.ContentHandler
+	contentGroup := group.Group("/contents").Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		contentGroup.POST("", contentHandler.Create)
+		contentGroup.GET("", contentHandler.List)
+		contentGroup.GET("/:id", contentHandler.GetByID)
+		contentGroup.PUT("/:id", contentHandler.Update)
+		contentGroup.DELETE("/:id", contentHandler.Delete)
+		contentGroup.POST("/:id/submit", contentHandler.Submit)
+	}
+
+	// Approval routes - restricted to admin, sales staff, and marketing staff
+	approvalGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, sales, marketing))
+	{
+		approvalGroup.POST("/:id/approve", contentHandler.Approve)
+		approvalGroup.POST("/:id/reject", contentHandler.Reject)
+	}
+
+	// Publish routes - restricted to admin and content staff
+	publishGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	{
+		publishGroup.POST("/:id/publish", contentHandler.Publish)
+	}
+
+	// Blog routes - restricted to admin and content staff
+	blogHandler := r.handlerRegistry.BlogHandler
+	blogGroup := group.Group("/contents").
+		Use(r.middlewareRegistry.Auth.RequireAuth()).
+		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	{
+		blogGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
 	}
 }
 

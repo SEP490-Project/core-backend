@@ -408,3 +408,59 @@ func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 	)
 	c.JSON(http.StatusOK, responses)
 }
+
+// SuggestCampaign godoc
+//
+//	@Summary		Suggest Campaign from Contract
+//	@Description	Generate campaign suggestions based on contract deliverables. Only ACTIVE contracts can be used for suggestions.
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.CampaignSuggestionRequest									true	"Campaign suggestion request"
+//	@Success		200		{object}	responses.APIResponse{data=responses.CampaignSuggestionResponse}	"Campaign suggestion generated successfully"
+//	@Failure		400		{object}	responses.APIResponse												"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse												"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse												"Forbidden - Requires ADMIN or SALES_STAFF role"
+//	@Failure		404		{object}	responses.APIResponse												"Contract not found"
+//	@Failure		409		{object}	responses.APIResponse												"Contract is not ACTIVE or has no deliverables"
+//	@Failure		500		{object}	responses.APIResponse												"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/suggest [post]
+func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
+	var req requests.CampaignSuggestionRequest
+
+	// Bind and validate request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validartor.Struct(&req); err != nil {
+		response := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Call service to generate campaign suggestion
+	suggestion, err := h.campaignService.SuggestCampaignFromContract(c.Request.Context(), req.ContractID)
+	if err != nil {
+		// Determine appropriate status code based on error message
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "contract not found" {
+			statusCode = http.StatusNotFound
+		} else if err.Error() == "only ACTIVE contracts can be used for campaign suggestions" ||
+			err.Error() == "contract has no deliverables defined in scope of work" ||
+			err.Error() == "unsupported contract type" {
+			statusCode = http.StatusConflict
+		}
+
+		response := responses.ErrorResponse("Failed to suggest campaign: "+err.Error(), statusCode)
+		c.JSON(statusCode, response)
+		return
+	}
+
+	// Return success response
+	response := responses.SuccessResponse("Campaign suggestion generated successfully", nil, suggestion)
+	c.JSON(http.StatusOK, response)
+}

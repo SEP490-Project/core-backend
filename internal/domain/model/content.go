@@ -9,21 +9,24 @@ import (
 )
 
 type Content struct {
-	ID              uuid.UUID          `json:"id" gorm:"column:id;primaryKey"`
-	TaskID          uuid.UUID          `json:"task_id" gorm:"type:uuid;not null;index"`
-	Title           string             `json:"title" gorm:"column:title;not null;type:varchar(255)"`
-	Type            enum.ContentType   `json:"type" gorm:"column:type;not null;type:varchar(35);check:type in ('POST', 'VIDEO')"`
-	Body            string             `json:"body" gorm:"column:body;not null;type:text"`
-	PublishDate     *time.Time         `json:"publish_date" gorm:"column:publish_date"`
-	AffiliateLink   *string            `json:"affiliate_link" gorm:"column:affiliate_link;type:text"`
-	ContentStatus   enum.ContentStatus `json:"content_status" gorm:"column:content_status;not null;type:varchar(35);check:content_status in ('DRAFT', 'AWAIT_STAFF', 'AWAIT_BRAND', 'REJECTED', 'APPROVED', 'POSTED')"`
-	AIGeneratedText *string            `json:"ai_generated_text" gorm:"column:ai_generated_text;type:text"`
-	CreatedAt       time.Time          `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt       time.Time          `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt       gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
+	ID                uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey"`
+	TaskID            *uuid.UUID         `json:"task_id,omitempty" gorm:"type:uuid"`
+	Title             string             `json:"title" gorm:"type:varchar(500);not null"`
+	Body              string             `json:"body" gorm:"type:text;not null"`
+	Type              enum.ContentType   `json:"type" gorm:"type:varchar(50);not null"`
+	Status            enum.ContentStatus `json:"status" gorm:"type:varchar(50);not null"`
+	PublishDate       *time.Time         `json:"publish_date,omitempty" gorm:"type:timestamp"`
+	AffiliateLink     *string            `json:"affiliate_link,omitempty" gorm:"type:varchar(1000)"`
+	AIGeneratedText   *string            `json:"ai_generated_text,omitempty" gorm:"type:text"`
+	RejectionFeedback *string            `json:"rejection_feedback,omitempty" gorm:"type:text"`
+	CreatedAt         *time.Time         `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt         gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index"`
 
 	// Relationships
-	Task *Task `json:"-" gorm:"foreignKey:TaskID"`
+	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
+	Blog            *Blog             `json:"blog,omitempty" gorm:"foreignKey:ContentID;constraint:OnDelete:CASCADE"`
+	ContentChannels []*ContentChannel `json:"content_channels,omitempty" gorm:"foreignKey:ContentID"`
 }
 
 func (Content) TableName() string { return "contents" }
@@ -31,6 +34,10 @@ func (Content) TableName() string { return "contents" }
 func (c *Content) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
+	}
+	// Default status to DRAFT if not set
+	if c.Status == "" {
+		c.Status = enum.ContentStatusDraft
 	}
 	return nil
 }
