@@ -8,7 +8,6 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -23,25 +22,25 @@ func NewBlogHandler(blogService iservice.BlogService) *BlogHandler {
 }
 
 // UpdateBlogDetails updates blog-specific attributes
-// @Summary      Update blog details
-// @Description  Updates blog-specific attributes (tags, excerpt, read_time) for POST type content
-// @Tags         Blog
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Content ID (UUID)"
-// @Param        request body requests.UpdateBlogRequest true "Blog update data"
-// @Success      200 {object} responses.APIResponse "Blog details updated successfully"
-// @Failure      400 {object} responses.APIResponse "Invalid request or content is not POST type"
-// @Failure      401 {object} responses.APIResponse "Authentication required"
-// @Failure      403 {object} responses.APIResponse "Insufficient permissions"
-// @Failure      404 {object} responses.APIResponse "Content or blog not found"
-// @Failure      500 {object} responses.APIResponse "Internal server error"
-// @Security     BearerAuth
-// @Router       /api/v1/contents/{id}/blog [put]
+//
+//	@Summary		Update blog details
+//	@Description	Updates blog-specific attributes (tags, excerpt, read_time) for POST type content
+//	@Tags			Blog
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Content ID (UUID)"
+//	@Param			request	body		requests.UpdateBlogRequest	true	"Blog update data"
+//	@Success		200		{object}	responses.APIResponse		"Blog details updated successfully"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid request or content is not POST type"
+//	@Failure		401		{object}	responses.APIResponse		"Authentication required"
+//	@Failure		403		{object}	responses.APIResponse		"Insufficient permissions"
+//	@Failure		404		{object}	responses.APIResponse		"Content or blog not found"
+//	@Failure		500		{object}	responses.APIResponse		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contents/{id}/blog [put]
 func (h *BlogHandler) UpdateBlogDetails(c *gin.Context) {
 	// Parse content ID from URL parameter
-	idStr := c.Param("id")
-	contentID, err := uuid.Parse(idStr)
+	contentID, err := extractParamID(c, "id")
 	if err != nil {
 		response := responses.ErrorResponse("Invalid content ID format", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)

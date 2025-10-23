@@ -4,6 +4,8 @@ import (
 	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 
 	"github.com/google/uuid"
 )
@@ -23,17 +25,17 @@ type ContentService interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// List retrieves paginated content with filters and search
-	List(ctx context.Context, req *requests.ContentListRequest) ([]*responses.ContentResponse, int64, error)
+	List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentResponse, int64, error)
 
-	// Submit submits content for review (simplified signature for MVP)
-	Submit(ctx context.Context, contentID uuid.UUID, submitterID uuid.UUID) error
+	// SetRejectionFeedback stores rejection feedback for a content item (transaction-aware)
+	SetRejectionFeedback(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, feedback string) error
 
-	// Approve approves submitted content (simplified signature for MVP)
-	Approve(ctx context.Context, contentID uuid.UUID, approverID uuid.UUID, comment string) error
+	// SetPublishDate stores publish date for a content item (transaction-aware)
+	SetPublishDate(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, publishDate *string) error
 
-	// Reject rejects submitted content (simplified signature for MVP)
-	Reject(ctx context.Context, contentID uuid.UUID, reviewerID uuid.UUID, reason string) error
+	// ValidateForSubmission validates content is ready for submission
+	ValidateForSubmission(ctx context.Context, contentID uuid.UUID) error
 
-	// Publish publishes approved content with optional publish date
-	Publish(ctx context.Context, contentID uuid.UUID, publisherID uuid.UUID, publishDate *string) error
+	// DetermineWorkflowRoute determines target status based on selected channels
+	DetermineWorkflowRoute(ctx context.Context, contentID uuid.UUID) (enum.ContentStatus, error)
 }
