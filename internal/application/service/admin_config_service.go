@@ -2,18 +2,22 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"fmt"
+	"reflect"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type AdminConfigService struct {
-	configRepo irepository.GenericRepository[model.Config]
+	adminConfig *config.AdminConfig
+	configRepo  irepository.GenericRepository[model.Config]
 }
 
 // GetAllConfig implements iservice.AdminConfigService.
@@ -67,6 +71,24 @@ func (a *AdminConfigService) GetConfigValueByKey(ctx context.Context, key string
 	return config.Value, nil
 }
 
+// GetConfigValuesByKeys implements iservice.AdminConfigService.
+func (a *AdminConfigService) GetConfigValuesByKeys(ctx context.Context, keys []string) (map[string]string, error) {
+	zap.L().Info("Fetching configuration values by keys", zap.Any("keys", keys))
+
+	var values = make(map[string]string, len(keys))
+	for _, key := range keys {
+		structKey := utils.ToStructFieldName(key)
+		reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(structKey)
+		if !reflectVal.IsValid() {
+			zap.L().Warn("Configuration not found", zap.String("key", structKey))
+			continue
+		}
+		values[utils.ToSnakeCase(key)] = fmt.Sprintf("%v", reflectVal.Interface())
+	}
+
+	return values, nil
+}
+
 // UpdateConfigByKey implements iservice.AdminConfigService.
 func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork) error {
 	zap.L().Debug("Updating configuration by key", zap.String("key", key), zap.String("value", value))
@@ -99,8 +121,9 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 	return nil
 }
 
-func NewAdminConfigService(configRepo irepository.GenericRepository[model.Config]) iservice.AdminConfigService {
+func NewAdminConfigService(adminConfig *config.AdminConfig, configRepo irepository.GenericRepository[model.Config]) iservice.AdminConfigService {
 	return &AdminConfigService{
-		configRepo: configRepo,
+		adminConfig: adminConfig,
+		configRepo:  configRepo,
 	}
 }

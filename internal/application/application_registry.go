@@ -2,6 +2,7 @@
 package application
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
@@ -10,6 +11,7 @@ import (
 )
 
 type ApplicationRegistry struct {
+	configs                *config.AppConfig
 	DatabaseRegistry       *gormrepository.DatabaseRegistry
 	InfrastructureRegistry *infrastructure.InfrastructureRegistry
 	JWTService             iservice.JWTService
@@ -27,15 +29,20 @@ type ApplicationRegistry struct {
 	ContractPaymentService iservice.ContractPaymentService
 	ConceptService         iservice.ConceptService
 	OrderService           iservice.OrderService
+	ChannelService         iservice.ChannelService
+	ContentService         iservice.ContentService
+	BlogService            iservice.BlogService
 }
 
 func NewApplicationRegistry(
+	configs *config.AppConfig,
 	databaseRegistry *gormrepository.DatabaseRegistry,
 	infrastructureRegistry *infrastructure.InfrastructureRegistry,
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService()
 
 	return &ApplicationRegistry{
+		configs:                configs,
 		DatabaseRegistry:       databaseRegistry,
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
@@ -46,12 +53,25 @@ func NewApplicationRegistry(
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
 		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
 		ContractService:        service.NewContractService(databaseRegistry),
-		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository),
+		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService: service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
-		AdminConfigService:     service.NewAdminConfigService(databaseRegistry.AdminConfigRepository),
+		AdminConfigService:     service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
 		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
 		OrderService:           service.NewOrderService(databaseRegistry, infrastructureRegistry.PayOsService),
+		ChannelService:         service.NewChannelService(databaseRegistry.ChannelRepository),
+		ContentService: service.NewContentService(
+			databaseRegistry.ContentRepository,
+			databaseRegistry.BlogRepository,
+			databaseRegistry.ContentChannelRepository,
+			databaseRegistry.ChannelRepository,
+			databaseRegistry.TaskRepository,
+			infrastructureRegistry.UnitOfWork,
+		),
+		BlogService: service.NewBlogService(
+			databaseRegistry.BlogRepository,
+			databaseRegistry.ContentRepository,
+		),
 	}
 }

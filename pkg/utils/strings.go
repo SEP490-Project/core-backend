@@ -30,11 +30,31 @@ func ToUsernameString(input string) string {
 	return username
 }
 
+// ToTitleCase converts a string with underscores to Title Case with spaces.
 func ToTitleCase(input string) string {
 	regex := regexp.MustCompile("_+")
 	spacedString := regex.ReplaceAllString(input, " ")
 	titleCaser := cases.Title(language.English)
-	return titleCaser.String(spacedString)
+	return titleCaser.String(strings.ToLower(spacedString))
+}
+
+// ToSnakeCase converts a string to snake_case format.
+func ToSnakeCase(input string) string {
+	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
+	snakeCasedString := regex.ReplaceAllString(input, "_")
+	snakeCasedString = strings.ToLower(snakeCasedString)
+	return snakeCasedString
+}
+
+// ToStructFieldName converts a string with underscores to a Struct Field Name
+// in TitleCase without spaces or underscores.
+func ToStructFieldName(input string) string {
+	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
+	spacedString := regex.ReplaceAllString(input, " ")
+	titleCaser := cases.Title(language.English)
+	structFieldName := titleCaser.String(strings.ToLower(spacedString))
+	structFieldName = regex.ReplaceAllString(structFieldName, "")
+	return structFieldName
 }
 
 // AbbreviateString abbreviates a string to fit within the specified maxLength.

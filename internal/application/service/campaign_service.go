@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -18,6 +19,7 @@ import (
 
 type CampaignService struct {
 	campaignRepo irepository.GenericRepository[model.Campaign]
+	contractRepo irepository.GenericRepository[model.Contract]
 }
 
 // GetCampaignsInfoByUserID implements iservice.CampaignService.
@@ -282,8 +284,345 @@ func (c *CampaignService) CreateCampaignFromContract(
 	return response, nil
 }
 
-func NewCampaignService(campaignRepo irepository.GenericRepository[model.Campaign]) iservice.CampaignService {
+// SuggestCampaignFromContract implements iservice.CampaignService.
+func (c *CampaignService) SuggestCampaignFromContract(
+	ctx context.Context,
+	contractID uuid.UUID,
+) (*responses.CampaignSuggestionResponse, error) {
+	zap.L().Info("Suggesting campaign from contract", zap.String("contract_id", contractID.String()))
+
+	// Retrieve contract with necessary fields
+	contract, err := c.contractRepo.GetByID(ctx, contractID, nil)
+	if err != nil {
+		zap.L().Error("Failed to retrieve contract", zap.String("contract_id", contractID.String()), zap.Error(err))
+		return nil, errors.New("contract not found")
+	}
+	if contract == nil {
+		zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
+		return nil, errors.New("contract not found")
+	}
+
+	// Validate contract status - only ACTIVE contracts can be used for suggestions
+	if contract.Status != "ACTIVE" {
+		zap.L().Warn("Contract is not active", zap.String("contract_id", contractID.String()), zap.String("status", string(contract.Status)))
+		return nil, errors.New("only ACTIVE contracts can be used for campaign suggestions")
+	}
+
+	// Validate scope of work exists
+	if len(contract.ScopeOfWork) == 0 {
+		zap.L().Warn("Contract has no scope of work", zap.String("contract_id", contractID.String()))
+		return nil, errors.New("contract has no deliverables defined in scope of work")
+	}
+
+	// Parse scope of work
+	var scopeOfWork map[string]interface{}
+	if err := json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+		zap.L().Error("Failed to parse scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
+		return nil, errors.New("invalid scope of work format")
+	}
+
+	// Extract deliverables based on contract type
+	var suggestedCampaign *responses.SuggestedCampaign
+	switch contract.Type {
+	case "ADVERTISING":
+		suggestedCampaign, err = c.extractAdvertisingTasks(scopeOfWork, contract)
+	case "AFFILIATE":
+		suggestedCampaign, err = c.extractAffiliateTasks(scopeOfWork, contract)
+	case "BRAND_AMBASSADOR":
+		suggestedCampaign, err = c.extractBrandAmbassadorTasks(scopeOfWork, contract)
+	case "CO_PRODUCING":
+		suggestedCampaign, err = c.extractCoProducingStructure(scopeOfWork, contract)
+	default:
+		zap.L().Error("Unsupported contract type", zap.String("contract_id", contractID.String()), zap.String("type", string(contract.Type)))
+		return nil, errors.New("unsupported contract type")
+	}
+
+	if err != nil {
+		zap.L().Error("Failed to extract campaign structure", zap.String("contract_id", contractID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	response := &responses.CampaignSuggestionResponse{
+		ContractID:        contractID,
+		ContractType:      string(contract.Type),
+		SuggestedCampaign: suggestedCampaign,
+	}
+
+	zap.L().Info("Successfully suggested campaign from contract",
+		zap.String("contract_id", contractID.String()),
+		zap.String("contract_type", string(contract.Type)),
+		zap.Int("milestones_count", len(suggestedCampaign.Milestones)))
+
+	return response, nil
+}
+
+// extractAdvertisingTasks extracts tasks from ADVERTISING contract deliverables
+func (c *CampaignService) extractAdvertisingTasks(
+	scopeOfWork map[string]interface{},
+	contract *model.Contract,
+) (*responses.SuggestedCampaign, error) {
+	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	if !ok || len(deliverables) == 0 {
+		return nil, errors.New("no deliverables found in scope of work")
+	}
+
+	var tasks []responses.SuggestedTask
+	for _, item := range deliverables {
+		deliverable, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Extract advertised_items array
+		advertisedItems, ok := deliverable["advertised_items"].([]interface{})
+		if !ok || len(advertisedItems) == 0 {
+			continue
+		}
+
+		for _, adItem := range advertisedItems {
+			adItemMap, ok := adItem.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			taskName := fmt.Sprintf("Advertise %s", adItemMap["name"])
+			taskDesc := map[string]interface{}{
+				"item_name":        adItemMap["name"],
+				"item_description": adItemMap["description"],
+				"quantity":         adItemMap["quantity"],
+				"content_type":     deliverable["content_type"],
+				"platform":         deliverable["platform"],
+			}
+
+			tasks = append(tasks, responses.SuggestedTask{
+				Name:            taskName,
+				DescriptionJSON: taskDesc,
+			})
+		}
+	}
+
+	if len(tasks) == 0 {
+		return nil, errors.New("no valid advertising tasks could be extracted")
+	}
+
+	milestone := responses.SuggestedMilestone{
+		Name:  "Content Creation & Publication",
+		Tasks: tasks,
+	}
+
+	campaignName := "Advertising Campaign"
+	if contract.Title != nil {
+		campaignName = *contract.Title
+	}
+
+	return &responses.SuggestedCampaign{
+		Name:       campaignName,
+		Milestones: []responses.SuggestedMilestone{milestone},
+	}, nil
+}
+
+// extractAffiliateTasks extracts tasks from AFFILIATE contract deliverables
+func (c *CampaignService) extractAffiliateTasks(
+	scopeOfWork map[string]interface{},
+	contract *model.Contract,
+) (*responses.SuggestedCampaign, error) {
+	// Affiliate contracts extend advertising with tracking links
+	suggestedCampaign, err := c.extractAdvertisingTasks(scopeOfWork, contract)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add tracking link information to each task
+	deliverables, _ := scopeOfWork["deliverables"].([]interface{})
+	for i, item := range deliverables {
+		deliverable, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		trackingLink, _ := deliverable["tracking_link"].(string)
+		platform, _ := deliverable["platform"].(string)
+
+		if i < len(suggestedCampaign.Milestones[0].Tasks) {
+			task := &suggestedCampaign.Milestones[0].Tasks[i]
+			if task.DescriptionJSON == nil {
+				task.DescriptionJSON = make(map[string]interface{})
+			}
+			task.DescriptionJSON["tracking_link"] = trackingLink
+			task.DescriptionJSON["affiliate_platform"] = platform
+		}
+	}
+
+	// Update campaign name
+	suggestedCampaign.Name = "Affiliate Marketing Campaign"
+	if contract.Title != nil {
+		suggestedCampaign.Name = *contract.Title
+	}
+
+	return suggestedCampaign, nil
+}
+
+// extractBrandAmbassadorTasks extracts tasks from BRAND_AMBASSADOR contract deliverables
+func (c *CampaignService) extractBrandAmbassadorTasks(
+	scopeOfWork map[string]interface{},
+	contract *model.Contract,
+) (*responses.SuggestedCampaign, error) {
+	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	if !ok || len(deliverables) == 0 {
+		return nil, errors.New("no deliverables found in scope of work")
+	}
+
+	var tasks []responses.SuggestedTask
+	for _, item := range deliverables {
+		deliverable, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Extract events array
+		events, ok := deliverable["events"].([]interface{})
+		if !ok || len(events) == 0 {
+			continue
+		}
+
+		for _, evt := range events {
+			eventMap, ok := evt.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			eventName, _ := eventMap["name"].(string)
+			taskName := fmt.Sprintf("Represent Brand at %s", eventName)
+
+			taskDesc := map[string]interface{}{
+				"event_name":    eventMap["name"],
+				"event_date":    eventMap["date"],
+				"location":      eventMap["location"],
+				"activities":    eventMap["activities"],
+				"expected_kpis": eventMap["expected_kpis"],
+				"content_type":  deliverable["content_type"],
+				"platform":      deliverable["platform"],
+			}
+
+			tasks = append(tasks, responses.SuggestedTask{
+				Name:            taskName,
+				DescriptionJSON: taskDesc,
+			})
+		}
+	}
+
+	if len(tasks) == 0 {
+		return nil, errors.New("no valid brand ambassador tasks could be extracted")
+	}
+
+	milestone := responses.SuggestedMilestone{
+		Name:  "Brand Representation & Events",
+		Tasks: tasks,
+	}
+
+	campaignName := "Brand Ambassador Campaign"
+	if contract.Title != nil {
+		campaignName = *contract.Title
+	}
+
+	return &responses.SuggestedCampaign{
+		Name:       campaignName,
+		Milestones: []responses.SuggestedMilestone{milestone},
+	}, nil
+}
+
+// extractCoProducingStructure extracts milestones and tasks from CO_PRODUCING contract deliverables
+func (c *CampaignService) extractCoProducingStructure(
+	scopeOfWork map[string]interface{},
+	contract *model.Contract,
+) (*responses.SuggestedCampaign, error) {
+	deliverables, ok := scopeOfWork["deliverables"].([]interface{})
+	if !ok || len(deliverables) == 0 {
+		return nil, errors.New("no deliverables found in scope of work")
+	}
+
+	var milestones []responses.SuggestedMilestone
+
+	// Each product becomes a milestone
+	for _, item := range deliverables {
+		deliverable, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		products, ok := deliverable["products"].([]interface{})
+		if !ok || len(products) == 0 {
+			continue
+		}
+
+		for _, prod := range products {
+			productMap, ok := prod.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			productName, _ := productMap["name"].(string)
+			milestoneName := fmt.Sprintf("Co-Produce: %s", productName)
+
+			var tasks []responses.SuggestedTask
+
+			// Each concept within a product becomes a task
+			concepts, ok := productMap["concepts"].([]interface{})
+			if ok && len(concepts) > 0 {
+				for _, concept := range concepts {
+					conceptMap, ok := concept.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					conceptName, _ := conceptMap["name"].(string)
+					taskName := fmt.Sprintf("Develop Concept: %s", conceptName)
+
+					taskDesc := map[string]interface{}{
+						"product_name":        productName,
+						"concept_name":        conceptName,
+						"concept_description": conceptMap["description"],
+						"milestones":          conceptMap["milestones"],
+						"deliverable_date":    conceptMap["deliverable_date"],
+					}
+
+					tasks = append(tasks, responses.SuggestedTask{
+						Name:            taskName,
+						DescriptionJSON: taskDesc,
+					})
+				}
+			}
+
+			if len(tasks) > 0 {
+				milestones = append(milestones, responses.SuggestedMilestone{
+					Name:  milestoneName,
+					Tasks: tasks,
+				})
+			}
+		}
+	}
+
+	if len(milestones) == 0 {
+		return nil, errors.New("no valid co-producing milestones could be extracted")
+	}
+
+	campaignName := "Co-Production Campaign"
+	if contract.Title != nil {
+		campaignName = *contract.Title
+	}
+
+	return &responses.SuggestedCampaign{
+		Name:       campaignName,
+		Milestones: milestones,
+	}, nil
+}
+
+func NewCampaignService(
+	campaignRepo irepository.GenericRepository[model.Campaign],
+	contractRepo irepository.GenericRepository[model.Contract],
+) iservice.CampaignService {
 	return &CampaignService{
 		campaignRepo: campaignRepo,
+		contractRepo: contractRepo,
 	}
 }
