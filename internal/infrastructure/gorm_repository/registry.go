@@ -28,12 +28,11 @@ type DatabaseRegistry struct {
 	AdminConfigRepository     irepository.GenericRepository[model.Config]
 
 	//Limited Product and Concept
-	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
-	ConceptRepository        irepository.GenericRepository[model.Concept]
-	AdminConfigRepository    irepository.GenericRepository[model.Config]
-  VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
-	
-  //Orders & Payment
+	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
+	ConceptRepository          irepository.GenericRepository[model.Concept]
+	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+
+	//Orders & Payment
 	OrderRepository              irepository.GenericRepository[model.Order]
 	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
 	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
@@ -41,27 +40,27 @@ type DatabaseRegistry struct {
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
-		UserRepository:             NewGenericRepository[model.User](db),
-		LoggedSessionRepository:    NewGenericRepository[model.LoggedSession](db),
-		ProductRepository:          NewGenericRepository[model.Product](db),
-		ProductVariantRepository:   NewGenericRepository[model.ProductVariant](db),
-		BrandRepository:            NewGenericRepository[model.Brand](db),
-		ProductCategoryRepository:  NewGenericRepository[model.ProductCategory](db),
-		ContractRepository:         NewGenericRepository[model.Contract](db),
-		ContractPaymentRepository:  NewGenericRepository[model.ContractPayment](db),
-		CampaignRepository:         NewGenericRepository[model.Campaign](db),
-		MilestoneRepository:        NewGenericRepository[model.Milestone](db),
-		TaskRepository:             NewGenericRepository[model.Task](db),
-		ModifiedHistoryRepository:  NewGenericRepository[model.ModifiedHistory](db),
-		LimitedProductRepository:   NewGenericRepository[model.LimitedProduct](db),
-		ConceptRepository:          NewGenericRepository[model.Concept](db),
-		AdminConfigRepository:      NewGenericRepository[model.Config](db),
-		VariantAttributeRepository: NewGenericRepository[model.VariantAttribute](db),
-		ChannelRepository:          NewGenericRepository[model.Channel](db),
-		ContentRepository:          NewGenericRepository[model.Content](db),
-		ContentChannelRepository:   NewGenericRepository[model.ContentChannel](db),
-		BlogRepository:             NewGenericRepository[model.Blog](db),
-    OrderRepository:              NewGenericRepository[model.Order](db),
+		UserRepository:               NewGenericRepository[model.User](db),
+		LoggedSessionRepository:      NewGenericRepository[model.LoggedSession](db),
+		ProductRepository:            NewGenericRepository[model.Product](db),
+		ProductVariantRepository:     NewGenericRepository[model.ProductVariant](db),
+		BrandRepository:              NewGenericRepository[model.Brand](db),
+		ProductCategoryRepository:    NewGenericRepository[model.ProductCategory](db),
+		ContractRepository:           NewGenericRepository[model.Contract](db),
+		ContractPaymentRepository:    NewGenericRepository[model.ContractPayment](db),
+		CampaignRepository:           NewGenericRepository[model.Campaign](db),
+		MilestoneRepository:          NewGenericRepository[model.Milestone](db),
+		TaskRepository:               NewGenericRepository[model.Task](db),
+		ModifiedHistoryRepository:    NewGenericRepository[model.ModifiedHistory](db),
+		LimitedProductRepository:     NewGenericRepository[model.LimitedProduct](db),
+		ConceptRepository:            NewGenericRepository[model.Concept](db),
+		AdminConfigRepository:        NewGenericRepository[model.Config](db),
+		VariantAttributeRepository:   NewGenericRepository[model.VariantAttribute](db),
+		ChannelRepository:            NewGenericRepository[model.Channel](db),
+		ContentRepository:            NewGenericRepository[model.Content](db),
+		ContentChannelRepository:     NewGenericRepository[model.ContentChannel](db),
+		BlogRepository:               NewGenericRepository[model.Blog](db),
+		OrderRepository:              NewGenericRepository[model.Order](db),
 		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
 		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
 	}
