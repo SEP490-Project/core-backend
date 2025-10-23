@@ -335,9 +335,9 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 
 	suggestGroup := campaigns.Group("")
-	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 	{
-		suggestGroup.POST("/suggest", campaignHandler.SuggestCampaign)
+		suggestGroup.GET("/:campaign_id/suggest", campaignHandler.SuggestCampaign)
 	}
 
 	viewGroup := campaigns.Group("")
@@ -411,40 +411,26 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 // SetupContentRoutes sets up routes for content management
 func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	contentHandler := r.handlerRegistry.ContentHandler
-	contentGroup := group.Group("/contents").Use(r.middlewareRegistry.Auth.RequireAuth())
-	{
-		contentGroup.POST("", contentHandler.Create)
-		contentGroup.GET("", contentHandler.List)
-		contentGroup.GET("/:id", contentHandler.GetByID)
-		contentGroup.PUT("/:id", contentHandler.Update)
-		contentGroup.DELETE("/:id", contentHandler.Delete)
-		contentGroup.POST("/:id/submit", contentHandler.Submit)
-	}
-
-	// Approval routes - restricted to admin, sales staff, and marketing staff
-	approvalGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, sales, marketing))
-	{
-		approvalGroup.POST("/:id/approve", contentHandler.Approve)
-		approvalGroup.POST("/:id/reject", contentHandler.Reject)
-	}
-
-	// Publish routes - restricted to admin and content staff
-	publishGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
-	{
-		publishGroup.POST("/:id/publish", contentHandler.Publish)
-	}
-
-	// Blog routes - restricted to admin and content staff
 	blogHandler := r.handlerRegistry.BlogHandler
-	blogGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	contentGroup := group.Group("/contents")
 	{
-		blogGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
+		editGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content))
+		{
+			editGroup.POST("", contentHandler.Create)
+			editGroup.GET("", contentHandler.List)
+			editGroup.GET("/:id", contentHandler.GetByID)
+			editGroup.PUT("/:id", contentHandler.Update)
+			editGroup.DELETE("/:id", contentHandler.Delete)
+			editGroup.POST("/:id/submit", contentHandler.Submit)
+			editGroup.POST("/:id/publish", contentHandler.Publish)
+			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
+		}
+
+		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))
+		{
+			reviewGroup.PUT("/:id/approve", contentHandler.Approve)
+			reviewGroup.PUT("/:id/reject", contentHandler.Reject)
+		}
 	}
 }
 
