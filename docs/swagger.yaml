@@ -503,8 +503,8 @@ definitions:
         enum:
         - ADVERTISING
         - AFFILIATE
-        - AMBASSADOR
-        - COPRODUCE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
         example: ADVERTISING
         type: string
     required:
@@ -1851,6 +1851,23 @@ definitions:
       total_pages:
         type: integer
     type: object
+  responses.PaginationTaskResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.TaskListResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
   responses.PayOSLinkResponse:
     properties:
       accountName:
@@ -2176,6 +2193,119 @@ definitions:
         additionalProperties: true
         type: object
       name:
+        type: string
+    type: object
+  responses.TaskListResponse:
+    properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      assigned_to_name:
+        example: Jane Smith
+        type: string
+      assigned_to_role:
+        example: Sales Staff
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_at:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      deadline:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Homepage
+        type: string
+      status:
+        example: IN_PROGRESS
+        type: string
+      type:
+        example: PRODUCT
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+    type: object
+  responses.TaskResponse:
+    properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      assigned_to_name:
+        example: Jane Smith
+        type: string
+      assigned_to_role:
+        example: Sales Staff
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      content_ids:
+        example:
+        - '["770e8400-e29b-41d4-a716-446655440000"'
+        - ' "880e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        type: array
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_at:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      created_by_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_by_name:
+        example: John Doe
+        type: string
+      deadline:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      description:
+        example: Create a modern and responsive homepage design.
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Homepage
+        type: string
+      product_ids:
+        example:
+        - '["550e8400-e29b-41d4-a716-446655440000"'
+        - ' "660e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        type: array
+      status:
+        example: IN_PROGRESS
+        type: string
+      type:
+        example: PRODUCT
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+      updated_by_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      updated_by_name:
+        example: John Doe
         type: string
     type: object
   responses.UserBrief:
@@ -5690,6 +5820,105 @@ paths:
       summary: Create Variant Image
       tags:
       - Products
+  /api/v1/tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by creator ID
+        format: uuid
+        in: query
+        name: created_by_id
+        type: string
+      - description: Filter by assignee ID
+        format: uuid
+        in: query
+        name: assigned_to_id
+        type: string
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Filter
+      tags:
+      - Tasks
   /api/v1/tasks/{id}/state:
     patch:
       consumes:
@@ -5736,7 +5965,48 @@ paths:
       summary: Update Task State
       tags:
       - State Transfer
-  /api/v1/tasks/{taskId}/products:
+  /api/v1/tasks/{task_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a task by its ID and return its details in the response.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TaskResponse'
+              type: object
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Task by ID
+      tags:
+      - Tasks
+  /api/v1/tasks/{task_id}/products:
     get:
       consumes:
       - application/json
@@ -5745,7 +6015,7 @@ paths:
       parameters:
       - description: Task ID (UUID)
         in: path
-        name: taskId
+        name: task_id
         required: true
         type: string
       - default: 10

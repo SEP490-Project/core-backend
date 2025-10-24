@@ -130,6 +130,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAdminConfigRouter(v1)
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
+		r.SetupTaskRoutes(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -193,14 +194,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			)
 		}
 
-		// ---------- TASKS ----------
-		taskGroup := v1.Group("/tasks")
-		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
-		{
-			taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
-			taskGroup.GET("/:taskId/products", productHandler.GetProductsByTask)
-		}
-
 		// Milestone routes (state transitions)
 		milestoneGroup := v1.Group("/milestones")
 		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
@@ -242,7 +235,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.POST("", orderHandler.PlaceOrder)
 			ordersGroup.POST("/:id/pay", orderHandler.PayOrder)
 		}
-    
+
 		// ---------- CONCEPTS ----------
 		conceptHandler := r.handlerRegistry.ConceptHandler
 		conceptsGroup := v1.Group("/concepts")
@@ -258,7 +251,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				protected.DELETE("/:id", conceptHandler.DeleteConcept)
 			}
 		}
-    
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
@@ -431,6 +424,22 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 			reviewGroup.PATCH("/:id/approve", contentHandler.Approve)
 			reviewGroup.PATCH("/:id/reject", contentHandler.Reject)
 		}
+	}
+}
+
+// SetupTaskRoutes sets up routes for task management
+func (r *Router) SetupTaskRoutes(group *gin.RouterGroup) {
+	taskHandler := r.handlerRegistry.TaskHandler
+	stateHandler := r.handlerRegistry.StateHandler
+	productHandler := r.handlerRegistry.ProductHandler
+
+	taskGroup := group.Group("/tasks")
+	taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+	{
+		taskGroup.GET("", taskHandler.GetTasksByFilter)
+		taskGroup.GET("/:task_id", taskHandler.GetTaskByID)
+		taskGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
+		taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
 	}
 }
 

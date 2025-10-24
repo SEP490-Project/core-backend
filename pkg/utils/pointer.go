@@ -10,3 +10,7 @@ func StrPtrOrNil(s string) *string {
 	}
 	return &s
 }
+
+func PtrOrNil[T any](v T) *T {
+	return &v
+}
