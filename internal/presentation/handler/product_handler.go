@@ -175,7 +175,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			taskId	path		string	true	"Task ID (UUID)"
+//	@Param			task_id	path		string	true	"Task ID (UUID)"
 //	@Param			limit	query		int		false	"Number of items per page"	default(10)
 //	@Param			offset	query		int		false	"Number of items to skip"	default(0)
 //	@Success		200		{object}	object{data=[]responses.ProductOverviewResponse,total=int,limit=int,offset=int}
@@ -183,10 +183,10 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 //	@Failure		403		{object}	object{error=string}
 //	@Failure		500		{object}	object{error=string}
 //	@Security		BearerAuth
-//	@Router			/api/v1/tasks/{taskId}/products [get]
+//	@Router			/api/v1/tasks/{task_id}/products [get]
 func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 	// Parse path param
-	taskIDStr := c.Param("taskId")
+	taskIDStr := c.Param("task_id")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
