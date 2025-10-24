@@ -429,12 +429,15 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 
 // SetupTaskRoutes sets up routes for task management
 func (r *Router) SetupTaskRoutes(group *gin.RouterGroup) {
+	taskHandler := r.handlerRegistry.TaskHandler
 	stateHandler := r.handlerRegistry.StateHandler
 	productHandler := r.handlerRegistry.ProductHandler
 
 	taskGroup := group.Group("/tasks")
 	taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
 	{
+		taskGroup.GET("", taskHandler.GetTasksByFilter)
+		taskGroup.GET("/:task_id", taskHandler.GetTaskByID)
 		taskGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
 		taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
 	}
