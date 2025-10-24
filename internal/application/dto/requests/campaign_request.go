@@ -21,7 +21,7 @@ type CreateCampaignRequest struct {
 	Description *string                          `json:"description" validate:"omitempty,max=1000" example:"A campaign for the summer sale."`
 	StartDate   time.Time                        `json:"start_date" validate:"required" example:"2023-06-01T00:00:00Z"`
 	EndDate     time.Time                        `json:"end_date" validate:"required,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
-	Type        string                           `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE AMBASSADOR COPRODUCE" example:"ADVERTISING"`
+	Type        string                           `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Milestones  []CreateMilestoneCampaignRequest `json:"milestones" validate:"dive"`
 }
 
@@ -49,7 +49,7 @@ type CampaignFilterRequest struct {
 	EndDate   *time.Time `json:"end_date" validate:"omitempty,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
 	Keyword   *string    `json:"keyword" validate:"omitempty,min=1,max=255" example:"Summer"`
 	Status    *string    `json:"status" validate:"omitempty,oneof=RUNNING COMPLETED CANCELLED" example:"RUNNING"`
-	Type      *string    `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE AMBASSADOR COPRODUCE" example:"ADVERTISING"`
+	Type      *string    `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 }
 
 // ToModel converts the CreateCampaignRequest to a Campaign model.
