@@ -32,6 +32,7 @@ type ApplicationRegistry struct {
 	ChannelService         iservice.ChannelService
 	ContentService         iservice.ContentService
 	BlogService            iservice.BlogService
+	TaskService            iservice.TaskService
 }
 
 func NewApplicationRegistry(
@@ -73,5 +74,6 @@ func NewApplicationRegistry(
 			databaseRegistry.BlogRepository,
 			databaseRegistry.ContentRepository,
 		),
+		TaskService: service.NewTaskService(databaseRegistry.TaskRepository),
 	}
 }
