@@ -5261,6 +5261,148 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Filter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tasks/{id}/state": {
             "patch": {
                 "security": [
@@ -5331,7 +5473,75 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tasks/{taskId}/products": {
+        "/api/v1/tasks/{task_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a task by its ID and return its details in the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Task by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}/products": {
             "get": {
                 "security": [
                     {
@@ -5353,7 +5563,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Task ID (UUID)",
-                        "name": "taskId",
+                        "name": "task_id",
                         "in": "path",
                         "required": true
                     },
@@ -6948,8 +7158,8 @@ const docTemplate = `{
                     "enum": [
                         "ADVERTISING",
                         "AFFILIATE",
-                        "AMBASSADOR",
-                        "COPRODUCE"
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
                     ],
                     "example": "ADVERTISING"
                 }
@@ -8809,6 +9019,32 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.PaginationTaskResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TaskListResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "responses.PayOSLinkResponse": {
             "type": "object",
             "properties": {
@@ -9292,6 +9528,160 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.TaskListResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                }
+            }
+        },
+        "responses.TaskResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "content_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"770e8400-e29b-41d4-a716-446655440000\"",
+                        " \"880e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "created_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Create a modern and responsive homepage design."
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"550e8400-e29b-41d4-a716-446655440000\"",
+                        " \"660e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                },
+                "updated_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "updated_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 }
             }
         },
