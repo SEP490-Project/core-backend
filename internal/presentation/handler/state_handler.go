@@ -360,7 +360,7 @@ func (h *StateHandler) UpdateContractState(c *gin.Context) {
 		}
 	}
 
-	uow := h.UnitOfWork.Begin(c.Request.Context())
+	uow := h.Begin(c.Request.Context())
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()

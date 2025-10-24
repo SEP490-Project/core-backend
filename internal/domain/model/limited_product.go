@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type LimitedProduct struct {
@@ -26,7 +27,7 @@ type LimitedProduct struct {
 
 func (LimitedProduct) TableName() string { return "limited_products" }
 
-func (lp *LimitedProduct) BeforeCreate(tx any) (err error) {
+func (lp *LimitedProduct) BeforeCreate(db *gorm.DB) (err error) {
 	if lp.MaxStock < 0 {
 		zap.L().Warn("LimitedProduct MaxStock is less than 0, setting to 0")
 		lp.MaxStock = 0
