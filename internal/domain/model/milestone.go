@@ -13,6 +13,8 @@ type Milestone struct {
 	ID                   uuid.UUID            `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	CampaignID           uuid.UUID            `json:"campaign_id" gorm:"type:uuid;column:campaign_id;not null"`
 	Description          *string              `json:"description" gorm:"type:text;column:description"`
+	BudgetPercent        int                  `json:"budget_percent" gorm:"column:budget_percent"`
+	BudgetAmount         float64              `json:"budget_amount" gorm:"column:budget_amount"`
 	DueDate              time.Time            `json:"due_date" gorm:"type:timestamp;column:due_date;not null"`
 	CompletedAt          *time.Time           `json:"completed_at" gorm:"type:timestamp;column:completed_at"`
 	CompletionPercentage float64              `json:"completion_percentage" gorm:"column:completion_percentage"`

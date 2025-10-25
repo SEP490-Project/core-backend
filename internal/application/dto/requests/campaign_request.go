@@ -3,6 +3,7 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,9 +28,11 @@ type CreateCampaignRequest struct {
 
 // CreateMilestoneCampaignRequest represents the request payload for creating a new milestone campaign.
 type CreateMilestoneCampaignRequest struct {
-	Description *string                     `json:"description" validate:"omitempty,max=1000" example:"Milestone for initial launch."`
-	DueDate     time.Time                   `json:"due_date" validate:"required" example:"2023-06-15T00:00:00Z"`
-	Tasks       []CreateTaskCampaignRequest `json:"tasks" validate:"dive"`
+	Description   *string                     `json:"description" validate:"omitempty,max=1000" example:"Milestone for initial launch."`
+	BudgetPercent int                         `json:"budget_percent" validate:"gte=0,lte=100" example:"25.5"`
+	BudgetAmount  float64                     `json:"budget_amount,omitempty" validate:"omitempty,gte=0" example:"25000000"`
+	DueDate       time.Time                   `json:"due_date" validate:"required" example:"2023-06-15T00:00:00Z"`
+	Tasks         []CreateTaskCampaignRequest `json:"tasks" validate:"dive"`
 }
 
 // CreateTaskCampaignRequest represents the request payload for creating a new task campaign.
@@ -128,6 +131,13 @@ func (ccr *CreateCampaignRequest) ToMilestoneModels(userID uuid.UUID, campaignID
 				milestone.Tasks = taskModels
 			}
 
+			if mr.BudgetAmount != 0 {
+				milestone.BudgetAmount = mr.BudgetAmount
+			}
+			if mr.BudgetPercent != 0 {
+				milestone.BudgetPercent = mr.BudgetPercent
+			}
+
 			milestoneModels[i] = milestone
 			zap.L().Debug("Converted milestone", zap.Int("index", i))
 		}(ir, request)
@@ -215,6 +225,13 @@ func (ccr *CreateCampaignRequest) ToTaskModels(
 func ValidateCreateCampaignRequest(sl validator.StructLevel) {
 	campaign := sl.Current().Interface().(CreateCampaignRequest)
 
+	// Validate the budget percent sum below or equal to 100%
+	sumPercent := utils.SumSlice(campaign.Milestones, func(m CreateMilestoneCampaignRequest) int { return m.BudgetPercent })
+	if sumPercent > 100 {
+		sl.ReportError(sumPercent, "milestones", "Milestones", "budgetPercentExceeds100", fmt.Sprintf("The sum of budget_percent across milestones is %d, which exceeds 100%%", sumPercent))
+	}
+
+	// Validate that task types are allowed for the campaign type
 	allowedTasks := map[enum.ContractType][]enum.TaskType{
 		enum.ContractTypeAdvertising: {enum.TaskTypeProduct, enum.TaskTypeContent, enum.TaskTypeOther},
 		enum.ContractTypeAffiliate:   {enum.TaskTypeContent, enum.TaskTypeOther},
