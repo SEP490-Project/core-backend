@@ -1,5 +1,25 @@
 package utils
 
+// SumSlice computes the sum of mapped values from the input slice.
+// The mapper function is applied to each element to obtain the value to be summed.
+// If the mapper is nil, it attempts to convert the element directly to the target type T. If conversion fails, it defaults to zero.
+func SumSlice[R any, T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64](input []R, mapper func(R) T) T {
+	var sum T
+	for _, item := range input {
+		temp := T(0)
+		if mapper != nil {
+			temp = mapper(item)
+		} else {
+			converted, ok := any(item).(T)
+			if ok {
+				temp = converted
+			}
+		}
+		sum += temp
+	}
+	return sum
+}
+
 // MapSlice applies a mapping function to each element of the input slice
 // and returns a new slice with the mapped values.
 func MapSlice[T any, R any](input []T, mapper func(T) R) []R {
