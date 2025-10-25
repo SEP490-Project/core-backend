@@ -26,6 +26,9 @@ type InfrastructureRegistry struct {
 	ValkeyCache       *persistence.ValkeyCache
 	RabbitMQ          *rabbitmq.RabbitMQ
 	PayOsService      iservice_third_party.PayOSService
+	EmailService      *service.EmailService
+	FCMService        *service.FCMService
+	HealthMonitor     *service.HealthMonitor
 }
 
 func NewInfrastructureRegistry(
@@ -71,9 +74,41 @@ func NewInfrastructureRegistry(
 	zap.L().Debug("Initializing PayOS...")
 	registry.PayOsService = service.NewPayOsService(gormrepository.NewGenericRepository[model.PaymentTransaction](db))
 
+	//Initialize EmailService
+	zap.L().Debug("Initializing EmailService...")
+	emailService, err := service.NewEmailService(config)
+	if err != nil {
+		zap.L().Error("Failed to initialize EmailService", zap.Error(err))
+	} else {
+		registry.EmailService = emailService
+		zap.L().Info("EmailService initialized successfully")
+	}
+
+	//Initialize FCMService
+	zap.L().Debug("Initializing FCMService...")
+	fcmService, err := service.NewFCMService(config.FirebaseFCM.ServiceAccountPath, config)
+	if err != nil {
+		zap.L().Error("Failed to initialize FCMService", zap.Error(err))
+	} else {
+		registry.FCMService = fcmService
+		zap.L().Info("FCMService initialized successfully")
+	}
+
+	// Initialize Health Monitor
+	zap.L().Debug("Initializing Health Monitor...")
+	healthMonitor := service.NewHealthMonitor(
+		emailService,
+		fcmService,
+		db,
+		registry.ValkeyCache,
+		registry.RabbitMQ,
+	)
+	registry.HealthMonitor = healthMonitor
+	zap.L().Info("Health Monitor initialized successfully")
+
 	// Override AdminConfig from Database
 	zap.L().Debug("Overriding AdminConfig from database")
-	err := registry.OverrideAdminConfig()
+	err = registry.OverrideAdminConfig()
 	if err != nil {
 		zap.L().Error("Failed to override admin config", zap.Error(err))
 	}
@@ -141,7 +176,6 @@ func (r *InfrastructureRegistry) OverrideAdminConfig() error {
 func (r *InfrastructureRegistry) StopServices() {
 	zap.L().Info("Stopping infrastructure services...")
 
-	// Stop Asynq server
 	// Close RabbitMQ connection
 	if r.RabbitMQ != nil {
 		r.RabbitMQ.Close()
@@ -153,49 +187,4 @@ func (r *InfrastructureRegistry) StopServices() {
 	}
 
 	zap.L().Info("Infrastructure services stopped successfully")
-}
-
-// IsHealthy checks if all critical infrastructure services are healthy
-func (r *InfrastructureRegistry) IsHealthy() map[string]bool {
-	zap.L().Debug("Performing infrastructure health check")
-	health := make(map[string]bool)
-
-	// Check Valkey cache
-	if r.ValkeyCache != nil {
-		valkeyHealthy := r.ValkeyCache.Ping() == nil
-		health["valkey"] = valkeyHealthy
-		zap.L().Debug("Valkey health check completed", zap.Bool("healthy", valkeyHealthy))
-	} else {
-		health["valkey"] = false
-		zap.L().Debug("Valkey not available for health check")
-	}
-
-	// Check RabbitMQ
-	if r.RabbitMQ != nil {
-		rabbitHealthy := r.RabbitMQ.IsConnected()
-		health["rabbitmq"] = rabbitHealthy
-		zap.L().Debug("RabbitMQ health check completed", zap.Bool("healthy", rabbitHealthy))
-	} else {
-		health["rabbitmq"] = false
-		zap.L().Debug("RabbitMQ not available for health check")
-	}
-
-	// Check database
-	if r.DB != nil {
-		sqlDB, err := r.DB.DB()
-		if err == nil {
-			dbHealthy := sqlDB.Ping() == nil
-			health["database"] = dbHealthy
-			zap.L().Debug("Database health check completed", zap.Bool("healthy", dbHealthy))
-		} else {
-			health["database"] = false
-			zap.L().Debug("Database health check failed", zap.Error(err))
-		}
-	} else {
-		health["database"] = false
-		zap.L().Debug("Database not available for health check")
-	}
-
-	zap.L().Info("Infrastructure health check completed", zap.Any("health_status", health))
-	return health
 }
