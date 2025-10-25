@@ -23,6 +23,10 @@ specs/
 # Test coverage profiles
 coverage.*
 
+# Notification system secrets
+firebase-service-account*.json
+*gmail*.env
+
 # OS-generated files
 .DS_Store
 Thumbs.db
