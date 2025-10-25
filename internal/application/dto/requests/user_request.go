@@ -182,3 +182,9 @@ type UserFilterRequest struct {
 	IsActive       *bool   `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
 	IsBrandAccount *bool   `form:"is_brand_account" json:"is_brand_account" validate:"omitempty" example:"true"`
 }
+
+// UserNotificationPreferenceRequest represents a request to update notification preferences
+type UserNotificationPreferenceRequest struct {
+	EmailEnabled *bool `json:"email_enabled" validate:"omitempty"`
+	PushEnabled  *bool `json:"push_enabled" validate:"omitempty"`
+}
