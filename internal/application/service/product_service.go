@@ -232,7 +232,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 }
 
 // CreateStandardProduct creates a new product with default status DRAFT.
-func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
+func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
 	if dto == nil {
 		return nil, errors.New("null request")
 	}
@@ -274,11 +274,11 @@ func (p productService) CreateStandardProduct(dto *requests.CreateStandardProduc
 		saved.Description = &empty
 	}
 
-	resp := &responses.ProductResponse{}
-	return resp.ToProductResponse(saved), nil
+	resp := &responses.ProductResponseV2{}
+	return resp.ToProductResponseV2(saved), nil
 }
 
-func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error) {
+func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
 	if dto == nil {
 		return nil, errors.New("nil dto")
 	}
@@ -332,8 +332,8 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 		saved.Description = &empty
 	}
 
-	resp := &responses.ProductResponse{}
-	return resp.ToProductResponse(saved), nil
+	resp := &responses.ProductResponseV2{}
+	return resp.ToProductResponseV2(saved), nil
 }
 
 func (p productService) GetProductsPagination(page, limit int, search, categoryID, productType string) ([]*responses.ProductResponse, int, error) {

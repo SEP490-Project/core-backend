@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -16,7 +15,6 @@ type Product struct {
 	TaskID      *uuid.UUID `json:"task_id" gorm:"column:task_id"`
 	Name        string     `json:"name" gorm:"column:name;not null"`
 	Description *string    `json:"description" gorm:"column:description"`
-	Price       float64    `json:"price" gorm:"column:price;not null"`
 	//CurrentStock *int               `json:"current_stock" gorm:"column:current_stock"`
 	Type        enum.ProductType   `json:"type" gorm:"column:type;not null;check:type in ('STANDARD', 'LIMITED')"`
 	CreatedAt   time.Time          `json:"created_at" gorm:"column:created_at"`
@@ -41,10 +39,6 @@ func (Product) TableName() string { return "products" }
 func (p *Product) BeforeCreate(tx *gorm.DB) (err error) {
 	if p.ID == uuid.Nil {
 		p.ID = uuid.New()
-	}
-	if p.Price < 0 {
-		zap.L().Warn("Product Price is less than 0, setting to 0")
-		p.Price = 0
 	}
 
 	return nil
