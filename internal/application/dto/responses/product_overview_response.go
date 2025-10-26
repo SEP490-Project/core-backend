@@ -49,7 +49,6 @@ func ToOverview(p *model.Product) *ProductOverviewResponse {
 		TaskID:      p.TaskID,
 		Name:        p.Name,
 		Description: p.Description,
-		Price:       p.Price,
 		Type:        p.Type,
 		Status:      p.Status,
 		BrandID:     p.BrandID,

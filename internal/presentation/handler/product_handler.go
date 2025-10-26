@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"os"
 	"strconv"
@@ -301,7 +302,7 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateStandardProductRequest	true	"Product to create"
-//	@Success		201		{object}	responses.ProductResponse
+//	@Success		201		{object}	responses.ProductResponseV2
 //	@Failure		400		{object}	object{error=string}
 //	@Failure		401		{object}	object{error=string}
 //	@Failure		500		{object}	object{error=string}
@@ -334,7 +335,8 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, product)
+	resp := responses.SuccessResponse("Create standard product successfully", ptr.Int(http.StatusCreated), product)
+	c.JSON(http.StatusCreated, resp)
 }
 
 // CreateLimitedProduct godoc
@@ -346,7 +348,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
-//	@Success		201		{object}	map[string]any							"Created product"
+//	@Success		201		{object}	responses.ProductResponseV2							"Created limited product"
 //	@Failure		400		{object}	map[string]string						"invalid request / validation failed"
 //	@Failure		401		{object}	map[string]string						"missing or invalid user id"
 //	@Failure		500		{object}	map[string]string						"internal server error"
@@ -381,7 +383,8 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, product)
+	resp := responses.SuccessResponse("Create limited product successfully", ptr.Int(http.StatusCreated), product)
+	c.JSON(http.StatusCreated, resp)
 }
 
 // CreateProductVariant godoc

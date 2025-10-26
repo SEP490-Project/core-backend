@@ -43,8 +43,7 @@ func (d *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
 		TaskID:      d.TaskID,
 		Name:        d.Name,
 		Description: d.Description,
-		Price:       d.Price,
-		Type:        enum.ProductType(d.Type),
+		Type:        d.Type,
 		CreatedByID: createdBy,
 	}
 }
