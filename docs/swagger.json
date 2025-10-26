@@ -3957,6 +3957,303 @@
                 }
             }
         },
+        "/api/v1/device-tokens": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "List device tokens",
+                "responses": {
+                    "200": {
+                        "description": "Device tokens retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Register a new FCM device token for push notifications",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Register a new device token",
+                "parameters": [
+                    {
+                        "description": "Device token registration data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RegisterDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Device token registered successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Token already registered to another user",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete all device tokens",
+                "responses": {
+                    "200": {
+                        "description": "All device tokens deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/device-tokens/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing device token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Update a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated device token data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a specific device token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid device token ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -4243,6 +4540,241 @@
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications with optional filtering by user, type, status, and date range",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifications with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by user ID (UUID)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by notification type (EMAIL, PUSH)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (PENDING, SENT, FAILED, RETRYING)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (RFC3339 or YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (RFC3339 or YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/failed": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications that failed after multiple retry attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get failed notifications with retries",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Minimum number of retry attempts (default: 3)",
+                        "name": "min_retries",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve detailed information about a specific notification including delivery attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -5735,6 +6267,125 @@
                 }
             }
         },
+        "/api/v1/users/notification-preferences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Get User notification preferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Update notification preferences",
+                "parameters": [
+                    {
+                        "description": "Notification preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UserNotificationPreferenceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/profile": {
             "get": {
                 "security": [
@@ -6682,6 +7333,32 @@
                 "DispenserTypeNone"
             ]
         },
+        "enum.NotificationStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "RETRYING"
+            ],
+            "x-enum-varnames": [
+                "NotificationStatusPending",
+                "NotificationStatusSent",
+                "NotificationStatusFailed",
+                "NotificationStatusRetrying"
+            ]
+        },
+        "enum.NotificationType": {
+            "type": "string",
+            "enum": [
+                "EMAIL",
+                "PUSH"
+            ],
+            "x-enum-varnames": [
+                "NotificationTypeEmail",
+                "NotificationTypePush"
+            ]
+        },
         "enum.OrderStatus": {
             "type": "string",
             "enum": [
@@ -6718,6 +7395,17 @@
                 "PaymentCycleMonthly",
                 "PaymentCycleQuarterly",
                 "PaymentCycleAnnually"
+            ]
+        },
+        "enum.PlatformType": {
+            "type": "string",
+            "enum": [
+                "IOS",
+                "ANDROID"
+            ],
+            "x-enum-varnames": [
+                "PlatformTypeIOS",
+                "PlatformTypeAndroid"
             ]
         },
         "enum.ProductStatus": {
@@ -6802,6 +7490,151 @@
                         "RECAP",
                         "DONE"
                     ]
+                }
+            }
+        },
+        "model.AndroidConfig": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "description": "Notification channel",
+                    "type": "string"
+                },
+                "click_action": {
+                    "description": "Activity to open",
+                    "type": "string"
+                },
+                "color": {
+                    "description": "Notification color",
+                    "type": "string"
+                },
+                "priority": {
+                    "description": "\"high\" or \"normal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "model.Attachment": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "S3 URL",
+                    "type": "string"
+                }
+            }
+        },
+        "model.DeliveryAttempt": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"success\", \"failed\", \"retrying\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.IOSConfig": {
+            "type": "object",
+            "properties": {
+                "badge": {
+                    "description": "Badge count",
+                    "type": "integer"
+                },
+                "content_available": {
+                    "description": "Silent push",
+                    "type": "integer"
+                },
+                "sound": {
+                    "description": "Sound filename",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBContentData": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "description": "Email attachments",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Attachment"
+                    }
+                },
+                "body": {
+                    "description": "Plain text body",
+                    "type": "string"
+                },
+                "html_body": {
+                    "description": "HTML email body",
+                    "type": "string"
+                },
+                "subject": {
+                    "description": "Email subject",
+                    "type": "string"
+                },
+                "template_data": {
+                    "description": "Data for template rendering",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "template_name": {
+                    "description": "Template filename",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Push notification title",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBErrorDetails": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "last_attempt_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBPlatformConfig": {
+            "type": "object",
+            "properties": {
+                "android_config": {
+                    "$ref": "#/definitions/model.AndroidConfig"
+                },
+                "ios_config": {
+                    "$ref": "#/definitions/model.IOSConfig"
+                }
+            }
+        },
+        "model.JSONBRecipientInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "description": "FCM device tokens",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -7468,6 +8301,10 @@
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
                 "login_identifier": {
                     "type": "string",
                     "example": "abc@gmail.com"
@@ -7476,6 +8313,17 @@
                     "type": "string",
                     "minLength": 8,
                     "example": "12345678"
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
                 }
             }
         },
@@ -7586,6 +8434,30 @@
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.RegisterDeviceTokenRequest": {
+            "type": "object",
+            "required": [
+                "platform",
+                "token"
+            ],
+            "properties": {
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                },
+                "token": {
+                    "type": "string",
+                    "minLength": 10
                 }
             }
         },
@@ -7989,6 +8861,30 @@
                 }
             }
         },
+        "requests.UpdateDeviceTokenRequest": {
+            "type": "object",
+            "required": [
+                "new_token",
+                "platform"
+            ],
+            "properties": {
+                "new_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                }
+            }
+        },
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
@@ -8053,6 +8949,17 @@
                 "is_active": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "requests.UserNotificationPreferenceRequest": {
+            "type": "object",
+            "properties": {
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "push_enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -8964,11 +9871,54 @@
                 }
             }
         },
+        "responses.DeviceTokenListResponse": {
+            "type": "object",
+            "properties": {
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.DeviceTokenResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.DeviceTokenResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "platform": {
+                    "$ref": "#/definitions/enum.PlatformType"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "device_token_registered": {
+                    "type": "boolean"
                 },
                 "expires_in": {
                     "type": "integer"
@@ -8985,6 +9935,61 @@
             "type": "object",
             "properties": {
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.NotificationListResponse": {
+            "type": "object",
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.NotificationResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                }
+            }
+        },
+        "responses.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "content_data": {
+                    "$ref": "#/definitions/model.JSONBContentData"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivery_attempts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DeliveryAttempt"
+                    }
+                },
+                "error_details": {
+                    "$ref": "#/definitions/model.JSONBErrorDetails"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "platform_config": {
+                    "$ref": "#/definitions/model.JSONBPlatformConfig"
+                },
+                "recipient_info": {
+                    "$ref": "#/definitions/model.JSONBRecipientInfo"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.NotificationStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.NotificationType"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -9517,7 +10522,7 @@
             "properties": {
                 "description_json": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 },
                 "name": {
                     "type": "string"
@@ -9762,6 +10767,26 @@
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.UserNotificationPreferenceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "push_enabled": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
