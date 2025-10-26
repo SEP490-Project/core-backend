@@ -142,13 +142,7 @@ func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest,
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("User login successful",
 		zap.String("user_id", user.ID.String()),
@@ -274,13 +268,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, request *requests.Refres
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("Token refresh successful",
 		zap.String("user_id", user.ID.String()),
@@ -366,13 +354,7 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("User signup successful",
 		zap.String("user_id", user.ID.String()),

@@ -403,6 +403,14 @@ func (s *ContractService) GetByFilter(ctx context.Context, filterReq *requests.C
 			db = db.Where("end_date <= ?", filterReq.EndDate)
 		}
 
+		if filterReq.NoCampaign != nil {
+			if *filterReq.NoCampaign {
+				db = db.Where("campaign_id IS NULL")
+			} else {
+				db = db.Where("campaign_id IS NOT NULL")
+			}
+		}
+
 		// Sorting
 		sortBy := filterReq.SortBy
 		if sortBy == "" {

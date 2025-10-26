@@ -2,26 +2,113 @@
 -- Date: 2025-10-26
 -- Feature: 002-notification-integrations
 -- Create notifications table
-CREATE TABLE IF NOT EXISTS notifications (
+
+
+-- ================================================================
+--  Notifications Table Migration Script
+--  Safely migrate old notifications schema → new JSONB-based schema
+-- ================================================================
+
+BEGIN;
+
+-- 1️⃣  Backup the existing table (safety net)
+CREATE TABLE IF NOT EXISTS notifications_backup AS TABLE notifications;
+COMMENT ON TABLE notifications_backup IS 'Backup of original notifications table before migration';
+
+-- 2️⃣  Create the new target table (temporary name: notifications_new)
+CREATE TABLE IF NOT EXISTS notifications_new (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     type VARCHAR(50) NOT NULL,
     status VARCHAR(50) NOT NULL,
-    
--- JSONB columns for flexible metadata
+
+    -- JSONB columns for flexible metadata
     delivery_attempts JSONB NOT NULL DEFAULT '[]'::jsonb,
     recipient_info JSONB NOT NULL,
     content_data JSONB NOT NULL,
     platform_config JSONB,
     error_details JSONB,
-    
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
-    
--- Foreign key constraint
-    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+
+    CONSTRAINT fk_notifications_user
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );
+
+-- 3️⃣  Migrate and transform data
+INSERT INTO notifications_new (
+    id,
+    user_id,
+    type,
+    status,
+    delivery_attempts,
+    recipient_info,
+    content_data,
+    platform_config,
+    error_details,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    user_id,
+    type,
+    status,
+    '[]'::jsonb AS delivery_attempts,
+    jsonb_build_object(
+        'user_id', user_id
+    ) AS recipient_info,
+    jsonb_build_object(
+        'message', message,
+        'data', message_data
+    ) AS content_data,
+    jsonb_build_object(
+        'channel', channel,
+        'related_id', related_id,
+        'send_time', send_time
+    ) AS platform_config,
+    '{}'::jsonb AS error_details,
+    created_at,
+    updated_at
+FROM notifications;
+
+-- 4️⃣  Recreate all indexes from new DDL
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications_new (user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications_new (status);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications_new (type);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications_new (created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_deleted_at ON notifications_new (deleted_at);
+
+-- JSONB GIN indexes
+CREATE INDEX IF NOT EXISTS idx_notifications_delivery_attempts ON notifications_new USING GIN (delivery_attempts);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_info ON notifications_new USING GIN (recipient_info);
+CREATE INDEX IF NOT EXISTS idx_notifications_error_details ON notifications_new USING GIN (error_details);
+
+-- 5️⃣  Swap the tables
+ALTER TABLE notifications RENAME TO notifications_old;
+ALTER TABLE notifications_new RENAME TO notifications;
+
+-- 6️⃣  Optional: Verify migrated rows count
+DO $$
+DECLARE
+    old_count INT;
+    new_count INT;
+BEGIN
+    SELECT COUNT(*) INTO old_count FROM notifications_old;
+    SELECT COUNT(*) INTO new_count FROM notifications;
+    RAISE NOTICE 'Old table rows: %, New table rows: %', old_count, new_count;
+END $$;
+
+drop table if exists notifications_old;
+drop table if exists notifications_backup;
+
+-- ✅ Commit transaction if all went well
+COMMIT;
 
 -- Create device_tokens table
 CREATE TABLE IF NOT EXISTS device_tokens (
@@ -46,19 +133,6 @@ alter table users
     add column if not exists email_enabled boolean default true not null,
     add column if not exists push_enabled boolean default true not null;
 
-
--- ========== Notifications Indexes ==========
--- Standard B-tree indexes
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_status ON notifications(status);
-CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
-CREATE INDEX IF NOT EXISTS idx_notifications_deleted_at ON notifications(deleted_at);
-
--- GIN indexes for JSONB columns (enables efficient JSONB queries)
-CREATE INDEX IF NOT EXISTS idx_notifications_delivery_attempts ON notifications USING GIN (delivery_attempts);
-CREATE INDEX IF NOT EXISTS idx_notifications_recipient_info ON notifications USING GIN (recipient_info);
-CREATE INDEX IF NOT EXISTS idx_notifications_error_details ON notifications USING GIN (error_details);
 
 -- ========== DeviceTokens Indexes ==========
 -- Standard B-tree indexes

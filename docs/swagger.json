@@ -5842,6 +5842,311 @@
                     },
                     {
                         "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/contract/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response. This is usually used by BRAND_PARTNER",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Contract ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "format": "date-time",
                         "description": "Filter by deadline from date",
                         "name": "deadline_from_date",
@@ -9079,6 +9384,9 @@
         "responses.BrandDetailResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -9167,6 +9475,9 @@
         "responses.BrandResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -9927,7 +10238,7 @@
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -10485,7 +10796,7 @@
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -10697,23 +11008,44 @@
                 }
             }
         },
-        "responses.UserInfo": {
+        "responses.UserInfoResponse": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "date_of_birth": {
+                    "type": "string",
+                    "example": "1990-01-01"
+                },
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john_doe"
                 }
             }
         },

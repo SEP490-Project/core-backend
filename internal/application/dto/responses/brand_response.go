@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 )
@@ -12,6 +13,7 @@ type BrandResponse struct {
 	Description             *string `json:"description"`
 	ContactEmail            string  `json:"contact_email"`
 	ContactPhone            string  `json:"contact_phone"`
+	Address                 *string `json:"address"`
 	Website                 *string `json:"website"`
 	Status                  string  `json:"status"`
 	NumberOfContracts       int     `json:"number_of_contracts,omitempty"`
@@ -31,16 +33,23 @@ type BrandDetailResponse struct {
 }
 
 // ToBrandResponse converts a Brand model to a BrandResponse DTO.
-func (br BrandResponse) ToBrandResponse(model *model.Brand) *BrandResponse {
-	br.ID = model.ID.String()
-	br.Name = model.Name
-	br.Description = model.Description
-	br.ContactEmail = model.ContactEmail
-	br.ContactPhone = model.ContactPhone
-	br.Website = model.Website
-	br.Status = string(model.Status)
-	br.LogoURL = model.LogoURL
-	br.CreatedAt = utils.FormatLocalTime(&model.CreatedAt, "")
+func (br BrandResponse) ToBrandResponse(brandModel *model.Brand) *BrandResponse {
+	br.ID = brandModel.ID.String()
+	br.Name = brandModel.Name
+	br.Description = brandModel.Description
+	br.ContactEmail = brandModel.ContactEmail
+	br.ContactPhone = brandModel.ContactPhone
+	br.Address = brandModel.Address
+	br.Website = brandModel.Website
+	br.Status = string(brandModel.Status)
+	br.LogoURL = brandModel.LogoURL
+	br.CreatedAt = utils.FormatLocalTime(&brandModel.CreatedAt, "")
+
+	if brandModel.Contracts != nil {
+		br.NumberOfContracts = len(brandModel.Contracts)
+		activeCount := len(utils.FilterSlice(brandModel.Contracts, func(c model.Contract) bool { return c.Status == enum.ContractStatusActive }))
+		br.NumberOfActiveContracts = activeCount
+	}
 
 	return &br
 }
