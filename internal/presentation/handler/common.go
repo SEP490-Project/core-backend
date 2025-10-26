@@ -69,6 +69,19 @@ func extractParamID(c *gin.Context, paramName string) (paramID uuid.UUID, err er
 	return
 }
 
+// extractQueryID utility extracts a UUID parameter from the query string based on the provided query name.
+func extractQueryID(c *gin.Context, queryName string) (queryID uuid.UUID, err error) {
+	extractedID := c.Query(queryName)
+	if extractedID == "" {
+		return uuid.Nil, fmt.Errorf("%s is required", queryName)
+	}
+	queryID, err = uuid.Parse(extractedID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid %s format: %v", queryName, err)
+	}
+	return
+}
+
 // processValidationError processes validation errors from the validator package and returns a structured APIValidationErrorResponse.
 func processValidationError(err error) *responses.APIValidationErrorResponse {
 	if err == nil {

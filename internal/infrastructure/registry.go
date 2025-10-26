@@ -78,7 +78,7 @@ func NewInfrastructureRegistry(
 	zap.L().Debug("Initializing EmailService...")
 	emailService, err := service.NewEmailService(config)
 	if err != nil {
-		zap.L().Error("Failed to initialize EmailService", zap.Error(err))
+		zap.L().Warn("Failed to initialize EmailService, skipping email notifications", zap.Error(err))
 	} else {
 		registry.EmailService = emailService
 		zap.L().Info("EmailService initialized successfully")
@@ -88,7 +88,7 @@ func NewInfrastructureRegistry(
 	zap.L().Debug("Initializing FCMService...")
 	fcmService, err := service.NewFCMService(config.FirebaseFCM.ServiceAccountPath, config)
 	if err != nil {
-		zap.L().Error("Failed to initialize FCMService", zap.Error(err))
+		zap.L().Warn("Failed to initialize FCMService, skipping FCM notifications", zap.Error(err))
 	} else {
 		registry.FCMService = fcmService
 		zap.L().Info("FCMService initialized successfully")
