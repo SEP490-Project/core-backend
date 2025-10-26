@@ -38,9 +38,45 @@ func extractUserRoles(c *gin.Context) (userRoles *string, err error) {
 	if !exists {
 		return nil, errors.New("user roles not found in context")
 	}
-	var ok bool
-	userRoles, ok = rolesData.(*string)
-	if !ok {
+
+	switch v := rolesData.(type) {
+	case string:
+		if v == "" {
+			return nil, errors.New("user roles empty")
+		}
+		if !enum.UserRole(v).IsValid() {
+			return nil, fmt.Errorf("invalid user role: %s", v)
+		}
+		return &v, nil
+	case *string:
+		if v == nil || *v == "" {
+			return nil, errors.New("user roles empty")
+		}
+		if !enum.UserRole(*v).IsValid() {
+			return nil, fmt.Errorf("invalid user role: %s", *v)
+		}
+		return v, nil
+	case []string:
+		if len(v) == 0 {
+			return nil, errors.New("user roles empty")
+		}
+		rv := v[0]
+		if !enum.UserRole(rv).IsValid() {
+			return nil, fmt.Errorf("invalid user role: %s", rv)
+		}
+		return &rv, nil
+	case []interface{}:
+		if len(v) == 0 {
+			return nil, errors.New("user roles empty")
+		}
+		if s, ok := v[0].(string); ok {
+			if !enum.UserRole(s).IsValid() {
+				return nil, fmt.Errorf("invalid user role: %s", s)
+			}
+			return &s, nil
+		}
+		return nil, errors.New("invalid user roles format")
+	default:
 		return nil, errors.New("invalid user roles format")
 	}
 	if !enum.UserRole(*userRoles).IsValid() {
@@ -95,4 +131,18 @@ func processValidationError(err error) *responses.APIValidationErrorResponse {
 		return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
 	}
 	return responses.ValidationErrorResponse(400, "Validation Error, Unable to process the validation errors")
+}
+
+// IsAllowRole use for optional role check. It's mean that in the same endpoint, depending on the user role, the response will be different.
+func IsAllowRole(c *gin.Context, allowFullViewRoles []enum.UserRole) bool {
+	rolePtr, _ := extractUserRoles(c)
+	if rolePtr == nil {
+		return false
+	}
+	for _, ar := range allowFullViewRoles {
+		if ar == enum.UserRole(*rolePtr) {
+			return true
+		}
+	}
+	return false
 }

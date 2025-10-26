@@ -142,7 +142,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
-		// ---------- PRODUCTS ----------
+		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
 		stateHandler := r.handlerRegistry.StateHandler
 
@@ -150,7 +150,14 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
-			productsGroup.GET("/v2", productHandler.GetAllProductsV2)
+
+			// Optional
+			optionalGroup := productsGroup.Group("")
+			optionalGroup.Use(r.middlewareRegistry.Auth.RequireAuthOptional())
+			{
+				optionalGroup.GET("/v2", productHandler.GetAllProductsV2)
+			}
+
 			productsGroup.GET("/:id", productHandler.GetProductDetail)
 
 			// Protected (Sales, Brand, Admin)
@@ -172,17 +179,23 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
+		variantAttributeGroup := v1.Group("/variant-attributes")
+		{
+			//Public
+
+			//Optional
+			optionalGroup := variantAttributeGroup.Group("")
+			optionalGroup.Use(r.middlewareRegistry.Auth.RequireAuthOptional())
+			{
+				optionalGroup.GET("", productHandler.GetVariantAttributePagination)
+			}
+			//Rules
+
+		}
 		// Variant Attributes (Sales, Brand, Admin)
 		v1.POST("/variant-attributes",
 			r.middlewareRegistry.Auth.RequireRole(sales, admin),
 			productHandler.CreateVariantAttribute,
-		)
-		// Public listing for variant attributes
-		v1.GET("/variant-attributes", productHandler.GetVariantAttributePagination)
-		// Admin listing for variant attributes (protected)
-		v1.GET("/variant-attributes/admin",
-			r.middlewareRegistry.Auth.RequireRole(sales, admin),
-			productHandler.GetVariantAttributePaginationAdmin,
 		)
 
 		// ---------- CATEGORIES ----------
@@ -253,6 +266,17 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.POST("", orderHandler.PlaceOrder)
 			ordersGroup.POST("/:id/pay", orderHandler.PayOrder)
 		}
+
+		// ---------- LOCATIONS ----------
+		locationHandler := r.handlerRegistry.LocationHandler
+		locationGroup := v1.Group("/location")
+		locationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			locationGroup.GET("/provinces", locationHandler.GetProvinces)
+			locationGroup.GET("/districts/:province-id", locationHandler.GetDistricts)
+			locationGroup.GET("/wards/:district-id", locationHandler.GetWards)
+		}
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 

@@ -1538,6 +1538,56 @@ definitions:
         example: ADVERTISING
         type: string
     type: object
+  responses.DistrictResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Code:
+        type: string
+      CreatedAt:
+        type: string
+      DeliverType:
+        type: integer
+      DistrictID:
+        type: integer
+      DistrictName:
+        type: string
+      GovernmentCode:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      OnDates: {}
+      PickType:
+        type: integer
+      ProvinceID:
+        type: integer
+      ReasonCode:
+        type: string
+      ReasonMessage:
+        type: string
+      Status:
+        type: integer
+      SupportType:
+        type: integer
+      Type:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
+        type: string
+      WhiteListClient: {}
+      WhiteListDistrict: {}
+    type: object
   responses.LoginResponse:
     properties:
       access_token:
@@ -1726,6 +1776,8 @@ definitions:
       created_at:
         description: FE parse về Date
         type: string
+      created_by:
+        $ref: '#/definitions/responses.UserListResponse'
       description:
         type: string
       id:
@@ -1736,6 +1788,8 @@ definitions:
         type: string
       price:
         type: number
+      status:
+        $ref: '#/definitions/enum.ProductStatus'
       thumbnail_url:
         description: optional
         items:
@@ -1743,6 +1797,10 @@ definitions:
         type: array
       type:
         $ref: '#/definitions/enum.ProductType'
+      updated_at:
+        type: string
+      updated_by:
+        $ref: '#/definitions/responses.UserListResponse'
       variants:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
@@ -1795,6 +1853,43 @@ definitions:
       updated_at:
         type: string
       uses:
+        type: string
+    type: object
+  responses.ProvinceResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Code:
+        type: string
+      CountryID:
+        type: integer
+      CreatedAt:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      ProvinceID:
+        type: integer
+      ProvinceName:
+        type: string
+      RegionCPN:
+        type: integer
+      RegionID:
+        type: integer
+      Status:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
         type: string
     type: object
   responses.SessionInfo:
@@ -2040,6 +2135,53 @@ definitions:
         type: boolean
       price:
         type: number
+    type: object
+  responses.WardResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Config: {}
+      CreatedAt:
+        type: string
+      DeliverType:
+        type: integer
+      DistrictID:
+        type: integer
+      GovernmentCode:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      OnDates: {}
+      PickType:
+        type: integer
+      ReasonCode:
+        type: string
+      ReasonMessage:
+        type: string
+      Status:
+        type: integer
+      SupportType:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
+        type: string
+      WardCode:
+        type: string
+      WardName:
+        type: string
+      WhiteListClient: {}
+      WhiteListWard: {}
     type: object
 host: localhost:8080
 info:
@@ -3939,6 +4081,69 @@ paths:
       summary: Upload a video chunk (streaming upload)
       tags:
       - files
+  /api/v1/location/districts/{province-id}:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all districts\tand front-end have to filter himself"
+      parameters:
+      - description: Province ID
+        in: path
+        name: province-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Provinces response
+          schema:
+            $ref: '#/definitions/responses.DistrictResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of districts from a province
+      tags:
+      - location
+  /api/v1/location/provinces:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all provinces\tand front-end have to filter himself"
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Provinces response
+          schema:
+            $ref: '#/definitions/responses.ProvinceResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of provinces from GiaoHangNhanh API
+      tags:
+      - location
+  /api/v1/location/wards/{district-id}:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all districts\tand front-end have to filter himself"
+      parameters:
+      - description: District ID
+        in: path
+        name: district-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ward response
+          schema:
+            $ref: '#/definitions/responses.WardResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of districts from a province
+      tags:
+      - location
   /api/v1/milestones/{id}/state:
     patch:
       consumes:
@@ -4183,6 +4388,7 @@ paths:
     get:
       consumes:
       - application/json
+      deprecated: true
       description: Get paginated list of products with optional search
       parameters:
       - default: 10
@@ -4540,6 +4746,10 @@ paths:
         name: category_id
         type: string
       - description: Filter type of products
+        enum:
+        - STANDARD
+        - LIMITED
+        - ""
         in: query
         name: type
         type: string
@@ -4547,7 +4757,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Products retrieved successfully
+          description: Products view for Others
           schema:
             properties:
               data:
@@ -4570,7 +4780,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get All Products
+      summary: Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
       tags:
       - Products
   /api/v1/products/variants/{variantId}/images:
@@ -5178,52 +5388,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Attribute
-      tags:
-      - Variant-Attributes
-  /api/v1/variant-attributes/admin:
-    get:
-      consumes:
-      - application/json
-      description: Get paginated list of variant attributes for administrative usage.
-        Returns full model details.
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 10
-        description: Items per page
-        in: query
-        name: limit
-        type: integer
-      - description: Search term for name
-        in: query
-        name: search
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.VariantAttributeResponse'
-                  type: array
-                pagination:
-                  $ref: '#/definitions/responses.Pagination'
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List Variant Attributes (Admin)
       tags:
       - Variant-Attributes
   /health:

@@ -107,6 +107,24 @@ func (ulr UserListResponse) ToListResponse(models []model.User) (userListRespons
 	return
 }
 
+func (ulr UserListResponse) ToSingleUserListResponse(model model.User) (userListResponse *UserListResponse) {
+	userListResponse = &UserListResponse{
+		ID:        model.ID,
+		Username:  model.Username,
+		Email:     model.Email,
+		Role:      model.Role,
+		FullName:  model.FullName,
+		IsActive:  model.IsActive,
+		AvatarURL: model.AvatarURL,
+		CreatedAt: utils.FormatLocalTime(model.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(model.UpdatedAt, ""),
+	}
+	if model.Brand != nil {
+		userListResponse.IsBrandAccount = true
+	}
+	return
+}
+
 // endregion
 
 // UserPaginationResponse represents a paginated response for users.

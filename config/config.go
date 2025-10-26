@@ -29,6 +29,7 @@ type AppConfig struct {
 	S3Bucket          S3BucketConfig          `mapstructure:"aws_s3_bucket"`
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
 	PayOS             PayOSConfig             `mapstructure:"payos"`
+	GHN               GHNConfig               `mapstructure:"ghn"`
 }
 
 type ServerConfig struct {
@@ -148,6 +149,11 @@ type PayOSConfig struct {
 	ReturnURL         string `mapstructure:"return_url"`
 	FrontendCancelURL string `mapstructure:"frontend_cancel_url"`
 	FrontendReturnURL string `mapstructure:"frontend_return_url"`
+}
+
+type GHNConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	Token   string `mapstructure:"token"`
 }
 
 // endregion

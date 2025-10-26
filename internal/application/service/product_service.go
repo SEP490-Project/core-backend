@@ -31,6 +31,10 @@ type productService struct {
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
 }
 
+func (p productService) PublishProduct(productID uuid.UUID) (*responses.ProductResponse, error) {
+	return nil, nil
+}
+
 func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error) {
 	var limitedProduct *model.LimitedProduct
 
@@ -431,7 +435,7 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string) ([]*responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
@@ -449,19 +453,109 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
 		if categoryID != "" {
-			if cid, err := uuid.Parse(categoryID); err == nil {
+			cid, err := uuid.Parse(categoryID)
+			if err == nil {
 				db = db.Where(`category_id = ?`, cid)
 			} else {
-				zap.L().Warn("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
+				cid = uuid.Nil
+				zap.L().Debug("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
+				db = db.Where(`category_id = ?`, cid)
 			}
 		}
 		if productType != "" {
-			switch productType {
-			case "STANDARD", "LIMITED":
-				db = db.Where(`type = ?`, productType)
-			default:
-				zap.L().Warn("invalid product type provided, ignoring", zap.String("product_type", productType))
+			db = db.Where(`type = ?`, productType)
+		}
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories",
+		"CreatedBy",
+		"UpdatedBy",
+	}
+
+	// === Bước 1: Lấy danh sách ID của page này ===
+	var productIDs []uuid.UUID
+	idFilter := filter
+
+	// Query danh sách ID cho trang này
+	err := p.repository.DB().
+		WithContext(ctx).
+		Model(&model.Product{}).
+		Scopes(idFilter).
+		Select("products.id").
+		Limit(limit).
+		Offset(offset).
+		Pluck("products.id", &productIDs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(productIDs) == 0 {
+		// Không có dữ liệu ở trang này
+		return []responses.ProductResponseV2{}, 0, nil
+	}
+
+	// === Bước 2: Lấy total record (không preload) ===
+	_, total, err := p.repository.GetAll(ctx, filter, nil, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to count total products", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// === Bước 3: Lấy thực thể kèm quan hệ theo ID ===
+	finalFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("products.id IN ?", productIDs).Order("products.created_at DESC")
+	}
+
+	products, _, err := p.repository.GetAll(ctx, finalFilter, includes, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch products with includes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// === Bước 4: Map sang DTO ===
+	productResponses := make([]responses.ProductResponseV2, 0, len(products))
+	for i := range products {
+		resp := responses.ProductResponseV2{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
+	}
+
+	zap.L().Info("Successfully retrieved products with pagination",
+		zap.Int("returned_count", len(productResponses)),
+		zap.Int("total_count", int(total)),
+		zap.String("search_term", search),
+	)
+
+	return productResponses, int(total), nil
+}
+
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string) ([]responses.ProductResponseV2Partial, int, error) {
+	ctx := context.Background()
+	offset := (page - 1) * limit
+
+	// --- Tạo filter chính ---
+	filter := func(db *gorm.DB) *gorm.DB {
+		if search != "" {
+			db = db.Where(`name ILIKE ?`, "%"+search+"%")
+		}
+		if categoryID != "" {
+			cid, err := uuid.Parse(categoryID)
+			if err == nil {
+				db = db.Where(`category_id = ?`, cid)
+			} else {
+				cid = uuid.Nil
+				zap.L().Debug("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
+				db = db.Where(`category_id = ?`, cid)
 			}
+		}
+		if productType != "" {
+			db = db.Where(`type = ?`, productType)
 		}
 		return db.Order("products.created_at DESC").Order("products.id")
 	}
@@ -494,7 +588,7 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 
 	if len(productIDs) == 0 {
 		// Không có dữ liệu ở trang này
-		return []*responses.ProductResponseV2{}, 0, nil
+		return []responses.ProductResponseV2Partial{}, 0, nil
 	}
 
 	// === Bước 2: Lấy total record (không preload) ===
@@ -516,10 +610,10 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	}
 
 	// === Bước 4: Map sang DTO ===
-	productResponses := make([]*responses.ProductResponseV2, 0, len(products))
+	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
 	for i := range products {
-		resp := &responses.ProductResponseV2{}
-		productResponses = append(productResponses, resp.ToProductResponseV2(&products[i]))
+		resp := &responses.ProductResponseV2Partial{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
 	}
 
 	zap.L().Info("Successfully retrieved products with pagination",
@@ -658,7 +752,7 @@ func (p productService) GetProductVariants(productID uuid.UUID, limit, offset in
 	return res, int(total), nil
 }
 
-func (p productService) GetVariantAttributePagination(limit, page int, search string) ([]responses.VariantAttributeResponse, int, error) {
+func (p productService) GetVariantAttributePaginationPartial(limit, page int, search string) ([]responses.VariantAttributeResponse, int, error) {
 	ctx := context.Background()
 	pageNum := limit
 	pageSize := page
@@ -747,7 +841,7 @@ func (p productService) GetVariantAttributePagination(limit, page int, search st
 	return variantAttributeResp, int(total), nil
 }
 
-func (p productService) GetVariantAttributePaginationAdmin(limit, page int, search string) ([]model.VariantAttribute, int, error) {
+func (p productService) GetVariantAttributePagination(limit, page int, search string) ([]model.VariantAttribute, int, error) {
 	ctx := context.Background()
 	pageNum := limit
 	pageSize := page
@@ -806,6 +900,64 @@ func (p productService) GetVariantAttributePaginationAdmin(limit, page int, sear
 	}
 
 	return variantAttributes, int(total), nil
+}
+
+func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5Newest, error) {
+	ctx := context.Background()
+
+	stdFilter := func(db *gorm.DB) *gorm.DB {
+		db = db.Where(`type = ?`, enum.ProductTypeStandard)
+
+		//filter valid only
+		db.Where(`status = ?`, enum.ProductStatusActived).Where(``)
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+	limitFilter := func(db *gorm.DB) *gorm.DB {
+		db = db.Where(`type = ?`, enum.ProductTypeLimited)
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+	}
+
+	//Get 5 newest standard products
+	stdProducts, _, err := p.repository.GetAll(ctx, stdFilter, includes, 5, 1)
+	if err != nil {
+		zap.L().Error("Failed to fetch top 5 newest products", zap.Error(err))
+		return nil, err
+	}
+
+	limitedProducts, _, err := p.repository.GetAll(ctx, limitFilter, includes, 5, 1)
+	if err != nil {
+		zap.L().Error("Failed to fetch top 5 newest limited products", zap.Error(err))
+		return nil, err
+	}
+
+	stdProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
+	limitedProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
+	prdMapper := &responses.ProductResponseV2Partial{}
+	for i := 0; i < 5; i++ {
+		if i < len(stdProducts) {
+			stdItem := prdMapper.ToProductResponseV2(&stdProducts[i])
+			stdProductResp = append(stdProductResp, *stdItem)
+		}
+		if i < len(limitedProducts) {
+			limitedItem := prdMapper.ToProductResponseV2(&limitedProducts[i])
+			limitedProductResp = append(limitedProductResp, *limitedItem)
+		}
+	}
+
+	resp := &responses.ProductResponseTop5Newest{
+		Standard: stdProductResp,
+		Limited:  limitedProductResp,
+	}
+
+	return resp, nil
 }
 
 func NewProductService(

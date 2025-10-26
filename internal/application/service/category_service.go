@@ -131,17 +131,17 @@ func (c productCategoryService) CreateCategory(request requests.CreateProductCat
 
 func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID uuid.UUID) (*responses.ProductCategoryResponse, error) {
 	ctx := context.Background()
-
+	if parentID == currentID {
+		return nil, errors.New("cannot set category as its own parent")
+	}
 	//check category existence
 	found, err := c.categoryRepository.GetByID(ctx, currentID, []string{"ParentCategory", "ChildCategories"})
 	if err != nil {
 		return nil, err
 	} else if found == nil {
 		return nil, errors.New("category not found")
-	}
-
-	if parentID == currentID {
-		return nil, errors.New("cannot set category as its own parent")
+	} else if len(found.ChildCategories) > 0 {
+		return nil, errors.New("this category is a parent of another, cannot assign another parent")
 	}
 
 	//check parent category existence
@@ -149,7 +149,6 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 		found.ParentCategoryID = nil
 		found.ParentCategory = nil //build response
 	} else {
-		// First try to get the parent in the normal (non-unscoped) way
 		parentFound, err := c.categoryRepository.GetByID(ctx, parentID, []string{})
 		if err != nil {
 			// If not found, check if it exists but was soft-deleted and give a clearer message
@@ -167,13 +166,7 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 			return nil, err
 		}
 
-		// If retrieved, check soft-delete flag for clearer message
-		//if parentFound.DeletedAt.Valid {
-		//	zap.L().Debug("Parent category is soft-deleted", zap.String("parent_id", parentID.String()))
-		//	return nil, errors.New("parent category is deleted")
-		//}
-
-		// Prevent assigning a child as a parent
+		// parent validation
 		if parentFound.ParentCategoryID != nil {
 			return nil, errors.New("this category is a child of another, cannot set as parent category")
 		}
