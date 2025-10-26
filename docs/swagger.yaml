@@ -1436,6 +1436,8 @@ definitions:
     type: object
   responses.BrandDetailResponse:
     properties:
+      address:
+        type: string
       contact_email:
         type: string
       contact_phone:
@@ -1496,6 +1498,8 @@ definitions:
     type: object
   responses.BrandResponse:
     properties:
+      address:
+        type: string
       contact_email:
         type: string
       contact_phone:
@@ -2031,7 +2035,7 @@ definitions:
       refresh_token:
         type: string
       user:
-        $ref: '#/definitions/responses.UserInfo'
+        $ref: '#/definitions/responses.UserInfoResponse'
     type: object
   responses.LogoutResponse:
     properties:
@@ -2405,7 +2409,7 @@ definitions:
       message:
         type: string
       user:
-        $ref: '#/definitions/responses.UserInfo'
+        $ref: '#/definitions/responses.UserInfoResponse'
     type: object
   responses.SuggestedCampaign:
     properties:
@@ -2555,17 +2559,34 @@ definitions:
       username:
         type: string
     type: object
-  responses.UserInfo:
+  responses.UserInfoResponse:
     properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      date_of_birth:
+        example: "1990-01-01"
+        type: string
       email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
         type: string
       id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       is_active:
+        example: true
         type: boolean
+      phone:
+        example: "+1234567890"
+        type: string
       role:
+        example: user
         type: string
       username:
+        example: john_doe
         type: string
     type: object
   responses.UserListResponse:
@@ -6429,6 +6450,16 @@ paths:
         in: query
         name: milestone_id
         type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by contract ID
+        format: uuid
+        in: query
+        name: contract_id
+        type: string
       - description: Filter by deadline from date
         format: date-time
         in: query
@@ -6649,6 +6680,209 @@ paths:
       summary: Get Products By Task
       tags:
       - Products
+  /api/v1/tasks/contract/{contract_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response. This is usually used by BRAND_PARTNER
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Contract ID
+      tags:
+      - Tasks
+  /api/v1/tasks/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by creator ID
+        format: uuid
+        in: query
+        name: created_by_id
+        type: string
+      - description: Filter by assignee ID
+        format: uuid
+        in: query
+        name: assigned_to_id
+        type: string
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by contract ID
+        format: uuid
+        in: query
+        name: contract_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Profile
+      tags:
+      - Tasks
   /api/v1/users:
     get:
       consumes:

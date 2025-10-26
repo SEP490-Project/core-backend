@@ -447,10 +447,22 @@ func (r *Router) SetupTaskRoutes(group *gin.RouterGroup) {
 	taskGroup := group.Group("/tasks")
 	taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
 	{
-		taskGroup.GET("", taskHandler.GetTasksByFilter)
-		taskGroup.GET("/:task_id", taskHandler.GetTaskByID)
-		taskGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
-		taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
+		viewGroup := taskGroup.Group("")
+		viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+		{
+			viewGroup.GET("", taskHandler.GetTasksByFilter)
+			viewGroup.GET("/:task_id", taskHandler.GetTaskByID)
+			viewGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
+			viewGroup.GET("/contract/:contract_id", taskHandler.GetTasksByContractID)
+			viewGroup.GET("/profile", taskHandler.GetTasksByProfile)
+		}
+
+		editGroup := taskGroup.Group("")
+		editGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin))
+		{
+
+			editGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
+		}
 	}
 }
 

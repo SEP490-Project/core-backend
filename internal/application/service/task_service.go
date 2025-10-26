@@ -17,11 +17,11 @@ type TaskService struct {
 }
 
 // GetTaskByFilter implements iservice.TaskService.
-func (t *TaskService) GetTaskByFilter(ctx context.Context, filter requests.TaskFilterRequest) ([]responses.TaskListResponse, int64, error) {
+func (t *TaskService) GetTaskByFilter(ctx context.Context, filter *requests.TaskFilterRequest) ([]responses.TaskListResponse, int64, error) {
 	zap.L().Info("TaskService - GetTaskByFilter called",
 		zap.Any("request", filter))
 
-	taskDTOs, total, err := t.taskRepo.GetListTasks(ctx, &filter)
+	taskDTOs, total, err := t.taskRepo.GetListTasks(ctx, filter)
 	if err != nil {
 		zap.L().Error("TaskService - GetTaskByFilter failed",
 			zap.Error(err))

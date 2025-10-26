@@ -9,6 +9,6 @@ import (
 )
 
 type TaskService interface {
-	GetTaskByFilter(ctx context.Context, filter requests.TaskFilterRequest) ([]responses.TaskListResponse, int64, error)
+	GetTaskByFilter(ctx context.Context, filter *requests.TaskFilterRequest) ([]responses.TaskListResponse, int64, error)
 	GetTaskByID(ctx context.Context, taskID uuid.UUID) (*responses.TaskResponse, error)
 }

@@ -82,6 +82,7 @@ type AdvertisedItem struct {
 
 type BrandAmbassadorEvent struct {
 	ID                  *int8     `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
+	Name                string    `json:"name" example:"Launch Event" validate:"max=255"`
 	Location            string    `json:"location" example:"Jakarta Convention Center" validate:"max=512"`
 	Date                string    `json:"date" example:"2023-10-01 15:00:00" validate:"datetime=2006-01-02 15:04:05"`
 	ExpectedDuration    string    `json:"expected_duration" example:"3H" validate:"omitempty,max=100"`

@@ -30,8 +30,9 @@ type Brand struct {
 	DeletedAt               gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
 
 	// Relationships
-	Products []Product `json:"-" gorm:"foreignKey:BrandID"`
-	User     *User     `json:"-" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Products  []Product  `json:"-" gorm:"foreignKey:BrandID"`
+	Contracts []Contract `json:"-" gorm:"foreignKey:BrandID"`
+	User      *User      `json:"-" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 func (Brand) TableName() string { return "brands" }
