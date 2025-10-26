@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Channel struct {
@@ -22,7 +23,7 @@ type Channel struct {
 
 func (Channel) TableName() string { return "channels" }
 
-func (c *Channel) BeforeCreate() error {
+func (c *Channel) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}

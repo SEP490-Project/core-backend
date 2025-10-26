@@ -202,7 +202,7 @@ func (h *ProductCategoryHandler) DeleteCategory(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	err = h.categoryService.DeleteCategory(ctx, cateUUID, uow)
 	if err != nil {
 		_ = uow.Rollback()

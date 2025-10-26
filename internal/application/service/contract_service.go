@@ -211,7 +211,7 @@ func (s *ContractService) UpdateContract(
 		zap.String("contract_id", contractID.String()))
 
 	// Begin transaction
-	uow := unitOfWork.Begin()
+	uow := unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
@@ -401,6 +401,14 @@ func (s *ContractService) GetByFilter(ctx context.Context, filterReq *requests.C
 		}
 		if filterReq.EndDate != nil {
 			db = db.Where("end_date <= ?", filterReq.EndDate)
+		}
+
+		if filterReq.NoCampaign != nil {
+			if *filterReq.NoCampaign {
+				db = db.Where("campaign_id IS NULL")
+			} else {
+				db = db.Where("campaign_id IS NOT NULL")
+			}
 		}
 
 		// Sorting

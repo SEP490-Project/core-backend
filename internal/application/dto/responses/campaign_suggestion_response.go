@@ -6,8 +6,8 @@ import (
 
 // SuggestedTask represents a suggested task extracted from contract deliverables
 type SuggestedTask struct {
-	Name            string                 `json:"name"`
-	DescriptionJSON map[string]interface{} `json:"description_json,omitempty"`
+	Name            string         `json:"name"`
+	DescriptionJSON map[string]any `json:"description_json,omitempty"`
 }
 
 // SuggestedMilestone represents a suggested milestone with its tasks

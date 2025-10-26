@@ -93,7 +93,7 @@ func (bh *BrandHandler) CreateBrandWithInActiveUsers(c *gin.Context) {
 		return
 	}
 
-	transactionalUOW := bh.UnitOfWork.Begin()
+	transactionalUOW := bh.UnitOfWork.Begin(c.Request.Context())
 
 	defer func() {
 		if r := recover(); r != nil {

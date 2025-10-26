@@ -43,3 +43,5 @@ func (cs *ContentStatus) Scan(value any) error {
 func (cs ContentStatus) Value() (driver.Value, error) {
 	return string(cs), nil
 }
+
+func (cs ContentStatus) String() string { return string(cs) }

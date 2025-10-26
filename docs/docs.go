@@ -1423,8 +1423,8 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/campaigns/suggest": {
-            "post": {
+        "/api/v1/campaigns/{campaign_id}/suggest": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -1443,13 +1443,12 @@ const docTemplate = `{
                 "summary": "Suggest Campaign from Contract",
                 "parameters": [
                     {
-                        "description": "Campaign suggestion request",
-                        "name": "data",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CampaignSuggestionRequest"
-                        }
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "campaign_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1630,7 +1629,7 @@ const docTemplate = `{
             }
         },
         "/api/v1/categories/{id}": {
-            "delete": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -2283,16 +2282,36 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 1,
                         "description": "Page number (default: 1)",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "default": 10,
                         "description": "Items per page (default: 10, max: 100)",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "updated_at",
+                            "publish_date",
+                            "title"
+                        ],
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
                         "in": "query"
                     },
                     {
@@ -2347,19 +2366,6 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter to date (YYYY-MM-DD)",
                         "name": "to_date",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "created_at_asc",
-                            "created_at_desc",
-                            "updated_at_desc",
-                            "title_asc"
-                        ],
-                        "type": "string",
-                        "default": "created_at_desc",
-                        "description": "Sort order",
-                        "name": "sort",
                         "in": "query"
                     }
                 ],
@@ -2665,13 +2671,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/approve": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Approves content that is awaiting review",
+                "description": "Transitions content from AWAIT_STAFF/AWAIT_BRAND to APPROVED",
                 "consumes": [
                     "application/json"
                 ],
@@ -2685,19 +2691,10 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Approval request data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.ApproveContentRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -2712,7 +2709,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2720,31 +2718,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -2829,13 +2815,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/publish": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Publishes approved content to POSTED status with optional publish date",
+                "description": "Transitions content from APPROVED to POSTED with optional publish date",
                 "consumes": [
                     "application/json"
                 ],
@@ -2845,27 +2831,27 @@ const docTemplate = `{
                 "tags": [
                     "Content"
                 ],
-                "summary": "Publish approved content",
+                "summary": "Publish content",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Publish request with optional publish_date",
-                        "name": "request",
+                        "description": "Optional publish date",
+                        "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/requests.PublishContentRequest"
+                            "type": "object"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Content published successfully",
+                        "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
@@ -2875,7 +2861,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2883,31 +2870,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or content not approved",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Authentication required",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal server error",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -2916,13 +2891,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/reject": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Rejects content that is awaiting review with feedback",
+                "description": "Transitions content from AWAIT_STAFF/AWAIT_BRAND to REJECTED with feedback",
                 "consumes": [
                     "application/json"
                 ],
@@ -2936,18 +2911,18 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Rejection request data",
-                        "name": "request",
+                        "description": "Rejection reason",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.RejectContentRequest"
+                            "type": "object"
                         }
                     }
                 ],
@@ -2963,7 +2938,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2971,31 +2947,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - insufficient permissions",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3004,13 +2968,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/submit": {
-            "post": {
+            "patch": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Submits content for staff or brand approval based on selected channels",
+                "description": "Transitions content from DRAFT/REJECTED to AWAIT_STAFF or AWAIT_BRAND based on channels",
                 "consumes": [
                     "application/json"
                 ],
@@ -3024,19 +2988,10 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID (UUID)",
+                        "description": "Content ID",
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Submit request data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.SubmitContentRequest"
-                        }
                     }
                 ],
                 "responses": {
@@ -3051,7 +3006,8 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContentResponse"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -3059,25 +3015,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid ID or validation error",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Content not found",
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "409": {
-                        "description": "Invalid content status",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
+                        "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -4014,6 +3964,303 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/device-tokens": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "List device tokens",
+                "responses": {
+                    "200": {
+                        "description": "Device tokens retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Register a new FCM device token for push notifications",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Register a new device token",
+                "parameters": [
+                    {
+                        "description": "Device token registration data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RegisterDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Device token registered successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Token already registered to another user",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete all device tokens",
+                "responses": {
+                    "200": {
+                        "description": "All device tokens deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/device-tokens/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing device token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Update a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated device token data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a specific device token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid device token ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -4237,108 +4484,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/location/districts/{province-id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetch all districts\tand front-end have to filter himself",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "location"
-                ],
-                "summary": "Get list of districts from a province",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Province ID",
-                        "name": "province-id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Provinces response",
-                        "schema": {
-                            "$ref": "#/definitions/responses.DistrictResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/location/provinces": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetch all provinces\tand front-end have to filter himself",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "location"
-                ],
-                "summary": "Get list of provinces from GiaoHangNhanh API",
-                "responses": {
-                    "200": {
-                        "description": "Provinces response",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ProvinceResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/location/wards/{district-id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetch all districts\tand front-end have to filter himself",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "location"
-                ],
-                "summary": "Get list of districts from a province",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "District ID",
-                        "name": "district-id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Ward response",
-                        "schema": {
-                            "$ref": "#/definitions/responses.WardResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/milestones/{id}/state": {
             "patch": {
                 "security": [
@@ -4402,6 +4547,241 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications with optional filtering by user, type, status, and date range",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifications with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by user ID (UUID)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by notification type (EMAIL, PUSH)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (PENDING, SENT, FAILED, RETRYING)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (RFC3339 or YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (RFC3339 or YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/failed": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications that failed after multiple retry attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get failed notifications with retries",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Minimum number of retry attempts (default: 3)",
+                        "name": "min_retries",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve detailed information about a specific notification including delivery attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -4726,7 +5106,6 @@ const docTemplate = `{
                     "Products"
                 ],
                 "summary": "Get All Products",
-                "deprecated": true,
                 "parameters": [
                     {
                         "type": "integer",
@@ -5032,7 +5411,7 @@ const docTemplate = `{
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial",
+                "summary": "Get All Products",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5061,11 +5440,6 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "STANDARD",
-                            "LIMITED",
-                            ""
-                        ],
                         "type": "string",
                         "description": "Filter type of products",
                         "name": "type",
@@ -5074,7 +5448,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Products view for Others",
+                        "description": "Products retrieved successfully",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -5419,6 +5793,453 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Filter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/contract/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response. This is usually used by BRAND_PARTNER",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Contract ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tasks/{id}/state": {
             "patch": {
                 "security": [
@@ -5489,7 +6310,75 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tasks/{taskId}/products": {
+        "/api/v1/tasks/{task_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a task by its ID and return its details in the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Task by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}/products": {
             "get": {
                 "security": [
                     {
@@ -5511,7 +6400,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Task ID (UUID)",
-                        "name": "taskId",
+                        "name": "task_id",
                         "in": "path",
                         "required": true
                     },
@@ -5683,6 +6572,125 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/notification-preferences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Get User notification preferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Update notification preferences",
+                "parameters": [
+                    {
+                        "description": "Notification preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UserNotificationPreferenceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6286,6 +7294,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/variant-attributes/admin": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of variant attributes for administrative usage. Returns full model details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Variant-Attributes"
+                ],
+                "summary": "List Variant Attributes (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term for name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.VariantAttributeResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Returns the health status of the application and its dependencies",
@@ -6563,6 +7645,32 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.NotificationStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "RETRYING"
+            ],
+            "x-enum-varnames": [
+                "NotificationStatusPending",
+                "NotificationStatusSent",
+                "NotificationStatusFailed",
+                "NotificationStatusRetrying"
+            ]
+        },
+        "enum.NotificationType": {
+            "type": "string",
+            "enum": [
+                "EMAIL",
+                "PUSH"
+            ],
+            "x-enum-varnames": [
+                "NotificationTypeEmail",
+                "NotificationTypePush"
+            ]
+        },
         "enum.OrderStatus": {
             "type": "string",
             "enum": [
@@ -6599,6 +7707,17 @@ const docTemplate = `{
                 "PaymentCycleMonthly",
                 "PaymentCycleQuarterly",
                 "PaymentCycleAnnually"
+            ]
+        },
+        "enum.PlatformType": {
+            "type": "string",
+            "enum": [
+                "IOS",
+                "ANDROID"
+            ],
+            "x-enum-varnames": [
+                "PlatformTypeIOS",
+                "PlatformTypeAndroid"
             ]
         },
         "enum.ProductStatus": {
@@ -6683,6 +7802,151 @@ const docTemplate = `{
                         "RECAP",
                         "DONE"
                     ]
+                }
+            }
+        },
+        "model.AndroidConfig": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "description": "Notification channel",
+                    "type": "string"
+                },
+                "click_action": {
+                    "description": "Activity to open",
+                    "type": "string"
+                },
+                "color": {
+                    "description": "Notification color",
+                    "type": "string"
+                },
+                "priority": {
+                    "description": "\"high\" or \"normal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "model.Attachment": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "S3 URL",
+                    "type": "string"
+                }
+            }
+        },
+        "model.DeliveryAttempt": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"success\", \"failed\", \"retrying\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.IOSConfig": {
+            "type": "object",
+            "properties": {
+                "badge": {
+                    "description": "Badge count",
+                    "type": "integer"
+                },
+                "content_available": {
+                    "description": "Silent push",
+                    "type": "integer"
+                },
+                "sound": {
+                    "description": "Sound filename",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBContentData": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "description": "Email attachments",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Attachment"
+                    }
+                },
+                "body": {
+                    "description": "Plain text body",
+                    "type": "string"
+                },
+                "html_body": {
+                    "description": "HTML email body",
+                    "type": "string"
+                },
+                "subject": {
+                    "description": "Email subject",
+                    "type": "string"
+                },
+                "template_data": {
+                    "description": "Data for template rendering",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "template_name": {
+                    "description": "Template filename",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Push notification title",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBErrorDetails": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "last_attempt_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBPlatformConfig": {
+            "type": "object",
+            "properties": {
+                "android_config": {
+                    "$ref": "#/definitions/model.AndroidConfig"
+                },
+                "ios_config": {
+                    "$ref": "#/definitions/model.IOSConfig"
+                }
+            }
+        },
+        "model.JSONBRecipientInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "description": "FCM device tokens",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -6801,15 +8065,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.ApproveContentRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "maxLength": 500
-                }
-            }
-        },
         "requests.BlogFieldsDTO": {
             "type": "object",
             "required": [
@@ -6836,17 +8091,6 @@ const docTemplate = `{
         },
         "requests.BulkVariantRequest": {
             "type": "object"
-        },
-        "requests.CampaignSuggestionRequest": {
-            "type": "object",
-            "required": [
-                "contract_id"
-            ],
-            "properties": {
-                "contract_id": {
-                    "type": "string"
-                }
-            }
         },
         "requests.ConceptRequest": {
             "type": "object",
@@ -7052,8 +8296,8 @@ const docTemplate = `{
                     "enum": [
                         "ADVERTISING",
                         "AFFILIATE",
-                        "AMBASSADOR",
-                        "COPRODUCE"
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
                     ],
                     "example": "ADVERTISING"
                 }
@@ -7142,6 +8386,7 @@ const docTemplate = `{
                 "category_id",
                 "limited_attribute",
                 "name",
+                "price",
                 "task_id"
             ],
             "properties": {
@@ -7166,6 +8411,11 @@ const docTemplate = `{
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 99.99
                 },
                 "task_id": {
                     "type": "string",
@@ -7220,7 +8470,8 @@ const docTemplate = `{
             "required": [
                 "brand_id",
                 "category_id",
-                "name"
+                "name",
+                "price"
             ],
             "properties": {
                 "brand_id": {
@@ -7237,10 +8488,16 @@ const docTemplate = `{
                     "example": "Product description"
                 },
                 "name": {
+                    "description": "TaskID      uuid.UUID ` + "`" + `json:\"task_id\" validate:\"required,uuid\" example:\"660e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 99.99
                 }
             }
         },
@@ -7356,6 +8613,10 @@ const docTemplate = `{
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
                 "login_identifier": {
                     "type": "string",
                     "example": "abc@gmail.com"
@@ -7364,6 +8625,17 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 8,
                     "example": "12345678"
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
                 }
             }
         },
@@ -7465,14 +8737,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.PublishContentRequest": {
-            "type": "object",
-            "properties": {
-                "publish_date": {
-                    "type": "string"
-                }
-            }
-        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -7485,15 +8749,27 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.RejectContentRequest": {
+        "requests.RegisterDeviceTokenRequest": {
             "type": "object",
             "required": [
-                "feedback"
+                "platform",
+                "token"
             ],
             "properties": {
-                "feedback": {
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                },
+                "token": {
                     "type": "string",
-                    "maxLength": 1000
+                    "minLength": 10
                 }
             }
         },
@@ -7525,15 +8801,6 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "john_doe"
-                }
-            }
-        },
-        "requests.SubmitContentRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "maxLength": 500
                 }
             }
         },
@@ -7906,6 +9173,30 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateDeviceTokenRequest": {
+            "type": "object",
+            "required": [
+                "new_token",
+                "platform"
+            ],
+            "properties": {
+                "new_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                }
+            }
+        },
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
@@ -7970,6 +9261,17 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "requests.UserNotificationPreferenceRequest": {
+            "type": "object",
+            "properties": {
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "push_enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -8089,6 +9391,9 @@ const docTemplate = `{
         "responses.BrandDetailResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -8177,6 +9482,9 @@ const docTemplate = `{
         "responses.BrandResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -8881,78 +10189,44 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.DistrictResponse": {
+        "responses.DeviceTokenListResponse": {
             "type": "object",
             "properties": {
-                "CanUpdateCOD": {
-                    "type": "boolean"
-                },
-                "Code": {
-                    "type": "string"
-                },
-                "CreatedAt": {
-                    "type": "string"
-                },
-                "DeliverType": {
-                    "type": "integer"
-                },
-                "DistrictID": {
-                    "type": "integer"
-                },
-                "DistrictName": {
-                    "type": "string"
-                },
-                "GovernmentCode": {
-                    "type": "string"
-                },
-                "IsEnable": {
-                    "type": "integer"
-                },
-                "NameExtension": {
+                "tokens": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/responses.DeviceTokenResponse"
                     }
                 },
-                "OnDates": {},
-                "PickType": {
+                "total": {
                     "type": "integer"
-                },
-                "ProvinceID": {
-                    "type": "integer"
-                },
-                "ReasonCode": {
+                }
+            }
+        },
+        "responses.DeviceTokenResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
                     "type": "string"
                 },
-                "ReasonMessage": {
+                "id": {
                     "type": "string"
                 },
-                "Status": {
-                    "type": "integer"
+                "is_valid": {
+                    "type": "boolean"
                 },
-                "SupportType": {
-                    "type": "integer"
-                },
-                "Type": {
-                    "type": "integer"
-                },
-                "UpdatedAt": {
+                "last_used_at": {
                     "type": "string"
                 },
-                "UpdatedBy": {
-                    "type": "integer"
+                "platform": {
+                    "$ref": "#/definitions/enum.PlatformType"
                 },
-                "UpdatedDate": {
+                "token": {
                     "type": "string"
                 },
-                "UpdatedEmployee": {
-                    "type": "integer"
-                },
-                "UpdatedSource": {
+                "user_id": {
                     "type": "string"
-                },
-                "WhiteListClient": {},
-                "WhiteListDistrict": {}
+                }
             }
         },
         "responses.LoginResponse": {
@@ -8961,6 +10235,9 @@ const docTemplate = `{
                 "access_token": {
                     "type": "string"
                 },
+                "device_token_registered": {
+                    "type": "boolean"
+                },
                 "expires_in": {
                     "type": "integer"
                 },
@@ -8968,7 +10245,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -8976,6 +10253,61 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.NotificationListResponse": {
+            "type": "object",
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.NotificationResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                }
+            }
+        },
+        "responses.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "content_data": {
+                    "$ref": "#/definitions/model.JSONBContentData"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivery_attempts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DeliveryAttempt"
+                    }
+                },
+                "error_details": {
+                    "$ref": "#/definitions/model.JSONBErrorDetails"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "platform_config": {
+                    "$ref": "#/definitions/model.JSONBPlatformConfig"
+                },
+                "recipient_info": {
+                    "$ref": "#/definitions/model.JSONBRecipientInfo"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.NotificationStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.NotificationType"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -9000,6 +10332,32 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.PaginationTaskResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TaskListResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -9068,14 +10426,12 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ingredient": {
-                    "description": "Attribute",
                     "type": "string"
                 },
                 "unit": {
                     "$ref": "#/definitions/enum.AttributeUnit"
                 },
                 "value": {
-                    "description": "Value",
                     "type": "number"
                 }
             }
@@ -9241,9 +10597,6 @@ const docTemplate = `{
                     "description": "FE parse về Date",
                     "type": "string"
                 },
-                "created_by": {
-                    "$ref": "#/definitions/responses.UserListResponse"
-                },
                 "description": {
                     "type": "string"
                 },
@@ -9259,9 +10612,6 @@ const docTemplate = `{
                 "price": {
                     "type": "number"
                 },
-                "status": {
-                    "$ref": "#/definitions/enum.ProductStatus"
-                },
                 "thumbnail_url": {
                     "description": "optional",
                     "type": "array",
@@ -9271,12 +10621,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "$ref": "#/definitions/enum.ProductType"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "updated_by": {
-                    "$ref": "#/definitions/responses.UserListResponse"
                 },
                 "variants": {
                     "type": "array",
@@ -9356,62 +10700,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "uses": {
-                    "type": "string"
-                }
-            }
-        },
-        "responses.ProvinceResponse": {
-            "type": "object",
-            "properties": {
-                "CanUpdateCOD": {
-                    "type": "boolean"
-                },
-                "Code": {
-                    "type": "string"
-                },
-                "CountryID": {
-                    "type": "integer"
-                },
-                "CreatedAt": {
-                    "type": "string"
-                },
-                "IsEnable": {
-                    "type": "integer"
-                },
-                "NameExtension": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "ProvinceID": {
-                    "type": "integer"
-                },
-                "ProvinceName": {
-                    "type": "string"
-                },
-                "RegionCPN": {
-                    "type": "integer"
-                },
-                "RegionID": {
-                    "type": "integer"
-                },
-                "Status": {
-                    "type": "integer"
-                },
-                "UpdatedAt": {
-                    "type": "string"
-                },
-                "UpdatedBy": {
-                    "type": "integer"
-                },
-                "UpdatedDate": {
-                    "type": "string"
-                },
-                "UpdatedEmployee": {
-                    "type": "integer"
-                },
-                "UpdatedSource": {
                     "type": "string"
                 }
             }
@@ -9515,7 +10803,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -9552,10 +10840,164 @@ const docTemplate = `{
             "properties": {
                 "description_json": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.TaskListResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                }
+            }
+        },
+        "responses.TaskResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "content_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"770e8400-e29b-41d4-a716-446655440000\"",
+                        " \"880e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "created_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Create a modern and responsive homepage design."
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"550e8400-e29b-41d4-a716-446655440000\"",
+                        " \"660e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                },
+                "updated_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "updated_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 }
             }
         },
@@ -9573,23 +11015,44 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.UserInfo": {
+        "responses.UserInfoResponse": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "date_of_birth": {
+                    "type": "string",
+                    "example": "1990-01-01"
+                },
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john_doe"
                 }
             }
         },
@@ -9643,6 +11106,26 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.UserNotificationPreferenceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "push_enabled": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -9820,75 +11303,6 @@ const docTemplate = `{
                 "price": {
                     "type": "number"
                 }
-            }
-        },
-        "responses.WardResponse": {
-            "type": "object",
-            "properties": {
-                "CanUpdateCOD": {
-                    "type": "boolean"
-                },
-                "Config": {},
-                "CreatedAt": {
-                    "type": "string"
-                },
-                "DeliverType": {
-                    "type": "integer"
-                },
-                "DistrictID": {
-                    "type": "integer"
-                },
-                "GovernmentCode": {
-                    "type": "string"
-                },
-                "IsEnable": {
-                    "type": "integer"
-                },
-                "NameExtension": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "OnDates": {},
-                "PickType": {
-                    "type": "integer"
-                },
-                "ReasonCode": {
-                    "type": "string"
-                },
-                "ReasonMessage": {
-                    "type": "string"
-                },
-                "Status": {
-                    "type": "integer"
-                },
-                "SupportType": {
-                    "type": "integer"
-                },
-                "UpdatedAt": {
-                    "type": "string"
-                },
-                "UpdatedBy": {
-                    "type": "integer"
-                },
-                "UpdatedDate": {
-                    "type": "string"
-                },
-                "UpdatedEmployee": {
-                    "type": "integer"
-                },
-                "UpdatedSource": {
-                    "type": "string"
-                },
-                "WardCode": {
-                    "type": "string"
-                },
-                "WardName": {
-                    "type": "string"
-                },
-                "WhiteListClient": {},
-                "WhiteListWard": {}
             }
         }
     },

@@ -99,29 +99,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
-		// ---------- USERS ----------
-		userHandler := r.handlerRegistry.UserHandler
-		userGroup := v1.Group("/users")
-		userGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All user routes require authentication
-		{
-			// Current user profile routes (accessible by all authenticated users)
-			userGroup.GET("/profile", userHandler.GetProfile)
-			userGroup.PUT("/profile", userHandler.UpdateProfile)
-
-			// Admin only routes
-			adminUserGroup := userGroup.Group("")
-			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
-			{
-				adminUserGroup.GET("", userHandler.GetUsers)
-				adminUserGroup.GET("/:id", userHandler.GetUserByID)
-				adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
-				adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
-				adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
-				adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
-			}
-		}
-
 		// ---------- Routes Setups from functions ----------
+		r.setupUserRoutes(v1)
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
@@ -130,6 +109,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAdminConfigRouter(v1)
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
+		r.SetupTaskRoutes(v1)
+		r.SetupDeviceTokenRoutes(v1)
+		r.SetupNotificationRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -206,14 +188,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			)
 		}
 
-		// ---------- TASKS ----------
-		taskGroup := v1.Group("/tasks")
-		taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
-		{
-			taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
-			taskGroup.GET("/:taskId/products", productHandler.GetProductsByTask)
-		}
-
 		// Milestone routes (state transitions)
 		milestoneGroup := v1.Group("/milestones")
 		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
@@ -287,6 +261,36 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 }
 
+// setupUserRoutes sets up routes for user management
+func (r *Router) setupUserRoutes(group *gin.RouterGroup) {
+	userHandler := r.handlerRegistry.UserHandler
+	userGroup := group.Group("/users")
+	userGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All user routes require authentication
+	{
+		// Current user profile routes (accessible by all authenticated users)
+		userGroup.GET("/profile", userHandler.GetProfile)
+		userGroup.PUT("/profile", userHandler.UpdateProfile)
+
+		// Admin only routes
+		adminUserGroup := userGroup.Group("")
+		adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminUserGroup.GET("", userHandler.GetUsers)
+			adminUserGroup.GET("/:id", userHandler.GetUserByID)
+			adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
+			adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
+			adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
+			adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
+		}
+
+		preferenceGroup := userGroup.Group("/notification-preferences")
+		{
+			preferenceGroup.GET("", userHandler.GetUserPreference)
+			preferenceGroup.PUT("", userHandler.UpdateUserPreferences)
+		}
+	}
+}
+
 // setupBrandRoutes sets up routes for brand management
 func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 	brandHandler := r.handlerRegistry.BrandHandler
@@ -358,9 +362,9 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 
 	suggestGroup := campaigns.Group("")
-	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 	{
-		suggestGroup.POST("/suggest", campaignHandler.SuggestCampaign)
+		suggestGroup.GET("/:campaign_id/suggest", campaignHandler.SuggestCampaign)
 	}
 
 	viewGroup := campaigns.Group("")
@@ -434,40 +438,87 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 // SetupContentRoutes sets up routes for content management
 func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	contentHandler := r.handlerRegistry.ContentHandler
-	contentGroup := group.Group("/contents").Use(r.middlewareRegistry.Auth.RequireAuth())
-	{
-		contentGroup.POST("", contentHandler.Create)
-		contentGroup.GET("", contentHandler.List)
-		contentGroup.GET("/:id", contentHandler.GetByID)
-		contentGroup.PUT("/:id", contentHandler.Update)
-		contentGroup.DELETE("/:id", contentHandler.Delete)
-		contentGroup.POST("/:id/submit", contentHandler.Submit)
-	}
-
-	// Approval routes - restricted to admin, sales staff, and marketing staff
-	approvalGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, sales, marketing))
-	{
-		approvalGroup.POST("/:id/approve", contentHandler.Approve)
-		approvalGroup.POST("/:id/reject", contentHandler.Reject)
-	}
-
-	// Publish routes - restricted to admin and content staff
-	publishGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
-	{
-		publishGroup.POST("/:id/publish", contentHandler.Publish)
-	}
-
-	// Blog routes - restricted to admin and content staff
 	blogHandler := r.handlerRegistry.BlogHandler
-	blogGroup := group.Group("/contents").
-		Use(r.middlewareRegistry.Auth.RequireAuth()).
-		Use(r.middlewareRegistry.Auth.RequireRole(admin, content))
+	contentGroup := group.Group("/contents")
 	{
-		blogGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
+		editGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content))
+		{
+			editGroup.POST("", contentHandler.Create)
+			editGroup.GET("", contentHandler.List)
+			editGroup.GET("/:id", contentHandler.GetByID)
+			editGroup.PUT("/:id", contentHandler.Update)
+			editGroup.DELETE("/:id", contentHandler.Delete)
+			editGroup.PATCH("/:id/submit", contentHandler.Submit)
+			editGroup.PATCH("/:id/publish", contentHandler.Publish)
+			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
+		}
+
+		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))
+		{
+			reviewGroup.PATCH("/:id/approve", contentHandler.Approve)
+			reviewGroup.PATCH("/:id/reject", contentHandler.Reject)
+		}
+	}
+}
+
+// SetupTaskRoutes sets up routes for task management
+func (r *Router) SetupTaskRoutes(group *gin.RouterGroup) {
+	taskHandler := r.handlerRegistry.TaskHandler
+	stateHandler := r.handlerRegistry.StateHandler
+	productHandler := r.handlerRegistry.ProductHandler
+
+	taskGroup := group.Group("/tasks")
+	taskGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+	{
+		viewGroup := taskGroup.Group("")
+		viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+		{
+			viewGroup.GET("", taskHandler.GetTasksByFilter)
+			viewGroup.GET("/:task_id", taskHandler.GetTaskByID)
+			viewGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
+			viewGroup.GET("/contract/:contract_id", taskHandler.GetTasksByContractID)
+			viewGroup.GET("/profile", taskHandler.GetTasksByProfile)
+		}
+
+		editGroup := taskGroup.Group("")
+		editGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+		{
+			editGroup.PATCH("/:task_id/assign/:assigned_to_id", taskHandler.AssignTask)
+			editGroup.POST("", taskHandler.CreateTask)
+			editGroup.PUT("/:task_id", taskHandler.UpdateTaskByID)
+			editGroup.DELETE("/:task_id", taskHandler.DeleteTask)
+		}
+
+		stateGroup := taskGroup.Group("")
+		stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, sales, content, admin, brand))
+		{
+			stateGroup.PATCH("/:task_id/state", stateHandler.UpdateTaskState)
+		}
+	}
+}
+
+func (r *Router) SetupDeviceTokenRoutes(group *gin.RouterGroup) {
+	deviceTokenHandler := r.handlerRegistry.DeviceTokenHandler
+	deviceTokenGroup := group.Group("/device-tokens")
+	deviceTokenGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		deviceTokenGroup.POST("", deviceTokenHandler.Register)
+		deviceTokenGroup.GET("", deviceTokenHandler.List)
+		deviceTokenGroup.PUT("/:id", deviceTokenHandler.Update)
+		deviceTokenGroup.DELETE("/:id", deviceTokenHandler.Delete)
+		deviceTokenGroup.DELETE("", deviceTokenHandler.DeleteAll)
+	}
+}
+
+func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
+	notificationHandler := r.handlerRegistry.NotificationHandler
+	notificationGroup := group.Group("/notifications")
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole("ADMIN"))
+	{
+		notificationGroup.GET("", notificationHandler.List)
+		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
+		notificationGroup.GET("/:id", notificationHandler.GetByID)
 	}
 }
 

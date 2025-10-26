@@ -23,17 +23,20 @@ type AuthService struct {
 	jwtService              iservice.JWTService
 	userRepository          irepository.GenericRepository[model.User]
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession]
+	deviceTokenService      iservice.DeviceTokenService
 }
 
 func NewAuthService(
 	jwtService iservice.JWTService,
 	userRepository irepository.GenericRepository[model.User],
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession],
+	deviceTokenService iservice.DeviceTokenService,
 ) *AuthService {
 	return &AuthService{
 		jwtService:              jwtService,
 		userRepository:          userRepository,
 		loggedSessionRepository: loggedSessionRepository,
+		deviceTokenService:      deviceTokenService,
 	}
 }
 
@@ -139,24 +142,36 @@ func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest,
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("User login successful",
 		zap.String("user_id", user.ID.String()),
 		zap.String("username", user.Username),
 		zap.String("role", string(user.Role)))
 
+	// Register device token asynchronously if provided
+	deviceTokenRegistered := false
+	if request.DeviceToken != nil && *request.DeviceToken != "" && request.Platform != nil {
+		deviceTokenRegistered = true
+		go func() {
+			bgCtx := context.Background()
+			if err := s.deviceTokenService.RegisterToken(bgCtx, user.ID, *request.DeviceToken, *request.Platform); err != nil {
+				zap.L().Warn("Failed to register device token during login",
+					zap.String("user_id", user.ID.String()),
+					zap.Error(err))
+			} else {
+				zap.L().Info("Device token registered successfully",
+					zap.String("user_id", user.ID.String()))
+			}
+		}()
+	}
+
 	return &responses.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    int64(config.GetAppConfig().JWT.AccessExpiryHours * 3600), // Convert to seconds
-		User:         userInfo,
+		AccessToken:           accessToken,
+		RefreshToken:          refreshToken,
+		ExpiresIn:             int64(config.GetAppConfig().JWT.AccessExpiryHours * 3600), // Convert to seconds
+		User:                  userInfo,
+		DeviceTokenRegistered: deviceTokenRegistered,
 	}, nil
 }
 
@@ -253,13 +268,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, request *requests.Refres
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("Token refresh successful",
 		zap.String("user_id", user.ID.String()),
@@ -345,13 +354,7 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 	}
 
 	// Build response
-	userInfo := &responses.UserInfo{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		Role:     string(user.Role),
-		IsActive: user.IsActive,
-	}
+	userInfo := responses.UserInfoResponse{}.ToResponse(user)
 
 	zap.L().Info("User signup successful",
 		zap.String("user_id", user.ID.String()),

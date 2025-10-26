@@ -21,7 +21,7 @@ type Content struct {
 	RejectionFeedback *string            `json:"rejection_feedback,omitempty" gorm:"type:text"`
 	CreatedAt         *time.Time         `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt         gorm.DeletedAt     `json:"deleted_at,omitempty" gorm:"index"`
+	DeletedAt         gorm.DeletedAt     `json:"deleted_at" gorm:"index"`
 
 	// Relationships
 	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
@@ -31,7 +31,7 @@ type Content struct {
 
 func (Content) TableName() string { return "contents" }
 
-func (c *Content) BeforeCreate(tx *gorm.DB) error {
+func (c *Content) BeforeCreate(_ *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}

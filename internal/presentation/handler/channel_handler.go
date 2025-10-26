@@ -143,7 +143,7 @@ func (h *ChannelHandler) CreateChannel(c *gin.Context) {
 		return
 	}
 
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
 	channel, err := h.channelService.CreateChannel(c.Request.Context(), &req, uow)
 	if err != nil {
@@ -195,7 +195,7 @@ func (h *ChannelHandler) UpdateChannel(c *gin.Context) {
 		return
 	}
 
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
 	channel, err := h.channelService.UpdateChannel(c.Request.Context(), channelID, &req, uow)
 	if err != nil {
@@ -232,7 +232,7 @@ func (h *ChannelHandler) DeleteChannel(c *gin.Context) {
 		return
 	}
 
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
 	err = h.channelService.DeleteChannel(c.Request.Context(), channelID, uow)
 	if err != nil {

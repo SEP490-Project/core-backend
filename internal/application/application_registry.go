@@ -32,6 +32,9 @@ type ApplicationRegistry struct {
 	ChannelService         iservice.ChannelService
 	ContentService         iservice.ContentService
 	BlogService            iservice.BlogService
+	TaskService            iservice.TaskService
+	DeviceTokenService     iservice.DeviceTokenService
+	NotificationService    iservice.NotificationService
 	LocationService        iservice.LocationService
 }
 
@@ -48,11 +51,17 @@ func NewApplicationRegistry(
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
 		FileService:            infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
-		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
+		DeviceTokenService:     service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
+		AuthService: service.NewAuthService(
+			jwtService,
+			databaseRegistry.UserRepository,
+			databaseRegistry.LoggedSessionRepository,
+			service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
+		),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
-		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork),
+		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
 		ContractService:        service.NewContractService(databaseRegistry),
 		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
 		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
@@ -74,6 +83,8 @@ func NewApplicationRegistry(
 			databaseRegistry.BlogRepository,
 			databaseRegistry.ContentRepository,
 		),
-		LocationService: service.NewLocationService(),
+		TaskService:         service.NewTaskService(databaseRegistry.TaskRepository),
+		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
+		LocationService:     service.NewLocationService(),
 	}
 }

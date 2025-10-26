@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"context"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -17,13 +18,12 @@ type unitOfWork struct {
 	shippingAddressRepo             irepository.GenericRepository[model.ShippingAddress]
 	brandRepo                       irepository.GenericRepository[model.Brand]
 	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
-	TaskRepository                  irepository.GenericRepository[model.Task]
 	productRepo                     irepository.GenericRepository[model.Product]
 	contractRepository              irepository.GenericRepository[model.Contract]
 	contractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
 	campaignRepository              irepository.GenericRepository[model.Campaign]
 	milestoneRepository             irepository.GenericRepository[model.Milestone]
-	taskRepository                  irepository.GenericRepository[model.Task]
+	taskRepository                  irepository.TaskRepository
 	productStoryRepository          irepository.GenericRepository[model.ProductStory]
 	productVariantRepository        irepository.GenericRepository[model.ProductVariant]
 	variantAttributeRepository      irepository.GenericRepository[model.VariantAttribute]
@@ -47,61 +47,76 @@ type unitOfWork struct {
 	orderRepository              irepository.GenericRepository[model.Order]
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
+
+	//Notifications
+	notificationRepository irepository.NotificationRepository
+	deviceTokenRepository  irepository.DeviceTokenRepository
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
 	return &unitOfWork{db: db}
 }
 
-func (u *unitOfWork) Begin() irepository.UnitOfWork {
-	if u.tx != nil {
-		zap.L().Warn("Transaction already started")
-		return u
-	}
+// Begin create a new instance of UnitOfWork with a new transaction
+// and retain the reference to the original DB connection
+func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
+	// if u.tx != nil {
+	// 	zap.L().Warn("Transaction already started")
+	// 	return u
+	// }
 	zap.L().Debug("Beginning database transaction")
 
-	u.tx = u.db.Begin()
-	if u.tx.Error != nil {
+	tx := u.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
 		zap.L().Error("Failed to begin database transaction", zap.Error(u.tx.Error))
 		return u
 	}
 
-	u.productRepo = gormrepository.NewGenericRepository[model.Product](u.tx)
-	u.userRepo = gormrepository.NewGenericRepository[model.User](u.tx)
-	u.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](u.tx)
-	u.brandRepo = gormrepository.NewGenericRepository[model.Brand](u.tx)
-	u.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](u.tx)
-	u.contractRepository = gormrepository.NewGenericRepository[model.Contract](u.tx)
-	u.contractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](u.tx)
-	u.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
-	u.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
-	u.taskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
-	u.channelRepository = gormrepository.NewGenericRepository[model.Channel](u.tx)
-	u.contentRepository = gormrepository.NewGenericRepository[model.Content](u.tx)
-	u.contentChannelRepository = gormrepository.NewGenericRepository[model.ContentChannel](u.tx)
-	u.blogRepository = gormrepository.NewGenericRepository[model.Blog](u.tx)
+	txUow := &unitOfWork{
+		db: u.db,
+		tx: tx,
+	}
+
+	txUow.productRepo = gormrepository.NewGenericRepository[model.Product](tx)
+	txUow.userRepo = gormrepository.NewGenericRepository[model.User](tx)
+	txUow.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](tx)
+	txUow.brandRepo = gormrepository.NewGenericRepository[model.Brand](tx)
+	txUow.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](tx)
+	txUow.contractRepository = gormrepository.NewGenericRepository[model.Contract](tx)
+	txUow.contractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](tx)
+	txUow.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](tx)
+	txUow.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](tx)
+	txUow.taskRepository = gormrepository.NewTaskRepository(tx)
+	txUow.channelRepository = gormrepository.NewGenericRepository[model.Channel](tx)
+	txUow.contentRepository = gormrepository.NewGenericRepository[model.Content](tx)
+	txUow.contentChannelRepository = gormrepository.NewGenericRepository[model.ContentChannel](tx)
+	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
 
 	//Product flow
-	u.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](u.tx)
-	u.productVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](u.tx)
-	u.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](u.tx)
-	u.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](u.tx)
-	u.variantAttributeValueRepository = gormrepository.NewGenericRepository[model.VariantAttributeValue](u.tx)
-	u.modifiedHistoryRepository = gormrepository.NewGenericRepository[model.ModifiedHistory](u.tx)
-	u.configRepository = gormrepository.NewGenericRepository[model.Config](u.tx)
-	u.productCategoryRepository = gormrepository.NewGenericRepository[model.ProductCategory](u.tx)
+	txUow.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](tx)
+	txUow.productVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](tx)
+	txUow.variantAttributeRepository = gormrepository.NewGenericRepository[model.VariantAttribute](tx)
+	txUow.variantImageRepository = gormrepository.NewGenericRepository[model.VariantImage](tx)
+	txUow.variantAttributeValueRepository = gormrepository.NewGenericRepository[model.VariantAttributeValue](tx)
+	txUow.modifiedHistoryRepository = gormrepository.NewGenericRepository[model.ModifiedHistory](tx)
+	txUow.configRepository = gormrepository.NewGenericRepository[model.Config](tx)
+	txUow.productCategoryRepository = gormrepository.NewGenericRepository[model.ProductCategory](tx)
 
 	//Concept & LimitProduct
-	u.limitProductRepository = gormrepository.NewGenericRepository[model.LimitedProduct](u.tx)
-	u.conceptRepository = gormrepository.NewGenericRepository[model.Concept](u.tx)
+	txUow.limitProductRepository = gormrepository.NewGenericRepository[model.LimitedProduct](tx)
+	txUow.conceptRepository = gormrepository.NewGenericRepository[model.Concept](tx)
 
 	//Orders & Payment
-	u.orderRepository = gormrepository.NewGenericRepository[model.Order](u.tx)
-	u.orderItemRepository = gormrepository.NewGenericRepository[model.OrderItem](u.tx)
-	u.paymentTransactionRepository = gormrepository.NewGenericRepository[model.PaymentTransaction](u.tx)
+	txUow.orderRepository = gormrepository.NewGenericRepository[model.Order](tx)
+	txUow.orderItemRepository = gormrepository.NewGenericRepository[model.OrderItem](tx)
+	txUow.paymentTransactionRepository = gormrepository.NewGenericRepository[model.PaymentTransaction](tx)
+
+	//Notifications
+	txUow.notificationRepository = gormrepository.NewNotificationRepository(tx)
+	txUow.deviceTokenRepository = gormrepository.NewDeviceTokenRepository(tx)
 
 	zap.L().Debug("Database transaction started successfully")
-	return u
+	return txUow
 }
 
 func (u *unitOfWork) Commit() error {
@@ -178,7 +193,7 @@ func (u *unitOfWork) Milestones() irepository.GenericRepository[model.Milestone]
 	return u.milestoneRepository
 }
 
-func (u *unitOfWork) Tasks() irepository.GenericRepository[model.Task] {
+func (u *unitOfWork) Tasks() irepository.TaskRepository {
 	return u.taskRepository
 }
 
@@ -252,6 +267,14 @@ func (u *unitOfWork) ContentChannels() irepository.GenericRepository[model.Conte
 
 func (u *unitOfWork) Blogs() irepository.GenericRepository[model.Blog] {
 	return u.blogRepository
+}
+
+func (u *unitOfWork) Notifications() irepository.NotificationRepository {
+	return u.notificationRepository
+}
+
+func (u *unitOfWork) DeviceTokens() irepository.DeviceTokenRepository {
+	return u.deviceTokenRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

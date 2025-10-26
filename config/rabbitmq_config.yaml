@@ -9,13 +9,13 @@ topology:
           routingKey: notification.email
           durable: true
           autoDelete: false
-          prefetch: 1
+          prefetch: 10
           retry:
             enabled: true
             suffix: retry
-            ttlMs: 60000
+            ttlMs: 2000
             maxAttempts: 3
-            exponentialMultiply: 1.5
+            exponentialMultiply: 2
             exchange: exchange.notification
           dlq:
             enabled: true
@@ -25,12 +25,12 @@ topology:
           routingKey: notification.push
           durable: true
           autoDelete: false
-          prefetch: 1
+          prefetch: 50
           retry:
             enabled: true
-            ttlMs: 60000
+            ttlMs: 2000
             maxAttempts: 3
-            exponentialMultiply: 1.5
+            exponentialMultiply: 2
           dlq:
             enabled: true
     - name: exchange.excel_import

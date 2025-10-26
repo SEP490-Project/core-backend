@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -33,57 +34,21 @@ func extractUserID(c *gin.Context) (userID uuid.UUID, err error) {
 }
 
 // extractUserReoles utility extracts and validate the user roles from the Gin context.
-func extractUserRoles(c *gin.Context) (userRoles *string, err error) {
+func extractUserRoles(c *gin.Context) (*string, error) {
 	rolesData, exists := c.Get("roles")
 	if !exists {
 		return nil, errors.New("user roles not found in context")
 	}
-
-	switch v := rolesData.(type) {
-	case string:
-		if v == "" {
-			return nil, errors.New("user roles empty")
-		}
-		if !enum.UserRole(v).IsValid() {
-			return nil, fmt.Errorf("invalid user role: %s", v)
-		}
-		return &v, nil
-	case *string:
-		if v == nil || *v == "" {
-			return nil, errors.New("user roles empty")
-		}
-		if !enum.UserRole(*v).IsValid() {
-			return nil, fmt.Errorf("invalid user role: %s", *v)
-		}
-		return v, nil
-	case []string:
-		if len(v) == 0 {
-			return nil, errors.New("user roles empty")
-		}
-		rv := v[0]
-		if !enum.UserRole(rv).IsValid() {
-			return nil, fmt.Errorf("invalid user role: %s", rv)
-		}
-		return &rv, nil
-	case []interface{}:
-		if len(v) == 0 {
-			return nil, errors.New("user roles empty")
-		}
-		if s, ok := v[0].(string); ok {
-			if !enum.UserRole(s).IsValid() {
-				return nil, fmt.Errorf("invalid user role: %s", s)
-			}
-			return &s, nil
-		}
-		return nil, errors.New("invalid user roles format")
-	default:
+	var ok bool
+	userRoles, ok := rolesData.(string)
+	if !ok {
 		return nil, errors.New("invalid user roles format")
 	}
-	if !enum.UserRole(*userRoles).IsValid() {
-		return nil, fmt.Errorf("invalid user role: %s", *userRoles)
+	if !enum.UserRole(userRoles).IsValid() {
+		return nil, fmt.Errorf("invalid user role: %s", userRoles)
 	}
 
-	return
+	return &userRoles, nil
 }
 
 // extractParamID utility extracts a UUID parameter from the path param based on the provided parameter name.
@@ -104,32 +69,56 @@ func extractParamID(c *gin.Context, paramName string) (paramID uuid.UUID, err er
 	return
 }
 
+// extractQueryID utility extracts a UUID parameter from the query string based on the provided query name.
+func extractQueryID(c *gin.Context, queryName string) (queryID uuid.UUID, err error) {
+	extractedID := c.Query(queryName)
+	if extractedID == "" {
+		return uuid.Nil, fmt.Errorf("%s is required", queryName)
+	}
+	queryID, err = uuid.Parse(extractedID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid %s format: %v", queryName, err)
+	}
+	return
+}
+
 // processValidationError processes validation errors from the validator package and returns a structured APIValidationErrorResponse.
 func processValidationError(err error) *responses.APIValidationErrorResponse {
 	if err == nil {
 		return nil
 	}
 
-	ve, ok := err.(validator.ValidationErrors)
-	if ok {
-		details := make([]responses.ValidationErrorDetail, 0, len(ve))
-		for _, fe := range ve {
-			// The param field of the ValidationError are not usually used, so it is used as a workaround for custom error messages
-			msg := fe.Param()
-			if msg == "" {
-				msg = fmt.Sprintf("%s failed on '%s' validation", fe.Field(), fe.Tag())
+	errorValue := reflect.ValueOf(err)
+	switch errorValue.Type().String() {
+	case "validator.ValidationErrors":
+		ve, ok := err.(validator.ValidationErrors)
+		if ok {
+			details := make([]responses.ValidationErrorDetail, 0, len(ve))
+			for _, fe := range ve {
+				// The param field of the ValidationError are not usually used, so it is used as a workaround for custom error messages
+				msg := fe.Param()
+				if msg == "" {
+					msg = fmt.Sprintf("%s failed on '%s' validation", fe.Field(), fe.Tag())
+				}
+
+				details = append(details, responses.ValidationErrorDetail{
+					JSONField:   fe.Field(),
+					StructField: fe.StructField(),
+					Value:       utils.ToString(fe.Value()),
+					Message:     msg,
+				})
 			}
 
-			details = append(details, responses.ValidationErrorDetail{
-				JSONField:   fe.Field(),
-				StructField: fe.StructField(),
-				Value:       utils.ToString(fe.Value()),
-				Message:     msg,
-			})
+			return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
 		}
-
-		return responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", details...)
+	case "*validator.InvalidValidationError":
+		errorStr := err.Error()
+		return responses.ValidationErrorResponse(400, "Invalid validation error:"+errorStr)
+	default:
+		errorStr := errorValue.Type().String()
+		return responses.ValidationErrorResponse(400, "Unknown validation error"+errorStr)
 	}
+
 	return responses.ValidationErrorResponse(400, "Validation Error, Unable to process the validation errors")
 }
 

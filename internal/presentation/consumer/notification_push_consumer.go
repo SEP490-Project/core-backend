@@ -2,40 +2,44 @@ package consumer
 
 import (
 	"context"
-	"core-backend/internal/application"
+	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/service"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"time"
 
+	"firebase.google.com/go/v4/messaging"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// PushNotificationMessage represents the message structure for push notifications
-type PushNotificationMessage struct {
-	NotificationID uuid.UUID              `json:"notification_id"`
-	UserID         uuid.UUID              `json:"user_id"`       // Target user
-	DeviceTokens   []string               `json:"device_tokens"` // FCM/APNS tokens
-	Title          string                 `json:"title"`         // Notification title
-	Body           string                 `json:"body"`          // Notification body
-	Data           map[string]interface{} `json:"data"`          // Custom data payload
-	ImageURL       string                 `json:"image_url"`     // Optional: notification image
-	ClickAction    string                 `json:"click_action"`  // Optional: deep link
-	Sound          string                 `json:"sound"`         // Optional: notification sound
-	Badge          int                    `json:"badge"`         // Optional: app badge count
-	Priority       string                 `json:"priority"`      // Optional: high, normal
-	Platform       string                 `json:"platform"`      // Optional: ios, android, all
-	Metadata       map[string]interface{} `json:"metadata"`      // Optional: additional metadata
-}
-
 // NotificationPushConsumer handles push notification messages from RabbitMQ
 type NotificationPushConsumer struct {
-	appRegistry *application.ApplicationRegistry
+	fcmService             *service.FCMService
+	deviceTokenRepository  irepository.DeviceTokenRepository
+	notificationRepository irepository.NotificationRepository
+	userService            iservice.UserService
+	healthMonitor          *service.HealthMonitor
 }
 
 // NewNotificationPushConsumer creates a new push notification consumer
-func NewNotificationPushConsumer(appRegistry *application.ApplicationRegistry) *NotificationPushConsumer {
+func NewNotificationPushConsumer(
+	fcmService *service.FCMService,
+	deviceTokenRepository irepository.DeviceTokenRepository,
+	notificationRepository irepository.NotificationRepository,
+	userService iservice.UserService,
+	healthMonitor *service.HealthMonitor,
+) *NotificationPushConsumer {
 	return &NotificationPushConsumer{
-		appRegistry: appRegistry,
+		fcmService:             fcmService,
+		deviceTokenRepository:  deviceTokenRepository,
+		notificationRepository: notificationRepository,
+		userService:            userService,
+		healthMonitor:          healthMonitor,
 	}
 }
 
@@ -45,94 +49,319 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 		zap.Int("message_size", len(body)))
 
 	// Parse message
-	var msg PushNotificationMessage
+	var msg consumers.PushNotificationMessage
 	if err := json.Unmarshal(body, &msg); err != nil {
 		zap.L().Error("Failed to unmarshal push notification message",
 			zap.Error(err),
-			zap.ByteString("raw_message", body))
-		return fmt.Errorf("failed to unmarshal message: %w", err)
+			zap.String("body", string(body)))
+		return err // Parsing errors should not retry
 	}
 
 	zap.L().Info("Processing push notification",
 		zap.String("notification_id", msg.NotificationID.String()),
 		zap.String("user_id", msg.UserID.String()),
-		zap.Int("device_count", len(msg.DeviceTokens)),
-		zap.String("title", msg.Title),
-		zap.String("platform", msg.Platform))
+		zap.String("title", msg.Title))
 
-	// TODO: Implement push notification sending logic
-	// This is a placeholder - integrate with your push notification service
-	// Example implementations:
-	//
-	// 1. Using Firebase Cloud Messaging (FCM):
-	// if msg.Platform == "android" || msg.Platform == "all" {
-	//     err := c.sendViaFCM(ctx, msg)
-	//     if err != nil {
-	//         return fmt.Errorf("failed to send FCM: %w", err)
-	//     }
-	// }
-	//
-	// 2. Using Apple Push Notification Service (APNS):
-	// if msg.Platform == "ios" || msg.Platform == "all" {
-	//     err := c.sendViaAPNS(ctx, msg)
-	//     if err != nil {
-	//         return fmt.Errorf("failed to send APNS: %w", err)
-	//     }
-	// }
-	//
-	// 3. Using unified notification service:
-	// for _, deviceToken := range msg.DeviceTokens {
-	//     notification := &PushNotification{
-	//         DeviceToken: deviceToken,
-	//         Title:       msg.Title,
-	//         Body:        msg.Body,
-	//         Data:        msg.Data,
-	//         ImageURL:    msg.ImageURL,
-	//         ClickAction: msg.ClickAction,
-	//         Sound:       msg.Sound,
-	//         Badge:       msg.Badge,
-	//         Priority:    msg.Priority,
-	//     }
-	//
-	//     err := c.appRegistry.PushService.SendNotification(ctx, notification)
-	//     if err != nil {
-	//         zap.L().Error("Failed to send push notification",
-	//             zap.String("device_token", deviceToken),
-	//             zap.Error(err))
-	//         // Continue sending to other devices
-	//         continue
-	//     }
-	// }
-	//
-	// 4. Update notification status in database
-	// 5. Track delivery metrics
-	// 6. Send to WebSocket for real-time updates (if user is online)
-	// if c.appRegistry.InfrastructureRegistry.WebSocketServer != nil {
-	//     c.appRegistry.InfrastructureRegistry.WebSocketServer.BroadcastToUser(msg.UserID, msg.Data)
-	// }
+	// Check user notification preferences
+	_, pushEnabled, err := c.userService.GetOrCreateDefault(ctx, msg.UserID)
+	if err != nil {
+		zap.L().Error("Failed to get notification preferences",
+			zap.String("user_id", msg.UserID.String()),
+			zap.String("notification_id", msg.NotificationID.String()),
+			zap.Error(err))
+		// Continue with send on error (fail-open approach)
+	} else if !pushEnabled {
+		zap.L().Info("Push notifications disabled for user, skipping send",
+			zap.String("user_id", msg.UserID.String()),
+			zap.String("notification_id", msg.NotificationID.String()))
 
-	zap.L().Info("Push notification sent successfully",
+		// Log attempt as completed with user preference
+		c.logDeliveryAttempt(ctx, msg.NotificationID, 0, 0, "Push notifications disabled by user")
+
+		// Return success (no retry needed)
+		return nil
+	}
+
+	// Check FCM service health before attempting to send
+	if c.healthMonitor != nil && !c.healthMonitor.IsFCMHealthy() {
+		health := c.healthMonitor.GetFCMHealth()
+		zap.L().Warn("FCM service is unhealthy, skipping send",
+			zap.String("notification_id", msg.NotificationID.String()),
+			zap.Error(health.LastError))
+
+		// Log attempt as failed with service unavailable
+		c.logDeliveryAttempt(ctx, msg.NotificationID, 0, 0, "FCM service is temporarily unavailable")
+
+		// Return error to trigger RabbitMQ retry
+		return errors.New("FCM service unhealthy")
+	}
+
+	// Fetch device tokens for user
+	tokens, err := c.deviceTokenRepository.FindByUserID(ctx, msg.UserID)
+	if err != nil {
+		zap.L().Error("Failed to fetch device tokens for user",
+			zap.String("user_id", msg.UserID.String()),
+			zap.Error(err))
+		return err // Database errors should retry
+	}
+
+	if len(tokens) == 0 {
+		zap.L().Warn("No device tokens found for user",
+			zap.String("user_id", msg.UserID.String()))
+		// Not an error - user simply has no registered devices
+		// Log attempt as completed with no recipients
+		c.logDeliveryAttempt(ctx, msg.NotificationID, 0, 0, "No device tokens registered")
+		return nil
+	}
+
+	// Extract token strings
+	tokenStrings := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		tokenStrings = append(tokenStrings, token.Token)
+	}
+
+	zap.L().Info("Sending push notification to devices",
+		zap.Int("device_count", len(tokenStrings)))
+
+	// Send via FCM with platform config
+	var batchResp *messaging.BatchResponse
+	if msg.PlatformConfig != nil {
+		apnsConfig := c.buildAPNSConfig(msg.PlatformConfig.IOS)
+		androidConfig := c.buildAndroidConfig(msg.PlatformConfig.Android)
+		batchResp, err = c.fcmService.SendMulticastWithPlatformConfig(
+			ctx,
+			tokenStrings,
+			msg.Title,
+			msg.Body,
+			msg.Data,
+			apnsConfig,
+			androidConfig,
+		)
+	} else {
+		batchResp, err = c.fcmService.SendMulticast(
+			ctx,
+			tokenStrings,
+			msg.Title,
+			msg.Body,
+			msg.Data,
+		)
+	}
+
+	if err != nil {
+		zap.L().Error("Failed to send FCM multicast",
+			zap.String("notification_id", msg.NotificationID.String()),
+			zap.Error(err))
+		c.logDeliveryAttempt(ctx, msg.NotificationID, 0, len(tokenStrings), err.Error())
+		return err // FCM service errors should retry
+	}
+
+	// Handle batch response and mark invalid tokens
+	c.processBatchResponse(ctx, batchResp, tokenStrings)
+
+	// Log delivery attempt
+	c.logDeliveryAttempt(ctx, msg.NotificationID, batchResp.SuccessCount, batchResp.FailureCount, "")
+
+	zap.L().Info("Push notification processing completed",
 		zap.String("notification_id", msg.NotificationID.String()),
-		zap.Int("devices_notified", len(msg.DeviceTokens)))
+		zap.Int("success_count", batchResp.SuccessCount),
+		zap.Int("failure_count", batchResp.FailureCount))
+
+	// If all deliveries failed, return error to trigger retry
+	if batchResp.SuccessCount == 0 && batchResp.FailureCount > 0 {
+		return errors.New("all push notifications failed to deliver")
+	}
 
 	return nil
 }
 
-// Example helper methods (uncomment and implement as needed):
-//
-// func (c *NotificationPushConsumer) sendViaFCM(ctx context.Context, msg PushNotificationMessage) error {
-//     // Implement FCM API call
-//     // import "firebase.google.com/go/messaging"
-//     return nil
-// }
-//
-// func (c *NotificationPushConsumer) sendViaAPNS(ctx context.Context, msg PushNotificationMessage) error {
-//     // Implement APNS API call
-//     // import "github.com/sideshow/apns2"
-//     return nil
-// }
-//
-// func (c *NotificationPushConsumer) filterDeviceTokensByPlatform(tokens []string, platform string) []string {
-//     // Filter device tokens based on platform if needed
-//     return tokens
-// }
+// processBatchResponse handles the FCM batch response and marks invalid tokens
+func (c *NotificationPushConsumer) processBatchResponse(ctx context.Context, batchResp *messaging.BatchResponse, tokens []string) {
+	for i, resp := range batchResp.Responses {
+		if resp.Error != nil {
+			token := tokens[i]
+			zap.L().Warn("FCM delivery failed for token",
+				zap.String("token", token),
+				zap.Error(resp.Error))
+
+			// Check if token is invalid
+			if messaging.IsUnregistered(resp.Error) ||
+				messaging.IsInvalidArgument(resp.Error) {
+				zap.L().Info("Marking token as invalid",
+					zap.String("token", token))
+				if err := c.deviceTokenRepository.MarkInvalid(ctx, token); err != nil {
+					zap.L().Error("Failed to mark token as invalid",
+						zap.String("token", token),
+						zap.Error(err))
+				}
+			}
+		}
+	}
+}
+
+// logDeliveryAttempt logs the delivery attempt to the notifications table
+func (c *NotificationPushConsumer) logDeliveryAttempt(ctx context.Context, notificationID uuid.UUID, successCount, failureCount int, errorMsg string) {
+	// Create delivery attempt record
+	status := "success"
+	if successCount == 0 && failureCount > 0 {
+		status = "failed"
+	} else if successCount > 0 && failureCount > 0 {
+		status = "partial"
+	}
+
+	attempt := model.DeliveryAttempt{
+		Timestamp: time.Now(),
+		Status:    status,
+		Error:     errorMsg,
+	}
+
+	// Fetch existing notification
+	notification, err := c.notificationRepository.GetByID(ctx, notificationID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch notification for logging",
+			zap.String("notification_id", notificationID.String()),
+			zap.Error(err))
+		return
+	}
+
+	// Update delivery attempts
+	attempts := notification.DeliveryAttempts
+	attempts = append(attempts, attempt)
+	notification.DeliveryAttempts = attempts
+
+	// Update status
+	if successCount > 0 {
+		notification.Status = enum.NotificationStatusSent
+	} else if failureCount > 0 {
+		if len(attempts) >= 3 { // Max retries reached
+			notification.Status = enum.NotificationStatusFailed
+		} else {
+			notification.Status = enum.NotificationStatusRetrying
+		}
+	}
+
+	// Update error details if present
+	if errorMsg != "" {
+		now := time.Now()
+		notification.ErrorDetails = model.JSONBErrorDetails{
+			ErrorMessage:  errorMsg,
+			LastAttemptAt: &now,
+		}
+	}
+
+	// Save updated notification
+	if err := c.notificationRepository.Update(ctx, notification); err != nil {
+		zap.L().Error("Failed to update notification delivery attempt",
+			zap.String("notification_id", notificationID.String()),
+			zap.Error(err))
+	}
+}
+
+// buildAPNSConfig constructs APNs configuration from DTO
+func (c *NotificationPushConsumer) buildAPNSConfig(iosConfig *consumers.IOSConfig) *messaging.APNSConfig {
+	if iosConfig == nil {
+		return nil
+	}
+
+	apnsPayload := &messaging.Aps{}
+
+	if iosConfig.Badge != nil {
+		apnsPayload.Badge = iosConfig.Badge
+	}
+
+	if iosConfig.Sound != "" {
+		apnsPayload.Sound = iosConfig.Sound
+	}
+
+	if iosConfig.Category != "" {
+		apnsPayload.Category = iosConfig.Category
+	}
+
+	if iosConfig.ThreadID != "" {
+		apnsPayload.ThreadID = iosConfig.ThreadID
+	}
+
+	if iosConfig.ContentAvailable {
+		apnsPayload.ContentAvailable = true
+	}
+
+	if iosConfig.MutableContent {
+		apnsPayload.MutableContent = true
+	}
+
+	config := &messaging.APNSConfig{
+		Payload: &messaging.APNSPayload{
+			Aps: apnsPayload,
+		},
+	}
+
+	// Add custom data if present
+	if len(iosConfig.CustomData) > 0 {
+		config.Payload.CustomData = iosConfig.CustomData
+	}
+
+	return config
+}
+
+// buildAndroidConfig constructs Android configuration from DTO
+func (c *NotificationPushConsumer) buildAndroidConfig(androidConfig *consumers.AndroidConfig) *messaging.AndroidConfig {
+	if androidConfig == nil {
+		return nil
+	}
+
+	config := &messaging.AndroidConfig{}
+
+	if androidConfig.Priority != "" {
+		config.Priority = androidConfig.Priority
+	}
+
+	if androidConfig.CollapseKey != "" {
+		config.CollapseKey = androidConfig.CollapseKey
+	}
+
+	if androidConfig.TTL != "" {
+		// Parse TTL string as duration (e.g., "3600s", "1h", "30m")
+		if ttl, err := time.ParseDuration(androidConfig.TTL); err == nil {
+			config.TTL = &ttl
+		} else {
+			zap.L().Warn("Invalid TTL format, skipping",
+				zap.String("ttl", androidConfig.TTL),
+				zap.Error(err))
+		}
+	}
+
+	// Build notification
+	notification := &messaging.AndroidNotification{}
+
+	if androidConfig.ChannelID != "" {
+		notification.ChannelID = androidConfig.ChannelID
+	}
+
+	if androidConfig.Sound != "" {
+		notification.Sound = androidConfig.Sound
+	}
+
+	if androidConfig.Color != "" {
+		notification.Color = androidConfig.Color
+	}
+
+	if androidConfig.Icon != "" {
+		notification.Icon = androidConfig.Icon
+	}
+
+	if androidConfig.Tag != "" {
+		notification.Tag = androidConfig.Tag
+	}
+
+	if androidConfig.ClickAction != "" {
+		notification.ClickAction = androidConfig.ClickAction
+	}
+
+	config.Notification = notification
+
+	// Add custom data if present
+	if len(androidConfig.CustomData) > 0 {
+		config.Data = androidConfig.CustomData
+	}
+
+	return config
+}

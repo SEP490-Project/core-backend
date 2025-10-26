@@ -33,6 +33,13 @@ func NewContractCreatePaymentConsumer(appRegistry *application.ApplicationRegist
 
 // Handle processes contract payment creation messages
 func (c *ContractCreatePaymentConsumer) Handle(ctx context.Context, body []byte) error {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Recovered from panic in ContractCreatePaymentConsumer.Handle",
+				zap.Any("panic", r))
+		}
+	}()
+
 	zap.L().Info("Received contract payment creation message",
 		zap.Int("message_size", len(body)))
 
@@ -68,7 +75,7 @@ func (c *ContractCreatePaymentConsumer) Handle(ctx context.Context, body []byte)
 		zap.String("user_id", msg.UserID),
 		zap.String("contract_id", msg.ContractID))
 
-	uow := c.unitOfWork.Begin()
+	uow := c.unitOfWork.Begin(ctx)
 
 	if err = c.contractPaymentService.CreateContractPaymentsFromContract(ctx, userID, contractID, uow); err != nil {
 		uow.Rollback()

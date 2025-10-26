@@ -8,6 +8,7 @@ bin/
 **/docs/*
 tmp/
 .specify/
+specs/
 
 *.exe
 *.out
@@ -21,6 +22,10 @@ tmp/
 
 # Test coverage profiles
 coverage.*
+
+# Notification system secrets
+firebase-service-account*.json
+*gmail*.env
 
 # OS-generated files
 .DS_Store

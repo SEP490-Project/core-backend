@@ -5,18 +5,11 @@ import "github.com/google/uuid"
 // Auth Response DTOs
 
 type LoginResponse struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresIn    int64     `json:"expires_in"`
-	User         *UserInfo `json:"user"`
-}
-
-type UserInfo struct {
-	ID       uuid.UUID `json:"id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
-	Role     string    `json:"role"`
-	IsActive bool      `json:"is_active"`
+	AccessToken           string            `json:"access_token"`
+	RefreshToken          string            `json:"refresh_token"`
+	ExpiresIn             int64             `json:"expires_in"`
+	User                  *UserInfoResponse `json:"user"`
+	DeviceTokenRegistered bool              `json:"device_token_registered,omitempty"`
 }
 
 type SessionInfo struct {
@@ -35,8 +28,8 @@ type ActiveSessionsResponse struct {
 
 // SignUpResponse represents the sign up response data
 type SignUpResponse struct {
-	Message string    `json:"message"`
-	User    *UserInfo `json:"user"`
+	Message string            `json:"message"`
+	User    *UserInfoResponse `json:"user"`
 }
 
 // LogoutResponse represents the logout response data

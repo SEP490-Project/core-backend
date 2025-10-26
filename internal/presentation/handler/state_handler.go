@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type StateHandler struct {
@@ -40,7 +41,7 @@ type UpdateTaskStateRequest struct {
 //	@Tags			State Transfer
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string					true	"Task ID (UUID)"
+//	@Param			task_id	path		string					true	"Task ID (UUID)"
 //	@Param			body	body		UpdateTaskStateRequest	true	"Target state payload"
 //	@Success		200		{object}	responses.APIResponse	"Task state updated"
 //	@Failure		400		{object}	responses.APIResponse	"Invalid request"
@@ -48,21 +49,20 @@ type UpdateTaskStateRequest struct {
 //	@Failure		409		{object}	responses.APIResponse	"Invalid state transition"
 //	@Failure		500		{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/tasks/{id}/state [patch]
+//	@Router			/api/v1/tasks/{task_id}/state [patch]
 func (h *StateHandler) UpdateTaskState(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
+	id, err := extractParamID(c, "task_id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid task id: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	var req UpdateTaskStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	if err := h.Validate.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -73,38 +73,37 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 		return
 	}
 
-	// Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
-	roleVal, ok := c.Get("roles")
-	if !ok || roleVal == nil {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+	// // Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
+	var roleStr *string
+	roleStr, err = extractUserRoles(c)
+	if err != nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context: "+err.Error(), http.StatusForbidden))
 		return
 	}
 
-	roleStr, _ := roleVal.(string)
-
-	if roleStr == string(enum.UserRoleAdmin) {
+	if *roleStr == string(enum.UserRoleAdmin) {
 		goto SkipAdminRoleCheck
 	}
 
 	if target == enum.TaskStatusDone {
-		if roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
+		if *roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move Task to DONE", http.StatusForbidden))
 			return
 		}
-	} else if roleStr == string(enum.UserRoleBrandPartner) {
+	} else if *roleStr == string(enum.UserRoleBrandPartner) {
 		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
 		return
 	}
 
 SkipAdminRoleCheck:
 
-	userId, err := extractUserIDFromContext(c)
+	userID, err := extractUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.StateTransferService.MoveTaskToState(c.Request.Context(), id, target, userId); err != nil {
+	if err := h.MoveTaskToState(c.Request.Context(), id, target, userID); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return
@@ -319,21 +318,22 @@ func (h *StateHandler) UpdateContractState(c *gin.Context) {
 	}
 
 	var contractID uuid.UUID
-	contractID, err = uuid.Parse(c.Param("id"))
+	contractID, err = extractParamID(c, "id")
 	if err != nil {
-		responses := responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		response := responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	var req *requests.UpdateContractStateRequest
+
+	var req requests.UpdateContractStateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
 		return
 	}
 	if err := h.Struct(&req); err != nil {
-		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 	targetState := enum.ContractStatus(req.State)
@@ -358,12 +358,28 @@ func (h *StateHandler) UpdateContractState(c *gin.Context) {
 		}
 	}
 
-	if err := h.MoveContractToState(c.Request.Context(), contractID, targetState, userID); err != nil {
+	uow := h.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			_ = uow.Rollback()
+			zap.L().Error("panic recovered in MoveContractToState", zap.Any("recover", r))
+			panic(r)
+		}
+	}()
+
+	if err := h.MoveContractToState(c.Request.Context(), uow, contractID, targetState, userID); err != nil {
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to move contract: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
+	if err := uow.Commit(); err != nil {
+		uow.Rollback()
+		response := responses.ErrorResponse("Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
 	response := responses.SuccessResponse("Contract state updated", utils.IntPtr(http.StatusOK), map[string]any{
 		"id":    contractID.String(),
 		"state": req.State,

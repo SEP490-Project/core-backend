@@ -45,10 +45,9 @@ type PublishContentRequest struct {
 	PublishDate *string `json:"publish_date,omitempty" validate:"omitempty,datetime=2006-01-02T15:04:05Z07:00"`
 }
 
-// ContentListRequest DTO for listing and filtering content
-type ContentListRequest struct {
-	Page      int        `form:"page" validate:"omitempty,min=1"`
-	Limit     int        `form:"limit" validate:"omitempty,min=1,max=100"`
+// ContentFilterRequest DTO for listing and filtering content
+type ContentFilterRequest struct {
+	PaginationRequest
 	Status    *string    `form:"status" validate:"omitempty,oneof=DRAFT AWAIT_STAFF AWAIT_BRAND REJECTED APPROVED POSTED"`
 	Type      *string    `form:"type" validate:"omitempty,oneof=POST VIDEO"`
 	TaskID    *uuid.UUID `form:"task_id" validate:"omitempty,uuid"`
@@ -56,5 +55,4 @@ type ContentListRequest struct {
 	Search    *string    `form:"search" validate:"omitempty,max=500"`
 	FromDate  *string    `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
 	ToDate    *string    `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
-	Sort      *string    `form:"sort" validate:"omitempty,oneof=created_at_asc created_at_desc updated_at_desc title_asc"`
 }

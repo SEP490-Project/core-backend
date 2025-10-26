@@ -3,6 +3,8 @@ package consumer
 
 import (
 	"core-backend/internal/application"
+	"core-backend/internal/infrastructure"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 
 	"go.uber.org/zap"
 )
@@ -18,15 +20,19 @@ type ConsumerRegistry struct {
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
-func NewConsumerRegistry(appRegistry *application.ApplicationRegistry) *ConsumerRegistry {
+func NewConsumerRegistry(
+	appRegistry *application.ApplicationRegistry,
+	infraRegistry *infrastructure.InfrastructureRegistry,
+	dbRegistry *gormrepository.DatabaseRegistry,
+) *ConsumerRegistry {
 	zap.L().Info("Initializing consumer registry")
 
 	registry := &ConsumerRegistry{
 		ContractCreateConsumer:        NewContractCreateConsumer(appRegistry),
 		ContractCreatePaymentConsumer: NewContractCreatePaymentConsumer(appRegistry),
 		ExcelImportProductsConsumer:   NewExcelImportProductsConsumer(appRegistry),
-		NotificationEmailConsumer:     NewNotificationEmailConsumer(appRegistry),
-		NotificationPushConsumer:      NewNotificationPushConsumer(appRegistry),
+		NotificationEmailConsumer:     NewNotificationEmailConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
+		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry.FCMService, dbRegistry.DeviceTokenRepository, dbRegistry.NotificationRepository, appRegistry.UserService, infraRegistry.HealthMonitor),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 	}
 

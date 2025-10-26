@@ -100,13 +100,18 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
+	uow := h.unitOfWork.Begin(c.Request.Context())
+
 	var updatedUser *responses.UserResponse
-	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, h.unitOfWork)
+	updatedUser, err = h.userService.UpdateProfile(c.Request.Context(), userID, &request, uow)
 	if err != nil {
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to update profile: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, response)
 		return
 	}
+
+	uow.Commit()
 
 	response := responses.SuccessResponse("Profile updated successfully", nil, updatedUser)
 	c.JSON(http.StatusOK, response)
@@ -282,17 +287,17 @@ func (h *UserHandler) ActivateBrandUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(c.Request.Context())
 
-	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, h.unitOfWork)
+	err = h.userService.ActivateBrandUser(c.Request.Context(), userID, uow)
 	if err != nil {
-		h.unitOfWork.Rollback()
+		uow.Rollback()
 		response := responses.ErrorResponse("Failed to activate brand user: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	h.unitOfWork.Commit()
+	uow.Commit()
 	response := responses.SuccessResponse("Brand user activated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)
 }
@@ -378,5 +383,97 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	}
 
 	response := responses.SuccessResponse("User deleted successfully", nil, nil)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetUserPreference godoc
+//
+//	@Summary		Get User notification preferences
+//	@Description	Retrieves notification preference settings for the authenticated user
+//	@Tags			Notification Preferences
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=responses.UserNotificationPreferenceResponse}
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/notification-preferences [get]
+func (h *UserHandler) GetUserPreference(c *gin.Context) {
+	// Get user ID from context
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+	}
+
+	// Get preferences
+	var prefs *responses.UserNotificationPreferenceResponse
+	prefs, err = h.userService.GetPreferences(c.Request.Context(), userID)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to retrieve notification preferences", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusOK
+	response := responses.SuccessResponse("Notification preferences retrieved successfully", &statusCode, prefs)
+	c.JSON(statusCode, response)
+}
+
+// UpdateUserPreferences godoc
+//
+//	@Summary		Update notification preferences
+//	@Description	Updates notification preference settings for the authenticated user
+//	@Tags			Notification Preferences
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.UserNotificationPreferenceRequest	true	"Notification preferences"
+//	@Success		200		{object}	responses.APIResponse{data=responses.UserNotificationPreferenceResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/users/notification-preferences [put]
+func (h *UserHandler) UpdateUserPreferences(c *gin.Context) {
+	// Get user ID from context
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+	}
+
+	// Parse request body
+	var req requests.UserNotificationPreferenceRequest
+	if err = c.ShouldBindJSON(&req); err != nil {
+		response := responses.ErrorResponse("Invalid request body", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if err = h.validator.Struct(&req); err != nil {
+		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// At least one field must be provided
+	if req.EmailEnabled == nil && req.PushEnabled == nil {
+		response := responses.ErrorResponse("At least one preference field must be provided", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Update preferences
+	var prefs *responses.UserNotificationPreferenceResponse
+	prefs, err = h.userService.UpdatePreferences(c.Request.Context(), userID, &req)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to update notification preferences", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusOK
+	response := responses.SuccessResponse("Notification preferences updated successfully", &statusCode, prefs)
 	c.JSON(http.StatusOK, response)
 }

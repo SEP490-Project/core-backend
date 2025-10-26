@@ -157,6 +157,26 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.NotificationStatus:
+    enum:
+    - PENDING
+    - SENT
+    - FAILED
+    - RETRYING
+    type: string
+    x-enum-varnames:
+    - NotificationStatusPending
+    - NotificationStatusSent
+    - NotificationStatusFailed
+    - NotificationStatusRetrying
+  enum.NotificationType:
+    enum:
+    - EMAIL
+    - PUSH
+    type: string
+    x-enum-varnames:
+    - NotificationTypeEmail
+    - NotificationTypePush
   enum.OrderStatus:
     enum:
     - PENDING
@@ -189,6 +209,14 @@ definitions:
     - PaymentCycleMonthly
     - PaymentCycleQuarterly
     - PaymentCycleAnnually
+  enum.PlatformType:
+    enum:
+    - IOS
+    - ANDROID
+    type: string
+    x-enum-varnames:
+    - PlatformTypeIOS
+    - PlatformTypeAndroid
   enum.ProductStatus:
     enum:
     - DRAFT
@@ -257,6 +285,106 @@ definitions:
         type: string
     required:
     - state
+    type: object
+  model.AndroidConfig:
+    properties:
+      channel_id:
+        description: Notification channel
+        type: string
+      click_action:
+        description: Activity to open
+        type: string
+      color:
+        description: Notification color
+        type: string
+      priority:
+        description: '"high" or "normal"'
+        type: string
+    type: object
+  model.Attachment:
+    properties:
+      filename:
+        type: string
+      mime_type:
+        type: string
+      url:
+        description: S3 URL
+        type: string
+    type: object
+  model.DeliveryAttempt:
+    properties:
+      error:
+        type: string
+      status:
+        description: '"success", "failed", "retrying"'
+        type: string
+      timestamp:
+        type: string
+    type: object
+  model.IOSConfig:
+    properties:
+      badge:
+        description: Badge count
+        type: integer
+      content_available:
+        description: Silent push
+        type: integer
+      sound:
+        description: Sound filename
+        type: string
+    type: object
+  model.JSONBContentData:
+    properties:
+      attachments:
+        description: Email attachments
+        items:
+          $ref: '#/definitions/model.Attachment'
+        type: array
+      body:
+        description: Plain text body
+        type: string
+      html_body:
+        description: HTML email body
+        type: string
+      subject:
+        description: Email subject
+        type: string
+      template_data:
+        additionalProperties: {}
+        description: Data for template rendering
+        type: object
+      template_name:
+        description: Template filename
+        type: string
+      title:
+        description: Push notification title
+        type: string
+    type: object
+  model.JSONBErrorDetails:
+    properties:
+      error_code:
+        type: string
+      error_message:
+        type: string
+      last_attempt_at:
+        type: string
+    type: object
+  model.JSONBPlatformConfig:
+    properties:
+      android_config:
+        $ref: '#/definitions/model.AndroidConfig'
+      ios_config:
+        $ref: '#/definitions/model.IOSConfig'
+    type: object
+  model.JSONBRecipientInfo:
+    properties:
+      email:
+        type: string
+      tokens:
+        description: FCM device tokens
+        items:
+          type: string
+        type: array
     type: object
   model.Order:
     properties:
@@ -334,12 +462,6 @@ definitions:
       updated_by:
         type: string
     type: object
-  requests.ApproveContentRequest:
-    properties:
-      message:
-        maxLength: 500
-        type: string
-    type: object
   requests.BlogFieldsDTO:
     properties:
       author_id:
@@ -357,13 +479,6 @@ definitions:
     - author_id
     type: object
   requests.BulkVariantRequest:
-    type: object
-  requests.CampaignSuggestionRequest:
-    properties:
-      contract_id:
-        type: string
-    required:
-    - contract_id
     type: object
   requests.ConceptRequest:
     properties:
@@ -516,8 +631,8 @@ definitions:
         enum:
         - ADVERTISING
         - AFFILIATE
-        - AMBASSADOR
-        - COPRODUCE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
         example: ADVERTISING
         type: string
     required:
@@ -601,6 +716,10 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
+      price:
+        example: 99.99
+        minimum: 0
+        type: number
       task_id:
         example: 660e8400-e29b-41d4-a716-446655440000
         type: string
@@ -609,6 +728,7 @@ definitions:
     - category_id
     - limited_attribute
     - name
+    - price
     - task_id
     type: object
   requests.CreateMilestoneCampaignRequest:
@@ -653,14 +773,21 @@ definitions:
         maxLength: 1000
         type: string
       name:
+        description: TaskID      uuid.UUID `json:"task_id" validate:"required,uuid"
+          example:"660e8400-e29b-41d4-a716-446655440000"`
         example: Product Name
         maxLength: 255
         minLength: 1
         type: string
+      price:
+        example: 99.99
+        minimum: 0
+        type: number
     required:
     - brand_id
     - category_id
     - name
+    - price
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
@@ -741,6 +868,9 @@ definitions:
     type: object
   requests.LoginRequest:
     properties:
+      device_token:
+        minLength: 10
+        type: string
       login_identifier:
         example: abc@gmail.com
         type: string
@@ -748,6 +878,12 @@ definitions:
         example: "12345678"
         minLength: 8
         type: string
+      platform:
+        allOf:
+        - $ref: '#/definitions/enum.PlatformType'
+        enum:
+        - IOS
+        - ANDROID
     required:
     - login_identifier
     - password
@@ -818,11 +954,6 @@ definitions:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
     type: object
-  requests.PublishContentRequest:
-    properties:
-      publish_date:
-        type: string
-    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -831,13 +962,20 @@ definitions:
     required:
     - refresh_token
     type: object
-  requests.RejectContentRequest:
+  requests.RegisterDeviceTokenRequest:
     properties:
-      feedback:
-        maxLength: 1000
+      platform:
+        allOf:
+        - $ref: '#/definitions/enum.PlatformType'
+        enum:
+        - IOS
+        - ANDROID
+      token:
+        minLength: 10
         type: string
     required:
-    - feedback
+    - platform
+    - token
     type: object
   requests.SignUpRequest:
     properties:
@@ -862,12 +1000,6 @@ definitions:
     - email
     - password
     - username
-    type: object
-  requests.SubmitContentRequest:
-    properties:
-      message:
-        maxLength: 500
-        type: string
     type: object
   requests.UpdateAddressProfileRequest:
     properties:
@@ -1154,6 +1286,21 @@ definitions:
     required:
     - state
     type: object
+  requests.UpdateDeviceTokenRequest:
+    properties:
+      new_token:
+        minLength: 10
+        type: string
+      platform:
+        allOf:
+        - $ref: '#/definitions/enum.PlatformType'
+        enum:
+        - IOS
+        - ANDROID
+    required:
+    - new_token
+    - platform
+    type: object
   requests.UpdateProfileRequest:
     properties:
       avatar_url:
@@ -1202,6 +1349,13 @@ definitions:
         type: boolean
     required:
     - is_active
+    type: object
+  requests.UserNotificationPreferenceRequest:
+    properties:
+      email_enabled:
+        type: boolean
+      push_enabled:
+        type: boolean
     type: object
   responses.APIResponse:
     properties:
@@ -1282,6 +1436,8 @@ definitions:
     type: object
   responses.BrandDetailResponse:
     properties:
+      address:
+        type: string
       contact_email:
         type: string
       contact_phone:
@@ -1342,6 +1498,8 @@ definitions:
     type: object
   responses.BrandResponse:
     properties:
+      address:
+        type: string
       contact_email:
         type: string
       contact_phone:
@@ -1840,70 +1998,84 @@ definitions:
         example: ADVERTISING
         type: string
     type: object
-  responses.DistrictResponse:
+  responses.DeviceTokenListResponse:
     properties:
-      CanUpdateCOD:
-        type: boolean
-      Code:
-        type: string
-      CreatedAt:
-        type: string
-      DeliverType:
-        type: integer
-      DistrictID:
-        type: integer
-      DistrictName:
-        type: string
-      GovernmentCode:
-        type: string
-      IsEnable:
-        type: integer
-      NameExtension:
+      tokens:
         items:
-          type: string
+          $ref: '#/definitions/responses.DeviceTokenResponse'
         type: array
-      OnDates: {}
-      PickType:
+      total:
         type: integer
-      ProvinceID:
-        type: integer
-      ReasonCode:
+    type: object
+  responses.DeviceTokenResponse:
+    properties:
+      created_at:
         type: string
-      ReasonMessage:
+      id:
         type: string
-      Status:
-        type: integer
-      SupportType:
-        type: integer
-      Type:
-        type: integer
-      UpdatedAt:
+      is_valid:
+        type: boolean
+      last_used_at:
         type: string
-      UpdatedBy:
-        type: integer
-      UpdatedDate:
+      platform:
+        $ref: '#/definitions/enum.PlatformType'
+      token:
         type: string
-      UpdatedEmployee:
-        type: integer
-      UpdatedSource:
+      user_id:
         type: string
-      WhiteListClient: {}
-      WhiteListDistrict: {}
     type: object
   responses.LoginResponse:
     properties:
       access_token:
         type: string
+      device_token_registered:
+        type: boolean
       expires_in:
         type: integer
       refresh_token:
         type: string
       user:
-        $ref: '#/definitions/responses.UserInfo'
+        $ref: '#/definitions/responses.UserInfoResponse'
     type: object
   responses.LogoutResponse:
     properties:
       message:
+        type: string
+    type: object
+  responses.NotificationListResponse:
+    properties:
+      notifications:
+        items:
+          $ref: '#/definitions/responses.NotificationResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+    type: object
+  responses.NotificationResponse:
+    properties:
+      content_data:
+        $ref: '#/definitions/model.JSONBContentData'
+      created_at:
+        type: string
+      delivery_attempts:
+        items:
+          $ref: '#/definitions/model.DeliveryAttempt'
+        type: array
+      error_details:
+        $ref: '#/definitions/model.JSONBErrorDetails'
+      id:
+        type: string
+      platform_config:
+        $ref: '#/definitions/model.JSONBPlatformConfig'
+      recipient_info:
+        $ref: '#/definitions/model.JSONBRecipientInfo'
+      status:
+        $ref: '#/definitions/enum.NotificationStatus'
+      type:
+        $ref: '#/definitions/enum.NotificationType'
+      updated_at:
+        type: string
+      user_id:
         type: string
     type: object
   responses.Pagination:
@@ -1920,6 +2092,23 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  responses.PaginationTaskResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.TaskListResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
     type: object
   responses.PayOSLinkResponse:
     properties:
@@ -1964,12 +2153,10 @@ definitions:
       description:
         type: string
       ingredient:
-        description: Attribute
         type: string
       unit:
         $ref: '#/definitions/enum.AttributeUnit'
       value:
-        description: Value
         type: number
     type: object
   responses.ProductCategoryResponse:
@@ -2080,8 +2267,6 @@ definitions:
       created_at:
         description: FE parse về Date
         type: string
-      created_by:
-        $ref: '#/definitions/responses.UserListResponse'
       description:
         type: string
       id:
@@ -2092,8 +2277,6 @@ definitions:
         type: string
       price:
         type: number
-      status:
-        $ref: '#/definitions/enum.ProductStatus'
       thumbnail_url:
         description: optional
         items:
@@ -2101,10 +2284,6 @@ definitions:
         type: array
       type:
         $ref: '#/definitions/enum.ProductType'
-      updated_at:
-        type: string
-      updated_by:
-        $ref: '#/definitions/responses.UserListResponse'
       variants:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
@@ -2157,43 +2336,6 @@ definitions:
       updated_at:
         type: string
       uses:
-        type: string
-    type: object
-  responses.ProvinceResponse:
-    properties:
-      CanUpdateCOD:
-        type: boolean
-      Code:
-        type: string
-      CountryID:
-        type: integer
-      CreatedAt:
-        type: string
-      IsEnable:
-        type: integer
-      NameExtension:
-        items:
-          type: string
-        type: array
-      ProvinceID:
-        type: integer
-      ProvinceName:
-        type: string
-      RegionCPN:
-        type: integer
-      RegionID:
-        type: integer
-      Status:
-        type: integer
-      UpdatedAt:
-        type: string
-      UpdatedBy:
-        type: integer
-      UpdatedDate:
-        type: string
-      UpdatedEmployee:
-        type: integer
-      UpdatedSource:
         type: string
     type: object
   responses.SessionInfo:
@@ -2267,7 +2409,7 @@ definitions:
       message:
         type: string
       user:
-        $ref: '#/definitions/responses.UserInfo'
+        $ref: '#/definitions/responses.UserInfoResponse'
     type: object
   responses.SuggestedCampaign:
     properties:
@@ -2290,9 +2432,122 @@ definitions:
   responses.SuggestedTask:
     properties:
       description_json:
-        additionalProperties: true
+        additionalProperties: {}
         type: object
       name:
+        type: string
+    type: object
+  responses.TaskListResponse:
+    properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      assigned_to_name:
+        example: Jane Smith
+        type: string
+      assigned_to_role:
+        example: Sales Staff
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_at:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      deadline:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Homepage
+        type: string
+      status:
+        example: IN_PROGRESS
+        type: string
+      type:
+        example: PRODUCT
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+    type: object
+  responses.TaskResponse:
+    properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      assigned_to_name:
+        example: Jane Smith
+        type: string
+      assigned_to_role:
+        example: Sales Staff
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      content_ids:
+        example:
+        - '["770e8400-e29b-41d4-a716-446655440000"'
+        - ' "880e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        type: array
+      contract_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_at:
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      created_by_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      created_by_name:
+        example: John Doe
+        type: string
+      deadline:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      description:
+        example: Create a modern and responsive homepage design.
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Homepage
+        type: string
+      product_ids:
+        example:
+        - '["550e8400-e29b-41d4-a716-446655440000"'
+        - ' "660e8400-e29b-41d4-a716-446655440000"]'
+        items:
+          type: string
+        type: array
+      status:
+        example: IN_PROGRESS
+        type: string
+      type:
+        example: PRODUCT
+        type: string
+      updated_at:
+        example: "2023-10-15T15:30:00Z"
+        type: string
+      updated_by_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      updated_by_name:
+        example: John Doe
         type: string
     type: object
   responses.UserBrief:
@@ -2304,17 +2559,34 @@ definitions:
       username:
         type: string
     type: object
-  responses.UserInfo:
+  responses.UserInfoResponse:
     properties:
+      avatar_url:
+        example: https://example.com/avatar.jpg
+        type: string
+      date_of_birth:
+        example: "1990-01-01"
+        type: string
       email:
+        example: john@example.com
+        type: string
+      full_name:
+        example: John Doe
         type: string
       id:
+        example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       is_active:
+        example: true
         type: boolean
+      phone:
+        example: "+1234567890"
+        type: string
       role:
+        example: user
         type: string
       username:
+        example: john_doe
         type: string
     type: object
   responses.UserListResponse:
@@ -2352,6 +2624,19 @@ definitions:
         type: string
       username:
         example: john_doe
+        type: string
+    type: object
+  responses.UserNotificationPreferenceResponse:
+    properties:
+      created_at:
+        type: string
+      email_enabled:
+        type: boolean
+      id:
+        type: string
+      push_enabled:
+        type: boolean
+      updated_at:
         type: string
     type: object
   responses.UserPaginationResponse:
@@ -2474,53 +2759,6 @@ definitions:
         type: boolean
       price:
         type: number
-    type: object
-  responses.WardResponse:
-    properties:
-      CanUpdateCOD:
-        type: boolean
-      Config: {}
-      CreatedAt:
-        type: string
-      DeliverType:
-        type: integer
-      DistrictID:
-        type: integer
-      GovernmentCode:
-        type: string
-      IsEnable:
-        type: integer
-      NameExtension:
-        items:
-          type: string
-        type: array
-      OnDates: {}
-      PickType:
-        type: integer
-      ReasonCode:
-        type: string
-      ReasonMessage:
-        type: string
-      Status:
-        type: integer
-      SupportType:
-        type: integer
-      UpdatedAt:
-        type: string
-      UpdatedBy:
-        type: integer
-      UpdatedDate:
-        type: string
-      UpdatedEmployee:
-        type: integer
-      UpdatedSource:
-        type: string
-      WardCode:
-        type: string
-      WardName:
-        type: string
-      WhiteListClient: {}
-      WhiteListWard: {}
     type: object
 host: localhost:8080
 info:
@@ -3126,6 +3364,60 @@ paths:
       summary: Create Campaign from Contract
       tags:
       - Campaigns
+  /api/v1/campaigns/{campaign_id}/suggest:
+    get:
+      consumes:
+      - application/json
+      description: Generate campaign suggestions based on contract deliverables. Only
+        ACTIVE contracts can be used for suggestions.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: campaign_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign suggestion generated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignSuggestionResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Requires ADMIN or SALES_STAFF role
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract is not ACTIVE or has no deliverables
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest Campaign from Contract
+      tags:
+      - Campaigns
   /api/v1/campaigns/brand/{brand_id}:
     get:
       consumes:
@@ -3393,60 +3685,6 @@ paths:
       summary: Get Campaign Details by ID
       tags:
       - Campaigns
-  /api/v1/campaigns/suggest:
-    post:
-      consumes:
-      - application/json
-      description: Generate campaign suggestions based on contract deliverables. Only
-        ACTIVE contracts can be used for suggestions.
-      parameters:
-      - description: Campaign suggestion request
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CampaignSuggestionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign suggestion generated successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.CampaignSuggestionResponse'
-              type: object
-        "400":
-          description: Invalid request or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - Requires ADMIN or SALES_STAFF role
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Contract is not ACTIVE or has no deliverables
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Suggest Campaign from Contract
-      tags:
-      - Campaigns
   /api/v1/categories:
     get:
       consumes:
@@ -3528,7 +3766,7 @@ paths:
       tags:
       - Categories
   /api/v1/categories/{id}:
-    delete:
+    patch:
       consumes:
       - application/json
       description: Delete category by id
@@ -3934,16 +4172,30 @@ paths:
       description: Retrieves paginated content with optional filters, search, and
         sorting
       parameters:
-      - default: 1
-        description: 'Page number (default: 1)'
+      - description: 'Page number (default: 1)'
         in: query
         name: page
         type: integer
-      - default: 10
-        description: 'Items per page (default: 10, max: 100)'
+      - description: 'Items per page (default: 10, max: 100)'
         in: query
         name: limit
         type: integer
+      - description: Sort by field
+        enum:
+        - created_at
+        - updated_at
+        - publish_date
+        - title
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
       - description: Filter by status
         enum:
         - DRAFT
@@ -3981,16 +4233,6 @@ paths:
       - description: Filter to date (YYYY-MM-DD)
         in: query
         name: to_date
-        type: string
-      - default: created_at_desc
-        description: Sort order
-        enum:
-        - created_at_asc
-        - created_at_desc
-        - updated_at_desc
-        - title_asc
-        in: query
-        name: sort
         type: string
       produces:
       - application/json
@@ -4184,22 +4426,16 @@ paths:
       tags:
       - Content
   /api/v1/contents/{id}/approve:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Approves content that is awaiting review
+      description: Transitions content from AWAIT_STAFF/AWAIT_BRAND to APPROVED
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Approval request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.ApproveContentRequest'
       produces:
       - application/json
       responses:
@@ -4210,26 +4446,19 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - insufficient permissions
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
@@ -4288,76 +4517,22 @@ paths:
       tags:
       - Blog
   /api/v1/contents/{id}/publish:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Publishes approved content to POSTED status with optional publish
+      description: Transitions content from APPROVED to POSTED with optional publish
         date
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Publish request with optional publish_date
+      - description: Optional publish date
         in: body
-        name: request
+        name: body
         schema:
-          $ref: '#/definitions/requests.PublishContentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Content published successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ContentResponse'
-              type: object
-        "400":
-          description: Invalid request or content not approved
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Authentication required
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Insufficient permissions
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Content not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Publish approved content
-      tags:
-      - Content
-  /api/v1/contents/{id}/reject:
-    post:
-      consumes:
-      - application/json
-      description: Rejects content that is awaiting review with feedback
-      parameters:
-      - description: Content ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Rejection request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.RejectContentRequest'
+          type: object
       produces:
       - application/json
       responses:
@@ -4368,26 +4543,67 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden - insufficient permissions
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+      security:
+      - BearerAuth: []
+      summary: Publish content
+      tags:
+      - Content
+  /api/v1/contents/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Transitions content from AWAIT_STAFF/AWAIT_BRAND to REJECTED with
+        feedback
+      parameters:
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rejection reason
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
@@ -4396,22 +4612,17 @@ paths:
       tags:
       - Content
   /api/v1/contents/{id}/submit:
-    post:
+    patch:
       consumes:
       - application/json
-      description: Submits content for staff or brand approval based on selected channels
+      description: Transitions content from DRAFT/REJECTED to AWAIT_STAFF or AWAIT_BRAND
+        based on channels
       parameters:
-      - description: Content ID (UUID)
+      - description: Content ID
         in: path
         name: id
         required: true
         type: string
-      - description: Submit request data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.SubmitContentRequest'
       produces:
       - application/json
       responses:
@@ -4422,22 +4633,19 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContentResponse'
+                  additionalProperties: true
+                  type: object
               type: object
         "400":
-          description: Invalid ID or validation error
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Content not found
+          description: Not Found
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "409":
-          description: Invalid content status
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
+          description: Conflict
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
@@ -5044,6 +5252,188 @@ paths:
       summary: Get contracts for brand profile
       tags:
       - Contracts
+  /api/v1/device-tokens:
+    delete:
+      description: Delete all device tokens for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All device tokens deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete all device tokens
+      tags:
+      - Device Tokens
+    get:
+      description: Get all device tokens for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Device tokens retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.DeviceTokenListResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List device tokens
+      tags:
+      - Device Tokens
+    post:
+      consumes:
+      - application/json
+      description: Register a new FCM device token for push notifications
+      parameters:
+      - description: Device token registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RegisterDeviceTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Device token registered successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.DeviceTokenResponse'
+              type: object
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Token already registered to another user
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Register a new device token
+      tags:
+      - Device Tokens
+  /api/v1/device-tokens/{id}:
+    delete:
+      description: Delete a specific device token
+      parameters:
+      - description: Device Token ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Device token deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid device token ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Device token not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a device token
+      tags:
+      - Device Tokens
+    put:
+      consumes:
+      - application/json
+      description: Update an existing device token
+      parameters:
+      - description: Device Token ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated device token data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateDeviceTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Device token updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.DeviceTokenResponse'
+              type: object
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Device token not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a device token
+      tags:
+      - Device Tokens
   /api/v1/files/{filename}:
     delete:
       parameters:
@@ -5192,69 +5582,6 @@ paths:
       summary: Upload a video chunk (streaming upload)
       tags:
       - files
-  /api/v1/location/districts/{province-id}:
-    get:
-      consumes:
-      - application/json
-      description: "Fetch all districts\tand front-end have to filter himself"
-      parameters:
-      - description: Province ID
-        in: path
-        name: province-id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Provinces response
-          schema:
-            $ref: '#/definitions/responses.DistrictResponse'
-      security:
-      - BearerAuth: []
-      summary: Get list of districts from a province
-      tags:
-      - location
-  /api/v1/location/provinces:
-    get:
-      consumes:
-      - application/json
-      description: "Fetch all provinces\tand front-end have to filter himself"
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Provinces response
-          schema:
-            $ref: '#/definitions/responses.ProvinceResponse'
-      security:
-      - BearerAuth: []
-      summary: Get list of provinces from GiaoHangNhanh API
-      tags:
-      - location
-  /api/v1/location/wards/{district-id}:
-    get:
-      consumes:
-      - application/json
-      description: "Fetch all districts\tand front-end have to filter himself"
-      parameters:
-      - description: District ID
-        in: path
-        name: district-id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Ward response
-          schema:
-            $ref: '#/definitions/responses.WardResponse'
-      security:
-      - BearerAuth: []
-      summary: Get list of districts from a province
-      tags:
-      - location
   /api/v1/milestones/{id}/state:
     patch:
       consumes:
@@ -5301,6 +5628,150 @@ paths:
       summary: Update Milestone State
       tags:
       - State Transfer
+  /api/v1/notifications:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve notifications with optional filtering by user, type, status,
+        and date range
+      parameters:
+      - description: Filter by user ID (UUID)
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by notification type (EMAIL, PUSH)
+        in: query
+        name: type
+        type: string
+      - description: Filter by status (PENDING, SENT, FAILED, RETRYING)
+        in: query
+        name: status
+        type: string
+      - description: Filter by start date (RFC3339 or YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: Filter by end date (RFC3339 or YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.NotificationListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List notifications with filters
+      tags:
+      - Notifications
+  /api/v1/notifications/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific notification including
+        delivery attempts
+      parameters:
+      - description: Notification ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.NotificationResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get notification by ID
+      tags:
+      - Notifications
+  /api/v1/notifications/failed:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve notifications that failed after multiple retry attempts
+      parameters:
+      - description: 'Minimum number of retry attempts (default: 3)'
+        in: query
+        name: min_retries
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.NotificationListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get failed notifications with retries
+      tags:
+      - Notifications
   /api/v1/orders:
     get:
       consumes:
@@ -5499,7 +5970,6 @@ paths:
     get:
       consumes:
       - application/json
-      deprecated: true
       description: Get paginated list of products with optional search
       parameters:
       - default: 10
@@ -5857,10 +6327,6 @@ paths:
         name: category_id
         type: string
       - description: Filter type of products
-        enum:
-        - STANDARD
-        - LIMITED
-        - ""
         in: query
         name: type
         type: string
@@ -5868,7 +6334,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Products view for Others
+          description: Products retrieved successfully
           schema:
             properties:
               data:
@@ -5891,7 +6357,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
+      summary: Get All Products
       tags:
       - Products
   /api/v1/products/variants/{variantId}/images:
@@ -5952,6 +6418,115 @@ paths:
       summary: Create Variant Image
       tags:
       - Products
+  /api/v1/tasks:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by creator ID
+        format: uuid
+        in: query
+        name: created_by_id
+        type: string
+      - description: Filter by assignee ID
+        format: uuid
+        in: query
+        name: assigned_to_id
+        type: string
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by contract ID
+        format: uuid
+        in: query
+        name: contract_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Filter
+      tags:
+      - Tasks
   /api/v1/tasks/{id}/state:
     patch:
       consumes:
@@ -5998,7 +6573,48 @@ paths:
       summary: Update Task State
       tags:
       - State Transfer
-  /api/v1/tasks/{taskId}/products:
+  /api/v1/tasks/{task_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a task by its ID and return its details in the response.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TaskResponse'
+              type: object
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Task by ID
+      tags:
+      - Tasks
+  /api/v1/tasks/{task_id}/products:
     get:
       consumes:
       - application/json
@@ -6007,7 +6623,7 @@ paths:
       parameters:
       - description: Task ID (UUID)
         in: path
-        name: taskId
+        name: task_id
         required: true
         type: string
       - default: 10
@@ -6064,6 +6680,209 @@ paths:
       summary: Get Products By Task
       tags:
       - Products
+  /api/v1/tasks/contract/{contract_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response. This is usually used by BRAND_PARTNER
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Contract ID
+      tags:
+      - Tasks
+  /api/v1/tasks/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of tasks based on filter criteria and return them
+        in a paginated response.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by creator ID
+        format: uuid
+        in: query
+        name: created_by_id
+        type: string
+      - description: Filter by assignee ID
+        format: uuid
+        in: query
+        name: assigned_to_id
+        type: string
+      - description: Filter by milestone ID
+        format: uuid
+        in: query
+        name: milestone_id
+        type: string
+      - description: Filter by campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - description: Filter by contract ID
+        format: uuid
+        in: query
+        name: contract_id
+        type: string
+      - description: Filter by deadline from date
+        format: date-time
+        in: query
+        name: deadline_from_date
+        type: string
+      - description: Filter by deadline to date
+        format: date-time
+        in: query
+        name: deadline_to_date
+        type: string
+      - description: Filter by updated from date
+        format: date-time
+        in: query
+        name: updated_from_date
+        type: string
+      - description: Filter by updated to date
+        format: date-time
+        in: query
+        name: updated_to_date
+        type: string
+      - description: Filter by task status
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        in: query
+        name: status
+        type: string
+      - description: Filter by task type
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        in: query
+        name: type
+        type: string
+      - description: Field to sort by
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tasks retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaginationTaskResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Tasks by Profile
+      tags:
+      - Tasks
   /api/v1/users:
     get:
       consumes:
@@ -6341,6 +7160,78 @@ paths:
       summary: Update User Status
       tags:
       - Users
+  /api/v1/users/notification-preferences:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves notification preference settings for the authenticated
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserNotificationPreferenceResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User notification preferences
+      tags:
+      - Notification Preferences
+    put:
+      consumes:
+      - application/json
+      description: Updates notification preference settings for the authenticated
+        user
+      parameters:
+      - description: Notification preferences
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UserNotificationPreferenceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserNotificationPreferenceResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update notification preferences
+      tags:
+      - Notification Preferences
   /api/v1/users/profile:
     get:
       consumes:
@@ -6499,6 +7390,52 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Attribute
+      tags:
+      - Variant-Attributes
+  /api/v1/variant-attributes/admin:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of variant attributes for administrative usage.
+        Returns full model details.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.VariantAttributeResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Variant Attributes (Admin)
       tags:
       - Variant-Attributes
   /health:

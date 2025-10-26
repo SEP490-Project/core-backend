@@ -230,7 +230,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			taskId	path		string	true	"Task ID (UUID)"
+//	@Param			task_id	path		string	true	"Task ID (UUID)"
 //	@Param			limit	query		int		false	"Number of items per page"	default(10)
 //	@Param			offset	query		int		false	"Number of items to skip"	default(0)
 //	@Success		200		{object}	object{data=[]responses.ProductOverviewResponse,total=int,limit=int,offset=int}
@@ -238,10 +238,10 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 //	@Failure		403		{object}	object{error=string}
 //	@Failure		500		{object}	object{error=string}
 //	@Security		BearerAuth
-//	@Router			/api/v1/tasks/{taskId}/products [get]
+//	@Router			/api/v1/tasks/{task_id}/products [get]
 func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 	// Parse path param
-	taskIDStr := c.Param("taskId")
+	taskIDStr := c.Param("task_id")
 	taskID, err := uuid.Parse(taskIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
@@ -346,7 +346,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
-//	@Success		201		{object}	map[string]interface{}					"Created product"
+//	@Success		201		{object}	map[string]any							"Created product"
 //	@Failure		400		{object}	map[string]string						"invalid request / validation failed"
 //	@Failure		401		{object}	map[string]string						"missing or invalid user id"
 //	@Failure		500		{object}	map[string]string						"internal server error"
@@ -452,7 +452,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -573,7 +573,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -629,7 +629,7 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
@@ -711,7 +711,7 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 //	@Produce		json
 //	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
 //	@Param			concept-id	path		string	false	"Concept ID (UUID)"
-//	@Success		200			{object}	map[string]interface{}
+//	@Success		200			{object}	map[string]any
 //	@Failure		400			{object}	object{error=string}
 //	@Failure		401			{object}	object{error=string}
 //	@Failure		500			{object}	object{error=string}
@@ -733,7 +733,7 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin()
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
