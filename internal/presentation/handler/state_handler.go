@@ -41,7 +41,7 @@ type UpdateTaskStateRequest struct {
 //	@Tags			State Transfer
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string					true	"Task ID (UUID)"
+//	@Param			task_id	path		string					true	"Task ID (UUID)"
 //	@Param			body	body		UpdateTaskStateRequest	true	"Target state payload"
 //	@Success		200		{object}	responses.APIResponse	"Task state updated"
 //	@Failure		400		{object}	responses.APIResponse	"Invalid request"
@@ -49,21 +49,20 @@ type UpdateTaskStateRequest struct {
 //	@Failure		409		{object}	responses.APIResponse	"Invalid state transition"
 //	@Failure		500		{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/tasks/{id}/state [patch]
+//	@Router			/api/v1/tasks/{task_id}/state [patch]
 func (h *StateHandler) UpdateTaskState(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
+	id, err := extractParamID(c, "task_id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid task id: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	var req UpdateTaskStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	if err := h.Validate.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -74,38 +73,37 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 		return
 	}
 
-	// Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
-	roleVal, ok := c.Get("roles")
-	if !ok || roleVal == nil {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+	// // Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
+	var roleStr *string
+	roleStr, err = extractUserRoles(c)
+	if err != nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context: "+err.Error(), http.StatusForbidden))
 		return
 	}
 
-	roleStr, _ := roleVal.(string)
-
-	if roleStr == string(enum.UserRoleAdmin) {
+	if *roleStr == string(enum.UserRoleAdmin) {
 		goto SkipAdminRoleCheck
 	}
 
 	if target == enum.TaskStatusDone {
-		if roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
+		if *roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move Task to DONE", http.StatusForbidden))
 			return
 		}
-	} else if roleStr == string(enum.UserRoleBrandPartner) {
+	} else if *roleStr == string(enum.UserRoleBrandPartner) {
 		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
 		return
 	}
 
 SkipAdminRoleCheck:
 
-	userId, err := extractUserIDFromContext(c)
+	userID, err := extractUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.StateTransferService.MoveTaskToState(c.Request.Context(), id, target, userId); err != nil {
+	if err := h.MoveTaskToState(c.Request.Context(), id, target, userID); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return
