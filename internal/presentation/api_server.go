@@ -47,7 +47,7 @@ func NewAPIServer() *APIServer {
 	serviceRegistry := application.NewApplicationRegistry(config.GetAppConfig(), databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
-	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry)
+	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
 
 	// Create WebSocket server
 	wsServer := NewWebSocketServer()
