@@ -1,5 +1,22 @@
 package requests
 
+import (
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
+	"errors"
+
+	"github.com/google/uuid"
+)
+
+var (
+	ErrInvalidTaskType   = errors.New("invalid task type")
+	ErrInvalidTaskStatus = errors.New("invalid task status")
+)
+
+// region: ======= Task Filter Request =======
+
+// TaskFilterRequest represents the filtering criteria for retrieving tasks.
 type TaskFilterRequest struct {
 	PaginationRequest
 	CreatedByID      *string `form:"created_by_id" json:"created_by" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -14,3 +31,131 @@ type TaskFilterRequest struct {
 	Status           *string `form:"status" json:"status" validate:"omitempty,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
 	Type             *string `form:"type" json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"OTHER"`
 }
+
+// endregion
+
+// region: ======= Create Task Requests =======
+
+// CreateTaskRequest represents the payload for creating a new task.
+type CreateTaskRequest struct {
+	MilestoneID  string  `json:"milestone_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name         string  `json:"name" validate:"required,max=255" example:"Design Social Media Posts"`
+	Description  []byte  `json:"description" validate:"required"` // JSON format
+	Deadline     string  `json:"deadline" validate:"required,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
+	Type         string  `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
+	Status       string  `json:"status" validate:"required,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
+	AssignedToID *string `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+
+	CreatedByID string `json:"-" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+}
+
+// ToModel converts CreateTaskRequest to Task model.
+func (ctr CreateTaskRequest) ToModel() (*model.Task, error) {
+	convertedModel := &model.Task{
+		ID:          uuid.New(),
+		Name:        ctr.Name,
+		Description: ctr.Description,
+	}
+	if deadline, err := utils.ParseLocalTime(ctr.Deadline, "2006-01-02 15:04:05"); err != nil {
+		convertedModel.Deadline = *deadline
+	} else {
+		return nil, err
+	}
+	if taskType := enum.TaskType(ctr.Type); taskType.IsValid() {
+		convertedModel.Type = taskType
+	} else {
+		return nil, ErrInvalidTaskType
+	}
+	if taskStatus := enum.TaskStatus(ctr.Status); taskStatus.IsValid() {
+		convertedModel.Status = taskStatus
+	} else {
+		return nil, ErrInvalidTaskStatus
+	}
+	if milestoneID, err := uuid.Parse(ctr.MilestoneID); err == nil {
+		convertedModel.MilestoneID = milestoneID
+	} else {
+		return nil, err
+	}
+	if ctr.AssignedToID != nil {
+		if assignedToID, err := uuid.Parse(*ctr.AssignedToID); err == nil {
+			convertedModel.AssignedToID = &assignedToID
+		} else {
+			return nil, err
+		}
+	}
+	if createdByID, err := uuid.Parse(ctr.CreatedByID); err == nil {
+		convertedModel.CreatedByID = createdByID
+	} else {
+		return nil, err
+	}
+
+	return convertedModel, nil
+}
+
+// endregion
+
+// region: ======= Update Task Requests =======
+
+// UpdateTaskRequest represents the payload for updating an existing task.
+type UpdateTaskRequest struct {
+	MilestoneID  *string `json:"milestone_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name         *string `json:"name" validate:"omitempty,max=255" example:"Design Social Media Posts"`
+	Description  *[]byte `json:"description" validate:"omitempty"` // JSON format
+	Deadline     *string `json:"deadline" validate:"omitempty,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
+	Type         *string `json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
+	Status       *string `json:"status" validate:"omitempty,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
+	AssignedToID *string `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+
+	ID          string `json:"-"`
+	UpdatedByID string `json:"-"`
+}
+
+func (utr UpdateTaskRequest) ToExistingModel(task *model.Task) (*model.Task, error) {
+	if task == nil {
+		return nil, errors.New("task model does not exist")
+	}
+	if utr.Name != nil {
+		task.Name = *utr.Name
+	}
+	if utr.Description != nil {
+		task.Description = *utr.Description
+	}
+	if utr.Deadline != nil {
+		if deadline, err := utils.ParseLocalTime(*utr.Deadline, "2006-01-02 15:04:05"); err == nil {
+			task.Deadline = *deadline
+		} else {
+			return nil, err
+		}
+	}
+	if utr.Type != nil {
+		if taskType := enum.TaskType(*utr.Type); taskType.IsValid() {
+			task.Type = taskType
+		} else {
+			return nil, ErrInvalidTaskType
+		}
+	}
+	if utr.Status != nil {
+		if taskStatus := enum.TaskStatus(*utr.Status); taskStatus.IsValid() {
+			task.Status = taskStatus
+		} else {
+			return nil, ErrInvalidTaskStatus
+		}
+	}
+	if utr.MilestoneID != nil {
+		if milestoneID, err := uuid.Parse(*utr.MilestoneID); err == nil {
+			task.MilestoneID = milestoneID
+		} else {
+			return nil, err
+		}
+	}
+	if utr.AssignedToID != nil {
+		if assignedToID, err := uuid.Parse(*utr.AssignedToID); err == nil {
+			task.AssignedToID = &assignedToID
+		} else {
+			return nil, err
+		}
+	}
+	return task, nil
+}
+
+// endregion
