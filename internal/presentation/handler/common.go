@@ -121,3 +121,17 @@ func processValidationError(err error) *responses.APIValidationErrorResponse {
 
 	return responses.ValidationErrorResponse(400, "Validation Error, Unable to process the validation errors")
 }
+
+// IsAllowRole use for optional role check. It's mean that in the same endpoint, depending on the user role, the response will be different.
+func IsAllowRole(c *gin.Context, allowFullViewRoles []enum.UserRole) bool {
+	rolePtr, _ := extractUserRoles(c)
+	if rolePtr == nil {
+		return false
+	}
+	for _, ar := range allowFullViewRoles {
+		if ar == enum.UserRole(*rolePtr) {
+			return true
+		}
+	}
+	return false
+}

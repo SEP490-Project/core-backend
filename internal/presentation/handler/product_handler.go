@@ -5,6 +5,8 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"net/http"
 	"os"
@@ -38,20 +40,21 @@ func NewProductHandler(
 
 // GetAllProducts godoc
 //
-//	@Summary		Get All Products
-//	@Description	Get paginated list of products with optional search
-//	@Tags			Products
-//	@Accept			json
-//	@Produce		json
-//	@Param			limit		query		int																		false	"Number of items per page"	default(10)
-//	@Param			page		query		int																		false	"Number of items to skip"	default(1)
-//	@Param			search		query		string																	false	"Search term for product name"
-//	@Param			category_id	query		string																	false	"Filter category of products"
-//	@Param			type		query		string																	false	"Filter type of products"
-//	@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//	@Failure		500			{object}	object{error=string}													"Internal server error"
-//	@Security		BearerAuth
-//	@Router			/api/v1/products [get]
+//	 @Deprecated
+//		@Summary		Get All Products
+//		@Description	Get paginated list of products with optional search
+//		@Tags			Products
+//		@Accept			json
+//		@Produce		json
+//		@Param			limit		query		int																		false	"Number of items per page"	default(10)
+//		@Param			page		query		int																		false	"Number of items to skip"	default(1)
+//		@Param			search		query		string																	false	"Search term for product name"
+//		@Param			category_id	query		string																	false	"Filter category of products"
+//		@Param			type		query		string																	false	"Filter type of products"
+//		@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//		@Failure		500			{object}	object{error=string}													"Internal server error"
+//		@Security		BearerAuth
+//		@Router			/api/v1/products [get]
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -104,7 +107,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 
 // GetAllProductsV2 godoc
 //
-//	@Summary		Get All Products
+//	@Summary		Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
 //	@Description	Get paginated list of products with optional search
 //	@Tags			Products
 //	@Accept			json
@@ -113,11 +116,12 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Param			page		query		int																			false	"Number of items to skip"	default(1)
 //	@Param			search		query		string																		false	"Search term for product name"
 //	@Param			category_id	query		string																		false	"Filter category of products"
-//	@Param			type		query		string																		false	"Filter type of products"
-//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//	@Failure		500			{object}	object{error=string}														"Internal server error"
-//	@Security		BearerAuth
-//	@Router			/api/v1/products/v2 [get]
+//	@Param			type		query		string	false	"Filter type of products"	Enums(STANDARD, LIMITED, )
+//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
+//
+// @Failure		500			{object}	object{error=string}														"Internal server error"
+// @Security		BearerAuth
+// @Router			/api/v1/products/v2 [get]
 func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -138,9 +142,39 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	category := c.DefaultQuery("category_id", "")
 	prdType := c.DefaultQuery("type", "")
 
-	products, total, err := h.productService.GetProductsPaginationV2(page, limit, search, category, prdType)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	//if type != nil, we have to validate it
+	if prdType != "" {
+		validTypes := map[string]bool{
+			string(enum.ProductTypeStandard): true,
+			string(enum.ProductTypeLimited):  true,
+		}
+		if !validTypes[prdType] {
+			resp := responses.ErrorResponse("invalid product type filter", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+	}
+
+	var (
+		products interface{}
+		total    int
+		svcErr   error
+	)
+
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	if IsAllowRole(c, allowFullViewRoles) {
+		var res []responses.ProductResponseV2
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType)
+		products = res
+	} else {
+		var res []responses.ProductResponseV2Partial
+		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType)
+		products = res
+	}
+
+	if svcErr != nil {
+		resp := responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
@@ -159,13 +193,34 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	}
 
 	// --- Response  ---
-	response := responses.NewPaginationResponse(
-		"Products retrieved successfully",
-		http.StatusOK,
-		products,
-		pagination,
-	)
-	c.JSON(http.StatusOK, response)
+	if IsAllowRole(c, allowFullViewRoles) {
+		data, ok := products.([]responses.ProductResponseV2)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse[responses.ProductResponseV2](
+			"Products retrieved successfully",
+			http.StatusOK,
+			data,
+			pagination,
+		)
+		c.JSON(http.StatusOK, resp)
+		return
+	} else {
+		dataPartial, ok := products.([]responses.ProductResponseV2Partial)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse[responses.ProductResponseV2Partial](
+			"Products retrieved successfully",
+			http.StatusOK,
+			dataPartial,
+			pagination,
+		)
+		c.JSON(http.StatusOK, resp)
+	}
 }
 
 // GetProductsByTask godoc
@@ -738,9 +793,37 @@ func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 
-	variantAttributes, total, err := h.productService.GetVariantAttributePagination(page, limit, search)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Fetch variant attributes according to role (service returns model.VariantAttribute)
+	var (
+		attrs  any
+		total  int
+		svcErr error
+	)
+
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	if IsAllowRole(c, allowFullViewRoles) {
+		attrs, total, svcErr = h.productService.GetVariantAttributePagination(page, limit, search)
+	} else {
+		attrs, total, svcErr = h.productService.GetVariantAttributePaginationPartial(page, limit, search)
+	}
+
+	if svcErr != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Error fetching variant attributes: "+svcErr.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	data := make([]any, 0)
+	switch v := attrs.(type) {
+	case []model.VariantAttribute:
+		for i := range v {
+			data = append(data, v[i])
+		}
+	case []responses.VariantAttributeResponse:
+		for i := range v {
+			data = append(data, v[i])
+		}
+	default:
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Unexpected type", http.StatusInternalServerError))
 		return
 	}
 
@@ -759,73 +842,11 @@ func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 	}
 
 	// --- Response  ---
-	response := responses.NewPaginationResponse(
-		"Products retrieved successfully",
+	resp := responses.NewPaginationResponse[any](
+		"Variant attributes retrieved successfully",
 		http.StatusOK,
-		variantAttributes,
+		data,
 		pagination,
 	)
-	c.JSON(http.StatusOK, response)
-}
-
-// GetVariantAttributePaginationAdmin godoc
-//
-//	@Summary		List Variant Attributes (Admin)
-//	@Description	Get paginated list of variant attributes for administrative usage. Returns full model details.
-//	@Tags			Variant-Attributes
-//	@Accept			json
-//	@Produce		json
-//	@Param			page	query		int		false	"Page number"		default(1)
-//	@Param			limit	query		int		false	"Items per page"	default(10)
-//	@Param			search	query		string	false	"Search term for name"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.VariantAttributeResponse,pagination=responses.Pagination}
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/variant-attributes/admin [get]
-func (h *ProductHandler) GetVariantAttributePaginationAdmin(c *gin.Context) {
-	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "10")
-
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = 1
-	}
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	search := c.DefaultQuery("search", "")
-
-	variantAttributes, total, err := h.productService.GetVariantAttributePaginationAdmin(page, limit, search)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	totalPages := int(total) / limit
-	if total%limit != 0 {
-		totalPages++
-	}
-
-	pagination := responses.Pagination{
-		Page:       page,
-		Limit:      limit,
-		Total:      int64(total),
-		TotalPages: totalPages,
-		HasNext:    page < totalPages,
-		HasPrev:    page > 1,
-	}
-
-	// --- Response  ---
-	response := responses.NewPaginationResponse(
-		"Products retrieved successfully",
-		http.StatusOK,
-		variantAttributes,
-		pagination,
-	)
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, resp)
 }

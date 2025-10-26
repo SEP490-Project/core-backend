@@ -25,6 +25,9 @@ type Product struct {
 	Status      enum.ProductStatus `json:"status" gorm:"column:status;not null;check:status in ('DRAFT','SUBMITTED','REVISION','APPROVED','ACTIVED','INACTIVED')"`
 	CreatedByID uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
 	UpdatedByID *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
+	CreatedBy   *User              `json:"created_by_user" gorm:"foreignKey:CreatedByID"`
+	UpdatedBy   *User              `json:"updated_by_user" gorm:"foreignKey:UpdatedByID"`
+	IsActive    bool               `json:"is_active" gorm:"column:is_active;default:false;not null"`
 	// Relationships
 	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID"`
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`

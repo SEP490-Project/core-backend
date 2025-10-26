@@ -118,6 +118,11 @@ payos:
   frontend_url_cancel: "https://localhost:3000"
   frontend_url_return: "https://www.facebook.com"
 
+#GHN
+ghn:
+  base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"
+  token: "e318b7e8-96a4-11f0-bdaf-ae7fa045a771"
+
 # Gmail SMTP configuration
 gmail_smtp:
   host: "smtp.gmail.com"

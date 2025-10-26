@@ -28,6 +28,7 @@ type HandlerRegistry struct {
 	ChannelHandler         *ChannelHandler
 	ContentHandler         *ContentHandler
 	BlogHandler            *BlogHandler
+	LocationHandler        *LocationHandler
 	TaskHandler            *TaskHandler
 	DeviceTokenHandler     *DeviceTokenHandler
 	NotificationHandler    *NotificationHandler
@@ -58,5 +59,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		TaskHandler:            NewTaskHandler(applicationReg.TaskService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		DeviceTokenHandler:     NewDeviceTokenHandler(applicationReg.DeviceTokenService),
 		NotificationHandler:    NewNotificationHandler(applicationReg.NotificationService),
+		LocationHandler:        NewLocationHandler(applicationReg.LocationService),
 	}
 }

@@ -31,7 +31,7 @@ type Content struct {
 
 func (Content) TableName() string { return "contents" }
 
-func (c *Content) BeforeCreate(tx *gorm.DB) error {
+func (c *Content) BeforeCreate(_ *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
 	}

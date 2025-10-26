@@ -4,7 +4,6 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-
 	"github.com/google/uuid"
 )
 
@@ -147,10 +146,12 @@ type ProductVariantResponse struct {
 
 // ProductAttributesResponse represents the attributes of a product variant.
 type ProductAttributesResponse struct {
-	Ingredient  string             `json:"ingredient,omitempty"`
-	Description *string            `json:"description,omitempty"`
-	Value       float64            `json:"value,omitempty"`
-	Unit        enum.AttributeUnit `json:"unit,omitempty"`
+	//Attribute
+	Ingredient  string  `json:"ingredient,omitempty"`
+	Description *string `json:"description,omitempty"`
+	//Value
+	Value float64            `json:"value,omitempty"`
+	Unit  enum.AttributeUnit `json:"unit,omitempty"`
 }
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
@@ -209,21 +210,25 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 	return &resp
 }
 
-// VERSION 2======================================================
+// TODO:====================================== VERSION 2======================================================
 type ProductResponseV2 struct {
-	ID           uuid.UUID                  `json:"id"`
-	BrandID      uuid.UUID                  `json:"brand_id"`
-	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
-	BrandName    string                     `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                       `json:"is_active"`
-	Category     ProductCategoryResponse    `json:"category"`
-	Description  string                     `json:"description"`
-	Name         string                     `json:"name"`
-	Price        float64                    `json:"price"`
-	Type         enum.ProductType           `json:"type"`
-	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedAt    string                     `json:"created_at"` // FE parse về Date
+	ID           uuid.UUID                 `json:"id"`
+	BrandID      uuid.UUID                 `json:"brand_id"`
+	BrandLogoURL *string                   `json:"brand_logo_url,omitempty"`
+	BrandName    string                    `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string                 `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool                      `json:"is_active"`
+	Category     ProductCategoryResponse   `json:"category"`
+	Description  string                    `json:"description"`
+	Name         string                    `json:"name"`
+	Price        float64                   `json:"price"`
+	Type         enum.ProductType          `json:"type"`
+	Variants     []*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt    string                    `json:"created_at"` // FE parse về Date
+	UpdatedAt    string                    `json:"updated_at"`
+	Status       enum.ProductStatus        `json:"status"`
+	CreatedBy    *UserListResponse         `json:"created_by"`
+	UpdatedBy    *UserListResponse         `json:"updated_by"`
 }
 
 // ToProductResponse converts a Product model to a ProductResponse DTO.
@@ -260,6 +265,73 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 	// Status & time
 	pr.IsActive = m.Status == enum.ProductStatusActived
 	pr.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
+
+	// Thumbnail
+	pr.ThumbnailURL = primaryProductImageURL(m)
+
+	if m.CreatedBy != nil {
+		pr.CreatedBy = UserListResponse{}.ToSingleUserListResponse(*m.CreatedBy)
+	}
+	if m.UpdatedBy != nil {
+		pr.UpdatedBy = UserListResponse{}.ToSingleUserListResponse(*m.UpdatedBy)
+	}
+
+	// Variants
+	if len(m.Variants) > 0 {
+		variants := make([]*ProductVariantResponse, 0, len(m.Variants))
+		for i := range m.Variants {
+			variants = append(variants, ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
+		}
+		pr.Variants = variants
+	}
+
+	return pr
+}
+
+// ProductV2ForCustomer
+type ProductResponseV2Partial struct {
+	ID           uuid.UUID                  `json:"id"`
+	BrandID      uuid.UUID                  `json:"brand_id"`
+	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
+	BrandName    string                     `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
+	Category     ProductCategoryResponse    `json:"category"`
+	Description  string                     `json:"description"`
+	Name         string                     `json:"name"`
+	Price        float64                    `json:"price"`
+	Type         enum.ProductType           `json:"type"`
+	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
+}
+
+func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *ProductResponseV2Partial {
+	if pr == nil {
+		pr = &ProductResponseV2Partial{}
+	}
+
+	// IDs & Brand
+	pr.ID = m.ID
+	pr.BrandID = m.BrandID
+	if m.Brand != nil {
+		pr.BrandName = m.Brand.Name
+		pr.BrandLogoURL = m.Brand.LogoURL // *string
+	}
+
+	// Basic
+	pr.Name = m.Name
+	if m.Description != nil {
+		pr.Description = *m.Description
+	}
+	pr.Price = m.Price
+	pr.Type = m.Type
+
+	// Category
+	if m.Category != nil {
+		response := ProductCategoryResponse{}
+		catPtr := response.ToModelResponse(m.Category)
+		if catPtr != nil {
+			pr.Category = *catPtr
+		}
+	}
 
 	// Thumbnail
 	pr.ThumbnailURL = primaryProductImageURL(m)
@@ -303,6 +375,7 @@ func (pvr ProductVariantResponse) ToProductVariantResponseV2(variant *model.Prod
 	if variant.Story != nil {
 		resp.Story = variant.Story.Content
 	}
+
 	if len(variant.AttributeValues) > 0 {
 		attrs := make([]ProductAttributesResponse, 0, len(variant.AttributeValues))
 		for i := range variant.AttributeValues {
@@ -330,4 +403,9 @@ func (pvr ProductVariantResponse) ToProductVariantResponseV2(variant *model.Prod
 		resp.Images = images
 	}
 	return &resp
+}
+
+type ProductResponseTop5Newest struct {
+	Standard []ProductResponseV2Partial `json:"standard"`
+	Limited  []ProductResponseV2Partial `json:"limited"`
 }

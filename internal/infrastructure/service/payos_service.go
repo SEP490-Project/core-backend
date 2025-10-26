@@ -54,7 +54,7 @@ func (p payOsService) GetPayOSOrderInfo(orderId string) (*responses.PayOSWrapper
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close() // <-- thêm dòng này
+	defer resp.Body.Close()
 
 	var payRes responses.PayOSWrapperResponse[responses.PayOSOrderInfoResponse]
 	if err := json.NewDecoder(resp.Body).Decode(&payRes); err != nil {

@@ -131,17 +131,17 @@ func (c productCategoryService) CreateCategory(request requests.CreateProductCat
 
 func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID uuid.UUID) (*responses.ProductCategoryResponse, error) {
 	ctx := context.Background()
-
+	if parentID == currentID {
+		return nil, errors.New("cannot set category as its own parent")
+	}
 	//check category existence
 	found, err := c.categoryRepository.GetByID(ctx, currentID, []string{"ParentCategory", "ChildCategories"})
 	if err != nil {
 		return nil, err
 	} else if found == nil {
 		return nil, errors.New("category not found")
-	}
-
-	if parentID == currentID {
-		return nil, errors.New("cannot set category as its own parent")
+	} else if len(found.ChildCategories) > 0 {
+		return nil, errors.New("this category is a parent of another, cannot assign another parent")
 	}
 
 	//check parent category existence
@@ -149,7 +149,6 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 		found.ParentCategoryID = nil
 		found.ParentCategory = nil //build response
 	} else {
-		// First try to get the parent in the normal (non-unscoped) way
 		parentFound, err := c.categoryRepository.GetByID(ctx, parentID, []string{})
 		if err != nil {
 			// If not found, check if it exists but was soft-deleted and give a clearer message
@@ -167,13 +166,7 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 			return nil, err
 		}
 
-		// If retrieved, check soft-delete flag for clearer message
-		//if parentFound.DeletedAt.Valid {
-		//	zap.L().Debug("Parent category is soft-deleted", zap.String("parent_id", parentID.String()))
-		//	return nil, errors.New("parent category is deleted")
-		//}
-
-		// Prevent assigning a child as a parent
+		// parent validation
 		if parentFound.ParentCategoryID != nil {
 			return nil, errors.New("this category is a child of another, cannot set as parent category")
 		}
@@ -195,6 +188,15 @@ func (c productCategoryService) AddParentCategory(currentID uuid.UUID, parentID 
 
 func (c productCategoryService) DeleteCategory(ctx context.Context, categoryID uuid.UUID, uow irepository.UnitOfWork) error {
 	return helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+
+		//check if any of products are using this category
+		exists, err := uow.Products().Exists(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("category_id = ?", categoryID)
+		})
+		if exists == true || err != nil {
+			return errors.New("category being used by products, cannot delete")
+		}
+
 		//check category existence
 		found, err := c.categoryRepository.GetByID(ctx, categoryID, []string{"ParentCategory", "ChildCategories"})
 		if err != nil {
@@ -202,14 +204,17 @@ func (c productCategoryService) DeleteCategory(ctx context.Context, categoryID u
 				var tmp model.ProductCategory
 				// Use Unscoped to check soft-deleted records
 				if unErr := c.categoryRepository.DB().Unscoped().Where("id = ?", categoryID).First(&tmp).Error; unErr == nil {
-					return errors.New("category is deleted")
+					return errors.New("category not found or being deleted")
 				}
-				zap.L().Debug("Parent Category Not Found by ID", zap.String("parent_id", categoryID.String()))
-				return errors.New("parent category not found")
+				return errors.New("category not found or being deleted")
 			}
 			return err
 		} else if found == nil {
-			return errors.New("category not found")
+			return errors.New("category not found or being deleted")
+		}
+
+		if (found.ParentCategoryID != nil) || len(found.ChildCategories) > 0 {
+			return errors.New("category is in a parent-child relationship, cannot delete")
 		}
 
 		// mark deleted
@@ -221,27 +226,10 @@ func (c productCategoryService) DeleteCategory(ctx context.Context, categoryID u
 		}
 
 		db := uow.ProductCategory().DB()
-		if db == nil {
-			return errors.New("database handle is nil")
-		}
 
 		if err := db.Model(found).
 			Select("deleted_at", "updated_at").
 			Updates(found).Error; err != nil {
-			return err
-		}
-
-		if len(found.ChildCategories) == 0 {
-			return nil
-		}
-
-		if err := db.Model(&model.ProductCategory{}).
-			Where("parent_category_id = ?", found.ID).
-			Updates(map[string]any{
-				"parent_category_id": nil,
-				"updated_at":         time.Now(),
-			}).Error; err != nil {
-			zap.L().Error("Failed to remove parent category from child categories during parent deletion", zap.Error(err))
 			return err
 		}
 

@@ -33,7 +33,7 @@ type Task struct {
 
 func (Task) TableName() string { return "tasks" }
 
-func (t *Task) BeforeCreate(tx *gorm.DB) (err error) {
+func (t *Task) BeforeCreate(_ *gorm.DB) (err error) {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
