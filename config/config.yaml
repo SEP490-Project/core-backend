@@ -117,3 +117,33 @@ payos:
   notify_url: "http://localhost:8080/api/v1/payos/notify"
   frontend_url_cancel: "https://localhost:3000"
   frontend_url_return: "https://www.facebook.com"
+
+# Gmail SMTP configuration
+gmail_smtp:
+  host: "smtp.gmail.com"
+  port: 587
+  username: ""  # Set via GMAIL_SMTP_USERNAME env var
+  password: ""  # Set via GMAIL_APP_PASSWORD env var (use app password, not regular password)
+  from_name: "BShowSell Notification"
+  from_email: ""  # Set via GMAIL_SMTP_FROM_EMAIL env var
+
+# Firebase Cloud Messaging configuration
+firebase_fcm:
+  service_account_path: ""  # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
+  project_id: ""  # Set via FIREBASE_PROJECT_ID env var
+
+# Notification settings
+notification:
+  template_dir: "templates/emails"
+  max_retries: 3
+  retry_delays:
+    - 2  # seconds
+    - 4
+    - 8
+  rate_limits:
+    email_per_minute: 30
+    push_per_minute: 500
+  consumer_concurrency:
+    email: 5  # Number of concurrent email consumer workers
+    push: 10  # Number of concurrent push consumer workers
+
