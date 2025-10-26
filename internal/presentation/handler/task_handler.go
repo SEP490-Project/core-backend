@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type TaskHandler struct {
@@ -263,4 +264,237 @@ func (h *TaskHandler) GetTasksByContractID(c *gin.Context) {
 	)
 	c.JSON(http.StatusOK, response)
 
+}
+
+// AssignTask godoc
+//
+//	@Summary		Assign Task
+//	@Description	Assign a task to a user.
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			task_id			path		string					true	"Task ID"				format(uuid)
+//	@Param			assigned_to_id	path		string					true	"Assigned to user ID"	format(uuid)
+//	@Success		200				{object}	responses.TaskResponse	"Task retrieved successfully"
+//	@Failure		400				{object}	responses.APIResponse	"Invalid task ID"
+//	@Failure		400				{object}	responses.APIResponse	"Invalid assigned_to_id"
+//	@Failure		400				{object}	responses.APIResponse	"Invalid updated_by_id"
+//	@Failure		404				{object}	responses.APIResponse	"Task not found"
+//	@Failure		404				{object}	responses.APIResponse	"User not found"
+//	@Failure		500				{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/{task_id}/assign/{assigned_to_id} [patch]
+func (h *TaskHandler) AssignTask(c *gin.Context) {
+	var (
+		err          error
+		taskID       uuid.UUID
+		assignedToID uuid.UUID
+		updatedByID  uuid.UUID
+	)
+
+	taskID, err = extractParamID(c, "task_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid task ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	assignedToID, err = extractParamID(c, "assigned_to_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid assigned_to_id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	updatedByID, err = extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized,
+			responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	var taskResponse *responses.TaskResponse
+	taskResponse, err = h.taskService.AssignTask(c.Request.Context(), uow, taskID, assignedToID, updatedByID)
+	if err != nil {
+		uow.Rollback()
+		var response *responses.APIResponse
+		var statusCode int
+		switch err.Error() {
+		case "task not found":
+			statusCode = http.StatusNotFound
+			response = responses.ErrorResponse("Task not found", statusCode)
+		case "user not found":
+			statusCode = http.StatusNotFound
+			response = responses.ErrorResponse("User not found", statusCode)
+		default:
+			statusCode = http.StatusInternalServerError
+			response = responses.ErrorResponse("Failed to assign task: "+err.Error(), statusCode)
+		}
+		c.JSON(statusCode, response)
+		return
+	}
+
+	uow.Commit()
+	c.JSON(http.StatusOK, responses.SuccessResponse("Task assigned successfully", utils.PtrOrNil(http.StatusOK), taskResponse))
+}
+
+// CreateTask godoc
+//
+//	@Summary		Create Task
+//	@Description	Create a new task.
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			task	body		requests.CreateTaskRequest							true	"Task creation payload"
+//	@Success		200		{object}	responses.APIResponse{data=responses.TaskResponse}	"Task created successfully"
+//	@Failure		400		{object}	responses.APIResponse								"Invalid request body"
+//	@Failure		400		{object}	responses.APIResponse								"Validation error"
+//	@Failure		500		{object}	responses.APIResponse								"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks [post]
+func (h *TaskHandler) CreateTask(c *gin.Context) {
+	var (
+		err           error
+		createRequest requests.CreateTaskRequest
+		createdByID   uuid.UUID
+	)
+	if err = c.ShouldBindJSON(&createRequest); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err = h.validator.Struct(&createRequest); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	createdByID, err = extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized,
+			responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+	createRequest.CreatedByID = createdByID.String()
+
+	var taskResponse *responses.TaskResponse
+	taskResponse, err = h.taskService.CreateTask(c.Request.Context(), h.unitOfWork, &createRequest)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to create task: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Task created successfully", utils.PtrOrNil(http.StatusOK), taskResponse))
+}
+
+// UpdateTaskByID godoc
+//
+//	@Summary		Update Task by ID
+//	@Description	Update an existing task.
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			task_id	path		string						true	"Task ID"	format(uuid)
+//	@Param			task	body		requests.UpdateTaskRequest	true	"Task update payload"
+//	@Success		200		{object}	responses.TaskResponse		"Task updated successfully"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid task ID"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid request body"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid updated_by_id"
+//	@Failure		404		{object}	responses.APIResponse		"Task not found"
+//	@Failure		500		{object}	responses.APIResponse		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/{task_id} [put]
+func (h *TaskHandler) UpdateTaskByID(c *gin.Context) {
+	var (
+		err           error
+		taskID        uuid.UUID
+		updateRequest requests.UpdateTaskRequest
+		updatedByID   uuid.UUID
+	)
+	updatedByID, err = extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized,
+			responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	taskID, err = extractParamID(c, "task_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid task ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err = c.ShouldBindJSON(&updateRequest); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err = h.validator.Struct(&updateRequest); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	updateRequest.ID = taskID.String()
+	updateRequest.UpdatedByID = updatedByID.String()
+
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	var taskResponse *responses.TaskResponse
+	taskResponse, err = h.taskService.UpdateTaskByID(c.Request.Context(), uow, taskID, &updateRequest)
+	if err != nil {
+		uow.Rollback()
+		var response *responses.APIResponse
+		var statusCode int
+		switch err.Error() {
+		case "task not found":
+			statusCode = http.StatusNotFound
+			response = responses.ErrorResponse("Task not found", statusCode)
+		default:
+			statusCode = http.StatusInternalServerError
+			response = responses.ErrorResponse("Failed to update task: "+err.Error(), statusCode)
+		}
+		c.JSON(statusCode, response)
+		return
+	}
+
+	uow.Commit()
+	c.JSON(http.StatusOK, responses.SuccessResponse("Task updated successfully", utils.PtrOrNil(http.StatusOK), taskResponse))
+}
+
+// DeleteTask godoc
+//
+//	@Summary		Delete Task
+//	@Description	Delete a task by its ID.
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			task_id	path		string					true	"Task ID"	format(uuid)
+//	@Success		200		{object}	responses.APIResponse	"Task deleted successfully"
+//	@Failure		400		{object}	responses.APIResponse	"Invalid task ID"
+//	@Failure		404		{object}	responses.APIResponse	"Task not found"
+//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/{task_id} [delete]
+func (h *TaskHandler) DeleteTask(c *gin.Context) {
+	var (
+		err    error
+		taskID uuid.UUID
+	)
+	taskID, err = extractParamID(c, "task_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid task ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	var taskResponse *responses.TaskResponse
+	err = h.taskService.DeleteTask(c.Request.Context(), uow, taskID)
+	if err != nil {
+		uow.Rollback()
+		response := responses.ErrorResponse("Failed to delete task: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+	uow.Commit()
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Task deleted successfully", utils.PtrOrNil(http.StatusOK), taskResponse))
 }

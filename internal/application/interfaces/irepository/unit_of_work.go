@@ -23,7 +23,7 @@ type UnitOfWork interface {
 	ContractPayments() GenericRepository[model.ContractPayment]
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
-	Tasks() GenericRepository[model.Task]
+	Tasks() TaskRepository
 	Channels() GenericRepository[model.Channel]
 	Contents() GenericRepository[model.Content]
 	ContentChannels() GenericRepository[model.ContentChannel]
