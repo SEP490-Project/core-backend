@@ -601,10 +601,6 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
-      price:
-        example: 99.99
-        minimum: 0
-        type: number
       task_id:
         example: 660e8400-e29b-41d4-a716-446655440000
         type: string
@@ -613,7 +609,6 @@ definitions:
     - category_id
     - limited_attribute
     - name
-    - price
     - task_id
     type: object
   requests.CreateMilestoneCampaignRequest:
@@ -658,21 +653,14 @@ definitions:
         maxLength: 1000
         type: string
       name:
-        description: TaskID      uuid.UUID `json:"task_id" validate:"required,uuid"
-          example:"660e8400-e29b-41d4-a716-446655440000"`
         example: Product Name
         maxLength: 255
         minLength: 1
         type: string
-      price:
-        example: 99.99
-        minimum: 0
-        type: number
     required:
     - brand_id
     - category_id
     - name
-    - price
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
@@ -1976,10 +1964,12 @@ definitions:
       description:
         type: string
       ingredient:
+        description: Attribute
         type: string
       unit:
         $ref: '#/definitions/enum.AttributeUnit'
       value:
+        description: Value
         type: number
     type: object
   responses.ProductCategoryResponse:
@@ -3538,7 +3528,7 @@ paths:
       tags:
       - Categories
   /api/v1/categories/{id}:
-    patch:
+    delete:
       consumes:
       - application/json
       description: Delete category by id

@@ -1630,7 +1630,7 @@ const docTemplate = `{
             }
         },
         "/api/v1/categories/{id}": {
-            "patch": {
+            "delete": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -7142,7 +7142,6 @@ const docTemplate = `{
                 "category_id",
                 "limited_attribute",
                 "name",
-                "price",
                 "task_id"
             ],
             "properties": {
@@ -7167,11 +7166,6 @@ const docTemplate = `{
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
-                },
-                "price": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 99.99
                 },
                 "task_id": {
                     "type": "string",
@@ -7226,8 +7220,7 @@ const docTemplate = `{
             "required": [
                 "brand_id",
                 "category_id",
-                "name",
-                "price"
+                "name"
             ],
             "properties": {
                 "brand_id": {
@@ -7244,16 +7237,10 @@ const docTemplate = `{
                     "example": "Product description"
                 },
                 "name": {
-                    "description": "TaskID      uuid.UUID ` + "`" + `json:\"task_id\" validate:\"required,uuid\" example:\"660e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
-                },
-                "price": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 99.99
                 }
             }
         },
@@ -9081,12 +9068,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ingredient": {
+                    "description": "Attribute",
                     "type": "string"
                 },
                 "unit": {
                     "$ref": "#/definitions/enum.AttributeUnit"
                 },
                 "value": {
+                    "description": "Value",
                     "type": "number"
                 }
             }

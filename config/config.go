@@ -181,10 +181,10 @@ func LoadConfig(configPath string) error {
 	}
 
 	// Priority 1: Environment variables
-	viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
-	viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
-	viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
-	viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 

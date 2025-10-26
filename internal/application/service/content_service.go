@@ -81,7 +81,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 	}
 
 	if err := uow.Contents().Add(ctx, content); err != nil {
-		uow.Rollback()
+		_ = uow.Rollback()
 		zap.L().Error("Failed to create content", zap.Error(err))
 		return nil, errors.New("failed to create content")
 	}
@@ -90,7 +90,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 	if content.Type == enum.ContentTypePost && req.BlogFields != nil {
 		tagsJSON, err := json.Marshal(req.BlogFields.Tags)
 		if err != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			return nil, errors.New("invalid tags format")
 		}
 
@@ -103,7 +103,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 		}
 
 		if err := uow.Blogs().Add(ctx, blog); err != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			zap.L().Error("Failed to create blog", zap.Error(err))
 			return nil, errors.New("failed to create blog")
 		}
@@ -118,7 +118,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 		}
 
 		if err := s.contentChannelRepo.Add(ctx, contentChannel); err != nil {
-			uow.Rollback()
+			_ = uow.Rollback()
 			zap.L().Error("Failed to create content channel", zap.Error(err))
 			return nil, errors.New("failed to create content channel")
 		}
@@ -215,7 +215,7 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 
 	if content.Blog != nil {
 		var tags []string
-		json.Unmarshal(content.Blog.Tags, &tags)
+		_ = json.Unmarshal(content.Blog.Tags, &tags)
 
 		resp.Blog = &responses.BlogResponse{
 			ContentID: content.Blog.ContentID,

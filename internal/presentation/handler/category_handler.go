@@ -191,7 +191,7 @@ func (h *ProductCategoryHandler) AssignParentCategory(c *gin.Context) {
 //	@Failure		400	{object}	map[string]string
 //	@Failure		500	{object}	map[string]string
 //	@Security		BearerAuth
-//	@Router			/api/v1/categories/{id} [patch]
+//	@Router			/api/v1/categories/{id} [delete]
 func (h *ProductCategoryHandler) DeleteCategory(c *gin.Context) {
 	id := c.Param("id")
 	cateUUID, err := uuid.Parse(id)

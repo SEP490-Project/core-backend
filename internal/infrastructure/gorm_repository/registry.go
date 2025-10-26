@@ -30,7 +30,6 @@ type DatabaseRegistry struct {
 	//Limited Product and Concept
 	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
 	ConceptRepository          irepository.GenericRepository[model.Concept]
-	AdminConfigRepository      irepository.GenericRepository[model.Config]
 	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
 
 	//Orders & Payment

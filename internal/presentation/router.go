@@ -200,7 +200,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				r.middlewareRegistry.Auth.RequireRole(sales, admin),
 				categoryHandler.AssignParentCategory,
 			)
-			categoriesGroup.PATCH("/:id",
+			categoriesGroup.DELETE("/:id",
 				r.middlewareRegistry.Auth.RequireRole(sales, admin),
 				categoryHandler.DeleteCategory,
 			)
