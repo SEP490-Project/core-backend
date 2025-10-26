@@ -45,7 +45,6 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 	if m.Description != nil {
 		pr.Description = *m.Description
 	}
-	pr.Price = m.Price
 	pr.Type = m.Type
 
 	// Category level 1/2
@@ -175,7 +174,6 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 	if variant.Product != nil {
 		resp.Name = variant.Product.Name
 		resp.Description = variant.Product.Description
-		resp.Price = variant.Product.Price // override with product base price if desired
 		resp.Type = variant.Product.Type
 	}
 	if variant.Story != nil {
@@ -250,7 +248,6 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 	if m.Description != nil {
 		pr.Description = *m.Description
 	}
-	pr.Price = m.Price
 	pr.Type = m.Type
 
 	// Category
@@ -321,7 +318,6 @@ func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *Produ
 	if m.Description != nil {
 		pr.Description = *m.Description
 	}
-	pr.Price = m.Price
 	pr.Type = m.Type
 
 	// Category
@@ -369,7 +365,6 @@ func (pvr ProductVariantResponse) ToProductVariantResponseV2(variant *model.Prod
 	if variant.Product != nil {
 		resp.Name = variant.Product.Name
 		resp.Description = variant.Product.Description
-		resp.Price = variant.Product.Price // override with product base price if desired
 		resp.Type = variant.Product.Type
 	}
 	if variant.Story != nil {

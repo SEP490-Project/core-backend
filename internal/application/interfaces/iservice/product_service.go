@@ -12,8 +12,8 @@ import (
 
 // ProductService defines product related operations.
 type ProductService interface {
-	CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
-	CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
+	CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error)
+	CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error)
 	GetProductsPagination(limit, offset int, search string, categoryID string, productType string) ([]*responses.ProductResponse, int, error)
 	GetProductsPaginationV2(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2, int, error)
 	GetProductsPaginationV2Partial(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2Partial, int, error)
