@@ -35,6 +35,7 @@ type ApplicationRegistry struct {
 	TaskService            iservice.TaskService
 	DeviceTokenService     iservice.DeviceTokenService
 	NotificationService    iservice.NotificationService
+	LocationService        iservice.LocationService
 }
 
 func NewApplicationRegistry(
@@ -84,5 +85,6 @@ func NewApplicationRegistry(
 		),
 		TaskService:         service.NewTaskService(databaseRegistry.TaskRepository),
 		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
+		LocationService:     service.NewLocationService(),
 	}
 }

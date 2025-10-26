@@ -14,14 +14,15 @@ import (
 type ProductService interface {
 	CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
 	CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponse, error)
-	// GetProductsPagination supports optional filtering by search term, category ID and product type
 	GetProductsPagination(limit, offset int, search string, categoryID string, productType string) ([]*responses.ProductResponse, int, error)
-	GetProductsPaginationV2(limit, offset int, search string, categoryID string, productType string) ([]*responses.ProductResponseV2, int, error)
+	GetProductsPaginationV2(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2, int, error)
+	GetProductsPaginationV2Partial(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2Partial, int, error)
 	GetProductDetail(id uuid.UUID) (*responses.ProductResponse, error)
-	// GetProductsByTask returns overview list of products belonging to a task (with pagination) after authorization.
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)
-	// GetProductVariants returns variants of a product with pagination.
 	GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error)
+	GetTop5NewestProducts() (*responses.ProductResponseTop5Newest, error)
+
+	PublishProduct(productID uuid.UUID) (*responses.ProductResponse, error)
 
 	//Variants
 	CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error)
@@ -30,8 +31,8 @@ type ProductService interface {
 	//Attributes
 	AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error)
 	CreateVariantAttribute(ctx context.Context, createdByID uuid.UUID, attribute requests.CreateVariantAttributeRequest, uow irepository.UnitOfWork) (*model.VariantAttribute, error)
-	GetVariantAttributePagination(limit, offset int, search string) ([]responses.VariantAttributeResponse, int, error)
-	GetVariantAttributePaginationAdmin(limit, offset int, search string) ([]model.VariantAttribute, int, error)
+	GetVariantAttributePaginationPartial(limit, offset int, search string) ([]responses.VariantAttributeResponse, int, error)
+	GetVariantAttributePagination(limit, offset int, search string) ([]model.VariantAttribute, int, error)
 
 	//Concepts
 	AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error)

@@ -29,6 +29,7 @@ type AppConfig struct {
 	S3Bucket          S3BucketConfig          `mapstructure:"aws_s3_bucket"`
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
 	PayOS             PayOSConfig             `mapstructure:"payos"`
+	GHN               GHNConfig               `mapstructure:"ghn"`
 	AdminConfig       AdminConfig             `mapstructure:"admin_config"`
 	GmailSMTP         EmailConfig             `mapstructure:"gmail_smtp"`
 	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
@@ -154,6 +155,11 @@ type PayOSConfig struct {
 	FrontendReturnURL string `mapstructure:"frontend_return_url"`
 }
 
+type GHNConfig struct {
+	BaseURL string `mapstructure:"base_url"`
+	Token   string `mapstructure:"token"`
+}
+
 type EmailConfig struct {
 	Host      string `mapstructure:"host"`
 	Port      int    `mapstructure:"port"`
@@ -210,15 +216,19 @@ func LoadConfig(configPath string) error {
 	}
 
 	// Priority 1: Environment variables
-	viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
-	viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
-	viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
-	viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
-	viper.BindEnv("gmail_smtp.username", "GMAIL_SMTP_USERNAME")
-	viper.BindEnv("gmail_smtp.password", "GMAIL_APP_PASSWORD")
-	viper.BindEnv("gmail_smtp.from_email", "GMAIL_SMTP_FROM_EMAIL")
-	viper.BindEnv("firebase_fcm.service_account_path", "FIREBASE_SERVICE_ACCOUNT_PATH")
-	viper.BindEnv("firebase_fcm.project_id", "FIREBASE_PROJECT_ID")
+	_ = viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("aws_s3_bucket.access_key", "AWS_S3_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
+	_ = viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
+	_ = viper.BindEnv("gmail_smtp.username", "GMAIL_SMTP_USERNAME")
+	_ = viper.BindEnv("gmail_smtp.password", "GMAIL_APP_PASSWORD")
+	_ = viper.BindEnv("gmail_smtp.from_email", "GMAIL_SMTP_FROM_EMAIL")
+	_ = viper.BindEnv("firebase_fcm.service_account_path", "FIREBASE_SERVICE_ACCOUNT_PATH")
+	_ = viper.BindEnv("firebase_fcm.project_id", "FIREBASE_PROJECT_ID")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
