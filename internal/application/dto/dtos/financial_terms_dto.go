@@ -15,13 +15,13 @@ import (
 // [dtos.CoProducingFinancialTerms] for CO_PRODUCING type
 type FinancialTerms struct {
 	// Common fields
-	Model string `json:"model,omitempty" validate:"oneof=FIXED LEVELS SHARE" example:"FIXED"` // FIXED, LEVELS, or SHARE
-
-	// If the model is "FIXED" and the CONTRACT_TYPE is "ADVERTISING" or "BRAND_AMBASSADOR"
-	PaymentMethod *string         `json:"payment_method,omitempty" example:"BANK_TRANSFER" validate:"omitempty,oneof=BANK_TRANSFER CREDIT_CARD"` // Default to BANK_TRANSFER
+	Model         string          `json:"model,omitempty" validate:"oneof=FIXED LEVELS SHARE" example:"FIXED"` // FIXED, LEVELS, or SHARE
 	TotalCost     *int            `json:"total_cost,omitempty" example:"10000000" validate:"omitempty,min=0"`
 	CostBreakdown *map[string]int `json:"cost_breakdown,omitempty" validate:"omitempty,dive,min=0"`
-	Schedule      *[]Schedule     `json:"schedule,omitempty" validate:"omitempty,dive"`
+
+	// If the model is "FIXED" and the CONTRACT_TYPE is "ADVERTISING" or "BRAND_AMBASSADOR"
+	PaymentMethod *string     `json:"payment_method,omitempty" example:"BANK_TRANSFER" validate:"omitempty,oneof=BANK_TRANSFER CREDIT_CARD"` // Default to BANK_TRANSFER
+	Schedule      *[]Schedule `json:"schedule,omitempty" validate:"omitempty,dive"`
 
 	// If the model is "LEVELS" and the CONTRACT_TYPE is "AFFILIATE"
 	BasePerClick   *int               `json:"base_per_click,omitempty" example:"1000" validate:"omitempty,min=0"`
@@ -61,6 +61,8 @@ type AdvertisingFinancialTerms struct {
 // - For "ANNUALLY" cycle, it can be a time.Time object representing the exact date of payment.
 type AffiliateFinancialTerms struct {
 	Model          string            `json:"model" example:"COMMISSION" validate:"oneof=LEVELS"`
+	TotalCost      int               `json:"total_cost" example:"10000000" validate:"min=0"`
+	CostBreakdown  map[string]int    `json:"cost_breakdown" validate:"dive,keys,max=255,endkeys,min=0"`
 	BasePerClick   int               `json:"base_per_click" example:"1000" validate:"min=0"`
 	Levels         []Level           `json:"levels" validate:"dive"`
 	PaymentCycle   enum.PaymentCycle `json:"payment_cycle" example:"MONTHLY" validate:"oneof=MONTHLY QUARTERLY ANNUALLY"`
@@ -75,6 +77,8 @@ type AffiliateFinancialTerms struct {
 // - For "ANNUALLY" cycle, it can be a time.Time object representing the exact date of profit distribution.
 type CoProducingFinancialTerms struct {
 	Model                   string            `json:"model" example:"PROFIT_SHARING" validate:"oneof=SHARE"`
+	TotalCost               int               `json:"total_cost" example:"10000000" validate:"min=0"`
+	CostBreakdown           map[string]int    `json:"cost_breakdown" validate:"dive,keys,max=255,endkeys,min=0"`
 	CompanyPercent          int               `json:"profit_split_company_percent" example:"60" validate:"min=0,max=100"`
 	KolPercent              int               `json:"profit_split_kol_percent" example:"40" validate:"min=0,max=100"`
 	ProfitDistributionCycle enum.PaymentCycle `json:"profit_distribution_cycle" example:"QUARTERLY" validate:"oneof=MONTHLY QUARTERLY ANNUALLY"`

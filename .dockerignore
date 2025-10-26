@@ -17,3 +17,7 @@ script.groovy
 *.pem
 *.txt
 *.sql
+templates/
+specs/
+templates
+specs

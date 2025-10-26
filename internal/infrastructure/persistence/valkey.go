@@ -60,7 +60,7 @@ func (v *ValkeyCache) Ping() error {
 }
 
 // Set stores a value with an optional expiration time
-func (v *ValkeyCache) Set(key string, value interface{}, expiration time.Duration) error {
+func (v *ValkeyCache) Set(key string, value any, expiration time.Duration) error {
 	zap.L().Debug("Setting cache key",
 		zap.String("key", key),
 		zap.Duration("expiration", expiration))
@@ -106,12 +106,12 @@ func (v *ValkeyCache) GetBytes(key string) ([]byte, error) {
 }
 
 // SetJSON stores a JSON-serializable value
-func (v *ValkeyCache) SetJSON(key string, value interface{}, expiration time.Duration) error {
+func (v *ValkeyCache) SetJSON(key string, value any, expiration time.Duration) error {
 	return v.client.Set(v.ctx, key, value, expiration).Err()
 }
 
 // GetJSON retrieves and deserializes a JSON value
-func (v *ValkeyCache) GetJSON(key string, dest interface{}) error {
+func (v *ValkeyCache) GetJSON(key string, dest any) error {
 	result := v.client.Get(v.ctx, key)
 	if result.Err() == redis.Nil {
 		return nil // Key does not exist
@@ -178,17 +178,17 @@ func (v *ValkeyCache) DecrementBy(key string, value int64) (int64, error) {
 }
 
 // SetNX sets a key only if it doesn't exist
-func (v *ValkeyCache) SetNX(key string, value interface{}, expiration time.Duration) (bool, error) {
+func (v *ValkeyCache) SetNX(key string, value any, expiration time.Duration) (bool, error) {
 	return v.client.SetNX(v.ctx, key, value, expiration).Result()
 }
 
 // MGet retrieves multiple values by keys
-func (v *ValkeyCache) MGet(keys ...string) ([]interface{}, error) {
+func (v *ValkeyCache) MGet(keys ...string) ([]any, error) {
 	return v.client.MGet(v.ctx, keys...).Result()
 }
 
 // MSet sets multiple key-value pairs
-func (v *ValkeyCache) MSet(pairs ...interface{}) error {
+func (v *ValkeyCache) MSet(pairs ...any) error {
 	return v.client.MSet(v.ctx, pairs...).Err()
 }
 

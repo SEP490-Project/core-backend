@@ -23,7 +23,7 @@ type UnitOfWork interface {
 	ContractPayments() GenericRepository[model.ContractPayment]
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
-	Tasks() GenericRepository[model.Task]
+	Tasks() TaskRepository
 	Channels() GenericRepository[model.Channel]
 	Contents() GenericRepository[model.Content]
 	ContentChannels() GenericRepository[model.ContentChannel]
@@ -49,6 +49,10 @@ type UnitOfWork interface {
 	Order() GenericRepository[model.Order]
 	OrderItem() GenericRepository[model.OrderItem]
 	PaymentTransaction() GenericRepository[model.PaymentTransaction]
+
+	//Notifications
+	Notifications() NotificationRepository
+	DeviceTokens() DeviceTokenRepository
 
 	// DB Get raw gorm instance
 	DB() *gorm.DB

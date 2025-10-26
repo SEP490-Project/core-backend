@@ -1,14 +1,16 @@
 package handler
 
 import (
-	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"strconv"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -26,18 +28,19 @@ func NewOrderHandler(orderSvc iservice.OrderService, uow irepository.UnitOfWork)
 }
 
 // PlaceOrder godoc
-// @Summary Place an order
-// @Description Create an order for the authenticated user
-// @Tags Orders
-// @Accept json
-// @Produce json
-// @Param data body requests.OrderRequest true "Order payload"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Security BearerAuth
-// @Router /api/v1/orders [post]
+//
+//	@Summary		Place an order
+//	@Description	Create an order for the authenticated user
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.OrderRequest	true	"Order payload"
+//	@Success		201		{object}	map[string]any
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders [post]
 func (h *OrderHandler) PlaceOrder(c *gin.Context) {
 	// Bind request
 	var req requests.OrderRequest
@@ -86,22 +89,22 @@ func (h *OrderHandler) PlaceOrder(c *gin.Context) {
 
 // GetOrdersByUserIDWithPagination handles HTTP GET requests to retrieve paginated orders for a specific user.
 //
-// @Summary     Get paginated orders by user ID
-// @Description This handler extracts pagination parameters (`page`, `limit`) and an optional search term from the query string.
+//	@Summary		Get paginated orders by user ID
+//	@Description	This handler extracts pagination parameters (`page`, `limit`) and an optional search term from the query string.
 //
 //	It also extracts the user ID from the authentication token and fetches the paginated list of orders
 //
-// @Tags        Orders
-// @Accept      json
-// @Produce     json
-// @Param       page    query int    false "Page number (default: 1)"
-// @Param       limit   query int    false "Number of items per page (default: 10, max: 100)"
-// @Param       search  query string false "Search term for filtering orders by order number"
-// @Success      200     {object}  responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
-// @Failure		401		{object}	responses.APIResponse								"Unauthorized"
-// @Failure      500     {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/orders [get]
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number (default: 1)"
+//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
+//	@Param			search	query		string	false	"Search term for filtering orders by order number"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders [get]
 func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -158,19 +161,20 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 }
 
 // PayOrder godoc
-// @Summary      Initiate payment for an order
-// @Description  Generate payment link and create payment transaction for the given order
-// @Tags         Orders
-// @Accept       json
-// @Produce      json
-// @Param        id   path      string true "Order ID (UUID)"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]string
-// @Failure      401  {object}  map[string]string
-// @Failure      404  {object}  map[string]string
-// @Failure      500  {object}  map[string]string
-// @Security     BearerAuth
-// @Router       /api/v1/orders/{id}/pay [post]
+//
+//	@Summary		Initiate payment for an order
+//	@Description	Generate payment link and create payment transaction for the given order
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Order ID (UUID)"
+//	@Success		200	{object}	map[string]any
+//	@Failure		400	{object}	map[string]string
+//	@Failure		401	{object}	map[string]string
+//	@Failure		404	{object}	map[string]string
+//	@Failure		500	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/{id}/pay [post]
 func (h *OrderHandler) PayOrder(c *gin.Context) {
 	orderIDStr := c.Param("id")
 	orderID, err := uuid.Parse(orderIDStr)

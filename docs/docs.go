@@ -3964,6 +3964,303 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/device-tokens": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "List device tokens",
+                "responses": {
+                    "200": {
+                        "description": "Device tokens retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Register a new FCM device token for push notifications",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Register a new device token",
+                "parameters": [
+                    {
+                        "description": "Device token registration data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RegisterDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Device token registered successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Token already registered to another user",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete all device tokens for the authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete all device tokens",
+                "responses": {
+                    "200": {
+                        "description": "All device tokens deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/device-tokens/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing device token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Update a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated device token data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateDeviceTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DeviceTokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a specific device token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device Tokens"
+                ],
+                "summary": "Delete a device token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Device Token ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Device token deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid device token ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Device token not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -4250,6 +4547,241 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications with optional filtering by user, type, status, and date range",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifications with filters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by user ID (UUID)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by notification type (EMAIL, PUSH)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (PENDING, SENT, FAILED, RETRYING)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (RFC3339 or YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (RFC3339 or YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/failed": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve notifications that failed after multiple retry attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get failed notifications with retries",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Minimum number of retry attempts (default: 3)",
+                        "name": "min_retries",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve detailed information about a specific notification including delivery attempts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Get notification by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.NotificationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -5261,6 +5793,453 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Filter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/contract/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response. This is usually used by BRAND_PARTNER",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Contract ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of tasks based on filter criteria and return them in a paginated response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Tasks by Profile",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by creator ID",
+                        "name": "created_by_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by assignee ID",
+                        "name": "assigned_to_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by milestone ID",
+                        "name": "milestone_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline from date",
+                        "name": "deadline_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by deadline to date",
+                        "name": "deadline_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated from date",
+                        "name": "updated_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Filter by updated to date",
+                        "name": "updated_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "TODO",
+                            "IN_PROGRESS",
+                            "CANCELLED",
+                            "RECAP",
+                            "DONE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PRODUCT",
+                            "CONTENT",
+                            "EVENT",
+                            "OTHER"
+                        ],
+                        "type": "string",
+                        "description": "Filter by task type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tasks retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaginationTaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tasks/{id}/state": {
             "patch": {
                 "security": [
@@ -5331,7 +6310,75 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tasks/{taskId}/products": {
+        "/api/v1/tasks/{task_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a task by its ID and return its details in the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Get Task by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}/products": {
             "get": {
                 "security": [
                     {
@@ -5353,7 +6400,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Task ID (UUID)",
-                        "name": "taskId",
+                        "name": "task_id",
                         "in": "path",
                         "required": true
                     },
@@ -5525,6 +6572,125 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/users/notification-preferences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Get User notification preferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates notification preference settings for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notification Preferences"
+                ],
+                "summary": "Update notification preferences",
+                "parameters": [
+                    {
+                        "description": "Notification preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UserNotificationPreferenceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserNotificationPreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6479,6 +7645,32 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.NotificationStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "RETRYING"
+            ],
+            "x-enum-varnames": [
+                "NotificationStatusPending",
+                "NotificationStatusSent",
+                "NotificationStatusFailed",
+                "NotificationStatusRetrying"
+            ]
+        },
+        "enum.NotificationType": {
+            "type": "string",
+            "enum": [
+                "EMAIL",
+                "PUSH"
+            ],
+            "x-enum-varnames": [
+                "NotificationTypeEmail",
+                "NotificationTypePush"
+            ]
+        },
         "enum.OrderStatus": {
             "type": "string",
             "enum": [
@@ -6515,6 +7707,17 @@ const docTemplate = `{
                 "PaymentCycleMonthly",
                 "PaymentCycleQuarterly",
                 "PaymentCycleAnnually"
+            ]
+        },
+        "enum.PlatformType": {
+            "type": "string",
+            "enum": [
+                "IOS",
+                "ANDROID"
+            ],
+            "x-enum-varnames": [
+                "PlatformTypeIOS",
+                "PlatformTypeAndroid"
             ]
         },
         "enum.ProductStatus": {
@@ -6599,6 +7802,151 @@ const docTemplate = `{
                         "RECAP",
                         "DONE"
                     ]
+                }
+            }
+        },
+        "model.AndroidConfig": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "description": "Notification channel",
+                    "type": "string"
+                },
+                "click_action": {
+                    "description": "Activity to open",
+                    "type": "string"
+                },
+                "color": {
+                    "description": "Notification color",
+                    "type": "string"
+                },
+                "priority": {
+                    "description": "\"high\" or \"normal\"",
+                    "type": "string"
+                }
+            }
+        },
+        "model.Attachment": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "url": {
+                    "description": "S3 URL",
+                    "type": "string"
+                }
+            }
+        },
+        "model.DeliveryAttempt": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"success\", \"failed\", \"retrying\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.IOSConfig": {
+            "type": "object",
+            "properties": {
+                "badge": {
+                    "description": "Badge count",
+                    "type": "integer"
+                },
+                "content_available": {
+                    "description": "Silent push",
+                    "type": "integer"
+                },
+                "sound": {
+                    "description": "Sound filename",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBContentData": {
+            "type": "object",
+            "properties": {
+                "attachments": {
+                    "description": "Email attachments",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Attachment"
+                    }
+                },
+                "body": {
+                    "description": "Plain text body",
+                    "type": "string"
+                },
+                "html_body": {
+                    "description": "HTML email body",
+                    "type": "string"
+                },
+                "subject": {
+                    "description": "Email subject",
+                    "type": "string"
+                },
+                "template_data": {
+                    "description": "Data for template rendering",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "template_name": {
+                    "description": "Template filename",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "Push notification title",
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBErrorDetails": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "last_attempt_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JSONBPlatformConfig": {
+            "type": "object",
+            "properties": {
+                "android_config": {
+                    "$ref": "#/definitions/model.AndroidConfig"
+                },
+                "ios_config": {
+                    "$ref": "#/definitions/model.IOSConfig"
+                }
+            }
+        },
+        "model.JSONBRecipientInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "tokens": {
+                    "description": "FCM device tokens",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -6948,8 +8296,8 @@ const docTemplate = `{
                     "enum": [
                         "ADVERTISING",
                         "AFFILIATE",
-                        "AMBASSADOR",
-                        "COPRODUCE"
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
                     ],
                     "example": "ADVERTISING"
                 }
@@ -7265,6 +8613,10 @@ const docTemplate = `{
                 "password"
             ],
             "properties": {
+                "device_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
                 "login_identifier": {
                     "type": "string",
                     "example": "abc@gmail.com"
@@ -7273,6 +8625,17 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 8,
                     "example": "12345678"
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
                 }
             }
         },
@@ -7383,6 +8746,30 @@ const docTemplate = `{
                 "refresh_token": {
                     "type": "string",
                     "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "requests.RegisterDeviceTokenRequest": {
+            "type": "object",
+            "required": [
+                "platform",
+                "token"
+            ],
+            "properties": {
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                },
+                "token": {
+                    "type": "string",
+                    "minLength": 10
                 }
             }
         },
@@ -7786,6 +9173,30 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateDeviceTokenRequest": {
+            "type": "object",
+            "required": [
+                "new_token",
+                "platform"
+            ],
+            "properties": {
+                "new_token": {
+                    "type": "string",
+                    "minLength": 10
+                },
+                "platform": {
+                    "enum": [
+                        "IOS",
+                        "ANDROID"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PlatformType"
+                        }
+                    ]
+                }
+            }
+        },
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
@@ -7850,6 +9261,17 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean",
                     "example": true
+                }
+            }
+        },
+        "requests.UserNotificationPreferenceRequest": {
+            "type": "object",
+            "properties": {
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "push_enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -7969,6 +9391,9 @@ const docTemplate = `{
         "responses.BrandDetailResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -8057,6 +9482,9 @@ const docTemplate = `{
         "responses.BrandResponse": {
             "type": "object",
             "properties": {
+                "address": {
+                    "type": "string"
+                },
                 "contact_email": {
                     "type": "string"
                 },
@@ -8761,11 +10189,54 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.DeviceTokenListResponse": {
+            "type": "object",
+            "properties": {
+                "tokens": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.DeviceTokenResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.DeviceTokenResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_valid": {
+                    "type": "boolean"
+                },
+                "last_used_at": {
+                    "type": "string"
+                },
+                "platform": {
+                    "$ref": "#/definitions/enum.PlatformType"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.LoginResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
                     "type": "string"
+                },
+                "device_token_registered": {
+                    "type": "boolean"
                 },
                 "expires_in": {
                     "type": "integer"
@@ -8774,7 +10245,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -8782,6 +10253,61 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.NotificationListResponse": {
+            "type": "object",
+            "properties": {
+                "notifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.NotificationResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                }
+            }
+        },
+        "responses.NotificationResponse": {
+            "type": "object",
+            "properties": {
+                "content_data": {
+                    "$ref": "#/definitions/model.JSONBContentData"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "delivery_attempts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.DeliveryAttempt"
+                    }
+                },
+                "error_details": {
+                    "$ref": "#/definitions/model.JSONBErrorDetails"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "platform_config": {
+                    "$ref": "#/definitions/model.JSONBPlatformConfig"
+                },
+                "recipient_info": {
+                    "$ref": "#/definitions/model.JSONBRecipientInfo"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.NotificationStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.NotificationType"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
@@ -8806,6 +10332,32 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.PaginationTaskResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TaskListResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -9251,7 +10803,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/responses.UserInfo"
+                    "$ref": "#/definitions/responses.UserInfoResponse"
                 }
             }
         },
@@ -9288,10 +10840,164 @@ const docTemplate = `{
             "properties": {
                 "description_json": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.TaskListResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                }
+            }
+        },
+        "responses.TaskResponse": {
+            "type": "object",
+            "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "assigned_to_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "assigned_to_role": {
+                    "type": "string",
+                    "example": "Sales Staff"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "content_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"770e8400-e29b-41d4-a716-446655440000\"",
+                        " \"880e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "created_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "created_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Create a modern and responsive homepage design."
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Design Homepage"
+                },
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"550e8400-e29b-41d4-a716-446655440000\"",
+                        " \"660e8400-e29b-41d4-a716-446655440000\"]"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "example": "IN_PROGRESS"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "PRODUCT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-15T15:30:00Z"
+                },
+                "updated_by_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "updated_by_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 }
             }
         },
@@ -9309,23 +11015,44 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.UserInfo": {
+        "responses.UserInfoResponse": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "date_of_birth": {
+                    "type": "string",
+                    "example": "1990-01-01"
+                },
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "John Doe"
                 },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "role": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "john_doe"
                 }
             }
         },
@@ -9379,6 +11106,26 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.UserNotificationPreferenceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email_enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "push_enabled": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
