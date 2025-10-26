@@ -9,24 +9,29 @@ import (
 )
 
 type DatabaseRegistry struct {
-	UserRepository             irepository.GenericRepository[model.User]
-	LoggedSessionRepository    irepository.GenericRepository[model.LoggedSession]
-	ProductRepository          irepository.GenericRepository[model.Product]
-	ProductVariantRepository   irepository.GenericRepository[model.ProductVariant]
-	BrandRepository            irepository.GenericRepository[model.Brand]
-	ProductCategoryRepository  irepository.GenericRepository[model.ProductCategory]
-	ContractRepository         irepository.GenericRepository[model.Contract]
-	ContractPaymentRepository  irepository.GenericRepository[model.ContractPayment]
-	CampaignRepository         irepository.GenericRepository[model.Campaign]
-	MilestoneRepository        irepository.GenericRepository[model.Milestone]
-	TaskRepository             irepository.GenericRepository[model.Task]
-	ModifiedHistoryRepository  irepository.GenericRepository[model.ModifiedHistory]
-	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
+	UserRepository            irepository.GenericRepository[model.User]
+	LoggedSessionRepository   irepository.GenericRepository[model.LoggedSession]
+	ProductRepository         irepository.GenericRepository[model.Product]
+	ProductVariantRepository  irepository.GenericRepository[model.ProductVariant]
+	BrandRepository           irepository.GenericRepository[model.Brand]
+	ProductCategoryRepository irepository.GenericRepository[model.ProductCategory]
+	ContractRepository        irepository.GenericRepository[model.Contract]
+	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
+	CampaignRepository        irepository.GenericRepository[model.Campaign]
+	MilestoneRepository       irepository.GenericRepository[model.Milestone]
+	TaskRepository            irepository.GenericRepository[model.Task]
+	ChannelRepository         irepository.GenericRepository[model.Channel]
+	ContentRepository         irepository.GenericRepository[model.Content]
+	ContentChannelRepository  irepository.GenericRepository[model.ContentChannel]
+	BlogRepository            irepository.GenericRepository[model.Blog]
+	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
+	AdminConfigRepository     irepository.GenericRepository[model.Config]
 
 	//Limited Product and Concept
-	LimitedProductRepository irepository.GenericRepository[model.LimitedProduct]
-	ConceptRepository        irepository.GenericRepository[model.Concept]
-	AdminConfigRepository    irepository.GenericRepository[model.Config]
+	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
+	ConceptRepository          irepository.GenericRepository[model.Concept]
+	AdminConfigRepository      irepository.GenericRepository[model.Config]
+	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
 
 	//Orders & Payment
 	OrderRepository              irepository.GenericRepository[model.Order]
@@ -52,6 +57,10 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ConceptRepository:            NewGenericRepository[model.Concept](db),
 		AdminConfigRepository:        NewGenericRepository[model.Config](db),
 		VariantAttributeRepository:   NewGenericRepository[model.VariantAttribute](db),
+		ChannelRepository:            NewGenericRepository[model.Channel](db),
+		ContentRepository:            NewGenericRepository[model.Content](db),
+		ContentChannelRepository:     NewGenericRepository[model.ContentChannel](db),
+		BlogRepository:               NewGenericRepository[model.Blog](db),
 		OrderRepository:              NewGenericRepository[model.Order](db),
 		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
 		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),

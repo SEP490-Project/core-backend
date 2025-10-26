@@ -4,6 +4,8 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/constant"
+	"core-backend/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -59,4 +61,40 @@ func (h *AdminConfigHandler) GetAllConfigValues(c *gin.Context) {
 		},
 	)
 	c.JSON(http.StatusOK, response)
+}
+
+// GetRepresentativeConfigs godoc
+//
+//	@Summary		Get representative config values
+//	@Description	Retrieve representative config values
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Representative config values retrieved successfully"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse	"Forbidden"
+//	@Security		BearerAuth
+//	@Router			/api/v1/configs/representative [get]
+func (h *AdminConfigHandler) GetRepresentativeConfigs(c *gin.Context) {
+	keys := []string{
+		constant.ConfigKeyRepresentativeName.String(),
+		constant.ConfigKeyRepresentativeRole.String(),
+		constant.ConfigKeyRepresentativePhone.String(),
+		constant.ConfigKeyRepresentativeEmail.String(),
+		constant.ConfigKeyRepresentativeTaxNumber.String(),
+		constant.ConfigKeyRepresentativeBankName.String(),
+		constant.ConfigKeyRepresentativeBankAccountNumber.String(),
+		constant.ConfigKeyRepresentativeBankAccountHolder.String(),
+	}
+
+	configResponses, err := h.adminConfigService.GetConfigValuesByKeys(c.Request.Context(), keys)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get representative config values: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resposne := responses.SuccessResponse("Successfully retrieved representative config values", utils.IntPtr(http.StatusOK), configResponses)
+	c.JSON(http.StatusOK, resposne)
 }

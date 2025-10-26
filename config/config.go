@@ -30,6 +30,7 @@ type AppConfig struct {
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
 	PayOS             PayOSConfig             `mapstructure:"payos"`
 	GHN               GHNConfig               `mapstructure:"ghn"`
+	AdminConfig       AdminConfig             `mapstructure:"admin_config"`
 }
 
 type ServerConfig struct {
@@ -209,6 +210,12 @@ func LoadConfig(configPath string) error {
 		// Log warning but don't fail - RabbitMQ advanced config is optional
 		fmt.Printf("Warning: Could not load RabbitMQ advanced config: %v\n", err)
 		fmt.Println("Continuing with basic RabbitMQ configuration...")
+	}
+
+	// Load Admin configuration from separate file
+	if err := loadAdminConfig(configPath); err != nil {
+		fmt.Printf("Warning: Could not load Admin config: %v\n", err)
+		fmt.Println("Continuing with default Admin config...")
 	}
 
 	return nil

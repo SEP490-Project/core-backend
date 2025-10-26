@@ -115,6 +115,30 @@ definitions:
     - ContainerTypeSachet
     - ContainerTypeVial
     - ContainerTypeRollerBottle
+  enum.ContentStatus:
+    enum:
+    - DRAFT
+    - AWAIT_STAFF
+    - AWAIT_BRAND
+    - REJECTED
+    - APPROVED
+    - POSTED
+    type: string
+    x-enum-varnames:
+    - ContentStatusDraft
+    - ContentStatusAwaitStaff
+    - ContentStatusAwaitBrand
+    - ContentStatusRejected
+    - ContentStatusApproved
+    - ContentStatusPosted
+  enum.ContentType:
+    enum:
+    - POST
+    - VIDEO
+    type: string
+    x-enum-varnames:
+    - ContentTypePost
+    - ContentTypeVideo
   enum.DispenserType:
     enum:
     - PUMP
@@ -310,7 +334,36 @@ definitions:
       updated_by:
         type: string
     type: object
+  requests.ApproveContentRequest:
+    properties:
+      message:
+        maxLength: 500
+        type: string
+    type: object
+  requests.BlogFieldsDTO:
+    properties:
+      author_id:
+        type: string
+      excerpt:
+        maxLength: 500
+        type: string
+      read_time:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+    required:
+    - author_id
+    type: object
   requests.BulkVariantRequest:
+    type: object
+  requests.CampaignSuggestionRequest:
+    properties:
+      contract_id:
+        type: string
+    required:
+    - contract_id
     type: object
   requests.ConceptRequest:
     properties:
@@ -472,6 +525,59 @@ definitions:
     - end_date
     - name
     - start_date
+    - type
+    type: object
+  requests.CreateChannelRequest:
+    properties:
+      description:
+        example: This is a social media channel.
+        maxLength: 100
+        minLength: 3
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
+  requests.CreateContentRequest:
+    properties:
+      affiliate_link:
+        maxLength: 1000
+        type: string
+      ai_generated_text:
+        type: string
+      blog_fields:
+        $ref: '#/definitions/requests.BlogFieldsDTO'
+      body:
+        type: string
+      channels:
+        items:
+          type: string
+        minItems: 1
+        type: array
+      task_id:
+        type: string
+      title:
+        maxLength: 500
+        type: string
+      type:
+        enum:
+        - POST
+        - VIDEO
+        type: string
+    required:
+    - body
+    - channels
+    - title
     - type
     type: object
   requests.CreateContractRequest:
@@ -724,6 +830,11 @@ definitions:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
     type: object
+  requests.PublishContentRequest:
+    properties:
+      publish_date:
+        type: string
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -731,6 +842,14 @@ definitions:
         type: string
     required:
     - refresh_token
+    type: object
+  requests.RejectContentRequest:
+    properties:
+      feedback:
+        maxLength: 1000
+        type: string
+    required:
+    - feedback
     type: object
   requests.SignUpRequest:
     properties:
@@ -755,6 +874,12 @@ definitions:
     - email
     - password
     - username
+    type: object
+  requests.SubmitContentRequest:
+    properties:
+      message:
+        maxLength: 500
+        type: string
     type: object
   requests.UpdateAddressProfileRequest:
     properties:
@@ -829,6 +954,18 @@ definitions:
     - type
     - user_id
     type: object
+  requests.UpdateBlogRequest:
+    properties:
+      excerpt:
+        maxLength: 500
+        type: string
+      read_time:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
   requests.UpdateBrandRequest:
     properties:
       address:
@@ -857,6 +994,49 @@ definitions:
       website:
         example: https://www.acme.com
         maxLength: 255
+        type: string
+    type: object
+  requests.UpdateChannelRequest:
+    properties:
+      description:
+        example: This is a social media channel.
+        maxLength: 100
+        minLength: 3
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        maxLength: 100
+        minLength: 3
+        type: string
+    type: object
+  requests.UpdateContentRequest:
+    properties:
+      affiliate_link:
+        maxLength: 1000
+        type: string
+      ai_generated_text:
+        type: string
+      blog_fields:
+        $ref: '#/definitions/requests.BlogFieldsDTO'
+      body:
+        type: string
+      channels:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 500
+        type: string
+      type:
+        enum:
+        - POST
+        - VIDEO
         type: string
     type: object
   requests.UpdateContractRequest:
@@ -1089,6 +1269,27 @@ definitions:
         type: string
       value_type:
         example: STRING
+        type: string
+    type: object
+  responses.BlogResponse:
+    properties:
+      author:
+        $ref: '#/definitions/responses.UserBrief'
+      author_id:
+        type: string
+      content_id:
+        type: string
+      created_at:
+        type: string
+      excerpt:
+        type: string
+      read_time:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      updated_at:
         type: string
     type: object
   responses.BrandDetailResponse:
@@ -1360,6 +1561,119 @@ definitions:
         type: integer
       status:
         example: NOT_STARTED
+        type: string
+    type: object
+  responses.CampaignSuggestionResponse:
+    properties:
+      contract_id:
+        type: string
+      contract_type:
+        type: string
+      suggested_campaign:
+        $ref: '#/definitions/responses.SuggestedCampaign'
+    type: object
+  responses.ChannelListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ChannelResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ChannelResponse:
+    properties:
+      created_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+      description:
+        example: This is a social media channel.
+        type: string
+      home_page_url:
+        example: https://www.facebook.com
+        type: string
+      id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Facebook
+        type: string
+      updated_at:
+        example: "2023-01-01T00:00:00Z"
+        type: string
+    type: object
+  responses.ContentChannelBrief:
+    properties:
+      auto_post_status:
+        type: string
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      id:
+        type: string
+      post_date:
+        type: string
+    type: object
+  responses.ContentPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContentResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ContentResponse:
+    properties:
+      affiliate_link:
+        type: string
+      ai_generated_text:
+        type: string
+      blog:
+        $ref: '#/definitions/responses.BlogResponse'
+      body:
+        type: string
+      content_channels:
+        items:
+          $ref: '#/definitions/responses.ContentChannelBrief'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      publish_date:
+        type: string
+      rejection_feedback:
+        type: string
+      status:
+        $ref: '#/definitions/enum.ContentStatus'
+      task_id:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ContentType'
+      updated_at:
         type: string
     type: object
   responses.ContractListResponse:
@@ -1964,6 +2278,41 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/responses.UserInfo'
+    type: object
+  responses.SuggestedCampaign:
+    properties:
+      milestones:
+        items:
+          $ref: '#/definitions/responses.SuggestedMilestone'
+        type: array
+      name:
+        type: string
+    type: object
+  responses.SuggestedMilestone:
+    properties:
+      name:
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/responses.SuggestedTask'
+        type: array
+    type: object
+  responses.SuggestedTask:
+    properties:
+      description_json:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+    type: object
+  responses.UserBrief:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
     type: object
   responses.UserInfo:
     properties:
@@ -3054,6 +3403,60 @@ paths:
       summary: Get Campaign Details by ID
       tags:
       - Campaigns
+  /api/v1/campaigns/suggest:
+    post:
+      consumes:
+      - application/json
+      description: Generate campaign suggestions based on contract deliverables. Only
+        ACTIVE contracts can be used for suggestions.
+      parameters:
+      - description: Campaign suggestion request
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CampaignSuggestionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign suggestion generated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignSuggestionResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Requires ADMIN or SALES_STAFF role
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Contract is not ACTIVE or has no deliverables
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Suggest Campaign from Contract
+      tags:
+      - Campaigns
   /api/v1/categories:
     get:
       consumes:
@@ -3209,6 +3612,177 @@ paths:
       summary: Assign parent category
       tags:
       - Categories
+  /api/v1/channels:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all channels
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channels retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ChannelListResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get all channels
+      tags:
+      - Channels
+    post:
+      consumes:
+      - application/json
+      description: Create a new channel
+      parameters:
+      - description: Channel to create
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Channel created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to create channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a channel
+      tags:
+      - Channels
+  /api/v1/channels/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a channel by its ID
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid channel ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to delete channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a channel
+      tags:
+      - Channels
+    get:
+      consumes:
+      - application/json
+      description: Get channel by ID
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid channel ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get channel by ID
+      tags:
+      - Channels
+    put:
+      consumes:
+      - application/json
+      description: Update an existing channel
+      parameters:
+      - description: Channel ID
+        example: '"123e4567-e89b-12d3-a456-426614174000"'
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Channel to update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateChannelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Channel updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelResponse'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to update channel
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a channel
+      tags:
+      - Channels
   /api/v1/concepts:
     get:
       consumes:
@@ -3334,6 +3908,553 @@ paths:
       summary: Get all config values
       tags:
       - Admin Config
+  /api/v1/configs/representative:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve representative config values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Representative config values retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get representative config values
+      tags:
+      - Admin Config
+  /api/v1/contents:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves paginated content with optional filters, search, and
+        sorting
+      parameters:
+      - default: 1
+        description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status
+        enum:
+        - DRAFT
+        - AWAIT_STAFF
+        - AWAIT_BRAND
+        - REJECTED
+        - APPROVED
+        - POSTED
+        in: query
+        name: status
+        type: string
+      - description: Filter by type
+        enum:
+        - POST
+        - VIDEO
+        in: query
+        name: type
+        type: string
+      - description: Filter by task ID (UUID)
+        in: query
+        name: task_id
+        type: string
+      - description: Filter by channel ID (UUID)
+        in: query
+        name: channel_id
+        type: string
+      - description: Search in title and body
+        in: query
+        name: search
+        type: string
+      - description: Filter from date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Filter to date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - default: created_at_desc
+        description: Sort order
+        enum:
+        - created_at_asc
+        - created_at_desc
+        - updated_at_desc
+        - title_asc
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ContentPaginationResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List content
+      tags:
+      - Content
+    post:
+      consumes:
+      - application/json
+      description: Creates new blog post or video content with DRAFT status
+      parameters:
+      - description: Content creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateContentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Validation error or invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create content draft
+      tags:
+      - Content
+  /api/v1/contents/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft deletes content in DRAFT or REJECTED status
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Content deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid content ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Content status not deletable
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete content draft
+      tags:
+      - Content
+    get:
+      consumes:
+      - application/json
+      description: Retrieves content with all relationships (blog, author, channels)
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid content ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get content by ID
+      tags:
+      - Content
+    put:
+      consumes:
+      - application/json
+      description: Updates content in DRAFT or REJECTED status
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Content update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Validation error or invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Content status not editable
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update content draft
+      tags:
+      - Content
+  /api/v1/contents/{id}/approve:
+    post:
+      consumes:
+      - application/json
+      description: Approves content that is awaiting review
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Approval request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ApproveContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid ID or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - insufficient permissions
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid content status
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve content
+      tags:
+      - Content
+  /api/v1/contents/{id}/blog:
+    put:
+      consumes:
+      - application/json
+      description: Updates blog-specific attributes (tags, excerpt, read_time) for
+        POST type content
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Blog update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateBlogRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Blog details updated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request or content is not POST type
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content or blog not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update blog details
+      tags:
+      - Blog
+  /api/v1/contents/{id}/publish:
+    post:
+      consumes:
+      - application/json
+      description: Publishes approved content to POSTED status with optional publish
+        date
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Publish request with optional publish_date
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/requests.PublishContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Content published successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid request or content not approved
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Insufficient permissions
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish approved content
+      tags:
+      - Content
+  /api/v1/contents/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Rejects content that is awaiting review with feedback
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rejection request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RejectContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid ID or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - insufficient permissions
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid content status
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reject content
+      tags:
+      - Content
+  /api/v1/contents/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Submits content for staff or brand approval based on selected channels
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Submit request data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SubmitContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid ID or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid content status
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit content for review
+      tags:
+      - Content
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:

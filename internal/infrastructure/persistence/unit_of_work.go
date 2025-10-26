@@ -30,6 +30,10 @@ type unitOfWork struct {
 	variantImageRepository          irepository.GenericRepository[model.VariantImage]
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
+	channelRepository               irepository.GenericRepository[model.Channel]
+	contentRepository               irepository.GenericRepository[model.Content]
+	contentChannelRepository        irepository.GenericRepository[model.ContentChannel]
+	blogRepository                  irepository.GenericRepository[model.Blog]
 
 	//ProductCategory
 	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
@@ -72,6 +76,11 @@ func (u *unitOfWork) Begin() irepository.UnitOfWork {
 	u.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](u.tx)
 	u.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](u.tx)
 	u.taskRepository = gormrepository.NewGenericRepository[model.Task](u.tx)
+	u.channelRepository = gormrepository.NewGenericRepository[model.Channel](u.tx)
+	u.contentRepository = gormrepository.NewGenericRepository[model.Content](u.tx)
+	u.contentChannelRepository = gormrepository.NewGenericRepository[model.ContentChannel](u.tx)
+	u.blogRepository = gormrepository.NewGenericRepository[model.Blog](u.tx)
+
 	//Product flow
 	u.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](u.tx)
 	u.productVariantRepository = gormrepository.NewGenericRepository[model.ProductVariant](u.tx)
@@ -227,6 +236,22 @@ func (u *unitOfWork) OrderItem() irepository.GenericRepository[model.OrderItem] 
 
 func (u *unitOfWork) PaymentTransaction() irepository.GenericRepository[model.PaymentTransaction] {
 	return u.paymentTransactionRepository
+}
+
+func (u *unitOfWork) Channels() irepository.GenericRepository[model.Channel] {
+	return u.channelRepository
+}
+
+func (u *unitOfWork) Contents() irepository.GenericRepository[model.Content] {
+	return u.contentRepository
+}
+
+func (u *unitOfWork) ContentChannels() irepository.GenericRepository[model.ContentChannel] {
+	return u.contentChannelRepository
+}
+
+func (u *unitOfWork) Blogs() irepository.GenericRepository[model.Blog] {
+	return u.blogRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {
