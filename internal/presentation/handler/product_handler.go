@@ -291,7 +291,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
-//	@Success		201		{object}	map[string]interface{}					"Created product"
+//	@Success		201		{object}	map[string]any							"Created product"
 //	@Failure		400		{object}	map[string]string						"invalid request / validation failed"
 //	@Failure		401		{object}	map[string]string						"missing or invalid user id"
 //	@Failure		500		{object}	map[string]string						"internal server error"
@@ -656,7 +656,7 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 //	@Produce		json
 //	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
 //	@Param			concept-id	path		string	false	"Concept ID (UUID)"
-//	@Success		200			{object}	map[string]interface{}
+//	@Success		200			{object}	map[string]any
 //	@Failure		400			{object}	object{error=string}
 //	@Failure		401			{object}	object{error=string}
 //	@Failure		500			{object}	object{error=string}

@@ -126,7 +126,7 @@ func (h *HealthMonitor) checkEmailService(ctx context.Context) ServiceHealth {
 }
 
 // checkFCMService checks FCM connectivity
-func (h *HealthMonitor) checkFCMService(ctx context.Context) ServiceHealth {
+func (h *HealthMonitor) checkFCMService(_ context.Context) ServiceHealth {
 	health := ServiceHealth{
 		Name:          "FCMService",
 		LastCheckTime: time.Now(),
@@ -182,7 +182,7 @@ func (h *HealthMonitor) checkDatabase(ctx context.Context) ServiceHealth {
 }
 
 // checkValkey checks Valkey/Redis connectivity
-func (h *HealthMonitor) checkValkey(ctx context.Context) ServiceHealth {
+func (h *HealthMonitor) checkValkey(_ context.Context) ServiceHealth {
 	health := ServiceHealth{
 		Name:          "Valkey",
 		LastCheckTime: time.Now(),
@@ -202,7 +202,7 @@ func (h *HealthMonitor) checkValkey(ctx context.Context) ServiceHealth {
 }
 
 // checkRabbitMQ checks RabbitMQ connectivity
-func (h *HealthMonitor) checkRabbitMQ(ctx context.Context) ServiceHealth {
+func (h *HealthMonitor) checkRabbitMQ(_ context.Context) ServiceHealth {
 	health := ServiceHealth{
 		Name:          "RabbitMQ",
 		LastCheckTime: time.Now(),
