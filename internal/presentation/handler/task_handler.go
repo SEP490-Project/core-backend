@@ -39,6 +39,8 @@ func NewTaskHandler(taskService iservice.TaskService, unitOfWork irepository.Uni
 //	@Param			created_by_id		query		string								false	"Filter by creator ID"			format(uuid)
 //	@Param			assigned_to_id		query		string								false	"Filter by assignee ID"			format(uuid)
 //	@Param			milestone_id		query		string								false	"Filter by milestone ID"		format(uuid)
+//	@Param			campaign_id			query		string								false	"Filter by campaign ID"			format(uuid)
+//	@Param			contract_id			query		string								false	"Filter by contract ID"			format(uuid)
 //	@Param			deadline_from_date	query		string								false	"Filter by deadline from date"	format(date-time)
 //	@Param			deadline_to_date	query		string								false	"Filter by deadline to date"	format(date-time)
 //	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date-time)
@@ -64,7 +66,7 @@ func (h *TaskHandler) GetTasksByFilter(c *gin.Context) {
 		return
 	}
 
-	taskResponse, total, err := h.taskService.GetTaskByFilter(c.Request.Context(), req)
+	taskResponse, total, err := h.taskService.GetTaskByFilter(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError,
 			responses.ErrorResponse("Failed to get tasks: "+err.Error(), http.StatusInternalServerError))
@@ -125,4 +127,140 @@ func (h *TaskHandler) GetTaskByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Task retrieved successfully", utils.PtrOrNil(http.StatusOK), taskResponse))
+}
+
+// GetTasksByProfile godoc
+//
+//	@Summary		Get Tasks by Profile
+//	@Description	Retrieve a list of tasks based on filter criteria and return them in a paginated response.
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			page				query		int									false	"Page number"					default(1)
+//	@Param			limit				query		int									false	"Number of items per page"		default(10)
+//	@Param			created_by_id		query		string								false	"Filter by creator ID"			format(uuid)
+//	@Param			assigned_to_id		query		string								false	"Filter by assignee ID"			format(uuid)
+//	@Param			milestone_id		query		string								false	"Filter by milestone ID"		format(uuid)
+//	@Param			campaign_id			query		string								false	"Filter by campaign ID"			format(uuid)
+//	@Param			contract_id			query		string								false	"Filter by contract ID"			format(uuid)
+//	@Param			deadline_from_date	query		string								false	"Filter by deadline from date"	format(date-time)
+//	@Param			deadline_to_date	query		string								false	"Filter by deadline to date"	format(date-time)
+//	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date-time)
+//	@Param			updated_to_date		query		string								false	"Filter by updated to date"		format(date-time)
+//	@Param			status				query		string								false	"Filter by task status"			Enums(TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
+//	@Param			type				query		string								false	"Filter by task type"			Enums(PRODUCT, CONTENT, EVENT, OTHER)
+//	@Param			sort_by				query		string								false	"Field to sort by"
+//	@Param			sort_order			query		string								false	"Sort order (asc or desc)"
+//	@Success		200					{object}	responses.PaginationTaskResponse	"Tasks retrieved successfully"
+//	@Failure		400					{object}	responses.APIResponse				"Invalid query parameters"
+//	@Failure		500					{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/profile [get]
+func (h *TaskHandler) GetTasksByProfile(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized,
+			responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var filterReq requests.TaskFilterRequest
+	if err = c.ShouldBindQuery(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err = h.validator.Struct(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+	filterReq.AssignedToID = utils.PtrOrNil(userID.String())
+
+	var taskResponses []responses.TaskListResponse
+	var total int64
+	taskResponses, total, err = h.taskService.GetTaskByFilter(c.Request.Context(), &filterReq)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get tasks: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Tasks retrieved successfully",
+		http.StatusOK,
+		taskResponses,
+		responses.Pagination{
+			Page:  filterReq.Page,
+			Limit: filterReq.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTasksByContractID godoc
+//
+//	@Summary		Get Tasks by Contract ID
+//	@Description	Retrieve a list of tasks based on filter criteria and return them in a paginated response. This is usually used by BRAND_PARTNER
+//	@Tags			Tasks
+//	@Accept			json
+//	@Produce		json
+//	@Param			page				query		int									false	"Page number"					default(1)
+//	@Param			limit				query		int									false	"Number of items per page"		default(10)
+//	@Param			milestone_id		query		string								false	"Filter by milestone ID"		format(uuid)
+//	@Param			campaign_id			query		string								false	"Filter by campaign ID"			format(uuid)
+//	@Param			deadline_from_date	query		string								false	"Filter by deadline from date"	format(date-time)
+//	@Param			deadline_to_date	query		string								false	"Filter by deadline to date"	format(date-time)
+//	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date-time)
+//	@Param			updated_to_date		query		string								false	"Filter by updated to date"		format(date-time)
+//	@Param			status				query		string								false	"Filter by task status"			Enums(TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
+//	@Param			type				query		string								false	"Filter by task type"			Enums(PRODUCT, CONTENT, EVENT, OTHER)
+//	@Param			sort_by				query		string								false	"Field to sort by"
+//	@Param			sort_order			query		string								false	"Sort order (asc or desc)"
+//	@Success		200					{object}	responses.PaginationTaskResponse	"Tasks retrieved successfully"
+//	@Failure		400					{object}	responses.APIResponse				"Invalid query parameters"
+//	@Failure		500					{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/tasks/contract/{contract_id} [get]
+func (h *TaskHandler) GetTasksByContractID(c *gin.Context) {
+	contractID, err := extractParamID(c, "contract_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid contract ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	var filterReq requests.TaskFilterRequest
+	if err = c.ShouldBindQuery(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err = h.validator.Struct(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+	filterReq.ContractID = utils.PtrOrNil(contractID.String())
+
+	var taskResponses []responses.TaskListResponse
+	var total int64
+	taskResponses, total, err = h.taskService.GetTaskByFilter(c.Request.Context(), &filterReq)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get tasks: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Tasks retrieved successfully",
+		http.StatusOK,
+		taskResponses,
+		responses.Pagination{
+			Page:  filterReq.Page,
+			Limit: filterReq.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+
 }

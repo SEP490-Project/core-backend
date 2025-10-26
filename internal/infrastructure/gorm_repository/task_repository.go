@@ -30,6 +30,12 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 		if filter.MilestoneID != nil {
 			db = db.Where("m.id = ?", *filter.MilestoneID)
 		}
+		if filter.CampaignID != nil {
+			db = db.Where("c.id = ?", *filter.CampaignID)
+		}
+		if filter.ContractID != nil {
+			db = db.Where("c.contract_id = ?", *filter.ContractID)
+		}
 		if filter.DeadlineFromDate != nil {
 			db = db.Where("tasks.deadline >= ?", *filter.DeadlineFromDate)
 		}
@@ -37,10 +43,10 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			db = db.Where("tasks.deadline <= ?", *filter.DeadlineToDate)
 		}
 		if filter.UpdatedFromDate != nil {
-			db = db.Where("tasks.updated_at >= ?", *filter.UpdatedFromDate)
+			db = db.Where("tasks.updated_at >= ? or tasks.created_at >= ?", *filter.UpdatedFromDate, *filter.UpdatedFromDate)
 		}
 		if filter.UpdatedToDate != nil {
-			db = db.Where("tasks.updated_at <= ?", *filter.UpdatedToDate)
+			db = db.Where("tasks.updated_at <= ? or tasks.created_at <= ?", *filter.UpdatedToDate, *filter.UpdatedToDate)
 		}
 		if filter.Status != nil {
 			db = db.Where("tasks.status = ?", *filter.Status)
@@ -94,7 +100,10 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 		return []dtos.TaskListDTO{}, 0, findQuery.Error
 	}
 
-	countQuery := r.db.WithContext(ctx).Model(new(model.Task))
+	countQuery := r.db.WithContext(ctx).Model(new(model.Task)).
+		Joins("LEFT JOIN users AS a ON tasks.assigned_to = a.id").
+		Joins("LEFT JOIN milestones AS m ON tasks.milestone_id = m.id").
+		Joins("LEFT JOIN campaigns AS c ON m.campaign_id = c.id")
 	countQuery = filterQuery(countQuery)
 	if err := countQuery.Count(&total).Error; err != nil {
 		return []dtos.TaskListDTO{}, 0, err
