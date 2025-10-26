@@ -377,6 +377,87 @@ func (s *UserService) UpdateProfile(
 	return response.ToUserResponse(user), nil
 }
 
+// GetPreferences retrieves notification preferences for a user
+// Returns default enabled preferences if none exist
+func (s *UserService) GetPreferences(ctx context.Context, userID uuid.UUID) (*responses.UserNotificationPreferenceResponse, error) {
+	user, err := s.userRepository.GetByID(ctx, userID, nil)
+	// If not found, return default enabled preferences
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			zap.L().Debug("No preferences found for user, returning defaults",
+				zap.String("user_id", userID.String()))
+			return &responses.UserNotificationPreferenceResponse{
+				ID:           userID.String(),
+				EmailEnabled: true, // Default: enabled
+				PushEnabled:  true, // Default: enabled
+			}, nil
+		}
+		zap.L().Error("Failed to retrieve notification preferences",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, errors.New("failed to retrieve notification preferences")
+	}
+
+	return responses.UserNotificationPreferenceResponse{}.ToResponse(user), nil
+}
+
+// UpdatePreferences updates notification preferences for a user
+// Creates preferences if they don't exist
+func (s *UserService) UpdatePreferences(
+	ctx context.Context,
+	userID uuid.UUID,
+	req *requests.UserNotificationPreferenceRequest,
+) (*responses.UserNotificationPreferenceResponse, error) {
+	// Try to find existingUser preferences
+	existingUser, err := s.userRepository.GetByID(ctx, userID, nil)
+	// If not found, create new preferences
+	if err != nil {
+		zap.L().Error("Failed to retrieve notification preferences",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, errors.New("failed to retrieve notification preferences")
+	}
+
+	// Update existing preferences
+	if req.EmailEnabled != nil {
+		existingUser.EmailEnabled = *req.EmailEnabled
+	}
+	if req.PushEnabled != nil {
+		existingUser.PushEnabled = *req.PushEnabled
+	}
+
+	if err := s.userRepository.Update(ctx, existingUser); err != nil {
+		zap.L().Error("Failed to update notification preferences",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return nil, errors.New("failed to update notification preferences")
+	}
+
+	zap.L().Info("Updated notification preferences",
+		zap.String("user_id", userID.String()),
+		zap.Bool("email_enabled", existingUser.EmailEnabled),
+		zap.Bool("push_enabled", existingUser.PushEnabled))
+
+	return responses.UserNotificationPreferenceResponse{}.ToResponse(existingUser), nil
+}
+
+// GetOrCreateDefault gets existing preferences or creates default ones
+// Used internally by notification consumers
+// Returns (emailEnabled, pushEnabled, error)
+func (s *UserService) GetOrCreateDefault(ctx context.Context, userID uuid.UUID) (bool, bool, error) {
+	// Try to find existing preferences
+	pref, err := s.userRepository.GetByID(ctx, userID, nil)
+	// If not found, return defaults (both enabled)
+	if err != nil {
+		zap.L().Error("Failed to retrieve notification preferences",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return false, false, errors.New("failed to retrieve notification preferences")
+	}
+
+	return pref.EmailEnabled, pref.PushEnabled, nil
+}
+
 func NewUserService(userRepository irepository.GenericRepository[model.User]) iservice.UserService {
 	return &UserService{
 		userRepository: userRepository,

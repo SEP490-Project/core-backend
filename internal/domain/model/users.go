@@ -20,6 +20,8 @@ type User struct {
 	DateOfBirth  *time.Time     `json:"date_of_birth" gorm:"type:date;column:date_of_birth"`
 	Role         enum.UserRole  `json:"role" gorm:"type:varchar(50);column:role;not null;check:role IN ('ADMIN', 'MARKETING_STAFF', 'CONTENT_STAFF', 'SALES_STAFF', 'CUSTOMER', 'BRAND_PARTNER')"`
 	AvatarURL    *string        `json:"avatar_url" gorm:"type:text;column:avatar_url"`
+	EmailEnabled bool           `gorm:"default:true;not null" json:"email_enabled"`
+	PushEnabled  bool           `gorm:"default:true;not null" json:"push_enabled"`
 	IsActive     bool           `json:"is_active" gorm:"column:is_active;not null"`
 	CreatedAt    *time.Time     `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    *time.Time     `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
@@ -31,6 +33,8 @@ type User struct {
 	Sessions        []LoggedSession   `json:"sessions" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	ShippingAddress []ShippingAddress `json:"shipping_addresses" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Brand           *Brand            `json:"brand" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	DeviceTokens    []DeviceToken     `json:"device_tokens" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Notifications   []Notification    `json:"notifications" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) error {

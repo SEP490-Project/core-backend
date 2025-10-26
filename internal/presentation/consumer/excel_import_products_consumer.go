@@ -12,13 +12,13 @@ import (
 
 // ExcelImportProductsMessage represents the message structure for Excel import
 type ExcelImportProductsMessage struct {
-	ImportID uuid.UUID              `json:"import_id"`
-	FileURL  string                 `json:"file_url"`
-	FileName string                 `json:"file_name"`
-	UserID   uuid.UUID              `json:"user_id"`
-	Username string                 `json:"username"`
-	Products []ExcelProductData     `json:"products,omitempty"` // Optional: pre-parsed products
-	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: additional metadata
+	ImportID uuid.UUID          `json:"import_id"`
+	FileURL  string             `json:"file_url"`
+	FileName string             `json:"file_name"`
+	UserID   uuid.UUID          `json:"user_id"`
+	Username string             `json:"username"`
+	Products []ExcelProductData `json:"products,omitempty"` // Optional: pre-parsed products
+	Metadata map[string]any     `json:"metadata,omitempty"` // Optional: additional metadata
 }
 
 // ExcelProductData represents a single product from Excel

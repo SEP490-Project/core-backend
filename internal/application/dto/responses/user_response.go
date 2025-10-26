@@ -66,6 +66,30 @@ func (ur *UserResponse) ToUserResponse(model *model.User) (userResponse *UserRes
 
 // endregion
 
+// region: ======= Shipping Address Response =======
+
+// UserNotificationPreferenceResponse represents user notification preference in responses
+type UserNotificationPreferenceResponse struct {
+	ID           string `json:"id"`
+	EmailEnabled bool   `json:"email_enabled"`
+	PushEnabled  bool   `json:"push_enabled"`
+	CreatedAt    string `json:"created_at,omitempty"`
+	UpdatedAt    string `json:"updated_at,omitempty"`
+}
+
+// ToResponse converts User model to UserNotificationPreferenceResponse
+func (UserNotificationPreferenceResponse) ToResponse(model *model.User) *UserNotificationPreferenceResponse {
+	return &UserNotificationPreferenceResponse{
+		ID:           model.ID.String(),
+		EmailEnabled: model.EmailEnabled,
+		PushEnabled:  model.PushEnabled,
+		CreatedAt:    utils.FormatLocalTime(model.CreatedAt, ""),
+		UpdatedAt:    utils.FormatLocalTime(model.UpdatedAt, ""),
+	}
+}
+
+// endregion
+
 // region: ======= User List Response =======
 
 type UserListResponse struct {

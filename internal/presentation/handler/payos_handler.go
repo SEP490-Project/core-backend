@@ -56,7 +56,7 @@ func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 //	@Tags			payos
 //	@Produce		json
 //	@Param			orderCode	path		string	true	"Order Code"
-//	@Success		200			{object}	map[string]interface{}
+//	@Success		200			{object}	map[string]any
 //	@Failure		400			{object}	map[string]string
 //	@Router			/api/v1/payos/payment/{orderCode} [get]
 func (h *PayOsHandler) InspectPayOSOrder(c *gin.Context) {
@@ -70,7 +70,7 @@ func (h *PayOsHandler) InspectPayOSOrder(c *gin.Context) {
 }
 
 //func (h *PayOsHandler) HandlePayOsWebhook(c *gin.Context) {
-//	var payload map[string]interface{}
+//	var payload map[string]any
 //	if err := c.ShouldBindJSON(&payload); err != nil {
 //		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 //		return

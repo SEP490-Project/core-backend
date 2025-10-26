@@ -99,29 +99,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
-		// ---------- USERS ----------
-		userHandler := r.handlerRegistry.UserHandler
-		userGroup := v1.Group("/users")
-		userGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All user routes require authentication
-		{
-			// Current user profile routes (accessible by all authenticated users)
-			userGroup.GET("/profile", userHandler.GetProfile)
-			userGroup.PUT("/profile", userHandler.UpdateProfile)
-
-			// Admin only routes
-			adminUserGroup := userGroup.Group("")
-			adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
-			{
-				adminUserGroup.GET("", userHandler.GetUsers)
-				adminUserGroup.GET("/:id", userHandler.GetUserByID)
-				adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
-				adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
-				adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
-				adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
-			}
-		}
-
 		// ---------- Routes Setups from functions ----------
+		r.setupUserRoutes(v1)
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
@@ -131,6 +110,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
 		r.SetupTaskRoutes(v1)
+		r.SetupDeviceTokenRoutes(v1)
+		r.SetupNotificationRoutes(v1)
 
 		// ---------- PRODUCTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -255,6 +236,36 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
+}
+
+// setupUserRoutes sets up routes for user management
+func (r *Router) setupUserRoutes(group *gin.RouterGroup) {
+	userHandler := r.handlerRegistry.UserHandler
+	userGroup := group.Group("/users")
+	userGroup.Use(r.middlewareRegistry.Auth.RequireAuth()) // All user routes require authentication
+	{
+		// Current user profile routes (accessible by all authenticated users)
+		userGroup.GET("/profile", userHandler.GetProfile)
+		userGroup.PUT("/profile", userHandler.UpdateProfile)
+
+		// Admin only routes
+		adminUserGroup := userGroup.Group("")
+		adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminUserGroup.GET("", userHandler.GetUsers)
+			adminUserGroup.GET("/:id", userHandler.GetUserByID)
+			adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
+			adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)
+			adminUserGroup.DELETE("/:id", userHandler.DeleteUser)
+			adminUserGroup.PATCH("/:id/activate-brand", userHandler.ActivateBrandUser)
+		}
+
+		preferenceGroup := userGroup.Group("/notification-preferences")
+		{
+			preferenceGroup.GET("", userHandler.GetUserPreference)
+			preferenceGroup.PUT("", userHandler.UpdateUserPreferences)
+		}
+	}
 }
 
 // setupBrandRoutes sets up routes for brand management
@@ -440,6 +451,31 @@ func (r *Router) SetupTaskRoutes(group *gin.RouterGroup) {
 		taskGroup.GET("/:task_id", taskHandler.GetTaskByID)
 		taskGroup.GET("/:task_id/products", productHandler.GetProductsByTask)
 		taskGroup.PATCH("/:id/state", stateHandler.UpdateTaskState)
+	}
+}
+
+func (r *Router) SetupDeviceTokenRoutes(group *gin.RouterGroup) {
+	deviceTokenHandler := r.handlerRegistry.DeviceTokenHandler
+	deviceTokenGroup := group.Group("/device-tokens")
+	deviceTokenGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		deviceTokenGroup.POST("", deviceTokenHandler.Register)
+		deviceTokenGroup.GET("", deviceTokenHandler.List)
+		deviceTokenGroup.PUT("/:id", deviceTokenHandler.Update)
+		deviceTokenGroup.DELETE("/:id", deviceTokenHandler.Delete)
+		deviceTokenGroup.DELETE("", deviceTokenHandler.DeleteAll)
+	}
+}
+
+func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
+	notificationHandler := r.handlerRegistry.NotificationHandler
+	notificationGroup := group.Group("/notifications")
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole("ADMIN"))
+	{
+		notificationGroup.GET("", notificationHandler.List)
+		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
+		notificationGroup.GET("/:id", notificationHandler.GetByID)
 	}
 }
 

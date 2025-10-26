@@ -50,6 +50,10 @@ type UnitOfWork interface {
 	OrderItem() GenericRepository[model.OrderItem]
 	PaymentTransaction() GenericRepository[model.PaymentTransaction]
 
+	//Notifications
+	Notifications() NotificationRepository
+	DeviceTokens() DeviceTokenRepository
+
 	// DB Get raw gorm instance
 	DB() *gorm.DB
 }

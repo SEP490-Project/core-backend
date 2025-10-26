@@ -1,9 +1,13 @@
 package requests
 
+import "core-backend/internal/domain/enum"
+
 // LoginRequest represents login request data
 type LoginRequest struct {
-	LoginIdentifier string `json:"login_identifier" validate:"required" example:"abc@gmail.com"`
-	Password        string `json:"password" validate:"required,min=8" example:"12345678"`
+	LoginIdentifier string             `json:"login_identifier" validate:"required" example:"abc@gmail.com"`
+	Password        string             `json:"password" validate:"required,min=8" example:"12345678"`
+	DeviceToken     *string            `json:"device_token,omitempty" validate:"omitempty,min=10"`
+	Platform        *enum.PlatformType `json:"platform,omitempty" validate:"omitempty,oneof=IOS ANDROID"`
 }
 
 // RefreshTokenRequest represents refresh token request data

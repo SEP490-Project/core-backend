@@ -33,6 +33,8 @@ type ApplicationRegistry struct {
 	ContentService         iservice.ContentService
 	BlogService            iservice.BlogService
 	TaskService            iservice.TaskService
+	DeviceTokenService     iservice.DeviceTokenService
+	NotificationService    iservice.NotificationService
 }
 
 func NewApplicationRegistry(
@@ -48,7 +50,13 @@ func NewApplicationRegistry(
 		InfrastructureRegistry: infrastructureRegistry,
 		JWTService:             jwtService,
 		FileService:            infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
-		AuthService:            service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository),
+		DeviceTokenService:     service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
+		AuthService: service.NewAuthService(
+			jwtService,
+			databaseRegistry.UserRepository,
+			databaseRegistry.LoggedSessionRepository,
+			service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
+		),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:         service.NewProductService(databaseRegistry),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
@@ -74,6 +82,7 @@ func NewApplicationRegistry(
 			databaseRegistry.BlogRepository,
 			databaseRegistry.ContentRepository,
 		),
-		TaskService: service.NewTaskService(databaseRegistry.TaskRepository),
+		TaskService:         service.NewTaskService(databaseRegistry.TaskRepository),
+		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
 	}
 }

@@ -35,7 +35,7 @@ func NewOrderHandler(orderSvc iservice.OrderService, uow irepository.UnitOfWork)
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.OrderRequest	true	"Order payload"
-//	@Success		201		{object}	map[string]interface{}
+//	@Success		201		{object}	map[string]any
 //	@Failure		400		{object}	map[string]string
 //	@Failure		401		{object}	map[string]string
 //	@Failure		500		{object}	map[string]string
@@ -168,7 +168,7 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			id	path		string	true	"Order ID (UUID)"
-//	@Success		200	{object}	map[string]interface{}
+//	@Success		200	{object}	map[string]any
 //	@Failure		400	{object}	map[string]string
 //	@Failure		401	{object}	map[string]string
 //	@Failure		404	{object}	map[string]string
