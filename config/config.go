@@ -30,6 +30,9 @@ type AppConfig struct {
 	S3StreamingBucket S3StreamingBucketConfig `mapstructure:"aws_s3_streaming_bucket"`
 	PayOS             PayOSConfig             `mapstructure:"payos"`
 	AdminConfig       AdminConfig             `mapstructure:"admin_config"`
+	GmailSMTP         EmailConfig             `mapstructure:"gmail_smtp"`
+	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
+	Notification      NotificationConfig      `mapstructure:"notification"`
 }
 
 type ServerConfig struct {
@@ -151,6 +154,38 @@ type PayOSConfig struct {
 	FrontendReturnURL string `mapstructure:"frontend_return_url"`
 }
 
+type EmailConfig struct {
+	Host      string `mapstructure:"host"`
+	Port      int    `mapstructure:"port"`
+	Username  string `mapstructure:"username"`
+	Password  string `mapstructure:"password"`
+	FromName  string `mapstructure:"from_name"`
+	FromEmail string `mapstructure:"from_email"`
+}
+
+type FirebaseFCMConfig struct {
+	ServiceAccountPath string `mapstructure:"service_account_path"`
+	ProjectID          string `mapstructure:"project_id"`
+}
+
+type NotificationConfig struct {
+	TemplateDir         string                  `mapstructure:"template_dir"`
+	MaxRetries          int                     `mapstructure:"max_retries"`
+	RetryDelays         []int                   `mapstructure:"retry_delays"`
+	RateLimits          NotificationRateLimits  `mapstructure:"rate_limits"`
+	ConsumerConcurrency NotificationConcurrency `mapstructure:"consumer_concurrency"`
+}
+
+type NotificationRateLimits struct {
+	EmailPerMinute int `mapstructure:"email_per_minute"`
+	PushPerMinute  int `mapstructure:"push_per_minute"`
+}
+
+type NotificationConcurrency struct {
+	Email int `mapstructure:"email"`
+	Push  int `mapstructure:"push"`
+}
+
 // endregion
 
 var (
@@ -179,6 +214,11 @@ func LoadConfig(configPath string) error {
 	viper.BindEnv("aws_s3_bucket.secret_key", "AWS_S3_BUCKET_SECRET_KEY")
 	viper.BindEnv("aws_s3_streaming_bucket.access_key", "AWS_S3_STREAMING_BUCKET_ACCESS_KEY")
 	viper.BindEnv("aws_s3_streaming_bucket.secret_key", "AWS_S3_STREAMING_BUCKET_SECRET_KEY")
+	viper.BindEnv("gmail_smtp.username", "GMAIL_SMTP_USERNAME")
+	viper.BindEnv("gmail_smtp.password", "GMAIL_APP_PASSWORD")
+	viper.BindEnv("gmail_smtp.from_email", "GMAIL_SMTP_FROM_EMAIL")
+	viper.BindEnv("firebase_fcm.service_account_path", "FIREBASE_SERVICE_ACCOUNT_PATH")
+	viper.BindEnv("firebase_fcm.project_id", "FIREBASE_PROJECT_ID")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 

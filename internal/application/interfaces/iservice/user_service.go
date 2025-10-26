@@ -24,4 +24,16 @@ type UserService interface {
 	UpdateProfile(ctx context.Context, userID uuid.UUID, updateRequset *requests.UpdateProfileRequest, uow irepository.UnitOfWork) (*responses.UserResponse, error)
 	// ActivateBrandUser activates a user associated with a brand.
 	ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error
+
+	// GetPreferences retrieves notification preferences for a user
+	// Returns default enabled preferences if none exist
+	GetPreferences(ctx context.Context, userID uuid.UUID) (*responses.UserNotificationPreferenceResponse, error)
+
+	// UpdatePreferences updates notification preferences for a user
+	// Creates preferences if they don't exist
+	UpdatePreferences(ctx context.Context, userID uuid.UUID, req *requests.UserNotificationPreferenceRequest) (*responses.UserNotificationPreferenceResponse, error)
+
+	// GetOrCreateDefault gets existing preferences or creates default ones
+	// Used internally by notification consumers
+	GetOrCreateDefault(ctx context.Context, userID uuid.UUID) (emailEnabled bool, pushEnabled bool, err error)
 }

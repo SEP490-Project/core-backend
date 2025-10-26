@@ -48,6 +48,10 @@ type unitOfWork struct {
 	orderRepository              irepository.GenericRepository[model.Order]
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
+
+	//Notifications
+	notificationRepository irepository.NotificationRepository
+	deviceTokenRepository  irepository.DeviceTokenRepository
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -107,6 +111,10 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.orderRepository = gormrepository.NewGenericRepository[model.Order](tx)
 	txUow.orderItemRepository = gormrepository.NewGenericRepository[model.OrderItem](tx)
 	txUow.paymentTransactionRepository = gormrepository.NewGenericRepository[model.PaymentTransaction](tx)
+
+	//Notifications
+	txUow.notificationRepository = gormrepository.NewNotificationRepository(tx)
+	txUow.deviceTokenRepository = gormrepository.NewDeviceTokenRepository(tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return txUow
@@ -260,6 +268,14 @@ func (u *unitOfWork) ContentChannels() irepository.GenericRepository[model.Conte
 
 func (u *unitOfWork) Blogs() irepository.GenericRepository[model.Blog] {
 	return u.blogRepository
+}
+
+func (u *unitOfWork) Notifications() irepository.NotificationRepository {
+	return u.notificationRepository
+}
+
+func (u *unitOfWork) DeviceTokens() irepository.DeviceTokenRepository {
+	return u.deviceTokenRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

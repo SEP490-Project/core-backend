@@ -57,14 +57,6 @@ go get github.com/redis/go-redis/v9
   ```bash
   swag init -g ./cmd/server/main.go -o ./docs
   ```
-- Because for some reasons of the swaggo packages, when the `docs/docs.go` file is generated, it will have these two lines about Delimiters, which will cause the build process to fail. Delete those two lines before running the application.
-  ```go
-  var SwaggerInfo = &swag.Spec{
-      ...
-  	LeftDelim:        "{{",
-  	RightDelim:       "}}",
-  }
-  ```
 - Finally, run the applicaiton through:
   ```bash
   go run ./cmd/server

@@ -29,14 +29,22 @@ func NewHealthHandler(infrastructureRegistry *infrastructure.InfrastructureRegis
 //	@Failure		503	{object}	responses.APIResponse	"Service is unhealthy"
 //	@Router			/health [get]
 func (h *HealthHandler) HealthCheck(c *gin.Context) {
-	healthStatus := h.infrastructureRegistry.IsHealthy()
+	// Get detailed health status from health monitor
+	healthStatus := h.infrastructureRegistry.HealthMonitor.CheckAllServices(c.Request.Context())
 
 	// Check if any critical service is down
 	allHealthy := true
-	for _, healthy := range healthStatus {
-		if !healthy {
+	services := make(map[string]any)
+
+	for serviceName, serviceHealth := range healthStatus {
+		services[serviceName] = map[string]any{
+			"healthy":    serviceHealth.IsHealthy,
+			"last_check": serviceHealth.LastCheckTime,
+			"error":      getErrorMessage(serviceHealth.LastError),
+			"details":    serviceHealth.Details,
+		}
+		if !serviceHealth.IsHealthy {
 			allHealthy = false
-			break
 		}
 	}
 
@@ -50,11 +58,19 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 
 	healthData := map[string]any{
 		"status":   status,
-		"services": healthStatus,
+		"services": services,
 	}
 
 	response := responses.SuccessResponse("Health check completed", &statusCode, healthData)
 	c.JSON(statusCode, response)
+}
+
+// getErrorMessage safely extracts error message
+func getErrorMessage(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 // ReadinessCheck godoc
@@ -68,10 +84,12 @@ func (h *HealthHandler) HealthCheck(c *gin.Context) {
 //	@Failure		503	{object}	responses.APIResponse	"Service is not ready"
 //	@Router			/health/ready [get]
 func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
-	healthStatus := h.infrastructureRegistry.IsHealthy()
+	// Get detailed health status from health monitor
+	healthStatus := h.infrastructureRegistry.HealthMonitor.CheckAllServices(c.Request.Context())
 
 	// For readiness, we only care about critical services like database
-	ready := healthStatus["database"]
+	dbHealth, dbExists := healthStatus["database"]
+	ready := dbExists && dbHealth.IsHealthy
 
 	status := "ready"
 	statusCode := http.StatusOK
@@ -82,8 +100,13 @@ func (h *HealthHandler) ReadinessCheck(c *gin.Context) {
 	}
 
 	readinessData := map[string]any{
-		"status":   status,
-		"database": healthStatus["database"],
+		"status": status,
+		"database": map[string]any{
+			"healthy":    dbHealth.IsHealthy,
+			"last_check": dbHealth.LastCheckTime,
+			"error":      getErrorMessage(dbHealth.LastError),
+			"details":    dbHealth.Details,
+		},
 	}
 
 	response := responses.SuccessResponse("Readiness check completed", &statusCode, readinessData)
