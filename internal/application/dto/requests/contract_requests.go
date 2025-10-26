@@ -640,6 +640,9 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 			for _, v := range costBreakDownValues {
 				costBreakDownSum += v
 			}
+			if costBreakDownSum != financialTerms.TotalCost {
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.cost_breakdown", StructName: "CostBreakdown", Tag: "financialtermscostbreakdown", Param: "", Error: errors.New("invalid financial_terms.cost_breakdown: total cost must equal financial_terms.total_cost")}
+			}
 
 			// Validate if the total Schedules percentage equals too 100% and Amount are calculate correctly
 			sortedFinancialSchedules := financialTerms.Schedules
@@ -674,9 +677,6 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 			if isAmountExisted && int(math.Abs(float64(financialTerms.TotalCost-totalCalculatedAmount))) != errorValue {
 				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.total_cost", StructName: "TotalCost", Tag: "financialtermstotalcost", Param: "", Error: errors.New("invalid financial_terms.total_cost: total cost must be correctly calculated based on financial_terms.schedules.amount")}
 			}
-			if costBreakDownSum != financialTerms.TotalCost {
-				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.cost_breakdown", StructName: "CostBreakdown", Tag: "financialtermscostbreakdown", Param: "", Error: errors.New("invalid financial_terms.cost_breakdown: total cost must equal financial_terms.total_cost")}
-			}
 
 		case enum.ContractTypeCoProduce:
 			var financialTerms dtos.CoProducingFinancialTerms
@@ -695,6 +695,16 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 
 			if contract.DepositAmount == nil || *contract.DepositAmount <= 0 {
 				errorsChan <- ValidateError{CurrentValue: contract.DepositAmount, JSONName: "deposit_amount", StructName: "DepositAmount", Tag: "depositamount", Param: "", Error: errors.New("deposit_amount must be provided and greater than 0 for Co-Producing contracts")}
+			}
+
+			// Validate TotalBreakdown equals TotalAmount
+			costBreakDownValues := utils.GetValues(financialTerms.CostBreakdown)
+			costBreakDownSum := 0
+			for _, v := range costBreakDownValues {
+				costBreakDownSum += v
+			}
+			if costBreakDownSum != financialTerms.TotalCost {
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.cost_breakdown", StructName: "CostBreakdown", Tag: "financialtermscostbreakdown", Param: "", Error: errors.New("invalid financial_terms.cost_breakdown: total cost must equal financial_terms.total_cost")}
 			}
 
 			// Validate the ProfitDistributionDate of the first and last Distribution Cycle are within the contract period
@@ -813,6 +823,16 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 
 			if err = sl.Validator().Struct(financialTerms); err != nil {
 				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms", StructName: "FinancialTerms", Tag: "financialterms_affiliate", Param: "", Error: err}
+			}
+
+			// Validate TotalBreakdown equals TotalAmount
+			costBreakDownValues := utils.GetValues(financialTerms.CostBreakdown)
+			costBreakDownSum := 0
+			for _, v := range costBreakDownValues {
+				costBreakDownSum += v
+			}
+			if costBreakDownSum != financialTerms.TotalCost {
+				errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.cost_breakdown", StructName: "CostBreakdown", Tag: "financialtermscostbreakdown", Param: "", Error: errors.New("invalid financial_terms.cost_breakdown: total cost must equal financial_terms.total_cost")}
 			}
 
 			if contract.DepositAmount == nil || *contract.DepositAmount <= 0 {
