@@ -542,16 +542,21 @@ func (r *UpdateContractRequest) ApplyToContract(contract *model.Contract) error 
 
 // endregion
 
+// region: ======= ContractFilterRequest =======
+
 // ContractFilterRequest represents query parameters for filtering contracts
 type ContractFilterRequest struct {
 	PaginationRequest
-	BrandID   *string    `form:"brand_id" json:"brand_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Type      *string    `form:"type" json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
-	Status    *string    `form:"status" json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
-	Keyword   *string    `form:"keyword" json:"keyword" validate:"omitempty,max=255" example:"contract title"`
-	StartDate *time.Time `form:"start_date" json:"start_date" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
-	EndDate   *time.Time `form:"end_date" json:"end_date" validate:"omitempty" example:"2023-12-31T23:59:59Z"`
+	BrandID    *string    `form:"brand_id" json:"brand_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Type       *string    `form:"type" json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
+	Status     *string    `form:"status" json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
+	Keyword    *string    `form:"keyword" json:"keyword" validate:"omitempty,max=255" example:"contract title"`
+	StartDate  *time.Time `form:"start_date" json:"start_date" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
+	EndDate    *time.Time `form:"end_date" json:"end_date" validate:"omitempty" example:"2023-12-31T23:59:59Z"`
+	NoCampaign *bool      `form:"no_campaign" json:"no_campaign" validate:"omitempty" example:"true"`
 }
+
+// endregion
 
 // region: ======== Custom Validator Functions =======
 
