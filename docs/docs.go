@@ -1629,7 +1629,7 @@ const docTemplate = `{
             }
         },
         "/api/v1/categories/{id}": {
-            "patch": {
+            "delete": {
                 "security": [
                     {
                         "BearerAuth": []
@@ -4484,6 +4484,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/location/districts/{province-id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch all districts\tand front-end have to filter himself",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Get list of districts from a province",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Province ID",
+                        "name": "province-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provinces response",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DistrictResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/provinces": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch all provinces\tand front-end have to filter himself",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Get list of provinces from GiaoHangNhanh API",
+                "responses": {
+                    "200": {
+                        "description": "Provinces response",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProvinceResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/wards/{district-id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch all districts\tand front-end have to filter himself",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Get list of districts from a province",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "District ID",
+                        "name": "district-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ward response",
+                        "schema": {
+                            "$ref": "#/definitions/responses.WardResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/milestones/{id}/state": {
             "patch": {
                 "security": [
@@ -5106,6 +5208,7 @@ const docTemplate = `{
                     "Products"
                 ],
                 "summary": "Get All Products",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "integer",
@@ -5209,10 +5312,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created product",
+                        "description": "Created limited product",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/responses.ProductResponseV2"
                         }
                     },
                     "400": {
@@ -5355,7 +5457,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/responses.ProductResponse"
+                            "$ref": "#/definitions/responses.ProductResponseV2"
                         }
                     },
                     "400": {
@@ -5411,7 +5513,7 @@ const docTemplate = `{
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get All Products",
+                "summary": "Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial",
                 "parameters": [
                     {
                         "type": "integer",
@@ -5440,6 +5542,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "STANDARD",
+                            "LIMITED",
+                            ""
+                        ],
                         "type": "string",
                         "description": "Filter type of products",
                         "name": "type",
@@ -5448,7 +5555,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Products retrieved successfully",
+                        "description": "Products view for Others",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -5947,6 +6054,67 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new task.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Create Task",
+                "parameters": [
+                    {
+                        "description": "Task creation payload",
+                        "name": "task",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/tasks/contract/{contract_id}": {
@@ -6240,76 +6408,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/tasks/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "State Transfer"
-                ],
-                "summary": "Update Task State",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Task ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Target state payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Task state updated",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Task not found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Invalid state transition",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/tasks/{task_id}": {
             "get": {
                 "security": [
@@ -6365,6 +6463,187 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing task.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Update Task by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Task update payload",
+                        "name": "task",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.TaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid updated_by_id",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a task by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Delete Task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid task ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}/assign/{assigned_to_id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Assign a task to a user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Tasks"
+                ],
+                "summary": "Assign Task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Assigned to user ID",
+                        "name": "assigned_to_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.TaskResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid updated_by_id",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6474,6 +6753,76 @@ const docTemplate = `{
                                     "type": "string"
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/tasks/{task_id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "State Transfer"
+                ],
+                "summary": "Update Task State",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Task ID (UUID)",
+                        "name": "task_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target state payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Task state updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -7289,80 +7638,6 @@ const docTemplate = `{
                                     "type": "string"
                                 }
                             }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/variant-attributes/admin": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get paginated list of variant attributes for administrative usage. Returns full model details.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Variant-Attributes"
-                ],
-                "summary": "List Variant Attributes (Admin)",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Items per page",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Search term for name",
-                        "name": "search",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.VariantAttributeResponse"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "$ref": "#/definitions/responses.Pagination"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -8386,7 +8661,6 @@ const docTemplate = `{
                 "category_id",
                 "limited_attribute",
                 "name",
-                "price",
                 "task_id"
             ],
             "properties": {
@@ -8411,11 +8685,6 @@ const docTemplate = `{
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
-                },
-                "price": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 99.99
                 },
                 "task_id": {
                     "type": "string",
@@ -8470,8 +8739,7 @@ const docTemplate = `{
             "required": [
                 "brand_id",
                 "category_id",
-                "name",
-                "price"
+                "name"
             ],
             "properties": {
                 "brand_id": {
@@ -8488,16 +8756,10 @@ const docTemplate = `{
                     "example": "Product description"
                 },
                 "name": {
-                    "description": "TaskID      uuid.UUID ` + "`" + `json:\"task_id\" validate:\"required,uuid\" example:\"660e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Product Name"
-                },
-                "price": {
-                    "type": "number",
-                    "minimum": 0,
-                    "example": 99.99
                 }
             }
         },
@@ -8535,6 +8797,64 @@ const docTemplate = `{
                         "OTHER"
                     ],
                     "example": "PRODUCT"
+                }
+            }
+        },
+        "requests.CreateTaskRequest": {
+            "type": "object",
+            "required": [
+                "deadline",
+                "description",
+                "milestone_id",
+                "name",
+                "status",
+                "type"
+            ],
+            "properties": {
+                "assigned_to": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-10-15 17:00:00"
+                },
+                "description": {
+                    "description": "JSON format",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Design Social Media Posts"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "CANCELLED",
+                        "RECAP",
+                        "DONE"
+                    ],
+                    "example": "TODO"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PRODUCT",
+                        "CONTENT",
+                        "EVENT",
+                        "OTHER"
+                    ],
+                    "example": "CONTENT"
                 }
             }
         },
@@ -9229,6 +9549,56 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "new_username"
+                }
+            }
+        },
+        "requests.UpdateTaskRequest": {
+            "type": "object",
+            "properties": {
+                "assigned_to": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-10-15 17:00:00"
+                },
+                "description": {
+                    "description": "JSON format",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "milestone_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Design Social Media Posts"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "TODO",
+                        "IN_PROGRESS",
+                        "CANCELLED",
+                        "RECAP",
+                        "DONE"
+                    ],
+                    "example": "TODO"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PRODUCT",
+                        "CONTENT",
+                        "EVENT",
+                        "OTHER"
+                    ],
+                    "example": "CONTENT"
                 }
             }
         },
@@ -10229,6 +10599,80 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.DistrictResponse": {
+            "type": "object",
+            "properties": {
+                "CanUpdateCOD": {
+                    "type": "boolean"
+                },
+                "Code": {
+                    "type": "string"
+                },
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "DeliverType": {
+                    "type": "integer"
+                },
+                "DistrictID": {
+                    "type": "integer"
+                },
+                "DistrictName": {
+                    "type": "string"
+                },
+                "GovernmentCode": {
+                    "type": "string"
+                },
+                "IsEnable": {
+                    "type": "integer"
+                },
+                "NameExtension": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "OnDates": {},
+                "PickType": {
+                    "type": "integer"
+                },
+                "ProvinceID": {
+                    "type": "integer"
+                },
+                "ReasonCode": {
+                    "type": "string"
+                },
+                "ReasonMessage": {
+                    "type": "string"
+                },
+                "Status": {
+                    "type": "integer"
+                },
+                "SupportType": {
+                    "type": "integer"
+                },
+                "Type": {
+                    "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                },
+                "UpdatedBy": {
+                    "type": "integer"
+                },
+                "UpdatedDate": {
+                    "type": "string"
+                },
+                "UpdatedEmployee": {
+                    "type": "integer"
+                },
+                "UpdatedSource": {
+                    "type": "string"
+                },
+                "WhiteListClient": {},
+                "WhiteListDistrict": {}
+            }
+        },
         "responses.LoginResponse": {
             "type": "object",
             "properties": {
@@ -10426,12 +10870,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ingredient": {
+                    "description": "Attribute",
                     "type": "string"
                 },
                 "unit": {
                     "$ref": "#/definitions/enum.AttributeUnit"
                 },
                 "value": {
+                    "description": "Value",
                     "type": "number"
                 }
             }
@@ -10597,6 +11043,9 @@ const docTemplate = `{
                     "description": "FE parse về Date",
                     "type": "string"
                 },
+                "created_by": {
+                    "$ref": "#/definitions/responses.UserListResponse"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -10612,6 +11061,9 @@ const docTemplate = `{
                 "price": {
                     "type": "number"
                 },
+                "status": {
+                    "$ref": "#/definitions/enum.ProductStatus"
+                },
                 "thumbnail_url": {
                     "description": "optional",
                     "type": "array",
@@ -10621,6 +11073,12 @@ const docTemplate = `{
                 },
                 "type": {
                     "$ref": "#/definitions/enum.ProductType"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "$ref": "#/definitions/responses.UserListResponse"
                 },
                 "variants": {
                     "type": "array",
@@ -10700,6 +11158,62 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "uses": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ProvinceResponse": {
+            "type": "object",
+            "properties": {
+                "CanUpdateCOD": {
+                    "type": "boolean"
+                },
+                "Code": {
+                    "type": "string"
+                },
+                "CountryID": {
+                    "type": "integer"
+                },
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "IsEnable": {
+                    "type": "integer"
+                },
+                "NameExtension": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ProvinceID": {
+                    "type": "integer"
+                },
+                "ProvinceName": {
+                    "type": "string"
+                },
+                "RegionCPN": {
+                    "type": "integer"
+                },
+                "RegionID": {
+                    "type": "integer"
+                },
+                "Status": {
+                    "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                },
+                "UpdatedBy": {
+                    "type": "integer"
+                },
+                "UpdatedDate": {
+                    "type": "string"
+                },
+                "UpdatedEmployee": {
+                    "type": "integer"
+                },
+                "UpdatedSource": {
                     "type": "string"
                 }
             }
@@ -11303,6 +11817,75 @@ const docTemplate = `{
                 "price": {
                     "type": "number"
                 }
+            }
+        },
+        "responses.WardResponse": {
+            "type": "object",
+            "properties": {
+                "CanUpdateCOD": {
+                    "type": "boolean"
+                },
+                "Config": {},
+                "CreatedAt": {
+                    "type": "string"
+                },
+                "DeliverType": {
+                    "type": "integer"
+                },
+                "DistrictID": {
+                    "type": "integer"
+                },
+                "GovernmentCode": {
+                    "type": "string"
+                },
+                "IsEnable": {
+                    "type": "integer"
+                },
+                "NameExtension": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "OnDates": {},
+                "PickType": {
+                    "type": "integer"
+                },
+                "ReasonCode": {
+                    "type": "string"
+                },
+                "ReasonMessage": {
+                    "type": "string"
+                },
+                "Status": {
+                    "type": "integer"
+                },
+                "SupportType": {
+                    "type": "integer"
+                },
+                "UpdatedAt": {
+                    "type": "string"
+                },
+                "UpdatedBy": {
+                    "type": "integer"
+                },
+                "UpdatedDate": {
+                    "type": "string"
+                },
+                "UpdatedEmployee": {
+                    "type": "integer"
+                },
+                "UpdatedSource": {
+                    "type": "string"
+                },
+                "WardCode": {
+                    "type": "string"
+                },
+                "WardName": {
+                    "type": "string"
+                },
+                "WhiteListClient": {},
+                "WhiteListWard": {}
             }
         }
     },

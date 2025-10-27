@@ -673,32 +673,15 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id: " + err.Error()})
+		resp := responses.ErrorResponse("invalid product id: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
-	// support both service signatures if available
-	var resp *responses.ProductResponse
-	// try concrete optional method first
-	if svcWithDetail, ok := h.productService.(interface {
-		GetProductDetail(uuid.UUID) (*responses.ProductResponse, error)
-	}); ok {
-		resp, err = svcWithDetail.GetProductDetail(id)
-	} else if svcByID, ok := h.productService.(interface {
-		GetProductByID(string) (*responses.ProductResponse, error)
-	}); ok {
-		resp, err = svcByID.GetProductByID(id.String())
-	} else {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "service does not implement required method"})
-		return
-	}
-
+	resp, err := h.productService.GetProductDetail(id)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "not found") {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		resp := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusInternalServerError, resp)
 		return
 	}
 	c.JSON(http.StatusOK, responses.SuccessResponse("Fetched successful", utils.IntPtr(http.StatusOK), resp))

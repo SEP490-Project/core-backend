@@ -17,7 +17,7 @@ type ProductService interface {
 	GetProductsPagination(limit, offset int, search string, categoryID string, productType string) ([]*responses.ProductResponse, int, error)
 	GetProductsPaginationV2(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2, int, error)
 	GetProductsPaginationV2Partial(limit, offset int, search string, categoryID string, productType string) ([]responses.ProductResponseV2Partial, int, error)
-	GetProductDetail(id uuid.UUID) (*responses.ProductResponse, error)
+	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)
 	GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error)
 	GetTop5NewestProducts() (*responses.ProductResponseTop5Newest, error)
