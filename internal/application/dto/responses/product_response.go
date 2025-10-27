@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 )
 
 /*===========================PRODUCTS Overview=====================================*/
@@ -76,20 +77,64 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 
 /*===========================PRODUCTS DETAIL=====================================*/
 type ProductDetailResponse struct {
-	ID           uuid.UUID                  `json:"id"`
-	BrandID      uuid.UUID                  `json:"brand_id"`
-	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
-	BrandName    string                     `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                       `json:"is_active"`
-	CategoryLv1  string                     `json:"category"`
-	CategoryLv2  string                     `json:"category_lv2"`
-	Description  string                     `json:"description"`
-	Name         string                     `json:"name"`
-	Price        float64                    `json:"price"`
-	Type         enum.ProductType           `json:"type"`
-	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedAt    string                     `json:"created_at"` // FE parse về Date
+	ID           uuid.UUID                `json:"id"`
+	BrandID      uuid.UUID                `json:"brand_id"`
+	BrandLogoURL *string                  `json:"brand_logo_url,omitempty"`
+	BrandName    string                   `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string                `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool                     `json:"is_active"`
+	Category     ProductCategoryResponse  `json:"category"`
+	Description  string                   `json:"description"`
+	Name         string                   `json:"name"`
+	Price        float64                  `json:"price"`
+	Type         enum.ProductType         `json:"type"`
+	Variants     []ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt    string                   `json:"created_at"` // FE parse về Date
+}
+
+func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *ProductDetailResponse {
+	// IDs & Brand
+	d.ID = m.ID
+	d.BrandID = m.BrandID
+	if m.Brand != nil {
+		d.BrandName = m.Brand.Name
+		d.BrandLogoURL = m.Brand.LogoURL // *string
+	}
+
+	// Basic
+	d.Name = m.Name
+	if m.Description != nil {
+		d.Description = *m.Description
+	}
+	d.Type = m.Type
+
+	// Category
+	if m.Category != nil {
+		response := ProductCategoryResponse{}
+		catPtr := response.ToModelResponse(m.Category)
+		if catPtr != nil {
+			d.Category = *catPtr
+		}
+	}
+
+	// Status & time
+	d.IsActive = m.Status == enum.ProductStatusActived
+	d.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
+
+	// Thumbnail
+	d.ThumbnailURL = primaryProductImageURL(m)
+
+	// Variants
+	if len(m.Variants) > 0 {
+		variants := make([]ProductVariantResponse, 0, len(m.Variants))
+		for i := range m.Variants {
+			variants = append(variants, *ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
+		}
+		d.Variants = variants
+	}
+
+	return &d
+
 }
 
 func primaryProductImageURL(p *model.Product) *[]string {
@@ -138,7 +183,7 @@ type ProductVariantResponse struct {
 	IsDefault       bool                        `json:"is_default,omitempty"`
 	CreatedAt       string                      `json:"created_at"`
 	UpdatedAt       string                      `json:"updated_at"`
-	Story           []byte                      `json:"story,omitempty"`
+	Story           datatypes.JSON              `json:"story,omitempty"`
 	Attributes      []ProductAttributesResponse `json:"attributes,omitempty"`
 	Images          []VariantImageResponse      `json:"images,omitempty"`
 }
@@ -170,6 +215,9 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		IsDefault:       variant.IsDefault,
 		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
 		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
+		Story:           nil,
+		Attributes:      nil,
+		Images:          nil,
 	}
 	if variant.Product != nil {
 		resp.Name = variant.Product.Name

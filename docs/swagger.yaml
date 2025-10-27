@@ -716,10 +716,6 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
-      price:
-        example: 99.99
-        minimum: 0
-        type: number
       task_id:
         example: 660e8400-e29b-41d4-a716-446655440000
         type: string
@@ -728,7 +724,6 @@ definitions:
     - category_id
     - limited_attribute
     - name
-    - price
     - task_id
     type: object
   requests.CreateMilestoneCampaignRequest:
@@ -773,21 +768,14 @@ definitions:
         maxLength: 1000
         type: string
       name:
-        description: TaskID      uuid.UUID `json:"task_id" validate:"required,uuid"
-          example:"660e8400-e29b-41d4-a716-446655440000"`
         example: Product Name
         maxLength: 255
         minLength: 1
         type: string
-      price:
-        example: 99.99
-        minimum: 0
-        type: number
     required:
     - brand_id
     - category_id
     - name
-    - price
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
@@ -815,6 +803,51 @@ definitions:
     required:
     - deadline
     - name
+    - type
+    type: object
+  requests.CreateTaskRequest:
+    properties:
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      deadline:
+        example: "2023-10-15 17:00:00"
+        type: string
+      description:
+        description: JSON format
+        items:
+          type: integer
+        type: array
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Social Media Posts
+        maxLength: 255
+        type: string
+      status:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        example: TODO
+        type: string
+      type:
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        example: CONTENT
+        type: string
+    required:
+    - deadline
+    - description
+    - milestone_id
+    - name
+    - status
     - type
     type: object
   requests.CreateVariantAttributeRequest:
@@ -1325,6 +1358,44 @@ definitions:
         example: new_username
         maxLength: 50
         minLength: 3
+        type: string
+    type: object
+  requests.UpdateTaskRequest:
+    properties:
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      deadline:
+        example: "2023-10-15 17:00:00"
+        type: string
+      description:
+        description: JSON format
+        items:
+          type: integer
+        type: array
+      milestone_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Social Media Posts
+        maxLength: 255
+        type: string
+      status:
+        enum:
+        - TODO
+        - IN_PROGRESS
+        - CANCELLED
+        - RECAP
+        - DONE
+        example: TODO
+        type: string
+      type:
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        example: CONTENT
         type: string
     type: object
   requests.UpdateUserRoleRequest:
@@ -2024,6 +2095,56 @@ definitions:
       user_id:
         type: string
     type: object
+  responses.DistrictResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Code:
+        type: string
+      CreatedAt:
+        type: string
+      DeliverType:
+        type: integer
+      DistrictID:
+        type: integer
+      DistrictName:
+        type: string
+      GovernmentCode:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      OnDates: {}
+      PickType:
+        type: integer
+      ProvinceID:
+        type: integer
+      ReasonCode:
+        type: string
+      ReasonMessage:
+        type: string
+      Status:
+        type: integer
+      SupportType:
+        type: integer
+      Type:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
+        type: string
+      WhiteListClient: {}
+      WhiteListDistrict: {}
+    type: object
   responses.LoginResponse:
     properties:
       access_token:
@@ -2153,10 +2274,12 @@ definitions:
       description:
         type: string
       ingredient:
+        description: Attribute
         type: string
       unit:
         $ref: '#/definitions/enum.AttributeUnit'
       value:
+        description: Value
         type: number
     type: object
   responses.ProductCategoryResponse:
@@ -2267,6 +2390,8 @@ definitions:
       created_at:
         description: FE parse về Date
         type: string
+      created_by:
+        $ref: '#/definitions/responses.UserListResponse'
       description:
         type: string
       id:
@@ -2277,6 +2402,8 @@ definitions:
         type: string
       price:
         type: number
+      status:
+        $ref: '#/definitions/enum.ProductStatus'
       thumbnail_url:
         description: optional
         items:
@@ -2284,6 +2411,10 @@ definitions:
         type: array
       type:
         $ref: '#/definitions/enum.ProductType'
+      updated_at:
+        type: string
+      updated_by:
+        $ref: '#/definitions/responses.UserListResponse'
       variants:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
@@ -2336,6 +2467,43 @@ definitions:
       updated_at:
         type: string
       uses:
+        type: string
+    type: object
+  responses.ProvinceResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Code:
+        type: string
+      CountryID:
+        type: integer
+      CreatedAt:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      ProvinceID:
+        type: integer
+      ProvinceName:
+        type: string
+      RegionCPN:
+        type: integer
+      RegionID:
+        type: integer
+      Status:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
         type: string
     type: object
   responses.SessionInfo:
@@ -2759,6 +2927,53 @@ definitions:
         type: boolean
       price:
         type: number
+    type: object
+  responses.WardResponse:
+    properties:
+      CanUpdateCOD:
+        type: boolean
+      Config: {}
+      CreatedAt:
+        type: string
+      DeliverType:
+        type: integer
+      DistrictID:
+        type: integer
+      GovernmentCode:
+        type: string
+      IsEnable:
+        type: integer
+      NameExtension:
+        items:
+          type: string
+        type: array
+      OnDates: {}
+      PickType:
+        type: integer
+      ReasonCode:
+        type: string
+      ReasonMessage:
+        type: string
+      Status:
+        type: integer
+      SupportType:
+        type: integer
+      UpdatedAt:
+        type: string
+      UpdatedBy:
+        type: integer
+      UpdatedDate:
+        type: string
+      UpdatedEmployee:
+        type: integer
+      UpdatedSource:
+        type: string
+      WardCode:
+        type: string
+      WardName:
+        type: string
+      WhiteListClient: {}
+      WhiteListWard: {}
     type: object
 host: localhost:8080
 info:
@@ -3766,7 +3981,7 @@ paths:
       tags:
       - Categories
   /api/v1/categories/{id}:
-    patch:
+    delete:
       consumes:
       - application/json
       description: Delete category by id
@@ -5582,6 +5797,69 @@ paths:
       summary: Upload a video chunk (streaming upload)
       tags:
       - files
+  /api/v1/location/districts/{province-id}:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all districts\tand front-end have to filter himself"
+      parameters:
+      - description: Province ID
+        in: path
+        name: province-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Provinces response
+          schema:
+            $ref: '#/definitions/responses.DistrictResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of districts from a province
+      tags:
+      - location
+  /api/v1/location/provinces:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all provinces\tand front-end have to filter himself"
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Provinces response
+          schema:
+            $ref: '#/definitions/responses.ProvinceResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of provinces from GiaoHangNhanh API
+      tags:
+      - location
+  /api/v1/location/wards/{district-id}:
+    get:
+      consumes:
+      - application/json
+      description: "Fetch all districts\tand front-end have to filter himself"
+      parameters:
+      - description: District ID
+        in: path
+        name: district-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ward response
+          schema:
+            $ref: '#/definitions/responses.WardResponse'
+      security:
+      - BearerAuth: []
+      summary: Get list of districts from a province
+      tags:
+      - location
   /api/v1/milestones/{id}/state:
     patch:
       consumes:
@@ -5970,6 +6248,7 @@ paths:
     get:
       consumes:
       - application/json
+      deprecated: true
       description: Get paginated list of products with optional search
       parameters:
       - default: 10
@@ -6181,10 +6460,9 @@ paths:
       - application/json
       responses:
         "201":
-          description: Created product
+          description: Created limited product
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/responses.ProductResponseV2'
         "400":
           description: invalid request / validation failed
           schema:
@@ -6275,7 +6553,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/responses.ProductResponse'
+            $ref: '#/definitions/responses.ProductResponseV2'
         "400":
           description: Bad Request
           schema:
@@ -6327,6 +6605,10 @@ paths:
         name: category_id
         type: string
       - description: Filter type of products
+        enum:
+        - STANDARD
+        - LIMITED
+        - ""
         in: query
         name: type
         type: string
@@ -6334,7 +6616,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Products retrieved successfully
+          description: Products view for Others
           schema:
             properties:
               data:
@@ -6357,7 +6639,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get All Products
+      summary: Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
       tags:
       - Products
   /api/v1/products/variants/{variantId}/images:
@@ -6527,41 +6809,31 @@ paths:
       summary: Get Tasks by Filter
       tags:
       - Tasks
-  /api/v1/tasks/{id}/state:
-    patch:
+    post:
       consumes:
       - application/json
-      description: Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP,
-        DONE)
+      description: Create a new task.
       parameters:
-      - description: Task ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Target state payload
+      - description: Task creation payload
         in: body
-        name: body
+        name: task
         required: true
         schema:
-          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+          $ref: '#/definitions/requests.CreateTaskRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Task state updated
+          description: Task created successfully
           schema:
-            $ref: '#/definitions/responses.APIResponse'
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TaskResponse'
+              type: object
         "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Task not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Invalid state transition
+          description: Validation error
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "500":
@@ -6570,10 +6842,45 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Update Task State
+      summary: Create Task
       tags:
-      - State Transfer
+      - Tasks
   /api/v1/tasks/{task_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a task by its ID.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid task ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Task
+      tags:
+      - Tasks
     get:
       consumes:
       - application/json
@@ -6612,6 +6919,89 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Task by ID
+      tags:
+      - Tasks
+    put:
+      consumes:
+      - application/json
+      description: Update an existing task.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Task update payload
+        in: body
+        name: task
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task updated successfully
+          schema:
+            $ref: '#/definitions/responses.TaskResponse'
+        "400":
+          description: Invalid updated_by_id
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Task by ID
+      tags:
+      - Tasks
+  /api/v1/tasks/{task_id}/assign/{assigned_to_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Assign a task to a user.
+      parameters:
+      - description: Task ID
+        format: uuid
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Assigned to user ID
+        format: uuid
+        in: path
+        name: assigned_to_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.TaskResponse'
+        "400":
+          description: Invalid updated_by_id
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Assign Task
       tags:
       - Tasks
   /api/v1/tasks/{task_id}/products:
@@ -6680,6 +7070,52 @@ paths:
       summary: Get Products By Task
       tags:
       - Products
+  /api/v1/tasks/{task_id}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Move a task to a target state (TODO, IN_PROGRESS, CANCELLED, RECAP,
+        DONE)
+      parameters:
+      - description: Task ID (UUID)
+        in: path
+        name: task_id
+        required: true
+        type: string
+      - description: Target state payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateTaskStateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Task state updated
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Task not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Invalid state transition
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Task State
+      tags:
+      - State Transfer
   /api/v1/tasks/contract/{contract_id}:
     get:
       consumes:
@@ -7390,52 +7826,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Attribute
-      tags:
-      - Variant-Attributes
-  /api/v1/variant-attributes/admin:
-    get:
-      consumes:
-      - application/json
-      description: Get paginated list of variant attributes for administrative usage.
-        Returns full model details.
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 10
-        description: Items per page
-        in: query
-        name: limit
-        type: integer
-      - description: Search term for name
-        in: query
-        name: search
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.VariantAttributeResponse'
-                  type: array
-                pagination:
-                  $ref: '#/definitions/responses.Pagination'
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List Variant Attributes (Admin)
       tags:
       - Variant-Attributes
   /health:
