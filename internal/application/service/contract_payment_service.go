@@ -113,6 +113,9 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 		CreatedBy:             &userID,
 		UpdatedBy:             &userID,
 	}
+	if contract.IsDepositPaid != nil && *contract.IsDepositPaid {
+		depositContractPayment.Status = enum.ContractPaymentStatusPaid
+	}
 	contractPaymentsSlice = append(contractPaymentsSlice, depositContractPayment)
 
 	// Add contract payments entries based on contract type and schedules
