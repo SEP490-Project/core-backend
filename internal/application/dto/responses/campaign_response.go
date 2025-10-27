@@ -20,7 +20,6 @@ type CampaignInfoResponse struct {
 	StartDate      string  `json:"start_date" example:"2023-06-01 00:00:00"`
 	EndDate        string  `json:"end_date" example:"2023-08-31 23:59:59"`
 	Status         string  `json:"status" example:"RUNNING"`
-	Budget         float64 `json:"budget" example:"100000000"`
 	Type           string  `json:"type" example:"ADVERTISING"`
 	CreatedAt      string  `json:"created_at" example:"2023-06-01 00:00:00"`
 	UpdatedAt      string  `json:"updated_at" example:"2023-06-15 12:00:00"`
@@ -37,7 +36,6 @@ type CampaignDetailsResponse struct {
 	StartDate           string                  `json:"start_date" example:"2023-06-01 00:00:00"`
 	EndDate             string                  `json:"end_date" example:"2023-08-31 23:59:59"`
 	Status              string                  `json:"status" example:"RUNNING"`
-	Budget              float64                 `json:"budget" example:"100000000"`
 	Type                string                  `json:"type" example:"ADVERTISING"`
 	Milestones          []CampaignMilestoneInfo `json:"milestones"`
 	NumberOfTasks       int                     `json:"number_of_tasks" example:"25"`
@@ -71,7 +69,6 @@ func (cir CampaignInfoResponse) ToCampaignInfoResponse(model *model.Campaign) *C
 		StartDate:      model.StartDate.String(),
 		EndDate:        model.EndDate.String(),
 		Status:         model.Status.String(),
-		Budget:         model.Budget,
 		Type:           model.Type.String(),
 		CreatedAt:      model.CreatedAt.String(),
 		UpdatedAt:      model.UpdatedAt.String(),
@@ -111,7 +108,6 @@ func (cdr CampaignDetailsResponse) ToCampaignDetailsResponse(model *model.Campai
 		StartDate:           model.StartDate.String(),
 		EndDate:             model.EndDate.String(),
 		Status:              model.Status.String(),
-		Budget:              model.Budget,
 		Type:                model.Type.String(),
 		Milestones:          milestones,
 		NumberOfTasks:       totalTasks,
