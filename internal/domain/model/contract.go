@@ -32,7 +32,7 @@ type Contract struct {
 	RepresentativeBankAccountHolder *string `json:"representative_bank_account_holder" gorm:"type:varchar(255);column:representative_bank_account_holder"`
 
 	// Contract complex details stored as JSONB
-	FinancialTerms datatypes.JSON `json:"financial_terms" gorm:"type:jsonb;column:financial_terms;not null"`
+	FinancialTerms datatypes.JSON `json:"financial_terms" gorm:"type:jsonb;column:financial_terms;not null" swaggerignore:"true"`
 	ScopeOfWork    datatypes.JSON `json:"scope_of_work" gorm:"type:jsonb;column:scope_of_work;not null"`
 	LegalTerms     datatypes.JSON `json:"legal_terms" gorm:"type:jsonb;column:legal_terms;not null"`
 

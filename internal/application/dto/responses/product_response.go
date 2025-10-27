@@ -183,7 +183,7 @@ type ProductVariantResponse struct {
 	IsDefault       bool                        `json:"is_default,omitempty"`
 	CreatedAt       string                      `json:"created_at"`
 	UpdatedAt       string                      `json:"updated_at"`
-	Story           datatypes.JSON              `json:"story,omitempty"`
+	Story           datatypes.JSON              `json:"story,omitempty" swaggerignore:"true"`
 	Attributes      []ProductAttributesResponse `json:"attributes,omitempty"`
 	Images          []VariantImageResponse      `json:"images,omitempty"`
 }
