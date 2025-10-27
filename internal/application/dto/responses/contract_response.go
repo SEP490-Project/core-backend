@@ -18,6 +18,7 @@ type ContractResponse struct {
 	Status         string `json:"status" example:"ACTIVE"`
 	DepositPercent *int   `json:"deposit_percent,omitempty" example:"30"`
 	DepositAmount  *int   `json:"deposit_amount,omitempty" example:"3000000"`
+	IsDepositPaid  *bool  `json:"is_deposit_paid,omitempty" example:"true"`
 
 	// Brand information (from relationship)
 	Brand *BrandSummary `json:"brand,omitempty"`
@@ -102,6 +103,7 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 		Status:                          string(contract.Status),
 		DepositPercent:                  contract.DepositPercent,
 		DepositAmount:                   contract.DepositAmount,
+		IsDepositPaid:                   contract.IsDepositPaid,
 		RepresentativeName:              safeString(contract.RepresentativeName),
 		RepresentativeRole:              contract.RepresentativeRole,
 		RepresentativePhone:             contract.RepresentativePhone,
