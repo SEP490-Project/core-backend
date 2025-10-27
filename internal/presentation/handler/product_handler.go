@@ -118,6 +118,9 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Param			search		query		string																		false	"Search term for product name"
 //	@Param			category_id	query		string																		false	"Filter category of products"
 //	@Param			type		query		string	false	"Filter type of products"	Enums(STANDARD, LIMITED, )
+//
+// @Param			status		query		string	false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//
 //	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
 // @Failure		500			{object}	object{error=string}														"Internal server error"
@@ -142,6 +145,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	search := c.DefaultQuery("search", "")
 	category := c.DefaultQuery("category_id", "")
 	prdType := c.DefaultQuery("type", "")
+	prdStatus := c.DefaultQuery("status", "")
 
 	//if type != nil, we have to validate it
 	if prdType != "" {
@@ -156,16 +160,33 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 		}
 	}
 
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	if prdStatus != "" && IsAllowRole(c, allowFullViewRoles) {
+		validStatuses := map[string]bool{
+			string(enum.ProductStatusDraft):     true,
+			string(enum.ProductStatusSubmitted): true,
+			string(enum.ProductStatusRevision):  true,
+			string(enum.ProductStatusApproved):  true,
+			string(enum.ProductStatusActived):   true,
+			string(enum.ProductStatusInactived): true,
+		}
+		if !validStatuses[prdStatus] {
+			resp := responses.ErrorResponse("invalid product status filter", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+	}
+
 	var (
 		products interface{}
 		total    int
 		svcErr   error
 	)
 
-	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial

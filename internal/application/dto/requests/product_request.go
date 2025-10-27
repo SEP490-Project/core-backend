@@ -60,8 +60,8 @@ type LimitedProductAttributes struct {
 	IsFreeShipping        bool       `json:"is_free_shipping" example:"false"`
 	BoughtLimit           int        `json:"bought_limit" validate:"required,min=1" example:"1"`
 	PremiereDate          *string    `json:"premiere_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
-	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
-	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-31T10:00:00Z"`
+	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04Z07:00" example:"2023-10-01T10:00+07:00"`
+	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04Z07:00" example:"2023-10-31T10:00+07:00"`
 	ConceptID             *uuid.UUID `json:"concept_id" validate:"omitempty,uuid" example:"770e8400-e29b-41d4-a716-446655440000"`
 }
 
