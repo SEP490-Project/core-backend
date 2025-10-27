@@ -132,10 +132,10 @@ func (uapr UpdateAddressProfileRequest) ToExistingModel(existing *model.Shipping
 		existing.FullName = *uapr.FullName
 	}
 	if uapr.PhoneNumber != nil {
-		existing.PhoneNumber = *uapr.PhoneNumber
+		existing.PhoneNumber = uapr.PhoneNumber
 	}
 	if uapr.Email != nil {
-		existing.Email = *uapr.Email
+		existing.Email = uapr.Email
 	}
 	if uapr.Street != nil {
 		existing.Street = *uapr.Street
@@ -146,17 +146,11 @@ func (uapr UpdateAddressProfileRequest) ToExistingModel(existing *model.Shipping
 	if uapr.City != nil {
 		existing.City = *uapr.City
 	}
-	if uapr.State != nil {
-		existing.State = uapr.State
-	}
 	if uapr.PostalCode != nil {
 		existing.PostalCode = *uapr.PostalCode
 	}
 	if uapr.Country != nil {
-		existing.Country = *uapr.Country
-	}
-	if uapr.Company != nil {
-		existing.Company = uapr.Company
+		existing.Country = uapr.Country
 	}
 	if uapr.IsDefault != nil {
 		existing.IsDefault = *uapr.IsDefault
