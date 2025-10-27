@@ -7,9 +7,10 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 type locationService struct {

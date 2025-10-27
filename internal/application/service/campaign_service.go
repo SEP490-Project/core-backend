@@ -2,16 +2,20 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -285,6 +289,8 @@ func (c *CampaignService) CreateCampaignFromContract(
 	return response, nil
 }
 
+// region: ======= Suggest Campaign from Contract  =======
+
 // SuggestCampaignFromContract implements iservice.CampaignService.
 func (c *CampaignService) SuggestCampaignFromContract(
 	ctx context.Context,
@@ -293,12 +299,15 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	zap.L().Info("Suggesting campaign from contract", zap.String("contract_id", contractID.String()))
 
 	// Retrieve contract with necessary fields
-	contract, err := c.contractRepo.GetByID(ctx, contractID, nil)
+	contract, err := c.contractRepo.GetByID(ctx, contractID, []string{"Brand", "ContractPayments"})
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
+			return nil, errors.New("contract not found")
+		}
 		zap.L().Error("Failed to retrieve contract", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return nil, errors.New("contract not found")
-	}
-	if contract == nil {
+	} else if contract == nil {
 		zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
 		return nil, errors.New("contract not found")
 	}
@@ -316,8 +325,13 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	}
 
 	// Parse scope of work
-	var scopeOfWork map[string]any
-	if err = json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+	// var scopeOfWork map[string]any
+	// if err = json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+	// 	zap.L().Error("Failed to parse scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
+	// 	return nil, errors.New("invalid scope of work format")
+	// }
+	var scopeOfWorks dtos.ScopeOfWork
+	if err = json.Unmarshal(contract.ScopeOfWork, &scopeOfWorks); err != nil {
 		zap.L().Error("Failed to parse scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return nil, errors.New("invalid scope of work format")
 	}
@@ -326,13 +340,13 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	var suggestedCampaign *responses.SuggestedCampaign
 	switch contract.Type {
 	case "ADVERTISING":
-		suggestedCampaign, err = c.extractAdvertisingTasks(scopeOfWork, contract)
+		suggestedCampaign, err = c.extractAdvertisingTasks(ctx, scopeOfWorks, contract)
 	case "AFFILIATE":
-		suggestedCampaign, err = c.extractAffiliateTasks(scopeOfWork, contract)
+		suggestedCampaign, err = c.extractAffiliateTasks(ctx, scopeOfWorks, contract)
 	case "BRAND_AMBASSADOR":
-		suggestedCampaign, err = c.extractBrandAmbassadorTasks(scopeOfWork, contract)
+		suggestedCampaign, err = c.extractBrandAmbassadorTasks(ctx, scopeOfWorks, contract)
 	case "CO_PRODUCING":
-		suggestedCampaign, err = c.extractCoProducingStructure(scopeOfWork, contract)
+		suggestedCampaign, err = c.extractCoProducingStructure(ctx, scopeOfWorks, contract)
 	default:
 		zap.L().Error("Unsupported contract type", zap.String("contract_id", contractID.String()), zap.String("type", string(contract.Type)))
 		return nil, errors.New("unsupported contract type")
@@ -341,6 +355,33 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	if err != nil {
 		zap.L().Error("Failed to extract campaign structure", zap.String("contract_id", contractID.String()), zap.Error(err))
 		return nil, err
+	}
+
+	// Validate milestone-payment alignment if contract payments exist
+	if len(contract.ContractPayments) > 0 {
+		// Filter out deposit payment (first payment is always deposit)
+		regularPayments := contract.ContractPayments
+		if len(regularPayments) > 0 && regularPayments[0].DueDate.Equal(contract.StartDate) {
+			regularPayments = regularPayments[1:] // Skip deposit payment
+		}
+
+		// Convert to pointer slice for validation function
+		paymentPointers := make([]*model.ContractPayment, len(regularPayments))
+		for i := range regularPayments {
+			paymentPointers[i] = &regularPayments[i]
+		}
+
+		if err := helper.ValidateMilestonePaymentAlignment(suggestedCampaign.Milestones, paymentPointers); err != nil {
+			zap.L().Warn("Milestone-payment alignment validation failed",
+				zap.String("contract_id", contractID.String()),
+				zap.Error(err))
+			// Log warning but don't fail the suggestion - payments might not be created yet
+		} else {
+			zap.L().Info("Milestone-payment alignment validated successfully",
+				zap.String("contract_id", contractID.String()),
+				zap.Int("milestone_count", len(suggestedCampaign.Milestones)),
+				zap.Int("payment_count", len(regularPayments)))
+		}
 	}
 
 	response := &responses.CampaignSuggestionResponse{
@@ -359,253 +400,416 @@ func (c *CampaignService) SuggestCampaignFromContract(
 
 // extractAdvertisingTasks extracts tasks from ADVERTISING contract deliverables
 func (c *CampaignService) extractAdvertisingTasks(
-	scopeOfWork map[string]any,
+	ctx context.Context,
+	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]any)
-	if !ok || len(deliverables) == 0 {
-		return nil, errors.New("no deliverables found in scope of work")
+	// Validate contract first
+	if err := helper.ValidateContractForSuggestion(contract); err != nil {
+		zap.L().Error("Contract validation failed", zap.Error(err))
+		return nil, fmt.Errorf("invalid contract: %w", err)
 	}
 
-	var tasks []responses.SuggestedTask
-	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Extract advertised_items array
-		advertisedItems, ok := deliverable["advertised_items"].([]any)
-		if !ok || len(advertisedItems) == 0 {
-			continue
-		}
-
-		for _, adItem := range advertisedItems {
-			adItemMap, ok := adItem.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			taskName := fmt.Sprintf("Advertise %s", adItemMap["name"])
-			taskDesc := map[string]any{
-				"item_name":        adItemMap["name"],
-				"item_description": adItemMap["description"],
-				"quantity":         adItemMap["quantity"],
-				"content_type":     deliverable["content_type"],
-				"platform":         deliverable["platform"],
-			}
-
-			tasks = append(tasks, responses.SuggestedTask{
-				Name:            taskName,
-				DescriptionJSON: taskDesc,
-			})
-		}
+	// Parse deliverables and financial terms
+	deliverables, err := scopeOfWork.Deliverables.ToAdvertisingDeliverable()
+	if err != nil {
+		zap.L().Error("Failed to convert deliverables to AdvertisingDeliverable", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse advertising deliverables: %w", err)
 	}
 
-	if len(tasks) == 0 {
-		return nil, errors.New("no valid advertising tasks could be extracted")
+	var financialTerms dtos.AdvertisingFinancialTerms
+	if err = json.Unmarshal(contract.FinancialTerms, &financialTerms); err != nil {
+		zap.L().Error("Failed to unmarshal financial terms to AdvertisingFinancialTerms", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse financial terms: %w", err)
 	}
 
-	milestone := responses.SuggestedMilestone{
-		Name:  "Content Creation & Publication",
-		Tasks: tasks,
+	// Parallel extraction of tasks and milestones
+	var suggestedTasks []responses.SuggestedTask
+	var suggestedMilestones []responses.SuggestedMilestone
+	var tasksErr, milestonesErr error
+
+	err = utils.RunParallel(ctx, 2,
+		// Extract tasks
+		func(ctx context.Context) error {
+			suggestedTasks, tasksErr = c.extractAdvertisingTasksAsync(ctx, deliverables, contract.StartDate)
+			return tasksErr
+		},
+		// Extract milestones
+		func(ctx context.Context) error {
+			suggestedMilestones, milestonesErr = c.extractAdvertisingMilestonesAsync(ctx, contract, financialTerms)
+			return milestonesErr
+		},
+	)
+
+	if err != nil {
+		zap.L().Error("Failed to extract advertising tasks and milestones in parallel", zap.Error(err))
+		return nil, fmt.Errorf("parallel extraction failed: %w", err)
 	}
 
+	// Assign tasks to milestones using even distribution
+	assignedMilestones := helper.DistributeTasksEvenly(suggestedTasks, suggestedMilestones)
+
+	// Generate campaign name and description
 	campaignName := "Advertising Campaign"
 	if contract.Title != nil {
 		campaignName = *contract.Title
 	}
 
 	return &responses.SuggestedCampaign{
-		Name:       campaignName,
-		Milestones: []responses.SuggestedMilestone{milestone},
+		Name:        campaignName,
+		Description: fmt.Sprintf("Campaign for contract %s with %d advertised items", *contract.ContractNumber, len(deliverables.AdvertisedItems)),
+		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
+		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
+		Type:        contract.Type.String(),
+		Milestones:  assignedMilestones,
 	}, nil
+}
+
+// extractAdvertisingTasksAsync extracts tasks from advertised items with item-level parallelization
+func (c *CampaignService) extractAdvertisingTasksAsync(
+	_ context.Context,
+	deliverables *dtos.AdvertisingDeliverable,
+	contractStartDate time.Time,
+) ([]responses.SuggestedTask, error) {
+	items := deliverables.AdvertisedItems
+	if len(items) == 0 {
+		return []responses.SuggestedTask{}, nil
+	}
+
+	tasks := make([]responses.SuggestedTask, len(items))
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(items))
+
+	for i, item := range items {
+		wg.Add(1)
+		go func(idx int, advertisedItem dtos.AdvertisedItem) {
+			defer wg.Done()
+
+			// Use contract start date as initial deadline (will be refined by milestone assignment)
+			task := helper.TransformAdvertisedItemToTask(advertisedItem, contractStartDate)
+			tasks[idx] = task
+		}(i, item)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	if len(errChan) > 0 {
+		return nil, <-errChan
+	}
+
+	zap.L().Info("Extracted advertising tasks",
+		zap.Int("task_count", len(tasks)),
+		zap.String("contract_type", "ADVERTISING"))
+
+	return tasks, nil
+}
+
+// extractAdvertisingMilestonesAsync extracts milestones from financial terms schedules
+func (c *CampaignService) extractAdvertisingMilestonesAsync(
+	_ context.Context,
+	contract *model.Contract,
+	financialTerms dtos.AdvertisingFinancialTerms,
+) ([]responses.SuggestedMilestone, error) {
+	// Generate milestone due dates using shared payment cycle calculator
+	dueDates, err := helper.GenerateMilestoneDueDatesFromFinancialTerms(
+		contract,
+		financialTerms,
+		5, // minimumDayBeforeDueDate - should be fetched from config in production
+	)
+	if err != nil {
+		zap.L().Error("Failed to generate milestone due dates", zap.Error(err))
+		return nil, fmt.Errorf("failed to generate milestone dates: %w", err)
+	}
+
+	if len(dueDates) == 0 {
+		return nil, errors.New("no milestone dates generated from financial terms")
+	}
+
+	// Calculate base payment per period
+	totalCost, err := helper.ExtractTotalCostFromFinancialTerms(contract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract total cost: %w", err)
+	}
+
+	depositPercent := float64(0)
+	if contract.DepositPercent != nil {
+		depositPercent = float64(*contract.DepositPercent)
+	}
+
+	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+
+	// Create milestones
+	milestones := make([]responses.SuggestedMilestone, len(dueDates))
+	for i, dueDate := range dueDates {
+		milestones[i] = responses.SuggestedMilestone{
+			Description: fmt.Sprintf("Phase %d: Payment (Due: %s) - Amount: %.0f VND",
+				i+1,
+				dueDate.Format(utils.DateFormat),
+				basePayment),
+			DueDate: dueDate.Format(utils.DateFormat),
+			Tasks:   []responses.SuggestedTask{}, // Will be assigned later
+		}
+	}
+
+	zap.L().Info("Extracted advertising milestones",
+		zap.Int("milestone_count", len(milestones)),
+		zap.Float64("base_payment_per_milestone", basePayment))
+
+	return milestones, nil
 }
 
 // extractAffiliateTasks extracts tasks from AFFILIATE contract deliverables
 func (c *CampaignService) extractAffiliateTasks(
-	scopeOfWork map[string]any,
+	_ context.Context,
+	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	// Affiliate contracts extend advertising with tracking links
-	suggestedCampaign, err := c.extractAdvertisingTasks(scopeOfWork, contract)
+	// Validate contract
+	if err := helper.ValidateContractForSuggestion(contract); err != nil {
+		zap.L().Error("Contract validation failed", zap.Error(err))
+		return nil, fmt.Errorf("invalid contract: %w", err)
+	}
+
+	// Parse deliverables and financial terms
+	deliverables, err := scopeOfWork.Deliverables.ToAffiliateDeliverable()
 	if err != nil {
-		return nil, err
+		zap.L().Error("Failed to convert deliverables to AffiliateDeliverable", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse affiliate deliverables: %w", err)
 	}
 
-	// Add tracking link information to each task
-	deliverables, _ := scopeOfWork["deliverables"].([]any)
-	for i, item := range deliverables {
-		deliverable, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
+	var financialTerms dtos.AffiliateFinancialTerms
+	if err = json.Unmarshal(contract.FinancialTerms, &financialTerms); err != nil {
+		zap.L().Error("Failed to unmarshal financial terms to AffiliateFinancialTerms", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse financial terms: %w", err)
+	}
 
-		trackingLink, _ := deliverable["tracking_link"].(string)
-		platform, _ := deliverable["platform"].(string)
+	// Generate milestones from payment cycle
+	dueDates, err := helper.GenerateMilestoneDueDatesFromFinancialTerms(contract, financialTerms, 5)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate milestone dates: %w", err)
+	}
 
-		if i < len(suggestedCampaign.Milestones[0].Tasks) {
-			task := &suggestedCampaign.Milestones[0].Tasks[i]
-			if task.DescriptionJSON == nil {
-				task.DescriptionJSON = make(map[string]any)
-			}
-			task.DescriptionJSON["tracking_link"] = trackingLink
-			task.DescriptionJSON["affiliate_platform"] = platform
+	if len(dueDates) == 0 {
+		return nil, errors.New("no milestone dates generated from financial terms")
+	}
+
+	// Calculate base payment per period
+	totalCost, err := helper.ExtractTotalCostFromFinancialTerms(contract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract total cost: %w", err)
+	}
+
+	depositPercent := float64(0)
+	if contract.DepositPercent != nil {
+		depositPercent = float64(*contract.DepositPercent)
+	}
+
+	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+
+	// Create milestones
+	milestones := make([]responses.SuggestedMilestone, len(dueDates))
+	for i, dueDate := range dueDates {
+		milestones[i] = responses.SuggestedMilestone{
+			Description: fmt.Sprintf("Payment Period (Due: %s) - Base: %.0f VND + CTR Performance",
+				dueDate.Format(utils.DateFormat),
+				basePayment),
+			DueDate: dueDate.Format(utils.DateFormat),
+			Tasks:   []responses.SuggestedTask{},
 		}
 	}
 
-	// Update campaign name
-	suggestedCampaign.Name = "Affiliate Marketing Campaign"
+	// Extract content creation tasks (all go to first milestone)
+	contentTasks := make([]responses.SuggestedTask, 0, len(deliverables.AdvertisedItems))
+	for _, item := range deliverables.AdvertisedItems {
+		task := helper.TransformAdvertisedItemToTask(item, dueDates[0])
+
+		// Add tracking link to task description
+		task.Description["tracking_link"] = deliverables.TrackingLink
+		task.Description["is_affiliate_content"] = true
+
+		contentTasks = append(contentTasks, task)
+	}
+
+	// Assign tasks to milestones using affiliate strategy
+	assignedMilestones := helper.AssignAffiliateTasksToMilestones(contentTasks, milestones, deliverables.TrackingLink)
+
+	// Generate campaign name
+	campaignName := "Affiliate Marketing Campaign"
 	if contract.Title != nil {
-		suggestedCampaign.Name = *contract.Title
+		campaignName = *contract.Title
 	}
 
-	return suggestedCampaign, nil
+	zap.L().Info("Extracted affiliate campaign structure",
+		zap.Int("content_tasks", len(contentTasks)),
+		zap.Int("milestones", len(assignedMilestones)),
+		zap.String("tracking_link", deliverables.TrackingLink))
+
+	return &responses.SuggestedCampaign{
+		Name:        campaignName,
+		Description: fmt.Sprintf("Affiliate campaign with %d content pieces and %d payment periods", len(contentTasks), len(assignedMilestones)),
+		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
+		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
+		Type:        contract.Type.String(),
+		Milestones:  assignedMilestones,
+	}, nil
 }
 
 // extractBrandAmbassadorTasks extracts tasks from BRAND_AMBASSADOR contract deliverables
 func (c *CampaignService) extractBrandAmbassadorTasks(
-	scopeOfWork map[string]any,
+	_ context.Context,
+	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]any)
-	if !ok || len(deliverables) == 0 {
-		return nil, errors.New("no deliverables found in scope of work")
+	// Validate contract
+	if err := helper.ValidateContractForSuggestion(contract); err != nil {
+		zap.L().Error("Contract validation failed", zap.Error(err))
+		return nil, fmt.Errorf("invalid contract: %w", err)
 	}
 
-	var tasks []responses.SuggestedTask
-	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]any)
-		if !ok {
-			continue
+	// Parse deliverables and financial terms
+	deliverables, err := scopeOfWork.Deliverables.ToBrandAmbassadorDeliverable()
+	if err != nil {
+		zap.L().Error("Failed to convert deliverables to BrandAmbassadorDeliverable", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse brand ambassador deliverables: %w", err)
+	}
+
+	var financialTerms dtos.AdvertisingFinancialTerms
+	if err = json.Unmarshal(contract.FinancialTerms, &financialTerms); err != nil {
+		zap.L().Error("Failed to unmarshal financial terms to AdvertisingFinancialTerms", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse financial terms: %w", err)
+	}
+
+	// Generate milestones from schedules (same as ADVERTISING)
+	dueDates, err := helper.GenerateMilestoneDueDatesFromFinancialTerms(contract, financialTerms, 5)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate milestone dates: %w", err)
+	}
+
+	if len(dueDates) == 0 {
+		return nil, errors.New("no milestone dates generated from financial terms")
+	}
+
+	// Calculate base payment per period
+	totalCost, err := helper.ExtractTotalCostFromFinancialTerms(contract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract total cost: %w", err)
+	}
+
+	depositPercent := float64(0)
+	if contract.DepositPercent != nil {
+		depositPercent = float64(*contract.DepositPercent)
+	}
+
+	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+
+	// Create milestones
+	milestones := make([]responses.SuggestedMilestone, len(dueDates))
+	for i, dueDate := range dueDates {
+		milestones[i] = responses.SuggestedMilestone{
+			Description: fmt.Sprintf("Phase %d: Event Period (Due: %s) - Amount: %.0f VND",
+				i+1,
+				dueDate.Format(utils.DateFormat),
+				basePayment),
+			DueDate: dueDate.Format(utils.DateFormat),
+			Tasks:   []responses.SuggestedTask{},
 		}
-
-		// Extract events array
-		events, ok := deliverable["events"].([]any)
-		if !ok || len(events) == 0 {
-			continue
-		}
-
-		for _, evt := range events {
-			eventMap, ok := evt.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			eventName, _ := eventMap["name"].(string)
-			taskName := fmt.Sprintf("Represent Brand at %s", eventName)
-
-			taskDesc := map[string]any{
-				"event_name":    eventMap["name"],
-				"event_date":    eventMap["date"],
-				"location":      eventMap["location"],
-				"activities":    eventMap["activities"],
-				"expected_kpis": eventMap["expected_kpis"],
-				"content_type":  deliverable["content_type"],
-				"platform":      deliverable["platform"],
-			}
-
-			tasks = append(tasks, responses.SuggestedTask{
-				Name:            taskName,
-				DescriptionJSON: taskDesc,
-			})
-		}
 	}
 
-	if len(tasks) == 0 {
-		return nil, errors.New("no valid brand ambassador tasks could be extracted")
+	// Extract event tasks
+	eventTasks := make([]responses.SuggestedTask, 0, len(deliverables.Events))
+	for _, event := range deliverables.Events {
+		task := helper.TransformEventToTask(event)
+		eventTasks = append(eventTasks, task)
 	}
 
-	milestone := responses.SuggestedMilestone{
-		Name:  "Brand Representation & Events",
-		Tasks: tasks,
-	}
+	// Assign tasks to milestones by date (closest milestone to event date)
+	assignedMilestones := helper.AssignTasksByDate(eventTasks, milestones)
 
+	// Generate campaign name
 	campaignName := "Brand Ambassador Campaign"
 	if contract.Title != nil {
 		campaignName = *contract.Title
 	}
 
+	zap.L().Info("Extracted brand ambassador campaign structure",
+		zap.Int("events", len(eventTasks)),
+		zap.Int("milestones", len(assignedMilestones)))
+
 	return &responses.SuggestedCampaign{
-		Name:       campaignName,
-		Milestones: []responses.SuggestedMilestone{milestone},
+		Name:        campaignName,
+		Description: fmt.Sprintf("Brand ambassador campaign with %d events", len(eventTasks)),
+		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
+		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
+		Type:        contract.Type.String(),
+		Milestones:  assignedMilestones,
 	}, nil
 }
 
 // extractCoProducingStructure extracts milestones and tasks from CO_PRODUCING contract deliverables
 func (c *CampaignService) extractCoProducingStructure(
-	scopeOfWork map[string]any,
+	_ context.Context,
+	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
 ) (*responses.SuggestedCampaign, error) {
-	deliverables, ok := scopeOfWork["deliverables"].([]any)
-	if !ok || len(deliverables) == 0 {
-		return nil, errors.New("no deliverables found in scope of work")
+	// Convert to type-safe deliverables
+	deliverables, err := scopeOfWork.Deliverables.ToCoProducingDeliverable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert to co-producing deliverables: %w", err)
 	}
 
-	var milestones []responses.SuggestedMilestone
+	// Extract financial terms to get profit distribution cycle
+	var financialTerms dtos.CoProducingFinancialTerms
+	if err = json.Unmarshal(contract.FinancialTerms, &financialTerms); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal co-producing financial terms: %w", err)
+	}
 
-	// Each product becomes a milestone
-	for _, item := range deliverables {
-		deliverable, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
+	// Generate milestone due dates based on profit distribution cycle
+	milestoneDueDates, err := helper.GenerateMilestoneDueDatesFromFinancialTerms(
+		contract,
+		financialTerms,
+		5,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate milestone due dates: %w", err)
+	}
 
-		products, ok := deliverable["products"].([]any)
-		if !ok || len(products) == 0 {
-			continue
-		}
+	if len(milestoneDueDates) == 0 {
+		return nil, errors.New("no milestone due dates generated for co-producing contract")
+	}
 
-		for _, prod := range products {
-			productMap, ok := prod.(map[string]any)
-			if !ok {
-				continue
-			}
-
-			productName, _ := productMap["name"].(string)
-			milestoneName := fmt.Sprintf("Co-Produce: %s", productName)
-
-			var tasks []responses.SuggestedTask
-
-			// Each concept within a product becomes a task
-			concepts, ok := productMap["concepts"].([]any)
-			if ok && len(concepts) > 0 {
-				for _, concept := range concepts {
-					conceptMap, ok := concept.(map[string]any)
-					if !ok {
-						continue
-					}
-
-					conceptName, _ := conceptMap["name"].(string)
-					taskName := fmt.Sprintf("Develop Concept: %s", conceptName)
-
-					taskDesc := map[string]any{
-						"product_name":        productName,
-						"concept_name":        conceptName,
-						"concept_description": conceptMap["description"],
-						"milestones":          conceptMap["milestones"],
-						"deliverable_date":    conceptMap["deliverable_date"],
-					}
-
-					tasks = append(tasks, responses.SuggestedTask{
-						Name:            taskName,
-						DescriptionJSON: taskDesc,
-					})
-				}
-			}
-
-			if len(tasks) > 0 {
-				milestones = append(milestones, responses.SuggestedMilestone{
-					Name:  milestoneName,
-					Tasks: tasks,
-				})
-			}
+	// Create milestone structures with due dates (empty tasks initially)
+	milestones := make([]responses.SuggestedMilestone, len(milestoneDueDates))
+	for i, dueDate := range milestoneDueDates {
+		milestones[i] = responses.SuggestedMilestone{
+			Description: fmt.Sprintf("Co-Production Milestone %d", i+1),
+			DueDate:     dueDate.Format(utils.DateFormat),
+			Tasks:       []responses.SuggestedTask{},
 		}
 	}
 
-	if len(milestones) == 0 {
-		return nil, errors.New("no valid co-producing milestones could be extracted")
+	// Extract all product creation tasks and concept tasks from deliverables
+	// Use first milestone due date as deadline for all development tasks
+	firstMilestoneDueDate := milestoneDueDates[0]
+	productTasks := helper.ExtractProductCreationTasks(deliverables.Products, firstMilestoneDueDate)
+	conceptTasks := helper.ExtractConceptTasks(deliverables.Concepts, deliverables.Products, firstMilestoneDueDate)
+
+	// Combine all development tasks
+	allDevelopmentTasks := append(productTasks, conceptTasks...)
+
+	if len(allDevelopmentTasks) == 0 {
+		return nil, errors.New("no product or concept tasks found in co-producing deliverables")
 	}
+
+	// Extract product names for tracking task metadata
+	productNames := make([]string, 0, len(deliverables.Products))
+	for _, product := range deliverables.Products {
+		productNames = append(productNames, product.Name)
+	}
+
+	// Assign tasks to milestones (all dev tasks to first milestone, sales review to others)
+	milestones = helper.AssignCoProducingTasksToMilestones(allDevelopmentTasks, milestones, productNames)
 
 	campaignName := "Co-Production Campaign"
 	if contract.Title != nil {
@@ -614,9 +818,14 @@ func (c *CampaignService) extractCoProducingStructure(
 
 	return &responses.SuggestedCampaign{
 		Name:       campaignName,
+		Type:       string(contract.Type),
+		StartDate:  contract.StartDate.Format(utils.DateFormat),
+		EndDate:    contract.EndDate.Format(utils.DateFormat),
 		Milestones: milestones,
 	}, nil
 }
+
+// endregion
 
 func NewCampaignService(
 	campaignRepo irepository.GenericRepository[model.Campaign],

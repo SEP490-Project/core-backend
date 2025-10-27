@@ -41,6 +41,7 @@ type Contract struct {
 	Status          enum.ContractStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED')"`
 	DepositPercent  *int                `json:"deposit_percent" gorm:"type:int;column:deposit_percent;check:deposit_percent >= 0 AND deposit_percent <= 100"`
 	DepositAmount   *int                `json:"deposit_amount" gorm:"type:int;column:deposit_amount;check:deposit_amount >= 0"`
+	IsDepositPaid   *bool               `json:"is_deposit_paid" gorm:"type:boolean;column:is_deposit_paid;default:false"`
 	SignedDate      time.Time           `json:"signed_date" gorm:"column:signed_date;not null"`
 	SignedLocation  *string             `json:"signed_location" gorm:"type:varchar(255);column:signed_location"`
 	StartDate       time.Time           `json:"start_date" gorm:"column:start_date;not null"`
@@ -55,10 +56,11 @@ type Contract struct {
 	UpdatedByID     *uuid.UUID          `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 
 	// Relationships
-	ParentContract    *Contract  `json:"parent_contract" gorm:"foreignKey:ParentContractID;references:ID"`
-	ChildrenContracts []Contract `json:"children_contracts" gorm:"foreignKey:ParentContractID;references:ID"`
-	Brand             *Brand     `json:"brand" gorm:"foreignKey:BrandID;references:ID"`
-	Campaign          *Campaign  `json:"campaigns" gorm:"foreignKey:ContractID;references:ID"`
+	ParentContract    *Contract         `json:"parent_contract" gorm:"foreignKey:ParentContractID;references:ID"`
+	ChildrenContracts []Contract        `json:"children_contracts" gorm:"foreignKey:ParentContractID;references:ID"`
+	Brand             *Brand            `json:"brand" gorm:"foreignKey:BrandID;references:ID"`
+	Campaign          *Campaign         `json:"campaigns" gorm:"foreignKey:ContractID;references:ID"`
+	ContractPayments  []ContractPayment `json:"contract_payments" gorm:"foreignKey:ContractID;references:ID"`
 }
 
 func (Contract) TableName() string { return "contracts" }

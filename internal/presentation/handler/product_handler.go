@@ -8,11 +8,12 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -41,21 +42,21 @@ func NewProductHandler(
 
 // GetAllProducts godoc
 //
-//	 @Deprecated
-//		@Summary		Get All Products
-//		@Description	Get paginated list of products with optional search
-//		@Tags			Products
-//		@Accept			json
-//		@Produce		json
-//		@Param			limit		query		int																		false	"Number of items per page"	default(10)
-//		@Param			page		query		int																		false	"Number of items to skip"	default(1)
-//		@Param			search		query		string																	false	"Search term for product name"
-//		@Param			category_id	query		string																	false	"Filter category of products"
-//		@Param			type		query		string																	false	"Filter type of products"
-//		@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//		@Failure		500			{object}	object{error=string}													"Internal server error"
-//		@Security		BearerAuth
-//		@Router			/api/v1/products [get]
+//	@Deprecated
+//	@Summary		Get All Products
+//	@Description	Get paginated list of products with optional search
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit		query		int																		false	"Number of items per page"	default(10)
+//	@Param			page		query		int																		false	"Number of items to skip"	default(1)
+//	@Param			search		query		string																	false	"Search term for product name"
+//	@Param			category_id	query		string																	false	"Filter category of products"
+//	@Param			type		query		string																	false	"Filter type of products"
+//	@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//	@Failure		500			{object}	object{error=string}													"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products [get]
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -117,12 +118,12 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Param			page		query		int																			false	"Number of items to skip"	default(1)
 //	@Param			search		query		string																		false	"Search term for product name"
 //	@Param			category_id	query		string																		false	"Filter category of products"
-//	@Param			type		query		string	false	"Filter type of products"	Enums(STANDARD, LIMITED, )
+//	@Param			type		query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED, )
 //	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
-// @Failure		500			{object}	object{error=string}														"Internal server error"
-// @Security		BearerAuth
-// @Router			/api/v1/products/v2 [get]
+//	@Failure		500			{object}	object{error=string}														"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/v2 [get]
 func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -348,7 +349,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CreateLimitedProductRequest	true	"Limited product payload"
-//	@Success		201		{object}	responses.ProductResponseV2							"Created limited product"
+//	@Success		201		{object}	responses.ProductResponseV2				"Created limited product"
 //	@Failure		400		{object}	map[string]string						"invalid request / validation failed"
 //	@Failure		401		{object}	map[string]string						"missing or invalid user id"
 //	@Failure		500		{object}	map[string]string						"internal server error"

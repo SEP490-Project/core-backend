@@ -1,4 +1,346 @@
 definitions:
+  dtos.AdvertisedItem:
+    properties:
+      content_requirements:
+        example:
+        - Include product demo and customer testimonials
+        items:
+          type: string
+        type: array
+      creative_notes:
+        example: Use bright colors and upbeat music
+        maxLength: 1000
+        type: string
+      description:
+        example: This is product A
+        maxLength: 1000
+        type: string
+      hash_tag:
+        example:
+        - '#bestproduct #awesome'
+        items:
+          type: string
+        type: array
+      id:
+        example: 1
+        type: integer
+      material_url:
+        example:
+        - https://example.com/image1.jpg
+        - https://example.com/image2.jpg
+        items:
+          type: string
+        type: array
+      metrics:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
+      name:
+        example: Product A
+        maxLength: 255
+        type: string
+      platform:
+        enum:
+        - FACEBOOK
+        - TIKTOK
+        - WEBSITE
+        example: FACEBOOK
+        type: string
+      tagline:
+        example: Best product ever
+        maxLength: 255
+        type: string
+    required:
+    - platform
+    type: object
+  dtos.BrandAmbassadorEvent:
+    properties:
+      activities:
+        example:
+        - Product demonstration
+        - ' Q&A session'
+        items:
+          type: string
+        maxItems: 1000
+        type: array
+      date:
+        example: "2023-10-01 15:00:00"
+        type: string
+      expected_duration:
+        example: 3H
+        maxLength: 100
+        type: string
+      id:
+        example: 1
+        type: integer
+      kpis:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
+      location:
+        example: Jakarta Convention Center
+        maxLength: 512
+        type: string
+      name:
+        example: Launch Event
+        maxLength: 255
+        type: string
+      representation_rules:
+        example:
+        - Must wear formal attire with long leggings
+        items:
+          type: string
+        type: array
+    type: object
+  dtos.BreachOfContract:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.BreachOfContractItem'
+        type: array
+      label:
+        example: Breach of Contract
+        maxLength: 1024
+        minLength: 1
+        type: string
+    required:
+    - items
+    - label
+    type: object
+  dtos.BreachOfContractItem:
+    properties:
+      compensation_percent:
+        example: 50
+        maximum: 100
+        minimum: 0
+        type: integer
+      details:
+        example:
+        - '[''The contract will be terminated immediately.'''
+        - ' ''Party A will loses (forfeits) the money they have paid to Party B.'']'
+        items:
+          type: string
+        type: array
+      title:
+        example: Party A (The Brand) has breached its contract with Party B (The KOL)
+        maxLength: 1024
+        minLength: 1
+        type: string
+    required:
+    - title
+    type: object
+  dtos.CoProducingConcept:
+    properties:
+      content_requirements:
+        example:
+        - Include product demo and customer testimonials
+        items:
+          type: string
+        type: array
+      creative_notes:
+        example: Use bright colors and upbeat music
+        maxLength: 1000
+        type: string
+      description:
+        example: This is product A
+        maxLength: 1000
+        type: string
+      hash_tag:
+        example:
+        - '#bestproduct #awesome'
+        items:
+          type: string
+        type: array
+      id:
+        example: 1
+        type: integer
+      material_url:
+        example:
+        - https://example.com/image1.jpg
+        - https://example.com/image2.jpg
+        items:
+          type: string
+        type: array
+      metrics:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
+      name:
+        example: Product A
+        maxLength: 255
+        type: string
+      platform:
+        enum:
+        - FACEBOOK
+        - TIKTOK
+        - WEBSITE
+        example: FACEBOOK
+        type: string
+      product_id:
+        example: 1
+        type: integer
+      tagline:
+        example: Best product ever
+        maxLength: 255
+        type: string
+    required:
+    - platform
+    type: object
+  dtos.CoProducingProduct:
+    properties:
+      description:
+        example: This is product A
+        maxLength: 1000
+        type: string
+      id:
+        example: 1
+        type: integer
+      kpis:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
+      material:
+        example:
+        - https://example.com/image1.jpg
+        - https://example.com/image2.jpg
+        items:
+          type: string
+        type: array
+      name:
+        example: Product A
+        maxLength: 255
+        type: string
+    type: object
+  dtos.Deliverable:
+    properties:
+      advertised_items:
+        items:
+          $ref: '#/definitions/dtos.AdvertisedItem'
+        minItems: 1
+        type: array
+      concepts:
+        items:
+          $ref: '#/definitions/dtos.CoProducingConcept'
+        minItems: 1
+        type: array
+      events:
+        items:
+          $ref: '#/definitions/dtos.BrandAmbassadorEvent'
+        minItems: 1
+        type: array
+      platform:
+        example:
+        - FACEBOOK
+        - TIKTOK
+        items:
+          type: string
+        minItems: 1
+        type: array
+      products:
+        items:
+          $ref: '#/definitions/dtos.CoProducingProduct'
+        minItems: 1
+        type: array
+      tracking_link:
+        example: https://affiliate.example.com/track?ref=12345
+        maxLength: 500
+        type: string
+    type: object
+  dtos.FinancialTerms:
+    properties:
+      base_per_click:
+        description: If the model is "LEVELS" and the CONTRACT_TYPE is "AFFILIATE"
+        example: 1000
+        minimum: 0
+        type: integer
+      cost_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      levels:
+        items:
+          $ref: '#/definitions/dtos.Level'
+        type: array
+      model:
+        description: Common fields
+        enum:
+        - FIXED
+        - LEVELS
+        - SHARE
+        example: FIXED
+        type: string
+      payment_cycle:
+        allOf:
+        - $ref: '#/definitions/enum.PaymentCycle'
+        enum:
+        - MONTHLY
+        - QUARTERLY
+        - ANNUALLY
+        example: MONTHLY
+      payment_date:
+        description: Change this depending on PaymentCycle
+      payment_method:
+        description: If the model is "FIXED" and the CONTRACT_TYPE is "ADVERTISING"
+          or "BRAND_AMBASSADOR"
+        enum:
+        - BANK_TRANSFER
+        - CREDIT_CARD
+        example: BANK_TRANSFER
+        type: string
+      profit_distribution_cycle:
+        allOf:
+        - $ref: '#/definitions/enum.PaymentCycle'
+        enum:
+        - MONTHLY
+        - QUARTERLY
+        - ANNUALLY
+        example: QUARTERLY
+      profit_distribution_date:
+        description: Change this depending on ProfitDistributionCycle
+      profit_split_company_percent:
+        description: If the model is "SHARE" and the CONTRACT_TYPE is "CO_PRODUCING"
+        example: 60
+        maximum: 100
+        minimum: 0
+        type: integer
+      profit_split_kol_percent:
+        example: 40
+        maximum: 100
+        minimum: 0
+        type: integer
+      schedule:
+        items:
+          $ref: '#/definitions/dtos.Schedule'
+        type: array
+      tax_withholding:
+        $ref: '#/definitions/dtos.TaxWithholding'
+      total_cost:
+        example: 10000000
+        minimum: 0
+        type: integer
+    type: object
+  dtos.KPIGoal:
+    properties:
+      description:
+        example: Achieve 10,000 views on the video content
+        type: string
+      metric:
+        example: VIEW
+        type: string
+      target:
+        example: "10000"
+        type: string
+    type: object
+  dtos.LegalTerms:
+    properties:
+      breach_of_contract:
+        $ref: '#/definitions/dtos.BreachOfContract'
+      standard_terms:
+        $ref: '#/definitions/dtos.StandardTerm'
+    required:
+    - breach_of_contract
+    - standard_terms
+    type: object
   dtos.Level:
     properties:
       level:
@@ -45,6 +387,34 @@ definitions:
     - milestone
     - percent
     type: object
+  dtos.ScopeOfWork:
+    properties:
+      deliverables:
+        $ref: '#/definitions/dtos.Deliverable'
+      general_requirements:
+        example:
+        - 4K video
+        - ' professional lighting'
+        items:
+          type: string
+        maxItems: 50
+        type: array
+    type: object
+  dtos.StandardTerm:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dtos.TermItem'
+        type: array
+      label:
+        example: Standard Terms
+        maxLength: 1024
+        minLength: 1
+        type: string
+    required:
+    - items
+    - label
+    type: object
   dtos.TaxWithholding:
     properties:
       rate_percent:
@@ -56,6 +426,22 @@ definitions:
         example: 10000000
         minimum: 0
         type: integer
+    type: object
+  dtos.TermItem:
+    properties:
+      description:
+        example: Both parties agree to keep all information related to this contract
+          confidential.
+        maxLength: 2048
+        minLength: 1
+        type: string
+      title:
+        example: 'Term 1: Confidentiality'
+        maxLength: 1024
+        minLength: 1
+        type: string
+    required:
+    - title
     type: object
   enum.AttributeUnit:
     enum:
@@ -696,6 +1082,144 @@ definitions:
     - type
     type: object
   requests.CreateContractRequest:
+    properties:
+      brand_bank_account_holder:
+        example: ABC Company Ltd.
+        maxLength: 255
+        type: string
+      brand_bank_account_number:
+        example: "0123456789"
+        maxLength: 255
+        type: string
+      brand_bank_name:
+        example: Vietcombank
+        maxLength: 255
+        type: string
+      brand_id:
+        description: Brand information (stored in contract for record-keeping)
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      contract_file_url:
+        description: File URLs
+        example: https://example.com/contracts/contract.pdf
+        type: string
+      contract_number:
+        example: CONTRACT-2023-001
+        maxLength: 255
+        minLength: 2
+        type: string
+      currency:
+        description: Financial
+        example: VND
+        type: string
+      deposit_amount:
+        example: 3000000
+        minimum: 0
+        type: integer
+      deposit_percent:
+        example: 30
+        maximum: 100
+        minimum: 0
+        type: integer
+      end_date:
+        example: "2023-12-31T23:59:59Z"
+        type: string
+      financial_terms:
+        allOf:
+        - $ref: '#/definitions/dtos.FinancialTerms'
+        description: Complex JSONB fields
+      is_deposit_paid:
+        example: false
+        type: boolean
+      legal_terms:
+        $ref: '#/definitions/dtos.LegalTerms'
+      parent_contract_id:
+        description: Parent contract (for amendments or related contracts)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      proposal_file_url:
+        example: https://example.com/proposals/proposal.pdf
+        type: string
+      representative_bank_account_holder:
+        example: Jane Smith
+        maxLength: 255
+        type: string
+      representative_bank_account_number:
+        example: "987654321"
+        maxLength: 255
+        type: string
+      representative_bank_name:
+        example: First National Bank
+        maxLength: 255
+        type: string
+      representative_email:
+        example: jane.smith@example.com
+        maxLength: 255
+        type: string
+      representative_name:
+        description: KOL/Representative information (the other party in the contract)
+        example: Jane Smith
+        maxLength: 255
+        minLength: 2
+        type: string
+      representative_phone:
+        example: "+84901234567"
+        type: string
+      representative_role:
+        example: Influencer
+        maxLength: 255
+        type: string
+      representative_tax_number:
+        example: TAX654321
+        maxLength: 100
+        type: string
+      scope_of_work:
+        $ref: '#/definitions/dtos.ScopeOfWork'
+      signed_date:
+        description: Contract dates
+        example: "2023-10-01T12:00:00Z"
+        type: string
+      signed_location:
+        example: Springfield
+        maxLength: 255
+        type: string
+      start_date:
+        example: "2023-10-02T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - DRAFT
+        - ACTIVE
+        - COMPLETED
+        - TERMINATED
+        example: DRAFT
+        type: string
+      title:
+        description: Contract basic information
+        example: Social Media Promotion Contract
+        maxLength: 255
+        minLength: 2
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
+        type: string
+    required:
+    - brand_id
+    - contract_number
+    - end_date
+    - financial_terms
+    - legal_terms
+    - representative_name
+    - scope_of_work
+    - signed_date
+    - start_date
+    - title
+    - type
     type: object
   requests.CreateLimitedProductRequest:
     properties:
@@ -1644,9 +2168,6 @@ definitions:
     type: object
   responses.CampaignDetailsResponse:
     properties:
-      budget:
-        example: 100000000
-        type: number
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -1713,9 +2234,6 @@ definitions:
     type: object
   responses.CampaignInfoResponse:
     properties:
-      budget:
-        example: 100000000
-        type: number
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -1984,6 +2502,9 @@ definitions:
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      is_deposit_paid:
+        example: true
+        type: boolean
       legal_terms: {}
       parent_contract:
         allOf:
@@ -2458,10 +2979,6 @@ definitions:
         type: string
       price:
         type: number
-      story:
-        items:
-          type: integer
-        type: array
       type:
         $ref: '#/definitions/enum.ProductType'
       updated_at:
@@ -2581,16 +3098,33 @@ definitions:
     type: object
   responses.SuggestedCampaign:
     properties:
+      description:
+        example: Campaign for launching the new product line.
+        type: string
+      end_date:
+        example: "2024-12-31T23:59:59Z"
+        type: string
       milestones:
         items:
           $ref: '#/definitions/responses.SuggestedMilestone'
         type: array
       name:
+        example: New Product Launch Campaign
+        type: string
+      start_date:
+        example: "2024-11-01T00:00:00Z"
+        type: string
+      type:
+        example: ADVERTISING
         type: string
     type: object
   responses.SuggestedMilestone:
     properties:
-      name:
+      description:
+        example: Initial launch of the campaign
+        type: string
+      due_date:
+        example: "2024-12-31T23:59:59Z"
         type: string
       tasks:
         items:
@@ -2599,10 +3133,17 @@ definitions:
     type: object
   responses.SuggestedTask:
     properties:
+      deadline:
+        example: "2024-12-31T23:59:59Z"
+        type: string
       description_json:
         additionalProperties: {}
         type: object
       name:
+        example: Create social media post
+        type: string
+      type:
+        example: CONTENT
         type: string
     type: object
   responses.TaskListResponse:
