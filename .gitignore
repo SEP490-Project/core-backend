@@ -9,6 +9,7 @@ bin/
 tmp/
 .specify/
 specs/
+test-reports/
 
 *.exe
 *.out

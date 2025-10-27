@@ -7719,6 +7719,482 @@
         }
     },
     "definitions": {
+        "dtos.AdvertisedItem": {
+            "type": "object",
+            "required": [
+                "platform"
+            ],
+            "properties": {
+                "content_requirements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Include product demo and customer testimonials"
+                    ]
+                },
+                "creative_notes": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Use bright colors and upbeat music"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "This is product A"
+                },
+                "hash_tag": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "#bestproduct #awesome"
+                    ]
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "material_url": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/image1.jpg",
+                        "https://example.com/image2.jpg"
+                    ]
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Product A"
+                },
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "FACEBOOK",
+                        "TIKTOK",
+                        "WEBSITE"
+                    ],
+                    "example": "FACEBOOK"
+                },
+                "tagline": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Best product ever"
+                }
+            }
+        },
+        "dtos.BrandAmbassadorEvent": {
+            "type": "object",
+            "properties": {
+                "activities": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Product demonstration",
+                        " Q\u0026A session"
+                    ]
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2023-10-01 15:00:00"
+                },
+                "expected_duration": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "3H"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "kpis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
+                "location": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "example": "Jakarta Convention Center"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Launch Event"
+                },
+                "representation_rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Must wear formal attire with long leggings"
+                    ]
+                }
+            }
+        },
+        "dtos.BreachOfContract": {
+            "type": "object",
+            "required": [
+                "items",
+                "label"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.BreachOfContractItem"
+                    }
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "example": "Breach of Contract"
+                }
+            }
+        },
+        "dtos.BreachOfContractItem": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "compensation_percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 50
+                },
+                "details": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "['The contract will be terminated immediately.'",
+                        " 'Party A will loses (forfeits) the money they have paid to Party B.']"
+                    ]
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "example": "Party A (The Brand) has breached its contract with Party B (The KOL)"
+                }
+            }
+        },
+        "dtos.CoProducingConcept": {
+            "type": "object",
+            "required": [
+                "platform"
+            ],
+            "properties": {
+                "content_requirements": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Include product demo and customer testimonials"
+                    ]
+                },
+                "creative_notes": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Use bright colors and upbeat music"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "This is product A"
+                },
+                "hash_tag": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "#bestproduct #awesome"
+                    ]
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "material_url": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/image1.jpg",
+                        "https://example.com/image2.jpg"
+                    ]
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Product A"
+                },
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "FACEBOOK",
+                        "TIKTOK",
+                        "WEBSITE"
+                    ],
+                    "example": "FACEBOOK"
+                },
+                "product_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "tagline": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Best product ever"
+                }
+            }
+        },
+        "dtos.CoProducingProduct": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "This is product A"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "kpis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
+                "material": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "https://example.com/image1.jpg",
+                        "https://example.com/image2.jpg"
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Product A"
+                }
+            }
+        },
+        "dtos.Deliverable": {
+            "type": "object",
+            "properties": {
+                "advertised_items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.AdvertisedItem"
+                    }
+                },
+                "concepts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.CoProducingConcept"
+                    }
+                },
+                "events": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.BrandAmbassadorEvent"
+                    }
+                },
+                "platform": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "FACEBOOK",
+                        "TIKTOK"
+                    ]
+                },
+                "products": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/dtos.CoProducingProduct"
+                    }
+                },
+                "tracking_link": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "https://affiliate.example.com/track?ref=12345"
+                }
+            }
+        },
+        "dtos.FinancialTerms": {
+            "type": "object",
+            "properties": {
+                "base_per_click": {
+                    "description": "If the model is \"LEVELS\" and the CONTRACT_TYPE is \"AFFILIATE\"",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1000
+                },
+                "cost_breakdown": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "levels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.Level"
+                    }
+                },
+                "model": {
+                    "description": "Common fields",
+                    "type": "string",
+                    "enum": [
+                        "FIXED",
+                        "LEVELS",
+                        "SHARE"
+                    ],
+                    "example": "FIXED"
+                },
+                "payment_cycle": {
+                    "enum": [
+                        "MONTHLY",
+                        "QUARTERLY",
+                        "ANNUALLY"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PaymentCycle"
+                        }
+                    ],
+                    "example": "MONTHLY"
+                },
+                "payment_date": {
+                    "description": "Change this depending on PaymentCycle"
+                },
+                "payment_method": {
+                    "description": "If the model is \"FIXED\" and the CONTRACT_TYPE is \"ADVERTISING\" or \"BRAND_AMBASSADOR\"",
+                    "type": "string",
+                    "enum": [
+                        "BANK_TRANSFER",
+                        "CREDIT_CARD"
+                    ],
+                    "example": "BANK_TRANSFER"
+                },
+                "profit_distribution_cycle": {
+                    "enum": [
+                        "MONTHLY",
+                        "QUARTERLY",
+                        "ANNUALLY"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PaymentCycle"
+                        }
+                    ],
+                    "example": "QUARTERLY"
+                },
+                "profit_distribution_date": {
+                    "description": "Change this depending on ProfitDistributionCycle"
+                },
+                "profit_split_company_percent": {
+                    "description": "If the model is \"SHARE\" and the CONTRACT_TYPE is \"CO_PRODUCING\"",
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 60
+                },
+                "profit_split_kol_percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 40
+                },
+                "schedule": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.Schedule"
+                    }
+                },
+                "tax_withholding": {
+                    "$ref": "#/definitions/dtos.TaxWithholding"
+                },
+                "total_cost": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10000000
+                }
+            }
+        },
+        "dtos.KPIGoal": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Achieve 10,000 views on the video content"
+                },
+                "metric": {
+                    "type": "string",
+                    "example": "VIEW"
+                },
+                "target": {
+                    "type": "string",
+                    "example": "10000"
+                }
+            }
+        },
+        "dtos.LegalTerms": {
+            "type": "object",
+            "required": [
+                "breach_of_contract",
+                "standard_terms"
+            ],
+            "properties": {
+                "breach_of_contract": {
+                    "$ref": "#/definitions/dtos.BreachOfContract"
+                },
+                "standard_terms": {
+                    "$ref": "#/definitions/dtos.StandardTerm"
+                }
+            }
+        },
         "dtos.Level": {
             "type": "object",
             "required": [
@@ -7779,6 +8255,46 @@
                 }
             }
         },
+        "dtos.ScopeOfWork": {
+            "type": "object",
+            "properties": {
+                "deliverables": {
+                    "$ref": "#/definitions/dtos.Deliverable"
+                },
+                "general_requirements": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "4K video",
+                        " professional lighting"
+                    ]
+                }
+            }
+        },
+        "dtos.StandardTerm": {
+            "type": "object",
+            "required": [
+                "items",
+                "label"
+            ],
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TermItem"
+                    }
+                },
+                "label": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "example": "Standard Terms"
+                }
+            }
+        },
         "dtos.TaxWithholding": {
             "type": "object",
             "properties": {
@@ -7792,6 +8308,26 @@
                     "type": "integer",
                     "minimum": 0,
                     "example": 10000000
+                }
+            }
+        },
+        "dtos.TermItem": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "minLength": 1,
+                    "example": "Both parties agree to keep all information related to this contract confidential."
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "example": "Term 1: Confidentiality"
                 }
             }
         },
@@ -8645,7 +9181,182 @@
             }
         },
         "requests.CreateContractRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "brand_id",
+                "contract_number",
+                "end_date",
+                "financial_terms",
+                "legal_terms",
+                "representative_name",
+                "scope_of_work",
+                "signed_date",
+                "start_date",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "brand_bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "ABC Company Ltd."
+                },
+                "brand_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "0123456789"
+                },
+                "brand_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Vietcombank"
+                },
+                "brand_id": {
+                    "description": "Brand information (stored in contract for record-keeping)",
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "contract_file_url": {
+                    "description": "File URLs",
+                    "type": "string",
+                    "example": "https://example.com/contracts/contract.pdf"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "CONTRACT-2023-001"
+                },
+                "currency": {
+                    "description": "Financial",
+                    "type": "string",
+                    "example": "VND"
+                },
+                "deposit_amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 3000000
+                },
+                "deposit_percent": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0,
+                    "example": 30
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2023-12-31T23:59:59Z"
+                },
+                "financial_terms": {
+                    "description": "Complex JSONB fields",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.FinancialTerms"
+                        }
+                    ]
+                },
+                "is_deposit_paid": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "legal_terms": {
+                    "$ref": "#/definitions/dtos.LegalTerms"
+                },
+                "parent_contract_id": {
+                    "description": "Parent contract (for amendments or related contracts)",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "proposal_file_url": {
+                    "type": "string",
+                    "example": "https://example.com/proposals/proposal.pdf"
+                },
+                "representative_bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Jane Smith"
+                },
+                "representative_bank_account_number": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "987654321"
+                },
+                "representative_bank_name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "First National Bank"
+                },
+                "representative_email": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "jane.smith@example.com"
+                },
+                "representative_name": {
+                    "description": "KOL/Representative information (the other party in the contract)",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Jane Smith"
+                },
+                "representative_phone": {
+                    "type": "string",
+                    "example": "+84901234567"
+                },
+                "representative_role": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Influencer"
+                },
+                "representative_tax_number": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "TAX654321"
+                },
+                "scope_of_work": {
+                    "$ref": "#/definitions/dtos.ScopeOfWork"
+                },
+                "signed_date": {
+                    "description": "Contract dates",
+                    "type": "string",
+                    "example": "2023-10-01T12:00:00Z"
+                },
+                "signed_location": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Springfield"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2023-10-02T00:00:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "ACTIVE",
+                        "COMPLETED",
+                        "TERMINATED"
+                    ],
+                    "example": "DRAFT"
+                },
+                "title": {
+                    "description": "Contract basic information",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 2,
+                    "example": "Social Media Promotion Contract"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "ADVERTISING",
+                        "AFFILIATE",
+                        "BRAND_AMBASSADOR",
+                        "CO_PRODUCING"
+                    ],
+                    "example": "ADVERTISING"
+                }
+            }
         },
         "requests.CreateLimitedProductRequest": {
             "type": "object",
@@ -9951,10 +10662,6 @@
         "responses.CampaignDetailsResponse": {
             "type": "object",
             "properties": {
-                "budget": {
-                    "type": "number",
-                    "example": 100000000
-                },
                 "contract_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -10048,10 +10755,6 @@
         "responses.CampaignInfoResponse": {
             "type": "object",
             "properties": {
-                "budget": {
-                    "type": "number",
-                    "example": 100000000
-                },
                 "contract_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -10435,6 +11138,10 @@
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "is_deposit_paid": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "legal_terms": {},
                 "parent_contract": {
@@ -11138,12 +11845,6 @@
                 "price": {
                     "type": "number"
                 },
-                "story": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
                 "type": {
                     "$ref": "#/definitions/enum.ProductType"
                 },
@@ -11317,6 +12018,14 @@
         "responses.SuggestedCampaign": {
             "type": "object",
             "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Campaign for launching the new product line."
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
                 "milestones": {
                     "type": "array",
                     "items": {
@@ -11324,15 +12033,29 @@
                     }
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "New Product Launch Campaign"
+                },
+                "start_date": {
+                    "type": "string",
+                    "example": "2024-11-01T00:00:00Z"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "ADVERTISING"
                 }
             }
         },
         "responses.SuggestedMilestone": {
             "type": "object",
             "properties": {
-                "name": {
-                    "type": "string"
+                "description": {
+                    "type": "string",
+                    "example": "Initial launch of the campaign"
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
                 },
                 "tasks": {
                     "type": "array",
@@ -11345,12 +12068,21 @@
         "responses.SuggestedTask": {
             "type": "object",
             "properties": {
+                "deadline": {
+                    "type": "string",
+                    "example": "2024-12-31T23:59:59Z"
+                },
                 "description_json": {
                     "type": "object",
                     "additionalProperties": {}
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Create social media post"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "CONTENT"
                 }
             }
         },
