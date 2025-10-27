@@ -75,10 +75,10 @@ otel:
 # RabbitMQ configuration
 rabbitmq:
   # url: "amqp://guest:guest@localhost:5672/"
-  host: "localhost"
+  host: my-vps
   port: 5672
-  username: "guest"
-  password: "guest"
+  username: "admin"
+  password: "170504"
   vhost: "/"
   reconnectDelayMs: 5000
   connectionTimeoutMs: 10000

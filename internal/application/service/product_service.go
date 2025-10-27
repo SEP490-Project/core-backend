@@ -625,9 +625,9 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search s
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductResponse, error) {
+func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error) {
 	ctx := context.Background()
-	res := responses.ProductResponse{}
+	res := responses.ProductDetailResponse{}
 
 	// Use actual struct field names for nested preloads to avoid unsupported relation errors
 	includes := []string{
@@ -638,6 +638,7 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductRespon
 		"Variants",
 		"Variants.Images",
 		"Variants.AttributeValues",
+		"Variants.AttributeValues.Attribute",
 		"Variants.Story",
 	}
 
@@ -650,7 +651,7 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductRespon
 		return nil, errors.New("product not found")
 	}
 
-	return res.ToProductResponse(product), nil
+	return res.ToProductDetailResponse(product), nil
 }
 
 func isStaffRole(role string) bool {
