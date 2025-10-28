@@ -3,6 +3,7 @@ package responses
 import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"strings"
 )
 
 // LoggedSessionResponse represents logged session information in responses
@@ -34,7 +35,7 @@ func (lsr LoggedSessionResponse) ToResponse(model *model.LoggedSession) *LoggedS
 }
 
 // LoggedDeviceListResponse represents a list of unique device fingerprints
-type LoggedDeviceListResponse []*string
+type LoggedDeviceListResponse []string
 
 // ToResponseList converts a slice of LoggedSession models to a list of unique device fingerprints
 func (ldr LoggedDeviceListResponse) ToResponseList(sessions []model.LoggedSession) (responses LoggedDeviceListResponse) {
@@ -42,7 +43,9 @@ func (ldr LoggedDeviceListResponse) ToResponseList(sessions []model.LoggedSessio
 		return LoggedDeviceListResponse{}
 	}
 
-	mapper := func(session model.LoggedSession) *string { return &session.DeviceFingerprint }
+	mapper := func(session model.LoggedSession) string {
+		return strings.TrimSpace(session.DeviceFingerprint)
+	}
 	uniqueSessions := utils.UniqueSliceMapper(sessions, mapper)
 
 	return LoggedDeviceListResponse(uniqueSessions)

@@ -57,13 +57,15 @@ func UniqueSlice[T comparable](input []T) []T {
 // removes duplicates from the resulting slice, and returns a slice of unique mapped values.
 func UniqueSliceMapper[T any, R comparable](input []T, mapper func(T) R) []R {
 	uniqueMap := make(map[R]struct{})
+	uniqueSlice := make([]R, 0, len(input))
+
 	for _, item := range input {
-		mappedItem := mapper(item)
-		uniqueMap[mappedItem] = struct{}{}
+		mapped := mapper(item)
+		if _, exists := uniqueMap[mapped]; !exists {
+			uniqueMap[mapped] = struct{}{}
+			uniqueSlice = append(uniqueSlice, mapped)
+		}
 	}
-	uniqueSlice := make([]R, 0, len(uniqueMap))
-	for item := range uniqueMap {
-		uniqueSlice = append(uniqueSlice, item)
-	}
+
 	return uniqueSlice
 }
