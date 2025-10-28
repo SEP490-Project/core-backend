@@ -865,6 +865,80 @@ definitions:
     - author_id
     type: object
   requests.BulkVariantRequest:
+    properties:
+      attributes:
+        items:
+          $ref: '#/definitions/requests.CreateVariantAttributeValueRequest'
+        type: array
+      capacity:
+        example: 500
+        minimum: 0
+        type: number
+      capacity_unit:
+        allOf:
+        - $ref: '#/definitions/enum.CapacityUnit'
+        enum:
+        - ML
+        - L
+        - G
+        - KG
+        - OZ
+      container_type:
+        allOf:
+        - $ref: '#/definitions/enum.ContainerType'
+        enum:
+        - BOTTLE
+        - TUBE
+        - JAR
+        - STICK
+        - PENCIL
+        - COMPACT
+        - PALLETE
+        - SACHET
+        - VIAL
+        - ROLLER_BOTTLE
+        example: BOTTLE
+      current_stock:
+        example: 100
+        type: integer
+      dispenser_type:
+        allOf:
+        - $ref: '#/definitions/enum.DispenserType'
+        enum:
+        - PUMP
+        - SPRAY
+        - DROPPER
+        - ROLL_ON
+        - TWIST_UP
+        - SQUEEZE
+        - NONE
+        example: SPRAY
+      expiry_date:
+        example: "2025-10-01T00:00:00Z"
+        type: string
+      instructions:
+        example: Shake well before use
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      manufacturing_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      price:
+        example: 29.99
+        minimum: 1000
+        type: number
+      story:
+        $ref: '#/definitions/requests.CreateProductStoryRequest'
+      uses:
+        example: For daily use
+        type: string
+    required:
+    - capacity_unit
+    - container_type
+    - dispenser_type
+    - price
     type: object
   requests.ConceptRequest:
     properties:
@@ -1279,6 +1353,19 @@ definitions:
     required:
     - name
     type: object
+  requests.CreateProductStoryRequest:
+    properties:
+      content:
+        items:
+          type: integer
+        maxItems: 5000
+        type: array
+      variant_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - content
+    type: object
   requests.CreateStandardProductRequest:
     properties:
       brand_id:
@@ -1299,6 +1386,20 @@ definitions:
     required:
     - brand_id
     - category_id
+    - name
+    type: object
+  requests.CreateTagRequest:
+    properties:
+      description:
+        example: Posts related to the latest technology trends.
+        maxLength: 1000
+        type: string
+      name:
+        example: Technology
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
     - name
     type: object
   requests.CreateTaskCampaignRequest:
@@ -1382,6 +1483,33 @@ definitions:
         type: string
     required:
     - ingredient
+    type: object
+  requests.CreateVariantAttributeValueRequest:
+    properties:
+      attribute_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      unit:
+        allOf:
+        - $ref: '#/definitions/enum.AttributeUnit'
+        enum:
+        - '%'
+        - MG
+        - G
+        - ML
+        - L
+        - IU
+        - PPM
+        - NONE
+        example: MG
+      value:
+        example: 10.5
+        minimum: 0.1
+        type: number
+    required:
+    - attribute_id
+    - unit
+    - value
     type: object
   requests.InvoiceRequest:
     properties:
@@ -1882,6 +2010,18 @@ definitions:
         example: new_username
         maxLength: 50
         minLength: 3
+        type: string
+    type: object
+  requests.UpdateTagRequest:
+    properties:
+      description:
+        example: Posts related to the latest technology trends.
+        maxLength: 1000
+        type: string
+      name:
+        example: Technology
+        maxLength: 255
+        minLength: 1
         type: string
     type: object
   requests.UpdateTaskRequest:
@@ -3145,6 +3285,50 @@ definitions:
       type:
         example: CONTENT
         type: string
+    type: object
+  responses.TagPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.TagResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.TagResponse:
+    properties:
+      created_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      created_by:
+        example: a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6
+        type: string
+      description:
+        example: Posts related to the latest technology trends.
+        type: string
+      id:
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      name:
+        example: Technology
+        type: string
+      updated_at:
+        example: "2024-01-02T12:00:00Z"
+        type: string
+      updated_by:
+        example: p5o4n3m2-l1k0-j9i8-h7g6-f5e4d3c2b1a0
+        type: string
+      usage_count:
+        example: 42
+        type: integer
     type: object
   responses.TaskListResponse:
     properties:
@@ -7241,6 +7425,291 @@ paths:
       summary: Create Variant Image
       tags:
       - Products
+  /api/v1/tags:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of tags with optional filters
+      parameters:
+      - description: Tag name
+        format: string
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.TagPaginationResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tags by filter
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Create a new tag
+      parameters:
+      - description: Tag creation data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Tag created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TagResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Tag name already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new tag
+      tags:
+      - Tags
+  /api/v1/tags/{tag_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a tag by ID
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: tag_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid tag ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete tag
+      tags:
+      - Tags
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed information about a specific tag
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: tag_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TagResponse'
+              type: object
+        "400":
+          description: Invalid tag ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tag by ID
+      tags:
+      - Tags
+    put:
+      consumes:
+      - application/json
+      description: Update a tag by its ID
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: tag_id
+        required: true
+        type: string
+      - description: Tag update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TagResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Tag name already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update tag
+      tags:
+      - Tags
+  /api/v1/tags/name/{name}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a tag by its name
+      parameters:
+      - description: Tag name
+        format: string
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TagResponse'
+              type: object
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get tag by name
+      tags:
+      - Tags
   /api/v1/tasks:
     get:
       consumes:
