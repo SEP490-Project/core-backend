@@ -1,6 +1,10 @@
 package iservice
 
-import "core-backend/internal/application/dto/responses"
+import (
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/model"
+)
 
 type LocationService interface {
 
@@ -10,5 +14,6 @@ type LocationService interface {
 	GetWardsByDistrictID(districtID int) ([]responses.WardResponse, error)
 
 	// Delivery Services
-
+	InputUserAddress(userID string, addressReq requests.InputAddressRequest) (*model.ShippingAddress, error)
+	SetAddressAsDefault(userID string, addressID string) error
 }
