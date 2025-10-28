@@ -25,16 +25,6 @@ type locationService struct {
 	userRepo            irepository.GenericRepository[model.User]
 }
 
-func (l locationService) InputUserAddress(userID string, addressReq requests.InputAddressRequest) (*model.ShippingAddress, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (l locationService) SetAddressAsDefault(userID string, addressID string) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (l locationService) GetProvinces() ([]responses.ProvinceResponse, error) {
 	cfg := config.GetAppConfig()
 	url := cfg.GHN.BaseURL + "/province"
