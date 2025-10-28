@@ -86,7 +86,7 @@ func NewApplicationRegistry(
 		),
 		TaskService:         service.NewTaskService(databaseRegistry.TaskRepository),
 		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
-		LocationService:     service.NewLocationService(),
+		LocationService:     service.NewLocationService(databaseRegistry),
 		TagService:          service.NewTagService(databaseRegistry.TagRepository),
 	}
 }
