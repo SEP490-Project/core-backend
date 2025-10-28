@@ -32,6 +32,7 @@ type HandlerRegistry struct {
 	TaskHandler            *TaskHandler
 	DeviceTokenHandler     *DeviceTokenHandler
 	NotificationHandler    *NotificationHandler
+	TagHandler             *TagHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
@@ -55,10 +56,11 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		OrderHandler:           NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ChannelHandler:         NewChannelHandler(applicationReg.ChannelService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ContentHandler:         NewContentHandler(applicationReg.ContentService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
-		BlogHandler:            NewBlogHandler(applicationReg.BlogService),
+		BlogHandler:            NewBlogHandler(applicationReg.BlogService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		TaskHandler:            NewTaskHandler(applicationReg.TaskService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		DeviceTokenHandler:     NewDeviceTokenHandler(applicationReg.DeviceTokenService),
 		NotificationHandler:    NewNotificationHandler(applicationReg.NotificationService),
 		LocationHandler:        NewLocationHandler(applicationReg.LocationService),
+		TagHandler:             NewTagHandler(applicationReg.TagService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }
