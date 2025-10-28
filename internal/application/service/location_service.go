@@ -12,6 +12,8 @@ import (
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"io"
 	"net/http"
 
