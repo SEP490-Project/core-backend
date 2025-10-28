@@ -4,9 +4,10 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"fmt"
+	"net/http"
+
 	"github.com/aws/smithy-go/ptr"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type LocationHandler struct {
@@ -15,14 +16,14 @@ type LocationHandler struct {
 
 // GetProvinces godoc
 //
-//		@Summary	    Get list of provinces from GiaoHangNhanh API
-//		@Description	Fetch all provinces	and front-end have to filter himself
-//		@Tags			location
-//		@Accept			json
-//		@Produce		json
-//		@Success		200		{object}	responses.ProvinceResponse	"Provinces response"
-//		@Router			/api/v1/location/provinces [get]
-//	 	@Security		BearerAuth
+//	@Summary		Get list of provinces from GiaoHangNhanh API
+//	@Description	Fetch all provinces	and front-end have to filter himself
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.ProvinceResponse	"Provinces response"
+//	@Router			/api/v1/location/provinces [get]
+//	@Security		BearerAuth
 func (h *LocationHandler) GetProvinces(c *gin.Context) {
 	result, err := h.locationService.GetProvinces()
 	if err != nil {
@@ -36,15 +37,15 @@ func (h *LocationHandler) GetProvinces(c *gin.Context) {
 
 // GetDistricts godoc
 //
-//		@Summary	    Get list of districts from a province
-//		@Description	Fetch all districts	and front-end have to filter himself
-//		@Tags			location
-//		@Accept			json
-//		@Produce		json
-//	    @Param			province-id	path		int	true	"Province ID"
-//		@Success		200		{object}	responses.DistrictResponse	"Provinces response"
-//		@Router			/api/v1/location/districts/{province-id} [get]
-//	 	@Security		BearerAuth
+//	@Summary		Get list of districts from a province
+//	@Description	Fetch all districts	and front-end have to filter himself
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			province-id	path		int							true	"Province ID"
+//	@Success		200			{object}	responses.DistrictResponse	"Provinces response"
+//	@Router			/api/v1/location/districts/{province-id} [get]
+//	@Security		BearerAuth
 func (h *LocationHandler) GetDistricts(c *gin.Context) {
 	provinceIDStr := c.Param("province-id")
 	if provinceIDStr == "" {
@@ -72,15 +73,15 @@ func (h *LocationHandler) GetDistricts(c *gin.Context) {
 
 // GetWards godoc
 //
-//		@Summary	    Get list of districts from a province
-//		@Description	Fetch all districts	and front-end have to filter himself
-//		@Tags			location
-//		@Accept			json
-//		@Produce		json
-//	    @Param			district-id	path		int	true	"District ID"
-//		@Success		200		{object}	responses.WardResponse	"Ward response"
-//		@Router			/api/v1/location/wards/{district-id} [get]
-//	 	@Security		BearerAuth
+//	@Summary		Get list of districts from a province
+//	@Description	Fetch all districts	and front-end have to filter himself
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			district-id	path		int						true	"District ID"
+//	@Success		200			{object}	responses.WardResponse	"Ward response"
+//	@Router			/api/v1/location/wards/{district-id} [get]
+//	@Security		BearerAuth
 func (h *LocationHandler) GetWards(c *gin.Context) {
 	districtIDStr := c.Param("district-id")
 	if districtIDStr == "" {

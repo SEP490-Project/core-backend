@@ -8,11 +8,12 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -41,21 +42,21 @@ func NewProductHandler(
 
 // GetAllProducts godoc
 //
-//	 @Deprecated
-//		@Summary		Get All Products
-//		@Description	Get paginated list of products with optional search
-//		@Tags			Products
-//		@Accept			json
-//		@Produce		json
-//		@Param			limit		query		int																		false	"Number of items per page"	default(10)
-//		@Param			page		query		int																		false	"Number of items to skip"	default(1)
-//		@Param			search		query		string																	false	"Search term for product name"
-//		@Param			category_id	query		string																	false	"Filter category of products"
-//		@Param			type		query		string																	false	"Filter type of products"
-//		@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
-//		@Failure		500			{object}	object{error=string}													"Internal server error"
-//		@Security		BearerAuth
-//		@Router			/api/v1/products [get]
+//	@Deprecated
+//	@Summary		Get All Products
+//	@Description	Get paginated list of products with optional search
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit		query		int																		false	"Number of items per page"	default(10)
+//	@Param			page		query		int																		false	"Number of items to skip"	default(1)
+//	@Param			search		query		string																	false	"Search term for product name"
+//	@Param			category_id	query		string																	false	"Filter category of products"
+//	@Param			type		query		string																	false	"Filter type of products"
+//	@Success		200			{object}	object{data=[]responses.ProductResponse,total=int,limit=int,offset=int}	"Products retrieved successfully"
+//	@Failure		500			{object}	object{error=string}													"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products [get]
 func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
