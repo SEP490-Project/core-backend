@@ -9,13 +9,13 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -89,16 +89,20 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 
 	// Create blog if type is POST
 	if content.Type == enum.ContentTypePost && req.BlogFields != nil {
-		tagsJSON, err := json.Marshal(req.BlogFields.Tags)
+		creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
+			return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
+		})
+		createdTags, err := uow.Tags().CreateIfNotExists(ctx, creatingTags)
 		if err != nil {
 			_ = uow.Rollback()
-			return nil, errors.New("invalid tags format")
+			zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
+			return nil, errors.New("failed to create or retrieve tags")
 		}
 
 		blog := &model.Blog{
 			ContentID: content.ID,
 			AuthorID:  req.BlogFields.AuthorID,
-			Tags:      datatypes.JSON(tagsJSON),
+			Tags:      createdTags,
 			Excerpt:   req.BlogFields.Excerpt,
 			ReadTime:  req.BlogFields.ReadTime,
 		}
@@ -137,16 +141,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 
 // GetByID retrieves content by ID with relationships
 func (s *ContentService) GetByID(ctx context.Context, id uuid.UUID) (*responses.ContentResponse, error) {
-	content, err := s.contentRepo.GetByCondition(ctx,
-		func(db *gorm.DB) *gorm.DB {
-			return db.Where("id = ?", id).
-				Preload("Blog").
-				Preload("Blog.Author").
-				Preload("ContentChannels").
-				Preload("ContentChannels.Channel")
-		},
-		nil,
-	)
+	content, err := s.contentRepo.GetByID(ctx, id, []string{"Blog", "Blog.Author", "ContentChannels", "ContentChannels.Channel", "Blog.Tags"})
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -195,128 +190,6 @@ func (s *ContentService) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return s.contentRepo.Delete(ctx, content)
-}
-
-// Helper methods
-func (s *ContentService) mapToContentResponse(content *model.Content) *responses.ContentResponse {
-	resp := &responses.ContentResponse{
-		ID:                content.ID,
-		TaskID:            content.TaskID,
-		Title:             content.Title,
-		Body:              content.Body,
-		Type:              content.Type,
-		Status:            content.Status,
-		PublishDate:       content.PublishDate,
-		AffiliateLink:     content.AffiliateLink,
-		AIGeneratedText:   content.AIGeneratedText,
-		RejectionFeedback: content.RejectionFeedback,
-		CreatedAt:         content.CreatedAt,
-		UpdatedAt:         content.UpdatedAt,
-	}
-
-	if content.Blog != nil {
-		var tags []string
-		_ = json.Unmarshal(content.Blog.Tags, &tags)
-
-		resp.Blog = &responses.BlogResponse{
-			ContentID: content.Blog.ContentID,
-			AuthorID:  content.Blog.AuthorID,
-			Tags:      tags,
-			Excerpt:   content.Blog.Excerpt,
-			ReadTime:  content.Blog.ReadTime,
-			CreatedAt: content.Blog.CreatedAt,
-			UpdatedAt: content.Blog.UpdatedAt,
-		}
-
-		if content.Blog.Author != nil {
-			resp.Blog.Author = &responses.UserBrief{
-				ID:       content.Blog.Author.ID,
-				Username: content.Blog.Author.Username,
-				Email:    content.Blog.Author.Email,
-			}
-		}
-	}
-
-	if len(content.ContentChannels) > 0 {
-		resp.ContentChannels = make([]responses.ContentChannelBrief, 0)
-		for _, cc := range content.ContentChannels {
-			channelName := ""
-			if cc.Channel != nil {
-				channelName = cc.Channel.Name
-			}
-
-			resp.ContentChannels = append(resp.ContentChannels, responses.ContentChannelBrief{
-				ID:             cc.ID,
-				ChannelID:      cc.ChannelID,
-				ChannelName:    channelName,
-				PostDate:       cc.PostDate,
-				AutoPostStatus: string(cc.AutoPostStatus),
-			})
-		}
-	}
-
-	return resp
-}
-
-// DetermineWorkflowRoute determines the target status based on selected channels
-func (s *ContentService) determineWorkflowRoute(ctx context.Context, contentID uuid.UUID) (enum.ContentStatus, error) {
-	// Get content channels with channel preload
-	contentChannels, _, err := s.contentChannelRepo.GetAll(ctx,
-		func(db *gorm.DB) *gorm.DB {
-			return db.Where("content_id = ?", contentID).Preload("Channel")
-		},
-		nil, 0, 0,
-	)
-	if err != nil {
-		return "", errors.New("failed to retrieve content channels")
-	}
-
-	// Check if any channel is FACEBOOK or TIKTOK (external brand channels)
-	for _, cc := range contentChannels {
-		if cc.Channel != nil {
-			channelName := cc.Channel.Name
-			if channelName == "FACEBOOK" || channelName == "TIKTOK" {
-				return enum.ContentStatusAwaitBrand, nil
-			}
-		}
-	}
-
-	// Default to internal staff review
-	return enum.ContentStatusAwaitStaff, nil
-}
-
-// ValidateAffiliateLink validates affiliate link requirement for AFFILIATE contracts
-func (s *ContentService) validateAffiliateLink(ctx context.Context, content *model.Content) error {
-	// If no task association, skip validation
-	if content.TaskID == nil {
-		return nil
-	}
-
-	// Get task with contract information
-	task, err := s.taskRepo.GetByID(ctx, *content.TaskID, nil)
-	if err != nil {
-		zap.L().Warn("Failed to retrieve task for affiliate link validation",
-			zap.String("task_id", content.TaskID.String()),
-			zap.Error(err))
-		return nil // Don't fail submission if task not found
-	}
-
-	// Parse task description to get contract info
-	if task.Description != nil {
-		var descMap map[string]any
-		if err := json.Unmarshal(task.Description, &descMap); err == nil {
-			if contractType, ok := descMap["contract_type"].(string); ok {
-				if contractType == "AFFILIATE" {
-					// For AFFILIATE contracts, affiliate_link is required
-					if content.AffiliateLink == nil || *content.AffiliateLink == "" {
-						return errors.New("affiliate link is required for AFFILIATE contract content")
-					}
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 // Submit submits content for review with workflow routing
@@ -625,7 +498,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 	}
 
 	// Preload relationships
-	includes := []string{"Blog", "Blog.Author", "ContentChannels", "ContentChannels.Channel", "Task"}
+	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task"}
 
 	// Execute query
 	contents, total, err := s.contentRepo.GetAll(ctx, filterFunc, includes, limit, page)
@@ -648,3 +521,131 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 
 	return contentResponses, total, nil
 }
+
+// region: ======== Helper methods ========
+
+// mapToContentResponse maps a model.Content to a responses.ContentResponse
+func (s *ContentService) mapToContentResponse(content *model.Content) *responses.ContentResponse {
+	resp := &responses.ContentResponse{
+		ID:                content.ID,
+		TaskID:            content.TaskID,
+		Title:             content.Title,
+		Body:              content.Body,
+		Type:              content.Type,
+		Status:            content.Status,
+		PublishDate:       content.PublishDate,
+		AffiliateLink:     content.AffiliateLink,
+		AIGeneratedText:   content.AIGeneratedText,
+		RejectionFeedback: content.RejectionFeedback,
+		CreatedAt:         content.CreatedAt,
+		UpdatedAt:         content.UpdatedAt,
+	}
+
+	if content.Blog != nil {
+		var tags []string
+		if len(content.Blog.Tags) > 0 {
+			tags = utils.MapSlice(content.Blog.Tags, func(tag model.Tag) string { return tag.Name })
+		}
+
+		resp.Blog = &responses.BlogResponse{
+			ContentID: content.Blog.ContentID,
+			AuthorID:  content.Blog.AuthorID,
+			Tags:      tags,
+			Excerpt:   content.Blog.Excerpt,
+			ReadTime:  content.Blog.ReadTime,
+			CreatedAt: content.Blog.CreatedAt,
+			UpdatedAt: content.Blog.UpdatedAt,
+		}
+
+		if content.Blog.Author != nil {
+			resp.Blog.Author = &responses.UserBrief{
+				ID:       content.Blog.Author.ID,
+				Username: content.Blog.Author.Username,
+				Email:    content.Blog.Author.Email,
+			}
+		}
+	}
+
+	if len(content.ContentChannels) > 0 {
+		resp.ContentChannels = make([]responses.ContentChannelBrief, 0)
+		for _, cc := range content.ContentChannels {
+			channelName := ""
+			if cc.Channel != nil {
+				channelName = cc.Channel.Name
+			}
+
+			resp.ContentChannels = append(resp.ContentChannels, responses.ContentChannelBrief{
+				ID:             cc.ID,
+				ChannelID:      cc.ChannelID,
+				ChannelName:    channelName,
+				PostDate:       cc.PostDate,
+				AutoPostStatus: string(cc.AutoPostStatus),
+			})
+		}
+	}
+
+	return resp
+}
+
+// determineWorkflowRoute determines the target status based on selected channels
+func (s *ContentService) determineWorkflowRoute(ctx context.Context, contentID uuid.UUID) (enum.ContentStatus, error) {
+	// Get content channels with channel preload
+	contentChannels, _, err := s.contentChannelRepo.GetAll(ctx,
+		func(db *gorm.DB) *gorm.DB {
+			return db.Where("content_id = ?", contentID).Preload("Channel")
+		},
+		nil, 0, 0,
+	)
+	if err != nil {
+		return "", errors.New("failed to retrieve content channels")
+	}
+
+	// Check if any channel is FACEBOOK or TIKTOK (external brand channels)
+	for _, cc := range contentChannels {
+		if cc.Channel != nil {
+			channelName := cc.Channel.Name
+			if channelName == "FACEBOOK" || channelName == "TIKTOK" {
+				return enum.ContentStatusAwaitBrand, nil
+			}
+		}
+	}
+
+	// Default to internal staff review
+	return enum.ContentStatusAwaitStaff, nil
+}
+
+// validateAffiliateLink validates affiliate link requirement for AFFILIATE contracts
+func (s *ContentService) validateAffiliateLink(ctx context.Context, content *model.Content) error {
+	// If no task association, skip validation
+	if content.TaskID == nil {
+		return nil
+	}
+
+	// Get task with contract information
+	task, err := s.taskRepo.GetByID(ctx, *content.TaskID, nil)
+	if err != nil {
+		zap.L().Warn("Failed to retrieve task for affiliate link validation",
+			zap.String("task_id", content.TaskID.String()),
+			zap.Error(err))
+		return nil // Don't fail submission if task not found
+	}
+
+	// Parse task description to get contract info
+	if task.Description != nil {
+		var descMap map[string]any
+		if err := json.Unmarshal(task.Description, &descMap); err == nil {
+			if contractType, ok := descMap["contract_type"].(string); ok {
+				if contractType == "AFFILIATE" {
+					// For AFFILIATE contracts, affiliate_link is required
+					if content.AffiliateLink == nil || *content.AffiliateLink == "" {
+						return errors.New("affiliate link is required for AFFILIATE contract content")
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// endregion

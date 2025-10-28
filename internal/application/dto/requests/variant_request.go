@@ -39,20 +39,20 @@ import (
 //	}
 type BulkVariantRequest struct {
 	CreateProductVariantRequest
-	Story      *CreateProductStoryRequest           `json:"story" validate:"omitempty" example:"{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"content\":{\"description\":\"This is a sample story\"}}"`
-	Attributes []CreateVariantAttributeValueRequest `json:"attributes" validate:"dive" example:"[{\"variant_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"attribute_id\":\"550e8400-e29b-41d4-a716-446655440001\",\"value\":10.5,\"unit\":\"MG\"}]"`
+	Story      *CreateProductStoryRequest           `json:"story" validate:"omitempty"`
+	Attributes []CreateVariantAttributeValueRequest `json:"attributes" validate:"dive"`
 	//Images []CreateVariantImagesRequest
 }
 
 // CreateProductVariantRequest represents a variant payload when creating a product
 // Date fields use RFC3339 strings; service will parse to time.Time
 type CreateProductVariantRequest struct {
-	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"1000"`
+	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"29.99"`
 	CurrentStock    *int               `json:"current_stock" form:"current_stock" validate:"omitempty" example:"100"`
 	Capacity        float64            `json:"capacity" form:"capacity" validate:"omitempty,min=0" example:"500"`
-	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" validate:"required,oneof=ML L GALLON"` // add valid units
-	ContainerType   enum.ContainerType `json:"container_type" form:"container_type" validate:"required,oneof=BOTTLE BOX CAN"`
-	DispenserType   enum.DispenserType `json:"dispenser_type" form:"dispenser_type" validate:"required,oneof=SPRAY PUMP"`
+	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" validate:"required,oneof=ML L G KG OZ"`
+	ContainerType   enum.ContainerType `json:"container_type" form:"container_type" validate:"required,oneof=BOTTLE TUBE JAR STICK PENCIL COMPACT PALLETE SACHET VIAL ROLLER_BOTTLE" example:"BOTTLE"`
+	DispenserType   enum.DispenserType `json:"dispenser_type" form:"dispenser_type" validate:"required,oneof=PUMP SPRAY DROPPER ROLL_ON TWIST_UP SQUEEZE NONE" example:"SPRAY"`
 	Uses            string             `json:"uses" form:"uses" example:"For daily use"`
 	ManufactureDate *string            `json:"manufacturing_date" form:"manufacturing_date" example:"2023-10-01T00:00:00Z"`
 	ExpiryDate      *string            `json:"expiry_date" form:"expiry_date" example:"2025-10-01T00:00:00Z"`
