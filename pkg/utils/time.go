@@ -3,9 +3,10 @@ package utils
 import "time"
 
 const (
-	TimeFormat string = "2006-01-02 15:04:05"
-	DateFormat string = "2006-01-02"
-	Timezone   string = "Asia/Ho_Chi_Minh"
+	TimezonwFormat string = "2006-01-02T15:04:05Z07:00"
+	TimeFormat     string = "2006-01-02 15:04:05"
+	DateFormat     string = "2006-01-02"
+	Timezone       string = "Asia/Ho_Chi_Minh"
 )
 
 func FormatTimeWithTimezone(data *time.Time, layout, timezone string) string {
