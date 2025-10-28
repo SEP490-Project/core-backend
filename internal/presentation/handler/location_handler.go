@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/aws/smithy-go/ptr"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type LocationHandler struct {
@@ -105,6 +107,128 @@ func (h *LocationHandler) GetWards(c *gin.Context) {
 	}
 	resp := responses.SuccessResponse("Wards fetched successfully", ptr.Int(http.StatusOK), result)
 	c.JSON(http.StatusOK, resp)
+}
+
+// InputUserAddress godoc
+//
+// @Summary      Create a new shipping address for the authenticated user
+// @Description  Persist a shipping address for the current authenticated user
+// @Tags         location
+// @Accept       json
+// @Produce      json
+// @Param        body  body    requests.InputAddressRequest  true  "Address payload"
+// @Success      201   {object}  responses.ShippingAddressResponse "Address created"
+// @Failure      400   {object}  map[string]string
+// @Failure      401   {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /api/v1/location/address [post]
+func (h *LocationHandler) InputUserAddress(c *gin.Context) {
+	var req requests.InputAddressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	userID, err := extractUserID(c)
+	addr, err := h.locationService.InputUserAddress(userID, req)
+	if err != nil {
+		resp := responses.ErrorResponse(fmt.Sprintf("failed to create address: %s", err.Error()), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	resp := responses.ShippingAddressResponse{}.ToResponse(addr)
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Address created successfully", ptr.Int(http.StatusCreated), resp))
+}
+
+// SetAddressAsDefault godoc
+//
+// @Summary      Set an address as default for the authenticated user
+// @Description  Mark the given address as the default address for the current user
+// @Tags         location
+// @Accept       json
+// @Produce      json
+// @Param        address-id   path    string  true  "Address ID"
+// @Success      200   {object}  map[string]string
+// @Failure      400   {object}  map[string]string
+// @Failure      401   {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /api/v1/location/address/{address-id}/default [patch]
+func (h *LocationHandler) SetAddressAsDefault(c *gin.Context) {
+	addressID := c.Param("address-id")
+	if addressID == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("address-id is required", http.StatusBadRequest))
+		return
+	}
+
+	userIDVal, ok := c.Get("user_id")
+	if !ok || userIDVal == nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("missing user id in context", http.StatusUnauthorized))
+		return
+	}
+
+	var userIDStr string
+	switch v := userIDVal.(type) {
+	case uuid.UUID:
+		userIDStr = v.String()
+	case string:
+		userIDStr = v
+	default:
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("invalid user id format in context", http.StatusUnauthorized))
+		return
+	}
+
+	if err := h.locationService.SetAddressAsDefault(userIDStr, addressID); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to set default address: %s", err.Error()), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Address set as default", ptr.Int(http.StatusOK), nil))
+}
+
+// GetUserAddresses godoc
+//
+// @Summary      Get addresses of authenticated user
+// @Description  Retrieve all shipping addresses belonging to the authenticated user
+// @Tags         location
+// @Accept       json
+// @Produce      json
+// @Success      200   {array}   responses.ShippingAddressResponse
+// @Failure      401   {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /api/v1/location/addresses [get]
+func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
+	userIDVal, ok := c.Get("user_id")
+	if !ok || userIDVal == nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("missing user id in context", http.StatusUnauthorized))
+		return
+	}
+
+	var userID uuid.UUID
+	switch v := userIDVal.(type) {
+	case uuid.UUID:
+		userID = v
+	case string:
+		uid, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, responses.ErrorResponse("invalid user id in context", http.StatusUnauthorized))
+			return
+		}
+		userID = uid
+	default:
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("invalid user id format in context", http.StatusUnauthorized))
+		return
+	}
+
+	addrs, err := h.locationService.GetUserAddresses(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch addresses: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	respList := responses.ShippingAddressResponse{}.ToResponseList(addrs)
+	c.JSON(http.StatusOK, responses.SuccessResponse("Addresses fetched successfully", ptr.Int(http.StatusOK), respList))
 }
 
 func NewLocationHandler(locationService iservice.LocationService) *LocationHandler {
