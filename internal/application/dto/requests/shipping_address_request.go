@@ -48,15 +48,13 @@ func (r CreateShippingAddressRequest) ToModel() (*model.ShippingAddress, error) 
 		UserID:       userID,
 		Type:         addressType,
 		FullName:     r.FullName,
-		PhoneNumber:  r.PhoneNumber,
-		Email:        r.Email,
+		PhoneNumber:  &r.PhoneNumber,
+		Email:        &r.Email,
 		Street:       r.Street,
 		AddressLine2: r.AddressLine2,
 		City:         r.City,
-		State:        r.State,
 		PostalCode:   r.PostalCode,
-		Country:      r.Country,
-		Company:      r.Company,
+		Country:      &r.Country,
 		IsDefault:    isDefault,
 	}
 	return model, nil
@@ -99,10 +97,10 @@ func (r UpdateShippingAddressRequest) ToExistingModel(existing *model.ShippingAd
 		existing.FullName = *r.FullName
 	}
 	if r.PhoneNumber != nil {
-		existing.PhoneNumber = *r.PhoneNumber
+		existing.PhoneNumber = r.PhoneNumber
 	}
 	if r.Email != nil {
-		existing.Email = *r.Email
+		existing.Email = r.Email
 	}
 	if r.Street != nil {
 		existing.Street = *r.Street
@@ -113,17 +111,11 @@ func (r UpdateShippingAddressRequest) ToExistingModel(existing *model.ShippingAd
 	if r.City != nil {
 		existing.City = *r.City
 	}
-	if r.State != nil {
-		existing.State = r.State
-	}
 	if r.PostalCode != nil {
 		existing.PostalCode = *r.PostalCode
 	}
 	if r.Country != nil {
-		existing.Country = *r.Country
-	}
-	if r.Company != nil {
-		existing.Company = r.Company
+		existing.Country = r.Country
 	}
 	if r.IsDefault != nil {
 		existing.IsDefault = *r.IsDefault

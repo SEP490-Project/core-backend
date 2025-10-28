@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"core-backend/config"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/model"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +16,16 @@ import (
 )
 
 type locationService struct {
+}
+
+func (l locationService) InputUserAddress(userID string, addressReq requests.InputAddressRequest) (*model.ShippingAddress, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (l locationService) SetAddressAsDefault(userID string, addressID string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (l locationService) GetProvinces() ([]responses.ProvinceResponse, error) {

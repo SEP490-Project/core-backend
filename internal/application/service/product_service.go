@@ -31,8 +31,21 @@ type productService struct {
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
 }
 
-func (p productService) PublishProduct(productID uuid.UUID) (*responses.ProductResponse, error) {
-	return nil, nil
+func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*responses.ProductResponseV2, error) {
+	product, err := p.repository.GetByID(context.Background(), productID, nil)
+	if err != nil {
+		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+	product.IsActive = isActive
+
+	//update
+	if err := p.repository.Update(context.Background(), product); err != nil {
+		zap.L().Error("failed to update product", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+	resp := &responses.ProductResponseV2{}
+	return resp.ToProductResponseV2(product), nil
 }
 
 func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error) {
@@ -231,7 +244,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 	return productVariant, nil
 }
 
-// CreateStandardProduct creates a new product with default status DRAFT.
+// CreateStandardProduct creates a new product with default status ACTIVE.
 func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
 	if dto == nil {
 		return nil, errors.New("null request")
@@ -255,7 +268,7 @@ func (p productService) CreateStandardProduct(dto *requests.CreateStandardProduc
 	}
 
 	entity := dto.ToStandardModel(createdBy)
-	entity.Status = enum.ProductStatusDraft
+	entity.Status = enum.ProductStatusActived
 
 	if err := p.repository.Add(ctx, entity); err != nil {
 		zap.L().Info("failed to persist product", zap.Error(err))
@@ -354,7 +367,8 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
 		if categoryID != "" {
-			if cid, err := uuid.Parse(categoryID); err == nil {
+			cid, err := uuid.Parse(categoryID)
+			if err == nil {
 				db = db.Where(`category_id = ?`, cid)
 			} else {
 				zap.L().Warn("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
@@ -368,6 +382,9 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 				zap.L().Warn("invalid product type provided, ignoring", zap.String("product_type", productType))
 			}
 		}
+
+		// Only include active & published products by default
+		db = db.Where("products.status = ? AND products.is_active = ?", enum.ProductStatusActived, true)
 		return db.Order("products.created_at DESC").Order("products.id")
 	}
 
@@ -435,7 +452,7 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
@@ -465,6 +482,11 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
+
+		if productStatus != "" {
+			db = db.Where(`status = ?`, productStatus)
+		}
+
 		return db.Order("products.created_at DESC").Order("products.id")
 	}
 
@@ -557,6 +579,8 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search s
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
+
+		db = db.Where("products.status = ? AND products.is_active = ?", enum.ProductStatusActived, true)
 		return db.Order("products.created_at DESC").Order("products.id")
 	}
 
