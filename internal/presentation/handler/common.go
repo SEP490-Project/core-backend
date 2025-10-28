@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -128,10 +129,5 @@ func IsAllowRole(c *gin.Context, allowFullViewRoles []enum.UserRole) bool {
 	if rolePtr == nil {
 		return false
 	}
-	for _, ar := range allowFullViewRoles {
-		if ar == enum.UserRole(*rolePtr) {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowFullViewRoles, enum.UserRole(*rolePtr))
 }
