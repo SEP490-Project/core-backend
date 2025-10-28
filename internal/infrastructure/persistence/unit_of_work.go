@@ -34,6 +34,7 @@ type unitOfWork struct {
 	contentRepository               irepository.GenericRepository[model.Content]
 	contentChannelRepository        irepository.GenericRepository[model.ContentChannel]
 	blogRepository                  irepository.GenericRepository[model.Blog]
+	tagRepository                   irepository.TagRepository
 
 	//ProductCategory
 	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
@@ -91,6 +92,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.contentRepository = gormrepository.NewGenericRepository[model.Content](tx)
 	txUow.contentChannelRepository = gormrepository.NewGenericRepository[model.ContentChannel](tx)
 	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
+	txUow.tagRepository = gormrepository.NewTagRepository(tx)
 
 	//Product flow
 	txUow.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](tx)
@@ -275,6 +277,10 @@ func (u *unitOfWork) Notifications() irepository.NotificationRepository {
 
 func (u *unitOfWork) DeviceTokens() irepository.DeviceTokenRepository {
 	return u.deviceTokenRepository
+}
+
+func (u *unitOfWork) Tags() irepository.TagRepository {
+	return u.tagRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

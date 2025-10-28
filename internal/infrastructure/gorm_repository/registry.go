@@ -26,6 +26,7 @@ type DatabaseRegistry struct {
 	BlogRepository            irepository.GenericRepository[model.Blog]
 	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
 	AdminConfigRepository     irepository.GenericRepository[model.Config]
+	TagRepository             irepository.TagRepository
 
 	//Limited Product and Concept
 	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
@@ -64,6 +65,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ContentRepository:            NewGenericRepository[model.Content](db),
 		ContentChannelRepository:     NewGenericRepository[model.ContentChannel](db),
 		BlogRepository:               NewGenericRepository[model.Blog](db),
+		TagRepository:                NewTagRepository(db),
 		OrderRepository:              NewGenericRepository[model.Order](db),
 		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
 		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
