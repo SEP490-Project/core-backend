@@ -5,19 +5,25 @@ import (
 
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 )
 
 type BlogHandler struct {
 	blogService iservice.BlogService
+	unitOfWork  irepository.UnitOfWork
+	*validator.Validate
 }
 
-func NewBlogHandler(blogService iservice.BlogService) *BlogHandler {
+func NewBlogHandler(blogService iservice.BlogService, unitOfWork irepository.UnitOfWork) *BlogHandler {
 	return &BlogHandler{
 		blogService: blogService,
+		unitOfWork:  unitOfWork,
+		Validate:    validator.New(),
 	}
 }
 
@@ -56,8 +62,11 @@ func (h *BlogHandler) UpdateBlogDetails(c *gin.Context) {
 		return
 	}
 
+	uow := h.unitOfWork.Begin(c.Request.Context())
+
 	// Call service to update blog details
-	if err := h.blogService.UpdateBlogDetails(c.Request.Context(), contentID, &req); err != nil {
+	if err := h.blogService.UpdateBlogDetails(c.Request.Context(), uow, contentID, &req); err != nil {
+		uow.Rollback()
 		zap.L().Error("Failed to update blog details", zap.String("content_id", contentID.String()), zap.Error(err))
 
 		errMsg := err.Error()
@@ -80,6 +89,8 @@ func (h *BlogHandler) UpdateBlogDetails(c *gin.Context) {
 			return
 		}
 	}
+
+	uow.Commit()
 
 	response := responses.SuccessResponse("Blog details updated successfully", nil, nil)
 	c.JSON(http.StatusOK, response)

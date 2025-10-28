@@ -112,6 +112,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupTaskRoutes(v1)
 		r.SetupDeviceTokenRoutes(v1)
 		r.SetupNotificationRoutes(v1)
+		r.SetupTagRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -519,6 +520,28 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
+	}
+}
+
+func (r *Router) SetupTagRoutes(group *gin.RouterGroup) {
+	tagHandler := r.handlerRegistry.TagHandler
+	tagsGroup := group.Group("/tags")
+	{
+		editGroup := tagsGroup.Group("")
+		editGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, content, marketing, sales))
+		{
+			editGroup.GET("/:tag_id", tagHandler.GetByID)
+			editGroup.GET("/name/:name", tagHandler.GetByName)
+			editGroup.POST("", tagHandler.Create)
+			editGroup.PUT("/:tag_id", tagHandler.UpdateByID)
+			editGroup.DELETE("/:tag_id", tagHandler.DeleteByID)
+		}
+
+		viewGroup := tagsGroup.Group("")
+		viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, content, marketing, sales, brand, customer))
+		{
+			viewGroup.GET("", tagHandler.GetByFilter)
+		}
 	}
 }
 

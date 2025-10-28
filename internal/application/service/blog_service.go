@@ -7,11 +7,11 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"errors"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -31,9 +31,14 @@ func NewBlogService(
 }
 
 // UpdateBlogDetails updates blog-specific attributes for POST type content
-func (s *BlogService) UpdateBlogDetails(ctx context.Context, contentID uuid.UUID, req *requests.UpdateBlogRequest) error {
+func (s *BlogService) UpdateBlogDetails(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, req *requests.UpdateBlogRequest) error {
+	zap.L().Info("BlogService - UpdateBlogDetails called", zap.String("content_id", contentID.String()))
+	blogRepo := uow.Blogs()
+	contentRepo := uow.Contents()
+	tagRepo := uow.Tags()
+
 	// Retrieve content to validate it exists and is POST type
-	content, err := s.contentRepo.GetByID(ctx, contentID, nil)
+	content, err := contentRepo.GetByID(ctx, contentID, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("content not found")
@@ -48,7 +53,7 @@ func (s *BlogService) UpdateBlogDetails(ctx context.Context, contentID uuid.UUID
 	}
 
 	// Retrieve blog entity by content_id
-	blog, err := s.blogRepo.GetByCondition(ctx,
+	blog, err := blogRepo.GetByCondition(ctx,
 		func(db *gorm.DB) *gorm.DB {
 			return db.Where("content_id = ?", contentID)
 		},
@@ -66,12 +71,19 @@ func (s *BlogService) UpdateBlogDetails(ctx context.Context, contentID uuid.UUID
 	updated := false
 
 	if req.Tags != nil {
-		// Convert tags to JSONB
-		tagsJSON, err := datatypes.NewJSONType(req.Tags).MarshalJSON()
-		if err == nil {
-			blog.Tags = tagsJSON
-			updated = true
+		creatingTags := utils.MapSlice(req.Tags, func(tag string) model.Tag {
+			return model.Tag{
+				Name:        tag,
+				Description: &tag,
+			}
+		})
+		createdTags, err := tagRepo.CreateIfNotExists(ctx, creatingTags)
+		if err != nil {
+			zap.L().Error("Failed to create tags", zap.Error(err))
+			return errors.New("failed to create tags")
 		}
+		blog.Tags = createdTags
+		updated = true
 	}
 
 	if req.Excerpt != nil {
@@ -86,7 +98,7 @@ func (s *BlogService) UpdateBlogDetails(ctx context.Context, contentID uuid.UUID
 
 	// Save changes if any updates were made
 	if updated {
-		if err := s.blogRepo.Update(ctx, blog); err != nil {
+		if err := blogRepo.Update(ctx, blog); err != nil {
 			zap.L().Error("Failed to update blog", zap.String("content_id", contentID.String()), zap.Error(err))
 			return errors.New("failed to update blog details")
 		}

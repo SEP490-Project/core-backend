@@ -2,8 +2,8 @@ package utils_test
 
 import (
 	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
-	"core-backend/pkg/utils"
 	"core-backend/tests/testhelpers"
 	"testing"
 	"time"
@@ -84,7 +84,7 @@ func TestCalculateMonthlyPaymentDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := utils.CalculateMonthlyPaymentDates(
+			results, err := helper.CalculateMonthlyPaymentDates(
 				tt.startDate,
 				tt.endDate,
 				tt.paymentDay,
@@ -174,7 +174,7 @@ func TestCalculateQuarterlyPaymentDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := utils.CalculateQuarterlyPaymentDates(
+			results, err := helper.CalculateQuarterlyPaymentDates(
 				tt.startDate,
 				tt.endDate,
 				tt.paymentQuarter,
@@ -263,7 +263,7 @@ func TestCalculateAnnualPaymentDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := utils.CalculateAnnualPaymentDates(
+			results, err := helper.CalculateAnnualPaymentDates(
 				tt.startDate,
 				tt.endDate,
 				tt.paymentDate,
@@ -348,7 +348,7 @@ func TestCalculateScheduleBasedPaymentDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := utils.CalculateScheduleBasedPaymentDates(tt.schedules)
+			results, err := helper.CalculateScheduleBasedPaymentDates(tt.schedules)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -374,7 +374,7 @@ func TestCalculatePaymentDatesForCycle(t *testing.T) {
 	tests := []struct {
 		name          string
 		cycle         enum.PaymentCycle
-		paymentDate   interface{}
+		paymentDate   any
 		expectedCount int
 		wantError     bool
 	}{
@@ -415,7 +415,7 @@ func TestCalculatePaymentDatesForCycle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := utils.CalculatePaymentDatesForCycle(
+			results, err := helper.CalculatePaymentDatesForCycle(
 				tt.cycle,
 				startDate,
 				endDate,
@@ -440,7 +440,7 @@ func TestPaymentCalculatorEdgeCases(t *testing.T) {
 		startDate := testhelpers.DateOnly(2025, 12, 31)
 		endDate := testhelpers.DateOnly(2025, 1, 1)
 
-		results, err := utils.CalculateMonthlyPaymentDates(startDate, endDate, 15, 5, true)
+		results, err := helper.CalculateMonthlyPaymentDates(startDate, endDate, 15, 5, true)
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(results), "Should return empty results for invalid date range")
 	})
@@ -448,7 +448,7 @@ func TestPaymentCalculatorEdgeCases(t *testing.T) {
 	t.Run("Same start and end date", func(t *testing.T) {
 		sameDate := testhelpers.DateOnly(2025, 6, 15)
 
-		results, err := utils.CalculateMonthlyPaymentDates(sameDate, sameDate, 15, 5, true)
+		results, err := helper.CalculateMonthlyPaymentDates(sameDate, sameDate, 15, 5, true)
 		require.NoError(t, err)
 		// Start day is 15, payment day is 15, with 5 min days: 15+5=20 > 15
 		// So first (and only) payment is skipped
@@ -459,7 +459,7 @@ func TestPaymentCalculatorEdgeCases(t *testing.T) {
 		startDate := testhelpers.DateOnly(2025, 2, 1)
 		endDate := testhelpers.DateOnly(2025, 2, 28)
 
-		results, err := utils.CalculateMonthlyPaymentDates(startDate, endDate, 31, 5, true)
+		results, err := helper.CalculateMonthlyPaymentDates(startDate, endDate, 31, 5, true)
 		require.NoError(t, err)
 		// Should handle gracefully (no payment or adjusted date)
 		t.Logf("Payment count for day 31 in Feb: %d", len(results))
@@ -469,7 +469,7 @@ func TestPaymentCalculatorEdgeCases(t *testing.T) {
 		startDate := testhelpers.DateOnly(2020, 1, 1)
 		endDate := testhelpers.DateOnly(2030, 12, 31)
 
-		results, err := utils.CalculateMonthlyPaymentDates(startDate, endDate, 15, 5, true)
+		results, err := helper.CalculateMonthlyPaymentDates(startDate, endDate, 15, 5, true)
 		require.NoError(t, err)
 		assert.Greater(t, len(results), 100, "Should handle long contract periods")
 	})
