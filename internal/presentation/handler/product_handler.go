@@ -10,8 +10,10 @@ import (
 	"core-backend/pkg/utils"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/smithy-go/ptr"
 
@@ -32,11 +34,48 @@ func NewProductHandler(
 	fileService iservice.FileService,
 	unitOfWork irepository.UnitOfWork,
 ) *ProductHandler {
+	// create validator and register custom datetime validation
+	v := validator.New()
+	_ = v.RegisterValidation("datetime", func(fl validator.FieldLevel) bool {
+		param := fl.Param()
+		// if no param provided, default to RFC3339
+		if strings.TrimSpace(param) == "" {
+			param = time.RFC3339
+		}
+		// get string value, support *string and string
+		var s string
+		fv := fl.Field()
+		switch fv.Kind() {
+		case reflect.Ptr:
+			if fv.IsNil() {
+				return true // let 'required' handle emptiness
+			}
+			s = fv.Elem().String()
+		default:
+			s = fv.String()
+		}
+		if s == "" {
+			return true
+		}
+		// support multiple layouts separated by '|'
+		layouts := strings.Split(param, "|")
+		for _, layout := range layouts {
+			layout = strings.TrimSpace(layout)
+			if layout == "" {
+				continue
+			}
+			if _, err := time.Parse(layout, s); err == nil {
+				return true
+			}
+		}
+		return false
+	})
+
 	return &ProductHandler{
 		productService: productService,
 		fileService:    fileService,
 		unitOfWork:     unitOfWork,
-		validator:      validator.New(),
+		validator:      v,
 	}
 }
 
@@ -109,18 +148,18 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 
 // GetAllProductsV2 godoc
 //
-//	@Summary		Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
-//	@Description	Get paginated list of products with optional search
-//	@Tags			Products
-//	@Accept			json
-//	@Produce		json
-//	@Param			limit		query		int																			false	"Number of items per page"	default(10)
-//	@Param			page		query		int																			false	"Number of items to skip"	default(1)
-//	@Param			search		query		string																		false	"Search term for product name"
-//	@Param			category_id	query		string																		false	"Filter category of products"
-//	@Param			type		query		string	false	"Filter type of products"	Enums(STANDARD, LIMITED)
-//  @Param			status		query		string	false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
+//		@Summary		Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
+//		@Description	Get paginated list of products with optional search
+//		@Tags			Products
+//		@Accept			json
+//		@Produce		json
+//		@Param			limit		query		int																			false	"Number of items per page"	default(10)
+//		@Param			page		query		int																			false	"Number of items to skip"	default(1)
+//		@Param			search		query		string																		false	"Search term for product name"
+//		@Param			category_id	query		string																		false	"Filter category of products"
+//		@Param			type		query		string	false	"Filter type of products"	Enums(STANDARD, LIMITED)
+//	 @Param			status		query		string	false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//		@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
 // @Failure		500			{object}	object{error=string}														"Internal server error"
 // @Security		BearerAuth

@@ -1,6 +1,10 @@
 package requests
 
-import "core-backend/internal/domain/enum"
+import (
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
+	"github.com/google/uuid"
+)
 
 type InputAddressRequest struct {
 	AddressType  enum.AddressType `json:"type" validate:"required,oneof=BILLING SHIPPING" example:"SHIPPING"`
@@ -12,7 +16,7 @@ type InputAddressRequest struct {
 	City         string           `json:"city" validate:"required"`
 	PostalCode   string           `json:"postal_code"`
 	Country      *string          `json:"country"`
-	IsDefault    *bool            `json:"is_default"`
+	IsDefault    bool             `json:"is_default"`
 
 	//from GHN
 	GhnProvinceID *int    `json:"ghn_province_id,omitempty" gorm:"column:ghn_province_id"`
@@ -20,12 +24,12 @@ type InputAddressRequest struct {
 	GhnWardCode   *string `json:"ghn_ward_code,omitempty" gorm:"column:ghn_ward_code"`
 }
 
-func (iar *InputAddressRequest) ToModel() *InputAddressRequest {
+func (iar *InputAddressRequest) ToModel(userID uuid.UUID) *model.ShippingAddress {
 	if iar == nil {
 		return nil
 	}
-	return &InputAddressRequest{
-		AddressType:   iar.AddressType,
+	return &model.ShippingAddress{
+		Type:          iar.AddressType,
 		FullName:      iar.FullName,
 		PhoneNumber:   iar.PhoneNumber,
 		Email:         iar.Email,
@@ -38,5 +42,8 @@ func (iar *InputAddressRequest) ToModel() *InputAddressRequest {
 		GhnProvinceID: iar.GhnProvinceID,
 		GhnDistrictID: iar.GhnDistrictID,
 		GhnWardCode:   iar.GhnWardCode,
+
+		//relationship
+		UserID: userID,
 	}
 }

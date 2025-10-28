@@ -41,6 +41,9 @@ type DatabaseRegistry struct {
 	//Notifications
 	NotificationRepository irepository.NotificationRepository
 	DeviceTokenRepository  irepository.DeviceTokenRepository
+
+	//Location
+	ShippingAddressRepository irepository.GenericRepository[model.ShippingAddress]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -71,5 +74,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
 		NotificationRepository:       NewNotificationRepository(db),
 		DeviceTokenRepository:        NewDeviceTokenRepository(db),
+		ShippingAddressRepository:    NewGenericRepository[model.ShippingAddress](db),
 	}
 }

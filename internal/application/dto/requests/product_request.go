@@ -3,6 +3,7 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,9 +60,9 @@ type LimitedProductAttributes struct {
 	MaxStock              int        `json:"max_stock" validate:"required,min=0" example:"100"`
 	IsFreeShipping        bool       `json:"is_free_shipping" example:"false"`
 	BoughtLimit           int        `json:"bought_limit" validate:"required,min=1" example:"1"`
-	PremiereDate          *string    `json:"premiere_date" validate:"required,datetime=2006-01-02T15:04:05Z07:00" example:"2023-10-01T10:00:00Z"`
-	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required,datetime=2006-01-02T15:04Z07:00" example:"2023-10-01T10:00+07:00"`
-	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required,datetime=2006-01-02T15:04Z07:00" example:"2023-10-31T10:00+07:00"`
+	PremiereDate          *string    `json:"premiere_date" validate:"required" example:"2023-10-01T10:00:00"`
+	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required" example:"2023-10-01T10:00"`
+	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required" example:"2023-10-31T10:00"`
 	ConceptID             *uuid.UUID `json:"concept_id" validate:"omitempty,uuid" example:"770e8400-e29b-41d4-a716-446655440000"`
 }
 
@@ -100,9 +101,27 @@ func parseTime(date *string) time.Time {
 	if date == nil {
 		return time.Time{}
 	}
-	parsedTime, err := time.Parse(time.RFC3339, *date)
-	if err != nil {
-		return time.Time{}
+
+	layouts := []string{
+		time.RFC3339,                // 2006-01-02T15:04:05Z07:00
+		"2006-01-02T15:04:05-07:00", // with seconds, offset like +07:00
+		"2006-01-02T15:04-07:00",    // without seconds, offset like +07:00
+		"2006-01-02T15:04:05Z07:00", // with seconds, Z07:00 form
+		"2006-01-02T15:04Z07:00",    // without seconds, Z07:00 form
+		"2006-01-02T15:04:05",       // no zone
+		"2006-01-02T15:04",          // no seconds, no zone
+		"2006-01-02",                // date only
 	}
-	return parsedTime
+
+	var lastErr error
+	for _, layout := range layouts {
+		parsedTime, err := time.Parse(layout, *date)
+		if err == nil {
+			return parsedTime
+		}
+		lastErr = err
+	}
+
+	zap.L().Error("Error parsing time (all formats failed)", zap.String("date", *date), zap.Error(lastErr))
+	return time.Time{}
 }

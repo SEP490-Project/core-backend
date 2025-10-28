@@ -255,6 +255,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			locationGroup.GET("/provinces", locationHandler.GetProvinces)
 			locationGroup.GET("/districts/:province-id", locationHandler.GetDistricts)
 			locationGroup.GET("/wards/:district-id", locationHandler.GetWards)
+			// Address management for authenticated users
+			locationGroup.POST("/address", locationHandler.InputUserAddress)
+			locationGroup.PATCH("/address/:address-id/default", locationHandler.SetAddressAsDefault)
+			locationGroup.GET("/addresses", locationHandler.GetUserAddresses)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
