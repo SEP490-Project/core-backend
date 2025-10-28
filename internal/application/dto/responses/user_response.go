@@ -25,7 +25,7 @@ type UserResponse struct {
 	CreatedAt          string                     `json:"created_at" example:"2023-01-01T00:00:00Z"`
 	UpdatedAt          string                     `json:"updated_at" example:"2023-01-01T00:00:00Z"`
 	LastLogin          string                     `json:"last_login,omitempty" example:"2023-01-01T00:00:00Z"`
-	CurrentLoginDevice []*string                  `json:"current_login_device,omitempty" example:"[\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\"]"`
+	CurrentLoginDevice []string                   `json:"current_login_device,omitempty" example:"[\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\"]"`
 	NumberOfSessions   int                        `json:"number_of_sessions,omitempty" example:"3"`
 	ShippingAddress    []*ShippingAddressResponse `json:"shipping_address,omitempty"`
 }
