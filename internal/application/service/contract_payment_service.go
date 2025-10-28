@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
@@ -12,7 +13,6 @@ import (
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -113,6 +113,9 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 		CreatedBy:             &userID,
 		UpdatedBy:             &userID,
 	}
+	if contract.IsDepositPaid != nil && *contract.IsDepositPaid {
+		depositContractPayment.Status = enum.ContractPaymentStatusPaid
+	}
 	contractPaymentsSlice = append(contractPaymentsSlice, depositContractPayment)
 
 	// Add contract payments entries based on contract type and schedules
@@ -129,15 +132,16 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 			remainingPercentRatio = float64((100 - *contract.DepositPercent) / 100)
 		}
 
+		// Process each schedule to create payments
 		for _, schedule := range advertisingFinancialTerms.Schedules {
-			note := fmt.Sprintf("Payment for milestone: %s - contract number: %s", utils.ToString(schedule.ID), *contract.ContractNumber)
-
 			var dueDate time.Time
 			dueDate, err = time.Parse(utils.DateFormat, schedule.DueDate)
 			if err != nil {
 				zap.L().Error("Failed to parse due date", zap.Error(err))
-				return
+				return nil, err
 			}
+
+			note := fmt.Sprintf("Payment for milestone: %s - contract number: %s", utils.ToString(schedule.ID), *contract.ContractNumber)
 
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
@@ -166,180 +170,32 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 			return
 		}
 
-		contractStartDate := contract.StartDate
-		contractEndDate := contract.EndDate
-		paymentDateStr := utils.ToString(affiliateFinancialTerms.PaymentDate)
-		switch paymentCycle {
-		case enum.PaymentCycleMonthly:
-			var paymentDay int
-			paymentDay, err = strconv.Atoi(paymentDateStr)
-			if err != nil {
-				zap.L().Error("Failed to parse payment date",
-					zap.String("payment_date", paymentDateStr),
-					zap.String("payment_date", paymentDateStr),
-					zap.Error(err))
-				return
-			}
+		// Use shared payment cycle calculator
+		var paymentResults []helper.PaymentDateResult
+		paymentResults, err = helper.CalculatePaymentDatesForCycle(
+			paymentCycle,
+			contract.StartDate,
+			contract.EndDate,
+			affiliateFinancialTerms.PaymentDate,
+			minimumDayBeforeDueDate,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate affiliate payment dates", zap.Error(err))
+			return nil, err
+		}
 
-			isFirstPayment := true
-			var currentDate time.Time
-			for currentDate = contractStartDate; currentDate.Before(contractEndDate) || currentDate.Equal(contractEndDate); currentDate = currentDate.AddDate(0, 1, 0) {
-				if isFirstPayment && ((currentDate.Day() + minimumDayBeforeDueDate) > paymentDay) {
-					isFirstPayment = false
-					zap.L().Debug("isPaymentDaySkipped for first month",
-						zap.Int("current_day", currentDate.Day()),
-						zap.Int("payment_day", paymentDay),
-						zap.Bool("is_first_payment", isFirstPayment))
-
-					continue
-				}
-				dueDate := time.Date(currentDate.Year(), currentDate.Month(), paymentDay, 0, 0, 0, 0, time.Local)
-
-				paymentNote := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Monthly affiliate payment for contract number %s, date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					currentDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: float64(*contract.DepositPercent),
-					Amount:                float64(*contract.DepositAmount),
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &paymentNote,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
+		for _, paymentResult := range paymentResults {
+			contractPayment := &model.ContractPayment{
+				ContractID:            contract.ID,
+				InstallmentPercentage: 0, // Will be calculated later based on actual performance
+				Amount:                0,
+				DueDate:               paymentResult.DueDate,
+				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+				Note:                  &paymentResult.Note,
+				CreatedBy:             &userID,
+				UpdatedBy:             &userID,
 			}
-			if currentDate.Before(contractEndDate) && !currentDate.Equal(contractEndDate) {
-				paymentNote := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Final affiliate payment for contract number %s, date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &paymentNote,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-		case enum.PaymentCycleQuarterly:
-			paymentQuarterData, ok := affiliateFinancialTerms.PaymentDate.([]any)
-			if !ok {
-				zap.L().Error("Invalid payment date format for quarterly payment cycle", zap.Any("payment_date", affiliateFinancialTerms.PaymentDate))
-				err = fmt.Errorf("invalid payment date format for quarterly payment cycle")
-				return
-			}
-			paymentQuarter := make([]dtos.PaymentDate, len(paymentQuarterData))
-			for i, item := range paymentQuarterData {
-				temp, ok := item.(dtos.PaymentDate)
-				if !ok {
-					zap.L().Error("Invalid payment date item format for quarterly payment cycle", zap.Any("item", item))
-					err = fmt.Errorf("invalid payment date item format for quarterly payment cycle")
-					return
-				}
-				paymentQuarter[i] = temp
-			}
-
-			slices.SortFunc(paymentQuarter, func(a, b dtos.PaymentDate) int {
-				dateA := time.Date(int(a.Year), time.Month(a.Month), int(a.Day), 0, 0, 0, 0, time.Local)
-				dateB := time.Date(int(b.Year), time.Month(b.Month), int(b.Day), 0, 0, 0, 0, time.Local)
-				return dateA.Compare(dateB)
-			})
-
-			for _, quarter := range paymentQuarter {
-				dueDate := time.Date(int(quarter.Year), time.Month(quarter.Month), int(quarter.Day), 0, 0, 0, 0, time.Local)
-				note := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Quarterly affiliate payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					dueDate.Format(utils.DateFormat),
-				)
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-			lastPaymentQuarterItem := paymentQuarter[len(paymentQuarterData)-1]
-			lastPaymentQuarter := time.Date(int(lastPaymentQuarterItem.Year), time.Month(lastPaymentQuarterItem.Month), int(lastPaymentQuarterItem.Day), 0, 0, 0, 0, time.Local)
-			if lastPaymentQuarter.Before(contractEndDate) && !lastPaymentQuarter.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final affiliate payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-		case enum.PaymentCycleAnnually:
-			var paymentDate time.Time
-			paymentDate, err = time.Parse(utils.DateFormat, paymentDateStr)
-			if err != nil {
-				zap.L().Error("Failed to parse payment date",
-					zap.String("payment_date", paymentDateStr),
-					zap.String("payment_date", paymentDateStr),
-					zap.Error(err))
-				return
-			}
-
-			for currentDate := contractStartDate; currentDate.Before(contractEndDate) || currentDate.Equal(contractEndDate); currentDate = currentDate.AddDate(1, 0, 0) {
-				dueDate := time.Date(currentDate.Year(), paymentDate.Month(), paymentDate.Day(), 0, 0, 0, 0, currentDate.Location())
-				note := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Annual affiliate payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					dueDate.Format(utils.DateFormat),
-				)
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-			if paymentDate.Before(contractEndDate) && !paymentDate.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d BEFORE DUE DATE) Final affiliate payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
+			contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
 		}
 
 	case enum.ContractTypeCoProduce:
@@ -356,177 +212,31 @@ func (c *ContractPaymentService) processPaymentDateFromContract(
 			return
 		}
 
-		contractStartDate := contract.StartDate
-		contractEndDate := contract.EndDate
-		profitDistributionDateStr := utils.ToString(coProducingFinancialTerms.ProfitDistributionDate)
-		switch paymentCycle {
-		case enum.PaymentCycleMonthly:
-			var paymentDay int
-			paymentDay, err = strconv.Atoi(profitDistributionDateStr)
-			if err != nil {
-				zap.L().Error("Failed to parse profit distribution date date",
-					zap.String("profit_distribution_date", profitDistributionDateStr),
-					zap.Error(err))
-				return
-			}
+		// Use shared payment cycle calculator
+		paymentResults, err := helper.CalculatePaymentDatesForCycle(
+			paymentCycle,
+			contract.StartDate,
+			contract.EndDate,
+			coProducingFinancialTerms.ProfitDistributionDate,
+			minimumDayBeforeDueDate,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate co-producing payment dates", zap.Error(err))
+			return nil, err
+		}
 
-			var currentDate time.Time
-			for currentDate = contractStartDate; currentDate.Before(contractEndDate) || currentDate.Equal(contractEndDate); currentDate = currentDate.AddDate(0, 1, 0) {
-				if (currentDate.Day() + minimumDayBeforeDueDate) > paymentDay {
-					continue
-				}
-				dueDate := time.Date(currentDate.Year(), currentDate.Month(), paymentDay, 0, 0, 0, 0, currentDate.Location())
-
-				paymentNote := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Monthly co-producing payment for contract number %s, date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					currentDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: float64(*contract.DepositPercent),
-					Amount:                float64(*contract.DepositAmount),
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &paymentNote,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
+		for _, paymentResult := range paymentResults {
+			contractPayment := &model.ContractPayment{
+				ContractID:            contract.ID,
+				InstallmentPercentage: 0, // Will be calculated later based on profit distribution
+				Amount:                0,
+				DueDate:               paymentResult.DueDate,
+				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
+				Note:                  &paymentResult.Note,
+				CreatedBy:             &userID,
+				UpdatedBy:             &userID,
 			}
-			if currentDate.Before(contractEndDate) && !currentDate.Equal(contractEndDate) {
-				paymentNote := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Final co-producing payment for contract number %s, date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &paymentNote,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-		case enum.PaymentCycleQuarterly:
-			paymentQuarterData, ok := coProducingFinancialTerms.ProfitDistributionDate.([]any)
-			if !ok {
-				zap.L().Error("Invalid payment date format for quarterly profit distribution cycle", zap.Any("payment_date", coProducingFinancialTerms.ProfitDistributionDate))
-				err = fmt.Errorf("invalid payment date format for quarterly profit distribution cycle")
-				return
-			}
-			paymentQuarter := make([]dtos.PaymentDate, len(paymentQuarterData))
-			for i, item := range paymentQuarterData {
-				var rawBytes []byte
-				rawBytes, err = json.Marshal(item)
-				if err != nil {
-					zap.L().Error("Failed to marshal payment date item for quarterly profit distribution cycle", zap.Any("item", item), zap.Error(err))
-					return nil, err
-				}
-				var paymentDateObj dtos.PaymentDate
-				if err = json.Unmarshal(rawBytes, &paymentDateObj); err != nil {
-					zap.L().Error("Failed to unmarshal payment date item for quarterly profit distribution cycle", zap.Any("item", item), zap.Error(err))
-					return nil, err
-				}
-				paymentQuarter[i] = paymentDateObj
-			}
-
-			slices.SortFunc(paymentQuarter, func(a, b dtos.PaymentDate) int {
-				dateA := time.Date(int(a.Year), time.Month(a.Month), int(a.Day), 0, 0, 0, 0, time.Local)
-				dateB := time.Date(int(b.Year), time.Month(b.Month), int(b.Day), 0, 0, 0, 0, time.Local)
-				return dateA.Compare(dateB)
-			})
-
-			for _, quarter := range paymentQuarter {
-				dueDate := time.Date(int(quarter.Year), time.Month(quarter.Month), int(quarter.Day), 0, 0, 0, 0, time.Local)
-				note := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Quarterly co-producing payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					dueDate.Format(utils.DateFormat),
-				)
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-			lastPaymentQuarterItem := paymentQuarter[len(paymentQuarterData)-1]
-			lastPaymentQuarter := time.Date(int(lastPaymentQuarterItem.Year), time.Month(lastPaymentQuarterItem.Month), int(lastPaymentQuarterItem.Day), 0, 0, 0, 0, time.Local)
-			if lastPaymentQuarter.Before(contractEndDate) && !lastPaymentQuarter.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-
-		case enum.PaymentCycleAnnually:
-			var paymentDate time.Time
-			paymentDate, err = time.Parse(utils.DateFormat, profitDistributionDateStr)
-			if err != nil {
-				zap.L().Error("Failed to parse payment date",
-					zap.String("payment_date", profitDistributionDateStr),
-					zap.String("payment_date", profitDistributionDateStr),
-					zap.Error(err))
-				return
-			}
-
-			for currentDate := contractStartDate; currentDate.Before(contractEndDate) || currentDate.Equal(contractEndDate); currentDate = currentDate.AddDate(1, 0, 0) {
-				dueDate := time.Date(currentDate.Year(), paymentDate.Month(), paymentDate.Day(), 0, 0, 0, 0, currentDate.Location())
-				note := fmt.Sprintf("(NOT YET CALCULATED UTILS %d DAYS BEFORE DUE DATE) Annually co-producing payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					dueDate.Format(utils.DateFormat),
-				)
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               dueDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
-			if paymentDate.Before(contractEndDate) && !paymentDate.Equal(contractEndDate) {
-				note := fmt.Sprintf("(NOT YET CALCULATED UNTILS %d DAYS BEFORE DUE DATE) Final co-producing payment for contract number %s, due date %s",
-					minimumDayBeforeDueDate,
-					*contract.ContractNumber,
-					contractEndDate.Format(utils.DateFormat))
-				contractPayment := &model.ContractPayment{
-					ContractID:            contract.ID,
-					InstallmentPercentage: 0,
-					Amount:                0,
-					DueDate:               contractEndDate,
-					PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
-					Note:                  &note,
-					CreatedBy:             &userID,
-					UpdatedBy:             &userID,
-				}
-				contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
-			}
+			contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
 		}
 	}
 

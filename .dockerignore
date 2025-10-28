@@ -3,7 +3,9 @@
 .dockerignore
 .gitignore
 build
+migrations/
 migrations
+docs/
 docs
 jenkinsfile
 Dockerfile
@@ -21,3 +23,8 @@ templates/
 specs/
 templates
 specs
+test-reports/
+tests/
+test-reports
+tests
+sep490-ddl-creation.sql

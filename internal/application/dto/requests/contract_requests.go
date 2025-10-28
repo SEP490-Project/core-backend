@@ -34,6 +34,7 @@ type CreateContractRequest struct {
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
 	DepositPercent *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
 	DepositAmount  *int    `json:"deposit_amount" validate:"omitempty,min=0" example:"3000000"`
+	IsDepositPaid  bool    `json:"is_deposit_paid" validate:"omitempty" example:"false"`
 
 	// Brand information (stored in contract for record-keeping)
 	BrandID                string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
@@ -336,6 +337,7 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		SignedLocation:                  r.SignedLocation,
 		DepositPercent:                  r.DepositPercent,
 		DepositAmount:                   r.DepositAmount,
+		IsDepositPaid:                   &r.IsDepositPaid,
 		StartDate:                       r.StartDate,
 		EndDate:                         r.EndDate,
 		Currency:                        r.Currency,

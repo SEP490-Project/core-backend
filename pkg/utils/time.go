@@ -5,7 +5,7 @@ import "time"
 const (
 	TimeFormat string = "2006-01-02 15:04:05"
 	DateFormat string = "2006-01-02"
-	Timezone   string = "Asia/Bangkok"
+	Timezone   string = "Asia/Ho_Chi_Minh"
 )
 
 func FormatTimeWithTimezone(data *time.Time, layout, timezone string) string {

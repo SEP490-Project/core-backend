@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )

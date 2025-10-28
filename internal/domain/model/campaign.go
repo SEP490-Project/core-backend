@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -17,7 +16,6 @@ type Campaign struct {
 	StartDate   time.Time           `json:"start_date" gorm:"type:timestamp;column:start_date;not null"`
 	EndDate     time.Time           `json:"end_date" gorm:"type:timestamp;column:end_date;not null"`
 	Status      enum.CampaignStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('RUNNING','COMPLETED','CANCELED')"`
-	Budget      float64             `json:"budget" gorm:"type:numeric(15,2);column:budget"`
 	Type        enum.ContractType   `json:"type" gorm:"type:varchar(50);column:type;not null;check:type IN ('ADVERTISING','AFFILIATE','BRAND_AMBASSADOR','CO_PRODUCING')"`
 	CreatedAt   time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
@@ -34,10 +32,6 @@ func (Campaign) TableName() string { return "campaigns" }
 func (c *Campaign) BeforeCreate(tx *gorm.DB) error {
 	if c.ID == uuid.Nil {
 		c.ID = uuid.New()
-	}
-	if c.Budget < 0 {
-		zap.L().Warn("Budget is less than 0, setting to 0")
-		c.Budget = 0
 	}
 
 	return nil
