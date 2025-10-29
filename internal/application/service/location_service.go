@@ -26,30 +26,70 @@ import (
 type locationService struct {
 	shippingAddressRepo irepository.GenericRepository[model.ShippingAddress]
 	userRepo            irepository.GenericRepository[model.User]
+	provinceRepo        irepository.GenericRepository[model.Province]
+	districtRepo        irepository.GenericRepository[model.District]
+	wardRepo            irepository.GenericRepository[model.Ward]
 }
 
 func (l locationService) GetProvinces() ([]responses.ProvinceResponse, error) {
 	cfg := config.GetAppConfig()
 	url := cfg.GHN.BaseURL + "/province"
-	token := cfg.GHN.Token
-	return doRequest[responses.ProvinceResponse]("GET", url, token, nil)
+	return doRequest[responses.ProvinceResponse]("GET", url, nil)
+	//TODO: Switch to local
+	//ctx := context.Background()
+	//filter := func(db *gorm.DB) *gorm.DB { return db.Order("name ASC") }
+	//provinces, _, err := l.provinceRepo.GetAll(ctx, filter, nil, 0, 0)
+	//if err != nil {
+	//	zap.L().Error(fmt.Sprintf("Failed to get provinces: %s", err))
+	//	return nil, err
+	//}
+	//out := make([]responses.ProvinceResponse, 0, len(provinces))
+	//for _, p := range provinces {
+	//	out = append(out, mapProvinceToResponse(p))
+	//}
+	//return out, nil
+
 }
 
 func (l locationService) GetDistrictsByProvinceID(provinceID int) ([]responses.DistrictResponse, error) {
 	cfg := config.GetAppConfig()
 	url := fmt.Sprintf("%s/district?province_id=%d", cfg.GHN.BaseURL, provinceID)
-	token := cfg.GHN.Token
-	return doRequest[responses.DistrictResponse]("GET", url, token, nil)
+	return doRequest[responses.DistrictResponse]("GET", url, nil)
+	//TODO: Switch to local
+	//ctx := context.Background()
+	//filter := func(db *gorm.DB) *gorm.DB { return db.Where("province_id = ?", provinceID).Order("name ASC") }
+	//districts, _, err := l.districtRepo.GetAll(ctx, filter, nil, 0, 0)
+	//if err != nil {
+	//	zap.L().Error(fmt.Sprintf("Failed to get districts: %s", err))
+	//	return nil, err
+	//}
+	//out := make([]responses.DistrictResponse, 0, len(districts))
+	//for _, d := range districts {
+	//	out = append(out, mapDistrictToResponse(d))
+	//}
+	//return out, nil
 }
 
 func (l locationService) GetWardsByDistrictID(districtID int) ([]responses.WardResponse, error) {
 	loadedCfg := config.GetAppConfig()
 	url := fmt.Sprintf("%s/ward?district_id=%d", loadedCfg.GHN.BaseURL, districtID)
-	token := loadedCfg.GHN.Token
-	return doRequest[responses.WardResponse]("GET", url, token, nil)
+	return doRequest[responses.WardResponse]("GET", url, nil)
+	//TODO: Switch to local
+	//ctx := context.Background()
+	//filter := func(db *gorm.DB) *gorm.DB { return db.Where("district_id = ?", districtID).Order("name ASC") }
+	//wards, _, err := l.wardRepo.GetAll(ctx, filter, nil, 0, 0)
+	//if err != nil {
+	//	zap.L().Error(fmt.Sprintf("Failed to get wards: %s", err))
+	//	return nil, err
+	//}
+	//out := make([]responses.WardResponse, 0, len(wards))
+	//for _, w := range wards {
+	//	out = append(out, mapWardToResponse(w))
+	//}
+	//return out, nil
 }
 
-func doRequest[T any](method, url, token string, body any) ([]T, error) {
+func doRequest[T any](method, url string, body any) ([]T, error) {
 	var buf io.Reader
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -65,7 +105,7 @@ func doRequest[T any](method, url, token string, body any) ([]T, error) {
 		zap.L().Error(fmt.Sprintf("Failed to create request: %s", err))
 		return nil, err
 	}
-	req.Header.Add("Token", token)
+	req.Header.Add("Token", config.GetAppConfig().GHN.Token)
 	if body != nil {
 		req.Header.Add("Content-Type", "application/json")
 	}
@@ -184,5 +224,61 @@ func NewLocationService(dbRegistry *gormrepository.DatabaseRegistry) iservice.Lo
 	return &locationService{
 		shippingAddressRepo: dbRegistry.ShippingAddressRepository,
 		userRepo:            dbRegistry.UserRepository,
+		provinceRepo:        dbRegistry.ProvinceRepository,
+		districtRepo:        dbRegistry.DistrictRepository,
+		wardRepo:            dbRegistry.WardRepository,
+	}
+}
+
+// Mapping helpers
+func mapProvinceToResponse(p model.Province) responses.ProvinceResponse {
+	return responses.ProvinceResponse{
+		ProvinceID:   p.ID,
+		ProvinceName: p.Name,
+		CountryID:    p.CountryID,
+		Code:         p.Code,
+		RegionID:     p.RegionID,
+		RegionCPN:    p.RegionCPN,
+		GeneralLocationResponse: responses.GeneralLocationResponse{
+			IsEnable:     p.IsEnable,
+			CanUpdateCOD: p.CanUpdateCOD,
+			Status:       p.Status,
+		},
+	}
+}
+
+func mapDistrictToResponse(d model.District) responses.DistrictResponse {
+	return responses.DistrictResponse{
+		DistrictID:     d.ID,
+		ProvinceID:     d.ProvinceID,
+		DistrictName:   d.Name,
+		Code:           d.Code,
+		Type:           d.Type,
+		SupportType:    d.SupportType,
+		PickType:       d.PickType,
+		DeliverType:    d.DeliverType,
+		GovernmentCode: d.GovernmentCode,
+		GeneralLocationResponse: responses.GeneralLocationResponse{
+			IsEnable:     d.IsEnable,
+			CanUpdateCOD: d.CanUpdateCOD,
+			Status:       d.Status,
+		},
+	}
+}
+
+func mapWardToResponse(w model.Ward) responses.WardResponse {
+	return responses.WardResponse{
+		WardCode:       w.Code,
+		DistrictID:     w.DistrictID,
+		WardName:       w.Name,
+		SupportType:    w.SupportType,
+		PickType:       w.PickType,
+		DeliverType:    w.DeliverType,
+		GovernmentCode: w.GovernmentCode,
+		GeneralLocationResponse: responses.GeneralLocationResponse{
+			IsEnable:     w.IsEnable,
+			CanUpdateCOD: w.CanUpdateCOD,
+			Status:       w.Status,
+		},
 	}
 }

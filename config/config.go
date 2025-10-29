@@ -34,6 +34,7 @@ type AppConfig struct {
 	GmailSMTP         EmailConfig             `mapstructure:"gmail_smtp"`
 	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
 	Notification      NotificationConfig      `mapstructure:"notification"`
+	LocationSync      LocationSyncConfig      `mapstructure:"location_sync"`
 }
 
 type ServerConfig struct {
@@ -192,6 +193,12 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
+type LocationSyncConfig struct {
+	Enabled         bool `mapstructure:"enabled"`
+	IntervalMinutes int  `mapstructure:"interval_minutes"`
+	Concurrency     int  `mapstructure:"concurrency"`
+}
+
 // endregion
 
 var (
@@ -324,6 +331,11 @@ func setDefaultValues() {
 	viper.SetDefault("websocket.allowed_origins", []string{"*"})
 	viper.SetDefault("websocket.read_buffer_size", 1024)
 	viper.SetDefault("websocket.write_buffer_size", 1024)
+
+	// Location sync defaults
+	viper.SetDefault("location_sync.enabled", false)
+	viper.SetDefault("location_sync.interval_minutes", 1440) // daily
+	viper.SetDefault("location_sync.concurrency", 4)
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.

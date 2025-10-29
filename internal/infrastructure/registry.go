@@ -29,6 +29,7 @@ type InfrastructureRegistry struct {
 	EmailService      *service.EmailService
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
+	LocationSync      *service.LocationSyncScheduler
 }
 
 func NewInfrastructureRegistry(
@@ -170,6 +171,16 @@ func (r *InfrastructureRegistry) OverrideAdminConfig() error {
 		return err
 	}
 	return nil
+}
+
+// StartSchedulers launches background schedulers controlled by config.
+// It uses the provided context to manage lifecycle and shutdown.
+func (r *InfrastructureRegistry) StartSchedulers(ctx context.Context) {
+	// Location sync scheduler
+	if r.LocationSync == nil {
+		r.LocationSync = service.NewLocationSyncScheduler(r.Config, r.DB)
+	}
+	r.LocationSync.Start(ctx)
 }
 
 // StopServices gracefully stops all services

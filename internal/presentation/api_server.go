@@ -88,6 +88,9 @@ func (s *APIServer) Start() error {
 		// Don't fail startup - RabbitMQ is optional
 	}
 
+	// Start background schedulers (location sync, etc.)
+	s.infrastructureRegistry.StartSchedulers(s.ctx)
+
 	// Start WebSocket server if enabled
 	if wsConfig.Enabled {
 		zap.L().Info("Starting WebSocket server...")
