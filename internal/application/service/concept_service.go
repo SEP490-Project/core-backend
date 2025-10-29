@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
 	"errors"
 	"fmt"
@@ -111,6 +112,6 @@ func (c conceptService) DeleteConcept(conceptID string) error {
 	return nil
 }
 
-func NewConceptService(repo irepository.GenericRepository[model.Concept]) *conceptService {
+func NewConceptService(repo irepository.GenericRepository[model.Concept]) iservice.ConceptService {
 	return &conceptService{conceptRepo: repo}
 }
