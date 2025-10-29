@@ -57,7 +57,7 @@ func (r *UpdateTagRequest) ToExistingModel(existingTag *model.Tag) (*model.Tag, 
 	}
 	if r.UpdatedByID != nil {
 		updatedByID, err := uuid.Parse(*r.UpdatedByID)
-		if err == nil {
+		if err != nil {
 			return nil, err
 		}
 		existingTag.UpdatedByID = &updatedByID
