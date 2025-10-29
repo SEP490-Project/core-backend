@@ -111,17 +111,17 @@ func (h *LocationHandler) GetWards(c *gin.Context) {
 
 // InputUserAddress godoc
 //
-// @Summary      Create a new shipping address for the authenticated user
-// @Description  Persist a shipping address for the current authenticated user
-// @Tags         location
-// @Accept       json
-// @Produce      json
-// @Param        body  body    requests.InputAddressRequest  true  "Address payload"
-// @Success      201   {object}  responses.ShippingAddressResponse "Address created"
-// @Failure      400   {object}  map[string]string
-// @Failure      401   {object}  map[string]string
-// @Security     BearerAuth
-// @Router       /api/v1/location/address [post]
+//	@Summary		Create a new shipping address for the authenticated user
+//	@Description	Persist a shipping address for the current authenticated user
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		requests.InputAddressRequest		true	"Address payload"
+//	@Success		201		{object}	responses.ShippingAddressResponse	"Address created"
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/location/address [post]
 func (h *LocationHandler) InputUserAddress(c *gin.Context) {
 	var req requests.InputAddressRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -144,17 +144,17 @@ func (h *LocationHandler) InputUserAddress(c *gin.Context) {
 
 // SetAddressAsDefault godoc
 //
-// @Summary      Set an address as default for the authenticated user
-// @Description  Mark the given address as the default address for the current user
-// @Tags         location
-// @Accept       json
-// @Produce      json
-// @Param        address-id   path    string  true  "Address ID"
-// @Success      200   {object}  map[string]string
-// @Failure      400   {object}  map[string]string
-// @Failure      401   {object}  map[string]string
-// @Security     BearerAuth
-// @Router       /api/v1/location/address/{address-id}/default [patch]
+//	@Summary		Set an address as default for the authenticated user
+//	@Description	Mark the given address as the default address for the current user
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			address-id	path		string	true	"Address ID"
+//	@Success		200			{object}	map[string]string
+//	@Failure		400			{object}	map[string]string
+//	@Failure		401			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/location/address/{address-id}/default [patch]
 func (h *LocationHandler) SetAddressAsDefault(c *gin.Context) {
 	addressID := c.Param("address-id")
 	if addressID == "" {
@@ -189,15 +189,15 @@ func (h *LocationHandler) SetAddressAsDefault(c *gin.Context) {
 
 // GetUserAddresses godoc
 //
-// @Summary      Get addresses of authenticated user
-// @Description  Retrieve all shipping addresses belonging to the authenticated user
-// @Tags         location
-// @Accept       json
-// @Produce      json
-// @Success      200   {array}   responses.ShippingAddressResponse
-// @Failure      401   {object}  map[string]string
-// @Security     BearerAuth
-// @Router       /api/v1/location/addresses [get]
+//	@Summary		Get addresses of authenticated user
+//	@Description	Retrieve all shipping addresses belonging to the authenticated user
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		responses.ShippingAddressResponse
+//	@Failure		401	{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/location/addresses [get]
 func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
 	userIDVal, ok := c.Get("user_id")
 	if !ok || userIDVal == nil {
