@@ -13,7 +13,7 @@ import (
 // ContentService handles content management business logic
 type ContentService interface {
 	// Create creates new content with DRAFT status
-	Create(ctx context.Context, req *requests.CreateContentRequest) (*responses.ContentResponse, error)
+	Create(ctx context.Context, uow irepository.UnitOfWork, req *requests.CreateContentRequest) (*responses.ContentResponse, error)
 
 	// Update updates existing content (DRAFT or REJECTED status only)
 	Update(ctx context.Context, id uuid.UUID, req *requests.UpdateContentRequest) (*responses.ContentResponse, error)
