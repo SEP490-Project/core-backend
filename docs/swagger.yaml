@@ -443,6 +443,14 @@ definitions:
     required:
     - title
     type: object
+  enum.AddressType:
+    enum:
+    - BILLING
+    - SHIPPING
+    type: string
+    x-enum-varnames:
+    - AddressTypeBilling
+    - AddressTypeShipping
   enum.AttributeUnit:
     enum:
     - '%'
@@ -949,30 +957,16 @@ definitions:
         example: Concept description
         maxLength: 1000
         type: string
-      end_date:
-        example: 2006-01-02T15:04:05Z07:00
-        type: string
       name:
         example: Concept Name
         maxLength: 255
         minLength: 1
-        type: string
-      start_date:
-        example: 2006-01-02T15:04:05Z07:00
-        type: string
-      status:
-        enum:
-        - DRAFT
-        - ACTIVE
-        - INACTIVE
-        example: DRAFT
         type: string
       video_thumbnail:
         example: https://example.com/thumbnail.jpg
         type: string
     required:
     - name
-    - status
     type: object
   requests.CreateBrandRequest:
     properties:
@@ -1355,16 +1349,9 @@ definitions:
     type: object
   requests.CreateProductStoryRequest:
     properties:
-      content:
-        items:
-          type: integer
-        maxItems: 5000
-        type: array
       variant_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
-    required:
-    - content
     type: object
   requests.CreateStandardProductRequest:
     properties:
@@ -1511,6 +1498,48 @@ definitions:
     - unit
     - value
     type: object
+  requests.InputAddressRequest:
+    properties:
+      address_line_2:
+        example: Apartment, suite, unit, building, floor, etc.
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_province_id:
+        description: from GHN
+        type: integer
+      ghn_ward_code:
+        type: string
+      is_default:
+        type: boolean
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      street:
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/enum.AddressType'
+        enum:
+        - BILLING
+        - SHIPPING
+        example: SHIPPING
+    required:
+    - city
+    - full_name
+    - phone_number
+    - street
+    - type
+    type: object
   requests.InvoiceRequest:
     properties:
       invoiceCode:
@@ -1522,10 +1551,10 @@ definitions:
   requests.LimitedProductAttributes:
     properties:
       availability_end_date:
-        example: "2023-10-31T10:00:00Z"
+        example: 2023-10-31T10:00
         type: string
       availability_start_date:
-        example: "2023-10-01T10:00:00Z"
+        example: 2023-10-01T10:00
         type: string
       bought_limit:
         example: 1
@@ -1542,7 +1571,7 @@ definitions:
         minimum: 0
         type: integer
       premiere_date:
-        example: "2023-10-01T10:00:00Z"
+        example: 2023-10-01T10:00:00
         type: string
     required:
     - availability_end_date
@@ -6522,6 +6551,105 @@ paths:
       summary: Upload a video chunk (streaming upload)
       tags:
       - files
+  /api/v1/location/address:
+    post:
+      consumes:
+      - application/json
+      description: Persist a shipping address for the current authenticated user
+      parameters:
+      - description: Address payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.InputAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Address created
+          schema:
+            $ref: '#/definitions/responses.ShippingAddressResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new shipping address for the authenticated user
+      tags:
+      - location
+  /api/v1/location/address/{address-id}/default:
+    patch:
+      consumes:
+      - application/json
+      description: Mark the given address as the default address for the current user
+      parameters:
+      - description: Address ID
+        in: path
+        name: address-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set an address as default for the authenticated user
+      tags:
+      - location
+  /api/v1/location/addresses:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all shipping addresses belonging to the authenticated
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/responses.ShippingAddressResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get addresses of authenticated user
+      tags:
+      - location
   /api/v1/location/districts/{province-id}:
     get:
       consumes:
@@ -7333,9 +7461,19 @@ paths:
         enum:
         - STANDARD
         - LIMITED
-        - ""
         in: query
         name: type
+        type: string
+      - description: Filter status of products
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        in: query
+        name: status
         type: string
       produces:
       - application/json

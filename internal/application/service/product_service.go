@@ -82,7 +82,8 @@ func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedP
 }
 
 func (p productService) AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error) {
-	var varitantAttributeValue *model.VariantAttributeValue
+	var variantAttributeValue *model.VariantAttributeValue
+	var variantAttribute *model.VariantAttribute
 
 	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//Validate variant
@@ -107,12 +108,15 @@ func (p productService) AddVariantAttributeValue(ctx context.Context, variantID 
 		}
 
 		// Create VariantAttributeValue
-		varitantAttributeValue = attributeValue.ToModel()
-		varitantAttributeValue.VariantID = variantID
-		if err := uow.VariantAttributeValue().Add(ctx, varitantAttributeValue); err != nil {
+		variantAttributeValue = attributeValue.ToModel()
+		variantAttributeValue.VariantID = variantID
+		if err := uow.VariantAttributeValue().Add(ctx, variantAttributeValue); err != nil {
 			zap.L().Info("failed to persist variant attribute value", zap.Error(err))
 			return err
 		}
+
+		//Load attribute to return
+		variantAttribute, _ = uow.VariantAttributes().GetByID(ctx, attributeID, nil)
 
 		return nil
 	})
@@ -120,8 +124,8 @@ func (p productService) AddVariantAttributeValue(ctx context.Context, variantID 
 	if err != nil {
 		return nil, err
 	}
-
-	return varitantAttributeValue, nil
+	variantAttributeValue.Attribute = variantAttribute
+	return variantAttributeValue, nil
 }
 
 func (p productService) CreateVariantAttribute(ctx context.Context, createdByID uuid.UUID, attribute requests.CreateVariantAttributeRequest, uow irepository.UnitOfWork) (*model.VariantAttribute, error) {
@@ -215,7 +219,7 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 
 func (p productService) CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error) {
 	var productVariant *model.ProductVariant
-
+	var productOfVariant *model.Product
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//Validate product
 		if productID == uuid.Nil {
@@ -228,6 +232,16 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if !exists {
 			return fmt.Errorf("product with ID %s not found", productID)
 		}
+
+		// Load product now (check and propagate any error) so we can use it for response
+		productOfVariant, err = uow.Products().GetByID(ctx, productID, nil)
+		if err != nil {
+			return fmt.Errorf("failed to load product by id: %w", err)
+		}
+		if productOfVariant == nil {
+			return fmt.Errorf("product with ID %s not found after load", productID)
+		}
+
 		//Create ProductVariant
 		productVariant = variant.ToModel(productID, userID)
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
@@ -235,12 +249,16 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			return err
 		}
 
+		// no need to re-query product here; productOfVariant is already loaded above
 		return nil
 	})
 
 	if err != nil {
 		return nil, err
 	}
+
+	//findProduct to buildResponse:
+	productVariant.Product = productOfVariant
 	return productVariant, nil
 }
 
@@ -664,6 +682,8 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 		"Variants.AttributeValues",
 		"Variants.AttributeValues.Attribute",
 		"Variants.Story",
+		"Limited",
+		"Limited.Concept",
 	}
 
 	product, err := p.repository.GetByID(ctx, id, includes)
