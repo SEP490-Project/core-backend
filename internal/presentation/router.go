@@ -240,7 +240,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			// Protected (marketing, admin)
 			protected := conceptsGroup.Group("")
-			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
+			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin, sales, content))
 			{
 				protected.POST("", conceptHandler.CreateConcept)
 				protected.DELETE("/:id", conceptHandler.DeleteConcept)
