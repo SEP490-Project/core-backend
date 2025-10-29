@@ -12,15 +12,15 @@ type ContentResponse struct {
 	ID                uuid.UUID             `json:"id"`
 	TaskID            *uuid.UUID            `json:"task_id,omitempty"`
 	Title             string                `json:"title"`
-	Body              string                `json:"body"`
+	Body              []byte                `json:"body"`
 	Type              enum.ContentType      `json:"type"`
 	Status            enum.ContentStatus    `json:"status"`
 	PublishDate       *time.Time            `json:"publish_date,omitempty"`
 	AffiliateLink     *string               `json:"affiliate_link,omitempty"`
 	AIGeneratedText   *string               `json:"ai_generated_text,omitempty"`
 	RejectionFeedback *string               `json:"rejection_feedback,omitempty"`
-	CreatedAt         *time.Time            `json:"created_at"`
-	UpdatedAt         *time.Time            `json:"updated_at"`
+	CreatedAt         string                `json:"created_at"`
+	UpdatedAt         string                `json:"updated_at"`
 	Blog              *BlogResponse         `json:"blog,omitempty"`
 	ContentChannels   []ContentChannelBrief `json:"content_channels,omitempty"`
 }

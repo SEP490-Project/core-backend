@@ -210,7 +210,7 @@ func (s *ContentService) Submit(ctx context.Context, contentID uuid.UUID, submit
 	}
 
 	// Validate required fields
-	if content.Title == "" || content.Body == "" {
+	if content.Title == "" || content.Body == nil {
 		return errors.New("title and body are required fields")
 	}
 
@@ -415,7 +415,7 @@ func (s *ContentService) ValidateForSubmission(ctx context.Context, contentID uu
 	}
 
 	// Validate required fields
-	if content.Title == "" || content.Body == "" {
+	if content.Title == "" || content.Body == nil {
 		return errors.New("title and body are required fields")
 	}
 
@@ -537,8 +537,8 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 		AffiliateLink:     content.AffiliateLink,
 		AIGeneratedText:   content.AIGeneratedText,
 		RejectionFeedback: content.RejectionFeedback,
-		CreatedAt:         content.CreatedAt,
-		UpdatedAt:         content.UpdatedAt,
+		CreatedAt:         utils.FormatLocalTime(content.CreatedAt, ""),
+		UpdatedAt:         utils.FormatLocalTime(content.UpdatedAt, ""),
 	}
 
 	if content.Blog != nil {
@@ -553,8 +553,8 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 			Tags:      tags,
 			Excerpt:   content.Blog.Excerpt,
 			ReadTime:  content.Blog.ReadTime,
-			CreatedAt: content.Blog.CreatedAt,
-			UpdatedAt: content.Blog.UpdatedAt,
+			CreatedAt: utils.FormatLocalTime(content.Blog.CreatedAt, ""),
+			UpdatedAt: utils.FormatLocalTime(content.Blog.UpdatedAt, ""),
 		}
 
 		if content.Blog.Author != nil {
