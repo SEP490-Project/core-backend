@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -12,7 +13,7 @@ type Content struct {
 	ID                uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey"`
 	TaskID            *uuid.UUID         `json:"task_id,omitempty" gorm:"type:uuid"`
 	Title             string             `json:"title" gorm:"type:varchar(500);not null"`
-	Body              string             `json:"body" gorm:"type:text;not null"`
+	Body              datatypes.JSON     `json:"body" gorm:"type:text;not null"`
 	Type              enum.ContentType   `json:"type" gorm:"type:varchar(50);not null"`
 	Status            enum.ContentStatus `json:"status" gorm:"type:varchar(50);not null"`
 	PublishDate       *time.Time         `json:"publish_date,omitempty" gorm:"type:timestamp"`

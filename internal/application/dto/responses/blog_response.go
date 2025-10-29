@@ -1,8 +1,6 @@
 package responses
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 )
 
@@ -14,8 +12,8 @@ type BlogResponse struct {
 	Tags      []string   `json:"tags,omitempty"`
 	Excerpt   *string    `json:"excerpt,omitempty"`
 	ReadTime  *int       `json:"read_time,omitempty"`
-	CreatedAt *time.Time `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	CreatedAt string     `json:"created_at"`
+	UpdatedAt string     `json:"updated_at"`
 }
 
 // UserBrief for nested user info in blog response
