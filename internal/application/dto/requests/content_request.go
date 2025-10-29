@@ -6,7 +6,7 @@ import "github.com/google/uuid"
 type CreateContentRequest struct {
 	TaskID          *uuid.UUID     `json:"task_id" validate:"omitempty,uuid"`
 	Title           string         `json:"title" validate:"required,max=500"`
-	Body            []byte         `json:"body" validate:"required"`
+	Body            any            `json:"body" validate:"required"`
 	Type            string         `json:"type" validate:"required,oneof=POST VIDEO"`
 	AffiliateLink   *string        `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
 	AIGeneratedText *string        `json:"ai_generated_text,omitempty"`
@@ -17,7 +17,7 @@ type CreateContentRequest struct {
 // UpdateContentRequest DTO for updating existing content
 type UpdateContentRequest struct {
 	Title           *string        `json:"title,omitempty" validate:"omitempty,max=500"`
-	Body            *[]byte        `json:"body,omitempty"`
+	Body            *any           `json:"body,omitempty"`
 	Type            *string        `json:"type,omitempty" validate:"omitempty,oneof=POST VIDEO"`
 	AffiliateLink   *string        `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
 	AIGeneratedText *string        `json:"ai_generated_text,omitempty"`

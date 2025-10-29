@@ -51,10 +51,9 @@ ALTER TABLE contents
 COMMIT;
 
 -- Create blogs table (weak entity)
-CREATE TABLE blogs (
+/* CREATE TABLE blogs (
     content_id UUID PRIMARY KEY,
     author_id UUID NOT NULL,
-    tags JSONB,
     excerpt TEXT,
     read_time INTEGER,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -64,7 +63,10 @@ CREATE TABLE blogs (
         REFERENCES contents(id) ON DELETE CASCADE,
     CONSTRAINT fk_blogs_author FOREIGN KEY (author_id) 
         REFERENCES users(id)
-);
+); */
+alter table blogs
+    add column created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    add column updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- Indexes for contents table
 CREATE INDEX idx_contents_task_id ON contents(task_id);

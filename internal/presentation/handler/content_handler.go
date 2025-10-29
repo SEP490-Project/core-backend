@@ -52,6 +52,7 @@ func NewContentHandler(
 func (h *ContentHandler) Create(c *gin.Context) {
 	var req requests.CreateContentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind CreateContentRequest", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request format", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
@@ -61,9 +62,10 @@ func (h *ContentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	content, err := h.contentService.Create(c.Request.Context(), &req)
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	content, err := h.contentService.Create(c.Request.Context(), uow, &req)
 	if err != nil {
-		// Determine appropriate status code based on error message
+		uow.Rollback()
 		statusCode := http.StatusInternalServerError
 		message := "Failed to create content"
 
@@ -84,6 +86,7 @@ func (h *ContentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	uow.Commit()
 	statusCode := http.StatusCreated
 	response := responses.SuccessResponse("Content created successfully", &statusCode, content)
 	c.JSON(http.StatusCreated, response)

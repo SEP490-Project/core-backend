@@ -9872,9 +9872,7 @@
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "minItems": 1,
@@ -10859,9 +10857,7 @@
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "items": {
@@ -11834,9 +11830,7 @@
                 "blog": {
                     "$ref": "#/definitions/responses.BlogResponse"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "content_channels": {
                     "type": "array",
                     "items": {

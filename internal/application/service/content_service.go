@@ -47,42 +47,47 @@ func NewContentService(
 }
 
 // Create creates new content with DRAFT status
-func (s *ContentService) Create(ctx context.Context, req *requests.CreateContentRequest) (*responses.ContentResponse, error) {
+func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork, req *requests.CreateContentRequest) (*responses.ContentResponse, error) {
 	zap.L().Info("Creating content", zap.String("title", req.Title), zap.String("type", req.Type))
+
+	taskRepo := uow.Tasks()
+	contentRepo := uow.Contents()
+	blogRepo := uow.Blogs()
+	tagRepo := uow.Tags()
+	contentChannelRepo := uow.ContentChannels()
 
 	// Validate task exists if provided
 	if req.TaskID != nil {
-		_, err := s.taskRepo.GetByID(ctx, *req.TaskID, nil)
+		_, err := taskRepo.GetByID(ctx, *req.TaskID, nil)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errors.New("task not found")
 			}
+			zap.L().Error("Failed to retrieve task", zap.Error(err))
 			return nil, err
 		}
 	}
 
 	// Start transaction
-	uow := s.uow.Begin(ctx)
-	defer func() {
-		if r := recover(); r != nil {
-			uow.Rollback()
-			panic(r)
-		}
-	}()
+	rawBody, err := json.Marshal(req.Body)
+	if err != nil {
+		zap.L().Error("Failed to marshal body", zap.Error(err))
+		return nil, errors.New("failed to marshal body")
+	}
 
 	// Create content entity
 	content := &model.Content{
+		ID:              uuid.New(),
 		TaskID:          req.TaskID,
 		Title:           req.Title,
-		Body:            req.Body,
+		Body:            rawBody,
 		Type:            enum.ContentType(req.Type),
 		Status:          enum.ContentStatusDraft,
 		AffiliateLink:   req.AffiliateLink,
 		AIGeneratedText: req.AIGeneratedText,
 	}
 
-	if err := uow.Contents().Add(ctx, content); err != nil {
-		_ = uow.Rollback()
+	if err = contentRepo.Add(ctx, content); err != nil {
 		zap.L().Error("Failed to create content", zap.Error(err))
 		return nil, errors.New("failed to create content")
 	}
@@ -92,9 +97,9 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 		creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
 			return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
 		})
-		createdTags, err := uow.Tags().CreateIfNotExists(ctx, creatingTags)
+		var createdTags []model.Tag
+		createdTags, err = tagRepo.CreateIfNotExists(ctx, creatingTags)
 		if err != nil {
-			_ = uow.Rollback()
 			zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
 			return nil, errors.New("failed to create or retrieve tags")
 		}
@@ -107,8 +112,7 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 			ReadTime:  req.BlogFields.ReadTime,
 		}
 
-		if err := uow.Blogs().Add(ctx, blog); err != nil {
-			_ = uow.Rollback()
+		if err = blogRepo.Add(ctx, blog); err != nil {
 			zap.L().Error("Failed to create blog", zap.Error(err))
 			return nil, errors.New("failed to create blog")
 		}
@@ -122,15 +126,13 @@ func (s *ContentService) Create(ctx context.Context, req *requests.CreateContent
 			AutoPostStatus: "PENDING",
 		}
 
-		if err := s.contentChannelRepo.Add(ctx, contentChannel); err != nil {
-			_ = uow.Rollback()
+		if err = contentChannelRepo.Add(ctx, contentChannel); err != nil {
 			zap.L().Error("Failed to create content channel", zap.Error(err))
 			return nil, errors.New("failed to create content channel")
 		}
 	}
 
-	// Commit transaction
-	if err := uow.Commit(); err != nil {
+	if err = uow.Commit(); err != nil {
 		zap.L().Error("Failed to commit transaction", zap.Error(err))
 		return nil, errors.New("failed to create content")
 	}
@@ -168,7 +170,12 @@ func (s *ContentService) Update(ctx context.Context, id uuid.UUID, req *requests
 		content.Title = *req.Title
 	}
 	if req.Body != nil {
-		content.Body = *req.Body
+		if rawBody, err := json.Marshal(req.Body); err == nil {
+			content.Body = rawBody
+		} else {
+			zap.L().Error("Failed to marshal body", zap.Error(err))
+			return nil, errors.New("failed to marshal body field")
+		}
 	}
 
 	if err := s.contentRepo.Update(ctx, content); err != nil {
