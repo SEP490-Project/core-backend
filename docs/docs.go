@@ -10163,17 +10163,7 @@ const docTemplate = `{
         },
         "requests.CreateProductStoryRequest": {
             "type": "object",
-            "required": [
-                "content"
-            ],
             "properties": {
-                "content": {
-                    "type": "array",
-                    "maxItems": 5000,
-                    "items": {
-                        "type": "integer"
-                    }
-                },
                 "variant_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"

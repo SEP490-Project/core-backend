@@ -446,11 +446,15 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	blogHandler := r.handlerRegistry.BlogHandler
 	contentGroup := group.Group("/contents")
 	{
+		viewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(customer, brand, marketing, sales, content, admin))
+		{
+			viewGroup.GET("", contentHandler.List)
+			viewGroup.GET("/:id", contentHandler.GetByID)
+		}
+
 		editGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content))
 		{
 			editGroup.POST("", contentHandler.Create)
-			editGroup.GET("", contentHandler.List)
-			editGroup.GET("/:id", contentHandler.GetByID)
 			editGroup.PUT("/:id", contentHandler.Update)
 			editGroup.DELETE("/:id", contentHandler.Delete)
 			editGroup.PATCH("/:id/submit", contentHandler.Submit)

@@ -1348,16 +1348,9 @@ definitions:
     type: object
   requests.CreateProductStoryRequest:
     properties:
-      content:
-        items:
-          type: integer
-        maxItems: 5000
-        type: array
       variant_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
-    required:
-    - content
     type: object
   requests.CreateStandardProductRequest:
     properties:
