@@ -4484,6 +4484,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/location/address": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Persist a shipping address for the current authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Create a new shipping address for the authenticated user",
+                "parameters": [
+                    {
+                        "description": "Address payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.InputAddressRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Address created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ShippingAddressResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/address/{address-id}/default": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark the given address as the default address for the current user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Set an address as default for the authenticated user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address ID",
+                        "name": "address-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/addresses": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve all shipping addresses belonging to the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Get addresses of authenticated user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/responses.ShippingAddressResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/location/districts/{province-id}": {
             "get": {
                 "security": [
@@ -5544,12 +5699,25 @@ const docTemplate = `{
                     {
                         "enum": [
                             "STANDARD",
-                            "LIMITED",
-                            ""
+                            "LIMITED"
                         ],
                         "type": "string",
                         "description": "Filter type of products",
                         "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "SUBMITTED",
+                            "REVISION",
+                            "APPROVED",
+                            "ACTIVED",
+                            "INACTIVED"
+                        ],
+                        "type": "string",
+                        "description": "Filter status of products",
+                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -8793,6 +8961,17 @@ const docTemplate = `{
                 }
             }
         },
+        "enum.AddressType": {
+            "type": "string",
+            "enum": [
+                "BILLING",
+                "SHIPPING"
+            ],
+            "x-enum-varnames": [
+                "AddressTypeBilling",
+                "AddressTypeShipping"
+            ]
+        },
         "enum.AttributeUnit": {
             "type": "string",
             "enum": [
@@ -9463,8 +9642,7 @@ const docTemplate = `{
         "requests.ConceptRequest": {
             "type": "object",
             "required": [
-                "name",
-                "status"
+                "name"
             ],
             "properties": {
                 "banner_url": {
@@ -9476,28 +9654,11 @@ const docTemplate = `{
                     "maxLength": 1000,
                     "example": "Concept description"
                 },
-                "end_date": {
-                    "type": "string",
-                    "example": "2006-01-02T15:04:05Z07:00"
-                },
                 "name": {
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Concept Name"
-                },
-                "start_date": {
-                    "type": "string",
-                    "example": "2006-01-02T15:04:05Z07:00"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "DRAFT",
-                        "ACTIVE",
-                        "INACTIVE"
-                    ],
-                    "example": "DRAFT"
                 },
                 "video_thumbnail": {
                     "type": "string",
@@ -9718,9 +9879,7 @@ const docTemplate = `{
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "minItems": 1,
@@ -10215,6 +10374,68 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.InputAddressRequest": {
+            "type": "object",
+            "required": [
+                "city",
+                "full_name",
+                "phone_number",
+                "street",
+                "type"
+            ],
+            "properties": {
+                "address_line_2": {
+                    "type": "string",
+                    "example": "Apartment, suite, unit, building, floor, etc."
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_province_id": {
+                    "description": "from GHN",
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "type": {
+                    "enum": [
+                        "BILLING",
+                        "SHIPPING"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.AddressType"
+                        }
+                    ],
+                    "example": "SHIPPING"
+                }
+            }
+        },
         "requests.InvoiceRequest": {
             "type": "object",
             "properties": {
@@ -10239,11 +10460,11 @@ const docTemplate = `{
             "properties": {
                 "availability_end_date": {
                     "type": "string",
-                    "example": "2023-10-31T10:00:00Z"
+                    "example": "2023-10-31T10:00"
                 },
                 "availability_start_date": {
                     "type": "string",
-                    "example": "2023-10-01T10:00:00Z"
+                    "example": "2023-10-01T10:00"
                 },
                 "bought_limit": {
                     "type": "integer",
@@ -10265,7 +10486,7 @@ const docTemplate = `{
                 },
                 "premiere_date": {
                     "type": "string",
-                    "example": "2023-10-01T10:00:00Z"
+                    "example": "2023-10-01T10:00:00"
                 }
             }
         },
@@ -10653,9 +10874,7 @@ const docTemplate = `{
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "items": {
@@ -11628,9 +11847,7 @@ const docTemplate = `{
                 "blog": {
                     "$ref": "#/definitions/responses.BlogResponse"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "content_channels": {
                     "type": "array",
                     "items": {
