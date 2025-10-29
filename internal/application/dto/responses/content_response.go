@@ -12,7 +12,7 @@ type ContentResponse struct {
 	ID                uuid.UUID             `json:"id"`
 	TaskID            *uuid.UUID            `json:"task_id,omitempty"`
 	Title             string                `json:"title"`
-	Body              []byte                `json:"body"`
+	Body              any                   `json:"body"`
 	Type              enum.ContentType      `json:"type"`
 	Status            enum.ContentStatus    `json:"status"`
 	PublishDate       *time.Time            `json:"publish_date,omitempty"`
