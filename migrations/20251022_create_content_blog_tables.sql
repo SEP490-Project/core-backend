@@ -2,41 +2,53 @@
 -- Date: 2025-10-22
 -- Description: Creates contents and blogs tables with FSM state support
 
--- Create content_status enum type
-CREATE TYPE content_status AS ENUM (
-    'DRAFT',
-    'AWAIT_STAFF',
-    'AWAIT_BRAND',
-    'REJECTED',
-    'APPROVED',
-    'POSTED'
-);
+BEGIN;
 
--- Create content_type enum type
-CREATE TYPE content_type AS ENUM (
-    'POST',
-    'VIDEO'
-);
+-- 1. Drop old CHECK constraints
+ALTER TABLE contents DROP CONSTRAINT IF EXISTS contents_type_check;
+ALTER TABLE contents DROP CONSTRAINT IF EXISTS contents_status_check;
 
--- Create contents table
-CREATE TABLE contents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id UUID,
-    title VARCHAR(500) NOT NULL,
-    body TEXT NOT NULL,
-    type content_type NOT NULL,
-    status content_status NOT NULL DEFAULT 'DRAFT',
-    publish_date TIMESTAMP,
-    affiliate_link VARCHAR(1000),
-    ai_generated_text TEXT,
-    rejection_feedback TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    
-    CONSTRAINT fk_contents_task FOREIGN KEY (task_id) 
-        REFERENCES tasks(id) ON DELETE SET NULL
-);
+-- 4. Create new ENUM types
+DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_status') THEN
+            CREATE TYPE content_status AS ENUM (
+                'DRAFT',
+                'AWAIT_STAFF',
+                'AWAIT_BRAND',
+                'REJECTED',
+                'APPROVED',
+                'POSTED'
+                );
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_type') THEN
+            CREATE TYPE content_type AS ENUM (
+                'POST',
+                'VIDEO'
+                );
+        END IF;
+    END $$;
+
+-- 5. Alter columns to new types and definitions
+ALTER TABLE contents
+    ALTER COLUMN affiliate_link TYPE TEXT;
+
+-- Convert status from VARCHAR to ENUM
+ALTER TABLE contents
+    ALTER COLUMN status DROP DEFAULT,
+    ALTER COLUMN status TYPE content_status USING status::content_status,
+    ALTER COLUMN status SET DEFAULT 'DRAFT';
+
+-- Convert type from VARCHAR to ENUM
+ALTER TABLE contents
+    ALTER COLUMN type TYPE content_type USING type::content_type;
+
+-- 6. Add new column
+ALTER TABLE contents
+    ADD COLUMN rejection_feedback TEXT;
+
+COMMIT;
 
 -- Create blogs table (weak entity)
 CREATE TABLE blogs (
