@@ -24,7 +24,11 @@ type fileService struct {
 }
 
 // Video stream upload and delete
-func (s *fileService) UploadVideoStream(userID string, fileName string, data []byte, isLastChunk bool, action *string) (*responses.PathResponse, error) {
+func (s *fileService) UploadVideoStream(ctx context.Context, userID string, fileName string, data *[]byte, isLastChunk bool, action *string) (*responses.PathResponse, error) {
+	zap.L().Info("Received video chunk",
+		zap.String("userID", userID),
+		zap.String("fileName", fileName),
+	)
 	tmpDir := s.getTempDir(userID)
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -40,7 +44,6 @@ func (s *fileService) UploadVideoStream(userID string, fileName string, data []b
 	zap.L().Info("Chunk appended successfully",
 		zap.String("userID", userID),
 		zap.String("fileName", fileName),
-		zap.Int("chunkSize", len(data)),
 	)
 
 	if !isLastChunk {
@@ -58,7 +61,7 @@ func (s *fileService) UploadVideoStream(userID string, fileName string, data []b
 	}
 	defer src.Close()
 
-	pathResp, err := s.enqueueVideoUploadTask(userID, fileName, src, action)
+	pathResp, err := s.enqueueVideoUploadTask(ctx, userID, fileName, action)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enqueue video upload task: %w", err)
 	}
@@ -66,7 +69,7 @@ func (s *fileService) UploadVideoStream(userID string, fileName string, data []b
 	return &pathResp, nil
 }
 
-func (s *fileService) DeleteVideoStream(userID string, fileName string) error {
+func (s *fileService) DeleteVideoStream(ctx context.Context, userID string, fileName string) error {
 	// remove any temp part file
 	partPath := filepath.Join(os.TempDir(), "video_uploads", userID, fileName+".part")
 	_ = os.Remove(partPath)
@@ -123,7 +126,7 @@ func (s *fileService) getTempFilePath(userID string, fileName string) string {
 	return filepath.Join(s.getTempDir(userID), fileName+".part")
 }
 
-func (s *fileService) appendChunkToFile(path string, data []byte) error {
+func (s *fileService) appendChunkToFile(path string, data *[]byte) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return err
@@ -135,13 +138,13 @@ func (s *fileService) appendChunkToFile(path string, data []byte) error {
 		}
 	}(f)
 
-	if _, err := f.Write(data); err != nil {
+	if _, err := f.Write(*data); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *fileService) enqueueVideoUploadTask(userID, fileName string, src *os.File, action *string) (responses.PathResponse, error) {
+func (s *fileService) enqueueVideoUploadTask(ctx context.Context, userID, fileName string, action *string) (responses.PathResponse, error) {
 	// RabbitMQ handle this step
 	tempPath := s.getTempFilePath(userID, fileName)
 	key := fmt.Sprintf("%s/%s", userID, filepath.Base(fileName))
@@ -175,7 +178,7 @@ func (s *fileService) enqueueVideoUploadTask(userID, fileName string, src *os.Fi
 	}
 
 	// publish message to RabbitMQ
-	if err := videoProducer.Publish(context.Background(), payload); err != nil {
+	if err := videoProducer.Publish(ctx, payload); err != nil {
 		zap.L().Error("Failed to publish video upload task", zap.Error(err))
 		return pathResp, fmt.Errorf("failed to publish video upload task: %w", err)
 	}
