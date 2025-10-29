@@ -149,7 +149,7 @@ func (h *S3Handler) UploadVideoChunk(c *gin.Context) {
 		return
 	}
 
-	paths, err := h.fileService.UploadVideoStream(userID, fileName, data, isLast, nil)
+	paths, err := h.fileService.UploadVideoStream(c.Request.Context(), userID, fileName, &data, isLast, nil)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -182,7 +182,7 @@ func (h *S3Handler) DeleteVideo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userId and fileName are required"})
 		return
 	}
-	if err := h.fileService.DeleteVideoStream(userID, fileName); err != nil {
+	if err := h.fileService.DeleteVideoStream(c.Request.Context(), userID, fileName); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
