@@ -1126,8 +1126,7 @@ definitions:
         type: string
       blog_fields:
         $ref: '#/definitions/requests.BlogFieldsDTO'
-      body:
-        type: string
+      body: {}
       channels:
         items:
           type: string
@@ -1858,8 +1857,7 @@ definitions:
         type: string
       blog_fields:
         $ref: '#/definitions/requests.BlogFieldsDTO'
-      body:
-        type: string
+      body: {}
       channels:
         items:
           type: string
@@ -2555,8 +2553,7 @@ definitions:
         type: string
       blog:
         $ref: '#/definitions/responses.BlogResponse'
-      body:
-        type: string
+      body: {}
       content_channels:
         items:
           $ref: '#/definitions/responses.ContentChannelBrief'

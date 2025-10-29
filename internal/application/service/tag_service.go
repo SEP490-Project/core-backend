@@ -174,11 +174,16 @@ func (t *TagService) GetByName(ctx context.Context, uow irepository.UnitOfWork, 
 func (t *TagService) UpdateByID(ctx context.Context, uow irepository.UnitOfWork, request *requests.UpdateTagRequest) (*responses.TagResponse, error) {
 	zap.L().Info("TagService - UpdateByID called", zap.String("tagID", *request.ID))
 	var (
-		tagRepo = uow.Tags()
-		tag     *model.Tag
-		err     error
+		tagRepo    = uow.Tags()
+		tag        *model.Tag
+		tagID, err = uuid.Parse(*request.ID)
 	)
-	tag, err = tagRepo.GetByID(ctx, *request.ID, nil)
+	if err != nil {
+		zap.L().Error("TagService - UpdateByID - uuid.Parse error", zap.Error(err))
+		return nil, err
+	}
+
+	tag, err = tagRepo.GetByID(ctx, tagID, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			zap.L().Warn("TagService - UpdateByID - tag not found", zap.String("tagID", *request.ID))

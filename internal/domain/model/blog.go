@@ -12,10 +12,10 @@ type Blog struct {
 	AuthorID    uuid.UUID  `json:"author_id" gorm:"type:uuid;not null"`
 	Excerpt     *string    `json:"excerpt,omitempty" gorm:"type:text"`
 	ReadTime    *int       `json:"read_time,omitempty" gorm:"type:integer"`
-	CreatedAt   *time.Time `json:"created_at" gorm:"autoCreateTime"`
-	CreatedByID *uuid.UUID `json:"created_by" gorm:"type:uuid"`
-	UpdatedAt   *time.Time `json:"updated_at" gorm:"autoUpdateTime"`
-	UpdatedBYId *uuid.UUID `json:"updated_by" gorm:"type:uuid"`
+	CreatedAt   *time.Time `json:"created_at" gorm:"autoCreateTime;column:created_at"`
+	CreatedByID *uuid.UUID `json:"created_by" gorm:"type:uuid;column:created_by"`
+	UpdatedAt   *time.Time `json:"updated_at" gorm:"autoUpdateTime;column:updated_at"`
+	UpdatedBYId *uuid.UUID `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	// Tags      datatypes.JSON `json:"tags" gorm:"type:jsonb"`
 
 	// Relationships

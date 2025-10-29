@@ -9879,9 +9879,7 @@ const docTemplate = `{
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "minItems": 1,
@@ -10866,9 +10864,7 @@ const docTemplate = `{
                 "blog_fields": {
                     "$ref": "#/definitions/requests.BlogFieldsDTO"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "channels": {
                     "type": "array",
                     "items": {
@@ -11841,9 +11837,7 @@ const docTemplate = `{
                 "blog": {
                     "$ref": "#/definitions/responses.BlogResponse"
                 },
-                "body": {
-                    "type": "string"
-                },
+                "body": {},
                 "content_channels": {
                     "type": "array",
                     "items": {
