@@ -78,19 +78,41 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 
 /*===========================PRODUCTS DETAIL=====================================*/
 type ProductDetailResponse struct {
-	ID           uuid.UUID                `json:"id"`
-	BrandID      uuid.UUID                `json:"brand_id"`
-	BrandLogoURL *string                  `json:"brand_logo_url,omitempty"`
-	BrandName    string                   `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string                `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                     `json:"is_active"`
-	Category     ProductCategoryResponse  `json:"category"`
-	Description  string                   `json:"description"`
-	Name         string                   `json:"name"`
-	Price        float64                  `json:"price"`
-	Type         enum.ProductType         `json:"type"`
-	Variants     []ProductVariantResponse `json:"variants,omitempty"`
-	CreatedAt    string                   `json:"created_at"` // FE parse về Date
+	ID               uuid.UUID                `json:"id"`
+	BrandID          uuid.UUID                `json:"brand_id"`
+	BrandLogoURL     *string                  `json:"brand_logo_url,omitempty"`
+	BrandName        string                   `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL     *[]string                `json:"thumbnail_url,omitempty"` // optional
+	IsActive         bool                     `json:"is_active"`
+	Category         ProductCategoryResponse  `json:"category"`
+	Description      string                   `json:"description"`
+	Name             string                   `json:"name"`
+	Price            float64                  `json:"price"`
+	Type             enum.ProductType         `json:"type"`
+	Variants         []ProductVariantResponse `json:"variants,omitempty"`
+	CreatedAt        string                   `json:"created_at"` // FE parse về Date
+	LimitedAttribute *LimitedProductResponse  `json:"limited_product,omitempty"`
+	Concept          *model.Concept           `json:"concept,omitempty"`
+}
+
+type LimitedProductResponse struct {
+	MaxStock              int    `json:"max_stock"`
+	IsFreeShipping        bool   `json:"is_free_shipping"`
+	BoughtLimit           int    `json:"bought_limit"`
+	PremiereDate          string `json:"premiere_date"`
+	AvailabilityStartDate string `json:"availability_start_date"`
+	AvailabilityEndDate   string `json:"availability_end_date"`
+}
+
+func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
+	return &LimitedProductResponse{
+		MaxStock:              m.MaxStock,
+		IsFreeShipping:        m.IsFreeShipping,
+		BoughtLimit:           m.BoughtLimit,
+		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
+		AvailabilityStartDate: utils.FormatLocalTime(&m.AvailabilityStartDate, ""),
+		AvailabilityEndDate:   utils.FormatLocalTime(&m.AvailabilityEndDate, ""),
+	}
 }
 
 func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *ProductDetailResponse {
@@ -132,6 +154,11 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 			variants = append(variants, *ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
 		}
 		d.Variants = variants
+	}
+
+	if m.Limited != nil {
+		d.LimitedAttribute = LimitedProductResponse{}.ToLimitedProductResponse(*m.Limited)
+		d.Concept = m.Limited.Concept
 	}
 
 	return &d
@@ -254,6 +281,60 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		}
 		resp.Images = images
 	}
+	return &resp
+}
+
+// ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
+func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.ProductVariant, story *model.ProductStory, attributeValueList []ProductAttributesResponse) *ProductVariantResponse {
+	resp := ProductVariantResponse{
+		ID:              variant.ID,
+		Price:           variant.Price,
+		CurrentStock:    variant.CurrentStock,
+		Capacity:        variant.Capacity,
+		CapacityUnit:    variant.CapacityUnit,
+		ContainerType:   variant.ContainerType,
+		DispenserType:   variant.DispenserType,
+		Uses:            variant.Uses,
+		ManufactureDate: utils.FormatLocalTime(variant.ManufactureDate, ""),
+		ExpiryDate:      utils.FormatLocalTime(variant.ExpiryDate, ""),
+		Instructions:    variant.Instructions,
+		IsDefault:       variant.IsDefault,
+		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
+		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
+		Story:           nil,
+		Attributes:      nil,
+		Images:          nil,
+	}
+
+	// Include product-level fields if product relation is present
+	if variant != nil && variant.Product != nil {
+		resp.Name = variant.Product.Name
+		resp.Description = variant.Product.Description
+		resp.Type = variant.Product.Type
+	}
+
+	// Prefer provided story param if present, otherwise fall back to preloaded variant.Story
+	if story != nil {
+		resp.Story = story.Content
+	} else if variant != nil && variant.Story != nil {
+		resp.Story = variant.Story.Content
+	}
+
+	if len(attributeValueList) > 0 {
+		resp.Attributes = attributeValueList
+	}
+
+	if len(variant.Images) > 0 {
+		images := make([]VariantImageResponse, 0, len(variant.Images))
+		for i := range variant.Images {
+			vir := VariantImageResponse{}.ToVariantImageResponse(&variant.Images[i])
+			if vir != nil {
+				images = append(images, *vir)
+			}
+		}
+		resp.Images = images
+	}
+
 	return &resp
 }
 

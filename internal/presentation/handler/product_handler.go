@@ -531,8 +531,9 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	// 2. Tạo story
+	var story *model.ProductStory
 	if req.Story != nil {
-		_, err = h.productService.CreateProductStory(ctx, variant.ID, *req.Story, uow)
+		story, err = h.productService.CreateProductStory(ctx, variant.ID, *req.Story, uow)
 		if err != nil {
 			_ = uow.Rollback()
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
@@ -542,6 +543,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 
 	// 3. Thêm attribute values
 	attributeIDs := make(map[uuid.UUID]bool)
+	var attributeValueList []responses.ProductAttributesResponse
 	for _, attrValue := range req.Attributes {
 		if attributeIDs[attrValue.AttributeID] {
 			_ = uow.Rollback()
@@ -550,11 +552,19 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 		}
 		attributeIDs[attrValue.AttributeID] = true
 
-		if _, err = h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow); err != nil {
+		attributeValue, err := h.productService.AddVariantAttributeValue(ctx, variant.ID, attrValue.AttributeID, attrValue, uow)
+		if err != nil {
 			_ = uow.Rollback()
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 			return
 		}
+		attributeValueList = append(attributeValueList,
+			responses.ProductAttributesResponse{
+				Ingredient:  attributeValue.Attribute.Ingredient,
+				Value:       attributeValue.Value,
+				Unit:        attributeValue.Unit,
+				Description: attributeValue.Attribute.Description,
+			})
 	}
 
 	// 4. Commit transaction
@@ -563,7 +573,18 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, responses.SuccessResponse("Created successful", utils.IntPtr(http.StatusCreated), variant))
+	formatedVariant := responses.ProductVariantResponse{}.ToFullProductVariantResponse(variant, story, attributeValueList)
+
+	if variant.Product != nil {
+		formatedVariant.Name = variant.Product.Name
+		formatedVariant.Description = variant.Product.Description
+		formatedVariant.Type = variant.Product.Type
+	}
+
+	// return concrete value (not pointer) to ensure JSON body matches expected shape
+	varResp := *formatedVariant
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Created successful", utils.IntPtr(http.StatusCreated), varResp))
 }
 
 // CreateVariantImage godoc
