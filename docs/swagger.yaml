@@ -1426,9 +1426,6 @@ definitions:
         type: string
       description:
         description: JSON format
-        items:
-          type: integer
-        type: array
       milestone_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -2061,9 +2058,6 @@ definitions:
         type: string
       description:
         description: JSON format
-        items:
-          type: integer
-        type: array
       milestone_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -3434,9 +3428,7 @@ definitions:
       deadline:
         example: "2023-12-31T23:59:59Z"
         type: string
-      description:
-        example: Create a modern and responsive homepage design.
-        type: string
+      description: {}
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -3656,6 +3648,7 @@ definitions:
         example: https://example.com/image.jpg
         type: string
       is_primary:
+        example: false
         type: boolean
       updated_at:
         example: "2023-10-01T00:00:00Z"
@@ -5481,7 +5474,7 @@ paths:
       - BearerAuth: []
       summary: Update blog details
       tags:
-      - Blog
+      - Content/Blog
   /api/v1/contents/{id}/publish:
     patch:
       consumes:
@@ -8771,7 +8764,7 @@ paths:
       - BearerAuth: []
       summary: Get User notification preferences
       tags:
-      - Notification Preferences
+      - Users
     put:
       consumes:
       - application/json
@@ -8812,7 +8805,7 @@ paths:
       - BearerAuth: []
       summary: Update notification preferences
       tags:
-      - Notification Preferences
+      - Users
   /api/v1/users/profile:
     get:
       consumes:
