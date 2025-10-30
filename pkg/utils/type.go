@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -81,4 +82,63 @@ func toStringInternal(v reflect.Value, seen map[uintptr]bool) string {
 	default:
 		return fmt.Sprintf("%v", v.Interface())
 	}
+}
+
+// SetStringToReflectValue sets a reflect.Value field from a string value.
+// It handles parsing for basic types like string, int, bool, and float.
+// It returns an error if the field is not settable, the type is unsupported,
+// or the string value cannot be parsed into the field's type.
+func SetStringToReflectValue(object any, fieldName string, value string) error {
+	structKey := ToStructFieldName(fieldName)
+	field := reflect.ValueOf(object).Elem().FieldByName(structKey)
+	if !field.IsValid() {
+		return fmt.Errorf("field %s not found in config struct for key %s", structKey, fieldName)
+	}
+
+	if !field.IsValid() {
+		return fmt.Errorf("field is not valid")
+	}
+
+	if !field.CanSet() {
+		return fmt.Errorf("field cannot be set")
+	}
+
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(value)
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		intValue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse '%s' as int: %w", value, err)
+		}
+		// Check for overflow before setting the value
+		if field.OverflowInt(intValue) {
+			return fmt.Errorf("value %d overflows type %s", intValue, field.Type())
+		}
+		field.SetInt(intValue)
+
+	case reflect.Float32, reflect.Float64:
+		floatValue, err := strconv.ParseFloat(value, field.Type().Bits())
+		if err != nil {
+			return fmt.Errorf("failed to parse '%s' as float: %w", value, err)
+		}
+		// Check for overflow before setting the value
+		if field.OverflowFloat(floatValue) {
+			return fmt.Errorf("value %f overflows type %s", floatValue, field.Type())
+		}
+		field.SetFloat(floatValue)
+
+	case reflect.Bool:
+		boolValue, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("failed to parse '%s' as bool: %w", value, err)
+		}
+		field.SetBool(boolValue)
+
+	default:
+		return fmt.Errorf("unsupported type for conversion from string: %s", field.Type())
+	}
+
+	return nil
 }

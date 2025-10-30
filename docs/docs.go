@@ -2753,7 +2753,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Blog"
+                    "Content/Blog"
                 ],
                 "summary": "Update blog details",
                 "parameters": [
@@ -7566,7 +7566,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Notification Preferences"
+                    "Users"
                 ],
                 "summary": "Get User notification preferences",
                 "responses": {
@@ -7616,7 +7616,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Notification Preferences"
+                    "Users"
                 ],
                 "summary": "Update notification preferences",
                 "parameters": [
@@ -10275,11 +10275,7 @@ const docTemplate = `{
                     "example": "2023-10-15 17:00:00"
                 },
                 "description": {
-                    "description": "JSON format",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "description": "JSON format"
                 },
                 "milestone_id": {
                     "type": "string",
@@ -11132,11 +11128,7 @@ const docTemplate = `{
                     "example": "2023-10-15 17:00:00"
                 },
                 "description": {
-                    "description": "JSON format",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "description": "JSON format"
                 },
                 "milestone_id": {
                     "type": "string",
@@ -13117,10 +13109,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2023-12-31T23:59:59Z"
                 },
-                "description": {
-                    "type": "string",
-                    "example": "Create a modern and responsive homepage design."
-                },
+                "description": {},
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -13434,7 +13423,8 @@ const docTemplate = `{
                     "example": "https://example.com/image.jpg"
                 },
                 "is_primary": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": false
                 },
                 "updated_at": {
                     "type": "string",

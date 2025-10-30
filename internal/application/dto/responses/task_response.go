@@ -12,7 +12,7 @@ import (
 type TaskResponse struct {
 	ID             string   `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Name           string   `json:"name" example:"Design Homepage"`
-	Description    string   `json:"description" example:"Create a modern and responsive homepage design."`
+	Description    any      `json:"description"`
 	Deadline       string   `json:"deadline" example:"2023-12-31T23:59:59Z"`
 	Type           string   `json:"type" example:"PRODUCT"`
 	Status         string   `json:"status" example:"IN_PROGRESS"`
@@ -36,7 +36,7 @@ func (TaskResponse) ToResponse(dto *dtos.TaskDetailDTO) *TaskResponse {
 	response := &TaskResponse{
 		ID:          dto.ID.String(),
 		Name:        dto.Name,
-		Description: string(dto.Description),
+		Description: dto.Description,
 		Deadline:    utils.FormatLocalTime(&dto.Deadline, ""),
 		Type:        dto.Type.String(),
 		Status:      dto.Status.String(),

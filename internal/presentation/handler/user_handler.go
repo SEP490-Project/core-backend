@@ -390,7 +390,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 //
 //	@Summary		Get User notification preferences
 //	@Description	Retrieves notification preference settings for the authenticated user
-//	@Tags			Notification Preferences
+//	@Tags			Users
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.UserNotificationPreferenceResponse}
@@ -424,7 +424,7 @@ func (h *UserHandler) GetUserPreference(c *gin.Context) {
 //
 //	@Summary		Update notification preferences
 //	@Description	Updates notification preference settings for the authenticated user
-//	@Tags			Notification Preferences
+//	@Tags			Users
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.UserNotificationPreferenceRequest	true	"Notification preferences"

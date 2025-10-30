@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ type TaskFilterRequest struct {
 type CreateTaskRequest struct {
 	MilestoneID  string  `json:"milestone_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Name         string  `json:"name" validate:"required,max=255" example:"Design Social Media Posts"`
-	Description  []byte  `json:"description" validate:"required"` // JSON format
+	Description  any     `json:"description" validate:"required"` // JSON format
 	Deadline     string  `json:"deadline" validate:"required,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
 	Type         string  `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
 	Status       string  `json:"status" validate:"required,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
@@ -52,10 +53,15 @@ type CreateTaskRequest struct {
 // ToModel converts CreateTaskRequest to Task model.
 func (ctr CreateTaskRequest) ToModel() (*model.Task, error) {
 	convertedModel := &model.Task{
-		ID:          uuid.New(),
-		Name:        ctr.Name,
-		Description: ctr.Description,
+		ID:   uuid.New(),
+		Name: ctr.Name,
 	}
+	if rawDescription, err := json.Marshal(ctr.Description); err == nil {
+		convertedModel.Description = rawDescription
+	} else {
+		return nil, err
+	}
+
 	if deadline, err := utils.ParseLocalTime(ctr.Deadline, "2006-01-02 15:04:05"); err != nil {
 		convertedModel.Deadline = *deadline
 	} else {
@@ -100,7 +106,7 @@ func (ctr CreateTaskRequest) ToModel() (*model.Task, error) {
 type UpdateTaskRequest struct {
 	MilestoneID  *string `json:"milestone_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Name         *string `json:"name" validate:"omitempty,max=255" example:"Design Social Media Posts"`
-	Description  *[]byte `json:"description" validate:"omitempty"` // JSON format
+	Description  *any    `json:"description" validate:"omitempty"` // JSON format
 	Deadline     *string `json:"deadline" validate:"omitempty,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
 	Type         *string `json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
 	Status       *string `json:"status" validate:"omitempty,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
@@ -118,7 +124,11 @@ func (utr UpdateTaskRequest) ToExistingModel(task *model.Task) (*model.Task, err
 		task.Name = *utr.Name
 	}
 	if utr.Description != nil {
-		task.Description = *utr.Description
+		if rawDescription, err := json.Marshal(*utr.Description); err == nil {
+			task.Description = rawDescription
+		} else {
+			return nil, err
+		}
 	}
 	if utr.Deadline != nil {
 		if deadline, err := utils.ParseLocalTime(*utr.Deadline, "2006-01-02 15:04:05"); err == nil {

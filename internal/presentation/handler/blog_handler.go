@@ -31,7 +31,7 @@ func NewBlogHandler(blogService iservice.BlogService, unitOfWork irepository.Uni
 //
 //	@Summary		Update blog details
 //	@Description	Updates blog-specific attributes (tags, excerpt, read_time) for POST type content
-//	@Tags			Blog
+//	@Tags			Content/Blog
 //	@Accept			json
 //	@Produce		json
 //	@Param			id		path		string						true	"Content ID (UUID)"
