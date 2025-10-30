@@ -3,6 +3,8 @@ package utils
 import (
 	"context"
 	"sync"
+
+	"go.uber.org/zap"
 )
 
 // RunParallel runs multiple functions concurrently.
@@ -67,4 +69,16 @@ func RunParallel(ctx context.Context, limit int, funcs ...func(ctx context.Conte
 		}
 		return nil
 	}
+}
+
+// SafeFunc runs a function and recovers from any panic.
+func SafeFunc(ctx context.Context, fn func(ctx context.Context) error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Handle panic
+			zap.L().Error("Recovered from panic in SafeGo", zap.Any("panic", r))
+		}
+	}()
+
+	fn(ctx)
 }
