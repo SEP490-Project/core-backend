@@ -12,7 +12,7 @@ import (
 type Config struct {
 	ID          uuid.UUID            `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	Key         string               `json:"key" gorm:"type:varchar(255);column:key;not null"`
-	ValueType   enum.ConfigValueType `json:"value_type" gorm:"type:varchar(50);column:value_type;not null;check:value_type IN ('STRING', 'NUMBER', 'BOOLEAN', 'JSON')"`
+	ValueType   enum.ConfigValueType `json:"value_type" gorm:"type:varchar(50);column:value_type;not null"`
 	Value       string               `json:"value" gorm:"type:text;column:value;not null"`
 	Description *string              `json:"description" gorm:"type:text;column:description"`
 	CreatedAt   time.Time            `json:"created_at" gorm:"column:created_at;autoCreateTime"`
