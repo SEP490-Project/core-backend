@@ -26,3 +26,23 @@ func (v *CreateVariantImagesRequest) ToModel() *model.VariantImage {
 		UpdatedAt: now,
 	}
 }
+
+type UpdateVariantImagesRequest struct {
+	ImageURL  *string `json:"image_url" form:"image_url" validate:"omitempty"`
+	AltText   *string `json:"alt_text" form:"alt_text" validate:"omitempty"`
+	IsPrimary *bool   `json:"is_primary" form:"is_primary"`
+}
+
+func (v *UpdateVariantImagesRequest) ToModel(existing *model.VariantImage) *model.VariantImage {
+	if v.ImageURL != nil {
+		existing.ImageURL = *v.ImageURL
+	}
+	if v.AltText != nil {
+		existing.AltText = v.AltText
+	}
+	if v.IsPrimary != nil {
+		existing.IsPrimary = *v.IsPrimary
+	}
+	existing.UpdatedAt = time.Now().UTC()
+	return existing
+}

@@ -55,6 +55,8 @@ func (r *s3Storage) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+// BuildUrl constructs the S3 URL for the given key.
+// @key: should have the format "<user_id>/<timestamp>_filename.ext"
 func (r *s3Storage) BuildUrl(key string) string {
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", r.bucketName, r.region, key)
 }

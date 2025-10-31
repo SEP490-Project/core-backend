@@ -216,10 +216,10 @@ func ValidateCreateCampaignRequest(sl validator.StructLevel) {
 	campaign := sl.Current().Interface().(CreateCampaignRequest)
 
 	allowedTasks := map[enum.ContractType][]enum.TaskType{
-		enum.ContractTypeAdvertising: {enum.TaskTypeProduct, enum.TaskTypeContent, enum.TaskTypeOther},
+		enum.ContractTypeAdvertising: {enum.TaskTypeContent, enum.TaskTypeOther},
 		enum.ContractTypeAffiliate:   {enum.TaskTypeContent, enum.TaskTypeOther},
 		enum.ContractTypeAmbassador:  {enum.TaskTypeEvent, enum.TaskTypeOther},
-		enum.ContractTypeCoProduce:   {enum.TaskTypeProduct, enum.TaskTypeOther},
+		enum.ContractTypeCoProduce:   {enum.TaskTypeProduct, enum.TaskTypeContent, enum.TaskTypeOther},
 	}
 
 	campaignType := enum.ContractType(campaign.Type)
