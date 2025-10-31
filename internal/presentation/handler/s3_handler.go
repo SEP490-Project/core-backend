@@ -2,16 +2,16 @@ package handler
 
 import (
 	"core-backend/internal/application/dto/responses"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/aws/smithy-go/ptr"
 
 	"core-backend/internal/application/interfaces/iservice"
-
-	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,24 +54,42 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 		return
 	}
 
-	var urls []string
+	userTmpDir := fmt.Sprintf("./tmp/%s", userID)
+	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user tmp directory"})
+		return
+	}
+
+	var uploadedURLs []string
 	for _, fileHeader := range files {
-		tempPath := "/tmp/" + uuid.New().String() + "_" + fileHeader.Filename
-		if err = c.SaveUploadedFile(fileHeader, tempPath); err != nil {
+		// Generate unique timestamped file name
+		timestamp := time.Now().Format("20060102_150405")
+		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+		// Save uploaded file
+		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file: " + fileHeader.Filename})
 			return
 		}
-		defer func(path string) { _ = os.Remove(path) }(tempPath)
 
-		url, err := h.fileService.UploadFile(userID, tempPath, fileHeader.Filename)
+		defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
 		if err != nil {
+			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
 			return
 		}
-		urls = append(urls, url)
+
+		// Cleanup tmp file after upload
+		_ = os.Remove(finalPath)
+
+		uploadedURLs = append(uploadedURLs, url)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"urls": urls})
+	c.JSON(http.StatusOK, gin.H{"urls": uploadedURLs})
 }
 
 // DeleteFile godoc

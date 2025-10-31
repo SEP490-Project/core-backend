@@ -28,6 +28,8 @@ type ProductService interface {
 	CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error)
 	CreateProductStory(ctx context.Context, variantID uuid.UUID, story requests.CreateProductStoryRequest, uow irepository.UnitOfWork) (*model.ProductStory, error)
 	CreateVarianceImage(ctx context.Context, variantID uuid.UUID, image requests.CreateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
+	UpdateVariantImage(ctx context.Context, variantImageID uuid.UUID, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
+	UpdateVariantImageAsync(ctx context.Context, userID, variantImageID uuid.UUID, filePath *string, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
 	//Attributes
 	AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error)
 	CreateVariantAttribute(ctx context.Context, createdByID uuid.UUID, attribute requests.CreateVariantAttributeRequest, uow irepository.UnitOfWork) (*model.VariantAttribute, error)
@@ -36,4 +38,7 @@ type ProductService interface {
 
 	//Concepts
 	AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error)
+
+	//Helpers
+	BuildFileURL(fileName string) string
 }
