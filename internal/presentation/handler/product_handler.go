@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -8,6 +9,8 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 	"reflect"
@@ -626,31 +629,36 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 
 	// Parse other form fields
 	altText := c.PostForm("alt_text")
-	isPrimaryStr := c.PostForm("is_primary")
-	isPrimary := false
-	if isPrimaryStr == "true" {
-		isPrimary = true
+	isPrimary := c.PostForm("is_primary") == "true"
+
+	// Generate timestamp-based filename
+	timestamp := time.Now().Format("20060102_150405")
+	newFileName := fmt.Sprintf("%s_%s", timestamp, file.Filename)
+
+	// 🔹 Create per-user tmp directory
+	userTmpDir := fmt.Sprintf("./tmp/%s", userID)
+	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create user tmp directory", http.StatusInternalServerError))
+		return
 	}
 
-	// Save uploaded file temporarily
-	tempPath := "/tmp/" + file.Filename
-	if err := c.SaveUploadedFile(file, tempPath); err != nil {
+	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+	// 🔹 Predict image URL before upload
+	key := fmt.Sprintf("%s/%s", userID, newFileName)
+	predictedImgURL := h.productService.BuildFileURL(key)
+
+	// 🔹 Save uploaded file (with cleanup on error)
+	if err := c.SaveUploadedFile(file, finalPath); err != nil {
+		_ = os.Remove(finalPath) // cleanup if save failed
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to save uploaded file", http.StatusInternalServerError))
 		return
 	}
-	defer func() { _ = os.Remove(tempPath) }()
 
-	// Upload to S3 and get URL
-	imageURL, err := h.fileService.UploadFile(userID.String(), tempPath, file.Filename)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to upload file: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	// Prepare request
+	// Prepare request to create DB record
 	req := requests.CreateVariantImagesRequest{
 		VariantID: variantID,
-		ImageURL:  imageURL,
+		ImageURL:  predictedImgURL,
 		AltText:   &altText,
 		IsPrimary: isPrimary,
 	}
@@ -660,6 +668,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = uow.Rollback()
+			_ = os.Remove(finalPath) // cleanup file on panic
 			panic(r)
 		}
 	}()
@@ -672,11 +681,39 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	}
 
 	if err := uow.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Commit error: "+err.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to commit transaction", http.StatusInternalServerError))
 		return
 	}
 
-	c.JSON(http.StatusCreated, responses.SuccessResponse("Variant image created successfully", utils.IntPtr(http.StatusCreated), variantImage))
+	// Run async upload
+	go func(filePath, fileName string, variantImageID uuid.UUID, userID uuid.UUID) {
+		zap.L().Info("Start async")
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+
+		uow := h.unitOfWork.Begin(ctx)
+		defer cancel()
+		defer os.Remove(filePath)
+
+		if _, err := h.productService.UpdateVariantImageAsync(ctx, userID, variantImageID, &filePath, requests.UpdateVariantImagesRequest{}, uow); err != nil {
+			zap.L().Error("async update variant image failed",
+				zap.String("variantImageID", variantImageID.String()),
+				zap.Error(err),
+			)
+			_ = uow.Rollback()
+			return
+		}
+
+		if err := uow.Commit(); err != nil {
+			zap.L().Error("failed to commit async update", zap.Error(err))
+		}
+
+	}(finalPath, newFileName, variantImage.ID, userID)
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse(
+		"Variant image created successfully (uploading asynchronously)",
+		utils.IntPtr(http.StatusCreated),
+		variantImage,
+	))
 }
 
 // CreateVariantAttribute godoc

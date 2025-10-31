@@ -60,7 +60,7 @@ func NewApplicationRegistry(
 			service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		),
 		UserService:            service.NewUserService(databaseRegistry.UserRepository),
-		ProductService:         service.NewProductService(databaseRegistry),
+		ProductService:         service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
 		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
 		ContractService:        service.NewContractService(databaseRegistry),

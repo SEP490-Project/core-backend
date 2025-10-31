@@ -5,13 +5,18 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/internal/infrastructure/third_party_repository"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -20,15 +25,17 @@ import (
 )
 
 type productService struct {
-	repository         irepository.GenericRepository[model.Product]
-	variantRepo        irepository.GenericRepository[model.ProductVariant]
-	taskRepo           irepository.GenericRepository[model.Task]
-	brandRepo          irepository.GenericRepository[model.Brand]
-	categoryRepo       irepository.GenericRepository[model.ProductCategory]
-	conceptRepo        irepository.GenericRepository[model.Concept]
-	limitedProductRepo irepository.GenericRepository[model.LimitedProduct]
-
+	repository           irepository.GenericRepository[model.Product]
+	variantRepo          irepository.GenericRepository[model.ProductVariant]
+	taskRepo             irepository.GenericRepository[model.Task]
+	brandRepo            irepository.GenericRepository[model.Brand]
+	categoryRepo         irepository.GenericRepository[model.ProductCategory]
+	conceptRepo          irepository.GenericRepository[model.Concept]
+	limitedProductRepo   irepository.GenericRepository[model.LimitedProduct]
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
+
+	imageStorage irepository_third_party.S3Storage
+	rabbitmq     *rabbitmq.RabbitMQ
 }
 
 func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*responses.ProductResponseV2, error) {
@@ -197,6 +204,20 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 		}
 		if !exists {
 			return fmt.Errorf("product variant with ID %s not found", variantID)
+		}
+
+		if image.IsPrimary == true {
+			result := uow.VariantImage().
+				DB().
+				WithContext(ctx).
+				Model(&model.VariantImage{}).
+				Where("variant_id = ?", variantID).
+				Update("is_primary", false)
+
+			if result.Error != nil {
+				zap.L().Error("failed to unset primary variant images", zap.Error(result.Error))
+				return fmt.Errorf("failed to unset primary variant images: %w", result.Error)
+			}
 		}
 
 		//Create VariantImage
@@ -1005,8 +1026,101 @@ func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5N
 	return resp, nil
 }
 
+func (p productService) UpdateVariantImage(ctx context.Context, variantImageID uuid.UUID, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error) {
+	var variantImage *model.VariantImage
+
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+
+		//Load existing variant image
+		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		if err != nil {
+			return fmt.Errorf("failed to load variant image by id: %w", err)
+		}
+		if variantImage == nil {
+			return fmt.Errorf("variant image with ID %s not found after load", variantImageID)
+		}
+
+		//Update fields
+		image.ToModel(variantImage)
+
+		if err := uow.VariantImage().Update(ctx, variantImage); err != nil {
+			zap.L().Error("failed to update variant image", zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return variantImage, nil
+}
+
+func (p productService) UpdateVariantImageAsync(ctx context.Context, userID, variantImageID uuid.UUID, filePath *string, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error) {
+	var variantImage *model.VariantImage
+
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		var uploadedURL *string
+		if filePath != nil {
+			file, err := os.Open(*filePath)
+			if err != nil {
+				return fmt.Errorf("failed to open file: %w", err)
+			}
+			defer file.Close()
+
+			fileName := filepath.Base(*filePath)
+			key := fmt.Sprintf("%s/%s", userID.String(), fileName)
+
+			if err := p.imageStorage.Put(ctx, key, file, "application/octet-stream"); err != nil {
+				return fmt.Errorf("failed to upload file: %w", err)
+			}
+
+			url := p.imageStorage.BuildUrl(key)
+			uploadedURL = &url
+		}
+
+		// Load variant image
+		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		if err != nil {
+			return fmt.Errorf("failed to load variant image by id: %w", err)
+		}
+		if variantImage == nil {
+			return fmt.Errorf("variant image with ID %s not found after load", variantImageID)
+		}
+
+		// Gán URL mới
+		if uploadedURL != nil {
+			variantImage.ImageURL = *uploadedURL
+		}
+
+		// Cập nhật dữ liệu mới vào model
+		image.ToModel(variantImage)
+
+		if err := uow.VariantImage().Update(ctx, variantImage); err != nil {
+			zap.L().Error("failed to update variant image", zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return variantImage, nil
+}
+
+func (p productService) BuildFileURL(fileName string) string {
+	return p.imageStorage.BuildUrl(fileName)
+}
+
 func NewProductService(
 	dbRegistry *gormrepository.DatabaseRegistry,
+	storage3rd *third_party_repository.ThirdPartyStorageRegistry,
+	rabbitmq *rabbitmq.RabbitMQ,
 ) iservice.ProductService {
 	return &productService{
 		repository:           dbRegistry.ProductRepository,
@@ -1017,5 +1131,7 @@ func NewProductService(
 		conceptRepo:          dbRegistry.ConceptRepository,
 		limitedProductRepo:   dbRegistry.LimitedProductRepository,
 		variantAttributeRepo: dbRegistry.VariantAttributeRepository,
+		imageStorage:         storage3rd.S3Storage,
+		rabbitmq:             rabbitmq,
 	}
 }
