@@ -113,11 +113,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupDeviceTokenRoutes(v1)
 		r.SetupNotificationRoutes(v1)
 		r.SetupTagRoutes(v1)
+		r.SetupAffiliateLinkRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
 		stateHandler := r.handlerRegistry.StateHandler
-
 		productsGroup := v1.Group("/products")
 		{
 			// Public
@@ -567,4 +567,24 @@ func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketSer
 		r.middlewareRegistry.Auth.RequireAuth(),
 		wsServer.HandleWebSocket,
 	)
+}
+
+// SetupAffiliateLinkRoutes sets up routes for affiliate link management
+func (r *Router) SetupAffiliateLinkRoutes(group *gin.RouterGroup) {
+	affiliateLinkHandler := r.handlerRegistry.AffiliateLinkHandler
+	affiliateLinksGroup := group.Group("/affiliate-links")
+	{
+		// Protected routes (Sales, Admin only)
+		protectedGroup := affiliateLinksGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+		protectedGroup.Use(r.middlewareRegistry.CSRF.Protect()) // T111: CSRF protection
+		{
+			protectedGroup.POST("", affiliateLinkHandler.Create)
+			protectedGroup.GET("", affiliateLinkHandler.List)
+			protectedGroup.GET("/:id", affiliateLinkHandler.GetByID)
+			protectedGroup.PUT("/:id", affiliateLinkHandler.Update)
+			protectedGroup.DELETE("/:id", affiliateLinkHandler.Delete)
+		}
+	}
 }
