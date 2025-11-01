@@ -6798,6 +6798,31 @@ paths:
       summary: Get list of provinces from GiaoHangNhanh API
       tags:
       - location
+  /api/v1/location/sync:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the synchronization of location data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Trigger location synchronization
+      tags:
+      - location
   /api/v1/location/wards/{district-id}:
     get:
       consumes:

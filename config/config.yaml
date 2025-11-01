@@ -152,3 +152,10 @@ notification:
     email: 5 # Number of concurrent email consumer workers
     push: 10 # Number of concurrent push consumer workers
 
+# Scheduler settings
+task_scheduler:
+  location_synchronization:
+    enabled: true
+    sync_hour: 3
+    concurrency : 5
+

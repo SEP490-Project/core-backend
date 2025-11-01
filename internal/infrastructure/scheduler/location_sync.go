@@ -1,4 +1,4 @@
-package service
+package scheduler
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/domain/model"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,73 +25,116 @@ import (
 // - interval_minutes: period between sync runs
 // - concurrency: max concurrent API calls for district/ward fetches
 // It stops automatically when context is canceled.
-type LocationSyncScheduler struct {
+type locationSyncScheduler struct {
 	cfg         *config.AppConfig
 	db          *gorm.DB
 	client      *http.Client
-	interval    time.Duration
+	enabled     bool
+	syncHour    int
 	concurrency int
+
+	//Guard
+	mu        sync.Mutex
+	isRunning bool
 }
 
-func NewLocationSyncScheduler(cfg *config.AppConfig, db *gorm.DB) *LocationSyncScheduler {
-	interval := time.Duration(cfg.LocationSync.IntervalMinutes) * time.Minute
-	if interval <= 0 {
-		interval = 24 * time.Hour
+func (s *locationSyncScheduler) StartOnce(ctx context.Context) error {
+	s.mu.Lock()
+	if s.isRunning {
+		s.mu.Unlock()
+		zap.L().Warn("Location sync already in progress — skipping trigger")
+		return errors.New("location sync already in progress — skipping trigger")
 	}
-	concurrency := cfg.LocationSync.Concurrency
-	if concurrency <= 0 {
-		concurrency = 4
-	}
-	return &LocationSyncScheduler{
-		cfg:         cfg,
-		db:          db,
-		client:      &http.Client{Timeout: 30 * time.Second},
-		interval:    interval,
-		concurrency: concurrency,
-	}
+	s.isRunning = true
+	s.mu.Unlock()
+
+	go func() {
+		defer func() {
+			s.mu.Lock()
+			s.isRunning = false
+			s.mu.Unlock()
+		}()
+
+		// Use a detached background context with timeout to ensure long-running sync isn't
+		// canceled by request-scoped contexts. Choose a reasonable upper bound for manual runs.
+		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		zap.L().Info("Starting location sync (manual)")
+		s.safeSyncOnce(bgCtx, true)
+	}()
+
+	return nil
 }
 
-func (s *LocationSyncScheduler) Start(ctx context.Context) {
-	if !s.cfg.LocationSync.Enabled {
+func (s *locationSyncScheduler) Start(ctx context.Context) {
+	if !s.enabled {
 		zap.L().Info("Location sync is disabled by config")
 		return
 	}
 
-	zap.L().Info("Starting LocationSyncScheduler",
-		zap.Duration("interval", s.interval),
-		zap.Int("concurrency", s.concurrency),
+	targetHour := s.syncHour
+	now := time.Now()
+	firstRun := time.Date(now.Year(), now.Month(), now.Day(), targetHour, 0, 0, 0, now.Location())
+	if now.After(firstRun) {
+		firstRun = firstRun.Add(24 * time.Hour)
+	}
+	delay := time.Until(firstRun)
+
+	zap.L().Info("Scheduler Ready! waiting for first run",
+		zap.String("first_run", firstRun.Format(time.DateTime)),
+		zap.Duration("delay", delay),
 	)
 
-	// initial run
-	go s.safeSyncOnce(ctx)
-
-	ticker := time.NewTicker(s.interval)
+	// schedule the first run after delay, then run every 24 hours
 	go func() {
+		// wait until firstRun or exit if context cancelled
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			zap.L().Info("Stopping locationSyncScheduler before first run")
+			return
+		case <-timer.C:
+		}
+
+		s.safeSyncOnce(ctx, false)
+
+		// subsequent runs every 24 hours
+		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
-				zap.L().Info("Stopping LocationSyncScheduler")
+				zap.L().Info("Stopping locationSyncScheduler")
 				return
 			case <-ticker.C:
-				go s.safeSyncOnce(ctx)
+				go s.safeSyncOnce(ctx, false)
 			}
 		}
 	}()
 }
 
-func (s *LocationSyncScheduler) safeSyncOnce(ctx context.Context) {
+func (s *locationSyncScheduler) safeSyncOnce(ctx context.Context, manual bool) {
+	mode := "automatic"
+	if manual {
+		mode = "manual"
+	}
+
+	zap.L().Info("Starting location sync", zap.String("mode", mode))
+	start := time.Now()
 	if err := s.syncOnce(ctx); err != nil {
-		zap.L().Error("Location sync failed", zap.Error(err))
+		elapsed := time.Since(start)
+		zap.L().Error("Location sync failed", zap.String("mode", mode), zap.Error(err), zap.Duration("duration", elapsed))
 	} else {
-		zap.L().Info("Location sync completed")
+		elapsed := time.Since(start)
+		zap.L().Info("Location sync completed", zap.String("mode", mode), zap.Duration("duration", elapsed))
 	}
 }
 
-func (s *LocationSyncScheduler) syncOnce(ctx context.Context) error {
+func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 	// 1) Provinces
 	provURL := s.cfg.GHN.BaseURL + "/province"
-	provinces, err := s.doRequest[responses.ProvinceResponse](ctx, http.MethodGet, provURL, nil)
+	provinces, err := doRequest[responses.ProvinceResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, provURL, nil)
 	if err != nil {
 		return fmt.Errorf("fetch provinces: %w", err)
 	}
@@ -132,7 +176,7 @@ func (s *LocationSyncScheduler) syncOnce(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 			url := fmt.Sprintf("%s/district?province_id=%d", s.cfg.GHN.BaseURL, provinceID)
-			districts, err := s.doRequest[responses.DistrictResponse](ctx, http.MethodGet, url, nil)
+			districts, err := doRequest[responses.DistrictResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch districts failed", zap.Int("province_id", provinceID), zap.Error(err))
 				if dErr == nil {
@@ -191,7 +235,7 @@ func (s *LocationSyncScheduler) syncOnce(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 			url := fmt.Sprintf("%s/ward?district_id=%d", s.cfg.GHN.BaseURL, districtID)
-			wards, err := doRequest()[responses.WardResponse](ctx, http.MethodGet, url, nil)
+			wards, err := doRequest[responses.WardResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch wards failed", zap.Int("district_id", districtID), zap.Error(err))
 				if wErr == nil {
@@ -239,7 +283,7 @@ func (s *LocationSyncScheduler) syncOnce(ctx context.Context) error {
 	return nil
 }
 
-func (s *LocationSyncScheduler) upsertProvinces(ctx context.Context, items []model.Province) error {
+func (s *locationSyncScheduler) upsertProvinces(ctx context.Context, items []model.Province) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -251,7 +295,7 @@ func (s *LocationSyncScheduler) upsertProvinces(ctx context.Context, items []mod
 		Create(&items).Error
 }
 
-func (s *LocationSyncScheduler) upsertDistricts(ctx context.Context, items []model.District) error {
+func (s *locationSyncScheduler) upsertDistricts(ctx context.Context, items []model.District) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -263,7 +307,7 @@ func (s *LocationSyncScheduler) upsertDistricts(ctx context.Context, items []mod
 		Create(&items).Error
 }
 
-func (s *LocationSyncScheduler) upsertWards(ctx context.Context, items []model.Ward) error {
+func (s *locationSyncScheduler) upsertWards(ctx context.Context, items []model.Ward) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -275,6 +319,7 @@ func (s *LocationSyncScheduler) upsertWards(ctx context.Context, items []model.W
 		Create(&items).Error
 }
 
+// helper function generic nằm ngoài struct
 func doRequest[T any](ctx context.Context, client *http.Client, token string, method, url string, body any) ([]T, error) {
 	var buf io.Reader
 	if body != nil {
@@ -314,4 +359,28 @@ func doRequest[T any](ctx context.Context, client *http.Client, token string, me
 		return nil, err
 	}
 	return result.Data, nil
+}
+
+func NewLocationSyncScheduler(cfg *config.AppConfig, db *gorm.DB) TaskScheduler {
+	schedulerCfg := cfg.TaskScheduler.LocationSync
+	cfgEnable := schedulerCfg.Enabled
+	cfgSyncHour := schedulerCfg.SyncHour
+	cfgConcurrency := schedulerCfg.Concurrency
+
+	//Validate
+	if cfgConcurrency <= 0 {
+		cfgConcurrency = 4
+	}
+	if cfgSyncHour < 0 || cfgSyncHour > 23 {
+		cfgSyncHour = 3
+	}
+
+	return &locationSyncScheduler{
+		cfg:         cfg,
+		db:          db,
+		client:      &http.Client{Timeout: 60 * time.Second},
+		enabled:     cfgEnable,
+		syncHour:    cfgSyncHour,
+		concurrency: cfgConcurrency,
+	}
 }

@@ -17,9 +17,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-
 	"go.uber.org/zap"
 )
 
@@ -29,6 +26,11 @@ type locationService struct {
 	provinceRepo        irepository.GenericRepository[model.Province]
 	districtRepo        irepository.GenericRepository[model.District]
 	wardRepo            irepository.GenericRepository[model.Ward]
+}
+
+func (l locationService) TriggerSynchronizationTask() error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (l locationService) GetProvinces() ([]responses.ProvinceResponse, error) {

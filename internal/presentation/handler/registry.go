@@ -60,7 +60,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		TaskHandler:            NewTaskHandler(applicationReg.TaskService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		DeviceTokenHandler:     NewDeviceTokenHandler(applicationReg.DeviceTokenService),
 		NotificationHandler:    NewNotificationHandler(applicationReg.NotificationService),
-		LocationHandler:        NewLocationHandler(applicationReg.LocationService),
+		LocationHandler:        NewLocationHandler(applicationReg.LocationService, applicationReg.InfrastructureRegistry.LocationSyncTask),
 		TagHandler:             NewTagHandler(applicationReg.TagService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }

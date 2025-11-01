@@ -88,9 +88,6 @@ func (s *APIServer) Start() error {
 		// Don't fail startup - RabbitMQ is optional
 	}
 
-	// Start background schedulers (location sync, etc.)
-	s.infrastructureRegistry.StartSchedulers(s.ctx)
-
 	// Start WebSocket server if enabled
 	if wsConfig.Enabled {
 		zap.L().Info("Starting WebSocket server...")
@@ -120,6 +117,9 @@ func (s *APIServer) Start() error {
 	// Channel to listen for interrupt signal to terminate server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start background schedulers (location sync, etc.)
+	s.infrastructureRegistry.StartSchedulers(s.ctx)
 
 	// Start server in a goroutine
 	go func() {

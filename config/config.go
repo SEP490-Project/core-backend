@@ -34,7 +34,7 @@ type AppConfig struct {
 	GmailSMTP         EmailConfig             `mapstructure:"gmail_smtp"`
 	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
 	Notification      NotificationConfig      `mapstructure:"notification"`
-	LocationSync      LocationSyncConfig      `mapstructure:"location_sync"`
+	TaskScheduler     TaskSchedulerConfig     `mapstructure:"task_scheduler"`
 }
 
 type ServerConfig struct {
@@ -193,11 +193,18 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
-type LocationSyncConfig struct {
-	Enabled         bool `mapstructure:"enabled"`
-	IntervalMinutes int  `mapstructure:"interval_minutes"`
-	Concurrency     int  `mapstructure:"concurrency"`
+// Scheduler configuration
+type TaskSchedulerConfig struct {
+	LocationSync locationSynchronizationConfig `mapstructure:"location_synchronization"`
 }
+
+type locationSynchronizationConfig struct {
+	Enabled     bool `mapstructure:"enabled"`
+	SyncHour    int  `mapstructure:"sync_hour"`
+	Concurrency int  `mapstructure:"concurrency"`
+}
+
+//End of Schedulers
 
 // endregion
 
@@ -332,10 +339,10 @@ func setDefaultValues() {
 	viper.SetDefault("websocket.read_buffer_size", 1024)
 	viper.SetDefault("websocket.write_buffer_size", 1024)
 
-	// Location sync defaults
-	viper.SetDefault("location_sync.enabled", false)
-	viper.SetDefault("location_sync.interval_minutes", 1440) // daily
-	viper.SetDefault("location_sync.concurrency", 4)
+	//Task Scheduler Defaults
+	viper.SetDefault("task_scheduler.location_synchronization.enabled", false)
+	viper.SetDefault("task_scheduler.location_synchronization.sync_hour", 3) // 3 AM
+	viper.SetDefault("task_scheduler.location_synchronization.concurrency", 1)
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.

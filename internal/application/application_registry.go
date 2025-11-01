@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/scheduler"
 	infraService "core-backend/internal/infrastructure/service"
 )
 
@@ -37,6 +38,9 @@ type ApplicationRegistry struct {
 	NotificationService    iservice.NotificationService
 	LocationService        iservice.LocationService
 	TagService             iservice.TagService
+
+	//Manual Scheduler Trigger
+	LocationSchedule scheduler.TaskScheduler
 }
 
 func NewApplicationRegistry(
@@ -88,5 +92,8 @@ func NewApplicationRegistry(
 		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
 		LocationService:     service.NewLocationService(databaseRegistry),
 		TagService:          service.NewTagService(databaseRegistry.TagRepository),
+
+		//Manual Scheduler Trigger
+		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
 	}
 }
