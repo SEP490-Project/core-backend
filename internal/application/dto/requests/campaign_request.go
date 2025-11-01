@@ -208,9 +208,9 @@ func (ccr *CreateCampaignRequest) ToTaskModels(
 
 // ValidateCreateCampaignRequest is a custom validator for CreateCampaignRequest.
 // It ensures that the task types are valid for the given campaign type.
-// "ADVERTISING": {"PRODUCT", "CONTENT", "OTHER"},
+// "ADVERTISING": {"CONTENT", "OTHER"},
 // "AFFILIATE":   {"CONTENT", "OTHER"},
-// "COPRODUCE":   {"PRODUCT", "OTHER"},
+// "COPRODUCE":   {"PRODUCT", "CONTENT", "OTHER"},
 // "AMBASSADOR":  {"EVENT", "OTHER"},
 func ValidateCreateCampaignRequest(sl validator.StructLevel) {
 	campaign := sl.Current().Interface().(CreateCampaignRequest)
