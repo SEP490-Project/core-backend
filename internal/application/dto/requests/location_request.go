@@ -25,7 +25,7 @@ type InputAddressRequest struct {
 	GhnWardCode   *string `json:"ghn_ward_code,omitempty" gorm:"column:ghn_ward_code"`
 }
 
-func (iar *InputAddressRequest) ToModel(userID uuid.UUID) *model.ShippingAddress {
+func (iar *InputAddressRequest) ToModel(userID uuid.UUID, ward model.Ward, district model.District, province model.Province) *model.ShippingAddress {
 	if iar == nil {
 		return nil
 	}
@@ -43,7 +43,9 @@ func (iar *InputAddressRequest) ToModel(userID uuid.UUID) *model.ShippingAddress
 		GhnProvinceID: iar.GhnProvinceID,
 		GhnDistrictID: iar.GhnDistrictID,
 		GhnWardCode:   iar.GhnWardCode,
-
+		ProvinceName:  &province.Name,
+		DistrictName:  &district.Name,
+		WardName:      &ward.Name,
 		//relationship
 		UserID: userID,
 	}

@@ -261,6 +261,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			locationGroup.GET("/addresses", locationHandler.GetUserAddresses)
 		}
 
+		locationAdminGroup := v1.Group("/location")
+		locationAdminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			// Use POST to match handler swagger and to allow triggering via POST
+			locationAdminGroup.POST("/sync", locationHandler.TriggerLocationSync)
+		}
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 

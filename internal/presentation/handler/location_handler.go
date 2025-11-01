@@ -1,19 +1,23 @@
 package handler
 
 import (
+	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/infrastructure/scheduler"
 	"fmt"
 	"net/http"
 
 	"github.com/aws/smithy-go/ptr"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type LocationHandler struct {
-	locationService iservice.LocationService
+	locationService  iservice.LocationService
+	locationSyncTask scheduler.TaskScheduler
 }
 
 // GetProvinces godoc
@@ -231,8 +235,34 @@ func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Addresses fetched successfully", ptr.Int(http.StatusOK), respList))
 }
 
-func NewLocationHandler(locationService iservice.LocationService) *LocationHandler {
+// TriggerLocationSync godoc
+//
+//	@Summary		Trigger location synchronization
+//	@Description	Manually trigger the synchronization of location data
+//	@Tags		location
+//	@Accept		json
+//	@Produce	json
+//	@Success		200	{object}	map[string]string	"Success message"
+//	@Failure		400	{object}	map[string]string	"Error message"
+//	@Security	BearerAuth
+//	@Router		/api/v1/location/sync [post]
+func (h *LocationHandler) TriggerLocationSync(c *gin.Context) {
+	// spawn background sync using a detached context so the handler can return immediately
+	go func() {
+		ctx := context.Background()
+		zap.L().Info("Starting location sync", zap.String("mode", "manual"))
+		if err := h.locationSyncTask.StartOnce(ctx); err != nil {
+			zap.L().Error("Location sync failed (manual)", zap.Error(err))
+		}
+	}()
+
+	resp := responses.SuccessResponse("Location sync triggered successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+func NewLocationHandler(locationService iservice.LocationService, locationSyncTask scheduler.TaskScheduler) *LocationHandler {
 	return &LocationHandler{
-		locationService: locationService,
+		locationService:  locationService,
+		locationSyncTask: locationSyncTask,
 	}
 }
