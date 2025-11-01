@@ -12,17 +12,17 @@ import (
 // CampaignInfoResponse represents the basic information of a campaign.
 type CampaignInfoResponse struct {
 	ID             string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ContractID     string  `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ContractTitle  string  `json:"contract_title" example:"Q2 Marketing Contract"`
-	ContractNumber string  `json:"contract_number" example:"contract_20251017_AD"`
-	Name           string  `json:"name" example:"Summer Sale Campaign"`
-	Description    *string `json:"description" example:"A campaign for the summer sale."`
-	StartDate      string  `json:"start_date" example:"2023-06-01 00:00:00"`
-	EndDate        string  `json:"end_date" example:"2023-08-31 23:59:59"`
+	ContractID     string  `json:"contract_id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractTitle  string  `json:"contract_title,omitempty" example:"Q2 Marketing Contract"`
+	ContractNumber string  `json:"contract_number,omitempty" example:"contract_20251017_AD"`
+	Name           string  `json:"name,omitempty" example:"Summer Sale Campaign"`
+	Description    *string `json:"description,omitempty" example:"A campaign for the summer sale."`
+	StartDate      string  `json:"start_date,omitempty" example:"2023-06-01 00:00:00"`
+	EndDate        string  `json:"end_date,omitempty" example:"2023-08-31 23:59:59"`
 	Status         string  `json:"status" example:"RUNNING"`
 	Type           string  `json:"type" example:"ADVERTISING"`
-	CreatedAt      string  `json:"created_at" example:"2023-06-01 00:00:00"`
-	UpdatedAt      string  `json:"updated_at" example:"2023-06-15 12:00:00"`
+	CreatedAt      string  `json:"created_at,omitempty" example:"2023-06-01 00:00:00"`
+	UpdatedAt      string  `json:"updated_at,omitempty" example:"2023-06-15 12:00:00"`
 }
 
 // CampaignDetailsResponse represents the details of a campaign.

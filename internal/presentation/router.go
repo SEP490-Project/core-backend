@@ -449,6 +449,7 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 		viewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(customer, brand, marketing, sales, content, admin))
 		{
 			viewGroup.GET("", contentHandler.List)
+			viewGroup.GET("/assigned_to", contentHandler.ListByAssignedUser)
 			viewGroup.GET("/:id", contentHandler.GetByID)
 		}
 

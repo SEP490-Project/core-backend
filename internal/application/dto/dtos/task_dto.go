@@ -28,7 +28,9 @@ type TaskDetailDTO struct {
 	UpdatedByName  string          `json:"updated_by_name" gorm:"column:updated_by_name"`
 	UpdatedByRole  enum.UserRole   `json:"updated_by_role" gorm:"column:updated_by_role"`
 	MilestoneID    *uuid.UUID      `json:"milestone_id" gorm:"column:milestone_id"`
+	MilestoneInfo  datatypes.JSON  `json:"milestone_info,omitempty" gorm:"column:milestone_info"`
 	CampaignID     *uuid.UUID      `json:"campaign_id" gorm:"column:campaign_id"`
+	CampaignInfo   datatypes.JSON  `json:"campaign_info,omitempty" gorm:"column:campaign_info"`
 	ContractID     *uuid.UUID      `json:"contract_id" gorm:"column:contract_id"`
 
 	// Aggregated fields

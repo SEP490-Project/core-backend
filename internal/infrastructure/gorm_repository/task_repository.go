@@ -149,7 +149,27 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 				"tasks.updated_at",
 				"m.id as milestone_id",
 				"ca.id as campaign_id",
-				"ca.contract_id as contract_id").
+				"ca.contract_id as contract_id",
+				// JSON build for MilestoneDTO
+				`CASE WHEN m.id IS NOT NULL THEN jsonb_build_object(
+					'id', m.id,
+					'description', m.description,
+					'due_date', m.due_date,
+					'completed_at', m.completed_at,
+					'completion_percentage', m.completion_percentage,
+					'status', m.status,
+					'behind_schedule', m.behind_schedule
+				) ELSE NULL END AS milestone_info`,
+				// JSON build for CampaignDTO
+				`CASE WHEN ca.id IS NOT NULL THEN jsonb_build_object(
+					'id', ca.id,
+					'name', ca.name,
+					'description', ca.description,
+					'start_date', ca.start_date,
+					'end_date', ca.end_date,
+					'status', ca.status,
+					'type', ca.type
+				) ELSE NULL END AS campaign_info`).
 			First(&data).
 			Error
 	}

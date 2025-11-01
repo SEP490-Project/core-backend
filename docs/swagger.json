@@ -2339,6 +2339,12 @@
                     },
                     {
                         "type": "string",
+                        "description": "Filter by assigned user ID (UUID)",
+                        "name": "assigned_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter by channel ID (UUID)",
                         "name": "channel_id",
                         "in": "query"
@@ -2444,6 +2450,141 @@
                     },
                     "404": {
                         "description": "Task not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contents/assigned_to": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves paginated content assigned to the current authenticated staff user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created_at",
+                            "updated_at",
+                            "publish_date",
+                            "title"
+                        ],
+                        "type": "string",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "AWAIT_STAFF",
+                            "AWAIT_BRAND",
+                            "REJECTED",
+                            "APPROVED",
+                            "POSTED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "POST",
+                            "VIDEO"
+                        ],
+                        "type": "string",
+                        "description": "Filter by type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by task ID (UUID)",
+                        "name": "task_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by channel ID (UUID)",
+                        "name": "channel_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in title and body",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContentPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -12248,6 +12389,33 @@
                 }
             }
         },
+        "responses.MilestoneResponse": {
+            "type": "object",
+            "properties": {
+                "behind_schedule": {
+                    "type": "boolean"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "completion_percentage": {
+                    "type": "number"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.NotificationListResponse": {
             "type": "object",
             "properties": {
@@ -13068,6 +13236,9 @@
                     "type": "string",
                     "example": "Sales Staff"
                 },
+                "campaign_details": {
+                    "$ref": "#/definitions/responses.CampaignInfoResponse"
+                },
                 "campaign_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -13106,6 +13277,9 @@
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "milestone_details": {
+                    "$ref": "#/definitions/responses.MilestoneResponse"
                 },
                 "milestone_id": {
                     "type": "string",

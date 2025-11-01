@@ -603,6 +603,7 @@ func (h *ContentHandler) Publish(c *gin.Context) {
 //	@Param			status		query		string	false	"Filter by status"	Enums(DRAFT, AWAIT_STAFF, AWAIT_BRAND, REJECTED, APPROVED, POSTED)
 //	@Param			type		query		string	false	"Filter by type"	Enums(POST, VIDEO)
 //	@Param			task_id		query		string	false	"Filter by task ID (UUID)"
+//	@Param			assigned_to	query		string	false	"Filter by assigned user ID (UUID)"
 //	@Param			channel_id	query		string	false	"Filter by channel ID (UUID)"
 //	@Param			search		query		string	false	"Search in title and body"
 //	@Param			from_date	query		string	false	"Filter from date (YYYY-MM-DD)"
@@ -619,6 +620,71 @@ func (h *ContentHandler) List(c *gin.Context) {
 	if err := c.ShouldBindQuery(&req); err != nil {
 		response := responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Call service to list content
+	contents, total, err := h.contentService.List(c.Request.Context(), &req)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to retrieve content list", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Content list retrieved successfully",
+		http.StatusOK,
+		contents,
+		responses.Pagination{
+			Page:  req.Page,
+			Limit: req.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// ListByAssignedUser retrieves paginated content assigned to the current authenticated staff user
+//
+// //	@Summary		List content assigned to ListByAssignedUser
+//
+//	@Description	Retrieves paginated content assigned to the current authenticated staff user
+//	@Tags			Content
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default: 1)"
+//	@Param			limit		query		int		false	"Items per page (default: 10, max: 100)"
+//	@Param			sort_by		query		string	false	"Sort by field"		Enums(created_at, updated_at, publish_date, title)
+//	@Param			sort_order	query		string	false	"Sort order"		Enums(asc, desc)
+//	@Param			status		query		string	false	"Filter by status"	Enums(DRAFT, AWAIT_STAFF, AWAIT_BRAND, REJECTED, APPROVED, POSTED)
+//	@Param			type		query		string	false	"Filter by type"	Enums(POST, VIDEO)
+//	@Param			task_id		query		string	false	"Filter by task ID (UUID)"
+//	@Param			channel_id	query		string	false	"Filter by channel ID (UUID)"
+//	@Param			search		query		string	false	"Search in title and body"
+//	@Param			from_date	query		string	false	"Filter from date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"Filter to date (YYYY-MM-DD)"
+//	@Success		200			{object}	responses.ContentPaginationResponse
+//	@Failure		400			{object}	responses.APIResponse	"Invalid request parameters"
+//	@Failure		401			{object}	responses.APIResponse	"Authentication required"
+//	@Failure		500			{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contents/assigned_to [get]
+func (h *ContentHandler) ListByAssignedUser(c *gin.Context) {
+	assignedToID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized,
+			responses.ErrorResponse("Authentication required: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+	var req requests.ContentFilterRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	req.AssignedTo = &assignedToID
+	if err = h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
 		return
 	}
 
