@@ -10,6 +10,7 @@ import (
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/internal/infrastructure/scheduler"
 	"core-backend/internal/infrastructure/service"
 	"core-backend/internal/infrastructure/third_party_repository"
 	"fmt"
@@ -29,6 +30,11 @@ type InfrastructureRegistry struct {
 	EmailService      *service.EmailService
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
+
+	//Automatic Trigger
+	schedulers []scheduler.TaskScheduler
+	//Manual Trigger Schedulers
+	LocationSyncTask scheduler.TaskScheduler
 }
 
 func NewInfrastructureRegistry(
@@ -93,6 +99,15 @@ func NewInfrastructureRegistry(
 		registry.FCMService = fcmService
 		zap.L().Info("FCMService initialized successfully")
 	}
+
+	//Initialize Task Schedulers
+	registry.schedulers = []scheduler.TaskScheduler{
+		//Location Sync Scheduler
+		scheduler.NewLocationSyncScheduler(config, db),
+		// Add more schedulers here as needed
+	}
+	//Initialize Manual Trigger Schedulers
+	registry.LocationSyncTask = scheduler.NewLocationSyncScheduler(config, db)
 
 	// Initialize Health Monitor
 	zap.L().Debug("Initializing Health Monitor...")
@@ -170,6 +185,19 @@ func (r *InfrastructureRegistry) OverrideAdminConfig() error {
 		return err
 	}
 	return nil
+}
+
+// StartSchedulers launches background schedulers controlled by config.
+// It uses the provided context to manage lifecycle and shutdown.
+func (r *InfrastructureRegistry) StartSchedulers(ctx context.Context) {
+	zap.L().Info("=================Starting schedulers=================")
+	for idx, s := range r.schedulers {
+		go func(s scheduler.TaskScheduler) {
+			zap.L().Info(fmt.Sprintf("Task #%d: ", idx+1), zap.String("type", fmt.Sprintf("%T", s)))
+			s.Start(ctx)
+			zap.L().Info("-----------------")
+		}(s)
+	}
 }
 
 // StopServices gracefully stops all services

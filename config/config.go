@@ -34,6 +34,7 @@ type AppConfig struct {
 	GmailSMTP         EmailConfig             `mapstructure:"gmail_smtp"`
 	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
 	Notification      NotificationConfig      `mapstructure:"notification"`
+	TaskScheduler     TaskSchedulerConfig     `mapstructure:"task_scheduler"`
 }
 
 type ServerConfig struct {
@@ -192,6 +193,19 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
+// Scheduler configuration
+type TaskSchedulerConfig struct {
+	LocationSync locationSynchronizationConfig `mapstructure:"location_synchronization"`
+}
+
+type locationSynchronizationConfig struct {
+	Enabled     bool `mapstructure:"enabled"`
+	SyncHour    int  `mapstructure:"sync_hour"`
+	Concurrency int  `mapstructure:"concurrency"`
+}
+
+//End of Schedulers
+
 // endregion
 
 var (
@@ -324,6 +338,11 @@ func setDefaultValues() {
 	viper.SetDefault("websocket.allowed_origins", []string{"*"})
 	viper.SetDefault("websocket.read_buffer_size", 1024)
 	viper.SetDefault("websocket.write_buffer_size", 1024)
+
+	//Task Scheduler Defaults
+	viper.SetDefault("task_scheduler.location_synchronization.enabled", false)
+	viper.SetDefault("task_scheduler.location_synchronization.sync_hour", 3) // 3 AM
+	viper.SetDefault("task_scheduler.location_synchronization.concurrency", 1)
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.

@@ -118,6 +118,9 @@ func (s *APIServer) Start() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// Start background schedulers (location sync, etc.)
+	s.infrastructureRegistry.StartSchedulers(s.ctx)
+
 	// Start server in a goroutine
 	go func() {
 		zap.L().Info("Starting API server",

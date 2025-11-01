@@ -9,7 +9,6 @@ import (
 )
 
 type LocationService interface {
-
 	// Location Service
 	GetProvinces() ([]responses.ProvinceResponse, error)
 	GetDistrictsByProvinceID(provinceID int) ([]responses.DistrictResponse, error)
