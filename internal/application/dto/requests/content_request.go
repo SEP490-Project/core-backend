@@ -48,11 +48,12 @@ type PublishContentRequest struct {
 // ContentFilterRequest DTO for listing and filtering content
 type ContentFilterRequest struct {
 	PaginationRequest
-	Status    *string    `form:"status" validate:"omitempty,oneof=DRAFT AWAIT_STAFF AWAIT_BRAND REJECTED APPROVED POSTED"`
-	Type      *string    `form:"type" validate:"omitempty,oneof=POST VIDEO"`
-	TaskID    *uuid.UUID `form:"task_id" validate:"omitempty,uuid"`
-	ChannelID *uuid.UUID `form:"channel_id" validate:"omitempty,uuid"`
-	Search    *string    `form:"search" validate:"omitempty,max=500"`
-	FromDate  *string    `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
-	ToDate    *string    `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
+	Status     *string    `form:"status" validate:"omitempty,oneof=DRAFT AWAIT_STAFF AWAIT_BRAND REJECTED APPROVED POSTED"`
+	Type       *string    `form:"type" validate:"omitempty,oneof=POST VIDEO"`
+	AssignedTo *uuid.UUID `form:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	TaskID     *uuid.UUID `form:"task_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ChannelID  *uuid.UUID `form:"channel_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Search     *string    `form:"search" validate:"omitempty,max=500" example:"summer sale"`
+	FromDate   *string    `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
+	ToDate     *string    `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
 }
