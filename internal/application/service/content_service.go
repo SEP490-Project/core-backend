@@ -437,19 +437,7 @@ func (s *ContentService) DetermineWorkflowRoute(ctx context.Context, contentID u
 
 // List retrieves paginated content with filters, search, and sorting
 func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentResponse, int64, error) {
-	// Set defaults
-	page := 1
-	if req.Page > 0 {
-		page = req.Page
-	}
-
-	limit := 10
-	if req.Limit > 0 {
-		limit = req.Limit
-	}
-	if limit > 100 {
-		limit = 100 // Max limit enforcement
-	}
+	zap.L().Info("Listing contents with filters", zap.Any("filters", req))
 
 	// Build filter function
 	filterFunc := func(db *gorm.DB) *gorm.DB {
@@ -468,6 +456,12 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 			db = db.Where("task_id = ?", *req.TaskID)
 		}
 
+		if req.AssignedTo != nil {
+			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
+				Where("tasks.assigned_to = ?", req.AssignedTo.String()).
+				Distinct()
+		}
+
 		// Filter by channel_id (requires join with content_channels)
 		if req.ChannelID != nil {
 			db = db.Joins("JOIN content_channels ON content_channels.content_id = contents.id").
@@ -478,7 +472,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 		// Full-text search on title and body
 		if req.Search != nil && *req.Search != "" {
 			searchPattern := "%" + *req.Search + "%"
-			db = db.Where("title ILIKE ? OR body ILIKE ?", searchPattern, searchPattern)
+			db = db.Where("title ILIKE ? OR body::text ILIKE ?", searchPattern, searchPattern)
 		}
 
 		// Date range filter
@@ -508,7 +502,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task"}
 
 	// Execute query
-	contents, total, err := s.contentRepo.GetAll(ctx, filterFunc, includes, limit, page)
+	contents, total, err := s.contentRepo.GetAll(ctx, filterFunc, includes, req.Limit, req.Page)
 	if err != nil {
 		zap.L().Error("Failed to list contents", zap.Error(err))
 		return nil, 0, errors.New("failed to retrieve content list")
@@ -522,9 +516,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 
 	zap.L().Info("Content list retrieved",
 		zap.Int("count", len(contents)),
-		zap.Int64("total", total),
-		zap.Int("page", page),
-		zap.Int("limit", limit))
+		zap.Int64("total", total))
 
 	return contentResponses, total, nil
 }
