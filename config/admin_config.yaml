@@ -8,3 +8,54 @@ representative_tax_number: "01234567890"
 representative_bank_name: "Ngân hàng TMCP Quân đội"
 representative_bank_account_number: "3730 0944 4882 74"
 representative_bank_account_holder: "TRAN GIANH KHANH"
+
+# Affiliate Link Tracking Configuration
+tracking_link_trusted_domains: |
+  [
+    // Major e-commerce platforms
+    "shopee.vn", "lazada.vn", "tiki.vn", "sendo.vn",
+    "thegioididong.com", "dienmayxanh.com", "fptshop.com.vn",
+    "cellphones.com.vn", "meta.vn", "nguyenkim.com",
+
+    // International platforms with VN presence
+    "amazon.com", "alibaba.com", "aliexpress.com",
+    "ebay.com", "walmart.com",
+
+    // Booking/travel platforms
+    "booking.com", "agoda.com", "traveloka.com",
+    "tiket.com", "pegipegi.com",
+
+    // Food delivery
+    "grab.com", "gojek.com", "shopeefood.vn",
+    "now.vn", "baemin.vn",
+
+    // Fashion/beauty
+    "zalora.vn", "pomelo.vn", "hasaki.vn",
+    "guardian.vn", "watsons.vn",
+
+    // Development/testing (remove in production)
+    "localhost", "127.0.0.1", "ngrok.io",
+  ]
+bot_signatures: |
+  [
+    // Common bot user-agent substrings
+    "Googlebot", "Bingbot", "Slurp", "DuckDuckBot",
+    "Baiduspider", "YandexBot", "Sogou", "Exabot",
+    "facebot", "ia_archiver",
+    // Headless browsers and automation tools
+    "HeadlessChrome", "PhantomJS", "Puppeteer",
+    "Selenium", "Scrapy", "curl", "Wget",
+    // Other known bots
+    "MJ12bot", "AhrefsBot", "SemrushBot",
+    "DotBot", "Gigabot", "SeznamBot",
+    "bot", "crawler", "spider", "scraper",
+    "curl", "wget", "python-requests", "go-http-client",
+    "googlebot", "bingbot", "yahoo", "baiduspider",
+    "facebookexternalhit", "twitterbot", "linkedinbot",
+    "slackbot", "whatsapp", "telegrambot",
+  ]
+
+ctr_aggregation_enabled: true # Enable/disable automatic CTR aggregation from click_events to kpi_metrics
+ctr_aggregation_interval_minutes: 5 # Interval in minutes for CTR aggregation cron job
+expired_contract_cleanup_enabled: true
+expired_contract_cleanup_cron_expr: "0 0 * * *" # Daily at midnight
