@@ -44,11 +44,15 @@ go get github.com/redis/go-redis/v9
 
 ## Prerequisites:
 
-- Before running the application, you need to have three services running:
-  1. PostgreSQL
+- Before running the application, you need to have four services running:
+  1. PostgreSQL (with TimescaleDB extension)
   2. RabbitMQ
   3. Redis or Valkey
-- After that edit the `./config/config.yaml` file and set the correct values for the database, rabbitmq and redis connection strings.
+  4. AWS S3 (or compatible storage)
+
+### Configuration
+
+- After service setup, edit the `./config/config.yaml` file and set the correct values for the database, rabbitmq and redis connection strings.
 - Install Swaggo before running the application through :
   ```bash
   go get github.com/swaggo/swag/cmd/swag@latest
@@ -61,3 +65,17 @@ go get github.com/redis/go-redis/v9
   ```bash
   go run ./cmd/server
   ```
+
+### Troubleshooting
+
+- **TimescaleDB not installed**: See error "extension timescaledb does not exist"
+  - Solution: Install TimescaleDB extension package for your PostgreSQL version
+- **Hypertable conversion failed**: See error "table is already a hypertable"
+  - Solution: This is safe - table was already converted in a previous migration
+- **Compression not working**: Chunks remain uncompressed
+  - Solution: Check compression policy exists and job is running:
+    ```sql
+    SELECT * FROM timescaledb_information.jobs WHERE proc_name LIKE '%compress%';
+    ```
+
+For detailed deployment procedures, see `/docs/timescaledb-deployment.md`
