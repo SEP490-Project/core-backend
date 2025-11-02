@@ -44,6 +44,7 @@ type ServerConfig struct {
 	Timeout         int    `mapstructure:"timeout"`           // in seconds
 	PayOSLinkExpiry int    `mapstructure:"payos_link_expiry"` // in seconds
 	Timezone        string `mapstructure:"timezone"`
+	BaseURL         string `mapstructure:"base_url"`
 }
 
 type DatabaseConfig struct {
@@ -193,7 +194,7 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
-// Scheduler configuration
+// TaskSchedulerConfig holds configuration for task schedulers
 type TaskSchedulerConfig struct {
 	LocationSync locationSynchronizationConfig `mapstructure:"location_synchronization"`
 }
@@ -284,6 +285,7 @@ func setDefaultValues() {
 	viper.SetDefault("server.service_name", "my_service")
 	viper.SetDefault("server.environment", "development") // Options: development, production
 	viper.SetDefault("server.timezone", "UTC")
+	viper.SetDefault("server.base_url", "http://localhost:8080")
 
 	viper.SetDefault("database.host", "postgres.trangiangkhanh.online")
 	viper.SetDefault("database.port", 5432)

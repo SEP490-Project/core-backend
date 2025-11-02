@@ -96,6 +96,23 @@ topology:
             exponentialMultiply: 1.5
           dlq:
             enabled: true
+    - name: exchange.affiliate_link
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.affiliate_link.click
+          routingKey: affiliate_link.click
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 2000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -149,6 +166,17 @@ producers:
       maxAttempts: 5
       backoffMs: 2000
       exponentialMultiply: 2.0
+  - name: affiliate-link-click-producer
+    exchange: exchange.affiliate_link
+    routingKey: affiliate_link.click
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
 
 consumers:
   - name: notification-email-consumer
@@ -194,3 +222,10 @@ consumers:
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
+  - name: affiliate-link-click-consumer
+    queue: queue.affiliate_link.click
+    prefetch: 50
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
