@@ -29,7 +29,12 @@ type ProductVariant struct {
 	CreatedByID     uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
 	UpdatedByID     *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
 
-	//RelationshiExistsByIDp
+	Weight int `json:"weight" gorm:"column:weight"` // in grams
+	Height int `json:"height" gorm:"column:height"` // in centimeters
+	Length int `json:"length" gorm:"column:length"` // in centimeters
+	Width  int `json:"width" gorm:"column:width"`   // in centimeters
+
+	//Relationship ExistsByID
 	Product         *Product                `json:"-" gorm:"foreignKey:ProductID"`
 	Story           *ProductStory           `json:"story" gorm:"foreignKey:VariantID"`
 	AttributeValues []VariantAttributeValue `json:"attributes" gorm:"foreignKey:VariantID"`

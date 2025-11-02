@@ -3,7 +3,6 @@ package handler
 
 import (
 	"core-backend/internal/application"
-
 	"github.com/go-playground/validator/v10"
 )
 
@@ -33,6 +32,7 @@ type HandlerRegistry struct {
 	DeviceTokenHandler     *DeviceTokenHandler
 	NotificationHandler    *NotificationHandler
 	TagHandler             *TagHandler
+	GHNHandler             *GHNHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *HandlerRegistry {
@@ -62,5 +62,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry) *Handle
 		NotificationHandler:    NewNotificationHandler(applicationReg.NotificationService),
 		LocationHandler:        NewLocationHandler(applicationReg.LocationService, applicationReg.InfrastructureRegistry.LocationSyncTask),
 		TagHandler:             NewTagHandler(applicationReg.TagService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		GHNHandler:             NewGHNHandler(applicationReg.InfrastructureRegistry.GHNService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }

@@ -11,43 +11,16 @@ import (
 
 // BulkVariantRequest represent a compound, multi model createtion
 // include: CreateProductVariantRequest, CreateProductStoryRequest, [] CreateVariantImagesRequest
-//
-//	@example	{
-//	  "price": 29.99,
-//	  "current_stock": 100,
-//	  "capacity": 500,
-//	  "capacity_unit": "ML",
-//	  "container_type": "BOTTLE",
-//	  "dispenser_type": "SPRAY",
-//	  "uses": "For daily use",
-//	  "manufacturing_date": "2023-10-01T00:00:00Z",
-//	  "expiry_date": "2025-10-01T00:00:00Z",
-//	  "instructions": "Shake well before use",
-//	  "is_default": true,
-//	  "story": {
-//	    "variant_id": "550e8400-e29b-41d4-a716-446655440000",
-//	    "content": {"description": "This is a sample story", "details": "More details here"}
-//	  },
-//	  "attributes": [
-//	    {
-//	      "variant_id": "550e8400-e29b-41d4-a716-446655440000",
-//	      "attribute_id": "550e8400-e29b-41d4-a716-446655440001",
-//	      "value": 10.5,
-//	      "unit": "MG"
-//	    }
-//	  ]
-//	}
 type BulkVariantRequest struct {
 	CreateProductVariantRequest
 	Story      *CreateProductStoryRequest           `json:"story" validate:"omitempty"`
 	Attributes []CreateVariantAttributeValueRequest `json:"attributes" validate:"dive"`
-	//Images []CreateVariantImagesRequest
 }
 
 // CreateProductVariantRequest represents a variant payload when creating a product
 // Date fields use RFC3339 strings; service will parse to time.Time
 type CreateProductVariantRequest struct {
-	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"29.99"`
+	Price           float64            `json:"price" form:"price" validate:"required,min=1000" example:"1000"`
 	CurrentStock    *int               `json:"current_stock" form:"current_stock" validate:"omitempty" example:"100"`
 	Capacity        float64            `json:"capacity" form:"capacity" validate:"omitempty,min=0" example:"500"`
 	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" form:"capacity_unit" validate:"required,oneof=ML L G KG OZ"`
@@ -57,6 +30,10 @@ type CreateProductVariantRequest struct {
 	ManufactureDate *string            `json:"manufacturing_date" form:"manufacturing_date" example:"2023-10-01T00:00:00Z"`
 	ExpiryDate      *string            `json:"expiry_date" form:"expiry_date" example:"2025-10-01T00:00:00Z"`
 	Instructions    string             `json:"instructions" form:"instructions" example:"Shake well before use"`
+	Weight          int                `json:"weight" form:"weight" validate:"omitempty,min=0" example:"250"` // in grams
+	Height          int                `json:"height" form:"height" validate:"omitempty,min=0" example:"15"`  // in centimeters
+	Length          int                `json:"length" form:"length" validate:"omitempty,min=0" example:"10"`  // in centimeters
+	Width           int                `json:"width" form:"width" validate:"omitempty,min=0" example:"5"`     //
 	IsDefault       bool               `json:"is_default" form:"is_default" example:"true"`
 }
 
@@ -83,6 +60,7 @@ func (e *CreateProductVariantRequest) ToModel(productID uuid.UUID, createdBy uui
 	now := time.Now().UTC()
 
 	return &model.ProductVariant{
+		ID:              uuid.UUID{},
 		ProductID:       productID,
 		Price:           e.Price,
 		CurrentStock:    e.CurrentStock,
@@ -100,7 +78,13 @@ func (e *CreateProductVariantRequest) ToModel(productID uuid.UUID, createdBy uui
 		DeletedAt:       gorm.DeletedAt{},
 		CreatedByID:     createdBy,
 		UpdatedByID:     nil,
+		Weight:          e.Weight,
+		Height:          e.Height,
+		Length:          e.Length,
+		Width:           e.Width,
+		Product:         nil,
 		Story:           nil,
 		AttributeValues: nil,
+		Images:          nil,
 	}
 }

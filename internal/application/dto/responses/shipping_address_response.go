@@ -14,20 +14,18 @@ type ShippingAddressResponse struct {
 	PhoneNumber  string  `json:"phone_number" example:"+1234567890"`
 	Email        string  `json:"email" example:"john@example.com"`
 	Street       string  `json:"street" example:"123 Main St"`
-	AddressLine2 *string `json:"address_line_2" example:"Apt 4B"`
+	AddressLine2 string  `json:"address_line_2" example:"Apt 4B"`
 	City         string  `json:"city" example:"New York"`
-	State        *string `json:"state" example:"NY"`
-	PostalCode   string  `json:"postal_code" example:"10001"`
+	PostalCode   *string `json:"postal_code" example:"10001"`
 	Country      string  `json:"country" example:"USA"`
-	Company      *string `json:"company" example:"Acme Corp"`
 	IsDefault    bool    `json:"is_default" example:"false"`
 
-	GhnProvinceID *int    `json:"ghn_province_id,omitempty" example:"202"`
-	GhnDistrictID *int    `json:"ghn_district_id,omitempty" example:"1451"`
-	GhnWardCode   *string `json:"ghn_ward_code,omitempty" example:"20901"`
-	ProvinceName  *string `json:"province_name,omitempty" example:"Hồ Chí Minh"`
-	DistrictName  *string `json:"district_name,omitempty" example:"Quận 9"`
-	WardName      *string `json:"ward_name,omitempty" example:"Phường Hiệp Phú"`
+	GhnProvinceID int    `json:"ghn_province_id,omitempty" example:"202"`
+	GhnDistrictID int    `json:"ghn_district_id,omitempty" example:"1451"`
+	GhnWardCode   string `json:"ghn_ward_code,omitempty" example:"20901"`
+	ProvinceName  string `json:"province_name,omitempty" example:"Hồ Chí Minh"`
+	DistrictName  string `json:"district_name,omitempty" example:"Quận 9"`
+	WardName      string `json:"ward_name,omitempty" example:"Phường Hiệp Phú"`
 
 	CreatedAt string `json:"created_at" example:"2023-12-30 15:04:05"`
 	UpdatedAt string `json:"updated_at" example:"2023-12-30 15:04:05"`
@@ -40,8 +38,8 @@ func (sar ShippingAddressResponse) ToResponse(model *model.ShippingAddress) *Shi
 		UserID:       model.UserID.String(),
 		Type:         model.Type.String(),
 		FullName:     model.FullName,
-		PhoneNumber:  *model.PhoneNumber,
-		Email:        *model.Email,
+		PhoneNumber:  model.PhoneNumber,
+		Email:        model.Email,
 		Street:       model.Street,
 		AddressLine2: model.AddressLine2,
 		City:         model.City,

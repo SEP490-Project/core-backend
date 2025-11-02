@@ -30,6 +30,7 @@ type InfrastructureRegistry struct {
 	EmailService      *service.EmailService
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
+	GHNService        iservice_third_party.GHNService
 
 	//Automatic Trigger
 	schedulers []scheduler.TaskScheduler
@@ -76,6 +77,7 @@ func NewInfrastructureRegistry(
 		s3StreamBucket,
 	)
 
+	//========================EXTERNAL SERVICES========================//
 	//Initialize PAYOS Service
 	zap.L().Debug("Initializing PayOS...")
 	registry.PayOsService = service.NewPayOsService(gormrepository.NewGenericRepository[model.PaymentTransaction](db))
@@ -99,6 +101,12 @@ func NewInfrastructureRegistry(
 		registry.FCMService = fcmService
 		zap.L().Info("FCMService initialized successfully")
 	}
+
+	//External Services
+	zap.L().Debug("Initializing GHN Service...")
+	registry.GHNService = service.NewGHNService(config)
+
+	//==============================================================
 
 	//Initialize Task Schedulers
 	registry.schedulers = []scheduler.TaskScheduler{

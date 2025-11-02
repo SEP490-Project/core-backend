@@ -17,13 +17,12 @@ type CreateShippingAddressRequest struct {
 	PhoneNumber  string  `json:"phone_number" validate:"required,e164" example:"+1234567890"`
 	Email        string  `json:"email" validate:"required,email" example:"john@example.com"`
 	Street       string  `json:"street" validate:"required,min=5,max=200" example:"123 Main St"`
-	AddressLine2 *string `json:"address_line_2" validate:"omitempty,max=200" example:"Apt 4B"`
+	AddressLine2 string  `json:"address_line_2" validate:"omitempty,max=200" example:"Apt 4B"`
 	City         string  `json:"city" validate:"required,min=2,max=100" example:"New York"`
-	State        *string `json:"state" validate:"omitempty,min=2,max=100" example:"NY"`
-	PostalCode   string  `json:"postal_code" validate:"required,min=2,max=20" example:"10001"`
-	Country      string  `json:"country" validate:"required,min=2,max=100" example:"USA"`
-	Company      *string `json:"company" validate:"omitempty,max=100" example:"Acme Corp"`
-	IsDefault    *bool   `json:"is_default" validate:"omitempty" example:"false"`
+	PostalCode   *string `json:"postal_code" validate:"required,min=2,max=20" example:"10001"`
+	Country      *string `json:"country" validate:"required,min=2,max=100" example:"USA"`
+	//Company      *string `json:"company" validate:"omitempty,max=100" example:"Acme Corp"`
+	IsDefault *bool `json:"is_default" validate:"omitempty" example:"false"`
 }
 
 // ToModel converts CreateShippingAddressRequest to ShippingAddress model
@@ -48,13 +47,13 @@ func (r CreateShippingAddressRequest) ToModel() (*model.ShippingAddress, error) 
 		UserID:       userID,
 		Type:         addressType,
 		FullName:     r.FullName,
-		PhoneNumber:  &r.PhoneNumber,
-		Email:        &r.Email,
+		PhoneNumber:  r.PhoneNumber,
+		Email:        r.Email,
 		Street:       r.Street,
 		AddressLine2: r.AddressLine2,
 		City:         r.City,
 		PostalCode:   r.PostalCode,
-		Country:      &r.Country,
+		Country:      r.Country,
 		IsDefault:    isDefault,
 	}
 	return model, nil
@@ -97,22 +96,22 @@ func (r UpdateShippingAddressRequest) ToExistingModel(existing *model.ShippingAd
 		existing.FullName = *r.FullName
 	}
 	if r.PhoneNumber != nil {
-		existing.PhoneNumber = r.PhoneNumber
+		existing.PhoneNumber = *r.PhoneNumber
 	}
 	if r.Email != nil {
-		existing.Email = r.Email
+		existing.Email = *r.Email
 	}
 	if r.Street != nil {
 		existing.Street = *r.Street
 	}
 	if r.AddressLine2 != nil {
-		existing.AddressLine2 = r.AddressLine2
+		existing.AddressLine2 = *r.AddressLine2
 	}
 	if r.City != nil {
 		existing.City = *r.City
 	}
 	if r.PostalCode != nil {
-		existing.PostalCode = *r.PostalCode
+		existing.PostalCode = r.PostalCode
 	}
 	if r.Country != nil {
 		existing.Country = r.Country

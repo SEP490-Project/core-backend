@@ -157,8 +157,11 @@ type PayOSConfig struct {
 }
 
 type GHNConfig struct {
-	BaseURL string `mapstructure:"base_url"`
-	Token   string `mapstructure:"token"`
+	BaseURL    string `mapstructure:"base_url"`
+	FeeBaseURL string `mapstructure:"fee_base_url"`
+	Token      string `mapstructure:"token"`
+	ShopID     int    `mapstructure:"shop_id"`
+	DistrictID int    `mapstructure:"district_id"`
 }
 
 type EmailConfig struct {

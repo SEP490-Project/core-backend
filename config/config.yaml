@@ -121,7 +121,11 @@ payos:
 #GHN
 ghn:
   base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"
+  fee_base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order"
   token: "e318b7e8-96a4-11f0-bdaf-ae7fa045a771"
+  # Company Info
+  shop_id: "197482"
+  district_id: "3695"
 
 # Gmail SMTP configuration
 gmail_smtp:
@@ -155,7 +159,7 @@ notification:
 # Scheduler settings
 task_scheduler:
   location_synchronization:
-    enabled: true
+    enabled: false
     sync_hour: 3
     concurrency : 5
 
