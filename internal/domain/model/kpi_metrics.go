@@ -10,7 +10,7 @@ import (
 type KPIMetrics struct {
 	ID            uuid.UUID             `json:"id" gorm:"type:uuid;column:id;primaryKey;default:gen_random_uuid()"`
 	ReferenceID   uuid.UUID             `json:"reference_id" gorm:"type:uuid;column:reference_id;not null"`
-	ReferenceType enum.KPIReferenceType `json:"reference_type" gorm:"type:varchar(50);column:reference_type;not null;check:reference_type IN ('CONTENT', 'CAMPAIGN')"`
+	ReferenceType enum.KPIReferenceType `json:"reference_type" gorm:"type:varchar(50);column:reference_type;not null;check:reference_type IN ('CONTENT', 'CAMPAIGN', 'AFFILIATE_LINK')"`
 	Type          enum.KPIValueType     `json:"type" gorm:"type:varchar(50);column:type;not null;check:type IN ('REACH', 'IMPRESSIONS', 'LIKES', 'COMMENTS', 'SHARES', 'CTR', 'ENGAGEMENT')"`
 	Value         float64               `json:"value" gorm:"type:decimal(15,2);column:value;not null"`
 	Unit          *string               `json:"unit" gorm:"type:varchar(10);column:unit"`

@@ -43,9 +43,9 @@ func NewAPIServer() *APIServer {
 
 	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
-	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, s3Bucket, s3StreamBucket)
+	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, databaseRegistry, s3Bucket, s3StreamBucket)
 	serviceRegistry := application.NewApplicationRegistry(config.GetAppConfig(), databaseRegistry, infrastructureRegistry)
-	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
+	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry, config.GetAppConfig())
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
 
@@ -186,6 +186,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
 		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
 		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
+		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
 	}
 
 	// Register handlers with RabbitMQ

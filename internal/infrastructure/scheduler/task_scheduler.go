@@ -1,3 +1,4 @@
+// Package scheduler contains the task schedulers using cron jobs used in the application.
 package scheduler
 
 import "context"

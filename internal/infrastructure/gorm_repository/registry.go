@@ -47,6 +47,11 @@ type DatabaseRegistry struct {
 	ProvinceRepository        irepository.GenericRepository[model.Province]
 	DistrictRepository        irepository.GenericRepository[model.District]
 	WardRepository            irepository.GenericRepository[model.Ward]
+
+	//Affiliate Link Tracking
+	AffiliateLinkRepository irepository.AffiliateLinkRepository
+	ClickEventRepository    irepository.ClickEventRepository
+	KPIMetricsRepository    irepository.GenericRepository[model.KPIMetrics]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -81,5 +86,8 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ProvinceRepository:           NewGenericRepository[model.Province](db),
 		DistrictRepository:           NewGenericRepository[model.District](db),
 		WardRepository:               NewGenericRepository[model.Ward](db),
+		AffiliateLinkRepository:      NewAffiliateLinkRepository(db),
+		ClickEventRepository:         NewClickEventRepository(db),
+		KPIMetricsRepository:         NewGenericRepository[model.KPIMetrics](db),
 	}
 }

@@ -22,6 +22,16 @@ type AdminConfig struct {
 	RepresentativeBankName            string `mapstructure:"representative_bank_name"`
 	RepresentativeBankAccountNumber   string `mapstructure:"representative_bank_account_number"`
 	RepresentativeBankAccountHolder   string `mapstructure:"representative_bank_account_holder"`
+
+	// Affiliate Link Tracking Configuration
+	TrackingLinkTrustedDomains []string `mapstructure:"tracking_link_trusted_domains"`
+	BotSignatures              []string `mapstructure:"bot_signatures"`
+
+	// Cron Jobs Configuration
+	CTRAggregationEnabled          bool   `mapstructure:"ctr_aggregation_enabled"`
+	CTRAggregationIntervalMinutes  int    `mapstructure:"ctr_aggregation_interval_minutes"`
+	ExpiredContractCleanupEnabled  bool   `mapstructure:"expired_contract_cleanup_enabled"`
+	ExpiredContractCleanupCronExpr string `mapstructure:"expired_contract_cleanup_cron_expr"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
