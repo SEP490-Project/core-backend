@@ -79,6 +79,7 @@ func (h *HealthMonitor) CheckAllServices(ctx context.Context) map[string]Service
 	// Check Database
 	if h.db != nil {
 		results["database"] = h.checkDatabase(ctx)
+		results["timescaledb"] = h.CheckTimescaleDB(ctx)
 	}
 
 	// Check Valkey Cache
@@ -177,6 +178,89 @@ func (h *HealthMonitor) checkDatabase(ctx context.Context) ServiceHealth {
 		zap.L().Debug("Database health check passed",
 			zap.Int("open_connections", stats.OpenConnections))
 	}
+
+	return health
+}
+
+// CheckTimescaleDB checks TimescaleDB extension and hypertable status
+func (h *HealthMonitor) CheckTimescaleDB(ctx context.Context) ServiceHealth {
+	health := ServiceHealth{
+		Name:          "TimescaleDB",
+		LastCheckTime: time.Now(),
+		Details:       make(map[string]any),
+	}
+
+	// Check if TimescaleDB extension is installed
+	var extensionVersion string
+	err := h.db.WithContext(ctx).Raw(`
+		SELECT extversion 
+		FROM pg_extension 
+		WHERE extname = 'timescaledb'
+	`).Scan(&extensionVersion).Error
+
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = errors.New("TimescaleDB extension not found or inaccessible")
+		health.Details["error"] = err.Error()
+		zap.L().Debug("TimescaleDB health check failed - extension not found", zap.Error(err))
+		return health
+	}
+
+	health.Details["extension_version"] = extensionVersion
+
+	// Check hypertables status
+	var hypertableCount int64
+	err = h.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) 
+		FROM timescaledb_information.hypertables
+	`).Scan(&hypertableCount).Error
+
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		health.Details["error"] = "Failed to query hypertables"
+		zap.L().Debug("TimescaleDB health check failed - hypertables query failed", zap.Error(err))
+		return health
+	}
+
+	health.Details["hypertable_count"] = hypertableCount
+
+	// Check specific hypertables we expect (click_events, kpi_metrics)
+	type HypertableInfo struct {
+		HypertableName string `gorm:"column:hypertable_name"`
+		NumChunks      int64  `gorm:"column:num_chunks"`
+	}
+
+	var hypertables []HypertableInfo
+	err = h.db.WithContext(ctx).Raw(`
+		SELECT 
+			hypertable_name,
+			num_chunks
+		FROM timescaledb_information.hypertables
+		WHERE hypertable_name IN ('click_events', 'kpi_metrics')
+	`).Scan(&hypertables).Error
+
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		health.Details["error"] = "Failed to query hypertable details"
+		zap.L().Debug("TimescaleDB health check failed - hypertable details query failed", zap.Error(err))
+		return health
+	}
+
+	hypertableDetails := make(map[string]any)
+	for _, ht := range hypertables {
+		hypertableDetails[ht.HypertableName] = map[string]any{
+			"num_chunks": ht.NumChunks,
+		}
+	}
+	health.Details["hypertables"] = hypertableDetails
+
+	// If we got here, everything is healthy
+	health.IsHealthy = true
+	zap.L().Debug("TimescaleDB health check passed",
+		zap.String("version", extensionVersion),
+		zap.Int64("hypertable_count", hypertableCount))
 
 	return health
 }

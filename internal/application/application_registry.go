@@ -12,32 +12,35 @@ import (
 )
 
 type ApplicationRegistry struct {
-	configs                *config.AppConfig
-	DatabaseRegistry       *gormrepository.DatabaseRegistry
-	InfrastructureRegistry *infrastructure.InfrastructureRegistry
-	JWTService             iservice.JWTService
-	FileService            iservice.FileService
-	AuthService            iservice.AuthService
-	UserService            iservice.UserService
-	ProductService         iservice.ProductService
-	BrandService           iservice.BrandService
-	StateTransferService   iservice.StateTransferService
-	ContractService        iservice.ContractService
-	CampaignService        iservice.CampaignService
-	ModifiedHistoryService iservice.ModifiedHistoryService
-	ProductCategoryService iservice.ProductCategoryService
-	AdminConfigService     iservice.AdminConfigService
-	ContractPaymentService iservice.ContractPaymentService
-	ConceptService         iservice.ConceptService
-	OrderService           iservice.OrderService
-	ChannelService         iservice.ChannelService
-	ContentService         iservice.ContentService
-	BlogService            iservice.BlogService
-	TaskService            iservice.TaskService
-	DeviceTokenService     iservice.DeviceTokenService
-	NotificationService    iservice.NotificationService
-	LocationService        iservice.LocationService
-	TagService             iservice.TagService
+	configs                       *config.AppConfig
+	DatabaseRegistry              *gormrepository.DatabaseRegistry
+	InfrastructureRegistry        *infrastructure.InfrastructureRegistry
+	JWTService                    iservice.JWTService
+	FileService                   iservice.FileService
+	AuthService                   iservice.AuthService
+	UserService                   iservice.UserService
+	ProductService                iservice.ProductService
+	BrandService                  iservice.BrandService
+	StateTransferService          iservice.StateTransferService
+	ContractService               iservice.ContractService
+	CampaignService               iservice.CampaignService
+	ModifiedHistoryService        iservice.ModifiedHistoryService
+	ProductCategoryService        iservice.ProductCategoryService
+	AdminConfigService            iservice.AdminConfigService
+	ContractPaymentService        iservice.ContractPaymentService
+	ConceptService                iservice.ConceptService
+	OrderService                  iservice.OrderService
+	ChannelService                iservice.ChannelService
+	ContentService                iservice.ContentService
+	BlogService                   iservice.BlogService
+	TaskService                   iservice.TaskService
+	DeviceTokenService            iservice.DeviceTokenService
+	NotificationService           iservice.NotificationService
+	LocationService               iservice.LocationService
+	TagService                    iservice.TagService
+	AffiliateLinkService          iservice.AffiliateLinkService
+	ClickTrackingService          iservice.ClickTrackingService
+	AffiliateLinkAnalyticsService iservice.AffiliateLinkAnalyticsService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -50,48 +53,65 @@ func NewApplicationRegistry(
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService()
 
+	affiliateLinkService := service.NewAffiliateLinkService(
+		databaseRegistry.AffiliateLinkRepository,
+		databaseRegistry.ContractRepository,
+		databaseRegistry.ContentRepository,
+		databaseRegistry.ChannelRepository,
+		configs.Server.BaseURL,
+	)
+	clickTrackingService := service.NewClickTrackingService(
+		databaseRegistry.AffiliateLinkRepository,
+		affiliateLinkService, // Pass the service for validation
+		infrastructureRegistry.ValkeyCache,
+		infrastructureRegistry.RabbitMQ,
+	)
+	affiliateLinkAnalyticsService := service.NewAffiliateLinkAnalyticsService(
+		databaseRegistry.ClickEventRepository,
+		databaseRegistry.KPIMetricsRepository,
+		databaseRegistry.AffiliateLinkRepository,
+		databaseRegistry.ContractRepository,
+	)
+	contentService := service.NewContentService(
+		databaseRegistry.ContentRepository,
+		databaseRegistry.BlogRepository,
+		databaseRegistry.ContentChannelRepository,
+		databaseRegistry.ChannelRepository,
+		databaseRegistry.TaskRepository,
+		infrastructureRegistry.UnitOfWork,
+		affiliateLinkService,
+	)
+
 	return &ApplicationRegistry{
-		configs:                configs,
-		DatabaseRegistry:       databaseRegistry,
-		InfrastructureRegistry: infrastructureRegistry,
-		JWTService:             jwtService,
-		FileService:            infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
-		DeviceTokenService:     service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
-		AuthService: service.NewAuthService(
-			jwtService,
-			databaseRegistry.UserRepository,
-			databaseRegistry.LoggedSessionRepository,
-			service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
-		),
-		UserService:            service.NewUserService(databaseRegistry.UserRepository),
-		ProductService:         service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
-		BrandService:           service.NewBrandService(databaseRegistry.BrandRepository),
-		StateTransferService:   service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
-		ContractService:        service.NewContractService(databaseRegistry),
-		CampaignService:        service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
-		ModifiedHistoryService: service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
-		ProductCategoryService: service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
-		AdminConfigService:     service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
-		ContractPaymentService: service.NewContractPaymentService(databaseRegistry),
-		ConceptService:         service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:           service.NewOrderService(databaseRegistry, infrastructureRegistry.PayOsService),
-		ChannelService:         service.NewChannelService(databaseRegistry.ChannelRepository),
-		ContentService: service.NewContentService(
-			databaseRegistry.ContentRepository,
-			databaseRegistry.BlogRepository,
-			databaseRegistry.ContentChannelRepository,
-			databaseRegistry.ChannelRepository,
-			databaseRegistry.TaskRepository,
-			infrastructureRegistry.UnitOfWork,
-		),
-		BlogService: service.NewBlogService(
-			databaseRegistry.BlogRepository,
-			databaseRegistry.ContentRepository,
-		),
-		TaskService:         service.NewTaskService(databaseRegistry.TaskRepository),
-		NotificationService: service.NewNotificationService(databaseRegistry.NotificationRepository),
-		LocationService:     service.NewLocationService(databaseRegistry),
-		TagService:          service.NewTagService(databaseRegistry.TagRepository),
+		configs:                       configs,
+		DatabaseRegistry:              databaseRegistry,
+		InfrastructureRegistry:        infrastructureRegistry,
+		JWTService:                    jwtService,
+		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
+		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
+		AuthService:                   service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository)),
+		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
+		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
+		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository),
+		StateTransferService:          service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
+		ContractService:               service.NewContractService(databaseRegistry),
+		CampaignService:               service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
+		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
+		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
+		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
+		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry),
+		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
+		OrderService:                  service.NewOrderService(databaseRegistry, infrastructureRegistry.PayOsService),
+		ChannelService:                service.NewChannelService(databaseRegistry.ChannelRepository),
+		ContentService:                contentService,
+		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
+		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository),
+		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository),
+		LocationService:               service.NewLocationService(databaseRegistry),
+		TagService:                    service.NewTagService(databaseRegistry.TagRepository),
+		AffiliateLinkService:          affiliateLinkService,
+		ClickTrackingService:          clickTrackingService,
+		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
