@@ -211,3 +211,7 @@ func (v *ValkeyCache) Close() error {
 func (v *ValkeyCache) GetClient() *redis.Client {
 	return v.client
 }
+
+func (v *ValkeyCache) GetContext() context.Context {
+	return v.ctx
+}
