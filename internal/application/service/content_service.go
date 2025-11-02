@@ -20,12 +20,13 @@ import (
 )
 
 type ContentService struct {
-	contentRepo        irepository.GenericRepository[model.Content]
-	blogRepo           irepository.GenericRepository[model.Blog]
-	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
-	channelRepo        irepository.GenericRepository[model.Channel]
-	taskRepo           irepository.GenericRepository[model.Task]
-	uow                irepository.UnitOfWork
+	contentRepo          irepository.GenericRepository[model.Content]
+	blogRepo             irepository.GenericRepository[model.Blog]
+	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
+	channelRepo          irepository.GenericRepository[model.Channel]
+	taskRepo             irepository.GenericRepository[model.Task]
+	uow                  irepository.UnitOfWork
+	affiliateLinkService iservice.AffiliateLinkService
 }
 
 func NewContentService(
@@ -35,14 +36,16 @@ func NewContentService(
 	channelRepo irepository.GenericRepository[model.Channel],
 	taskRepo irepository.GenericRepository[model.Task],
 	uow irepository.UnitOfWork,
+	affiliateLinkService iservice.AffiliateLinkService,
 ) iservice.ContentService {
 	return &ContentService{
-		contentRepo:        contentRepo,
-		blogRepo:           blogRepo,
-		contentChannelRepo: contentChannelRepo,
-		channelRepo:        channelRepo,
-		taskRepo:           taskRepo,
-		uow:                uow,
+		contentRepo:          contentRepo,
+		blogRepo:             blogRepo,
+		contentChannelRepo:   contentChannelRepo,
+		channelRepo:          channelRepo,
+		taskRepo:             taskRepo,
+		uow:                  uow,
+		affiliateLinkService: affiliateLinkService,
 	}
 }
 
@@ -132,7 +135,17 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		}
 	}
 
-	if err = uow.Commit(); err != nil {
+	// Automatically create affiliate links for content channels if contract has tracking link
+	// This is a best-effort operation - failures are logged but don't fail content creation
+	if err := s.createAffiliateLinkIfNeeded(ctx, content, req.Channels); err != nil {
+		zap.L().Warn("Failed to create affiliate links for content",
+			zap.String("content_id", content.ID.String()),
+			zap.Error(err))
+		// Don't fail content creation if affiliate link creation fails
+	}
+
+	// Commit transaction
+	if err := uow.Commit(); err != nil {
 		zap.L().Error("Failed to commit transaction", zap.Error(err))
 		return nil, errors.New("failed to create content")
 	}
@@ -642,6 +655,78 @@ func (s *ContentService) validateAffiliateLink(ctx context.Context, content *mod
 				}
 			}
 		}
+	}
+
+	return nil
+}
+
+// createAffiliateLinkIfNeeded creates affiliate links for content channels if contract has tracking link
+func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, content *model.Content, channelIDs []uuid.UUID) error {
+	// Skip if no task association
+	if content.TaskID == nil || len(channelIDs) == 0 {
+		return nil
+	}
+
+	// Get task with full relationship chain: Task → Milestone → Campaign → Contract
+	task, err := s.taskRepo.GetByID(ctx, *content.TaskID, []string{"Milestone", "Milestone.Campaign", "Milestone.Campaign.Contract"})
+	if err != nil {
+		zap.L().Warn("Failed to retrieve task for affiliate link creation",
+			zap.String("task_id", content.TaskID.String()),
+			zap.Error(err))
+		return nil // Don't fail content creation if task not found
+	}
+
+	// Validate relationship chain exists
+	if task.Milestone == nil || task.Milestone.Campaign == nil || task.Milestone.Campaign.Contract == nil {
+		zap.L().Debug("Task does not have complete relationship chain for affiliate link",
+			zap.String("task_id", task.ID.String()))
+		return nil
+	}
+
+	contract := task.Milestone.Campaign.Contract
+
+	// Extract TrackingLink from ScopeOfWork JSONB
+	var scopeOfWork map[string]any
+	if err := json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+		zap.L().Warn("Failed to parse contract ScopeOfWork JSONB",
+			zap.String("contract_id", contract.ID.String()),
+			zap.Error(err))
+		return nil // Don't fail content creation if JSONB is invalid
+	}
+
+	trackingLink, ok := scopeOfWork["TrackingLink"].(string)
+	if !ok || trackingLink == "" {
+		zap.L().Debug("Contract does not have TrackingLink in ScopeOfWork",
+			zap.String("contract_id", contract.ID.String()))
+		return nil // No tracking link configured, skip affiliate link creation
+	}
+
+	// Create affiliate links for each channel
+	for _, channelID := range channelIDs {
+		affiliateReq := &requests.CreateAffiliateLinkRequest{
+			TrackingURL: trackingLink,
+			ContractID:  contract.ID,
+			ContentID:   content.ID,
+			ChannelID:   channelID,
+		}
+
+		// Use CreateOrGet to ensure idempotency (no duplicates)
+		affiliateLink, err := s.affiliateLinkService.CreateOrGet(ctx, affiliateReq)
+		if err != nil {
+			zap.L().Error("Failed to create affiliate link for content channel",
+				zap.String("content_id", content.ID.String()),
+				zap.String("channel_id", channelID.String()),
+				zap.String("tracking_url", trackingLink),
+				zap.Error(err))
+			// Log error but don't fail content creation
+			continue
+		}
+
+		zap.L().Info("Affiliate link created for content channel",
+			zap.String("affiliate_link_id", affiliateLink.ID.String()),
+			zap.String("hash", affiliateLink.Hash),
+			zap.String("content_id", content.ID.String()),
+			zap.String("channel_id", channelID.String()))
 	}
 
 	return nil
