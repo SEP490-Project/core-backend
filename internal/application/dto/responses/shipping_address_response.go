@@ -21,8 +21,16 @@ type ShippingAddressResponse struct {
 	Country      string  `json:"country" example:"USA"`
 	Company      *string `json:"company" example:"Acme Corp"`
 	IsDefault    bool    `json:"is_default" example:"false"`
-	CreatedAt    string  `json:"created_at" example:"2023-12-30 15:04:05"`
-	UpdatedAt    string  `json:"updated_at" example:"2023-12-30 15:04:05"`
+
+	GhnProvinceID *int    `json:"ghn_province_id,omitempty" example:"202"`
+	GhnDistrictID *int    `json:"ghn_district_id,omitempty" example:"1451"`
+	GhnWardCode   *string `json:"ghn_ward_code,omitempty" example:"20901"`
+	ProvinceName  *string `json:"province_name,omitempty" example:"Hồ Chí Minh"`
+	DistrictName  *string `json:"district_name,omitempty" example:"Quận 9"`
+	WardName      *string `json:"ward_name,omitempty" example:"Phường Hiệp Phú"`
+
+	CreatedAt string `json:"created_at" example:"2023-12-30 15:04:05"`
+	UpdatedAt string `json:"updated_at" example:"2023-12-30 15:04:05"`
 }
 
 // ToResponse converts ShippingAddress model to ShippingAddressResponse
@@ -40,8 +48,16 @@ func (sar ShippingAddressResponse) ToResponse(model *model.ShippingAddress) *Shi
 		PostalCode:   model.PostalCode,
 		Country:      *model.Country,
 		IsDefault:    model.IsDefault,
-		CreatedAt:    utils.FormatLocalTime(&model.CreatedAt, ""),
-		UpdatedAt:    utils.FormatLocalTime(&model.UpdatedAt, ""),
+
+		GhnProvinceID: model.GhnProvinceID,
+		GhnDistrictID: model.GhnDistrictID,
+		GhnWardCode:   model.GhnWardCode,
+		ProvinceName:  model.ProvinceName,
+		DistrictName:  model.DistrictName,
+		WardName:      model.WardName,
+
+		CreatedAt: utils.FormatLocalTime(&model.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(&model.UpdatedAt, ""),
 	}
 }
 
