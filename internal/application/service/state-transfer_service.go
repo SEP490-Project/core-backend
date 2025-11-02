@@ -23,13 +23,14 @@ import (
 )
 
 type stateTransferService struct {
-	contractRepository  irepository.GenericRepository[model.Contract]
-	campaignRepository  irepository.GenericRepository[model.Campaign]
-	milestoneRepository irepository.GenericRepository[model.Milestone]
-	taskRepository      irepository.GenericRepository[model.Task]
-	productRepository   irepository.GenericRepository[model.Product]
-	uow                 irepository.UnitOfWork
-	rabbitMQ            *rabbitmq.RabbitMQ
+	contractRepository      irepository.GenericRepository[model.Contract]
+	campaignRepository      irepository.GenericRepository[model.Campaign]
+	milestoneRepository     irepository.GenericRepository[model.Milestone]
+	taskRepository          irepository.GenericRepository[model.Task]
+	productRepository       irepository.GenericRepository[model.Product]
+	affiliateLinkRepository irepository.AffiliateLinkRepository
+	uow                     irepository.UnitOfWork
+	rabbitMQ                *rabbitmq.RabbitMQ
 }
 
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
@@ -332,6 +333,17 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			return errors.New("cascade product inactivate failed: " + err.Error())
 		}
 
+		// Batch expire affiliate links associated with this contract
+		if err := t.affiliateLinkRepository.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("contract_id = ? AND status = ?", contractID, enum.AffiliateLinkStatusActive)
+		}, map[string]any{"status": enum.AffiliateLinkStatusExpired}); err != nil {
+			zap.L().Error("Failed to expire affiliate links (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
+			// Don't fail the entire transaction - log warning and continue
+			zap.L().Warn("Continuing contract termination despite affiliate link update failure")
+		} else {
+			zap.L().Info("Expired affiliate links due to contract termination", zap.String("contract_id", contractID.String()))
+		}
+
 		// Reflect memory
 		camp.Status = enum.CampaignCanceled
 		for _, ms := range camp.Milestones {
@@ -450,6 +462,25 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 		return errors.New("failed to update content state in DB: " + err.Error())
 	}
 
+	// 6. Side-effects: Expire affiliate links if content is unpublished
+	// If content is moved away from POSTED status, expire associated affiliate links
+	if targetState != enum.ContentStatusPosted {
+		affiliateLinkRepo := uow.AffiliateLinks()
+		if err := affiliateLinkRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("content_id = ? AND status = ?", contentID, enum.AffiliateLinkStatusActive)
+		}, map[string]any{"status": enum.AffiliateLinkStatusExpired}); err != nil {
+			zap.L().Error("Failed to expire affiliate links (content unpublish)",
+				zap.String("content_id", contentID.String()),
+				zap.Error(err))
+			// Don't fail the entire transaction - log warning and continue
+			zap.L().Warn("Continuing content state change despite affiliate link update failure")
+		} else {
+			zap.L().Info("Expired affiliate links due to content unpublish",
+				zap.String("content_id", contentID.String()),
+				zap.String("new_status", string(targetState)))
+		}
+	}
+
 	zap.L().Info("Content state transition successful",
 		zap.String("content_id", contentID.String()),
 		zap.String("new_state", string(targetState)),
@@ -464,12 +495,13 @@ func NewStateTransferService(
 	rabbitmq *rabbitmq.RabbitMQ,
 ) iservice.StateTransferService {
 	return &stateTransferService{
-		contractRepository:  dbReg.ContractRepository,
-		campaignRepository:  dbReg.CampaignRepository,
-		milestoneRepository: dbReg.MilestoneRepository,
-		taskRepository:      dbReg.TaskRepository,
-		productRepository:   dbReg.ProductRepository,
-		uow:                 uow,
-		rabbitMQ:            rabbitmq,
+		contractRepository:      dbReg.ContractRepository,
+		campaignRepository:      dbReg.CampaignRepository,
+		milestoneRepository:     dbReg.MilestoneRepository,
+		taskRepository:          dbReg.TaskRepository,
+		productRepository:       dbReg.ProductRepository,
+		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
+		uow:                     uow,
+		rabbitMQ:                rabbitmq,
 	}
 }
