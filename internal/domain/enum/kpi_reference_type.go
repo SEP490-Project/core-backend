@@ -8,13 +8,14 @@ import (
 type KPIReferenceType string
 
 const (
-	KPIReferenceTypeContent  KPIReferenceType = "CONTENT"
-	KPIReferenceTypeCampaign KPIReferenceType = "CAMPAIGN"
+	KPIReferenceTypeContent       KPIReferenceType = "CONTENT"
+	KPIReferenceTypeCampaign      KPIReferenceType = "CAMPAIGN"
+	KPIReferenceTypeAffiliateLink KPIReferenceType = "AFFILIATE_LINK"
 )
 
 func (rt KPIReferenceType) IsValid() bool {
 	switch rt {
-	case KPIReferenceTypeContent, KPIReferenceTypeCampaign:
+	case KPIReferenceTypeContent, KPIReferenceTypeCampaign, KPIReferenceTypeAffiliateLink:
 		return true
 	}
 	return false
