@@ -10,6 +10,7 @@ import (
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/persistence"
+	"core-backend/internal/infrastructure/proxies"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/scheduler"
 	"core-backend/internal/infrastructure/service"
@@ -31,6 +32,7 @@ type InfrastructureRegistry struct {
 	EmailService      *service.EmailService
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
+	ProxiesRegistry   *proxies.ProxiesRegistry
 
 	//Automatic Trigger
 	schedulers []scheduler.TaskScheduler
@@ -128,6 +130,11 @@ func NewInfrastructureRegistry(
 	zap.L().Debug("Initializing Cron Jobs Scheduler...")
 	registry.CronJobsRegistry = jobs.NewCronJobRegistry(dbReg, db, &config.AdminConfig)
 	zap.L().Info("Cron Jobs Scheduler initialized successfully")
+
+	// Initialize Proxies Registry
+	zap.L().Debug("Initializing Proxies Registry...")
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config)
+	zap.L().Info("Proxies Registry initialized successfully")
 
 	// Override AdminConfig from Database
 	zap.L().Debug("Overriding AdminConfig from database")

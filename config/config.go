@@ -35,6 +35,7 @@ type AppConfig struct {
 	FirebaseFCM       FirebaseFCMConfig       `mapstructure:"firebase_fcm"`
 	Notification      NotificationConfig      `mapstructure:"notification"`
 	TaskScheduler     TaskSchedulerConfig     `mapstructure:"task_scheduler"`
+	HTTPClient        HTTPClientConfig        `mapstructure:"http_client"`
 }
 
 type ServerConfig struct {
@@ -194,6 +195,15 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
+type HTTPClientConfig struct {
+	Timeout               int `mapstructure:"timeout"`                 // in seconds
+	MaxIdleConns          int `mapstructure:"max_idle_conns"`          // maximum number of idle connections
+	MaxIdleConnsPerHost   int `mapstructure:"max_idle_conns_per_host"` // maximum number of idle connections per host
+	IdleConnTimeout       int `mapstructure:"idle_conn_timeout"`       // in seconds (default: 90)
+	TLSHandshakeTimeout   int `mapstructure:"tls_handshake_timeout"`   // in seconds (default: 10)
+	ExpectContinueTimeout int `mapstructure:"expect_continue_timeout"` // in seconds (default: 1)
+}
+
 // TaskSchedulerConfig holds configuration for task schedulers
 type TaskSchedulerConfig struct {
 	LocationSync locationSynchronizationConfig `mapstructure:"location_synchronization"`
@@ -345,6 +355,14 @@ func setDefaultValues() {
 	viper.SetDefault("task_scheduler.location_synchronization.enabled", false)
 	viper.SetDefault("task_scheduler.location_synchronization.sync_hour", 3) // 3 AM
 	viper.SetDefault("task_scheduler.location_synchronization.concurrency", 1)
+
+	// HTTP Client Defaults
+	viper.SetDefault("http_client.timeout", 30) // seconds
+	viper.SetDefault("http_client.max_idle_conns", 100)
+	viper.SetDefault("http_client.max_idle_conns_per_host", 10)
+	viper.SetDefault("http_client.idle_conn_timeout", 90)      // seconds
+	viper.SetDefault("http_client.tls_handshake_timeout", 10)  // seconds
+	viper.SetDefault("http_client.expect_continue_timeout", 1) // seconds
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.
