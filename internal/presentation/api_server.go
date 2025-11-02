@@ -43,9 +43,9 @@ func NewAPIServer() *APIServer {
 
 	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
-	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, s3Bucket, s3StreamBucket)
+	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, databaseRegistry, s3Bucket, s3StreamBucket)
 	serviceRegistry := application.NewApplicationRegistry(config.GetAppConfig(), databaseRegistry, infrastructureRegistry)
-	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry)
+	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry, config.GetAppConfig())
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
 
