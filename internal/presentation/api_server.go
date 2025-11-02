@@ -186,6 +186,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
 		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
 		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
+		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
 	}
 
 	// Register handlers with RabbitMQ
