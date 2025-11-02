@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,7 @@ type MiddlewareRegistry struct {
 	CORS      gin.HandlerFunc
 	Logging   gin.HandlerFunc
 	Auth      *AuthMiddleware
+	CSRF      *CSRFMiddleware // T111: CSRF protection
 }
 
 func NewMiddlewareRegistry(applicationRegistry *application.ApplicationRegistry) *MiddlewareRegistry {
@@ -24,6 +26,7 @@ func NewMiddlewareRegistry(applicationRegistry *application.ApplicationRegistry)
 		CORS:      NewCORSMiddleware(),
 		Logging:   NewLoggingMiddleware(),
 		Auth:      NewAuthMiddleware(applicationRegistry.JWTService),
+		CSRF:      NewCSRFMiddleware(config.GetAppConfig().CORS.AllowedOrigins, false), // Non-strict mode for API compatibility
 	}
 }
 
