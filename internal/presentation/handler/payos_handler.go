@@ -1,117 +1,214 @@
 package handler
 
 import (
-	"core-backend/config"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iproxies"
+	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
+	"encoding/json"
+	"io"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	"core-backend/internal/application/interfaces/iservice_third_party"
+	"go.uber.org/zap"
 )
 
 type PayOsHandler struct {
-	payOsService iservice_third_party.PayOSService
-	config       *config.AppConfig
+	paymentTransactionService iservice.PaymentTransactionService
+	payosProxy                iproxies.PayOSProxy
+	unitOfWork                irepository.UnitOfWork
 }
 
-func NewPayOsHandler(payOsService iservice_third_party.PayOSService) *PayOsHandler {
+func NewPayOsHandler(
+	paymentTransactionService iservice.PaymentTransactionService,
+	payosProxy iproxies.PayOSProxy,
+	unitOfWork irepository.UnitOfWork,
+) *PayOsHandler {
 	return &PayOsHandler{
-		payOsService: payOsService,
-		config:       config.GetAppConfig(),
+		paymentTransactionService: paymentTransactionService,
+		payosProxy:                payosProxy,
+		unitOfWork:                unitOfWork,
 	}
 }
 
 // GeneratePaymentLink godoc
 //
-//	@Summary		Create a PayOS payment
-//	@Description	Initiate a payment with PayOS. Backend sẽ tự set `cancelUrl` và `returnUrl` từ config, KHÔNG lấy từ client.
+//	@Summary		Create a PayOS payment link
+//	@Description	Generate a new PayOS payment link. Backend automatically sets cancelUrl and returnUrl from config.
 //	@Tags			payos
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		requests.PaymentRequest		true	"Payment Request (client should NOT send cancelUrl/returnUrl)"
-//	@Success		200		{object}	responses.PaymentResponse	"PayOS wrapper response"
-//	@Failure		400		{object}	map[string]string			"error"
+//	@Param			request	body		requests.PaymentRequest					true	"Payment Request"
+//	@Success		200		{object}	responses.APIResponse{data=responses.PayOSLinkResponse}	"Payment link created successfully"
+//	@Failure		400		{object}	responses.APIResponse					"Bad request"
+//	@Failure		500		{object}	responses.APIResponse					"Internal server error"
+//	@Security		BearerAuth
 //	@Router			/api/v1/payos/payment [post]
 func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 	var req requests.PaymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
 		return
 	}
-	result, err := h.payOsService.GeneratePayOSLink(req)
+
+	// Begin transaction
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Generate payment link
+	result, err := h.paymentTransactionService.GeneratePaymentLink(c.Request.Context(), uow, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		uow.Rollback()
+		zap.L().Error("Failed to generate payment link", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to generate payment link", http.StatusInternalServerError))
 		return
 	}
-	c.JSON(http.StatusOK, result)
+
+	// Commit transaction
+	if err := uow.Commit(); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to save payment transaction", http.StatusInternalServerError))
+		return
+	}
+
+	statusCode := http.StatusOK
+	c.JSON(http.StatusOK, responses.SuccessResponse("Payment link generated successfully", &statusCode, result))
 }
 
-// InspectPayOSOrder godoc
+// GetPaymentInfo godoc
 //
-//	@Summary		Get PayOS order info
-//	@Description	Inspect payment detail
+//	@Summary		Get PayOS payment information
+//	@Description	Retrieve payment details by order code
 //	@Tags			payos
 //	@Produce		json
-//	@Param			orderCode	path		string	true	"Order Code"
-//	@Success		200			{object}	map[string]any
-//	@Failure		400			{object}	map[string]string
+//	@Param			orderCode	path		string										true	"Order Code"
+//	@Success		200			{object}	responses.APIResponse{data=responses.PayOSOrderInfoResponse}	"Payment info retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse						"Bad request"
+//	@Failure		404			{object}	responses.APIResponse						"Payment not found"
+//	@Security		BearerAuth
 //	@Router			/api/v1/payos/payment/{orderCode} [get]
-func (h *PayOsHandler) InspectPayOSOrder(c *gin.Context) {
+func (h *PayOsHandler) GetPaymentInfo(c *gin.Context) {
 	orderCode := c.Param("orderCode")
-	result, err := h.payOsService.GetPayOSOrderInfo(orderCode)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if orderCode == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Order code is required", http.StatusBadRequest))
 		return
 	}
-	c.JSON(http.StatusOK, result)
+
+	result, err := h.paymentTransactionService.GetPaymentStatus(c.Request.Context(), orderCode)
+	if err != nil {
+		zap.L().Error("Failed to get payment info", zap.Error(err), zap.String("order_code", orderCode))
+		c.JSON(http.StatusNotFound, responses.ErrorResponse("Payment not found", http.StatusNotFound))
+		return
+	}
+
+	statusCode := http.StatusOK
+	c.JSON(http.StatusOK, responses.SuccessResponse("Payment info retrieved successfully", &statusCode, result))
 }
 
-//func (h *PayOsHandler) HandlePayOsWebhook(c *gin.Context) {
-//	var payload map[string]any
-//	if err := c.ShouldBindJSON(&payload); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//		return
-//	}
-//	if err := h.payOsService.ProcessPayOSWebhook(payload); err != nil {
-//		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-//		return
-//	}
-//	c.JSON(http.StatusOK, gin.H{"status": "success"})
-//}
-
-func (h *PayOsHandler) CancelCallback(c *gin.Context) {
-	codeStr := c.Query("code")     // ví dụ "00"
-	payosID := c.Query("id")       // ví dụ "ade25886f6f54a7d9a8840b1b48864a1"
-	cancelStr := c.Query("cancel") // ví dụ "true"
-	status := c.Query("status")    // ví dụ "CANCELLED"
-	orderCodeStr := c.Query("orderCode")
-
-	cancelFlag := strings.EqualFold(cancelStr, "true") || cancelStr == "1"
-	orderCode, err := strconv.ParseInt(orderCodeStr, 10, 64)
+// HandleWebhook godoc
+//
+//	@Summary		PayOS webhook endpoint
+//	@Description	Receives payment status updates from PayOS. This is a public endpoint with signature verification.
+//	@Tags			payos
+//	@Accept			json
+//	@Produce		json
+//	@Param			payload	body		dtos.PayOSWebhookPayload	true	"Webhook payload from PayOS"
+//	@Success		200		{object}	map[string]string			"Webhook processed successfully"
+//	@Failure		400		{object}	map[string]string			"Bad request"
+//	@Failure		401		{object}	map[string]string			"Invalid signature"
+//	@Router			/api/v1/payos/webhook [post]
+func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
+	// Read raw body for signature verification
+	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":       "invalid orderCode",
-			"orderCode":   orderCodeStr,
-			"description": "orderCode must be an integer",
-		})
+		zap.L().Error("Failed to read webhook body", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
 		return
 	}
 
-	_ = codeStr
-
-	isCancelled := strings.EqualFold(status, "CANCELLED") && cancelFlag
-
-	//update db
-	if isCancelled {
-		_ = orderCode
-		_ = payosID
-		_ = h.payOsService.UpdatePaymentStatus(orderCode, payosID, "User cancelled on return URL")
+	// Parse webhook payload
+	var webhookPayload dtos.PayOSWebhookPayload
+	if err = json.Unmarshal(bodyBytes, &webhookPayload); err != nil {
+		zap.L().Error("Failed to parse webhook payload", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
+		return
 	}
 
-	//return to FE
-	target := h.config.PayOS.FrontendCancelURL
-	c.Redirect(http.StatusFound, target)
+	// Verify signature
+	// Note: PayOS sends the signature in the payload itself, not as a header
+	// We need to reconstruct the data string and verify
+	dataBytes, err := json.Marshal(webhookPayload.Data)
+	if err != nil {
+		zap.L().Error("Failed to marshal webhook data", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook data"})
+		return
+	}
+
+	if !h.payosProxy.VerifyWebhookSignature(dataBytes, webhookPayload.Signature) {
+		zap.L().Warn("Invalid webhook signature",
+			zap.Int64("order_code", webhookPayload.Data.OrderCode),
+			zap.String("signature", webhookPayload.Signature))
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
+		return
+	}
+
+	// Begin transaction for webhook processing
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Process webhook
+	if err := h.paymentTransactionService.ProcessWebhook(c.Request.Context(), uow, &webhookPayload); err != nil {
+		uow.Rollback()
+		zap.L().Error("Failed to process webhook", zap.Error(err))
+		// Still return 200 to acknowledge receipt, but log the error
+		c.JSON(http.StatusOK, gin.H{"status": "received", "error": err.Error()})
+		return
+	}
+
+	// Commit transaction
+	if err := uow.Commit(); err != nil {
+		zap.L().Error("Failed to commit webhook transaction", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to commit transaction"})
+		return
+	}
+
+	zap.L().Info("Webhook processed successfully", zap.Int64("order_code", webhookPayload.Data.OrderCode))
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// CancelExpiredLinks godoc
+//
+//	@Summary		Cancel expired payment links
+//	@Description	Manually trigger cancellation of all expired PayOS payment links
+//	@Tags			payos
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=map[string]int}	"Cancellation completed"
+//	@Failure		500	{object}	responses.APIResponse						"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/payos/cancel-expired [post]
+func (h *PayOsHandler) CancelExpiredLinks(c *gin.Context) {
+	cancelledCount, err := h.paymentTransactionService.CancelExpiredLinks(c.Request.Context())
+	if err != nil {
+		zap.L().Error("Failed to cancel expired links", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel expired links", http.StatusInternalServerError))
+		return
+	}
+
+	statusCode := http.StatusOK
+	result := map[string]int{
+		"cancelled_count": cancelledCount,
+	}
+	c.JSON(http.StatusOK, responses.SuccessResponse("Expired links cancellation completed", &statusCode, result))
 }
