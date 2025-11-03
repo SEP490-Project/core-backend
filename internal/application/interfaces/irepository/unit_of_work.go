@@ -55,6 +55,11 @@ type UnitOfWork interface {
 	Notifications() NotificationRepository
 	DeviceTokens() DeviceTokenRepository
 
+	//Affiliate Link Tracking
+	AffiliateLinks() AffiliateLinkRepository
+	ClickEvents() ClickEventRepository
+	KPIMetrics() GenericRepository[model.KPIMetrics]
+
 	// DB Get raw gorm instance
 	DB() *gorm.DB
 }

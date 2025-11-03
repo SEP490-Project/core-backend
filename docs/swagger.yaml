@@ -506,6 +506,16 @@ definitions:
     x-enum-varnames:
     - AddressTypeBilling
     - AddressTypeShipping
+  enum.AffiliateLinkStatus:
+    enum:
+    - active
+    - inactive
+    - expired
+    type: string
+    x-enum-varnames:
+    - AffiliateLinkStatusActive
+    - AffiliateLinkStatusInactive
+    - AffiliateLinkStatusExpired
   enum.AttributeUnit:
     enum:
     - '%'
@@ -1092,6 +1102,23 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  requests.CreateAffiliateLinkRequest:
+    properties:
+      channel_id:
+        type: string
+      content_id:
+        type: string
+      contract_id:
+        type: string
+      tracking_url:
+        maxLength: 2048
+        type: string
+    required:
+    - channel_id
+    - content_id
+    - contract_id
+    - tracking_url
     type: object
   requests.CreateBrandRequest:
     properties:
@@ -1792,6 +1819,11 @@ definitions:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
     type: object
+  requests.PublishContentRequest:
+    properties:
+      publish_date:
+        type: string
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -1814,6 +1846,14 @@ definitions:
     required:
     - platform
     - token
+    type: object
+  requests.RejectContentRequest:
+    properties:
+      feedback:
+        maxLength: 1000
+        type: string
+    required:
+    - feedback
     type: object
   requests.SignUpRequest:
     properties:
@@ -1911,6 +1951,18 @@ definitions:
     - street
     - type
     - user_id
+    type: object
+  requests.UpdateAffiliateLinkRequest:
+    properties:
+      status:
+        enum:
+        - active
+        - inactive
+        - expired
+        type: string
+      tracking_url:
+        maxLength: 2048
+        type: string
     type: object
   requests.UpdateBlogRequest:
     properties:
@@ -2297,6 +2349,83 @@ definitions:
         example: STRING
         type: string
     type: object
+  responses.AffiliateLinkChannel:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  responses.AffiliateLinkContent:
+    properties:
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+  responses.AffiliateLinkListResponse:
+    properties:
+      links:
+        items:
+          $ref: '#/definitions/responses.AffiliateLinkResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+    type: object
+  responses.AffiliateLinkMetric:
+    properties:
+      affiliate_link_id:
+        type: string
+      channel:
+        type: string
+      ctr:
+        type: number
+      link_name:
+        type: string
+      rank:
+        description: Position in top performers
+        type: integer
+      short_hash:
+        type: string
+      total_clicks:
+        type: integer
+      tracking_url:
+        type: string
+      unique_users:
+        type: integer
+    type: object
+  responses.AffiliateLinkResponse:
+    properties:
+      channel:
+        $ref: '#/definitions/responses.AffiliateLinkChannel'
+      channel_id:
+        type: string
+      content:
+        $ref: '#/definitions/responses.AffiliateLinkContent'
+      content_id:
+        type: string
+      contract:
+        allOf:
+        - $ref: '#/definitions/responses.ContractSummary'
+        description: Optional nested objects (using existing summary types)
+      contract_id:
+        type: string
+      created_at:
+        type: string
+      hash:
+        type: string
+      id:
+        type: string
+      short_url:
+        description: e.g., "https://domain.com/r/{hash}"
+        type: string
+      status:
+        $ref: '#/definitions/enum.AffiliateLinkStatus'
+      tracking_url:
+        type: string
+      updated_at:
+        type: string
+    type: object
   responses.BlogResponse:
     properties:
       author:
@@ -2613,6 +2742,33 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.ChannelMetricItem:
+    properties:
+      channel:
+        description: e.g., "TIKTOK", "FACEBOOK"
+        type: string
+      ctr:
+        type: number
+      link_count:
+        description: Number of affiliate links in this channel
+        type: integer
+      percent_total:
+        description: Percentage of total clicks
+        type: number
+      total_clicks:
+        type: integer
+      unique_users:
+        type: integer
+    type: object
+  responses.ChannelMetricsResponse:
+    properties:
+      channels:
+        items:
+          $ref: '#/definitions/responses.ChannelMetricItem'
+        type: array
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+    type: object
   responses.ChannelResponse:
     properties:
       created_at:
@@ -2699,6 +2855,23 @@ definitions:
       updated_at:
         type: string
     type: object
+  responses.ContractAnalyticsSummary:
+    properties:
+      brand_name:
+        type: string
+      contract_id:
+        type: string
+      contract_name:
+        type: string
+      ctr:
+        type: number
+      rank:
+        type: integer
+      total_clicks:
+        type: integer
+      unique_users:
+        type: integer
+    type: object
   responses.ContractListResponse:
     properties:
       brand_id:
@@ -2737,6 +2910,32 @@ definitions:
       updated_at:
         example: "2006-01-02 15:04:05"
         type: string
+    type: object
+  responses.ContractMetricsResponse:
+    properties:
+      brand_name:
+        type: string
+      contract_id:
+        type: string
+      contract_name:
+        type: string
+      ctr:
+        description: Click-through rate
+        type: number
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      top_channels:
+        items:
+          $ref: '#/definitions/responses.ChannelMetricItem'
+        type: array
+      top_links:
+        items:
+          $ref: '#/definitions/responses.AffiliateLinkMetric'
+        type: array
+      total_clicks:
+        type: integer
+      unique_users:
+        type: integer
     type: object
   responses.ContractPaginationResponse:
     properties:
@@ -2877,6 +3076,30 @@ definitions:
       type:
         example: ADVERTISING
         type: string
+    type: object
+  responses.DashboardMetricsResponse:
+    properties:
+      overview:
+        $ref: '#/definitions/responses.OverviewMetrics'
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      recent_activity:
+        items:
+          $ref: '#/definitions/responses.RecentActivityItem'
+        type: array
+      top_channels:
+        items:
+          $ref: '#/definitions/responses.ChannelMetricItem'
+        type: array
+      top_contracts:
+        items:
+          $ref: '#/definitions/responses.ContractAnalyticsSummary'
+        type: array
+      trend_data:
+        description: Last 7 days by default
+        items:
+          $ref: '#/definitions/responses.TrendDataPoint'
+        type: array
     type: object
   responses.DeviceTokenListResponse:
     properties:
@@ -3026,6 +3249,25 @@ definitions:
       user_id:
         type: string
     type: object
+  responses.OverviewMetrics:
+    properties:
+      active_contracts:
+        type: integer
+      average_ctr:
+        type: number
+      click_growth:
+        description: Percentage change from previous period
+        type: number
+      total_clicks:
+        type: integer
+      total_links:
+        type: integer
+      unique_users:
+        type: integer
+      user_growth:
+        description: Percentage change from previous period
+        type: number
+    type: object
   responses.Pagination:
     properties:
       has_next:
@@ -3094,6 +3336,13 @@ definitions:
       desc:
         type: string
       signature:
+        type: string
+    type: object
+  responses.PeriodInfo:
+    properties:
+      end_date:
+        type: string
+      start_date:
         type: string
     type: object
   responses.ProductAttributesResponse:
@@ -3327,6 +3576,19 @@ definitions:
       UpdatedEmployee:
         type: integer
       UpdatedSource:
+        type: string
+    type: object
+  responses.RecentActivityItem:
+    properties:
+      affiliate_link_id:
+        type: string
+      channel:
+        type: string
+      click_count:
+        type: integer
+      link_name:
+        type: string
+      timestamp:
         type: string
     type: object
   responses.SessionInfo:
@@ -3623,6 +3885,56 @@ definitions:
         example: John Doe
         type: string
     type: object
+  responses.TimeSeriesDataResponse:
+    properties:
+      affiliate_link_id:
+        type: string
+      channel:
+        type: string
+      data_points:
+        items:
+          $ref: '#/definitions/responses.TimeSeriesPoint'
+        type: array
+      granularity:
+        description: e.g., "HOUR", "DAY", "WEEK"
+        type: string
+      link_name:
+        type: string
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      tracking_url:
+        type: string
+    type: object
+  responses.TimeSeriesPoint:
+    properties:
+      clicks:
+        type: integer
+      timestamp:
+        type: string
+      unique_users:
+        type: integer
+    type: object
+  responses.TopPerformerResponse:
+    properties:
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      sort_by:
+        description: e.g., "CLICKS", "CTR"
+        type: string
+      top_links:
+        items:
+          $ref: '#/definitions/responses.AffiliateLinkMetric'
+        type: array
+    type: object
+  responses.TrendDataPoint:
+    properties:
+      clicks:
+        type: integer
+      date:
+        type: string
+      unique_users:
+        type: integer
+    type: object
   responses.UserBrief:
     properties:
       email:
@@ -3896,6 +4208,474 @@ info:
   title: SEP490 Core Backend API
   version: "1.0"
 paths:
+  /api/v1/affiliate-links:
+    get:
+      description: Retrieve a paginated list of affiliate links with optional filtering
+      parameters:
+      - description: Filter by Contract ID
+        in: query
+        name: contract_id
+        type: string
+      - description: Filter by Content ID
+        in: query
+        name: content_id
+        type: string
+      - description: Filter by Channel ID
+        in: query
+        name: channel_id
+        type: string
+      - description: Filter by status (active, inactive, expired)
+        in: query
+        name: status
+        type: string
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page_number
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Affiliate links retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AffiliateLinkListResponse'
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Affiliate Links
+      tags:
+      - AffiliateLinks
+    post:
+      consumes:
+      - application/json
+      description: Create a new affiliate link or return existing one for the same
+        context
+      parameters:
+      - description: Affiliate link creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateAffiliateLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Existing affiliate link returned
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AffiliateLinkResponse'
+              type: object
+        "201":
+          description: Affiliate link created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AffiliateLinkResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract/Content/Channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create or Get Affiliate Link
+      tags:
+      - AffiliateLinks
+  /api/v1/affiliate-links/{id}:
+    delete:
+      description: Soft-delete an affiliate link
+      parameters:
+      - description: Affiliate Link ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Affiliate link deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Affiliate link not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Affiliate Link
+      tags:
+      - AffiliateLinks
+    get:
+      description: Retrieve a specific affiliate link by its ID
+      parameters:
+      - description: Affiliate Link ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Affiliate link retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AffiliateLinkResponse'
+              type: object
+        "404":
+          description: Affiliate link not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Affiliate Link by ID
+      tags:
+      - AffiliateLinks
+    put:
+      consumes:
+      - application/json
+      description: Update an affiliate link's status or tracking URL
+      parameters:
+      - description: Affiliate Link ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateAffiliateLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Affiliate link updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AffiliateLinkResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Affiliate link not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Affiliate Link
+      tags:
+      - AffiliateLinks
+  /api/v1/analytics/affiliate-links/by-channel:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves aggregated metrics for all channels with comparison data
+      parameters:
+      - description: Start date (ISO 8601)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelMetricsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get analytics metrics grouped by channel
+      tags:
+      - Analytics/AffiliateLinks
+  /api/v1/analytics/affiliate-links/by-contract/{contract_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves click metrics, CTR, top channels, and top links for a
+        contract
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: contract_id
+        required: true
+        type: string
+      - description: Start date (ISO 8601)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractMetricsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get analytics metrics for a specific contract
+      tags:
+      - Analytics/AffiliateLinks
+  /api/v1/analytics/affiliate-links/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves overview metrics, top contracts, channels, recent activity,
+        and trends
+      parameters:
+      - description: Start date (ISO 8601)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.DashboardMetricsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get dashboard metrics with parallel aggregation
+      tags:
+      - Analytics/AffiliateLinks
+  /api/v1/analytics/affiliate-links/time-series/{affiliate_link_id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves time-bucketed click data for trend analysis
+      parameters:
+      - description: Affiliate Link ID
+        format: uuid
+        in: path
+        name: affiliate_link_id
+        required: true
+        type: string
+      - description: Start date (ISO 8601)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: DAY
+        description: Time bucket size
+        enum:
+        - HOUR
+        - DAY
+        - WEEK
+        - MONTH
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TimeSeriesDataResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get time-series data for a specific affiliate link
+      tags:
+      - Analytics/AffiliateLinks
+  /api/v1/analytics/affiliate-links/top-performers:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves ranked list of best performing links based on sorting
+        criteria
+      parameters:
+      - description: Start date (ISO 8601)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: CLICKS
+        description: Sort criteria
+        enum:
+        - CLICKS
+        - CTR
+        - ENGAGEMENT
+        in: query
+        name: sort_by
+        type: string
+      - default: 10
+        description: Number of results
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.TopPerformerResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get top performing affiliate links
+      tags:
+      - Analytics/AffiliateLinks
   /api/v1/auth/login:
     post:
       consumes:
@@ -5657,7 +6437,7 @@ paths:
         in: body
         name: body
         schema:
-          type: object
+          $ref: '#/definitions/requests.PublishContentRequest'
       produces:
       - application/json
       responses:
@@ -5705,7 +6485,7 @@ paths:
         name: body
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/requests.RejectContentRequest'
       produces:
       - application/json
       responses:
@@ -9442,6 +10222,42 @@ paths:
       summary: Readiness Check
       tags:
       - Health
+  /r/{hash}:
+    get:
+      consumes:
+      - application/json
+      description: Resolves affiliate link hash and redirects to tracking URL while
+        logging click event asynchronously
+      parameters:
+      - description: 16-character affiliate link hash
+        in: path
+        name: hash
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirects to tracking URL
+        "404":
+          description: Affiliate link not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "410":
+          description: Affiliate link expired or inactive
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Redirect to affiliate tracking URL
+      tags:
+      - Redirect
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

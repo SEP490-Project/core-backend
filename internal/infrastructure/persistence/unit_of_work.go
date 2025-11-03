@@ -52,6 +52,11 @@ type unitOfWork struct {
 	//Notifications
 	notificationRepository irepository.NotificationRepository
 	deviceTokenRepository  irepository.DeviceTokenRepository
+
+	//Affiliate Link Tracking
+	affiliateLinkRepository irepository.AffiliateLinkRepository
+	clickEventRepository    irepository.ClickEventRepository
+	kpiMetricsRepository    irepository.GenericRepository[model.KPIMetrics]
 }
 
 func NewUnitOfWork(db *gorm.DB) irepository.UnitOfWork {
@@ -116,6 +121,11 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	//Notifications
 	txUow.notificationRepository = gormrepository.NewNotificationRepository(tx)
 	txUow.deviceTokenRepository = gormrepository.NewDeviceTokenRepository(tx)
+
+	//Affiliate Link Tracking
+	txUow.affiliateLinkRepository = gormrepository.NewAffiliateLinkRepository(tx)
+	txUow.clickEventRepository = gormrepository.NewClickEventRepository(tx)
+	txUow.kpiMetricsRepository = gormrepository.NewGenericRepository[model.KPIMetrics](tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return txUow
@@ -281,6 +291,18 @@ func (u *unitOfWork) DeviceTokens() irepository.DeviceTokenRepository {
 
 func (u *unitOfWork) Tags() irepository.TagRepository {
 	return u.tagRepository
+}
+
+func (u *unitOfWork) AffiliateLinks() irepository.AffiliateLinkRepository {
+	return u.affiliateLinkRepository
+}
+
+func (u *unitOfWork) ClickEvents() irepository.ClickEventRepository {
+	return u.clickEventRepository
+}
+
+func (u *unitOfWork) KPIMetrics() irepository.GenericRepository[model.KPIMetrics] {
+	return u.kpiMetricsRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

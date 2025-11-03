@@ -17,6 +17,762 @@
     },
     "host": "localhost:8080",
     "paths": {
+        "/api/v1/affiliate-links": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a paginated list of affiliate links with optional filtering",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AffiliateLinks"
+                ],
+                "summary": "List Affiliate Links",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by Contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Content ID",
+                        "name": "content_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Channel ID",
+                        "name": "channel_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (active, inactive, expired)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 20, max: 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page_number",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Affiliate links retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AffiliateLinkListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new affiliate link or return existing one for the same context",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AffiliateLinks"
+                ],
+                "summary": "Create or Get Affiliate Link",
+                "parameters": [
+                    {
+                        "description": "Affiliate link creation data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateAffiliateLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Existing affiliate link returned",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AffiliateLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "201": {
+                        "description": "Affiliate link created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AffiliateLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract/Content/Channel not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/affiliate-links/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific affiliate link by its ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AffiliateLinks"
+                ],
+                "summary": "Get Affiliate Link by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Affiliate Link ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Affiliate link retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AffiliateLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Affiliate link not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an affiliate link's status or tracking URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AffiliateLinks"
+                ],
+                "summary": "Update Affiliate Link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Affiliate Link ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateAffiliateLinkRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Affiliate link updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AffiliateLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Affiliate link not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-delete an affiliate link",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AffiliateLinks"
+                ],
+                "summary": "Delete Affiliate Link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Affiliate Link ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Affiliate link deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Affiliate link not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/affiliate-links/by-channel": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves aggregated metrics for all channels with comparison data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/AffiliateLinks"
+                ],
+                "summary": "Get analytics metrics grouped by channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (ISO 8601)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (ISO 8601)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ChannelMetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/affiliate-links/by-contract/{contract_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves click metrics, CTR, top channels, and top links for a contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/AffiliateLinks"
+                ],
+                "summary": "Get analytics metrics for a specific contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (ISO 8601)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (ISO 8601)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractMetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/affiliate-links/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves overview metrics, top contracts, channels, recent activity, and trends",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/AffiliateLinks"
+                ],
+                "summary": "Get dashboard metrics with parallel aggregation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (ISO 8601)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (ISO 8601)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.DashboardMetricsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/affiliate-links/time-series/{affiliate_link_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves time-bucketed click data for trend analysis",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/AffiliateLinks"
+                ],
+                "summary": "Get time-series data for a specific affiliate link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Affiliate Link ID",
+                        "name": "affiliate_link_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (ISO 8601)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (ISO 8601)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "HOUR",
+                            "DAY",
+                            "WEEK",
+                            "MONTH"
+                        ],
+                        "type": "string",
+                        "default": "DAY",
+                        "description": "Time bucket size",
+                        "name": "granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TimeSeriesDataResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/affiliate-links/top-performers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves ranked list of best performing links based on sorting criteria",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/AffiliateLinks"
+                ],
+                "summary": "Get top performing affiliate links",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (ISO 8601)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (ISO 8601)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "CLICKS",
+                            "CTR",
+                            "ENGAGEMENT"
+                        ],
+                        "type": "string",
+                        "default": "CLICKS",
+                        "description": "Sort criteria",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.TopPerformerResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with credentials",
@@ -2979,7 +3735,7 @@
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/requests.PublishContentRequest"
                         }
                     }
                 ],
@@ -3056,7 +3812,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/requests.RejectContentRequest"
                         }
                     }
                 ],
@@ -8734,6 +9490,59 @@
                     }
                 }
             }
+        },
+        "/r/{hash}": {
+            "get": {
+                "description": "Resolves affiliate link hash and redirects to tracking URL while logging click event asynchronously",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Redirect"
+                ],
+                "summary": "Redirect to affiliate tracking URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "16-character affiliate link hash",
+                        "name": "hash",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to tracking URL"
+                    },
+                    "404": {
+                        "description": "Affiliate link not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "410": {
+                        "description": "Affiliate link expired or inactive",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -9442,6 +10251,19 @@
             "x-enum-varnames": [
                 "AddressTypeBilling",
                 "AddressTypeShipping"
+            ]
+        },
+        "enum.AffiliateLinkStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "inactive",
+                "expired"
+            ],
+            "x-enum-varnames": [
+                "AffiliateLinkStatusActive",
+                "AffiliateLinkStatusInactive",
+                "AffiliateLinkStatusExpired"
             ]
         },
         "enum.AttributeUnit": {
@@ -10230,6 +11052,30 @@
                 "video_thumbnail": {
                     "type": "string",
                     "example": "https://example.com/thumbnail.jpg"
+                }
+            }
+        },
+        "requests.CreateAffiliateLinkRequest": {
+            "type": "object",
+            "required": [
+                "channel_id",
+                "content_id",
+                "contract_id",
+                "tracking_url"
+            ],
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "tracking_url": {
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },
@@ -11177,6 +12023,14 @@
                 }
             }
         },
+        "requests.PublishContentRequest": {
+            "type": "object",
+            "properties": {
+                "publish_date": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -11210,6 +12064,18 @@
                 "token": {
                     "type": "string",
                     "minLength": 10
+                }
+            }
+        },
+        "requests.RejectContentRequest": {
+            "type": "object",
+            "required": [
+                "feedback"
+            ],
+            "properties": {
+                "feedback": {
+                    "type": "string",
+                    "maxLength": 1000
                 }
             }
         },
@@ -11332,6 +12198,23 @@
                 "user_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "requests.UpdateAffiliateLinkRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "inactive",
+                        "expired"
+                    ]
+                },
+                "tracking_url": {
+                    "type": "string",
+                    "maxLength": 2048
                 }
             }
         },
@@ -11856,6 +12739,125 @@
                 }
             }
         },
+        "responses.AffiliateLinkChannel": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.AffiliateLinkContent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.AffiliateLinkListResponse": {
+            "type": "object",
+            "properties": {
+                "links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AffiliateLinkResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                }
+            }
+        },
+        "responses.AffiliateLinkMetric": {
+            "type": "object",
+            "properties": {
+                "affiliate_link_id": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "ctr": {
+                    "type": "number"
+                },
+                "link_name": {
+                    "type": "string"
+                },
+                "rank": {
+                    "description": "Position in top performers",
+                    "type": "integer"
+                },
+                "short_hash": {
+                    "type": "string"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "tracking_url": {
+                    "type": "string"
+                },
+                "unique_users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.AffiliateLinkResponse": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "$ref": "#/definitions/responses.AffiliateLinkChannel"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "$ref": "#/definitions/responses.AffiliateLinkContent"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "contract": {
+                    "description": "Optional nested objects (using existing summary types)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ContractSummary"
+                        }
+                    ]
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "short_url": {
+                    "description": "e.g., \"https://domain.com/r/{hash}\"",
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.AffiliateLinkStatus"
+                },
+                "tracking_url": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BlogResponse": {
             "type": "object",
             "properties": {
@@ -12308,6 +13310,46 @@
                 }
             }
         },
+        "responses.ChannelMetricItem": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "e.g., \"TIKTOK\", \"FACEBOOK\"",
+                    "type": "string"
+                },
+                "ctr": {
+                    "type": "number"
+                },
+                "link_count": {
+                    "description": "Number of affiliate links in this channel",
+                    "type": "integer"
+                },
+                "percent_total": {
+                    "description": "Percentage of total clicks",
+                    "type": "number"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "unique_users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ChannelMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelMetricItem"
+                    }
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                }
+            }
+        },
         "responses.ChannelResponse": {
             "type": "object",
             "properties": {
@@ -12435,6 +13477,32 @@
                 }
             }
         },
+        "responses.ContractAnalyticsSummary": {
+            "type": "object",
+            "properties": {
+                "brand_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_name": {
+                    "type": "string"
+                },
+                "ctr": {
+                    "type": "number"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "unique_users": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.ContractListResponse": {
             "type": "object",
             "properties": {
@@ -12485,6 +13553,45 @@
                 "updated_at": {
                     "type": "string",
                     "example": "2006-01-02 15:04:05"
+                }
+            }
+        },
+        "responses.ContractMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "brand_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_name": {
+                    "type": "string"
+                },
+                "ctr": {
+                    "description": "Click-through rate",
+                    "type": "number"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "top_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelMetricItem"
+                    }
+                },
+                "top_links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AffiliateLinkMetric"
+                    }
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "unique_users": {
+                    "type": "integer"
                 }
             }
         },
@@ -12680,6 +13787,42 @@
                 "type": {
                     "type": "string",
                     "example": "ADVERTISING"
+                }
+            }
+        },
+        "responses.DashboardMetricsResponse": {
+            "type": "object",
+            "properties": {
+                "overview": {
+                    "$ref": "#/definitions/responses.OverviewMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "recent_activity": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RecentActivityItem"
+                    }
+                },
+                "top_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelMetricItem"
+                    }
+                },
+                "top_contracts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractAnalyticsSummary"
+                    }
+                },
+                "trend_data": {
+                    "description": "Last 7 days by default",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TrendDataPoint"
+                    }
                 }
             }
         },
@@ -12907,6 +14050,34 @@
                 }
             }
         },
+        "responses.OverviewMetrics": {
+            "type": "object",
+            "properties": {
+                "active_contracts": {
+                    "type": "integer"
+                },
+                "average_ctr": {
+                    "type": "number"
+                },
+                "click_growth": {
+                    "description": "Percentage change from previous period",
+                    "type": "number"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "total_links": {
+                    "type": "integer"
+                },
+                "unique_users": {
+                    "type": "integer"
+                },
+                "user_growth": {
+                    "description": "Percentage change from previous period",
+                    "type": "number"
+                }
+            }
+        },
         "responses.Pagination": {
             "type": "object",
             "properties": {
@@ -13010,6 +14181,17 @@
                     "type": "string"
                 },
                 "signature": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.PeriodInfo": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
                     "type": "string"
                 }
             }
@@ -13359,6 +14541,26 @@
                     "type": "integer"
                 },
                 "UpdatedSource": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.RecentActivityItem": {
+            "type": "object",
+            "properties": {
+                "affiliate_link_id": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "click_count": {
+                    "type": "integer"
+                },
+                "link_name": {
+                    "type": "string"
+                },
+                "timestamp": {
                     "type": "string"
                 }
             }
@@ -13770,6 +14972,82 @@
                 "updated_by_name": {
                     "type": "string",
                     "example": "John Doe"
+                }
+            }
+        },
+        "responses.TimeSeriesDataResponse": {
+            "type": "object",
+            "properties": {
+                "affiliate_link_id": {
+                    "type": "string"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "data_points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TimeSeriesPoint"
+                    }
+                },
+                "granularity": {
+                    "description": "e.g., \"HOUR\", \"DAY\", \"WEEK\"",
+                    "type": "string"
+                },
+                "link_name": {
+                    "type": "string"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "tracking_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.TimeSeriesPoint": {
+            "type": "object",
+            "properties": {
+                "clicks": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "unique_users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.TopPerformerResponse": {
+            "type": "object",
+            "properties": {
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "sort_by": {
+                    "description": "e.g., \"CLICKS\", \"CTR\"",
+                    "type": "string"
+                },
+                "top_links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AffiliateLinkMetric"
+                    }
+                }
+            }
+        },
+        "responses.TrendDataPoint": {
+            "type": "object",
+            "properties": {
+                "clicks": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "unique_users": {
+                    "type": "integer"
                 }
             }
         },

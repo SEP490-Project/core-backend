@@ -8,7 +8,9 @@ import (
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/persistence"
+	"core-backend/internal/infrastructure/proxies"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/scheduler"
 	"core-backend/internal/infrastructure/service"
@@ -31,16 +33,19 @@ type InfrastructureRegistry struct {
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
 	GHNService        iservice_third_party.GHNService
+	ProxiesRegistry   *proxies.ProxiesRegistry
 
 	//Automatic Trigger
 	schedulers []scheduler.TaskScheduler
 	//Manual Trigger Schedulers
 	LocationSyncTask scheduler.TaskScheduler
+	CronJobsRegistry *jobs.CronJobRegistry
 }
 
 func NewInfrastructureRegistry(
 	config *config.AppConfig,
 	db *gorm.DB,
+	dbReg *gormrepository.DatabaseRegistry,
 	s3Bucket *persistence.S3Bucket,
 	s3StreamBucket *persistence.S3StreamingBucket,
 ) *InfrastructureRegistry {
@@ -129,6 +134,16 @@ func NewInfrastructureRegistry(
 	registry.HealthMonitor = healthMonitor
 	zap.L().Info("Health Monitor initialized successfully")
 
+	// Initialize Cron Scheduler
+	zap.L().Debug("Initializing Cron Jobs Scheduler...")
+	registry.CronJobsRegistry = jobs.NewCronJobRegistry(dbReg, db, &config.AdminConfig)
+	zap.L().Info("Cron Jobs Scheduler initialized successfully")
+
+	// Initialize Proxies Registry
+	zap.L().Debug("Initializing Proxies Registry...")
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config)
+	zap.L().Info("Proxies Registry initialized successfully")
+
 	// Override AdminConfig from Database
 	zap.L().Debug("Overriding AdminConfig from database")
 	err = registry.OverrideAdminConfig()
@@ -211,6 +226,13 @@ func (r *InfrastructureRegistry) StartSchedulers(ctx context.Context) {
 // StopServices gracefully stops all services
 func (r *InfrastructureRegistry) StopServices() {
 	zap.L().Info("Stopping infrastructure services...")
+
+	// Stop cron scheduler
+	if r.CronJobsRegistry != nil {
+		ctx := r.CronJobsRegistry.StopCronScheduler()
+		<-ctx.Done()
+		zap.L().Info("Cron scheduler stopped successfully")
+	}
 
 	// Close RabbitMQ connection
 	if r.RabbitMQ != nil {

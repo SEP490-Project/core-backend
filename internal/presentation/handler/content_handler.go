@@ -414,8 +414,8 @@ func (h *ContentHandler) Approve(c *gin.Context) {
 //	@Tags			Content
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string	true	"Content ID"
-//	@Param			body	body		object	true	"Rejection reason"	example({"reason":"Quality does not meet standards"})
+//	@Param			id		path		string							true	"Content ID"
+//	@Param			body	body		requests.RejectContentRequest	true	"Rejection reason"	example({"reason":"Quality does not meet standards"})
 //	@Success		200		{object}	responses.APIResponse{data=map[string]any}
 //	@Failure		400		{object}	responses.APIResponse
 //	@Failure		404		{object}	responses.APIResponse
@@ -505,8 +505,8 @@ func (h *ContentHandler) Reject(c *gin.Context) {
 //	@Tags			Content
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string	true	"Content ID"
-//	@Param			body	body		object	false	"Optional publish date"	example({"publish_date":"2025-12-25T10:00:00Z"})
+//	@Param			id		path		string							true	"Content ID"
+//	@Param			body	body		requests.PublishContentRequest	false	"Optional publish date"	example({"publish_date":"2025-12-25T10:00:00Z"})
 //	@Success		200		{object}	responses.APIResponse{data=map[string]any}
 //	@Failure		400		{object}	responses.APIResponse
 //	@Failure		404		{object}	responses.APIResponse
