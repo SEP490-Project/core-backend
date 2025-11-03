@@ -53,6 +53,23 @@ definitions:
     required:
     - platform
     type: object
+  dtos.ApplicationDeliveryFeeItem:
+    properties:
+      height:
+        type: integer
+      length:
+        type: integer
+      name:
+        type: string
+      price:
+        type: integer
+      quantity:
+        type: integer
+      weight:
+        type: integer
+      width:
+        type: integer
+    type: object
   dtos.BrandAmbassadorEvent:
     properties:
       activities:
@@ -245,6 +262,44 @@ definitions:
         example: https://affiliate.example.com/track?ref=12345
         maxLength: 500
         type: string
+    type: object
+  dtos.DeliveryAvailableServiceDTO:
+    properties:
+      service_id:
+        type: integer
+      service_type_id:
+        type: integer
+      short_name:
+        type: string
+    type: object
+  dtos.DeliveryFeeSuccess:
+    properties:
+      cod_failed_fee:
+        type: integer
+      cod_fee:
+        type: integer
+      coupon_value:
+        type: integer
+      deliver_remote_areas_fee:
+        type: integer
+      document_return:
+        type: integer
+      double_check:
+        type: integer
+      insurance_fee:
+        type: integer
+      pick_remote_areas_fee:
+        type: integer
+      pick_station_fee:
+        type: integer
+      r2s_fee:
+        type: integer
+      return_again:
+        type: integer
+      service_fee:
+        type: integer
+      total:
+        type: integer
     type: object
   dtos.FinancialTerms:
     properties:
@@ -661,6 +716,21 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
+  handler.CalculateDeliveryPriceByDimensionRequest:
+    properties:
+      delivery_service:
+        $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
+      items:
+        items:
+          $ref: '#/definitions/dtos.ApplicationDeliveryFeeItem'
+        type: array
+      to_district_id:
+        example: 1454
+        type: integer
+      to_ward_code:
+        example: "012345"
+        type: string
+    type: object
   handler.UpdateMilestoneStateRequest:
     properties:
       state:
@@ -792,9 +862,25 @@ definitions:
     type: object
   model.Order:
     properties:
-      address_id:
+      address_line2:
+        type: string
+      city:
         type: string
       created_at:
+        type: string
+      district_name:
+        type: string
+      email:
+        type: string
+      full_name:
+        description: Copied shipping address fields (migration moved from a foreign
+          key to flat columns)
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_province_id:
+        type: integer
+      ghn_ward_code:
         type: string
       id:
         type: string
@@ -802,13 +888,21 @@ definitions:
         items:
           $ref: '#/definitions/model.OrderItem'
         type: array
+      phone_number:
+        type: string
+      province_name:
+        type: string
       status:
         $ref: '#/definitions/enum.OrderStatus'
+      street:
+        type: string
       total_amount:
         type: number
       updated_at:
         type: string
       user_id:
+        type: string
+      ward_name:
         type: string
     type: object
   model.OrderItem:
@@ -823,10 +917,16 @@ definitions:
         $ref: '#/definitions/enum.DispenserType'
       expiry_date:
         type: string
+      height:
+        description: in centimeters
+        type: integer
       id:
         type: string
       instructions:
         type: string
+      length:
+        description: in centimeters
+        type: integer
       manufacturing_date:
         type: string
       order_id:
@@ -846,6 +946,12 @@ definitions:
         type: string
       variant_id:
         type: string
+      weight:
+        description: DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+        type: integer
+      width:
+        description: in centimeters
+        type: integer
     type: object
   model.VariantAttribute:
     properties:
@@ -934,17 +1040,27 @@ definitions:
       expiry_date:
         example: "2025-10-01T00:00:00Z"
         type: string
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
       instructions:
         example: Shake well before use
         type: string
       is_default:
         example: true
         type: boolean
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
       manufacturing_date:
         example: "2023-10-01T00:00:00Z"
         type: string
       price:
-        example: 29.99
+        example: 1000
         minimum: 1000
         type: number
       story:
@@ -952,6 +1068,15 @@ definitions:
       uses:
         example: For daily use
         type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
     required:
     - capacity_unit
     - container_type
@@ -1535,11 +1660,14 @@ definitions:
       full_name:
         type: string
       ghn_district_id:
+        example: 3176
         type: integer
       ghn_province_id:
         description: from GHN
+        example: 202
         type: integer
       ghn_ward_code:
+        example: "21015"
         type: string
       is_default:
         type: boolean
@@ -3486,20 +3614,29 @@ definitions:
       city:
         example: New York
         type: string
-      company:
-        example: Acme Corp
-        type: string
       country:
         example: USA
         type: string
       created_at:
         example: "2023-12-30 15:04:05"
         type: string
+      district_name:
+        example: Quận 9
+        type: string
       email:
         example: john@example.com
         type: string
       full_name:
         example: John Doe
+        type: string
+      ghn_district_id:
+        example: 1451
+        type: integer
+      ghn_province_id:
+        example: 202
+        type: integer
+      ghn_ward_code:
+        example: "20901"
         type: string
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -3513,8 +3650,8 @@ definitions:
       postal_code:
         example: "10001"
         type: string
-      state:
-        example: NY
+      province_name:
+        example: Hồ Chí Minh
         type: string
       street:
         example: 123 Main St
@@ -3527,6 +3664,9 @@ definitions:
         type: string
       user_id:
         example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      ward_name:
+        example: Phường Hiệp Phú
         type: string
     type: object
   responses.SignUpResponse:
@@ -7439,6 +7579,146 @@ paths:
       summary: Upload a video chunk (streaming upload)
       tags:
       - files
+  /api/v1/ghn/{district-id}/shipping-services:
+    get:
+      consumes:
+      - application/json
+      description: Fetch GHN delivery service options available for a specific district
+      parameters:
+      - description: District ID
+        in: path
+        name: district-id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN delivery services by district ID (public endpoint)
+      tags:
+      - ghn
+  /api/v1/ghn/delivery/calculate-by-dimension:
+    post:
+      consumes:
+      - application/json
+      description: Compute GHN delivery fee by providing destination district/ward
+        and a list of items (dimensions/weight)
+      parameters:
+      - description: Delivery fee request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CalculateDeliveryPriceByDimensionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DeliveryFeeSuccess'
+      security:
+      - BearerAuth: []
+      summary: Calculate delivery fee by explicit destination and items
+      tags:
+      - ghn
+  /api/v1/ghn/order/{order-id}/shipping-services:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve list of GHN delivery service options based on the order's
+        destination
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: order-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get available GHN delivery services for an order
+      tags:
+      - ghn
+  /api/v1/ghn/orders/{order-id}/calculate:
+    post:
+      consumes:
+      - application/json
+      description: Compute GHN delivery fee based on an existing order ID and selected
+        delivery service
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: order-id
+        required: true
+        type: string
+      - description: Selected delivery service
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DeliveryFeeSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Calculate delivery fee for a given order
+      tags:
+      - ghn
   /api/v1/location/address:
     post:
       consumes:

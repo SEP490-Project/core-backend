@@ -8,8 +8,8 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"errors"
 	"fmt"
-
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -78,56 +78,99 @@ func (l locationService) InputUserAddress(userID uuid.UUID, addressReq requests.
 		return nil, fmt.Errorf("user not found")
 	}
 
-	//Other address validation
-	var ward *model.Ward
-	var dist *model.District
-	var province *model.Province
-	if addressReq.GhnWardCode != nil {
-		var err error
+	// Prepare zero-value containers to pass to ToModel
+	var ward model.Ward
+	var dist model.District
+	var province model.Province
+
+	// Validate GHN location fields when provided
+	if addressReq.GhnWardCode != "" {
+		// Fetch ward with its district
 		wardInclude := []string{"District"}
-		ward, err = l.wardRepo.GetByID(ctx, *addressReq.GhnWardCode, wardInclude)
-		if err != nil || ward == nil {
-			return nil, fmt.Errorf("ward with code '%s' not found", func() string {
-				if addressReq.GhnWardCode == nil {
-					return ""
-				}
-				return *addressReq.GhnWardCode
-			}())
+		w, err := l.wardRepo.GetByID(ctx, addressReq.GhnWardCode, wardInclude)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("ward with code '%s' not found", addressReq.GhnWardCode)
+			}
+			return nil, fmt.Errorf("failed to fetch ward %s: %w", addressReq.GhnWardCode, err)
 		}
+		if w == nil {
+			return nil, fmt.Errorf("ward with code '%s' not found", addressReq.GhnWardCode)
+		}
+		ward = *w
 
 		// If user supplied district, ensure it matches the ward's parent
-		if addressReq.GhnDistrictID != nil && ward.DistrictID != *addressReq.GhnDistrictID {
-			return nil, fmt.Errorf("ward '%s' (code=%s) does not belong to district %d", ward.Name, func() string {
-				if addressReq.GhnWardCode == nil {
-					return ""
-				}
-				return *addressReq.GhnWardCode
-			}(), *addressReq.GhnDistrictID)
+		if addressReq.GhnDistrictID != 0 && ward.DistrictID != addressReq.GhnDistrictID {
+			return nil, fmt.Errorf("ward '%s' (code=%s) does not belong to district %d", ward.Name, ward.Code, addressReq.GhnDistrictID)
 		}
 
-		// If user supplied province, fetch the district once and check province
-		if addressReq.GhnProvinceID != nil {
-			provinceInclude := []string{"Province"}
-			dist, err = l.districtRepo.GetByID(ctx, ward.DistrictID, provinceInclude)
+		// Fetch district (including province if requested)
+		if addressReq.GhnProvinceID != 0 {
+			dInclude := []string{"Province"}
+			d, err := l.districtRepo.GetByID(ctx, ward.DistrictID, dInclude)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, fmt.Errorf("district %d not found", ward.DistrictID)
+				}
+				return nil, fmt.Errorf("failed to fetch district %d: %w", ward.DistrictID, err)
+			}
+			if d == nil {
+				return nil, fmt.Errorf("district %d not found", ward.DistrictID)
+			}
+			dist = *d
+			// ensure province matches
+			if dist.ProvinceID != addressReq.GhnProvinceID {
+				return nil, fmt.Errorf("ward '%s' (code=%s) belongs to district %d which does not belong to province %d", ward.Name, ward.Code, dist.ID, addressReq.GhnProvinceID)
+			}
+			province = dist.Province
+		} else {
+			// fetch district without province to populate district name
+			d, err := l.districtRepo.GetByID(ctx, ward.DistrictID, nil)
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch district %d: %w", ward.DistrictID, err)
 			}
-			if dist == nil {
+			if d == nil {
 				return nil, fmt.Errorf("district %d not found", ward.DistrictID)
 			}
-			if dist.ProvinceID != *addressReq.GhnProvinceID {
-				return nil, fmt.Errorf("ward '%s' (code=%s) belongs to district %d which does not belong to province %d", ward.Name, func() string {
-					if addressReq.GhnWardCode == nil {
-						return ""
-					}
-					return *addressReq.GhnWardCode
-				}(), dist.ID, *addressReq.GhnProvinceID)
+			dist = *d
+		}
+
+	} else {
+		// Ward not provided. If district provided, validate it and optional province
+		if addressReq.GhnDistrictID != 0 {
+			d, err := l.districtRepo.GetByID(ctx, addressReq.GhnDistrictID, []string{"Province"})
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, fmt.Errorf("district %d not found", addressReq.GhnDistrictID)
+				}
+				return nil, fmt.Errorf("failed to fetch district %d: %w", addressReq.GhnDistrictID, err)
 			}
-			// assign pointer to province field
-			province = &dist.Province
+			if d == nil {
+				return nil, fmt.Errorf("district %d not found", addressReq.GhnDistrictID)
+			}
+			dist = *d
+			if addressReq.GhnProvinceID != 0 && dist.ProvinceID != addressReq.GhnProvinceID {
+				return nil, fmt.Errorf("district %d does not belong to province %d", dist.ID, addressReq.GhnProvinceID)
+			}
+			if addressReq.GhnProvinceID != 0 {
+				province = dist.Province
+			}
+		} else if addressReq.GhnProvinceID != 0 {
+			p, err := l.provinceRepo.GetByID(ctx, addressReq.GhnProvinceID, nil)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, fmt.Errorf("province %d not found", addressReq.GhnProvinceID)
+				}
+				return nil, fmt.Errorf("failed to fetch province %d: %w", addressReq.GhnProvinceID, err)
+			}
+			if p == nil {
+				return nil, fmt.Errorf("province %d not found", addressReq.GhnProvinceID)
+			}
+			province = *p
 		}
 	}
 
+	// Persist address inside a DB transaction
 	var persistedModel *model.ShippingAddress
 	err := l.shippingAddressRepo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Unset other default addresses if needed
@@ -138,8 +181,9 @@ func (l locationService) InputUserAddress(userID uuid.UUID, addressReq requests.
 				return err
 			}
 		}
+
 		// Add new address
-		persistedModel = addressReq.ToModel(userID, *ward, *dist, *province)
+		persistedModel = addressReq.ToModel(userID, ward, dist, province)
 		if err := tx.Create(persistedModel).Error; err != nil {
 			return err
 		}

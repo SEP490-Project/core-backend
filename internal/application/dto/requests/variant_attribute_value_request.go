@@ -9,7 +9,7 @@ import (
 )
 
 type CreateVariantAttributeValueRequest struct {
-	Value       float64            `json:"value" validate:"required,min=0.1" gorm:"column:value;not null" example:"10.5"`
+	Value       float64            `json:"value" validate:"required,min=0.1" example:"10.5"`
 	Unit        enum.AttributeUnit `json:"unit" validate:"required,oneof=% MG G ML L IU PPM NONE" example:"MG"`
 	AttributeID uuid.UUID          `json:"attribute_id" validate:"required" example:"550e8400-e29b-41d4-a716-446655440001"`
 }

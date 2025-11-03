@@ -458,34 +458,7 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			productId	path		string						true	"Product ID (UUID)"
-//
-//	@Param			data		body		requests.BulkVariantRequest	true	"Variant data to create"	example({
-//	  "price": 29.99,
-//	  "current_stock": 100,
-//	  "capacity": 500,
-//	  "capacity_unit": "ML",
-//	  "container_type": "BOTTLE",
-//	  "dispenser_type": "SPRAY",
-//	  "uses": "For daily use",
-//	  "manufacturing_date": "2023-10-01T00:00:00Z",
-//	  "expiry_date": "2025-10-01T00:00:00Z",
-//	  "instructions": "Shake well before use",
-//	  "is_default": true,
-//	  "story": {
-//	    "content": {
-//	      "description": "This is a sample story",
-//	      "details": "More details here"
-//	    }
-//	  },
-//	  "attributes": [
-//	    {
-//	      "attribute_id": "66de757a-6f2b-420c-8aac-2937596e8706",
-//	      "value": 10.5,
-//	      "unit": "MG"
-//	    }
-//	  ]
-//	})
-//
+//	@Param			data		body		requests.BulkVariantRequest	true	"Variant data to create"
 //	@Success		201			{object}	responses.ProductVariantResponse
 //	@Failure		400			{object}	object{error=string}
 //	@Failure		401			{object}	object{error=string}

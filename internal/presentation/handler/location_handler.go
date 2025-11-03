@@ -239,13 +239,13 @@ func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
 //
 //	@Summary		Trigger location synchronization
 //	@Description	Manually trigger the synchronization of location data
-//	@Tags			location
-//	@Accept			json
-//	@Produce		json
+//	@Tags		location
+//	@Accept		json
+//	@Produce	json
 //	@Success		200	{object}	map[string]string	"Success message"
 //	@Failure		400	{object}	map[string]string	"Error message"
-//	@Security		BearerAuth
-//	@Router			/api/v1/location/sync [post]
+//	@Security	BearerAuth
+//	@Router		/api/v1/location/sync [post]
 func (h *LocationHandler) TriggerLocationSync(c *gin.Context) {
 	// spawn background sync using a detached context so the handler can return immediately
 	go func() {

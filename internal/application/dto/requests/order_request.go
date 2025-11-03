@@ -17,7 +17,7 @@ type OrderRequest struct {
 	Items     []OrderItemRequest `json:"items" validate:"required,dive,required"`
 }
 
-func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, now time.Time) *model.Order {
+func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, now time.Time) *model.Order {
 
 	//Calc total amount:
 	var totalAmount float64 = 0
@@ -26,13 +26,28 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 	}
 
 	return &model.Order{
-		UserID:      userID,
 		Status:      enum.OrderStatusPending,
 		TotalAmount: totalAmount,
-		AddressID:   or.AddressID,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-		OrderItems:  orderItems,
+
+		//Copy shipping address fields
+		FullName:      address.FullName,
+		PhoneNumber:   address.PhoneNumber,
+		Email:         address.Email,
+		Street:        address.Street,
+		AddressLine2:  address.AddressLine2,
+		City:          address.City,
+		GhnProvinceID: address.GhnProvinceID,
+		GhnDistrictID: address.GhnDistrictID,
+		GhnWardCode:   address.GhnWardCode,
+		ProvinceName:  address.ProvinceName,
+		DistrictName:  address.DistrictName,
+		WardName:      address.WardName,
+
+		//Order Relationships
+		UserID:     userID,
+		OrderItems: orderItems,
 	}
 }
 
@@ -88,3 +103,5 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 		UpdatedAt: now,
 	}
 }
+
+// ===========================PAYMENT==============================// (BY GHN)
