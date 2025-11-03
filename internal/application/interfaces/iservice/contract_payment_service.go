@@ -2,6 +2,8 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 
 	"github.com/google/uuid"
@@ -15,7 +17,8 @@ type ContractPaymentService interface {
 		contractID uuid.UUID,
 		uow irepository.UnitOfWork) error
 
-	// GetAllByContractID(ctx context.Context, contractID uuid.UUID) ([]*irepository.ContractPaymentWithStatus, error)
+	GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymenntResponse, int64, error)
+	GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymenntResponse, error)
 
-	// UpdateContractPaymentStatus(ctx context.Context, requests.UpdateContractPaymentStatusRequest) error
+	CreatePaymentLinkFromContractPayment(ctx context.Context, uow irepository.UnitOfWork, contractPaymentID uuid.UUID) (string, error)
 }

@@ -459,6 +459,12 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		{
 			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
 		}
+
+		viewGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
+		{
+			viewGroup.GET("", contractPaymentHandler.GetContractPaymentsByFilter)
+			viewGroup.GET("/:contract_payment_id", contractPaymentHandler.GetContractPaymentByID)
+		}
 	}
 }
 
