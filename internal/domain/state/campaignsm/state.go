@@ -1,3 +1,4 @@
+// Package campaignsm implements the state machine for Campaign entity
 package campaignsm
 
 import (
@@ -23,14 +24,15 @@ func NewCampaignState(status enum.CampaignStatus) CampaignState {
 		return &OnGoingState{}
 	case enum.CampaignCompleted:
 		return &CompletedState{}
-	case enum.CampaignCanceled:
+	case enum.CampaignCancelled:
 		return &CancelledState{}
 	default:
 		return nil
 	}
 }
 
-// helper
+// region: ======= Helper Methods =======
+
 func (c *CampaignContext) IsAllMilestonesFinished() bool {
 	if c.MileStones == nil {
 		return false
@@ -45,10 +47,10 @@ func (c *CampaignContext) IsAllMilestonesFinished() bool {
 
 // IsCancelAndCascade cascades cancellation down to milestones -> tasks -> products/contents (in-memory only)
 func (c *CampaignContext) IsCancelAndCascade(state CampaignState) {
-	if state.Name() != enum.CampaignCanceled {
+	if state.Name() != enum.CampaignCancelled {
 		return
 	}
-	if c.MileStones == nil || len(c.MileStones) == 0 {
+	if len(c.MileStones) == 0 {
 		return
 	}
 	for _, ms := range c.MileStones {
@@ -65,3 +67,5 @@ func (c *CampaignContext) IsCancelAndCascade(state CampaignState) {
 
 	}
 }
+
+// endregion

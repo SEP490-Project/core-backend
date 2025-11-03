@@ -1,3 +1,4 @@
+// Package scheduler provides interfaces and implementations for task scheduling.
 package scheduler
 
 import "context"

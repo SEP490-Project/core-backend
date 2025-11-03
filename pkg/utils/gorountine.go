@@ -30,7 +30,7 @@ func RunParallel(ctx context.Context, limit int, funcs ...func(ctx context.Conte
 			defer wg.Done()
 			select {
 			case <-ctx.Done():
-				return // Stop if context is canceled
+				return // Stop if context is cancelled
 			case sem <- struct{}{}:
 				defer func() { <-sem }() // Release semaphore slot when done
 			}
@@ -56,7 +56,7 @@ func RunParallel(ctx context.Context, limit int, funcs ...func(ctx context.Conte
 	// Monitor both the context and error channel
 	select {
 	case <-ctx.Done():
-		// If the context was canceled due to an error, drain the channel to get it
+		// If the context was cancelled due to an error, drain the channel to get it
 		for err := range errCh {
 			if err != nil {
 				return err

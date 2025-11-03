@@ -115,7 +115,7 @@ CREATE TABLE contracts (
                            start_date DATE NOT NULL,
                            end_date DATE NOT NULL,
                            status VARCHAR (50) NOT NULL CHECK (
-                               status IN ('ACTIVE', 'EXPIRED', 'CANCELED')
+                               status IN ('ACTIVE', 'EXPIRED', 'CANCELLED')
                                ),
 -- Link to the full contract document for legal details.
                            contract_file_url TEXT,
@@ -181,7 +181,7 @@ CREATE TABLE campaigns (
                            start_date DATE NOT NULL,
                            end_date DATE NOT NULL,
                            status VARCHAR (50) NOT NULL CHECK (
-                               status IN ('ON_GOING', 'COMPLETED', 'CANCELED')
+                               status IN ('ON_GOING', 'COMPLETED', 'CANCELLED')
                                ),
                            budget_projected DECIMAL (15, 2),
                            budget_actual DECIMAL (15, 2),
@@ -477,7 +477,7 @@ CREATE TABLE orders (
                                        'PAID',
                                        'REFUNDED',
                                        'CONFIRMED',
-                                       'CANCELED',
+                                       'CANCELLED',
                                        'SHIPPED',
                                        'IN_TRANSIT',
                                        'DELIVERED',
@@ -538,7 +538,7 @@ CREATE TABLE order_items (
                                                  'PAID',
                                                  'REFUNED',
                                                  'CONFIRMED',
-                                                 'CANCELED',
+                                                 'CANCELLED',
                                                  'SHIPPED',
                                                  'IN_TRANSIT',
                                                  'DELIVERED',
