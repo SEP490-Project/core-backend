@@ -158,6 +158,8 @@ func (bh *BrandHandler) GetBrandByID(c *gin.Context) {
 //	@Param			limit		query		int									false	"Items per page"	default(10)
 //	@Param			keywords	query		string								false	"Search keywords for brand name"
 //	@Param			status		query		string								false	"Filter by brand status"	Enums(ACTIVE, INACTIVE)
+//	@Param			sort_by		query		string								false	"Sort by field"			Enums(name, created_at, number_of_contracts, number_of_active_contracts)	default(created_at)
+//	@Param			sort_order	query		string								false	"Sort order"				Enums(asc, desc)	default(desc)
 //	@Success		200			{object}	responses.BrandPaginationResponse	"Brands fetched successfully"
 //	@Failure		400			{object}	responses.APIResponse				"Invalid request"
 //	@Failure		500			{object}	responses.APIResponse				"Internal server error"
@@ -171,8 +173,8 @@ func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 		return
 	}
 	if err := bh.Validator.Struct(&request); err != nil {
-		responses := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
@@ -181,21 +183,33 @@ func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 		response := responses.ErrorResponse("Failed to get brands: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)
 		return
-	} else if totalCount == 0 || len(brands) == 0 {
-		responses := responses.EmptyPaginationResponse[responses.BrandResponse]("No brands found matching the filter criteria", nil, request.Page, request.Limit)
-		c.JSON(http.StatusOK, responses)
+	}
+
+	if totalCount == 0 || len(brands) == 0 {
+		response := responses.EmptyPaginationResponse[responses.BrandResponse](
+			"No brands found matching the filter criteria",
+			nil,
+			request.Page,
+			request.Limit,
+		)
+		c.JSON(http.StatusOK, response)
 		return
 	}
 
 	totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
-	paginationResponse := responses.NewPaginationResponse("Successfully fetched brands", http.StatusOK, brands, responses.Pagination{
-		Page:       request.Page,
-		Limit:      request.Limit,
-		Total:      totalCount,
-		TotalPages: totalPages,
-		HasNext:    request.Page < totalPages,
-		HasPrev:    request.Page > 1,
-	})
+	paginationResponse := responses.NewPaginationResponse(
+		"Successfully fetched brands",
+		http.StatusOK,
+		brands,
+		responses.Pagination{
+			Page:       request.Page,
+			Limit:      request.Limit,
+			Total:      totalCount,
+			TotalPages: totalPages,
+			HasNext:    request.Page < totalPages,
+			HasPrev:    request.Page > 1,
+		},
+	)
 	c.JSON(http.StatusOK, paginationResponse)
 }
 

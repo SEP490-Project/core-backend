@@ -112,6 +112,7 @@ type TaskListResponse struct {
 	UpdatedAt      string  `json:"updated_at" example:"2023-10-15T15:30:00Z"`
 	MilestoneID    *string `json:"milestone_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	CampaignID     *string `json:"campaign_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CampaignName   *string `json:"campaign_name,omitempty" example:"Summer Sale Campaign"`
 	ContractID     *string `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
 
@@ -141,6 +142,9 @@ func (TaskListResponse) ToListResponse(dtos []dtos.TaskListDTO) []TaskListRespon
 		}
 		if dto.CampaignID != nil {
 			res.CampaignID = utils.PtrOrNil(dto.CampaignID.String())
+		}
+		if dto.CampaignName != nil {
+			res.CampaignName = dto.CampaignName
 		}
 		if dto.ContractID != nil {
 			res.ContractID = utils.PtrOrNil(dto.ContractID.String())
