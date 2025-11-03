@@ -21,6 +21,6 @@ func (o OnGoingState) Next(ctx *CampaignContext, next CampaignState) error {
 func (o OnGoingState) AllowedTransitions() map[enum.CampaignStatus]struct{} {
 	return map[enum.CampaignStatus]struct{}{
 		enum.CampaignCompleted: {},
-		enum.CampaignCanceled:  {},
+		enum.CampaignCancelled: {},
 	}
 }

@@ -345,7 +345,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		}
 
 		// Reflect memory
-		camp.Status = enum.CampaignCanceled
+		camp.Status = enum.CampaignCancelled
 		for _, ms := range camp.Milestones {
 			if ms == nil {
 				continue

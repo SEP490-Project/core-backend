@@ -1,849 +1,1316 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Core Entities
-CREATE TABLE configs
+create table if not exists users
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key         VARCHAR(255) UNIQUE NOT NULL,
-    value       TEXT                NOT NULL,
-    type        VARCHAR(30)         NOT NULL CHECK (
-        type IN ('EMAIL', 'PASSWORD', 'NUMBER', 'DATE')
-        ),
-    description TEXT,
-    created_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at  TIMESTAMPTZ
+    id            uuid                     default gen_random_uuid() not null
+        primary key,
+    username      varchar(255)                                       not null
+        unique,
+    email         varchar(255)                                       not null
+        unique,
+    password_hash text                                               not null,
+    full_name     varchar(255)                                       not null,
+    phone         varchar(20),
+    role          varchar(50)                                        not null
+        constraint users_role_check
+            check ((role)::text = ANY
+                   ((ARRAY ['ADMIN'::character varying, 'MARKETING_STAFF'::character varying, 'CONTENT_STAFF'::character varying, 'SALES_STAFF'::character varying, 'CUSTOMER'::character varying, 'BRAND_PARTNER'::character varying])::text[]))
+        constraint chk_roles_users
+            check ((role)::text = ANY
+                   ((ARRAY ['ADMIN'::character varying, 'MARKETING_STAFF'::character varying, 'CONTENT_STAFF'::character varying, 'SALES_STAFF'::character varying, 'CUSTOMER'::character varying, 'BRAND_PARTNER'::character varying])::text[])),
+    created_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    last_login    timestamp with time zone,
+    is_active     boolean                  default true,
+    deleted_at    timestamp with time zone,
+    profile_data  jsonb,
+    date_of_birth date,
+    avatar_url    text,
+    email_enabled boolean                  default true              not null,
+    push_enabled  boolean                  default true              not null
 );
 
-CREATE TABLE users
+create table if not exists configs
 (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username      VARCHAR(255) UNIQUE NOT NULL,
-    email         VARCHAR(255) UNIQUE NOT NULL,
-    password_hash TEXT                NOT NULL,
-    full_name     VARCHAR(255)        NOT NULL,
-    phone         VARCHAR(20),
-    role          VARCHAR(50)         NOT NULL CHECK (
-        role IN (
-                 'ADMIN',
-                 'MARKETING_STAFF',
-                 'CONTENT_STAFF',
-                 'SALES_STAFF',
-                 'CUSTOMER',
-                 'BRAND_PARTNER'
-            )
-        ),
-    date_of_birth DATE,
-    created_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    last_login    TIMESTAMPTZ,
-    is_active     BOOLEAN          DEFAULT TRUE,
-    deleted_at    TIMESTAMPTZ,
--- Additional profile information used for AI assistance personalization
-    profile_data  JSONB
+    id          uuid                     default gen_random_uuid()    not null
+        primary key,
+    key         varchar(255)                                          not null
+        unique,
+    value       text                                                  not null,
+    description text,
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at  timestamp with time zone,
+    value_type  value_type               default 'STRING'::value_type not null
+        constraint configs_value_type_check
+            check ((value_type)::text = ANY
+                   (ARRAY [('STRING'::character varying)::text, ('NUMBER'::character varying)::text, ('BOOLEAN'::character varying)::text, ('JSON'::character varying)::text])),
+    updated_by  uuid
+                                                                      references users
+                                                                          on delete set null
 );
 
-CREATE TABLE logged_sessions
+create index if not exists idx_users_role
+    on users (role);
+
+create index if not exists idx_users_is_active
+    on users (is_active);
+
+create index if not exists idx_users_profile_data_gin
+    on users using gin (profile_data);
+
+create table if not exists logged_sessions
 (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id            UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    refresh_token_hash TEXT         NOT NULL,
-    device_fingerprint VARCHAR(255) NOT NULL,
-    expiry_at          TIMESTAMPTZ  NOT NULL,
-    is_revoked         BOOLEAN          DEFAULT FALSE,
-    last_used_at       TIMESTAMPTZ,
-    created_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at         TIMESTAMPTZ
+    id                 uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id            uuid                                               not null
+        references users
+            on delete cascade,
+    refresh_token_hash text                                               not null,
+    device_fingerprint varchar(255)                                       not null,
+    expiry_at          timestamp with time zone                           not null,
+    is_revoked         boolean                  default false,
+    last_used_at       timestamp with time zone,
+    created_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at         timestamp with time zone
 );
 
-CREATE TABLE notifications
+create index if not exists idx_logged_sessions_user_id
+    on logged_sessions (user_id);
+
+create table if not exists shipping_addresses
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id      UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    type         VARCHAR(50) NOT NULL CHECK (type IN ('REMINDER', 'ALERT', 'EMAIL')),
-    message      TEXT        NOT NULL,
-    message_data JSONB,
-    channel      VARCHAR(50) NOT NULL CHECK (channel IN ('EMAIL', 'IN_APP', 'PUSH')),
-    send_time    TIMESTAMPTZ NOT NULL,
-    status       VARCHAR(50) NOT NULL CHECK (status IN ('PENDING', 'SENT', 'READ')),
-    related_id   UUID,
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp
+    id              uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id         uuid                                               not null
+        references users
+            on delete cascade,
+    type            varchar(50)                                        not null
+        constraint shipping_addresses_type_check
+            check ((type)::text = ANY ((ARRAY ['BILLING'::character varying, 'SHIPPING'::character varying])::text[])),
+    full_name       varchar(255)                                       not null,
+    phone_number    varchar(20),
+    email           varchar(255),
+    street          varchar(255)                                       not null,
+    address_line2   varchar(255),
+    city            varchar(255)                                       not null,
+    postal_code     varchar(20)                                        not null,
+    country         varchar(255),
+    is_default      boolean                  default false,
+    created_at      timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at      timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at      timestamp with time zone,
+    ghn_province_id integer,
+    ghn_district_id integer,
+    ghn_ward_code   varchar(16),
+    province_name   varchar(255),
+    district_name   varchar(255),
+    ward_name       varchar(255)
 );
 
-CREATE TABLE shipping_addresses
+create index if not exists idx_shipping_addresses_user_id
+    on shipping_addresses (user_id);
+
+create table if not exists brands
 (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id       UUID         NOT NULL REFERENCES users (id) ON DELETE CASCADE,
--- For now only 'SHIPPING' is used since There is no credit card payment yet.
-    type          VARCHAR(50)  NOT NULL CHECK (type IN ('BILLING', 'SHIPPING')),
-    full_name     VARCHAR(255) NOT NULL,          -- The full name of the recipient at the shipping address, which may be different from the user account holder's name (e.g., when sending a gift).
-    phone_number  VARCHAR(20),                    -- The recipient's phone number, often required by delivery services for contact during shipment.
-    email         VARCHAR(255),                   -- The recipient's email address, used for sending shipping notifications and tracking updates. Can differ from the user's primary account email.
-    street        VARCHAR(255) NOT NULL,
-    address_line2 VARCHAR(255),                   -- An optional field for additional address details, such as an apartment number, suite, building name, or P.O. Box.
-    city          VARCHAR(255) NOT NULL,
-    state         VARCHAR(255),                   -- The state, province, or region. This field is nullable as not all countries use this subdivision in their addresses.
-    postal_code   VARCHAR(20)  NOT NULL,
-    country       VARCHAR(255) NOT NULL,
-    company       VARCHAR(255),                   -- An optional field for the company name if the package is being delivered to a business address.
-    is_default    BOOLEAN          DEFAULT FALSE, -- A flag to mark one address as the user's primary or default shipping address, which can be pre-selected during checkout to speed up the process.
-    created_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at    TIMESTAMPTZ
-);
--- Campaigns Entities
-CREATE TABLE brands
-(
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
--- This is nullable since brand info can be created without account
-    user_id       UUID REFERENCES users (id) ON DELETE RESTRICT,
-    name          VARCHAR(255) NOT NULL,
-    description   TEXT,
-    contact_email VARCHAR(255),
-    contact_phone VARCHAR(20),
-    address       VARCHAR(255),
-    website       VARCHAR(255),
-    logo_url      TEXT,
-    status        VARCHAR(50)  NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE')),
-    created_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at    TIMESTAMPTZ
+    id                        uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id                   uuid
+        references users
+            on delete restrict,
+    name                      varchar(255)                                       not null,
+    description               text,
+    contact_email             varchar(255),
+    contact_phone             varchar(20),
+    website                   varchar(255),
+    logo_url                  text,
+    status                    varchar(50)                                        not null
+        constraint brands_status_check
+            check ((status)::text = ANY ((ARRAY ['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[])),
+    created_at                timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at                timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at                timestamp with time zone,
+    address                   varchar(255),
+    tax_number                varchar(100),
+    representative_name       varchar(255),
+    representative_role       varchar(100),
+    representative_email      varchar(255),
+    representative_phone      varchar(25),
+    representative_citizen_id varchar(100)
 );
 
-CREATE TABLE contracts
+create index if not exists idx_brands_name_trgm
+    on brands using gin (name gin_trgm_ops);
+
+create table if not exists contracts
 (
-    id                                 UUID PRIMARY KEY         DEFAULT gen_random_uuid(),
-    parent_contract_id                 UUID         REFERENCES contracts (id) ON DELETE SET NULL,
-    title                              VARCHAR(255),
-    contract_number                    VARCHAR(100) NOT NULL UNIQUE,           -- (Số Hợp đồng)
-
--- Categorizing the contract is crucial as it defines which JSONB fields are required.
-    type                               VARCHAR(50)  NOT NULL CHECK (
-        type IN ('ADVERTISING', 'AFFILIATE', 'BRAND_AMBASSADOR', 'CO_PRODUCING')
-        ),
-    status                             VARCHAR(50)  NOT NULL    DEFAULT 'DRAFT' CHECK (
-        status IN ('DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED')
-        ),
-
--- Dates and Locations (Common to all templates)
-    signed_date                        DATE,                                   -- (Ngày ký)
-    signed_location                    TEXT,                                   -- (tại [Địa điểm])
-    start_date                         DATE,                                   -- (Ngày bắt đầu hiệu lực)
-    end_date                           DATE,                                   -- (Ngày kết thúc / Thời hạn hợp đồng)
-
--- Brand reference and brand information stored in contract for record-keeping
-    brand_id                           UUID         NOT NULL REFERENCES brands (id),
-    brand_tax_number                   VARCHAR(100),
-    brand_representative_name          VARCHAR(255),
-    brand_representative_role          VARCHAR(255),
-    brand_representative_phone         VARCHAR(20),
-    brand_representative_email         VARCHAR(255),
-    brand_bank_name                    VARCHAR(255),
-    brand_account_number               VARCHAR(255),
-
--- KOL/Influencer Representative information (The other party in the contract)
-    representative_name                VARCHAR(255) NOT NULL,                  -- (Họ và tên)
-    representative_role                VARCHAR(255),                           -- (Chức vụ)
-    representative_phone               VARCHAR(20),                            -- (Số điện thoại)
-    representative_email               VARCHAR(255),                           -- (Email)
-    representative_tax_number          VARCHAR(100),
-    representative_bank_name           VARCHAR(255),
-    representative_bank_account_number VARCHAR(255),
-    representative_bank_account_holder VARCHAR(255),
-
--- Financials
-    currency                           VARCHAR(3)               DEFAULT 'VND', -- (Đồng tiền thanh toán - Template 1)
-
--- This field stores the payment structure, which varies wildly between the 4 templates.
-    financial_terms                    JSONB        NOT NULL    DEFAULT '{}',
-
--- Scope of Work and Deliverables
--- Combines "Nội dung hợp đồng", "Yêu cầu kỹ thuật", and "Trách nhiệm" regarding the
--- work itself.
-    scope_of_work                      JSONB        NOT NULL    DEFAULT '{}',
-
--- Legal Clauses and Penalties
--- Combines Penalties, Force Majeure, Warranty, Dispute Resolution, etc.
-    legal_terms                        JSONB        NOT NULL    DEFAULT '{}',
-
--- File attachments
-    contract_file_url                  TEXT,
-    proposal_file_url                  TEXT,
-
--- Auditing
-    created_at                         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at                         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    deleted_at                         TIMESTAMP WITH TIME ZONE DEFAULT NULL
+    id                                 uuid                     default gen_random_uuid()          not null
+        primary key,
+    brand_id                           uuid                                                        not null
+        references brands,
+    title                              varchar(255),
+    type                               varchar(50)                                                 not null,
+    start_date                         date,
+    end_date                           date,
+    status                             varchar(50)              default 'DRAFT'::character varying not null,
+    contract_file_url                  text,
+    proposal_file_url                  text,
+    parent_contract_id                 uuid
+                                                                                                   references contracts
+                                                                                                       on delete set null,
+    created_at                         timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at                         timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at                         timestamp with time zone,
+    brand_bank_name                    varchar(255),
+    brand_account_number               varchar(255),
+    contract_number                    varchar(100)                                                not null
+        unique,
+    representative_name                varchar(255),
+    representative_role                varchar(100),
+    representative_phone               varchar(20),
+    representative_email               varchar(255),
+    signed_date                        date,
+    signed_location                    text,
+    currency                           varchar(3)               default 'VND'::character varying,
+    financial_terms                    jsonb                    default '{}'::jsonb                not null,
+    scope_of_work                      jsonb                    default '{}'::jsonb                not null,
+    legal_terms                        jsonb                    default '{}'::jsonb                not null,
+    created_by                         uuid
+                                                                                                   references users
+                                                                                                       on delete set null,
+    updated_by                         uuid
+                                                                                                   references users
+                                                                                                       on delete set null,
+    representative_tax_number          varchar(100),
+    representative_bank_name           varchar(100),
+    representative_bank_account_number varchar(50),
+    representative_bank_account_holder varchar(100),
+    deposit_percent                    integer                  default 0
+        constraint contracts_deposit_percent_check
+            check ((deposit_percent >= 0) AND (deposit_percent <= 100)),
+    deposit_amount                     numeric                  default 0
+        constraint contracts_deposit_amount_check
+            check (deposit_amount >= (0)::numeric),
+    brand_account_holder               varchar(100),
+    is_deposit_paid                    boolean                  default false
 );
 
-CREATE TABLE contract_payments
+comment on column contracts.title is 'Contract title/name for easy identification';
+
+comment on column contracts.parent_contract_id is 'Reference to parent contract for amendments or related contracts';
+
+comment on column contracts.brand_bank_name is 'Brand bank name for contract payments';
+
+comment on column contracts.brand_account_number is 'Brand bank account number for contract payments';
+
+comment on column contracts.representative_name is 'KOL/Influencer representative name';
+
+comment on column contracts.representative_role is 'KOL/Influencer representative role';
+
+comment on column contracts.representative_phone is 'KOL/Influencer representative phone';
+
+comment on column contracts.representative_email is 'KOL/Influencer representative email';
+
+create index if not exists idx_contracts_brand_id
+    on contracts (brand_id);
+
+create index if not exists idx_contracts_status_type
+    on contracts (status, type);
+
+create table if not exists contract_payments
 (
-    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contract_id            UUID           NOT NULL REFERENCES contracts (id) ON DELETE CASCADE,
-    installment_percentage DECIMAL(5, 2) CHECK (
-        installment_percentage BETWEEN 0 AND 100
-        ),
-    amount                 DECIMAL(15, 2) NOT NULL,
-    status                 VARCHAR(50)    NOT NULL CHECK (
-        status IN ('PENDING', 'PAID', 'OVERDUE')
-        ),
-    due_date               DATE           NOT NULL,
-    paid_date              DATE,
-    payment_method         VARCHAR(50) CHECK (
-        payment_method IN ('BANK_TRANSFER', 'CASH', 'CHECK')
-        ),
-    note                   TEXT,
-    created_at             TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at             TIMESTAMPTZ      DEFAULT current_timestamp
+    id                     uuid                     default gen_random_uuid() not null
+        primary key,
+    contract_id            uuid                                               not null
+        references contracts
+            on delete cascade,
+    installment_percentage numeric(5, 2)
+        constraint contract_payments_installment_percentage_check
+            check ((installment_percentage >= (0)::numeric) AND (installment_percentage <= (100)::numeric)),
+    amount                 numeric(15, 2)                                     not null,
+    status                 varchar(50)                                        not null
+        constraint contract_payments_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['PENDING'::character varying, 'PAID'::character varying, 'OVERDUE'::character varying])::text[])),
+    due_date               date                                               not null,
+    paid_date              date,
+    payment_method         varchar(50)
+        constraint contract_payments_payment_method_check
+            check ((payment_method)::text = ANY
+                   ((ARRAY ['BANK_TRANSFER'::character varying, 'CASH'::character varying, 'CHECK'::character varying])::text[])),
+    note                   text,
+    created_at             timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at             timestamp with time zone default CURRENT_TIMESTAMP,
+    created_by             uuid
+                                                                              references users
+                                                                                  on delete set null,
+    updated_by             uuid
+                                                                              references users
+                                                                                  on delete set null,
+    deleted_at             timestamp with time zone
 );
 
-CREATE TABLE campaigns
+create index if not exists idx_contract_payments_contract_id
+    on contract_payments (contract_id);
+
+create table if not exists campaigns
 (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contract_id      UUID         NOT NULL REFERENCES contracts (id) ON DELETE CASCADE,
-    name             VARCHAR(255) NOT NULL,
-    description      TEXT,
-    start_date       DATE         NOT NULL,
-    end_date         DATE         NOT NULL,
-    status           VARCHAR(50)  NOT NULL CHECK (
-        status IN ('RUNNING', 'COMPLETED', 'CANCELED')
-        ),
-    budget_projected DECIMAL(15, 2),
-    budget_actual    DECIMAL(15, 2),
-    type             VARCHAR(50)  NOT NULL, -- Use the same type as the contract
-    created_at       TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at       TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at       TIMESTAMPTZ
+    id          uuid                     default gen_random_uuid() not null
+        primary key,
+    contract_id uuid                                               not null
+        references contracts
+            on delete cascade,
+    name        varchar(255)                                       not null,
+    description text,
+    start_date  date                                               not null,
+    end_date    date                                               not null,
+    status      varchar(50)                                        not null
+        constraint campaigns_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['RUNNING'::character varying, 'COMPLETED'::character varying, 'CANCELED'::character varying])::text[])),
+    type        varchar(50)                                        not null,
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at  timestamp with time zone,
+    created_by  uuid
+                                                                   references users
+                                                                       on delete set null,
+    updated_by  uuid
+                                                                   references users
+                                                                       on delete set null
 );
 
-CREATE TABLE milestones
+create index if not exists idx_campaigns_contract_id
+    on campaigns (contract_id);
+
+create index if not exists idx_campaigns_status
+    on campaigns (status);
+
+create table if not exists milestones
 (
-    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    campaign_id           UUID        NOT NULL REFERENCES campaigns (id) ON DELETE CASCADE,
-    description           TEXT        NOT NULL,
-    due_date              DATE        NOT NULL,
-    completed_at          TIMESTAMPTZ,
-    completion_percentage INTEGER          DEFAULT 0 CHECK (
-        completion_percentage BETWEEN 0 AND 100
-        ),
-    status                VARCHAR(50) NOT NULL CHECK (
-        status IN ('NOT_STARTED', 'ON_GOING', 'CANCELLED', 'COMPLETED')
-        ),
-    behind_schedule       BOOLEAN          DEFAULT FALSE,
-    created_at            TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at            TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at            TIMESTAMPTZ
+    id                    uuid                     default gen_random_uuid() not null
+        primary key,
+    campaign_id           uuid                                               not null
+        references campaigns
+            on delete cascade,
+    description           text                                               not null,
+    due_date              date                                               not null,
+    completed_at          timestamp with time zone,
+    completion_percentage integer                  default 0
+        constraint milestones_completion_percent_check
+            check ((completion_percentage >= 0) AND (completion_percentage <= 100)),
+    status                varchar(50)                                        not null
+        constraint milestones_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['NOT_STARTED'::character varying, 'ON_GOING'::character varying, 'CANCELLED'::character varying, 'COMPLETED'::character varying])::text[])),
+    behind_schedule       boolean                  default false,
+    created_at            timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at            timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at            timestamp with time zone,
+    created_by            uuid
+                                                                             references users
+                                                                                 on delete set null,
+    updated_by            uuid
+                                                                             references users
+                                                                                 on delete set null
 );
 
-CREATE TABLE tasks
+create index if not exists idx_milestones_campaign_id
+    on milestones (campaign_id);
+
+create table if not exists tasks
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    milestone_id UUID         NOT NULL REFERENCES milestones (id) ON DELETE CASCADE,
-    name         VARCHAR(255) NOT NULL,
-    description  JSONB,
-    deadline     DATE         NOT NULL,
-    type         VARCHAR(50)  NOT NULL,
-    status       VARCHAR(50)  NOT NULL CHECK (
-        status IN (
-                   'TODO',
-                   'IN_PROGRESS',
-                   'CANCELLED',
-                   'SUBMITTED',
-                   'REVISION_REQUESTED',
-                   'APPROVED',
-                   'ON_RELEASE',
-                   'RECAP',
-                   'DONE'
-            )
-        ),
-    assigned_to  UUID         REFERENCES users (id) ON DELETE SET NULL,
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at   TIMESTAMPTZ
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    milestone_id uuid                                               not null
+        references milestones
+            on delete cascade,
+    name         varchar(255)                                       not null,
+    description  jsonb,
+    deadline     date                                               not null,
+    type         varchar(50)                                        not null,
+    status       varchar(50)                                        not null
+        constraint tasks_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['TODO'::character varying, 'IN_PROGRESS'::character varying, 'CANCELLED'::character varying, 'SUBMITTED'::character varying, 'REVISION_REQUESTED'::character varying, 'APPROVED'::character varying, 'ON_RELEASE'::character varying, 'RECAP'::character varying, 'DONE'::character varying])::text[])),
+    assigned_to  uuid
+                                                                    references users
+                                                                        on delete set null,
+    created_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at   timestamp with time zone,
+    created_by   uuid
+                                                                    references users
+                                                                        on delete set null,
+    updated_by   uuid
+                                                                    references users
+                                                                        on delete set null
 );
 
-CREATE TABLE contents
+create index if not exists idx_tasks_milestone_id
+    on tasks (milestone_id);
+
+create index if not exists idx_tasks_assigned_to
+    on tasks (assigned_to);
+
+create index if not exists idx_tasks_status
+    on tasks (status);
+
+create table if not exists contents
 (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    task_id           UUID         REFERENCES tasks (id) ON DELETE SET NULL,
-    title             VARCHAR(255) NOT NULL,
-    type              VARCHAR(50)  NOT NULL CHECK (
-        type IN ('POST', 'VIDEO')
-        ),
-    body              JSONB        NOT NULL,
-    publish_date      TIMESTAMPTZ,
-    affiliate_link    VARCHAR(255),
-    status            VARCHAR(50)  NOT NULL CHECK (
-        status IN (
-                   'DRAFT',
-                   'AWAIT_STAFF',
-                   'AWAIT_BRAND',
-                   'REJECTED',
-                   'APPROVED',
-                   'POSTED'
-            )
-        ),
-    ai_generated_text TEXT,
-    created_at        TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at        TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at        TIMESTAMPTZ
+    id                 uuid                     default gen_random_uuid()       not null
+        primary key,
+    task_id            uuid
+                                                                                references tasks
+                                                                                    on delete set null,
+    title              varchar(255)                                             not null,
+    type               content_type                                             not null,
+    body               jsonb                                                    not null,
+    publish_date       timestamp with time zone,
+    affiliate_link     text,
+    status             content_status           default 'DRAFT'::content_status not null,
+    ai_generated_text  text,
+    created_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at         timestamp with time zone,
+    created_by         uuid
+                                                                                references users
+                                                                                    on delete set null,
+    updated_by         uuid
+                                                                                references users
+                                                                                    on delete set null,
+    thumbnail_url      text,
+    rejection_feedback text
 );
 
-CREATE TABLE blogs
+create index if not exists idx_contents_task_id
+    on contents (task_id);
+
+create index if not exists idx_contents_title_trgm
+    on contents using gin (title gin_trgm_ops);
+
+create index if not exists idx_contents_body_gin
+    on contents using gin (body);
+
+create index if not exists idx_contents_status
+    on contents (status);
+
+create table if not exists blogs
 (
-    content_id UUID PRIMARY KEY REFERENCES contents (id) ON DELETE CASCADE,
-    author_id  UUID NOT NULL REFERENCES users (id) ON DELETE SET NULL,
-    tags       JSONB,
-    excerpt    TEXT,
-    read_time  INTEGER
+    content_id uuid                                               not null
+        primary key
+        references contents
+            on delete cascade,
+    author_id  uuid                                               not null
+        references users
+            on delete set null,
+    tags       jsonb,
+    excerpt    text,
+    read_time  integer,
+    created_by uuid
+        references users,
+    updated_by uuid
+        references users,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP not null,
+    updated_at timestamp with time zone
 );
 
-CREATE TABLE tags
+create index if not exists idx_blogs_author_id
+    on blogs (author_id);
+
+create table if not exists tags
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        VARCHAR(255) UNIQUE NOT NULL,
-    description TEXT,
-    usage_count INTEGER          DEFAULT 0,
-    created_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at  TIMESTAMPTZ
+    id          uuid                     default gen_random_uuid() not null
+        primary key,
+    name        varchar(255)                                       not null
+        unique,
+    description text,
+    usage_count integer                  default 0,
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at  timestamp with time zone,
+    created_by  uuid
+        references users,
+    updated_by  uuid
+        references users
 );
 
-CREATE TABLE blog_tags
+create index if not exists idx_tags_name_trgm
+    on tags using gin (name gin_trgm_ops);
+
+create table if not exists blog_tags
 (
-    blog_id UUID NOT NULL REFERENCES blogs (content_id) ON DELETE CASCADE,
-    tag_id  UUID NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
-    PRIMARY KEY (blog_id, tag_id)
+    blog_id uuid not null
+        references blogs
+            on delete cascade,
+    tag_id  uuid not null
+        references tags
+            on delete cascade,
+    primary key (blog_id, tag_id)
 );
 
-CREATE TABLE channels
+create index if not exists idx_blog_tags_tag_id
+    on blog_tags (tag_id);
+
+create trigger blog_tags_update_usage
+    after insert or delete
+    on blog_tags
+    for each row
+execute procedure update_tag_usage_count();
+
+create table if not exists channels
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        VARCHAR(50) NOT NULL CHECK (
-        name IN ('WEBSITE', 'FACEBOOK', 'TIKTOK')
-        ),
-    description TEXT,
-    created_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    is_active   BOOLEAN          DEFAULT TRUE,
-    deleted_at  TIMESTAMPTZ
+    id            uuid                     default gen_random_uuid() not null
+        primary key,
+    name          varchar(50)                                        not null,
+    description   text,
+    created_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    is_active     boolean                  default true,
+    deleted_at    timestamp with time zone,
+    home_page_url text
 );
 
-CREATE TABLE content_channels
+create index if not exists idx_channels_name
+    on channels (name);
+
+create table if not exists content_channels
 (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    content_id       UUID NOT NULL REFERENCES contents (id) ON DELETE CASCADE,
-    channel_id       UUID NOT NULL REFERENCES channels (id) ON DELETE CASCADE,
-    post_date        TIMESTAMPTZ,
-    auto_post_status VARCHAR(50) CHECK (
-        auto_post_status IN ('SUCCESS', 'FAILED', 'PENDING')
-        ),
-    created_at       TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at       TIMESTAMPTZ      DEFAULT current_timestamp
+    id               uuid                     default gen_random_uuid() not null
+        primary key,
+    content_id       uuid                                               not null
+        references contents
+            on delete cascade,
+    channel_id       uuid                                               not null
+        references channels
+            on delete cascade,
+    post_date        timestamp with time zone,
+    auto_post_status varchar(50)
+        constraint content_channels_auto_post_status_check
+            check ((auto_post_status)::text = ANY
+                   ((ARRAY ['SUCCESS'::character varying, 'FAILED'::character varying, 'PENDING'::character varying])::text[])),
+    created_at       timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at       timestamp with time zone default CURRENT_TIMESTAMP
 );
 
--- E-Commerce Entities
-CREATE TABLE product_categories
+create index if not exists idx_content_channels_content_id
+    on content_channels (content_id);
+
+create index if not exists idx_content_channels_channel_id
+    on content_channels (channel_id);
+
+create table if not exists product_categories
 (
-    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name               VARCHAR(255) NOT NULL,
-    description        TEXT,
-    parent_category_id UUID         REFERENCES product_categories (
-                                                                   id
-        ) ON DELETE SET NULL,
-    created_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at         TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at         TIMESTAMPTZ
+    id                 uuid                     default gen_random_uuid() not null
+        primary key,
+    name               varchar(255)                                       not null,
+    description        text,
+    parent_category_id uuid
+                                                                          references product_categories
+                                                                              on delete set null,
+    created_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at         timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at         timestamp with time zone,
+    icon_url           text
 );
 
-CREATE TABLE products
+create index if not exists idx_product_categories_parent_id
+    on product_categories (parent_category_id);
+
+create table if not exists products
 (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    brand_id      UUID           NOT NULL REFERENCES brands (id) ON DELETE CASCADE,
-    category_id   UUID           REFERENCES product_categories (id) ON DELETE SET NULL,
-    task_id       UUID           REFERENCES tasks (id) ON DELETE SET NULL,
-    name          VARCHAR(255)   NOT NULL,
-    description   TEXT           NOT NULL,
-    price         DECIMAL(15, 2) NOT NULL,
-    current_stock INTEGER        NOT NULL,
-    type          VARCHAR(50)    NOT NULL CHECK (
-        type IN ('STANDARD', 'LIMITED')
-        ),
-    is_active     BOOLEAN          DEFAULT TRUE,
-    created_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at    TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at    TIMESTAMPTZ
+    id          uuid                     default gen_random_uuid()          not null
+        primary key,
+    brand_id    uuid                                                        not null
+        references brands
+            on delete cascade,
+    category_id uuid
+                                                                            references product_categories
+                                                                                on delete set null,
+    name        varchar(255)                                                not null,
+    description text                                                        not null,
+    type        varchar(50)                                                 not null
+        constraint products_type_check
+            check ((type)::text = ANY ((ARRAY ['STANDARD'::character varying, 'LIMITED'::character varying])::text[])),
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at  timestamp with time zone,
+    task_id     uuid
+                                                                            references tasks
+                                                                                on delete set null,
+    status      varchar(50)              default 'DRAFT'::character varying not null
+        constraint products_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['DRAFT'::character varying, 'SUBMITTED'::character varying, 'REVISION'::character varying, 'APPROVED'::character varying, 'ACTIVED'::character varying, 'INACTIVED'::character varying])::text[])),
+    is_active   boolean                  default false                      not null,
+    created_by  uuid
+                                                                            references users
+                                                                                on delete set null,
+    updated_by  uuid
+                                                                            references users
+                                                                                on delete set null
 );
 
-CREATE TABLE limited_products
+create index if not exists idx_products_brand_id
+    on products (brand_id);
+
+create index if not exists idx_products_type
+    on products (type);
+
+create index if not exists idx_products_name_trgm
+    on products using gin (name gin_trgm_ops);
+
+create table if not exists product_variants
 (
-    id                      UUID PRIMARY KEY REFERENCES products (id) ON DELETE CASCADE,
-    max_stock               INTEGER NOT NULL,
-    is_free_shipping        BOOLEAN DEFAULT FALSE,
-    bought_limit            INTEGER DEFAULT 1,
-    premiere_date           DATE,
-    availability_start_date DATE,
-    availability_end_date   DATE
+    id                uuid                     default gen_random_uuid() not null
+        primary key,
+    product_id        uuid                                               not null
+        references products
+            on delete cascade,
+    price             numeric(15, 2),
+    current_stock     integer,
+    capacity          numeric(10, 2),
+    capacity_unit     varchar(20)
+        constraint product_variants_capacity_unit_check
+            check ((capacity_unit)::text = ANY
+                   ((ARRAY ['ML'::character varying, 'L'::character varying, 'G'::character varying, 'KG'::character varying, 'OZ'::character varying])::text[])),
+    container_type    varchar(50)
+        constraint product_variants_container_type_check
+            check ((container_type)::text = ANY
+                   ((ARRAY ['BOTTLE'::character varying, 'TUBE'::character varying, 'JAR'::character varying, 'STICK'::character varying, 'PENCIL'::character varying, 'COMPACT'::character varying, 'PALLETE'::character varying, 'SACHET'::character varying, 'VIAL'::character varying, 'ROLLER_BOTTLE'::character varying])::text[])),
+    dispenser_type    varchar(50)
+        constraint product_variants_dispenser_type_check
+            check ((dispenser_type)::text = ANY
+                   ((ARRAY ['PUMP'::character varying, 'SPRAY'::character varying, 'DROPPER'::character varying, 'ROLL_ON'::character varying, 'TWIST_UP'::character varying, 'SQUEEZE'::character varying, 'NONE'::character varying])::text[])),
+    uses              varchar(255),
+    manufactring_date date,
+    expiry_date       date,
+    instructions      text,
+    is_default        boolean                  default false,
+    created_at        timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at        timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at        timestamp with time zone,
+    is_active         boolean                  default true              not null,
+    created_by        uuid
+                                                                         references users
+                                                                             on delete set null,
+    updated_by        uuid
+                                                                         references users
+                                                                             on delete set null
 );
 
-CREATE TABLE product_variants
+create index if not exists idx_product_variants_product_id
+    on product_variants (product_id);
+
+create table if not exists product_stories
 (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id        UUID    NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    price             DECIMAL(15, 2),
-    current_stock     INTEGER NOT NULL,
-    capacity          DECIMAL(10, 2),
-    capacity_unit     VARCHAR(20) CHECK (
-        capacity_unit IN ('ML', 'L', 'G', 'KG', 'OZ')
-        ),
-    container_type    VARCHAR(50) CHECK (
-        container_type IN (
-                           'BOTTLE',
-                           'TUBE',
-                           'JAR',
-                           'STICK',
-                           'PENCIL',
-                           'COMPACT',
-                           'PALLETE',
-                           'SACHET',
-                           'VIAL',
-                           'ROLLER_BOTTLE'
-            )
-        ),
-    dispenser_type    VARCHAR(50) CHECK (
-        dispenser_type IN (
-                           'PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE'
-            )
-        ),
-    uses              VARCHAR(255),
-    manufactring_date DATE,
-    expiry_date       DATE,
-    instructions      TEXT,
-    is_default        BOOLEAN          DEFAULT FALSE,
-    is_active         BOOLEAN          DEFAULT TRUE,
-    created_at        TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at        TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at        TIMESTAMPTZ
+    id         uuid                     default gen_random_uuid() not null
+        primary key,
+    variant_id uuid                                               not null
+        references product_variants
+            on delete cascade,
+    content    jsonb                                              not null,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at timestamp with time zone
 );
 
--- Product story to hold rich content about the product, this is reserved for
--- limited_product only
-CREATE TABLE product_stories
+create index if not exists idx_product_stories_variant_id
+    on product_stories (variant_id);
+
+create index if not exists idx_product_stories_content_gin
+    on product_stories using gin (content);
+
+create table if not exists variant_images
 (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    variant_id UUID  NOT NULL REFERENCES product_variants (
-                                                           id
-        ) ON DELETE CASCADE,
-    content    JSONB NOT NULL,
-    created_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at TIMESTAMPTZ
+    id         uuid                     default gen_random_uuid() not null
+        primary key,
+    variant_id uuid                                               not null
+        references product_variants
+            on delete cascade,
+    image_url  text                                               not null,
+    alt_text   varchar(255),
+    is_primary boolean                  default false,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at timestamp with time zone
 );
 
-CREATE TABLE variant_images
+create index if not exists idx_variant_images_variant_id
+    on variant_images (variant_id);
+
+create table if not exists variant_attributes
 (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    variant_id UUID NOT NULL REFERENCES product_variants (
-                                                          id
-        ) ON DELETE CASCADE,
-    image_url  TEXT NOT NULL,
-    alt_text   VARCHAR(255),
-    is_primary BOOLEAN          DEFAULT FALSE,
-    created_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at TIMESTAMPTZ
+    id          uuid                     default gen_random_uuid() not null
+        primary key,
+    ingredient  varchar(255)                                       not null,
+    description text,
+    created_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at  timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at  timestamp with time zone,
+    created_by  uuid
+                                                                   references users
+                                                                       on delete set null,
+    updated_by  uuid
+                                                                   references users
+                                                                       on delete set null
 );
 
-CREATE TABLE variant_attributes
+create table if not exists variant_attribute_values
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    ingredient  VARCHAR(255) NOT NULL,
-    description TEXT,
-    created_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at  TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at  TIMESTAMPTZ
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    variant_id   uuid                                               not null
+        references product_variants
+            on delete cascade,
+    attribute_id uuid                                               not null
+        references variant_attributes
+            on delete cascade,
+    value        numeric(10, 2)                                     not null,
+    unit         varchar(50)
+        constraint variant_attribute_values_unit_check
+            check ((unit)::text = ANY
+                   ((ARRAY ['%'::character varying, 'MG'::character varying, 'G'::character varying, 'ML'::character varying, 'L'::character varying, 'IU'::character varying, 'PPM'::character varying, 'NONE'::character varying])::text[])),
+    created_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at   timestamp with time zone,
+    unique (variant_id, attribute_id)
 );
 
-CREATE TABLE variant_attribute_values
+create index if not exists idx_variant_attr_vals_variant_id
+    on variant_attribute_values (variant_id);
+
+create index if not exists idx_variant_attr_vals_attribute_id
+    on variant_attribute_values (attribute_id);
+
+create table if not exists content_products
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    variant_id   UUID           NOT NULL REFERENCES product_variants (
-                                                                      id
-        ) ON DELETE CASCADE,
-    attribute_id UUID           NOT NULL REFERENCES variant_attributes (
-                                                                        id
-        ) ON DELETE CASCADE,
-    value        DECIMAL(10, 2) NOT NULL,
-    unit         VARCHAR(50) CHECK (
-        unit IN
-        ('%', 'MG', 'G', 'ML', 'L', 'IU', 'PPM', 'NONE')
-        ),
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at   TIMESTAMPTZ,
-    UNIQUE (variant_id, attribute_id)
+    id            uuid default gen_random_uuid() not null
+        primary key,
+    content_id    uuid                           not null
+        references contents
+            on delete cascade,
+    product_id    uuid                           not null
+        references products
+            on delete cascade,
+    affiliate_url varchar(255)
 );
 
-CREATE TABLE content_products
+create index if not exists idx_content_products_content_id
+    on content_products (content_id);
+
+create index if not exists idx_content_products_product_id
+    on content_products (product_id);
+
+create table if not exists carts
 (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    content_id    UUID NOT NULL REFERENCES contents (id) ON DELETE CASCADE,
-    product_id    UUID NOT NULL REFERENCES products (id) ON DELETE CASCADE,
-    affiliate_url VARCHAR(255)
+    id         uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id    uuid
+        references users
+            on delete cascade,
+    created_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP
 );
 
--- Cart, Order, and Review Entities
-CREATE TABLE carts
+create index if not exists idx_carts_user_id
+    on carts (user_id);
+
+create table if not exists cart_items
 (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID REFERENCES users (id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at TIMESTAMPTZ      DEFAULT current_timestamp
+    id         uuid                     default gen_random_uuid() not null
+        primary key,
+    cart_id    uuid                                               not null
+        references carts
+            on delete cascade,
+    variant_id uuid                                               not null
+        references product_variants
+            on delete cascade,
+    quantity   integer                                            not null,
+    subtotal   numeric(15, 2)                                     not null,
+    updated_at timestamp with time zone default CURRENT_TIMESTAMP
 );
 
-CREATE TABLE cart_items
+create index if not exists idx_cart_items_cart_id
+    on cart_items (cart_id);
+
+create index if not exists idx_cart_items_variant_id
+    on cart_items (variant_id);
+
+create table if not exists orders
 (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cart_id    UUID           NOT NULL REFERENCES carts (id) ON DELETE CASCADE,
-    variant_id UUID           NOT NULL REFERENCES product_variants (
-                                                                    id
-        ) ON DELETE CASCADE,
-    quantity   INTEGER        NOT NULL,
-    subtotal   DECIMAL(15, 2) NOT NULL,
-    updated_at TIMESTAMPTZ      DEFAULT current_timestamp
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id      uuid                                               not null
+        references users
+            on delete set null,
+    status       varchar(50)                                        not null
+        constraint orders_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['PENDING'::character varying, 'PAID'::character varying, 'REFUNDED'::character varying, 'CONFIRMED'::character varying, 'CANCELED'::character varying, 'SHIPPED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'RECEIVED'::character varying])::text[])),
+    total_amount numeric(15, 2)                                     not null,
+    address_id   uuid                                               not null
+        references shipping_addresses
+            on delete restrict,
+    created_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP
 );
 
-CREATE TABLE orders
+create index if not exists idx_orders_user_id
+    on orders (user_id);
+
+create index if not exists idx_orders_address_id
+    on orders (address_id);
+
+create index if not exists idx_orders_status
+    on orders (status);
+
+create table if not exists order_items
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id      UUID           NOT NULL REFERENCES users (id) ON DELETE SET NULL,
-    status       VARCHAR(50)    NOT NULL CHECK (
-        status IN (
-                   'PENDING',
-                   'PAID',
-                   'REFUNDED',
-                   'CONFIRMED',
-                   'CANCELED',
-                   'SHIPPED',
-                   'IN_TRANSIT',
-                   'DELIVERED',
-                   'RECEIVED'
-            )
-        ),
-    total_amount DECIMAL(15, 2) NOT NULL,
-    address_id   UUID           NOT NULL REFERENCES shipping_addresses (
-                                                                        id
-        ) ON DELETE RESTRICT,
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp
+    id                     uuid                     default gen_random_uuid() not null
+        primary key,
+    order_id               uuid                                               not null
+        references orders
+            on delete cascade,
+    variant_id             uuid                                               not null
+        references product_variants
+            on delete cascade,
+    quantity               integer                                            not null,
+    subtotal               numeric(15, 2)                                     not null,
+    unit_price             numeric(15, 2)                                     not null,
+    capacity               numeric(10, 2),
+    capacity_unit          varchar(20)
+        constraint order_items_capacity_unit_check
+            check ((capacity_unit)::text = ANY
+                   ((ARRAY ['ML'::character varying, 'L'::character varying, 'G'::character varying, 'KG'::character varying, 'OZ'::character varying])::text[])),
+    container_type         varchar(50)
+        constraint order_items_container_type_check
+            check ((container_type)::text = ANY
+                   ((ARRAY ['BOTTLE'::character varying, 'TUBE'::character varying, 'JAR'::character varying, 'STICK'::character varying, 'PENCIL'::character varying, 'COMPACT'::character varying, 'PALLETE'::character varying, 'SACHET'::character varying, 'VIAL'::character varying, 'ROLLER_BOTTLE'::character varying])::text[])),
+    dispenser_type         varchar(50)
+        constraint order_items_dispenser_type_check
+            check ((dispenser_type)::text = ANY
+                   ((ARRAY ['PUMP'::character varying, 'SPRAY'::character varying, 'DROPPER'::character varying, 'ROLL_ON'::character varying, 'TWIST_UP'::character varying, 'SQUEEZE'::character varying, 'NONE'::character varying])::text[])),
+    uses                   varchar(255),
+    manufacturing_date     date,
+    expiry_date            date,
+    instructions           text,
+    attributes_description jsonb,
+    item_status            varchar(50)                                        not null
+        constraint order_items_item_status_check
+            check ((item_status)::text = ANY
+                   ((ARRAY ['PENDING'::character varying, 'PAID'::character varying, 'REFUNDED'::character varying, 'CONFIRMED'::character varying, 'CANCELED'::character varying, 'SHIPPED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'RECEIVED'::character varying])::text[])),
+    updated_at             timestamp with time zone default CURRENT_TIMESTAMP
 );
 
-CREATE TABLE order_items
-(
-    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id               UUID           NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
-    variant_id             UUID           NOT NULL REFERENCES product_variants (
-                                                                                id
-        ) ON DELETE CASCADE,
-    quantity               INTEGER        NOT NULL,
-    subtotal               DECIMAL(15, 2) NOT NULL,
+create index if not exists idx_order_items_order_id
+    on order_items (order_id);
 
--- Snapshot fields to preserve product data at the time of purchase
--- The price of a single unit when the order was placed.
-    unit_price             DECIMAL(15, 2) NOT NULL,
-    capacity               DECIMAL(10, 2),
-    capacity_unit          VARCHAR(20) CHECK (
-        capacity_unit IN ('ML', 'L', 'G', 'KG', 'OZ')
-        ),
-    container_type         VARCHAR(50) CHECK (
-        container_type IN (
-                           'BOTTLE',
-                           'TUBE',
-                           'JAR',
-                           'STICK',
-                           'PENCIL',
-                           'COMPACT',
-                           'PALLETE',
-                           'SACHET',
-                           'VIAL',
-                           'ROLLER_BOTTLE'
-            )
-        ),
-    dispenser_type         VARCHAR(50) CHECK (
-        dispenser_type IN (
-                           'PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE'
-            )
-        ),
-    uses                   VARCHAR(255),
-    manufactring_date      DATE,
-    expiry_date            DATE,
-    instructions           TEXT,
-    attributes_description JSONB, -- A human-readable description of the variant's attributes (e.g., "Color: Blue, Size: Large").
-    item_status            VARCHAR(50)    NOT NULL CHECK (
-        item_status IN (
-                        'PENDING',
-                        'PAID',
-                        'REFUNED',
-                        'CONFIRMED',
-                        'CANCELED',
-                        'SHIPPED',
-                        'IN_TRANSIT',
-                        'DELIVERED',
-                        'RECEIVED'
-            )
-        ),
-    updated_at             TIMESTAMPTZ      DEFAULT current_timestamp
+create index if not exists idx_order_items_variant_id
+    on order_items (variant_id);
+
+create table if not exists pre_orders
+(
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id      uuid                                               not null
+        references users
+            on delete set null,
+    variant_id   uuid                                               not null
+        references product_variants
+            on delete cascade,
+    quantity     integer                                            not null,
+    unit_price   numeric(15, 2)                                     not null,
+    total_amount numeric(15, 2)                                     not null,
+    status       varchar(50)                                        not null
+        constraint pre_orders_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['PENDING'::character varying, 'PRE_ORDERED'::character varying, 'AWAITING_RELEASE'::character varying, 'AWAITING_PICKUP'::character varying, 'CONFIRMED'::character varying, 'CANCELLED'::character varying, 'IN_TRANSIT'::character varying, 'DELIVERED'::character varying, 'RECEIVED'::character varying])::text[])),
+    created_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP
 );
 
-CREATE TABLE pre_orders
+create index if not exists idx_pre_orders_user_id
+    on pre_orders (user_id);
+
+create index if not exists idx_pre_orders_variant_id
+    on pre_orders (variant_id);
+
+create index if not exists idx_pre_orders_status
+    on pre_orders (status);
+
+create table if not exists refund_requests
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id      UUID           NOT NULL REFERENCES users (id) ON DELETE SET NULL,
-    variant_id   UUID           NOT NULL REFERENCES product_variants (
-                                                                      id
-        ) ON DELETE CASCADE,
-    quantity     INTEGER        NOT NULL,
-    unit_price   DECIMAL(15, 2) NOT NULL,
-    total_amount DECIMAL(15, 2) NOT NULL,
-    status       VARCHAR(50)    NOT NULL CHECK (
-        status IN (
-                   'PENDING',
-                   'PRE_ORDERED',
-                   'AWAITING_RELEASE',
-                   'AWAITING_PICKUP',
-                   'CONFIRMED',
-                   'CANCELLED',
-                   'IN_TRANSIT',
-                   'DELIVERED',
-                   'RECEIVED'
-            )
-        ),
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    order_id     uuid
+        references orders
+            on delete cascade,
+    pre_order_id uuid
+        references pre_orders
+            on delete cascade,
+    reason       text                                               not null,
+    amount       numeric(15, 2)                                     not null,
+    status       varchar(50)                                        not null
+        constraint refund_requests_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'COMPLETED'::character varying])::text[])),
+    requested_at timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    unique (order_id, pre_order_id),
+    constraint refund_one_of_order_or_preorder
+        check (((order_id IS NOT NULL) AND (pre_order_id IS NULL)) OR
+               ((order_id IS NULL) AND (pre_order_id IS NOT NULL)))
 );
 
-CREATE TABLE refund_requests
+create index if not exists idx_refund_requests_order_id
+    on refund_requests (order_id);
+
+create index if not exists idx_refund_requests_pre_order_id
+    on refund_requests (pre_order_id);
+
+create index if not exists idx_refund_requests_status
+    on refund_requests (status);
+
+create table if not exists reviews
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id     UUID REFERENCES orders (id) ON DELETE CASCADE,
-    pre_order_id UUID REFERENCES pre_orders (id) ON DELETE CASCADE,
-    reason       TEXT           NOT NULL,
-    amount       DECIMAL(15, 2) NOT NULL,
-    status       VARCHAR(50)    NOT NULL CHECK (
-        status IN ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED')
-        ),
-    requested_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    constraint REFUND_ONE_OF_ORDER_OR_PREORDER CHECK (
-        (order_id IS NOT NULL AND pre_order_id IS NULL)
-            OR (order_id IS NULL AND pre_order_id IS NOT NULL)
-        ),
-    UNIQUE (order_id, pre_order_id)
+    id           uuid                     default gen_random_uuid() not null
+        primary key,
+    variant_id   uuid                                               not null
+        references product_variants
+            on delete cascade,
+    user_id      uuid
+                                                                    references users
+                                                                        on delete set null,
+    order_id     uuid
+                                                                    references orders
+                                                                        on delete set null,
+    pre_order_id uuid
+                                                                    references pre_orders
+                                                                        on delete set null,
+    rating       integer                                            not null
+        constraint reviews_rating_check
+            check ((rating >= 1) AND (rating <= 5)),
+    comment      text,
+    image_url    text,
+    review_date  timestamp with time zone default CURRENT_TIMESTAMP,
+    created_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at   timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at   timestamp with time zone,
+    unique (variant_id, user_id, order_id, pre_order_id),
+    constraint review_one_of_order_or_preorder
+        check (((order_id IS NOT NULL) AND (pre_order_id IS NULL)) OR
+               ((order_id IS NULL) AND (pre_order_id IS NOT NULL)))
 );
 
-CREATE TABLE reviews
+create index if not exists idx_reviews_variant_id
+    on reviews (variant_id);
+
+create index if not exists idx_reviews_user_id
+    on reviews (user_id);
+
+create index if not exists idx_reviews_order_id
+    on reviews (order_id);
+
+create index if not exists idx_reviews_pre_order_id
+    on reviews (pre_order_id);
+
+create table if not exists files
 (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    variant_id   UUID    NOT NULL REFERENCES product_variants (
-                                                               id
-        ) ON DELETE CASCADE,
-    user_id      UUID    REFERENCES users (id) ON DELETE SET NULL,
-    order_id     UUID    REFERENCES orders (id) ON DELETE SET NULL,
-    pre_order_id UUID    REFERENCES pre_orders (id) ON DELETE SET NULL,
-    rating       INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    comment      TEXT,
-    image_url    TEXT,
-    review_date  TIMESTAMPTZ      DEFAULT current_timestamp,
-    created_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    updated_at   TIMESTAMPTZ      DEFAULT current_timestamp,
-    deleted_at   TIMESTAMPTZ,
-    constraint REVIEW_ONE_OF_ORDER_OR_PREORDER CHECK (
-        (order_id IS NOT NULL AND pre_order_id IS NULL)
-            OR (order_id IS NULL AND pre_order_id IS NOT NULL)
-        ),
-    UNIQUE (variant_id, user_id, order_id, pre_order_id)
+    id          uuid                     default gen_random_uuid() not null
+        primary key,
+    file_name   varchar(255)                                       not null,
+    alt_text    varchar(255),
+    url         text                                               not null,
+    mime_type   varchar(100)                                       not null,
+    size        bigint                                             not null,
+    uploaded_at timestamp with time zone default CURRENT_TIMESTAMP,
+    uploaded_by uuid
+                                                                   references users
+                                                                       on delete set null
 );
 
--- A table to log metadata about uploaded files. Other tables link via storing the URL.
-CREATE TABLE files
+create index if not exists idx_files_uploaded_by
+    on files (uploaded_by);
+
+create table if not exists payment_transactions
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    file_name   VARCHAR(255) NOT NULL,
-    alt_text    VARCHAR(255),
-    url         TEXT         NOT NULL,
-    mime_type   VARCHAR(100) NOT NULL,
-    size        BIGINT       NOT NULL,
-    uploaded_at TIMESTAMPTZ      DEFAULT current_timestamp,
-    uploaded_by UUID         REFERENCES users (id) ON DELETE SET NULL
+    id               uuid                     default gen_random_uuid() not null
+        primary key,
+    reference_id     uuid                                               not null,
+    reference_type   varchar(50)                                        not null,
+    amount           numeric(15, 2)                                     not null,
+    method           varchar(50)                                        not null
+        constraint payment_transactions_method_check
+            check ((method)::text = ANY ((ARRAY ['COD'::character varying, 'ONLINE'::character varying])::text[])),
+    status           varchar(50)                                        not null
+        constraint payment_transactions_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['PAID'::character varying, 'PENDING'::character varying, 'REFUNDED'::character varying])::text[])),
+    transaction_date timestamp with time zone default CURRENT_TIMESTAMP,
+    gateway_ref      varchar(255),
+    updated_at       timestamp with time zone default CURRENT_TIMESTAMP,
+    gateway_id       text
 );
 
--- A centralized table for financial transactions.
--- reference_type can be 'ORDER', 'CONTRACT_PAYMENT'.
-CREATE TABLE payment_transactions
+create index if not exists idx_payment_transactions_ref
+    on payment_transactions (reference_id, reference_type);
+
+create table if not exists modified_histories
 (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reference_id     UUID           NOT NULL,
-    reference_type   VARCHAR(50)    NOT NULL,
-    amount           DECIMAL(15, 2) NOT NULL,
-    method           VARCHAR(50)    NOT NULL CHECK (method IN ('COD', 'ONLINE')),
-    status           VARCHAR(50)    NOT NULL CHECK (
-        status IN ('PAID', 'PENDING', 'REFUNDED')
-        ),
-    transaction_date TIMESTAMPTZ      DEFAULT current_timestamp,
-    gateway_ref      VARCHAR(255),
-    updated_at       TIMESTAMPTZ      DEFAULT current_timestamp
+    id             uuid                     default gen_random_uuid()                not null
+        primary key,
+    reference_id   uuid,
+    reference_type varchar(50)                                                       not null
+        constraint modified_histories_reference_type_chk
+            check ((reference_type)::text = ANY
+                   ((ARRAY ['CONTRACT'::character varying, 'CAMPAIGN'::character varying, 'MILESTONE'::character varying, 'TASK'::character varying, 'CONTENT'::character varying, 'PRODUCT'::character varying, 'BLOG'::character varying])::text[])),
+    operation      varchar(50)                                                       not null
+        constraint modified_histories_operation_chk
+            check ((operation)::text = ANY
+                   ((ARRAY ['CREATE'::character varying, 'UPDATE'::character varying, 'DELETE'::character varying])::text[])),
+    description    text                                                              not null,
+    changed_by     uuid
+                                                                                     references users
+                                                                                         on delete set null,
+    changed_at     timestamp with time zone default CURRENT_TIMESTAMP,
+    status         varchar(20)              default 'IN_PROGRESS'::character varying not null
+        constraint modified_histories_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['IN_PROGRESS'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying])::text[]))
 );
 
--- A centralized table for tracking changes to other tables.
--- reference_type could be 'CONTRACT', 'PRODUCT', 'USER_ACCOUNT', etc.
-CREATE TABLE modified_histories
+create index if not exists idx_modified_histories_changed_by
+    on modified_histories (changed_by);
+
+create index if not exists idx_modified_histories_poly_ref
+    on modified_histories (reference_id, reference_type);
+
+create table if not exists kpi_metrics
 (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reference_id   UUID        NOT NULL,
-    reference_type VARCHAR(50) NOT NULL,
-    change_type    VARCHAR(50) NOT NULL,
-    description    TEXT        NOT NULL,
-    changed_by     UUID        REFERENCES users (id) ON DELETE SET NULL,
-    changed_at     TIMESTAMPTZ      DEFAULT current_timestamp
+    id             uuid default gen_random_uuid() not null,
+    reference_id   uuid                           not null,
+    reference_type reference_type                 not null,
+    type           varchar(50)                    not null
+        constraint kpi_metrics_type_check
+            check ((type)::text = ANY
+                   ((ARRAY ['REACH'::character varying, 'IMPRESSIONS'::character varying, 'LIKES'::character varying, 'COMMENTS'::character varying, 'SHARES'::character varying, 'CTR'::character varying, 'ENGAGEMENT'::character varying])::text[])),
+    value          numeric(15, 2)                 not null,
+    recorded_date  timestamp with time zone       not null,
+    unit           varchar(10),
+    primary key (id, recorded_date)
 );
 
--- A centralized table for performance metrics.
--- reference_type can be 'CONTENT', 'CAMPAIGN'.
-CREATE TABLE kpi_metrics
+create index if not exists idx_kpi_metrics_ref
+    on kpi_metrics (reference_id, reference_type);
+
+create index if not exists kpi_metrics_recorded_date_idx
+    on kpi_metrics (recorded_date desc);
+
+create table if not exists concepts
 (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    reference_id   UUID           NOT NULL,
-    reference_type VARCHAR(50)    NOT NULL CHECK (
-        reference_type IN ('CONTENT', 'CAMPAIGN')
-        ),
-    type           VARCHAR(50)    NOT NULL CHECK (
-        type IN (
-                 'REACH',
-                 'IMPRESSIONS',
-                 'LIKES',
-                 'COMMENTS',
-                 'SHARES',
-                 'CTR',
-                 'ENGAGEMENT'
-            )
-        ),
-    value          DECIMAL(15, 2) NOT NULL,
-    recorded_date  TIMESTAMPTZ    NOT NULL,
-    unit           VARCHAR(10)
+    id              uuid                     default gen_random_uuid() not null
+        primary key,
+    name            varchar(255)                                       not null,
+    description     text,
+    created_at      timestamp with time zone default now()             not null,
+    updated_at      timestamp with time zone default now()             not null,
+    banner_url      text,
+    video_thumbnail text
 );
 
--- =================================================================
--- I. CORE INDEXES FOR FOREIGN KEYS (Essential for JOIN performance)
--- =================================================================
--- Core Entities
-CREATE INDEX idx_logged_sessions_user_id ON logged_sessions (user_id);
-CREATE INDEX idx_notifications_user_id ON notifications (user_id);
-CREATE INDEX idx_modified_histories_changed_by ON modified_histories (
-                                                                      changed_by
-    );
-CREATE INDEX idx_shipping_addresses_user_id ON shipping_addresses (user_id);
+create table if not exists limited_products
+(
+    id                      uuid    not null
+        primary key
+        references products
+            on delete cascade,
+    max_stock               integer not null,
+    is_free_shipping        boolean default false,
+    bought_limit            integer default 1,
+    premiere_date           date,
+    availability_start_date date,
+    availability_end_date   date,
+    concept_id              uuid
+        constraint limited_products_concept_id_unique
+            unique
+                                    references concepts
+                                        on delete set null
+);
 
--- Campaigns & Contracts
-CREATE INDEX idx_contracts_brand_id ON contracts (brand_id);
-CREATE INDEX idx_contract_payments_contract_id ON contract_payments (
-                                                                     contract_id
-    );
-CREATE INDEX idx_campaigns_contract_id ON campaigns (contract_id);
-CREATE INDEX idx_milestones_campaign_id ON milestones (campaign_id);
-CREATE INDEX idx_tasks_milestone_id ON tasks (milestone_id);
-CREATE INDEX idx_tasks_assigned_to ON tasks (assigned_to);
+create table if not exists notifications
+(
+    id                uuid                     default gen_random_uuid() not null
+        constraint notifications_new_pkey
+            primary key,
+    user_id           uuid                                               not null
+        constraint fk_notifications_user
+            references users
+            on update cascade on delete cascade,
+    type              varchar(50)                                        not null,
+    status            varchar(50)                                        not null,
+    delivery_attempts jsonb                    default '[]'::jsonb       not null,
+    recipient_info    jsonb                                              not null,
+    content_data      jsonb                                              not null,
+    platform_config   jsonb,
+    error_details     jsonb,
+    created_at        timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at        timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at        timestamp with time zone
+);
 
--- Content
-CREATE INDEX idx_contents_task_id ON contents (task_id);
-CREATE INDEX idx_blogs_author_id ON blogs (author_id);
--- For finding blogs by tag
-CREATE INDEX idx_blog_tags_tag_id ON blog_tags (tag_id);
-CREATE INDEX idx_content_channels_content_id ON content_channels (content_id);
-CREATE INDEX idx_content_channels_channel_id ON content_channels (channel_id);
+comment on table notifications is 'Stores all notification attempts (email and push) with flexible JSONB metadata';
 
--- E-Commerce
-CREATE INDEX idx_products_brand_id ON products (brand_id);
-CREATE INDEX idx_product_categories_parent_id ON product_categories (
-                                                                     parent_category_id
-    );
--- For finding products by category
-CREATE INDEX idx_product_variants_product_id ON product_variants (product_id);
-CREATE INDEX idx_product_stories_variant_id ON product_stories (variant_id);
-CREATE INDEX idx_variant_images_variant_id ON variant_images (variant_id);
-CREATE INDEX idx_variant_attr_vals_variant_id ON variant_attribute_values (
-                                                                           variant_id
-    );
-CREATE INDEX idx_variant_attr_vals_attribute_id ON variant_attribute_values (
-                                                                             attribute_id
-    );
-CREATE INDEX idx_content_products_content_id ON content_products (content_id);
-CREATE INDEX idx_content_products_product_id ON content_products (product_id);
+comment on column notifications.type is 'Notification type: EMAIL or PUSH';
 
--- Cart, Order, and Review
-CREATE INDEX idx_carts_user_id ON carts (user_id);
-CREATE INDEX idx_cart_items_cart_id ON cart_items (cart_id);
-CREATE INDEX idx_cart_items_variant_id ON cart_items (variant_id);
-CREATE INDEX idx_orders_user_id ON orders (user_id);
-CREATE INDEX idx_orders_address_id ON orders (address_id);
-CREATE INDEX idx_order_items_order_id ON order_items (order_id);
-CREATE INDEX idx_order_items_variant_id ON order_items (variant_id);
-CREATE INDEX idx_pre_orders_user_id ON pre_orders (user_id);
-CREATE INDEX idx_pre_orders_variant_id ON pre_orders (variant_id);
-CREATE INDEX idx_refund_requests_order_id ON refund_requests (order_id);
-CREATE INDEX idx_refund_requests_pre_order_id ON refund_requests (pre_order_id);
-CREATE INDEX idx_reviews_variant_id ON reviews (variant_id);
-CREATE INDEX idx_reviews_user_id ON reviews (user_id);
-CREATE INDEX idx_reviews_order_id ON reviews (order_id);
-CREATE INDEX idx_reviews_pre_order_id ON reviews (pre_order_id);
+comment on column notifications.status is 'Delivery status: PENDING, SENT, FAILED, RETRYING';
 
--- Polymorphic & Utility Tables
-CREATE INDEX idx_payment_transactions_ref ON payment_transactions (
-                                                                   reference_id, reference_type
-    );
-CREATE INDEX idx_modified_histories_poly_ref ON modified_histories (
-                                                                    reference_id, reference_type
-    );
-CREATE INDEX idx_kpi_metrics_ref ON kpi_metrics (reference_id, reference_type);
-CREATE INDEX idx_files_uploaded_by ON files (uploaded_by);
+comment on column notifications.delivery_attempts is 'Array of delivery attempts with timestamps and results';
 
+comment on column notifications.recipient_info is 'Email address or FCM device tokens';
 
--- =================================================================
--- II. INDEXES FOR STATUS, TYPE, AND OTHER COMMON FILTERS
--- =================================================================
--- Users
-CREATE INDEX idx_users_role ON users (role);
-CREATE INDEX idx_users_is_active ON users (is_active);
+comment on column notifications.content_data is 'Notification content (subject, body, template data)';
 
--- Notifications
-CREATE INDEX idx_notifications_status ON notifications (status);
+comment on column notifications.platform_config is 'iOS/Android specific push notification settings';
 
--- Contracts & Campaigns
-CREATE INDEX idx_contracts_status_type ON contracts (status, type);
-CREATE INDEX idx_campaigns_status ON campaigns (status);
-CREATE INDEX idx_tasks_status ON tasks (status);
-CREATE INDEX idx_contents_status ON contents (status);
+comment on column notifications.error_details is 'Last error information if delivery failed';
 
--- Products & Orders
-CREATE INDEX idx_products_type ON products (type);
-CREATE INDEX idx_orders_status ON orders (status);
-CREATE INDEX idx_pre_orders_status ON pre_orders (status);
-CREATE INDEX idx_refund_requests_status ON refund_requests (status);
+create index if not exists idx_notifications_type
+    on notifications (type);
 
--- =================================================================
--- III. OPTIONAL BUT HIGHLY RECOMMENDED INDEXES
--- =================================================================
--- For enabling efficient text search (e.g., for search bars)
--- NOTE: You must first enable the extension in your database by running: CREATE
--- EXTENSION IF NOT EXISTS pg_trgm;
-CREATE INDEX idx_products_name_trgm ON products USING GIN (name gin_trgm_ops);
-CREATE INDEX idx_contents_title_trgm ON contents USING GIN (title gin_trgm_ops);
-CREATE INDEX idx_tags_name_trgm ON tags USING GIN (name gin_trgm_ops);
-CREATE INDEX idx_brands_name_trgm ON brands USING GIN (name gin_trgm_ops);
+create index if not exists idx_notifications_created_at
+    on notifications (created_at);
 
--- For efficiently querying data inside JSONB fields
-CREATE INDEX idx_users_profile_data_gin ON users USING GIN (profile_data);
-CREATE INDEX idx_contents_body_gin ON contents USING GIN (body);
-CREATE INDEX idx_product_stories_content_gin ON product_stories USING GIN (content);
+create index if not exists idx_notifications_deleted_at
+    on notifications (deleted_at);
+
+create index if not exists idx_notifications_delivery_attempts
+    on notifications using gin (delivery_attempts);
+
+create index if not exists idx_notifications_recipient_info
+    on notifications using gin (recipient_info);
+
+create index if not exists idx_notifications_error_details
+    on notifications using gin (error_details);
+
+create table if not exists device_tokens
+(
+    id            uuid                     default gen_random_uuid() not null
+        primary key,
+    user_id       uuid                                               not null
+        constraint fk_device_tokens_user
+            references users
+            on update cascade on delete cascade,
+    token         varchar(255)                                       not null,
+    platform      varchar(50)                                        not null,
+    registered_at timestamp with time zone default CURRENT_TIMESTAMP not null,
+    last_used_at  timestamp with time zone,
+    is_valid      boolean                  default true              not null,
+    created_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    updated_at    timestamp with time zone default CURRENT_TIMESTAMP,
+    deleted_at    timestamp with time zone
+);
+
+comment on table device_tokens is 'Stores FCM device tokens for push notifications';
+
+comment on column device_tokens.token is 'Firebase Cloud Messaging device token';
+
+comment on column device_tokens.platform is 'Mobile platform: IOS or ANDROID';
+
+comment on column device_tokens.last_used_at is 'Last time a notification was sent to this token';
+
+comment on column device_tokens.is_valid is 'Whether token is still valid (false if FCM reports invalid)';
+
+create index if not exists idx_device_tokens_user_id
+    on device_tokens (user_id);
+
+create unique index if not exists idx_device_tokens_token
+    on device_tokens (token)
+    where (deleted_at IS NULL);
+
+create index if not exists idx_device_tokens_is_valid
+    on device_tokens (is_valid);
+
+create index if not exists idx_device_tokens_last_used_at
+    on device_tokens (last_used_at);
+
+create index if not exists idx_device_tokens_deleted_at
+    on device_tokens (deleted_at);
+
+create table if not exists provinces
+(
+    id             integer                                not null
+        primary key,
+    name           varchar(255)                           not null,
+    country_id     integer,
+    code           varchar(64),
+    region_id      integer,
+    region_cpn     integer,
+    is_enable      integer,
+    can_update_cod boolean,
+    status         integer,
+    created_at     timestamp with time zone default now() not null,
+    updated_at     timestamp with time zone default now() not null,
+    deleted_at     timestamp with time zone
+);
+
+create index if not exists idx_provinces_name
+    on provinces (name);
+
+create index if not exists idx_provinces_deleted_at
+    on provinces (deleted_at);
+
+create table if not exists districts
+(
+    id              integer                                not null
+        primary key,
+    province_id     integer                                not null
+        references provinces
+            on update cascade on delete cascade,
+    name            varchar(255)                           not null,
+    code            varchar(64),
+    type            integer,
+    support_type    integer,
+    pick_type       integer,
+    deliver_type    integer,
+    government_code varchar(64),
+    is_enable       integer,
+    can_update_cod  boolean,
+    status          integer,
+    created_at      timestamp with time zone default now() not null,
+    updated_at      timestamp with time zone default now() not null,
+    deleted_at      timestamp with time zone
+);
+
+create index if not exists idx_districts_province_id
+    on districts (province_id);
+
+create index if not exists idx_districts_name
+    on districts (name);
+
+create index if not exists idx_districts_deleted_at
+    on districts (deleted_at);
+
+create table if not exists wards
+(
+    code            varchar(32)                            not null
+        primary key,
+    district_id     integer                                not null
+        references districts
+            on update cascade on delete cascade,
+    name            varchar(255)                           not null,
+    support_type    integer,
+    pick_type       integer,
+    deliver_type    integer,
+    government_code varchar(64),
+    is_enable       integer,
+    can_update_cod  boolean,
+    status          integer,
+    created_at      timestamp with time zone default now() not null,
+    updated_at      timestamp with time zone default now() not null,
+    deleted_at      timestamp with time zone
+);
+
+create index if not exists idx_wards_district_id
+    on wards (district_id);
+
+create index if not exists idx_wards_name
+    on wards (name);
+
+create index if not exists idx_wards_deleted_at
+    on wards (deleted_at);
+
+create table if not exists affiliate_links
+(
+    id           uuid                     default gen_random_uuid()           not null
+        primary key,
+    hash         varchar(16)                                                  not null
+        unique,
+    contract_id  uuid                                                         not null
+        references contracts
+            on delete cascade,
+    content_id   uuid                                                         not null
+        references contents
+            on delete cascade,
+    channel_id   uuid                                                         not null
+        references channels
+            on delete restrict,
+    tracking_url text                                                         not null,
+    status       varchar(20)              default 'active'::character varying not null
+        constraint affiliate_links_status_check
+            check ((status)::text = ANY
+                   ((ARRAY ['active'::character varying, 'inactive'::character varying, 'expired'::character varying])::text[])),
+    created_at   timestamp with time zone default now(),
+    updated_at   timestamp with time zone default now(),
+    deleted_at   timestamp with time zone,
+    constraint unique_affiliate_combination
+        unique (contract_id, content_id, channel_id)
+);
+
+comment on table affiliate_links is 'Stores unique trackable affiliate links for content+channel combinations';
+
+comment on column affiliate_links.hash is 'Base62 SHA-256 hash (16 chars) for public URL shortening';
+
+comment on column affiliate_links.tracking_url is 'Original affiliate product URL from contract ScopeOfWork';
+
+comment on column affiliate_links.status is 'active: clickable, inactive: paused, expired: contract/content ended';
+
+create index if not exists idx_affiliate_links_contract_id
+    on affiliate_links (contract_id)
+    where (deleted_at IS NULL);
+
+create index if not exists idx_affiliate_links_content_id
+    on affiliate_links (content_id)
+    where (deleted_at IS NULL);
+
+create index if not exists idx_affiliate_links_channel_id
+    on affiliate_links (channel_id)
+    where (deleted_at IS NULL);
+
+create index if not exists idx_affiliate_links_status
+    on affiliate_links (status)
+    where (deleted_at IS NULL);
+
+create index if not exists idx_affiliate_links_deleted_at
+    on affiliate_links (deleted_at);
+
+create table if not exists click_events
+(
+    id                uuid                     default gen_random_uuid() not null,
+    affiliate_link_id uuid                                               not null
+        references affiliate_links
+            on delete cascade,
+    user_id           uuid
+                                                                         references users
+                                                                             on delete set null,
+    clicked_at        timestamp with time zone default now()             not null,
+    ip_address        inet,
+    user_agent        text,
+    referrer_url      text,
+    session_id        varchar(255),
+    primary key (id, clicked_at)
+);
+
+comment on table click_events is 'TimescaleDB hypertable storing individual click events with 90-day retention';
+
+comment on column click_events.clicked_at is 'Partition key for TimescaleDB - DO NOT UPDATE after insert';
+
+comment on column click_events.ip_address is 'Anonymized for privacy - store hashed or truncated version';
+
+comment on column click_events.user_agent is 'Browser user agent for bot detection';
+
+create index if not exists click_events_clicked_at_idx
+    on click_events (clicked_at desc);
+
+create index if not exists idx_click_events_affiliate_link_id
+    on click_events (affiliate_link_id asc, clicked_at desc);
+
+create index if not exists idx_click_events_user_id
+    on click_events (user_id asc, clicked_at desc)
+    where (user_id IS NOT NULL);
+
+create index if not exists idx_click_events_session_id
+    on click_events (session_id asc, clicked_at desc)
+    where (session_id IS NOT NULL);
 

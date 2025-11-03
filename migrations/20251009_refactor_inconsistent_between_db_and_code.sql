@@ -9,7 +9,7 @@ alter table campaigns
     drop constraint campaigns_status_check;
 alter table campaigns
     add constraint campaigns_status_check CHECK (
-        status IN ('RUNNING', 'COMPLETED', 'CANCELED')
+        status IN ('RUNNING', 'COMPLETED', 'CANCELLED')
         );
 
 

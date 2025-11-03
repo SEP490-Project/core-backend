@@ -23,6 +23,6 @@ func (c CompletedState) Next(ctx *CampaignContext, next CampaignState) error {
 
 func (c CompletedState) AllowedTransitions() map[enum.CampaignStatus]struct{} {
 	return map[enum.CampaignStatus]struct{}{
-		enum.CampaignCanceled: {},
+		enum.CampaignCancelled: {},
 	}
 }
