@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"encoding/json"
@@ -55,6 +56,10 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 type OrderItemRequest struct {
 	VariantID uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
 	Quantity  int       `json:"quantity" validate:"required,min=1" example:"1"`
+	Weight    int       `json:"weight" form:"weight" validate:"min=0" example:"250"` // in grams
+	Height    int       `json:"height" form:"height" validate:"min=0" example:"15"`  // in centimeters
+	Length    int       `json:"length" form:"length" validate:"min=0" example:"10"`  // in centimeters
+	Width     int       `json:"width" form:"width" validate:"min=0" example:"5"`     //
 }
 
 // ToModel converts OrderItemRequest to OrderItem model. The purpose of "now" parameter is to set CreatedAt and UpdatedAt fields sync with Order.
@@ -105,3 +110,10 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 }
 
 // ===========================PAYMENT==============================// (BY GHN)
+
+// PlaceAndPayRequest wraps OrderRequest with an optional delivery service selection
+// used by the place-and-pay endpoint.
+type PlaceAndPayRequest struct {
+	Order           OrderRequest                      `json:"order" validate:"required,dive"`
+	DeliveryService *dtos.DeliveryAvailableServiceDTO `json:"delivery_service,omitempty"`
+}

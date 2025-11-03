@@ -1761,6 +1761,16 @@ definitions:
     type: object
   requests.OrderItemRequest:
     properties:
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
       quantity:
         example: 1
         minimum: 1
@@ -1768,6 +1778,15 @@ definitions:
       variant_id:
         example: 69700831-4112-44fd-bf7f-07b015f56218
         type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
     required:
     - quantity
     - variant_id
@@ -1818,6 +1837,15 @@ definitions:
         items:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
+    type: object
+  requests.PlaceAndPayRequest:
+    properties:
+      delivery_service:
+        $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
+      order:
+        $ref: '#/definitions/requests.OrderRequest'
+    required:
+    - order
     type: object
   requests.PublishContentRequest:
     properties:
@@ -3518,6 +3546,9 @@ definitions:
         $ref: '#/definitions/enum.DispenserType'
       expiry_date:
         type: string
+      height:
+        description: in centimeters
+        type: integer
       id:
         type: string
       images:
@@ -3528,6 +3559,9 @@ definitions:
         type: string
       is_default:
         type: boolean
+      length:
+        description: in centimeters
+        type: integer
       manufacturing_date:
         type: string
       name:
@@ -3540,6 +3574,11 @@ definitions:
         type: string
       uses:
         type: string
+      weight:
+        description: in grams
+        type: integer
+      width:
+        type: integer
     type: object
   responses.ProvinceResponse:
     properties:
@@ -4139,12 +4178,23 @@ definitions:
         $ref: '#/definitions/enum.CapacityUnit'
       current_stock:
         type: integer
+      height:
+        description: in centimeters
+        type: integer
       id:
         type: string
       is_default:
         type: boolean
+      length:
+        description: in centimeters
+        type: integer
       price:
         type: number
+      weight:
+        description: in grams
+        type: integer
+      width:
+        type: integer
     type: object
   responses.WardResponse:
     properties:
@@ -8233,6 +8283,50 @@ paths:
       security:
       - BearerAuth: []
       summary: Initiate payment for an order
+      tags:
+      - Orders
+  /api/v1/orders/place-and-pay:
+    post:
+      consumes:
+      - application/json
+      description: Create an order and immediately calculate delivery fee and create
+        payment transaction
+      parameters:
+      - description: Place and pay payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PlaceAndPayRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Place an order and initiate payment
       tags:
       - Orders
   /api/v1/payos/payment:

@@ -211,6 +211,10 @@ type ProductVariantResponse struct {
 	IsDefault       bool                        `json:"is_default,omitempty"`
 	CreatedAt       string                      `json:"created_at"`
 	UpdatedAt       string                      `json:"updated_at"`
+	Weight          int                         `json:"weight"` // in grams
+	Height          int                         `json:"height"` // in centimeters
+	Length          int                         `json:"length"` // in centimeters
+	Width           int                         `json:"width"`  //
 	Story           datatypes.JSON              `json:"story,omitempty" swaggerignore:"true"`
 	Attributes      []ProductAttributesResponse `json:"attributes,omitempty"`
 	Images          []VariantImageResponse      `json:"images,omitempty"`
@@ -230,7 +234,10 @@ type ProductAttributesResponse struct {
 func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.ProductVariant) *ProductVariantResponse {
 	resp := ProductVariantResponse{
 		ID:              variant.ID,
+		Name:            "",
+		Description:     nil,
 		Price:           variant.Price,
+		Type:            "",
 		CurrentStock:    variant.CurrentStock,
 		Capacity:        variant.Capacity,
 		CapacityUnit:    variant.CapacityUnit,
@@ -243,6 +250,10 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		IsDefault:       variant.IsDefault,
 		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
 		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
+		Weight:          variant.Weight,
+		Height:          variant.Height,
+		Length:          variant.Length,
+		Width:           variant.Width,
 		Story:           nil,
 		Attributes:      nil,
 		Images:          nil,
@@ -301,6 +312,10 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 		IsDefault:       variant.IsDefault,
 		CreatedAt:       utils.FormatLocalTime(&variant.CreatedAt, ""),
 		UpdatedAt:       utils.FormatLocalTime(&variant.UpdatedAt, ""),
+		Weight:          variant.Weight,
+		Height:          variant.Height,
+		Length:          variant.Length,
+		Width:           variant.Width,
 		Story:           nil,
 		Attributes:      nil,
 		Images:          nil,

@@ -6340,6 +6340,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/orders/place-and-pay": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an order and immediately calculate delivery fee and create payment transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Place an order and initiate payment",
+                "parameters": [
+                    {
+                        "description": "Place and pay payload",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PlaceAndPayRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/orders/{id}/pay": {
             "post": {
                 "security": [
@@ -11948,6 +12015,18 @@ const docTemplate = `{
                 "variant_id"
             ],
             "properties": {
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10
+                },
                 "quantity": {
                     "type": "integer",
                     "minimum": 1,
@@ -11956,6 +12035,17 @@ const docTemplate = `{
                 "variant_id": {
                     "type": "string",
                     "example": "69700831-4112-44fd-bf7f-07b015f56218"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 250
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 5
                 }
             }
         },
@@ -12027,6 +12117,20 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/requests.PaymentItemRequest"
                     }
+                }
+            }
+        },
+        "requests.PlaceAndPayRequest": {
+            "type": "object",
+            "required": [
+                "order"
+            ],
+            "properties": {
+                "delivery_service": {
+                    "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
+                },
+                "order": {
+                    "$ref": "#/definitions/requests.OrderRequest"
                 }
             }
         },
@@ -14461,6 +14565,10 @@ const docTemplate = `{
                 "expiry_date": {
                     "type": "string"
                 },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -14475,6 +14583,10 @@ const docTemplate = `{
                 },
                 "is_default": {
                     "type": "boolean"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
                 },
                 "manufacturing_date": {
                     "type": "string"
@@ -14493,6 +14605,13 @@ const docTemplate = `{
                 },
                 "uses": {
                     "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
                 }
             }
         },
@@ -15352,14 +15471,29 @@ const docTemplate = `{
                 "current_stock": {
                     "type": "integer"
                 },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
                 },
                 "is_default": {
                     "type": "boolean"
                 },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
                 "price": {
                     "type": "number"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
                 }
             }
         },
