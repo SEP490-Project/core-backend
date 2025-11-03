@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"errors"
@@ -165,7 +166,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 
 		paymenReq := requests.PaymentRequest{
 			ReferenceID:   order.ID,
-			ReferenceType: "ORDER",
+			ReferenceType: enum.PaymentTransactionReferenceTypeOrder,
 			Amount:        int64(order.TotalAmount),
 			Description:   "Pay:" + order.ID.String(),
 			BuyerName:     order.User.FullName,
