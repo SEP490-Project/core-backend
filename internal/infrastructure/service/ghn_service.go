@@ -9,9 +9,10 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/infrastructure/httpclient"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type ghnService struct {

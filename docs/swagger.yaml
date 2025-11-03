@@ -415,6 +415,54 @@ definitions:
     - max_clicks
     - multiplier
     type: object
+  dtos.PayOSWebhookData:
+    properties:
+      accountNumber:
+        type: string
+      amount:
+        type: integer
+      code:
+        type: string
+      counterAccountBankId:
+        type: string
+      counterAccountBankName:
+        type: string
+      counterAccountName:
+        type: string
+      counterAccountNumber:
+        type: string
+      currency:
+        type: string
+      desc:
+        type: string
+      description:
+        type: string
+      orderCode:
+        type: integer
+      paymentLinkId:
+        type: string
+      reference:
+        type: string
+      transactionDateTime:
+        type: string
+      virtualAccountName:
+        type: string
+      virtualAccountNumber:
+        type: string
+    type: object
+  dtos.PayOSWebhookPayload:
+    properties:
+      code:
+        type: string
+      data:
+        $ref: '#/definitions/dtos.PayOSWebhookData'
+      desc:
+        type: string
+      signature:
+        type: string
+      success:
+        type: boolean
+    type: object
   dtos.Schedule:
     properties:
       amount:
@@ -1691,14 +1739,6 @@ definitions:
     - street
     - type
     type: object
-  requests.InvoiceRequest:
-    properties:
-      invoiceCode:
-        type: string
-      invoiceDate:
-        format: date-time
-        type: string
-    type: object
   requests.LimitedProductAttributes:
     properties:
       availability_end_date:
@@ -1816,27 +1856,27 @@ definitions:
   requests.PaymentRequest:
     properties:
       amount:
+        description: Payment details
         type: integer
-      buyerAddress:
-        type: string
-      buyerCompanyName:
-        type: string
       buyerEmail:
         type: string
       buyerName:
+        description: Buyer information (for PayOS fields)
         type: string
       buyerPhone:
         type: string
-      buyerTaxCode:
-        type: string
       description:
         type: string
-      invoice:
-        $ref: '#/definitions/requests.InvoiceRequest'
       items:
         items:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
+      referenceId:
+        description: Reference information
+        type: string
+      referenceType:
+        description: '"ORDER" or "CONTRACT"'
+        type: string
     type: object
   requests.PlaceAndPayRequest:
     properties:
@@ -2982,6 +3022,68 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.ContractPaymenntResponse:
+    properties:
+      amount:
+        example: 5000
+        type: number
+      brand_id:
+        example: d4c3b2a1-0f9e-8d7c-6b5a-4c3b2a1f0e9d
+        type: string
+      brand_name:
+        example: Tech Solutions Inc.
+        type: string
+      contract_id:
+        example: a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6
+        type: string
+      contract_number:
+        example: WD-2024-001
+        type: string
+      contract_title:
+        example: Website Development Contract
+        type: string
+      created_at:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+      due_date:
+        example: "2024-07-15T00:00:00Z"
+        type: string
+      id:
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      installment_percentage:
+        example: 50
+        type: number
+      note:
+        example: First installment payment
+        type: string
+      payment_method:
+        example: BANK_TRANSFER
+        type: string
+      status:
+        example: PENDING
+        type: string
+      updated_at:
+        example: 2006-01-02T15:04:05Z07:00
+        type: string
+    type: object
+  responses.ContractPaymentPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContractPaymenntResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
   responses.ContractResponse:
     properties:
       brand:
@@ -3355,16 +3457,53 @@ definitions:
       status:
         type: string
     type: object
-  responses.PaymentResponse:
+  responses.PayOSOrderInfoResponse:
     properties:
-      code:
+      amount:
+        type: integer
+      amountPaid:
+        type: integer
+      amountRemaining:
+        type: integer
+      canceledAt:
         type: string
-      data:
-        $ref: '#/definitions/responses.PayOSLinkResponse'
-      desc:
+      cancellationReason:
         type: string
-      signature:
+      createdAt:
         type: string
+      id:
+        type: string
+      orderCode:
+        type: integer
+      status:
+        type: string
+      transactions:
+        items:
+          properties:
+            accountNumber:
+              type: string
+            amount:
+              type: integer
+            counterAccountBankId:
+              type: string
+            counterAccountBankName:
+              type: string
+            counterAccountName:
+              type: string
+            counterAccountNumber:
+              type: string
+            description:
+              type: string
+            reference:
+              type: string
+            transactionDateTime:
+              type: string
+            virtualAccountName:
+              type: string
+            virtualAccountNumber:
+              type: string
+          type: object
+        type: array
     type: object
   responses.PeriodInfo:
     properties:
@@ -6700,6 +6839,126 @@ paths:
       - BearerAuth: []
       tags:
       - Content
+  /api/v1/contract_payments:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Contract ID
+        example: '"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"'
+        in: query
+        name: contract_id
+        type: string
+      - description: Payment Status
+        enum:
+        - PENDING
+        - PAID
+        - OVERDUE
+        example: '"PAID"'
+        in: query
+        name: status
+        type: string
+      - description: Due Date From
+        example: '"2023-01-01"'
+        format: date
+        in: query
+        name: due_date_from
+        type: string
+      - description: Due Date To
+        example: '"2023-12-31"'
+        format: date
+        in: query
+        name: due_date_to
+        type: string
+      - description: Payment Method
+        enum:
+        - BANK_TRANSFER
+        - CASH
+        - CHECK
+        example: '"BANK_TRANSFER"'
+        in: query
+        name: payment_method
+        type: string
+      - default: 1
+        description: Page number
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract payments retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaymentPaginationResponse'
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract payments based on filtering criteria
+      tags:
+      - Contract Payments
+  /api/v1/contract_payments/{contract_payment_id}:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Contract Payment ID
+        example: '"b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6"'
+        in: path
+        name: contract_payment_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract payment retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractPaymenntResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract payment not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a contract payment by its ID
+      tags:
+      - Contract Payments
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:
@@ -8329,14 +8588,40 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
+  /api/v1/payos/cancel-expired:
+    post:
+      description: Manually trigger cancellation of all expired PayOS payment links
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cancellation completed
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel expired payment links
+      tags:
+      - payos
   /api/v1/payos/payment:
     post:
       consumes:
       - application/json
-      description: Initiate a payment with PayOS. Backend sẽ tự set `cancelUrl` và
-        `returnUrl` từ config, KHÔNG lấy từ client.
+      description: Generate a new PayOS payment link. Backend automatically sets cancelUrl
+        and returnUrl from config.
       parameters:
-      - description: Payment Request (client should NOT send cancelUrl/returnUrl)
+      - description: Payment Request
         in: body
         name: request
         required: true
@@ -8346,21 +8631,30 @@ paths:
       - application/json
       responses:
         "200":
-          description: PayOS wrapper response
+          description: Payment link created successfully
           schema:
-            $ref: '#/definitions/responses.PaymentResponse'
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PayOSLinkResponse'
+              type: object
         "400":
-          description: error
+          description: Bad request
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Create a PayOS payment
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a PayOS payment link
       tags:
       - payos
   /api/v1/payos/payment/{orderCode}:
     get:
-      description: Inspect payment detail
+      description: Retrieve payment details by order code
       parameters:
       - description: Order Code
         in: path
@@ -8371,17 +8665,62 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Payment info retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PayOSOrderInfoResponse'
+              type: object
         "400":
-          description: Bad Request
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Payment not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get PayOS payment information
+      tags:
+      - payos
+  /api/v1/payos/webhook:
+    post:
+      consumes:
+      - application/json
+      description: Receives payment status updates from PayOS. This is a public endpoint
+        with signature verification.
+      parameters:
+      - description: Webhook payload from PayOS
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.PayOSWebhookPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Webhook processed successfully
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Get PayOS order info
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Invalid signature
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: PayOS webhook endpoint
       tags:
       - payos
   /api/v1/products:

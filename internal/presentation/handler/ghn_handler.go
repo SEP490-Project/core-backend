@@ -28,7 +28,7 @@ type GHNHandler struct {
 //	@Tags			ghn
 //	@Accept			json
 //	@Produce		json
-//	@Param			order-id	path		string	true	"Order ID (UUID)"
+//	@Param			order-id	path		string								true	"Order ID (UUID)"
 //	@Param			body		body		dtos.DeliveryAvailableServiceDTO	true	"Selected delivery service"
 //	@Success		200			{object}	dtos.DeliveryFeeSuccess
 //	@Failure		400			{object}	map[string]string
@@ -134,13 +134,13 @@ type CalculateDeliveryPriceByDimensionRequest struct {
 
 // CalculateDeliveryPriceByDimension godoc
 //
-//	@Summary	Calculate delivery fee by explicit destination and items
+//	@Summary		Calculate delivery fee by explicit destination and items
 //	@Description	Compute GHN delivery fee by providing destination district/ward and a list of items (dimensions/weight)
 //	@Tags			ghn
 //	@Accept			json
 //	@Produce		json
-//	@Param			body		body	CalculateDeliveryPriceByDimensionRequest	true	"Delivery fee request"
-//	@Success		200	{object}	dtos.DeliveryFeeSuccess
+//	@Param			body	body		CalculateDeliveryPriceByDimensionRequest	true	"Delivery fee request"
+//	@Success		200		{object}	dtos.DeliveryFeeSuccess
 //	@Security		BearerAuth
 //	@Router			/api/v1/ghn/delivery/calculate-by-dimension [post]
 func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {

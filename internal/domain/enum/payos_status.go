@@ -35,19 +35,19 @@ func (s PayOSStatus) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface for database retrieval
-func (s *PayOSStatus) Scan(value interface{}) error {
+func (s *PayOSStatus) Scan(value any) error {
 	if value == nil {
 		*s = ""
 		return nil
 	}
-	
+
 	switch v := value.(type) {
 	case []byte:
 		*s = PayOSStatus(v)
 	case string:
 		*s = PayOSStatus(v)
 	}
-	
+
 	return nil
 }
 
