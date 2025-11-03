@@ -2,42 +2,23 @@ package responses
 
 import "time"
 
-type PaymentItem struct {
-	Name          string  `json:"name"`
-	Quantity      int     `json:"quantity"`
-	Price         float64 `json:"price"`
-	Unit          string  `json:"unit"`
-	TaxPercentage int     `json:"taxPercentage"`
-}
-
-type Invoice struct {
-	BuyerNotGetInvoice bool `json:"buyerNotGetInvoice"`
-	TaxPercentage      int  `json:"taxPercentage"`
-}
-
-// PaymentResponse represents the response structure for a payment operation.
-type PaymentResponse struct {
-	Code      string            `json:"code"`
-	Desc      string            `json:"desc"`
-	Data      PayOSLinkResponse `json:"data"`
-	Signature string            `json:"signature"`
-}
-
+// PayOSLinkResponse represents the response from PayOS when creating a payment link
 type PayOSLinkResponse struct {
 	Bin           string  `json:"bin"`
 	AccountNumber string  `json:"accountNumber"`
 	AccountName   string  `json:"accountName"`
 	Currency      string  `json:"currency"`
-	PaymentLinkId string  `json:"paymentLinkId"`
+	PaymentLinkID string  `json:"paymentLinkId"`
 	Amount        float64 `json:"amount"`
 	Description   string  `json:"description"`
 	OrderCode     int     `json:"orderCode"`
 	ExpiredAt     int64   `json:"expiredAt"`
 	Status        string  `json:"status"`
-	CheckoutUrl   string  `json:"checkoutUrl"`
+	CheckoutURL   string  `json:"checkoutUrl"`
 	QRCode        string  `json:"qrCode"`
 }
 
+// PayOSOrderInfoResponse represents detailed payment information from PayOS
 type PayOSOrderInfoResponse struct {
 	ID              string    `json:"id"`
 	OrderCode       int       `json:"orderCode"`
@@ -61,11 +42,4 @@ type PayOSOrderInfoResponse struct {
 	} `json:"transactions"`
 	CanceledAt         time.Time `json:"canceledAt"`
 	CancellationReason string    `json:"cancellationReason"`
-}
-
-type PayOSWrapperResponse[T any] struct {
-	Code      string `json:"code"`
-	Desc      string `json:"desc"`
-	Data      T      `json:"data"`
-	Signature string `json:"signature"`
 }
