@@ -41,6 +41,7 @@ type ApplicationRegistry struct {
 	AffiliateLinkService          iservice.AffiliateLinkService
 	ClickTrackingService          iservice.ClickTrackingService
 	AffiliateLinkAnalyticsService iservice.AffiliateLinkAnalyticsService
+	PaymentTransactionService     iservice.PaymentTransactionService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -101,7 +102,7 @@ func NewApplicationRegistry(
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry.PayOsService),
+		OrderService:                  service.NewOrderService(configs, databaseRegistry, service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy)),
 		ChannelService:                service.NewChannelService(databaseRegistry.ChannelRepository),
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
@@ -112,6 +113,7 @@ func NewApplicationRegistry(
 		AffiliateLinkService:          affiliateLinkService,
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
+		PaymentTransactionService:     service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
