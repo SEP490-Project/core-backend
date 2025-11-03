@@ -29,7 +29,13 @@ func NewProxiesRegistry(config *config.AppConfig) *ProxiesRegistry {
 
 	return &ProxiesRegistry{
 		httpClient: client,
-		PayOSProxy: NewPayOSProxy(client, config.PayOS.BaseURL),
+		PayOSProxy: NewPayOSProxy(
+			client,
+			config.PayOS.BaseURL,
+			config.PayOS.ClientID,
+			config.PayOS.APIKey,
+			config.PayOS.ChecksumKey,
+		),
 	}
 }
 
