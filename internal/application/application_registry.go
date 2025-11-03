@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/scheduler"
 	infraService "core-backend/internal/infrastructure/service"
 )
@@ -117,5 +118,19 @@ func NewApplicationRegistry(
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
+	}
+}
+
+// RegisterApplicationLayerJobs registers cron jobs that depend on application services
+func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
+	// Register PayOS Expiry Check Job
+	if r.InfrastructureRegistry.CronJobsRegistry != nil {
+		payosExpiryJob := jobs.NewPayOSExpiryCheckJob(
+			r.PaymentTransactionService,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("payos_expiry_check_job", payosExpiryJob)
+		r.InfrastructureRegistry.CronJobsRegistry.PayOSExpiryCheckJob = payosExpiryJob
 	}
 }
