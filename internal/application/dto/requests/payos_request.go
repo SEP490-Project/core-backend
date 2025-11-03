@@ -1,6 +1,7 @@
 package requests
 
 import (
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 
 	"github.com/google/uuid"
@@ -15,8 +16,8 @@ type PaymentItemRequest struct {
 // PaymentRequest represents a request to create a payment link for an order or contract
 type PaymentRequest struct {
 	// Reference information
-	ReferenceID   uuid.UUID `json:"referenceId"`   // Order ID or Contract ID
-	ReferenceType string    `json:"referenceType"` // "ORDER" or "CONTRACT"
+	ReferenceID   uuid.UUID                            `json:"referenceId"`   // Order ID or Contract Payment ID
+	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType"` // "ORDER" or "CONTRACT_PAYMENT"
 
 	// Payment details
 	Amount      int64                `json:"amount"`

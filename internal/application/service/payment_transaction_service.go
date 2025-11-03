@@ -36,7 +36,7 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 	zap.L().Info("Generating PayOS payment link",
 		zap.Int64("amount", req.Amount),
 		zap.String("reference_id", req.ReferenceID.String()),
-		zap.String("reference_type", req.ReferenceType))
+		zap.String("reference_type", req.ReferenceType.String()))
 
 	// 1. Create PaymentTransaction record first (to get ID for description)
 	paymentTransaction := &model.PaymentTransaction{
@@ -51,7 +51,7 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 
 	// 2. Generate order code and description
 	orderCode := s.generateOrderCode()
-	description := helper.GeneratePayOSDescription(paymentTransaction.ReferenceType, paymentTransaction.ID)
+	description := helper.GeneratePayOSDescription(paymentTransaction.ReferenceType.String(), paymentTransaction.ID)
 
 	// 3. Calculate expiry time
 	expirySeconds := s.config.AdminConfig.PayOSLinkExpiry
