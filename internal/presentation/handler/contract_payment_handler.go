@@ -15,20 +15,23 @@ import (
 )
 
 type ContractPaymentHandler struct {
-	contractPaymentService iservice.ContractPaymentService
-	unitOfWork             irepository.UnitOfWork
-	validator              *validator.Validate
+	contractPaymentService    iservice.ContractPaymentService
+	paymentTransactionService iservice.PaymentTransactionService
+	unitOfWork                irepository.UnitOfWork
+	validator                 *validator.Validate
 }
 
 func NewContractPaymentHandler(
 	contractPaymentService iservice.ContractPaymentService,
+	paymentTransactionService iservice.PaymentTransactionService,
 	unitOfWork irepository.UnitOfWork,
 ) *ContractPaymentHandler {
 	validator := validator.New()
 	return &ContractPaymentHandler{
-		contractPaymentService: contractPaymentService,
-		unitOfWork:             unitOfWork,
-		validator:              validator,
+		contractPaymentService:    contractPaymentService,
+		paymentTransactionService: paymentTransactionService,
+		unitOfWork:                unitOfWork,
+		validator:                 validator,
 	}
 }
 
@@ -180,4 +183,73 @@ func (h *ContractPaymentHandler) GetContractPaymentByID(c *gin.Context) {
 
 	c.JSON(http.StatusOK,
 		responses.SuccessResponse("Contract payment retrieved successfully", utils.PtrOrNil(http.StatusOK), contractPayment))
+}
+
+// GeneratePaymentLink godoc
+//
+//	@Summary		Generate PayOS payment link for contract payment
+//	@Description	Generate a PayOS payment link for a specific contract payment. Only PENDING payments can generate links.
+//	@Tags			Contract Payments
+//	@Accept			json
+//	@Produce		json
+//	@Param			contract_payment_id	path		string													true	"Contract Payment ID"	example("b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6")
+//	@Success		200					{object}	responses.APIResponse{data=responses.PayOSLinkResponse}	"Payment link generated successfully"
+//	@Failure		400					{object}	responses.APIResponse									"Invalid request or payment not in PENDING status"
+//	@Failure		404					{object}	responses.APIResponse									"Contract payment not found"
+//	@Failure		500					{object}	responses.APIResponse									"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contract_payments/{contract_payment_id}/payment-link [post]
+func (h *ContractPaymentHandler) GeneratePaymentLink(c *gin.Context) {
+	contractPaymentID, err := extractParamID(c, "contract_payment_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid contract_payment_id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Begin transaction
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	// Generate payment link
+	payosResp, err := h.contractPaymentService.CreatePaymentLinkFromContractPayment(
+		c.Request.Context(),
+		uow,
+		contractPaymentID,
+		h.paymentTransactionService,
+	)
+
+	if err != nil {
+		uow.Rollback()
+		var statusCode int
+		var message string
+
+		switch {
+		case err.Error() == "contract payment not found":
+			statusCode = http.StatusNotFound
+			message = "Contract payment not found"
+		case err.Error()[:45] == "payment link can only be generated for pending":
+			statusCode = http.StatusBadRequest
+			message = err.Error()
+		default:
+			statusCode = http.StatusInternalServerError
+			message = "Failed to generate payment link"
+		}
+
+		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
+		return
+	}
+
+	// Commit transaction
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to commit transaction", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse("Payment link generated successfully", utils.PtrOrNil(http.StatusOK), payosResp))
 }
