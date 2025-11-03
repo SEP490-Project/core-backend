@@ -10,24 +10,29 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type PayOsHandler struct {
 	paymentTransactionService iservice.PaymentTransactionService
+	stateTransferService      iservice.StateTransferService
 	payosProxy                iproxies.PayOSProxy
 	unitOfWork                irepository.UnitOfWork
 }
 
 func NewPayOsHandler(
 	paymentTransactionService iservice.PaymentTransactionService,
+	stateTransferService iservice.StateTransferService,
 	payosProxy iproxies.PayOSProxy,
 	unitOfWork irepository.UnitOfWork,
 ) *PayOsHandler {
 	return &PayOsHandler{
 		paymentTransactionService: paymentTransactionService,
+		stateTransferService:      stateTransferService,
 		payosProxy:                payosProxy,
 		unitOfWork:                unitOfWork,
 	}
@@ -175,6 +180,32 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		// Still return 200 to acknowledge receipt, but log the error
 		c.JSON(http.StatusOK, gin.H{"status": "received", "error": err.Error()})
 		return
+	}
+
+	// After processing payment transaction, find the updated transaction and trigger state transition
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
+	}
+
+	transactions, _, err := uow.PaymentTransaction().GetAll(c.Request.Context(), filterQuery, nil, 1, 1)
+	if err == nil && len(transactions) > 0 {
+		transaction := transactions[0]
+
+		// Use StateTransferService to handle state transition and side effects
+		if stateErr := h.stateTransferService.MovePaymentTransactionToState(
+			c.Request.Context(),
+			uow,
+			transaction.ID,
+			transaction.Status,
+		); stateErr != nil {
+			uow.Rollback()
+			zap.L().Error("Failed to handle payment transaction state change",
+				zap.String("transaction_id", transaction.ID.String()),
+				zap.String("status", string(transaction.Status)),
+				zap.Error(stateErr))
+			c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to update related entities"})
+			return
+		}
 	}
 
 	// Commit transaction

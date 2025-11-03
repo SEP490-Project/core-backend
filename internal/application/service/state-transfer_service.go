@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/domain/state/contentsm"
 	"core-backend/internal/domain/state/contractsm"
 	"core-backend/internal/domain/state/milestonesm"
+	"core-backend/internal/domain/state/paymenttransactionsm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -485,6 +486,232 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 		zap.String("content_id", contentID.String()),
 		zap.String("new_state", string(targetState)),
 		zap.String("updated_by", updatedBy.String()))
+
+	return nil
+}
+
+func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context, uow irepository.UnitOfWork, transactionID uuid.UUID, targetState enum.PaymentTransactionStatus) error {
+	// Use transactional repository from UnitOfWork
+	transactionRepo := uow.PaymentTransaction()
+	contractPaymentRepo := uow.ContractPayments()
+	orderRepo := uow.Order()
+
+	// 1. Load payment transaction with reference entity
+	transaction, err := transactionRepo.GetByID(ctx, transactionID, nil)
+	if err != nil {
+		zap.L().Error("Failed to load payment transaction from DB",
+			zap.String("transaction_id", transactionID.String()),
+			zap.Error(err))
+		return errors.New("unable to find payment transaction: " + err.Error())
+	}
+
+	// 2. Load current state for FSM
+	currentState, err := paymenttransactionsm.NewPaymentTransactionState(transaction.Status)
+	if err != nil {
+		zap.L().Error("Failed to create current state",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("current_status", string(transaction.Status)),
+			zap.Error(err))
+		return errors.New("failed to create current state: " + err.Error())
+	}
+
+	// 3. Load reference entities based on type
+	transactionCtx := &paymenttransactionsm.PaymentTransactionContext{
+		State:         currentState,
+		ReferenceType: transaction.ReferenceType,
+	}
+
+	switch transaction.ReferenceType {
+	case enum.PaymentTransactionReferenceTypeContractPayment:
+		contractPayment, err := contractPaymentRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		if err != nil {
+			zap.L().Error("Failed to load contract payment",
+				zap.String("contract_payment_id", transaction.ReferenceID.String()),
+				zap.Error(err))
+			return errors.New("unable to find contract payment: " + err.Error())
+		}
+		transactionCtx.ContractPayment = contractPayment
+
+	case enum.PaymentTransactionReferenceTypeOrder:
+		order, err := orderRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		if err != nil {
+			zap.L().Error("Failed to load order",
+				zap.String("order_id", transaction.ReferenceID.String()),
+				zap.Error(err))
+			return errors.New("unable to find order: " + err.Error())
+		}
+		transactionCtx.Order = order
+	}
+
+	// 4. Initialize target state
+	nextState, err := paymenttransactionsm.NewPaymentTransactionState(targetState)
+	if err != nil {
+		zap.L().Error("Invalid target state",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("target_state", string(targetState)),
+			zap.Error(err))
+		return errors.New("invalid target state: " + err.Error())
+	}
+
+	// 5. Validate and forward state through FSM
+	if err := transactionCtx.State.Next(transactionCtx, nextState); err != nil {
+		zap.L().Error("State transition failed",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("from", string(transactionCtx.State.Name())),
+			zap.String("to", string(targetState)),
+			zap.Error(err))
+		return errors.New("state transition failed: " + err.Error())
+	}
+
+	// 6. Persist new state to database
+	transaction.Status = targetState
+	if err := transactionRepo.Update(ctx, transaction); err != nil {
+		zap.L().Error("Failed to update payment transaction state in DB",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("new_state", string(targetState)),
+			zap.Error(err))
+		return errors.New("failed to update payment transaction state in DB: " + err.Error())
+	}
+
+	// 7. Handle side effects based on reference type and target state
+	if err := t.handlePaymentTransactionSideEffects(ctx, uow, transactionCtx, targetState); err != nil {
+		zap.L().Error("Failed to handle payment transaction side effects",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("target_state", string(targetState)),
+			zap.Error(err))
+		return errors.New("failed to handle side effects: " + err.Error())
+	}
+
+	zap.L().Info("Payment transaction state transition successful",
+		zap.String("transaction_id", transactionID.String()),
+		zap.String("new_state", string(targetState)),
+		zap.String("reference_type", string(transaction.ReferenceType)))
+
+	return nil
+}
+
+// handlePaymentTransactionSideEffects handles cascading updates based on payment status
+func (t stateTransferService) handlePaymentTransactionSideEffects(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	transactionCtx *paymenttransactionsm.PaymentTransactionContext,
+	targetState enum.PaymentTransactionStatus,
+) error {
+	switch transactionCtx.ReferenceType {
+	case enum.PaymentTransactionReferenceTypeContractPayment:
+		return t.handleContractPaymentSideEffect(ctx, uow, transactionCtx.ContractPayment, targetState)
+
+	case enum.PaymentTransactionReferenceTypeOrder:
+		return t.handleOrderSideEffect(ctx, uow, transactionCtx.Order, targetState)
+
+	default:
+		zap.L().Warn("Unknown reference type, skipping side effects",
+			zap.String("reference_type", string(transactionCtx.ReferenceType)))
+		return nil
+	}
+}
+
+// handleContractPaymentSideEffect updates contract payment status based on payment transaction status
+func (t stateTransferService) handleContractPaymentSideEffect(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	contractPayment *model.ContractPayment,
+	transactionStatus enum.PaymentTransactionStatus,
+) error {
+	if contractPayment == nil {
+		return errors.New("contract payment is nil")
+	}
+
+	contractPaymentRepo := uow.ContractPayments()
+	var newStatus enum.ContractPaymentStatus
+
+	switch transactionStatus {
+	case enum.PaymentTransactionStatusCompleted:
+		newStatus = enum.ContractPaymentStatusPaid
+		zap.L().Info("Updating contract payment to PAID",
+			zap.String("contract_payment_id", contractPayment.ID.String()))
+
+	case enum.PaymentTransactionStatusFailed,
+		enum.PaymentTransactionStatusCancelled,
+		enum.PaymentTransactionStatusExpired:
+		newStatus = enum.ContractPaymentStatusPending
+		zap.L().Info("Reverting contract payment to PENDING",
+			zap.String("contract_payment_id", contractPayment.ID.String()),
+			zap.String("transaction_status", string(transactionStatus)))
+
+	default:
+		// PENDING or other statuses - no change needed
+		zap.L().Debug("No contract payment status change needed",
+			zap.String("transaction_status", string(transactionStatus)))
+		return nil
+	}
+
+	// Update contract payment status
+	contractPayment.Status = newStatus
+	if err := contractPaymentRepo.Update(ctx, contractPayment); err != nil {
+		zap.L().Error("Failed to update contract payment status",
+			zap.String("contract_payment_id", contractPayment.ID.String()),
+			zap.String("new_status", string(newStatus)),
+			zap.Error(err))
+		return errors.New("failed to update contract payment status: " + err.Error())
+	}
+
+	zap.L().Info("Contract payment status updated successfully",
+		zap.String("contract_payment_id", contractPayment.ID.String()),
+		zap.String("new_status", string(newStatus)))
+
+	return nil
+}
+
+// handleOrderSideEffect updates order status based on payment transaction status
+func (t stateTransferService) handleOrderSideEffect(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	order *model.Order,
+	transactionStatus enum.PaymentTransactionStatus,
+) error {
+	if order == nil {
+		return errors.New("order is nil")
+	}
+
+	orderRepo := uow.Order()
+	var newStatus enum.OrderStatus
+
+	switch transactionStatus {
+	case enum.PaymentTransactionStatusCompleted:
+		newStatus = enum.OrderStatusPending
+		zap.L().Info("Updating order to PENDING (payment completed)",
+			zap.String("order_id", order.ID.String()))
+
+	case enum.PaymentTransactionStatusFailed,
+		enum.PaymentTransactionStatusCancelled,
+		enum.PaymentTransactionStatusExpired:
+		// Revert order to PENDING state if payment failed
+		newStatus = enum.OrderStatusPending
+		zap.L().Info("Keeping/reverting order to PENDING",
+			zap.String("order_id", order.ID.String()),
+			zap.String("transaction_status", string(transactionStatus)))
+
+	default:
+		// PENDING or other statuses - no change needed
+		zap.L().Debug("No order status change needed",
+			zap.String("transaction_status", string(transactionStatus)))
+		return nil
+	}
+
+	// Update order status
+	order.Status = newStatus
+	if err := orderRepo.Update(ctx, order); err != nil {
+		zap.L().Error("Failed to update order status",
+			zap.String("order_id", order.ID.String()),
+			zap.String("new_status", string(newStatus)),
+			zap.Error(err))
+		return errors.New("failed to update order status: " + err.Error())
+	}
+
+	zap.L().Info("Order status updated successfully",
+		zap.String("order_id", order.ID.String()),
+		zap.String("new_status", string(newStatus)))
 
 	return nil
 }
