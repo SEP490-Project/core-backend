@@ -40,3 +40,5 @@ func (cpm *ContractPaymentMethod) Scan(value any) error {
 func (cpm ContractPaymentMethod) Value() (driver.Value, error) {
 	return string(cpm), nil
 }
+
+func (cpm ContractPaymentMethod) String() string { return string(cpm) }
