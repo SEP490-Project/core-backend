@@ -30,10 +30,10 @@ type CreateProductVariantRequest struct {
 	ManufactureDate *string            `json:"manufacturing_date" form:"manufacturing_date" example:"2023-10-01T00:00:00Z"`
 	ExpiryDate      *string            `json:"expiry_date" form:"expiry_date" example:"2025-10-01T00:00:00Z"`
 	Instructions    string             `json:"instructions" form:"instructions" example:"Shake well before use"`
-	Weight          int                `json:"weight" form:"weight" validate:"omitempty,min=0" example:"250"` // in grams
-	Height          int                `json:"height" form:"height" validate:"omitempty,min=0" example:"15"`  // in centimeters
-	Length          int                `json:"length" form:"length" validate:"omitempty,min=0" example:"10"`  // in centimeters
-	Width           int                `json:"width" form:"width" validate:"omitempty,min=0" example:"5"`     //
+	Weight          int                `json:"weight" form:"weight" validate:"min=0" example:"250"` // in grams
+	Height          int                `json:"height" form:"height" validate:"min=0" example:"15"`  // in centimeters
+	Length          int                `json:"length" form:"length" validate:"min=0" example:"10"`  // in centimeters
+	Width           int                `json:"width" form:"width" validate:"min=0" example:"5"`     //
 	IsDefault       bool               `json:"is_default" form:"is_default" example:"true"`
 }
 
