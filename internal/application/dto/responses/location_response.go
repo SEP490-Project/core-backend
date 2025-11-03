@@ -1,11 +1,5 @@
 package responses
 
-type GHNAPIResponse[T any] struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Data    []T    `json:"data"`
-}
-
 type GeneralLocationResponse struct {
 	NameExtension   []string `json:"NameExtension"`
 	IsEnable        int      `json:"IsEnable"`

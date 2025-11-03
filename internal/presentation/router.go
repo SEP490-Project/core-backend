@@ -273,6 +273,20 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			locationAdminGroup.POST("/sync", locationHandler.TriggerLocationSync)
 		}
 
+		// ---------- GHN INTEGRATION ----------
+		ghnHandler := r.handlerRegistry.GHNHandler
+		ghnGroup := v1.Group("/ghn")
+		ghnGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			ghnGroup.GET("/order/:order-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByOrderID)
+			ghnGroup.POST("/order/:order-id/calculate", ghnHandler.CalculateDeliveryPriceByOrderID)
+		}
+		ghnPublicGroup := v1.Group("/ghn")
+		{
+			ghnPublicGroup.GET("/:district-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByDistrictID)
+			ghnPublicGroup.POST("/delivery/calculate-by-dimension", ghnHandler.CalculateDeliveryPriceByDimension)
+		}
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 

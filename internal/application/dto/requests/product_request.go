@@ -3,9 +3,8 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"time"
-
 	"go.uber.org/zap"
+	"time"
 
 	"github.com/google/uuid"
 )

@@ -10,19 +10,19 @@ import (
 type InputAddressRequest struct {
 	AddressType  enum.AddressType `json:"type" validate:"required,oneof=BILLING SHIPPING" example:"SHIPPING"`
 	FullName     string           `json:"full_name" validate:"required"`
-	PhoneNumber  *string          `json:"phone_number" validate:"required"`
-	Email        *string          `json:"email"`
+	PhoneNumber  string           `json:"phone_number" validate:"required"`
+	Email        string           `json:"email"`
 	Street       string           `json:"street" validate:"required"`
-	AddressLine2 *string          `json:"address_line_2" example:"Apartment, suite, unit, building, floor, etc."`
+	AddressLine2 string           `json:"address_line_2" example:"Apartment, suite, unit, building, floor, etc."`
 	City         string           `json:"city" validate:"required"`
-	PostalCode   string           `json:"postal_code"`
+	PostalCode   *string          `json:"postal_code"`
 	Country      *string          `json:"country"`
 	IsDefault    bool             `json:"is_default"`
 
 	//from GHN
-	GhnProvinceID *int    `json:"ghn_province_id,omitempty" gorm:"column:ghn_province_id"`
-	GhnDistrictID *int    `json:"ghn_district_id,omitempty" gorm:"column:ghn_district_id"`
-	GhnWardCode   *string `json:"ghn_ward_code,omitempty" gorm:"column:ghn_ward_code"`
+	GhnProvinceID int    `json:"ghn_province_id" example:"202"`
+	GhnDistrictID int    `json:"ghn_district_id" example:"3176"`
+	GhnWardCode   string `json:"ghn_ward_code" example:"21015"`
 }
 
 func (iar *InputAddressRequest) ToModel(userID uuid.UUID, ward model.Ward, district model.District, province model.Province) *model.ShippingAddress {
@@ -43,9 +43,9 @@ func (iar *InputAddressRequest) ToModel(userID uuid.UUID, ward model.Ward, distr
 		GhnProvinceID: iar.GhnProvinceID,
 		GhnDistrictID: iar.GhnDistrictID,
 		GhnWardCode:   iar.GhnWardCode,
-		ProvinceName:  &province.Name,
-		DistrictName:  &district.Name,
-		WardName:      &ward.Name,
+		ProvinceName:  province.Name,
+		DistrictName:  district.Name,
+		WardName:      ward.Name,
 		//relationship
 		UserID: userID,
 	}

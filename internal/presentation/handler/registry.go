@@ -4,7 +4,6 @@ package handler
 import (
 	"core-backend/config"
 	"core-backend/internal/application"
-
 	"github.com/go-playground/validator/v10"
 )
 
@@ -34,6 +33,7 @@ type HandlerRegistry struct {
 	DeviceTokenHandler            *DeviceTokenHandler
 	NotificationHandler           *NotificationHandler
 	TagHandler                    *TagHandler
+  GHNHandler                    *GHNHandler
 	AffiliateLinkHandler          *AffiliateLinkHandler
 	RedirectHandler               *RedirectHandler
 	AffiliateLinkAnalyticsHandler *AffiliateLinkAnalyticsHandler
@@ -66,6 +66,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		NotificationHandler:           NewNotificationHandler(applicationReg.NotificationService),
 		LocationHandler:               NewLocationHandler(applicationReg.LocationService, applicationReg.InfrastructureRegistry.LocationSyncTask),
 		TagHandler:                    NewTagHandler(applicationReg.TagService, applicationReg.InfrastructureRegistry.UnitOfWork),
+ 		GHNHandler:                    NewGHNHandler(applicationReg.InfrastructureRegistry.GHNService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AffiliateLinkHandler:          NewAffiliateLinkHandler(applicationReg.AffiliateLinkService),
 		RedirectHandler:               NewRedirectHandler(applicationReg.ClickTrackingService, appConfig),
 		AffiliateLinkAnalyticsHandler: NewAffiliateLinkAnalyticsHandler(applicationReg.AffiliateLinkAnalyticsService),

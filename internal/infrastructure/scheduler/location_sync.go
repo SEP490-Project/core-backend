@@ -1,15 +1,13 @@
 package scheduler
 
 import (
-	"bytes"
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/domain/model"
-	"encoding/json"
+	"core-backend/internal/infrastructure/httpclient"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -134,7 +132,7 @@ func (s *locationSyncScheduler) safeSyncOnce(ctx context.Context, manual bool) {
 func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 	// 1) Provinces
 	provURL := s.cfg.GHN.BaseURL + "/province"
-	provinces, err := doRequest[responses.ProvinceResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, provURL, nil)
+	provinces, err := httpclient.DoRequestList[responses.ProvinceResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, provURL, nil)
 	if err != nil {
 		return fmt.Errorf("fetch provinces: %w", err)
 	}
@@ -176,7 +174,7 @@ func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 			url := fmt.Sprintf("%s/district?province_id=%d", s.cfg.GHN.BaseURL, provinceID)
-			districts, err := doRequest[responses.DistrictResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
+			districts, err := httpclient.DoRequestList[responses.DistrictResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch districts failed", zap.Int("province_id", provinceID), zap.Error(err))
 				if dErr == nil {
@@ -235,7 +233,7 @@ func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 			url := fmt.Sprintf("%s/ward?district_id=%d", s.cfg.GHN.BaseURL, districtID)
-			wards, err := doRequest[responses.WardResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
+			wards, err := httpclient.DoRequestList[responses.WardResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch wards failed", zap.Int("district_id", districtID), zap.Error(err))
 				if wErr == nil {
@@ -317,48 +315,6 @@ func (s *locationSyncScheduler) upsertWards(ctx context.Context, items []model.W
 			DoUpdates: clause.AssignmentColumns([]string{"district_id", "name", "support_type", "pick_type", "deliver_type", "government_code", "is_enable", "can_update_cod", "status", "updated_at"}),
 		}).
 		Create(&items).Error
-}
-
-// helper function generic nằm ngoài struct
-func doRequest[T any](ctx context.Context, client *http.Client, token string, method, url string, body any) ([]T, error) {
-	var buf io.Reader
-	if body != nil {
-		jsonBody, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		buf = bytes.NewBuffer(jsonBody)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, url, buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Token", token)
-	if body != nil {
-		req.Header.Add("Content-Type", "application/json")
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		zap.L().Warn("Non-200 from GHN", zap.Int("status", resp.StatusCode), zap.String("body", string(b)))
-	}
-
-	var result responses.GHNAPIResponse[T]
-	if err := json.Unmarshal(b, &result); err != nil {
-		return nil, err
-	}
-	return result.Data, nil
 }
 
 func NewLocationSyncScheduler(cfg *config.AppConfig, db *gorm.DB) TaskScheduler {

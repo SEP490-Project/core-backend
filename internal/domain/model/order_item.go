@@ -30,6 +30,10 @@ type OrderItem struct {
 	//CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	//DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	Weight int `json:"weight" gorm:"column:weight"` // in grams
+	Height int `json:"height" gorm:"column:height"` // in centimeters
+	Length int `json:"length" gorm:"column:length"` // in centimeters
+	Width  int `json:"width" gorm:"column:width"`   // in centimeters
 
 	// Relationships
 	Variant ProductVariant `json:"-" gorm:"foreignKey:VariantID"`

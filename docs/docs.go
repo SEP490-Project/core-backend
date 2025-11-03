@@ -5381,6 +5381,220 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/delivery/calculate-by-dimension": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Compute GHN delivery fee by providing destination district/ward and a list of items (dimensions/weight)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Calculate delivery fee by explicit destination and items",
+                "parameters": [
+                    {
+                        "description": "Delivery fee request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CalculateDeliveryPriceByDimensionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeliveryFeeSuccess"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/{order-id}/shipping-services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve list of GHN delivery service options based on the order's destination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get available GHN delivery services for an order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "order-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/orders/{order-id}/calculate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Compute GHN delivery fee based on an existing order ID and selected delivery service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Calculate delivery fee for a given order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "order-id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Selected delivery service",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeliveryFeeSuccess"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/{district-id}/shipping-services": {
+            "get": {
+                "description": "Fetch GHN delivery service options available for a specific district",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get GHN delivery services by district ID (public endpoint)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "District ID",
+                        "name": "district-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/location/address": {
             "post": {
                 "security": [
@@ -9414,6 +9628,32 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ApplicationDeliveryFeeItem": {
+            "type": "object",
+            "properties": {
+                "height": {
+                    "type": "integer"
+                },
+                "length": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
         "dtos.BrandAmbassadorEvent": {
             "type": "object",
             "properties": {
@@ -9679,6 +9919,64 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 500,
                     "example": "https://affiliate.example.com/track?ref=12345"
+                }
+            }
+        },
+        "dtos.DeliveryAvailableServiceDTO": {
+            "type": "object",
+            "properties": {
+                "service_id": {
+                    "type": "integer"
+                },
+                "service_type_id": {
+                    "type": "integer"
+                },
+                "short_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.DeliveryFeeSuccess": {
+            "type": "object",
+            "properties": {
+                "cod_failed_fee": {
+                    "type": "integer"
+                },
+                "cod_fee": {
+                    "type": "integer"
+                },
+                "coupon_value": {
+                    "type": "integer"
+                },
+                "deliver_remote_areas_fee": {
+                    "type": "integer"
+                },
+                "document_return": {
+                    "type": "integer"
+                },
+                "double_check": {
+                    "type": "integer"
+                },
+                "insurance_fee": {
+                    "type": "integer"
+                },
+                "pick_remote_areas_fee": {
+                    "type": "integer"
+                },
+                "pick_station_fee": {
+                    "type": "integer"
+                },
+                "r2s_fee": {
+                    "type": "integer"
+                },
+                "return_again": {
+                    "type": "integer"
+                },
+                "service_fee": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -10217,6 +10515,28 @@ const docTemplate = `{
                 "UserRoleBrandPartner"
             ]
         },
+        "handler.CalculateDeliveryPriceByDimensionRequest": {
+            "type": "object",
+            "properties": {
+                "delivery_service": {
+                    "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.ApplicationDeliveryFeeItem"
+                    }
+                },
+                "to_district_id": {
+                    "type": "integer",
+                    "example": 1454
+                },
+                "to_ward_code": {
+                    "type": "string",
+                    "example": "012345"
+                }
+            }
+        },
         "handler.UpdateMilestoneStateRequest": {
             "type": "object",
             "required": [
@@ -10401,10 +10721,32 @@ const docTemplate = `{
         "model.Order": {
             "type": "object",
             "properties": {
-                "address_id": {
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Copied shipping address fields (migration moved from a foreign key to flat columns)",
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
                     "type": "string"
                 },
                 "id": {
@@ -10416,8 +10758,17 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.OrderItem"
                     }
                 },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.OrderStatus"
+                },
+                "street": {
+                    "type": "string"
                 },
                 "total_amount": {
                     "type": "number"
@@ -10426,6 +10777,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                },
+                "ward_name": {
                     "type": "string"
                 }
             }
@@ -10448,11 +10802,19 @@ const docTemplate = `{
                 "expiry_date": {
                     "type": "string"
                 },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
                 },
                 "instructions": {
                     "type": "string"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
                 },
                 "manufacturing_date": {
                     "type": "string"
@@ -10481,6 +10843,14 @@ const docTemplate = `{
                 },
                 "variant_id": {
                     "type": "string"
+                },
+                "weight": {
+                    "description": "DeletedAt gorm.DeletedAt ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at;index\"` + "`" + `",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
                 }
             }
         },
@@ -10616,6 +10986,12 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2025-10-01T00:00:00Z"
                 },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15
+                },
                 "instructions": {
                     "type": "string",
                     "example": "Shake well before use"
@@ -10624,6 +11000,12 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": true
                 },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10
+                },
                 "manufacturing_date": {
                     "type": "string",
                     "example": "2023-10-01T00:00:00Z"
@@ -10631,7 +11013,7 @@ const docTemplate = `{
                 "price": {
                     "type": "number",
                     "minimum": 1000,
-                    "example": 29.99
+                    "example": 1000
                 },
                 "story": {
                     "$ref": "#/definitions/requests.CreateProductStoryRequest"
@@ -10639,6 +11021,17 @@ const docTemplate = `{
                 "uses": {
                     "type": "string",
                     "example": "For daily use"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 250
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 5
                 }
             }
         },
@@ -11414,14 +11807,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ghn_district_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 3176
                 },
                 "ghn_province_id": {
                     "description": "from GHN",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 202
                 },
                 "ghn_ward_code": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "21015"
                 },
                 "is_default": {
                     "type": "boolean"
@@ -14210,10 +14606,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "New York"
                 },
-                "company": {
-                    "type": "string",
-                    "example": "Acme Corp"
-                },
                 "country": {
                     "type": "string",
                     "example": "USA"
@@ -14222,6 +14614,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2023-12-30 15:04:05"
                 },
+                "district_name": {
+                    "type": "string",
+                    "example": "Quận 9"
+                },
                 "email": {
                     "type": "string",
                     "example": "john@example.com"
@@ -14229,6 +14625,18 @@ const docTemplate = `{
                 "full_name": {
                     "type": "string",
                     "example": "John Doe"
+                },
+                "ghn_district_id": {
+                    "type": "integer",
+                    "example": 1451
+                },
+                "ghn_province_id": {
+                    "type": "integer",
+                    "example": 202
+                },
+                "ghn_ward_code": {
+                    "type": "string",
+                    "example": "20901"
                 },
                 "id": {
                     "type": "string",
@@ -14246,9 +14654,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "10001"
                 },
-                "state": {
+                "province_name": {
                     "type": "string",
-                    "example": "NY"
+                    "example": "Hồ Chí Minh"
                 },
                 "street": {
                     "type": "string",
@@ -14265,6 +14673,10 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "ward_name": {
+                    "type": "string",
+                    "example": "Phường Hiệp Phú"
                 }
             }
         },

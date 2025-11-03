@@ -132,22 +132,22 @@ func (uapr UpdateAddressProfileRequest) ToExistingModel(existing *model.Shipping
 		existing.FullName = *uapr.FullName
 	}
 	if uapr.PhoneNumber != nil {
-		existing.PhoneNumber = uapr.PhoneNumber
+		existing.PhoneNumber = *uapr.PhoneNumber
 	}
 	if uapr.Email != nil {
-		existing.Email = uapr.Email
+		existing.Email = *uapr.Email
 	}
 	if uapr.Street != nil {
 		existing.Street = *uapr.Street
 	}
 	if uapr.AddressLine2 != nil {
-		existing.AddressLine2 = uapr.AddressLine2
+		existing.AddressLine2 = *uapr.AddressLine2
 	}
 	if uapr.City != nil {
 		existing.City = *uapr.City
 	}
 	if uapr.PostalCode != nil {
-		existing.PostalCode = *uapr.PostalCode
+		existing.PostalCode = uapr.PostalCode
 	}
 	if uapr.Country != nil {
 		existing.Country = uapr.Country

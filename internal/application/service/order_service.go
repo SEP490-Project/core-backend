@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -18,9 +19,11 @@ import (
 )
 
 type orderService struct {
+	config                       *config.AppConfig
 	orderRepository              irepository.GenericRepository[model.Order]
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
+	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	payOsService                 iservice_third_party.PayOSService
 }
 
@@ -121,8 +124,15 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		}
 
 		//Create Order
-		persistedOrder = request.ToModel(userID, persistedOrderItem, now)
-		err := uow.Order().Add(ctx, persistedOrder)
+		shippingAddress, err := o.shippingAddressRepository.GetByID(ctx, request.AddressID, nil)
+		if err != nil {
+			zap.L().Error("ShippingAddress().GetByID", zap.Error(err))
+			_ = uow.Rollback()
+			return err
+		}
+
+		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, now)
+		err = uow.Order().Add(ctx, persistedOrder)
 		if err != nil {
 			zap.L().Error("Order().Add", zap.Error(err))
 			_ = uow.Rollback()
@@ -167,6 +177,15 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 			Items:            requests.MapPaymentItemsFromOrderItems(order.OrderItems),
 			Invoice:          nil,
 		}
+
+		//Add shipping fee item
+		shippingFeeItem := requests.PaymentItemRequest{
+			Name:     "Shipping Fee from \"Giao Hàng Nhanh\"",
+			Quantity: 1,
+			Price:    5000, //Fixed shipping fee
+		}
+		_ = shippingFeeItem
+
 		payOSResponse, err := o.payOsService.GeneratePayOSLink(paymenReq)
 		if err != nil {
 			_ = uow.Rollback()
@@ -203,11 +222,13 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 	return paymentTransaction, nil
 }
 
-func NewOrderService(dbRegistry *gormrepository.DatabaseRegistry, service iservice_third_party.PayOSService) iservice.OrderService {
+func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, service iservice_third_party.PayOSService) iservice.OrderService {
 	return &orderService{
+		config:                       cfg,
 		orderRepository:              dbRegistry.OrderRepository,
 		orderItemRepository:          dbRegistry.OrderItemRepository,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
+		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
 		payOsService:                 service,
 	}
 }
