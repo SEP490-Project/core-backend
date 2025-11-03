@@ -28,7 +28,6 @@ type InfrastructureRegistry struct {
 	UnitOfWork        irepository.UnitOfWork
 	ValkeyCache       *persistence.ValkeyCache
 	RabbitMQ          *rabbitmq.RabbitMQ
-	PayOsService      iservice_third_party.PayOSService
 	EmailService      *service.EmailService
 	FCMService        *service.FCMService
 	HealthMonitor     *service.HealthMonitor
@@ -83,10 +82,6 @@ func NewInfrastructureRegistry(
 	)
 
 	//========================EXTERNAL SERVICES========================//
-	//Initialize PAYOS Service
-	zap.L().Debug("Initializing PayOS...")
-	registry.PayOsService = service.NewPayOsService(gormrepository.NewGenericRepository[model.PaymentTransaction](db))
-
 	//Initialize EmailService
 	zap.L().Debug("Initializing EmailService...")
 	emailService, err := service.NewEmailService(config)

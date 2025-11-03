@@ -4,6 +4,7 @@ package handler
 import (
 	"core-backend/config"
 	"core-backend/internal/application"
+
 	"github.com/go-playground/validator/v10"
 )
 
@@ -48,14 +49,14 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		ProductHandler:                NewProductHandler(applicationReg.ProductService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		BrandHandler:                  NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:                   NewS3Handler(applicationReg.FileService),
-		PayOsHandler:                  NewPayOsHandler(applicationReg.InfrastructureRegistry.PayOsService),
+		PayOsHandler:                  NewPayOsHandler(applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
 		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		CategoryHandler:               NewCategoryHandler(applicationReg.ProductCategoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ModifiedHistoryHandler:        NewModifiedHistoryHandler(applicationReg.ModifiedHistoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AdminConfigHandler:            NewAdminConfigHandler(applicationReg.AdminConfigService, applicationReg.InfrastructureRegistry.UnitOfWork),
-		ContractPaymentHandler:        NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		ContractPaymentHandler:        NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.PaymentTransactionService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ConceptHandler:                NewConceptHandler(applicationReg.ConceptService),
 		OrderHandler:                  NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.GHNService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ChannelHandler:                NewChannelHandler(applicationReg.ChannelService, applicationReg.InfrastructureRegistry.UnitOfWork),
