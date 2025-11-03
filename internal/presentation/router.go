@@ -464,6 +464,7 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		{
 			viewGroup.GET("", contractPaymentHandler.GetContractPaymentsByFilter)
 			viewGroup.GET("/:contract_payment_id", contractPaymentHandler.GetContractPaymentByID)
+			viewGroup.POST("/:contract_payment_id/payment-link", contractPaymentHandler.GeneratePaymentLink)
 		}
 	}
 }

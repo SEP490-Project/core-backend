@@ -43,9 +43,68 @@ func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, con
 }
 
 // CreatePaymentLinkFromContractPayment implements iservice.ContractPaymentService.
-func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(ctx context.Context, uow irepository.UnitOfWork, contractPaymentID uuid.UUID) (string, error) {
-	// TODO: implement CreatePaymentLinkFromContractPayment
-	panic("unimplemented")
+func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(ctx context.Context, uow irepository.UnitOfWork, contractPaymentID uuid.UUID, paymentTransactionService iservice.PaymentTransactionService) (*responses.PayOSLinkResponse, error) {
+	zap.L().Info("Creating payment link from contract payment",
+		zap.String("contract_payment_id", contractPaymentID.String()))
+
+	// 1. Fetch contract payment with contract and brand details
+	contractPayment, err := uow.ContractPayments().GetByID(ctx, contractPaymentID, []string{"Contract", "Contract.Brand"})
+	if err != nil {
+		zap.L().Error("Failed to get contract payment", zap.Error(err))
+		return nil, fmt.Errorf("failed to get contract payment: %w", err)
+	}
+
+	if contractPayment == nil {
+		return nil, fmt.Errorf("contract payment not found")
+	}
+
+	// 2. Validate payment status - only PENDING payments can generate links
+	if contractPayment.Status != enum.ContractPaymentStatusPending {
+		return nil, fmt.Errorf("payment link can only be generated for pending payments, current status: %s", contractPayment.Status)
+	}
+
+	// 3. Build payment request
+	contractNumber := "Unknown"
+	if contractPayment.Contract.ContractNumber != nil {
+		contractNumber = *contractPayment.Contract.ContractNumber
+	}
+
+	paymentReq := &requests.PaymentRequest{
+		ReferenceID:   contractPayment.ID,
+		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
+		Amount:        int64(contractPayment.Amount),
+		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
+	}
+
+	// Add buyer information from contract brand if available
+	if contractPayment.Contract != nil && contractPayment.Contract.Brand != nil {
+		brand := contractPayment.Contract.Brand
+		paymentReq.BuyerName = brand.Name
+		paymentReq.BuyerEmail = brand.ContactEmail
+		paymentReq.BuyerPhone = brand.ContactPhone
+	}
+
+	// Add payment item
+	paymentReq.Items = []requests.PaymentItemRequest{
+		{
+			Name:     fmt.Sprintf("Contract Payment - %s", contractNumber),
+			Quantity: 1,
+			Price:    int64(contractPayment.Amount),
+		},
+	}
+
+	// 4. Generate payment link using PaymentTransactionService
+	payosResp, err := paymentTransactionService.GeneratePaymentLink(ctx, uow, paymentReq)
+	if err != nil {
+		zap.L().Error("Failed to generate payment link", zap.Error(err))
+		return nil, fmt.Errorf("failed to generate payment link: %w", err)
+	}
+
+	zap.L().Info("Payment link created successfully for contract payment",
+		zap.String("contract_payment_id", contractPaymentID.String()),
+		zap.String("checkout_url", payosResp.CheckoutURL))
+
+	return payosResp, nil
 }
 
 // GetContractPaymentsByFilter implements iservice.ContractPaymentService.

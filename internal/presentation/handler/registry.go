@@ -56,7 +56,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		CategoryHandler:               NewCategoryHandler(applicationReg.ProductCategoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ModifiedHistoryHandler:        NewModifiedHistoryHandler(applicationReg.ModifiedHistoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AdminConfigHandler:            NewAdminConfigHandler(applicationReg.AdminConfigService, applicationReg.InfrastructureRegistry.UnitOfWork),
-		ContractPaymentHandler:        NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		ContractPaymentHandler:        NewContractPaymentHandler(applicationReg.ContractPaymentService, applicationReg.PaymentTransactionService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ConceptHandler:                NewConceptHandler(applicationReg.ConceptService),
 		OrderHandler:                  NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.GHNService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ChannelHandler:                NewChannelHandler(applicationReg.ChannelService, applicationReg.InfrastructureRegistry.UnitOfWork),
