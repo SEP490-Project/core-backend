@@ -15,7 +15,7 @@ type Campaign struct {
 	Description *string             `json:"description" gorm:"type:text;column:description"`
 	StartDate   time.Time           `json:"start_date" gorm:"type:timestamp;column:start_date;not null"`
 	EndDate     time.Time           `json:"end_date" gorm:"type:timestamp;column:end_date;not null"`
-	Status      enum.CampaignStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('RUNNING','COMPLETED','CANCELED')"`
+	Status      enum.CampaignStatus `json:"status" gorm:"type:varchar(50);column:status;not null"`
 	Type        enum.ContractType   `json:"type" gorm:"type:varchar(50);column:type;not null;check:type IN ('ADVERTISING','AFFILIATE','BRAND_AMBASSADOR','CO_PRODUCING')"`
 	CreatedAt   time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt   time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`

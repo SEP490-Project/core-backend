@@ -12,7 +12,7 @@ import (
 type Order struct {
 	ID          uuid.UUID        `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	UserID      uuid.UUID        `json:"user_id" gorm:"type:uuid;column:user_id;not null"`
-	Status      enum.OrderStatus `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PAID', 'REFUNDED', 'CONFIRMED', 'CANCELED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
+	Status      enum.OrderStatus `json:"status" gorm:"column:status;not null"`
 	TotalAmount float64          `json:"total_amount" gorm:"column:total_amount;not null"`
 
 	// Copied shipping address fields (migration moved from a foreign key to flat columns)

@@ -56,11 +56,11 @@ ALTER TABLE contracts
   ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'VND';
 
 -- Step 5: Map legacy status values into new enum set
--- Assumption mapping: EXPIRED -> COMPLETED, CANCELED -> TERMINATED, ACTIVE -> ACTIVE
+-- Assumption mapping: EXPIRED -> COMPLETED, CANCELLED -> TERMINATED, ACTIVE -> ACTIVE
 UPDATE contracts
 SET status = CASE
   WHEN status = 'EXPIRED' THEN 'COMPLETED'
-  WHEN status = 'CANCELED' THEN 'TERMINATED'
+  WHEN status = 'CANCELLED' THEN 'TERMINATED'
   WHEN status = 'ACTIVE' THEN 'ACTIVE'
   ELSE 'DRAFT'
 END

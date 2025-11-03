@@ -22,7 +22,7 @@ import (
 // - enabled: turn on/off
 // - interval_minutes: period between sync runs
 // - concurrency: max concurrent API calls for district/ward fetches
-// It stops automatically when context is canceled.
+// It stops automatically when context is cancelled.
 type locationSyncScheduler struct {
 	cfg         *config.AppConfig
 	db          *gorm.DB
@@ -54,7 +54,7 @@ func (s *locationSyncScheduler) StartOnce(ctx context.Context) error {
 		}()
 
 		// Use a detached background context with timeout to ensure long-running sync isn't
-		// canceled by request-scoped contexts. Choose a reasonable upper bound for manual runs.
+		// cancelled by request-scoped contexts. Choose a reasonable upper bound for manual runs.
 		bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		zap.L().Info("Starting location sync (manual)")

@@ -8,7 +8,7 @@ import (
 type CancelledState struct{}
 
 func (c CancelledState) Name() enum.CampaignStatus {
-	return enum.CampaignCanceled
+	return enum.CampaignCancelled
 }
 
 func (c CancelledState) Next(ctx *CampaignContext, next CampaignState) error {
@@ -23,6 +23,6 @@ func (c CancelledState) Next(ctx *CampaignContext, next CampaignState) error {
 
 func (c CancelledState) AllowedTransitions() map[enum.CampaignStatus]struct{} {
 	return map[enum.CampaignStatus]struct{}{
-		enum.CampaignCanceled: {},
+		enum.CampaignCancelled: {},
 	}
 }
