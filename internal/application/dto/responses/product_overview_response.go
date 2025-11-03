@@ -37,6 +37,11 @@ type VariantMini struct {
 	CurrentStock *int              `json:"current_stock"`
 	Capacity     float64           `json:"capacity"`
 	CapacityUnit enum.CapacityUnit `json:"capacity_unit"`
+	Weight       int               `json:"weight"` // in grams
+	Height       int               `json:"height"` // in centimeters
+	Length       int               `json:"length"` // in centimeters
+	Width        int               `json:"width"`  //
+
 }
 
 // ToOverview maps a Product domain model to ProductOverviewResponse.
@@ -80,6 +85,10 @@ func ToOverview(p *model.Product) *ProductOverviewResponse {
 				CurrentStock: v.CurrentStock,
 				Capacity:     v.Capacity,
 				CapacityUnit: v.CapacityUnit,
+				Weight:       v.Weight,
+				Height:       v.Height,
+				Length:       v.Length,
+				Width:        v.Width,
 			})
 		}
 	}

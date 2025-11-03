@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/interfaces/iservice_third_party"
 	"net/http"
 	"strconv"
 
@@ -10,6 +12,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -17,12 +20,14 @@ import (
 
 type OrderHandler struct {
 	orderService iservice.OrderService
+	ghnService   iservice_third_party.GHNService
 	unitOfWork   irepository.UnitOfWork
 }
 
-func NewOrderHandler(orderSvc iservice.OrderService, uow irepository.UnitOfWork) *OrderHandler {
+func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_party.GHNService, uow irepository.UnitOfWork) *OrderHandler {
 	return &OrderHandler{
 		orderService: orderSvc,
+		ghnService:   ghnService,
 		unitOfWork:   uow,
 	}
 }
@@ -204,5 +209,94 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	}
 
 	resp := responses.SuccessResponse("Payment initiated", ptr.Int(http.StatusOK), paymentTx)
+	c.JSON(http.StatusOK, resp)
+}
+
+// PlaceAndPayOrder godoc
+//
+// @Summary      Place an order and initiate payment
+// @Description  Create an order and immediately calculate delivery fee and create payment transaction
+// @Tags         Orders
+// @Accept       json
+// @Produce      json
+// @Param        data  body    requests.PlaceAndPayRequest  true  "Place and pay payload"
+// @Success      200   {object}  map[string]any
+// @Failure      400   {object}  map[string]string
+// @Failure      401   {object}  map[string]string
+// @Failure      500   {object}  map[string]string
+// @Security     BearerAuth
+// @Router       /api/v1/orders/place-and-pay [post]
+func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
+	// Bind request
+	var req requests.PlaceAndPayRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Extract user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	if len(req.Order.Items) == 0 {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order must contain at least one item", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin(ctx)
+	defer func() {
+		// ensure transaction ended if still open
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// 1) Create Order
+	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, uow)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// 2) Calculate delivery fee using GHN service. If request contains a selected delivery service, pass it.
+	var deliveryService dtos.DeliveryAvailableServiceDTO
+	if req.DeliveryService != nil {
+		deliveryService = *req.DeliveryService
+	}
+
+	var deliveryFee *dtos.DeliveryFeeSuccess
+	deliveryFee, err = h.ghnService.CalculateDeliveryPriceByID(ctx, order.ID, deliveryService, uow)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// 3) Initiate payment
+	var paymentTx *model.PaymentTransaction
+	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, uow)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// 4) Commit transaction
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// 5) Return response
+	resp := responses.SuccessResponse("Order placed and payment initiated", ptr.Int(http.StatusOK), map[string]any{
+		"order":        order,
+		"payment_tx":   paymentTx,
+		"delivery_fee": deliveryFee,
+	})
 	c.JSON(http.StatusOK, resp)
 }
