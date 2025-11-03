@@ -4,6 +4,7 @@ package handler
 import (
 	"core-backend/config"
 	"core-backend/internal/application"
+
 	"github.com/go-playground/validator/v10"
 )
 

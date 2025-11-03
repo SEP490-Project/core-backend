@@ -37,18 +37,18 @@ func (s PaymentTransactionStatus) Value() (driver.Value, error) {
 }
 
 // Scan implements the sql.Scanner interface for database retrieval
-func (s *PaymentTransactionStatus) Scan(value interface{}) error {
+func (s *PaymentTransactionStatus) Scan(value any) error {
 	if value == nil {
 		*s = ""
 		return nil
 	}
-	
+
 	switch v := value.(type) {
 	case []byte:
 		*s = PaymentTransactionStatus(v)
 	case string:
 		*s = PaymentTransactionStatus(v)
 	}
-	
+
 	return nil
 }

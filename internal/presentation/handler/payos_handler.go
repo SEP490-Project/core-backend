@@ -40,10 +40,10 @@ func NewPayOsHandler(
 //	@Tags			payos
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		requests.PaymentRequest					true	"Payment Request"
+//	@Param			request	body		requests.PaymentRequest									true	"Payment Request"
 //	@Success		200		{object}	responses.APIResponse{data=responses.PayOSLinkResponse}	"Payment link created successfully"
-//	@Failure		400		{object}	responses.APIResponse					"Bad request"
-//	@Failure		500		{object}	responses.APIResponse					"Internal server error"
+//	@Failure		400		{object}	responses.APIResponse									"Bad request"
+//	@Failure		500		{object}	responses.APIResponse									"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/payos/payment [post]
 func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
@@ -88,10 +88,10 @@ func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 //	@Description	Retrieve payment details by order code
 //	@Tags			payos
 //	@Produce		json
-//	@Param			orderCode	path		string										true	"Order Code"
+//	@Param			orderCode	path		string															true	"Order Code"
 //	@Success		200			{object}	responses.APIResponse{data=responses.PayOSOrderInfoResponse}	"Payment info retrieved successfully"
-//	@Failure		400			{object}	responses.APIResponse						"Bad request"
-//	@Failure		404			{object}	responses.APIResponse						"Payment not found"
+//	@Failure		400			{object}	responses.APIResponse											"Bad request"
+//	@Failure		404			{object}	responses.APIResponse											"Payment not found"
 //	@Security		BearerAuth
 //	@Router			/api/v1/payos/payment/{orderCode} [get]
 func (h *PayOsHandler) GetPaymentInfo(c *gin.Context) {

@@ -3932,6 +3932,116 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contract_payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Payments"
+                ],
+                "summary": "Get contract payments based on filtering criteria",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "OVERDUE"
+                        ],
+                        "type": "string",
+                        "example": "\"PAID\"",
+                        "description": "Payment Status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "example": "\"2023-01-01\"",
+                        "description": "Due Date From",
+                        "name": "due_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "example": "\"2023-12-31\"",
+                        "description": "Due Date To",
+                        "name": "due_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "BANK_TRANSFER",
+                            "CASH",
+                            "CHECK"
+                        ],
+                        "type": "string",
+                        "example": "\"BANK_TRANSFER\"",
+                        "description": "Payment Method",
+                        "name": "payment_method",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "example": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract payments retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContractPaymentPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contract_payments/contract/{contract_id}": {
             "post": {
                 "security": [
@@ -3997,6 +4107,79 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contract_payments/{contract_payment_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Payments"
+                ],
+                "summary": "Get a contract payment by its ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6\"",
+                        "description": "Contract Payment ID",
+                        "name": "contract_payment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract payment retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractPaymenntResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract payment not found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6481,9 +6664,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/payos/cancel-expired": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Manually trigger cancellation of all expired PayOS payment links",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payos"
+                ],
+                "summary": "Cancel expired payment links",
+                "responses": {
+                    "200": {
+                        "description": "Cancellation completed",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/payment": {
             "post": {
-                "description": "Initiate a payment with PayOS. Backend sẽ tự set ` + "`" + `cancelUrl` + "`" + ` và ` + "`" + `returnUrl` + "`" + ` từ config, KHÔNG lấy từ client.",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate a new PayOS payment link. Backend automatically sets cancelUrl and returnUrl from config.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6493,10 +6727,10 @@ const docTemplate = `{
                 "tags": [
                     "payos"
                 ],
-                "summary": "Create a PayOS payment",
+                "summary": "Create a PayOS payment link",
                 "parameters": [
                     {
-                        "description": "Payment Request (client should NOT send cancelUrl/returnUrl)",
+                        "description": "Payment Request",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -6507,18 +6741,33 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "PayOS wrapper response",
+                        "description": "Payment link created successfully",
                         "schema": {
-                            "$ref": "#/definitions/responses.PaymentResponse"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PayOSLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
-                        "description": "error",
+                        "description": "Bad request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -6526,14 +6775,19 @@ const docTemplate = `{
         },
         "/api/v1/payos/payment/{orderCode}": {
             "get": {
-                "description": "Inspect payment detail",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve payment details by order code",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "payos"
                 ],
-                "summary": "Get PayOS order info",
+                "summary": "Get PayOS payment information",
                 "parameters": [
                     {
                         "type": "string",
@@ -6545,14 +6799,83 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Payment info retrieved successfully",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PayOSOrderInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Payment not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payos/webhook": {
+            "post": {
+                "description": "Receives payment status updates from PayOS. This is a public endpoint with signature verification.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payos"
+                ],
+                "summary": "PayOS webhook endpoint",
+                "parameters": [
+                    {
+                        "description": "Webhook payload from PayOS",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dtos.PayOSWebhookPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Webhook processed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid signature",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -10205,6 +10528,79 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PayOSWebhookData": {
+            "type": "object",
+            "properties": {
+                "accountNumber": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "counterAccountBankId": {
+                    "type": "string"
+                },
+                "counterAccountBankName": {
+                    "type": "string"
+                },
+                "counterAccountName": {
+                    "type": "string"
+                },
+                "counterAccountNumber": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "paymentLinkId": {
+                    "type": "string"
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "transactionDateTime": {
+                    "type": "string"
+                },
+                "virtualAccountName": {
+                    "type": "string"
+                },
+                "virtualAccountNumber": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.PayOSWebhookPayload": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "data": {
+                    "$ref": "#/definitions/dtos.PayOSWebhookData"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "signature": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dtos.Schedule": {
             "type": "object",
             "required": [
@@ -11912,18 +12308,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.InvoiceRequest": {
-            "type": "object",
-            "properties": {
-                "invoiceCode": {
-                    "type": "string"
-                },
-                "invoiceDate": {
-                    "type": "string",
-                    "format": "date-time"
-                }
-            }
-        },
         "requests.LimitedProductAttributes": {
             "type": "object",
             "required": [
@@ -12086,37 +12470,35 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
+                    "description": "Payment details",
                     "type": "integer"
-                },
-                "buyerAddress": {
-                    "type": "string"
-                },
-                "buyerCompanyName": {
-                    "type": "string"
                 },
                 "buyerEmail": {
                     "type": "string"
                 },
                 "buyerName": {
+                    "description": "Buyer information (for PayOS fields)",
                     "type": "string"
                 },
                 "buyerPhone": {
                     "type": "string"
                 },
-                "buyerTaxCode": {
-                    "type": "string"
-                },
                 "description": {
                     "type": "string"
-                },
-                "invoice": {
-                    "$ref": "#/definitions/requests.InvoiceRequest"
                 },
                 "items": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/requests.PaymentItemRequest"
                     }
+                },
+                "referenceId": {
+                    "description": "Reference information",
+                    "type": "string"
+                },
+                "referenceType": {
+                    "description": "\"ORDER\" or \"CONTRACT\"",
+                    "type": "string"
                 }
             }
         },
@@ -13732,6 +14114,93 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.ContractPaymenntResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "example": 5000
+                },
+                "brand_id": {
+                    "type": "string",
+                    "example": "d4c3b2a1-0f9e-8d7c-6b5a-4c3b2a1f0e9d"
+                },
+                "brand_name": {
+                    "type": "string",
+                    "example": "Tech Solutions Inc."
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"
+                },
+                "contract_number": {
+                    "type": "string",
+                    "example": "WD-2024-001"
+                },
+                "contract_title": {
+                    "type": "string",
+                    "example": "Website Development Contract"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2006-01-02T15:04:05Z07:00"
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2024-07-15T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f"
+                },
+                "installment_percentage": {
+                    "type": "number",
+                    "example": 50
+                },
+                "note": {
+                    "type": "string",
+                    "example": "First installment payment"
+                },
+                "payment_method": {
+                    "type": "string",
+                    "example": "BANK_TRANSFER"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "PENDING"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2006-01-02T15:04:05Z07:00"
+                }
+            }
+        },
+        "responses.ContractPaymentPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractPaymenntResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "responses.ContractResponse": {
             "type": "object",
             "properties": {
@@ -14279,20 +14748,76 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.PaymentResponse": {
+        "responses.PayOSOrderInfoResponse": {
             "type": "object",
             "properties": {
-                "code": {
+                "amount": {
+                    "type": "integer"
+                },
+                "amountPaid": {
+                    "type": "integer"
+                },
+                "amountRemaining": {
+                    "type": "integer"
+                },
+                "canceledAt": {
                     "type": "string"
                 },
-                "data": {
-                    "$ref": "#/definitions/responses.PayOSLinkResponse"
-                },
-                "desc": {
+                "cancellationReason": {
                     "type": "string"
                 },
-                "signature": {
+                "createdAt": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "accountNumber": {
+                                "type": "string"
+                            },
+                            "amount": {
+                                "type": "integer"
+                            },
+                            "counterAccountBankId": {
+                                "type": "string"
+                            },
+                            "counterAccountBankName": {
+                                "type": "string"
+                            },
+                            "counterAccountName": {
+                                "type": "string"
+                            },
+                            "counterAccountNumber": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "reference": {
+                                "type": "string"
+                            },
+                            "transactionDateTime": {
+                                "type": "string"
+                            },
+                            "virtualAccountName": {
+                                "type": "string"
+                            },
+                            "virtualAccountNumber": {
+                                "type": "string"
+                            }
+                        }
+                    }
                 }
             }
         },
