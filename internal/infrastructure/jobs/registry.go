@@ -13,6 +13,7 @@ import (
 type CronJobRegistry struct {
 	CTRAggregationJob     CronJob
 	ExpiredLinkCleanupJob CronJob
+	PayOSExpiryCheckJob   CronJob
 	CronScheduler         *cron.Cron
 	jobs                  map[string]CronJob
 }
@@ -68,4 +69,10 @@ func (r *CronJobRegistry) StartCronScheduler() {
 func (r *CronJobRegistry) StopCronScheduler() context.Context {
 	zap.L().Info("Stopping cron scheduler for registered jobs")
 	return r.CronScheduler.Stop()
+}
+
+// RegisterJob adds a new job to the registry
+func (r *CronJobRegistry) RegisterJob(name string, job CronJob) {
+	r.jobs[name] = job
+	zap.L().Info("Registered new cron job", zap.String("job_name", name))
 }

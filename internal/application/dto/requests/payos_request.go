@@ -1,9 +1,10 @@
 package requests
 
 import (
-	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"time"
+
+	"github.com/google/uuid"
 )
 
 type PaymentItemRequest struct {
@@ -11,51 +12,25 @@ type PaymentItemRequest struct {
 	Quantity int    `json:"quantity"`
 	Price    int64  `json:"price"`
 }
-type InvoiceRequest struct {
-	InvoiceCode string    `json:"invoiceCode"`
-	InvoiceDate time.Time `json:"invoiceDate" swaggertype:"string" format:"date-time"`
-}
+
+// PaymentRequest represents a request to create a payment link for an order or contract
 type PaymentRequest struct {
-	Amount           int64                `json:"amount"`
-	Description      string               `json:"description"`
-	BuyerName        string               `json:"buyerName"`
-	BuyerCompanyName string               `json:"buyerCompanyName"`
-	BuyerTaxCode     string               `json:"buyerTaxCode,omitempty"`
-	BuyerAddress     string               `json:"buyerAddress"`
-	BuyerEmail       string               `json:"buyerEmail"`
-	BuyerPhone       string               `json:"buyerPhone"`
-	Items            []PaymentItemRequest `json:"items,omitempty"`
-	Invoice          *InvoiceRequest      `json:"invoice,omitempty"`
+	// Reference information
+	ReferenceID   uuid.UUID                            `json:"referenceId"`   // Order ID or Contract Payment ID
+	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType"` // "ORDER" or "CONTRACT_PAYMENT"
+
+	// Payment details
+	Amount      int64                `json:"amount"`
+	Description string               `json:"description"`
+	Items       []PaymentItemRequest `json:"items,omitempty"`
+
+	// Buyer information (for PayOS fields)
+	BuyerName  string `json:"buyerName"`
+	BuyerEmail string `json:"buyerEmail"`
+	BuyerPhone string `json:"buyerPhone"`
 }
 
-// ===== Backend Internal =====
-
-// generateSignature
-type PaymentSignatureRequest struct {
-	Amount      int64  `json:"amount"`
-	CancelUrl   string `json:"cancelUrl"` // backend gán từ config
-	Description string `json:"description"`
-	OrderCode   int64  `json:"orderCode"` // backend sinh
-	ReturnUrl   string `json:"returnUrl"` // backend gán từ config
-}
-
-type PayOSRequest struct {
-	PaymentSignatureRequest
-	BuyerName        *string `json:"buyerName,omitempty"`
-	BuyerCompanyName *string `json:"buyerCompanyName,omitempty"`
-	BuyerTaxCode     *string `json:"buyerTaxCode,omitempty"`
-	BuyerAddress     *string `json:"buyerAddress,omitempty"`
-	BuyerEmail       *string `json:"buyerEmail,omitempty"`
-	BuyerPhone       *string `json:"buyerPhone,omitempty"`
-
-	Items   []responses.PaymentItem `json:"items"`
-	Invoice responses.Invoice       `json:"invoice"`
-
-	ExpiredAt int64  `json:"expiredAt"`
-	Signature string `json:"signature"`
-}
-
-// Mapping PayOSRequest from OrderItem
+// MapPaymentItemsFromOrderItems converts OrderItems to PaymentItemRequest
 func MapPaymentItemsFromOrderItems(orderItems []model.OrderItem) []PaymentItemRequest {
 	paymentItems := make([]PaymentItemRequest, 0, len(orderItems))
 	for _, item := range orderItems {
