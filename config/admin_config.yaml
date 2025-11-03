@@ -59,3 +59,5 @@ ctr_aggregation_enabled: true # Enable/disable automatic CTR aggregation from cl
 ctr_aggregation_interval_minutes: 5 # Interval in minutes for CTR aggregation cron job
 expired_contract_cleanup_enabled: true
 expired_contract_cleanup_cron_expr: "0 0 * * *" # Daily at midnight
+payos_expiry_check_enabled: true # Enable/disable PayOS expired payment link cancellation
+payos_expiry_check_interval_minutes: 30 # Interval in minutes for PayOS expiry check cron job

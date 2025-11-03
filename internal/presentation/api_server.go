@@ -49,6 +49,19 @@ func NewAPIServer() *APIServer {
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
 
+	// Register application-layer cron jobs (jobs that depend on application services)
+	serviceRegistry.RegisterApplicationLayerJobs()
+
+	// Initialize and start cron jobs
+	if infrastructureRegistry.CronJobsRegistry != nil {
+		if err := infrastructureRegistry.CronJobsRegistry.InitializeAllJobs(); err != nil {
+			zap.L().Error("Failed to initialize cron jobs", zap.Error(err))
+		} else {
+			infrastructureRegistry.CronJobsRegistry.StartCronScheduler()
+			zap.L().Info("Cron scheduler started successfully")
+		}
+	}
+
 	// Create WebSocket server
 	wsServer := NewWebSocketServer()
 

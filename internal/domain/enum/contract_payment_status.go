@@ -40,3 +40,5 @@ func (cps *ContractPaymentStatus) Scan(value any) error {
 func (cps ContractPaymentStatus) Value() (driver.Value, error) {
 	return string(cps), nil
 }
+
+func (cps ContractPaymentStatus) String() string { return string(cps) }

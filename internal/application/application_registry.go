@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/service"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/scheduler"
 	infraService "core-backend/internal/infrastructure/service"
 )
@@ -41,6 +42,7 @@ type ApplicationRegistry struct {
 	AffiliateLinkService          iservice.AffiliateLinkService
 	ClickTrackingService          iservice.ClickTrackingService
 	AffiliateLinkAnalyticsService iservice.AffiliateLinkAnalyticsService
+	PaymentTransactionService     iservice.PaymentTransactionService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -101,7 +103,7 @@ func NewApplicationRegistry(
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry.PayOsService),
+		OrderService:                  service.NewOrderService(configs, databaseRegistry, service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy)),
 		ChannelService:                service.NewChannelService(databaseRegistry.ChannelRepository),
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
@@ -112,8 +114,23 @@ func NewApplicationRegistry(
 		AffiliateLinkService:          affiliateLinkService,
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
+		PaymentTransactionService:     service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
+	}
+}
+
+// RegisterApplicationLayerJobs registers cron jobs that depend on application services
+func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
+	// Register PayOS Expiry Check Job
+	if r.InfrastructureRegistry.CronJobsRegistry != nil {
+		payosExpiryJob := jobs.NewPayOSExpiryCheckJob(
+			r.PaymentTransactionService,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("payos_expiry_check_job", payosExpiryJob)
+		r.InfrastructureRegistry.CronJobsRegistry.PayOSExpiryCheckJob = payosExpiryJob
 	}
 }

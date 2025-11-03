@@ -170,5 +170,4 @@ task_scheduler:
   location_synchronization:
     enabled: false
     sync_hour: 3
-    concurrency : 5
-
+    concurrency: 5
