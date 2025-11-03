@@ -6,7 +6,6 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -24,7 +23,7 @@ type orderService struct {
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
-	payOsService                 iservice_third_party.PayOSService
+	paymentTransactionService    iservice.PaymentTransactionService
 }
 
 func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string) ([]model.Order, int, error) {
@@ -150,7 +149,6 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 
 func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
 	var paymentTransaction *model.PaymentTransaction
-	now := time.Now()
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//Check Order
@@ -166,16 +164,14 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 		}
 
 		paymenReq := requests.PaymentRequest{
-			Amount:           int64(order.TotalAmount),
-			Description:      "Pay:" + order.ID.String(),
-			BuyerName:        order.User.FullName,
-			BuyerCompanyName: "Temporarily empty",
-			BuyerTaxCode:     "",
-			BuyerAddress:     "Temporarily empty",
-			BuyerEmail:       order.User.Email,
-			BuyerPhone:       order.User.Phone,
-			Items:            requests.MapPaymentItemsFromOrderItems(order.OrderItems),
-			Invoice:          nil,
+			ReferenceID:   order.ID,
+			ReferenceType: "ORDER",
+			Amount:        int64(order.TotalAmount),
+			Description:   "Pay:" + order.ID.String(),
+			BuyerName:     order.User.FullName,
+			BuyerEmail:    order.User.Email,
+			BuyerPhone:    order.User.Phone,
+			Items:         requests.MapPaymentItemsFromOrderItems(order.OrderItems),
 		}
 
 		//Add shipping fee item
@@ -186,31 +182,27 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 		}
 		_ = shippingFeeItem
 
-		payOSResponse, err := o.payOsService.GeneratePayOSLink(paymenReq)
+		_, err = o.paymentTransactionService.GeneratePaymentLink(ctx, uow, &paymenReq)
 		if err != nil {
 			_ = uow.Rollback()
-			zap.L().Error("payOsService.GeneratePayOSLink", zap.Error(err))
+			zap.L().Error("paymentTransactionService.GeneratePaymentLink", zap.Error(err))
 			return err
 		}
 
-		//Create Payment Transaction
-		paymentTransaction = &model.PaymentTransaction{
-			ReferenceID:     order.ID,
-			ReferenceType:   "ORDER",
-			Amount:          &order.TotalAmount,
-			Method:          "ONLINE",
-			Status:          "PENDING",
-			TransactionDate: now,
-			GatewayRef:      payOSResponse.Data.CheckoutUrl,
-			GatewayID:       payOSResponse.Data.Bin,
+		// Payment transaction is already created by GeneratePaymentLink
+		// Retrieve it for response
+		filterQuery := func(db *gorm.DB) *gorm.DB {
+			return db.Where("reference_id = ?", order.ID).Where("reference_type = ?", "ORDER")
 		}
 
-		err = uow.PaymentTransaction().Add(ctx, paymentTransaction)
-		if err != nil {
-			zap.L().Error("PaymentTransaction().Add", zap.Error(err))
+		transactions, _, err := uow.PaymentTransaction().GetAll(ctx, filterQuery, nil, 1, 1)
+		if err != nil || len(transactions) == 0 {
+			zap.L().Error("Failed to retrieve created payment transaction", zap.Error(err))
 			_ = uow.Rollback()
-			return err
+			return errors.New("failed to retrieve payment transaction")
 		}
+
+		paymentTransaction = &transactions[0]
 
 		return nil
 	})
@@ -222,13 +214,13 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, unitOfWo
 	return paymentTransaction, nil
 }
 
-func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, service iservice_third_party.PayOSService) iservice.OrderService {
+func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, paymentTransactionService iservice.PaymentTransactionService) iservice.OrderService {
 	return &orderService{
 		config:                       cfg,
 		orderRepository:              dbRegistry.OrderRepository,
 		orderItemRepository:          dbRegistry.OrderItemRepository,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
-		payOsService:                 service,
+		paymentTransactionService:    paymentTransactionService,
 	}
 }
