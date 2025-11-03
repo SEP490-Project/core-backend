@@ -203,8 +203,19 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 		// ---------- PAYOS ----------
 		payOsHandler := r.handlerRegistry.PayOsHandler
-		v1.POST("/payos/payment", payOsHandler.GeneratePaymentLink)
-		v1.POST("/payos/cancel", payOsHandler.CancelCallback)
+
+		// Public webhook endpoint (no authentication required for PayOS callbacks)
+		v1.POST("/payos/webhook", payOsHandler.HandleWebhook)
+
+		// Admin-protected PayOS routes
+		payosGroup := v1.Group("/payos")
+		payosGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		payosGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			payosGroup.POST("/payment", payOsHandler.GeneratePaymentLink)
+			payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
+			payosGroup.POST("/cancel-expired", payOsHandler.CancelExpiredLinks)
+		}
 
 		// ---------- FILES ----------
 		fileHandler := r.handlerRegistry.FileHandler
