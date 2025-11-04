@@ -415,6 +415,19 @@ definitions:
     - max_clicks
     - multiplier
     type: object
+  dtos.PayOSConfirmWebhookResponse:
+    properties:
+      accountName:
+        type: string
+      accountNumber:
+        type: string
+      name:
+        type: string
+      shortName:
+        type: string
+      webhookUrl:
+        type: string
+    type: object
   dtos.PayOSWebhookData:
     properties:
       accountNumber:
@@ -716,6 +729,14 @@ definitions:
     - PaymentCycleMonthly
     - PaymentCycleQuarterly
     - PaymentCycleAnnually
+  enum.PaymentTransactionReferenceType:
+    enum:
+    - ORDER
+    - CONTRACT_PAYMENT
+    type: string
+    x-enum-varnames:
+    - PaymentTransactionReferenceTypeOrder
+    - PaymentTransactionReferenceTypeContractPayment
   enum.PlatformType:
     enum:
     - IOS
@@ -1150,6 +1171,13 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  requests.ConfirmWebhookRequest:
+    properties:
+      webhookUrl:
+        type: string
+    required:
+    - webhookUrl
     type: object
   requests.CreateAffiliateLinkRequest:
     properties:
@@ -1852,6 +1880,10 @@ definitions:
         type: integer
       quantity:
         type: integer
+    required:
+    - name
+    - price
+    - quantity
     type: object
   requests.PaymentRequest:
     properties:
@@ -1875,8 +1907,15 @@ definitions:
         description: Reference information
         type: string
       referenceType:
-        description: '"ORDER" or "CONTRACT"'
-        type: string
+        allOf:
+        - $ref: '#/definitions/enum.PaymentTransactionReferenceType'
+        enum:
+        - ORDER
+        - CONTRACT
+    required:
+    - amount
+    - referenceId
+    - referenceType
     type: object
   requests.PlaceAndPayRequest:
     properties:
@@ -6959,6 +6998,48 @@ paths:
       summary: Get a contract payment by its ID
       tags:
       - Contract Payments
+  /api/v1/contract_payments/{contract_payment_id}/payment-link:
+    post:
+      consumes:
+      - application/json
+      description: Generate a PayOS payment link for a specific contract payment.
+        Only PENDING payments can generate links.
+      parameters:
+      - description: Contract Payment ID
+        example: '"b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6"'
+        in: path
+        name: contract_payment_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment link generated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PayOSLinkResponse'
+              type: object
+        "400":
+          description: Invalid request or payment not in PENDING status
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract payment not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate PayOS payment link for contract payment
+      tags:
+      - Contract Payments
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:
@@ -8613,7 +8694,44 @@ paths:
       - BearerAuth: []
       summary: Cancel expired payment links
       tags:
-      - payos
+      - PayOS
+  /api/v1/payos/confirm-webhook:
+    post:
+      consumes:
+      - application/json
+      description: Confirm the webhook URL with PayOS to start receiving webhooks
+      parameters:
+      - description: Webhook URL payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ConfirmWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Webhook URL confirmed successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.PayOSConfirmWebhookResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirm PayOS webhook URL
+      tags:
+      - PayOS
   /api/v1/payos/payment:
     post:
       consumes:
@@ -8651,7 +8769,7 @@ paths:
       - BearerAuth: []
       summary: Create a PayOS payment link
       tags:
-      - payos
+      - PayOS
   /api/v1/payos/payment/{orderCode}:
     get:
       description: Retrieve payment details by order code
@@ -8685,7 +8803,7 @@ paths:
       - BearerAuth: []
       summary: Get PayOS payment information
       tags:
-      - payos
+      - PayOS
   /api/v1/payos/webhook:
     post:
       consumes:
@@ -8722,7 +8840,7 @@ paths:
             type: object
       summary: PayOS webhook endpoint
       tags:
-      - payos
+      - PayOS
   /api/v1/products:
     get:
       consumes:
