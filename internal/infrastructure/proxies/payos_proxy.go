@@ -12,6 +12,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -173,6 +175,56 @@ func (p *payosProxy) CancelPaymentLink(ctx context.Context, orderCode string, re
 	return &payosResp.Data, nil
 }
 
+// ConfirmWebhookURL implements iproxies.PayOSProxy
+func (p *payosProxy) ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error) {
+	var (
+		request = dtos.PayOSConfirmWebhookRequest{WebhookURL: webhookURL}
+		url     = "/confirm-webhook"
+		headers = map[string]string{
+			"Content-Type": "application/json",
+			"x-client-id":  p.clientID,
+			"x-api-key":    p.apiKey,
+		}
+	)
+	resp, err := p.Post(ctx, url, headers, request)
+	if err != nil {
+		zap.L().Error("Failed to confirm PayOS webhook URL", zap.Error(err))
+		return nil, fmt.Errorf("failed to confirm webhook URL: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var payosResp dtos.PayOSWrapperResponse[any]
+	if err := json.NewDecoder(resp.Body).Decode(&payosResp); err != nil {
+		zap.L().Error("Failed to decode PayOS response", zap.Error(err), zap.Int("status_code", resp.StatusCode))
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	zap.L().Debug("PayOS confirm webhook response decoded", zap.Any("response", payosResp))
+	if resp.StatusCode != http.StatusOK {
+		zap.L().Error("PayOS returned error",
+			zap.String("code", resp.Status),
+			zap.String("desc", resp.Status),
+			zap.Int("http_status", resp.StatusCode))
+		return nil, fmt.Errorf("PayOS error: %s - %s", resp.Status, resp.Status)
+	}
+
+	// Check response code
+	if payosResp.Code != "00" {
+		zap.L().Error("PayOS returned error",
+			zap.String("code", payosResp.Code),
+			zap.String("desc", payosResp.Desc),
+			zap.Int("http_status", resp.StatusCode))
+		return nil, fmt.Errorf("PayOS error: %s - %s", payosResp.Code, payosResp.Desc)
+	}
+
+	// var payosRespData dtos.PayOSConfirmWebhookResponse
+	payosRespData := payosResp.Data.(dtos.PayOSConfirmWebhookResponse)
+	zap.L().Info("PayOS webhook URL confirmed successfully",
+		zap.String("webhook_url", payosRespData.WebhookURL))
+
+	return &payosRespData, nil
+}
+
 // VerifyWebhookSignature implements iproxies.PayOSProxy
 func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool {
 	// Parse JSON data into a map
@@ -242,7 +294,7 @@ func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool 
 // NewPayOSProxy creates a new PayOS proxy instance
 func NewPayOSProxy(httpClient *http.Client, baseURL, clientID, apiKey, checksumKey string) iproxies.PayOSProxy {
 	return &payosProxy{
-		BaseProxy:   &BaseProxy{httpClient: httpClient, baseURL: baseURL},
+		BaseProxy:   NewBaseProxy(httpClient, baseURL),
 		clientID:    clientID,
 		apiKey:      apiKey,
 		checksumKey: checksumKey,

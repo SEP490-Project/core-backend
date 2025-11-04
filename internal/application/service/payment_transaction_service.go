@@ -279,6 +279,20 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 	return nil
 }
 
+// ConfirmWebhookURL implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error) {
+	zap.L().Info("Confirming PayOS webhook URL", zap.String("webhook_url", webhookURL))
+
+	response, err := s.payosProxy.ConfirmWebhookURL(ctx, webhookURL)
+	if err != nil {
+		zap.L().Error("Failed to confirm PayOS webhook URL", zap.Error(err))
+		return nil, fmt.Errorf("failed to confirm webhook URL: %w", err)
+	}
+
+	zap.L().Info("PayOS webhook URL confirmed successfully", zap.String("webhook_url", webhookURL))
+	return response, nil
+}
+
 // CancelExpiredLinks implements iservice.PaymentTransactionService
 func (s *paymentTransactionService) CancelExpiredLinks(ctx context.Context) (int, error) {
 	zap.L().Info("Starting expired payment links cancellation job")
@@ -388,7 +402,7 @@ func (s *paymentTransactionService) SyncPaymentStatus(ctx context.Context, uow i
 	return nil
 }
 
-// Private helper methods
+// region: =========== Helper Methods ===========
 
 func (s *paymentTransactionService) generateOrderCode() int64 {
 	now := time.Now().Unix()
@@ -449,6 +463,8 @@ func (s *paymentTransactionService) mapPayOSTransactions(transactions []struct {
 	}
 	return result
 }
+
+// endregion
 
 // NewPaymentTransactionService creates a new PaymentTransactionService instance
 func NewPaymentTransactionService(
