@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -197,6 +198,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 			uow,
 			transaction.ID,
 			transaction.Status,
+			uuid.Nil,
 		); stateErr != nil {
 			uow.Rollback()
 			zap.L().Error("Failed to handle payment transaction state change",
