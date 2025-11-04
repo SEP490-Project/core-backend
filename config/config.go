@@ -2,10 +2,8 @@
 package config
 
 import (
-	"crypto/rand"
+	"core-backend/pkg/crypto"
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"strings"
@@ -370,21 +368,34 @@ func setDefaultValues() {
 }
 
 // parseRSAKeys reads and parses the RSA private and public keys from the config.
-// It prioritizes file paths over raw key content.
-// If key files don't exist, it generates them automatically.
+// Priority order:
+// 1. HashiCorp Vault (if enabled)
+// 2. File paths
+// 3. Embedded strings
+// If keys don't exist, it generates them automatically.
 func (jc *JWTConfig) parseRSAKeys() error {
+	// --- Priority 1: Try loading from Vault if enabled ---
+	if jc.Vault != nil && jc.Vault.Enabled {
+		fmt.Printf("Vault is enabled, attempting to load RSA keys from Vault from infrastructure registry...\n")
+	} else if err := jc.LoadRSAKeysLocally(); err != nil {
+		return fmt.Errorf("error loading RSA keys locally: %w", err)
+	}
+
+	return nil
+}
+
+func (jc *JWTConfig) LoadRSAKeysLocally() error {
 	var privateKeyBytes, publicKeyBytes []byte
 	var err error
 
-	// --- Load Private Key ---
-	// Priority 1: From file path
-	if jc.PrivateKeyFile != "" {
+	// --- Priority 2: Load from file path (if not loaded from Vault) ---
+	if len(privateKeyBytes) == 0 && jc.PrivateKeyFile != "" {
 		privateKeyBytes, err = os.ReadFile(jc.PrivateKeyFile)
 		if err != nil {
 			// If file doesn't exist, generate key pair
 			if os.IsNotExist(err) {
 				fmt.Printf("RSA keys not found, generating new key pair...\n")
-				if genErr := jc.generateKeyPair(); genErr != nil {
+				if genErr := crypto.GenerateRSAKeyPair(jc.PrivateKeyFile, jc.PublicKeyFile, 2048); genErr != nil {
 					return fmt.Errorf("failed to generate RSA keys: %w", genErr)
 				}
 				// Try reading again after generation
@@ -396,10 +407,9 @@ func (jc *JWTConfig) parseRSAKeys() error {
 				return fmt.Errorf("could not read private key file %s: %w", jc.PrivateKeyFile, err)
 			}
 		}
-	} else if jc.PrivateKey != "" { // Priority 2: From embedded string
+	} else if len(privateKeyBytes) == 0 && jc.PrivateKey != "" { // Priority 3: From embedded string
 		privateKeyBytes = []byte(jc.PrivateKey)
 	} else {
-		// In the future, you would add Vault logic here.
 		return fmt.Errorf("private key is not provided (either file path or raw content)")
 	}
 
@@ -413,17 +423,17 @@ func (jc *JWTConfig) parseRSAKeys() error {
 	} else if jc.PublicKey != "" { // Priority 2: From embedded string
 		publicKeyBytes = []byte(jc.PublicKey)
 	} else {
-		// In the future, you would add Vault logic here.
 		return fmt.Errorf("public key is not provided (either file path or raw content)")
 	}
 
-	// --- Parse Keys ---
+	// Parse private key
 	parsedPrivKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyBytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse RSA private key: %w", err)
 	}
 	jc.parsedPrivateKey = parsedPrivKey
 
+	// Parse public key
 	parsedPubKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
 	if err != nil {
 		return fmt.Errorf("failed to parse RSA public key: %w", err)
@@ -431,6 +441,7 @@ func (jc *JWTConfig) parseRSAKeys() error {
 	jc.parsedPublicKey = parsedPubKey
 
 	return nil
+
 }
 
 // GetAppConfig returns the loaded application configuration.
@@ -448,55 +459,22 @@ func (jc *JWTConfig) GetPublicKey() *rsa.PublicKey {
 	return jc.parsedPublicKey
 }
 
-// generateKeyPair generates RSA key pair and saves them to files
-func (jc *JWTConfig) generateKeyPair() error {
-	// Import necessary packages for key generation
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+// UpdateRSAKeys updates the parsed RSA keys with new PEM-encoded keys
+// This is used when keys are generated and stored in Vault
+func (jc *JWTConfig) UpdateRSAKeys(privateKeyPEM, publicKeyPEM string) error {
+	// Parse private key
+	parsedPrivKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPEM))
 	if err != nil {
-		return fmt.Errorf("failed to generate private key: %w", err)
+		return fmt.Errorf("failed to parse RSA private key: %w", err)
 	}
+	jc.parsedPrivateKey = parsedPrivKey
 
-	// Save private key
-	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyPEM := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: privateKeyBytes,
-	}
-
-	privateKeyFile, err := os.Create(jc.PrivateKeyFile)
+	// Parse public key
+	parsedPubKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKeyPEM))
 	if err != nil {
-		return fmt.Errorf("failed to create private key file: %w", err)
+		return fmt.Errorf("failed to parse RSA public key: %w", err)
 	}
-	defer privateKeyFile.Close()
-
-	if err = pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
-		return fmt.Errorf("failed to write private key: %w", err)
-	}
-
-	// Save public key
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return fmt.Errorf("failed to marshal public key: %w", err)
-	}
-
-	publicKeyPEM := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyBytes,
-	}
-
-	publicKeyFile, err := os.Create(jc.PublicKeyFile)
-	if err != nil {
-		return fmt.Errorf("failed to create public key file: %w", err)
-	}
-	defer publicKeyFile.Close()
-
-	if err := pem.Encode(publicKeyFile, publicKeyPEM); err != nil {
-		return fmt.Errorf("failed to write public key: %w", err)
-	}
-
-	fmt.Printf("RSA key pair generated successfully:\n")
-	fmt.Printf("  Private key: %s\n", jc.PrivateKeyFile)
-	fmt.Printf("  Public key: %s\n", jc.PublicKeyFile)
+	jc.parsedPublicKey = parsedPubKey
 
 	return nil
 }

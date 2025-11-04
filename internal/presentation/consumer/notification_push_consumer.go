@@ -5,9 +5,9 @@ import (
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/infrastructure/service"
 	"encoding/json"
 	"errors"
 	"time"
@@ -19,20 +19,20 @@ import (
 
 // NotificationPushConsumer handles push notification messages from RabbitMQ
 type NotificationPushConsumer struct {
-	fcmService             *service.FCMService
+	fcmService             iservice_third_party.FCMService
 	deviceTokenRepository  irepository.DeviceTokenRepository
 	notificationRepository irepository.NotificationRepository
 	userService            iservice.UserService
-	healthMonitor          *service.HealthMonitor
+	healthMonitor          iservice_third_party.HealthMonitor
 }
 
 // NewNotificationPushConsumer creates a new push notification consumer
 func NewNotificationPushConsumer(
-	fcmService *service.FCMService,
+	fcmService iservice_third_party.FCMService,
 	deviceTokenRepository irepository.DeviceTokenRepository,
 	notificationRepository irepository.NotificationRepository,
 	userService iservice.UserService,
-	healthMonitor *service.HealthMonitor,
+	healthMonitor iservice_third_party.HealthMonitor,
 ) *NotificationPushConsumer {
 	return &NotificationPushConsumer{
 		fcmService:             fcmService,
