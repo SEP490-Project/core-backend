@@ -42,7 +42,7 @@ func NewPayOsHandler(
 //
 //	@Summary		Create a PayOS payment link
 //	@Description	Generate a new PayOS payment link. Backend automatically sets cancelUrl and returnUrl from config.
-//	@Tags			payos
+//	@Tags			PayOS
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.PaymentRequest									true	"Payment Request"
@@ -91,7 +91,7 @@ func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 //
 //	@Summary		Get PayOS payment information
 //	@Description	Retrieve payment details by order code
-//	@Tags			payos
+//	@Tags			PayOS
 //	@Produce		json
 //	@Param			orderCode	path		string															true	"Order Code"
 //	@Success		200			{object}	responses.APIResponse{data=responses.PayOSOrderInfoResponse}	"Payment info retrieved successfully"
@@ -121,7 +121,7 @@ func (h *PayOsHandler) GetPaymentInfo(c *gin.Context) {
 //
 //	@Summary		PayOS webhook endpoint
 //	@Description	Receives payment status updates from PayOS. This is a public endpoint with signature verification.
-//	@Tags			payos
+//	@Tags			PayOS
 //	@Accept			json
 //	@Produce		json
 //	@Param			payload	body		dtos.PayOSWebhookPayload	true	"Webhook payload from PayOS"
@@ -174,7 +174,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	}()
 
 	// Process webhook
-	if err := h.paymentTransactionService.ProcessWebhook(c.Request.Context(), uow, &webhookPayload); err != nil {
+	if err = h.paymentTransactionService.ProcessWebhook(c.Request.Context(), uow, &webhookPayload); err != nil {
 		uow.Rollback()
 		zap.L().Error("Failed to process webhook", zap.Error(err))
 		// Still return 200 to acknowledge receipt, but log the error
@@ -223,7 +223,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 //
 //	@Summary		Cancel expired payment links
 //	@Description	Manually trigger cancellation of all expired PayOS payment links
-//	@Tags			payos
+//	@Tags			PayOS
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=map[string]int}	"Cancellation completed"
 //	@Failure		500	{object}	responses.APIResponse						"Internal server error"
@@ -242,4 +242,34 @@ func (h *PayOsHandler) CancelExpiredLinks(c *gin.Context) {
 		"cancelled_count": cancelledCount,
 	}
 	c.JSON(http.StatusOK, responses.SuccessResponse("Expired links cancellation completed", &statusCode, result))
+}
+
+// ConfirmWebhookURL godoc
+//
+//	@Summary		Confirm PayOS webhook URL
+//	@Description	Confirm the webhook URL with PayOS to start receiving webhooks
+//	@Tags			PayOS
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ConfirmWebhookRequest									true	"Webhook URL payload"
+//	@Success		200		{object}	responses.APIResponse{data=dtos.PayOSConfirmWebhookResponse}	"Webhook URL confirmed successfully"
+//	@Failure		400		{object}	responses.APIResponse											"Bad request"
+//	@Failure		500		{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/payos/confirm-webhook [post]
+func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
+	var req requests.ConfirmWebhookRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+	result, err := h.paymentTransactionService.ConfirmWebhookURL(c.Request.Context(), req.WebhookURL)
+	if err != nil {
+		zap.L().Error("Failed to confirm webhook URL", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to confirm webhook URL", http.StatusInternalServerError))
+		return
+	}
+
+	statusCode := http.StatusOK
+	c.JSON(http.StatusOK, responses.SuccessResponse("Webhook URL confirmed successfully", &statusCode, result))
 }

@@ -8,19 +8,19 @@ import (
 )
 
 type PaymentItemRequest struct {
-	Name     string `json:"name"`
-	Quantity int    `json:"quantity"`
-	Price    int64  `json:"price"`
+	Name     string `json:"name" validate:"required"`
+	Quantity int    `json:"quantity" validate:"required,gt=0"`
+	Price    int64  `json:"price" validate:"required,gt=0"`
 }
 
 // PaymentRequest represents a request to create a payment link for an order or contract
 type PaymentRequest struct {
 	// Reference information
-	ReferenceID   uuid.UUID                            `json:"referenceId"`   // Order ID or Contract Payment ID
-	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType"` // "ORDER" or "CONTRACT_PAYMENT"
+	ReferenceID   uuid.UUID                            `json:"referenceId" validate:"required,uuid"`
+	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType" validate:"required,oneof=ORDER CONTRACT"`
 
 	// Payment details
-	Amount      int64                `json:"amount"`
+	Amount      int64                `json:"amount" validate:"required,gt=0"`
 	Description string               `json:"description"`
 	Items       []PaymentItemRequest `json:"items,omitempty"`
 
@@ -28,6 +28,11 @@ type PaymentRequest struct {
 	BuyerName  string `json:"buyerName"`
 	BuyerEmail string `json:"buyerEmail"`
 	BuyerPhone string `json:"buyerPhone"`
+}
+
+// ConfirmWebhookRequest represents a request to confirm the webhook URL with PayOS
+type ConfirmWebhookRequest struct {
+	WebhookURL string `json:"webhookUrl" validate:"required,url"`
 }
 
 // MapPaymentItemsFromOrderItems converts OrderItems to PaymentItemRequest

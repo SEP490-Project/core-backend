@@ -32,4 +32,7 @@ type PaymentTransactionService interface {
 
 	// SyncPaymentStatus fetches latest status from PayOS and updates local record
 	SyncPaymentStatus(ctx context.Context, uow irepository.UnitOfWork, paymentTransactionID uuid.UUID) error
+
+	// ConfirmWebhookURL confirms the webhook URL with PayOS
+	ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error)
 }

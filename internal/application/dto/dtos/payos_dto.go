@@ -61,6 +61,11 @@ type PayOSCancelRequest struct {
 	CancellationReason string `json:"cancellationReason,omitempty"`
 }
 
+// PayOSConfirmWebhookRequest represents the request to confirm webhook setup
+type PayOSConfirmWebhookRequest struct {
+	WebhookURL string `json:"webhookUrl"`
+}
+
 // PayOSWrapperResponse is used internally by the proxy to parse PayOS API responses
 // Generic wrapper that PayOS uses for all API responses
 type PayOSWrapperResponse[T any] struct {
@@ -68,6 +73,15 @@ type PayOSWrapperResponse[T any] struct {
 	Desc      string `json:"desc"`
 	Data      T      `json:"data"`
 	Signature string `json:"signature"`
+}
+
+// PayOSConfirmWebhookResponse represents the response from PayOS when confirming webhook setup
+type PayOSConfirmWebhookResponse struct {
+	WebhookURL    string `json:"webhookUrl"`
+	AccountNumber string `json:"accountNumber"`
+	AccountName   string `json:"accountName"`
+	Name          string `json:"name"`
+	ShortName     string `json:"shortName"`
 }
 
 // MapPayOSStatusString converts a PayOS status string to internal PaymentTransactionStatus

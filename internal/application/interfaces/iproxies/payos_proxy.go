@@ -22,4 +22,7 @@ type PayOSProxy interface {
 
 	// VerifyWebhookSignature verifies the HMAC-SHA256 signature of webhook data
 	VerifyWebhookSignature(data []byte, signature string) bool
+
+	// ConfirmWebhookURL confirms the webhook URL with PayOS
+	ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error)
 }
