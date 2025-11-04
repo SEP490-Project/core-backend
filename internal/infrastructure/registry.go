@@ -28,9 +28,9 @@ type InfrastructureRegistry struct {
 	UnitOfWork        irepository.UnitOfWork
 	ValkeyCache       *persistence.ValkeyCache
 	RabbitMQ          *rabbitmq.RabbitMQ
-	EmailService      *service.EmailService
-	FCMService        *service.FCMService
-	HealthMonitor     *service.HealthMonitor
+	EmailService      iservice_third_party.EmailService
+	FCMService        iservice_third_party.FCMService
+	HealthMonitor     iservice_third_party.HealthMonitor
 	GHNService        iservice_third_party.GHNService
 	ProxiesRegistry   *proxies.ProxiesRegistry
 
