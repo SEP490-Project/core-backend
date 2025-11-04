@@ -294,6 +294,8 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		zap.L().Error("Contract state transition failed", zap.String("contract_id", contractID.String()), zap.String("from", cCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
 		return errors.New("contract state transition failed: " + err.Error())
 	}
+	// Override in case of any adjustments to the targetState
+	targetState = cCtx.State.Name()
 
 	contract.Status = targetState
 	filterQuery := func(db *gorm.DB) *gorm.DB {
