@@ -119,6 +119,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupTagRoutes(v1)
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
+		r.SetupPayOSRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -199,22 +200,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
 		{
 			milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
-		}
-
-		// ---------- PAYOS ----------
-		payOsHandler := r.handlerRegistry.PayOsHandler
-
-		// Public webhook endpoint (no authentication required for PayOS callbacks)
-		v1.POST("/payos/webhook", payOsHandler.HandleWebhook)
-
-		// Admin-protected PayOS routes
-		payosGroup := v1.Group("/payos")
-		payosGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-		payosGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
-		{
-			payosGroup.POST("/payment", payOsHandler.GeneratePaymentLink)
-			payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
-			payosGroup.POST("/cancel-expired", payOsHandler.CancelExpiredLinks)
 		}
 
 		// ---------- FILES ----------
@@ -644,5 +629,23 @@ func (r *Router) SetupAffiliateLinkAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/top-performers", analyticsHandler.GetTopPerformers)
 			protectedGroup.GET("/dashboard", analyticsHandler.GetDashboard)
 		}
+	}
+}
+
+func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
+	// ---------- PAYOS ----------
+	payOsHandler := r.handlerRegistry.PayOsHandler
+
+	// Public webhook endpoint (no authentication required for PayOS callbacks)
+	group.POST("/payos/webhook", payOsHandler.HandleWebhook)
+
+	// Admin-protected PayOS routes
+	payosGroup := group.Group("/payos")
+	payosGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		payosGroup.POST("/payment", payOsHandler.GeneratePaymentLink)
+		payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
+		payosGroup.POST("/cancel-expired", payOsHandler.CancelExpiredLinks)
+		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
 	}
 }

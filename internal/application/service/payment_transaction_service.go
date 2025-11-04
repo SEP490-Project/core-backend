@@ -213,6 +213,16 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 		zap.Int64("order_code", webhookPayload.Data.OrderCode),
 		zap.String("code", webhookPayload.Code))
 
+	// If the paylod is from webhook confirm test, log and skip the the logic
+	if webhookPayload.Data.OrderCode == 123 &&
+		webhookPayload.Data.Amount == 3000 &&
+		webhookPayload.Data.Description == "VQRIO123" &&
+		webhookPayload.Data.AccountNumber == "12345678" &&
+		webhookPayload.Data.PaymentLinkID == "124c33293c43417ab7879e14c8d9eb18" {
+		zap.L().Info("PayOS webhook confirm test, skip processing", zap.Any("payload.data", webhookPayload.Data))
+		return nil
+	}
+
 	// 1. Find payment transaction by order code using UnitOfWork
 	filterQuery := func(db *gorm.DB) *gorm.DB {
 		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
@@ -277,6 +287,20 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 		zap.String("new_status", string(newStatus)))
 
 	return nil
+}
+
+// ConfirmWebhookURL implements iservice.PaymentTransactionService
+func (s *paymentTransactionService) ConfirmWebhookURL(ctx context.Context, webhookURL string) (*dtos.PayOSConfirmWebhookResponse, error) {
+	zap.L().Info("Confirming PayOS webhook URL", zap.String("webhook_url", webhookURL))
+
+	response, err := s.payosProxy.ConfirmWebhookURL(ctx, webhookURL)
+	if err != nil {
+		zap.L().Error("Failed to confirm PayOS webhook URL", zap.Error(err))
+		return nil, fmt.Errorf("failed to confirm webhook URL: %w", err)
+	}
+
+	zap.L().Info("PayOS webhook URL confirmed successfully", zap.String("webhook_url", webhookURL))
+	return response, nil
 }
 
 // CancelExpiredLinks implements iservice.PaymentTransactionService
@@ -388,7 +412,7 @@ func (s *paymentTransactionService) SyncPaymentStatus(ctx context.Context, uow i
 	return nil
 }
 
-// Private helper methods
+// region: =========== Helper Methods ===========
 
 func (s *paymentTransactionService) generateOrderCode() int64 {
 	now := time.Now().Unix()
@@ -449,6 +473,8 @@ func (s *paymentTransactionService) mapPayOSTransactions(transactions []struct {
 	}
 	return result
 }
+
+// endregion
 
 // NewPaymentTransactionService creates a new PaymentTransactionService instance
 func NewPaymentTransactionService(

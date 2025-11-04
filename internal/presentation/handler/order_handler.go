@@ -214,18 +214,18 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 
 // PlaceAndPayOrder godoc
 //
-// @Summary      Place an order and initiate payment
-// @Description  Create an order and immediately calculate delivery fee and create payment transaction
-// @Tags         Orders
-// @Accept       json
-// @Produce      json
-// @Param        data  body    requests.PlaceAndPayRequest  true  "Place and pay payload"
-// @Success      200   {object}  map[string]any
-// @Failure      400   {object}  map[string]string
-// @Failure      401   {object}  map[string]string
-// @Failure      500   {object}  map[string]string
-// @Security     BearerAuth
-// @Router       /api/v1/orders/place-and-pay [post]
+//	@Summary		Place an order and initiate payment
+//	@Description	Create an order and immediately calculate delivery fee and create payment transaction
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.PlaceAndPayRequest	true	"Place and pay payload"
+//	@Success		200		{object}	map[string]any
+//	@Failure		400		{object}	map[string]string
+//	@Failure		401		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/place-and-pay [post]
 func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 	// Bind request
 	var req requests.PlaceAndPayRequest
