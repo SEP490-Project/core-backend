@@ -175,9 +175,52 @@ func (p *payosProxy) CancelPaymentLink(ctx context.Context, orderCode string, re
 
 // VerifyWebhookSignature implements iproxies.PayOSProxy
 func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool {
-	// Create HMAC-SHA256 hash
+	// Parse JSON data into a map
+	var dataMap map[string]any
+	if err := json.Unmarshal(data, &dataMap); err != nil {
+		zap.L().Error("Failed to parse webhook data for signature verification", zap.Error(err))
+		return false
+	}
+
+	// Sort keys alphabetically
+	keys := make([]string, 0, len(dataMap))
+	for key := range dataMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	// Build query string: key1=value1&key2=value2&...
+	var queryParts []string
+	for _, key := range keys {
+		value := dataMap[key]
+		// Convert value to string representation
+		var valueStr string
+		switch v := value.(type) {
+		case string:
+			valueStr = v
+		case float64:
+			// Handle numbers (JSON numbers are float64)
+			if v == float64(int64(v)) {
+				valueStr = fmt.Sprintf("%.0f", v) // No decimal for integers
+			} else {
+				valueStr = fmt.Sprintf("%v", v)
+			}
+		case bool:
+			valueStr = fmt.Sprintf("%v", v)
+		case nil:
+			valueStr = ""
+		default:
+			// For nested objects/arrays, marshal to JSON
+			bytes, _ := json.Marshal(v)
+			valueStr = string(bytes)
+		}
+		queryParts = append(queryParts, fmt.Sprintf("%s=%s", key, valueStr))
+	}
+	queryString := strings.Join(queryParts, "&")
+
+	// Create HMAC-SHA256 hash of the query string
 	mac := hmac.New(sha256.New, []byte(p.checksumKey))
-	mac.Write(data)
+	mac.Write([]byte(queryString))
 	expectedSignature := hex.EncodeToString(mac.Sum(nil))
 
 	// Compare signatures
@@ -185,8 +228,12 @@ func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool 
 
 	if !isValid {
 		zap.L().Warn("PayOS webhook signature verification failed",
+			zap.String("query_string", queryString),
 			zap.String("expected", expectedSignature),
 			zap.String("received", signature))
+	} else {
+		zap.L().Debug("PayOS webhook signature verified successfully",
+			zap.String("query_string", queryString))
 	}
 
 	return isValid
