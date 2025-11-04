@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"core-backend/config"
+	"core-backend/internal/application/interfaces/iservice_third_party"
 	"errors"
 	"sync"
 	"time"
@@ -20,8 +21,8 @@ var (
 	ErrFCMNotInitialized = errors.New("FCM service not initialized")
 )
 
-// FCMService handles Firebase Cloud Messaging operations with rate limiting
-type FCMService struct {
+// fcmService handles Firebase Cloud Messaging operations with rate limiting
+type fcmService struct {
 	client      *messaging.Client
 	rateLimiter *fcmRateLimiter
 }
@@ -37,10 +38,10 @@ type fcmRateLimiter struct {
 
 // NewFCMService creates a new FCM service instance with rate limiting
 // serviceAccountPath: path to Firebase service account JSON file
-func NewFCMService(serviceAccountPath string, cfg *config.AppConfig) (*FCMService, error) {
+func NewFCMService(serviceAccountPath string, cfg *config.AppConfig) (iservice_third_party.FCMService, error) {
 	if serviceAccountPath == "" {
 		zap.L().Warn("Firebase service account path not configured, FCM service will not be initialized")
-		return &FCMService{client: nil}, nil
+		return &fcmService{client: nil}, nil
 	}
 
 	opt := option.WithCredentialsFile(serviceAccountPath)
@@ -67,7 +68,7 @@ func NewFCMService(serviceAccountPath string, cfg *config.AppConfig) (*FCMServic
 		zap.Int("rate_limit", pushPerMinute),
 		zap.Duration("refill_rate", refillRate))
 
-	return &FCMService{
+	return &fcmService{
 		client: client,
 		rateLimiter: &fcmRateLimiter{
 			tokens:         pushPerMinute,
@@ -79,7 +80,7 @@ func NewFCMService(serviceAccountPath string, cfg *config.AppConfig) (*FCMServic
 }
 
 // SendToToken sends a push notification to a single device token
-func (s *FCMService) SendToToken(ctx context.Context, token, title, body string, data map[string]string) error {
+func (s *fcmService) SendToToken(ctx context.Context, token, title, body string, data map[string]string) error {
 	if s.client == nil {
 		return ErrFCMNotInitialized
 	}
@@ -122,7 +123,7 @@ func (s *FCMService) SendToToken(ctx context.Context, token, title, body string,
 }
 
 // SendMulticast sends a push notification to multiple device tokens
-func (s *FCMService) SendMulticast(ctx context.Context, tokens []string, title, body string, data map[string]string) (*messaging.BatchResponse, error) {
+func (s *fcmService) SendMulticast(ctx context.Context, tokens []string, title, body string, data map[string]string) (*messaging.BatchResponse, error) {
 	if s.client == nil {
 		return nil, ErrFCMNotInitialized
 	}
@@ -165,7 +166,7 @@ func (s *FCMService) SendMulticast(ctx context.Context, tokens []string, title, 
 }
 
 // SendWithPlatformConfig sends a push notification with platform-specific configuration
-func (s *FCMService) SendWithPlatformConfig(ctx context.Context, token, title, body string, data map[string]string, apnsConfig *messaging.APNSConfig, androidConfig *messaging.AndroidConfig) error {
+func (s *fcmService) SendWithPlatformConfig(ctx context.Context, token, title, body string, data map[string]string, apnsConfig *messaging.APNSConfig, androidConfig *messaging.AndroidConfig) error {
 	if s.client == nil {
 		return ErrFCMNotInitialized
 	}
@@ -210,7 +211,7 @@ func (s *FCMService) SendWithPlatformConfig(ctx context.Context, token, title, b
 }
 
 // SendMulticastWithPlatformConfig sends a push notification to multiple tokens with platform-specific configuration
-func (s *FCMService) SendMulticastWithPlatformConfig(ctx context.Context, tokens []string, title, body string, data map[string]string, apnsConfig *messaging.APNSConfig, androidConfig *messaging.AndroidConfig) (*messaging.BatchResponse, error) {
+func (s *fcmService) SendMulticastWithPlatformConfig(ctx context.Context, tokens []string, title, body string, data map[string]string, apnsConfig *messaging.APNSConfig, androidConfig *messaging.AndroidConfig) (*messaging.BatchResponse, error) {
 	if s.client == nil {
 		return nil, ErrFCMNotInitialized
 	}
@@ -290,4 +291,24 @@ func (rl *fcmRateLimiter) waitForToken(ctx context.Context) error {
 		}
 		return errors.New("rate limit exceeded")
 	}
+}
+
+// Health returns the health status of the FCM service
+func (s *fcmService) Health(ctx context.Context) iservice_third_party.ServiceHealth {
+	health := iservice_third_party.ServiceHealth{
+		Name:          "FCMService",
+		LastCheckTime: time.Now(),
+		Details:       make(map[string]any),
+	}
+
+	if s.client == nil {
+		health.IsHealthy = false
+		health.LastError = ErrFCMNotInitialized
+		zap.L().Debug("FCM service health check failed - client not initialized")
+	} else {
+		health.IsHealthy = true
+		zap.L().Debug("FCM service health check passed")
+	}
+
+	return health
 }

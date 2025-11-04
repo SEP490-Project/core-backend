@@ -5,11 +5,11 @@ import (
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
-	infraService "core-backend/internal/infrastructure/service"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -21,11 +21,11 @@ import (
 
 // NotificationEmailConsumer handles email notification messages from RabbitMQ
 type NotificationEmailConsumer struct {
-	emailService     *infraService.EmailService
+	emailService     iservice_third_party.EmailService
 	notificationRepo irepository.NotificationRepository
 	userService      iservice.UserService
 	validator        *validator.Validate
-	healthMonitor    *infraService.HealthMonitor
+	healthMonitor    iservice_third_party.HealthMonitor
 }
 
 // NewNotificationEmailConsumer creates a new email notification consumer

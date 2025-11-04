@@ -16,12 +16,13 @@ import (
 	"time"
 
 	"core-backend/config"
+	"core-backend/internal/application/interfaces/iservice_third_party"
 
 	"go.uber.org/zap"
 )
 
-// EmailService handles email sending via Gmail SMTP with rate limiting
-type EmailService struct {
+// emailService handles email sending via Gmail SMTP with rate limiting
+type emailService struct {
 	smtpHost      string
 	smtpPort      int
 	username      string
@@ -63,7 +64,7 @@ type smtpConnection struct {
 }
 
 // NewEmailService creates a new email service instance with rate limiting
-func NewEmailService(cfg *config.AppConfig) (*EmailService, error) {
+func NewEmailService(cfg *config.AppConfig) (iservice_third_party.EmailService, error) {
 	// Validate configuration
 	if cfg.GmailSMTP.Host == "" {
 		return nil, errors.New("gmail SMTP host is required")
@@ -91,7 +92,7 @@ func NewEmailService(cfg *config.AppConfig) (*EmailService, error) {
 		poolSize = 5 // Default to 5 concurrent connections
 	}
 
-	service := &EmailService{
+	service := &emailService{
 		smtpHost:  cfg.GmailSMTP.Host,
 		smtpPort:  cfg.GmailSMTP.Port,
 		username:  cfg.GmailSMTP.Username,
@@ -132,7 +133,7 @@ func NewEmailService(cfg *config.AppConfig) (*EmailService, error) {
 }
 
 // SendEmail sends an email with the specified parameters
-func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string, isHTML bool) error {
+func (s *emailService) SendEmail(ctx context.Context, to, subject, body string, isHTML bool) error {
 	// Wait for rate limit token
 	if err := s.rateLimiter.waitForToken(ctx); err != nil {
 		zap.L().Warn("Rate limit wait cancelled",
@@ -185,7 +186,7 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string, 
 }
 
 // SendTemplatedEmail sends an email using a template
-func (s *EmailService) SendTemplatedEmail(ctx context.Context, to, subject, templateName string, data map[string]any) error {
+func (s *emailService) SendTemplatedEmail(ctx context.Context, to, subject, templateName string, data map[string]any) error {
 	if s.templates == nil {
 		return errors.New("email templates not loaded")
 	}
@@ -201,7 +202,7 @@ func (s *EmailService) SendTemplatedEmail(ctx context.Context, to, subject, temp
 }
 
 // loadTemplates loads HTML and text email templates from the specified directory
-func (s *EmailService) loadTemplates(templateDir string) error {
+func (s *emailService) loadTemplates(templateDir string) error {
 	if templateDir == "" {
 		return errors.New("template directory not specified")
 	}
@@ -232,7 +233,7 @@ func (s *EmailService) loadTemplates(templateDir string) error {
 }
 
 // sendViaSMTP sends email through Gmail SMTP using connection pooling
-func (s *EmailService) sendViaSMTP(to string, message []byte) error {
+func (s *emailService) sendViaSMTP(to string, message []byte) error {
 	// Get connection from pool
 	conn, err := s.connPool.getConnection(context.Background())
 	if err != nil {
@@ -462,4 +463,35 @@ func (p *smtpConnectionPool) closeConnection(conn *smtpConnection) {
 	if conn.conn != nil {
 		conn.conn.Close()
 	}
+}
+
+// Health returns the health status of the email service
+func (s *emailService) Health(ctx context.Context) iservice_third_party.ServiceHealth {
+	health := iservice_third_party.ServiceHealth{
+		Name:          "EmailService",
+		LastCheckTime: time.Now(),
+		Details:       make(map[string]any),
+	}
+
+	if s.connPool == nil {
+		health.IsHealthy = false
+		health.LastError = errors.New("connection pool not initialized")
+		return health
+	}
+
+	// Try to get a connection from the pool (light check)
+	conn, err := s.connPool.getConnection(ctx)
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		zap.L().Debug("Email service health check failed", zap.Error(err))
+	} else {
+		// Return connection to pool
+		s.connPool.returnConnection(conn)
+		health.IsHealthy = true
+		health.Details["pool_size"] = s.connPool.maxSize
+		zap.L().Debug("Email service health check passed")
+	}
+
+	return health
 }
