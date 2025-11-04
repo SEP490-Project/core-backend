@@ -42,13 +42,14 @@ jwt:
   public_key_file: "public.pem"
   private_key: ""
   public_key: ""
+  # HashiCorp Vault integration for RSA key storage
   vault:
     enabled: false
-    address: ""
+    address: "http://localhost:8200"
     token: ""
-    secret_path: ""
-    private_key_field: "private_key_file"
-    public_key_field: "public_key_file"
+    secret_path: "secret/jwt-keys"
+    private_key_field: "private_key"
+    public_key_field: "public_key"
 
 # Logging configuration
 log:

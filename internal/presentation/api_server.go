@@ -44,6 +44,23 @@ func NewAPIServer() *APIServer {
 	// Create registries in order
 	databaseRegistry := gormrepository.NewDatabaseRegistry(db)
 	infrastructureRegistry := infrastructure.NewInfrastructureRegistry(config.GetAppConfig(), db, databaseRegistry, s3Bucket, s3StreamBucket)
+
+	// Initialize RSA keys in Vault if enabled and not already present
+	if infrastructureRegistry.VaultService != nil {
+		ctx := context.Background()
+		jwtConfig := &config.GetAppConfig().JWT
+		if err := infrastructureRegistry.VaultService.InitializeRSAKeys(ctx, jwtConfig); err == nil {
+			// zap.L().Error("Failed to initialize RSA keys in Vault", zap.Error(err))
+			zap.L().Info("RSA keys initialization in Vault completed successfully")
+		} else {
+			zap.L().Error("Failed to initialize RSA keys in Vault, fallback to local files", zap.Error(err))
+			if err = jwtConfig.LoadRSAKeysLocally(); err != nil {
+				zap.L().Fatal("Failed to load RSA keys locally after Vault initialization failure", zap.Error(err))
+			}
+			zap.L().Info("Loaded RSA keys from local files after Vault initialization failure")
+		}
+	}
+
 	serviceRegistry := application.NewApplicationRegistry(config.GetAppConfig(), databaseRegistry, infrastructureRegistry)
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry, config.GetAppConfig())
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
