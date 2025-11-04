@@ -17,6 +17,7 @@ import (
 
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/pkg/utils"
 
 	"go.uber.org/zap"
 )
@@ -133,7 +134,7 @@ func NewEmailService(cfg *config.AppConfig) (iservice_third_party.EmailService, 
 }
 
 // SendEmail sends an email with the specified parameters
-func (s *emailService) SendEmail(ctx context.Context, to, subject, body string, isHTML bool) error {
+func (s *emailService) SendEmail(ctx context.Context, to, subject string, body *string, isHTML bool) error {
 	// Wait for rate limit token
 	if err := s.rateLimiter.waitForToken(ctx); err != nil {
 		zap.L().Warn("Rate limit wait cancelled",
@@ -167,7 +168,7 @@ func (s *emailService) SendEmail(ctx context.Context, to, subject, body string, 
 		message.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
 	}
 	message.WriteString("\r\n")
-	message.WriteString(body)
+	message.WriteString(*body)
 
 	// Send via SMTP with TLS
 	if err := s.sendViaSMTP(to, message.Bytes()); err != nil {
@@ -198,7 +199,7 @@ func (s *emailService) SendTemplatedEmail(ctx context.Context, to, subject, temp
 	}
 
 	// Send as HTML email
-	return s.SendEmail(ctx, to, subject, htmlBuf.String(), true)
+	return s.SendEmail(ctx, to, subject, utils.PtrOrNil(htmlBuf.String()), true)
 }
 
 // loadTemplates loads HTML and text email templates from the specified directory
