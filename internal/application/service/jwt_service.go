@@ -7,12 +7,9 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -130,82 +127,4 @@ func (s *JWTService) GenerateTokenPair(userID, username, email, role string) (ac
 		zap.String("username", username))
 
 	return accessToken, refreshToken, nil
-}
-
-func GenerateKeyPair(privateKeyPath, publicKeyPath string, keySize int) error {
-	zap.L().Info("Generating RSA key pair",
-		zap.String("private_key_path", privateKeyPath),
-		zap.String("public_key_path", publicKeyPath),
-		zap.Int("key_size", keySize))
-
-	// Generate private key
-	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
-	if err != nil {
-		zap.L().Error("Failed to generate RSA private key",
-			zap.Int("key_size", keySize),
-			zap.Error(err))
-		return fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	// Save private key
-	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
-	privateKeyPEM := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: privateKeyBytes,
-	}
-
-	privateKeyFile, err := os.Create(privateKeyPath)
-	if err != nil {
-		zap.L().Error("Failed to create private key file",
-			zap.String("private_key_path", privateKeyPath),
-			zap.Error(err))
-		return fmt.Errorf("failed to create private key file: %w", err)
-	}
-	defer privateKeyFile.Close()
-
-	if err = pem.Encode(privateKeyFile, privateKeyPEM); err != nil {
-		zap.L().Error("Failed to write private key to file",
-			zap.String("private_key_path", privateKeyPath),
-			zap.Error(err))
-		return fmt.Errorf("failed to write private key: %w", err)
-	}
-
-	zap.L().Debug("Successfully saved private key",
-		zap.String("private_key_path", privateKeyPath))
-
-	// Save public key
-	publicKeyBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		zap.L().Error("Failed to marshal public key",
-			zap.Error(err))
-		return fmt.Errorf("failed to marshal public key: %w", err)
-	}
-
-	publicKeyPEM := &pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicKeyBytes,
-	}
-
-	publicKeyFile, err := os.Create(publicKeyPath)
-	if err != nil {
-		zap.L().Error("Failed to create public key file",
-			zap.String("public_key_path", publicKeyPath),
-			zap.Error(err))
-		return fmt.Errorf("failed to create public key file: %w", err)
-	}
-	defer publicKeyFile.Close()
-
-	if err := pem.Encode(publicKeyFile, publicKeyPEM); err != nil {
-		zap.L().Error("Failed to write public key to file",
-			zap.String("public_key_path", publicKeyPath),
-			zap.Error(err))
-		return fmt.Errorf("failed to write public key: %w", err)
-	}
-
-	zap.L().Info("Successfully generated and saved RSA key pair",
-		zap.String("private_key_path", privateKeyPath),
-		zap.String("public_key_path", publicKeyPath),
-		zap.Int("key_size", keySize))
-
-	return nil
 }

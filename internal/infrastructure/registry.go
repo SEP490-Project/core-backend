@@ -5,7 +5,7 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/irepository"
-	"core-backend/internal/application/interfaces/iservice_third_party"
+	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/jobs"
@@ -28,10 +28,11 @@ type InfrastructureRegistry struct {
 	UnitOfWork        irepository.UnitOfWork
 	ValkeyCache       *persistence.ValkeyCache
 	RabbitMQ          *rabbitmq.RabbitMQ
-	EmailService      *service.EmailService
-	FCMService        *service.FCMService
-	HealthMonitor     *service.HealthMonitor
-	GHNService        iservice_third_party.GHNService
+	VaultService      iservicethirdparty.VaultService
+	EmailService      iservicethirdparty.EmailService
+	FCMService        iservicethirdparty.FCMService
+	HealthMonitor     iservicethirdparty.HealthMonitor
+	GHNService        iservicethirdparty.GHNService
 	ProxiesRegistry   *proxies.ProxiesRegistry
 
 	//Automatic Trigger
@@ -82,6 +83,20 @@ func NewInfrastructureRegistry(
 	)
 
 	//========================EXTERNAL SERVICES========================//
+	//Initialize VaultService (for general-purpose secret management)
+	zap.L().Debug("Initializing VaultService...")
+	if config.JWT.Vault != nil && config.JWT.Vault.Enabled {
+		vaultService, err := service.NewVaultService(config.JWT.Vault)
+		if err != nil {
+			zap.L().Warn("Failed to initialize VaultService, continuing without Vault", zap.Error(err))
+		} else {
+			registry.VaultService = vaultService
+			zap.L().Info("VaultService initialized successfully")
+		}
+	} else {
+		zap.L().Debug("VaultService disabled in configuration")
+	}
+
 	//Initialize EmailService
 	zap.L().Debug("Initializing EmailService...")
 	emailService, err := service.NewEmailService(config)
