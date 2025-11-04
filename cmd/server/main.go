@@ -22,10 +22,8 @@ package main
 
 import (
 	"core-backend/config"
-	"core-backend/internal/application/service"
 	"core-backend/internal/presentation"
 	"core-backend/pkg/logging"
-	"os"
 	"time"
 
 	"go.uber.org/zap"
@@ -61,11 +59,6 @@ func main() {
 		zap.Int("port", appConfig.Server.Port),
 	)
 
-	// Generate RSA keys if they don't exist
-	if err := ensureRSAKeys(); err != nil {
-		zap.L().Fatal("Failed to ensure RSA keys", zap.Error(err))
-	}
-
 	// Create and start API server
 	server := presentation.NewAPIServer()
 
@@ -75,31 +68,4 @@ func main() {
 	}
 
 	zap.L().Info("Server stopped gracefully")
-}
-
-// ensureRSAKeys generates RSA key pair if they don't exist
-func ensureRSAKeys() error {
-	privateKeyPath := "private.pem"
-	publicKeyPath := "public.pem"
-
-	// Check if keys exist
-	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
-		zap.L().Info("RSA keys not found, generating new key pair...")
-
-		if err := service.GenerateKeyPair(privateKeyPath, publicKeyPath, 2048); err != nil {
-			return err
-		}
-
-		zap.L().Info("RSA key pair generated successfully",
-			zap.String("private_key", privateKeyPath),
-			zap.String("public_key", publicKeyPath),
-		)
-	} else {
-		zap.L().Info("Using existing RSA keys",
-			zap.String("private_key", privateKeyPath),
-			zap.String("public_key", publicKeyPath),
-		)
-	}
-
-	return nil
 }
