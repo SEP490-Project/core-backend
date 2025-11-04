@@ -4193,6 +4193,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contract_payments/{contract_payment_id}/payment-link": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generate a PayOS payment link for a specific contract payment. Only PENDING payments can generate links.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Payments"
+                ],
+                "summary": "Generate PayOS payment link for contract payment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6\"",
+                        "description": "Contract Payment ID",
+                        "name": "contract_payment_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment link generated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PayOSLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or payment not in PENDING status",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract payment not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts": {
             "get": {
                 "security": [
@@ -6676,7 +6744,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "payos"
+                    "PayOS"
                 ],
                 "summary": "Cancel expired payment links",
                 "responses": {
@@ -6710,6 +6778,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/payos/confirm-webhook": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Confirm the webhook URL with PayOS to start receiving webhooks",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Confirm PayOS webhook URL",
+                "parameters": [
+                    {
+                        "description": "Webhook URL payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ConfirmWebhookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Webhook URL confirmed successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.PayOSConfirmWebhookResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/payment": {
             "post": {
                 "security": [
@@ -6725,7 +6856,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "payos"
+                    "PayOS"
                 ],
                 "summary": "Create a PayOS payment link",
                 "parameters": [
@@ -6785,7 +6916,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "payos"
+                    "PayOS"
                 ],
                 "summary": "Get PayOS payment information",
                 "parameters": [
@@ -6841,7 +6972,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "payos"
+                    "PayOS"
                 ],
                 "summary": "PayOS webhook endpoint",
                 "parameters": [
@@ -10528,6 +10659,26 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.PayOSConfirmWebhookResponse": {
+            "type": "object",
+            "properties": {
+                "accountName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "shortName": {
+                    "type": "string"
+                },
+                "webhookUrl": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.PayOSWebhookData": {
             "type": "object",
             "properties": {
@@ -10916,6 +11067,17 @@ const docTemplate = `{
                 "PaymentCycleMonthly",
                 "PaymentCycleQuarterly",
                 "PaymentCycleAnnually"
+            ]
+        },
+        "enum.PaymentTransactionReferenceType": {
+            "type": "string",
+            "enum": [
+                "ORDER",
+                "CONTRACT_PAYMENT"
+            ],
+            "x-enum-varnames": [
+                "PaymentTransactionReferenceTypeOrder",
+                "PaymentTransactionReferenceTypeContractPayment"
             ]
         },
         "enum.PlatformType": {
@@ -11522,6 +11684,17 @@ const docTemplate = `{
                 "video_thumbnail": {
                     "type": "string",
                     "example": "https://example.com/thumbnail.jpg"
+                }
+            }
+        },
+        "requests.ConfirmWebhookRequest": {
+            "type": "object",
+            "required": [
+                "webhookUrl"
+            ],
+            "properties": {
+                "webhookUrl": {
+                    "type": "string"
                 }
             }
         },
@@ -12454,6 +12627,11 @@ const docTemplate = `{
         },
         "requests.PaymentItemRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "price",
+                "quantity"
+            ],
             "properties": {
                 "name": {
                     "type": "string"
@@ -12468,6 +12646,11 @@ const docTemplate = `{
         },
         "requests.PaymentRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "referenceId",
+                "referenceType"
+            ],
             "properties": {
                 "amount": {
                     "description": "Payment details",
@@ -12497,8 +12680,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "referenceType": {
-                    "description": "\"ORDER\" or \"CONTRACT\"",
-                    "type": "string"
+                    "enum": [
+                        "ORDER",
+                        "CONTRACT"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.PaymentTransactionReferenceType"
+                        }
+                    ]
                 }
             }
         },
