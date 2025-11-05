@@ -18,7 +18,7 @@ type OrderRequest struct {
 	Items     []OrderItemRequest `json:"items" validate:"required,dive,required"`
 }
 
-func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, now time.Time) *model.Order {
+func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, shippingPrice int, now time.Time) *model.Order {
 
 	//Calc total amount:
 	var totalAmount float64 = 0
@@ -29,6 +29,7 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 	return &model.Order{
 		Status:      enum.OrderStatusPending,
 		TotalAmount: totalAmount,
+		ShippingFee: shippingPrice,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 
@@ -116,4 +117,6 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 type PlaceAndPayRequest struct {
 	Order           OrderRequest                      `json:"order" validate:"required,dive"`
 	DeliveryService *dtos.DeliveryAvailableServiceDTO `json:"delivery_service,omitempty"`
+	CancelURL       string                            `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
+	SuccessURL      string                            `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
 }

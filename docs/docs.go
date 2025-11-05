@@ -6524,71 +6524,6 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create an order for the authenticated user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Place an order",
-                "parameters": [
-                    {
-                        "description": "Order payload",
-                        "name": "data",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.OrderRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/orders/place-and-pay": {
@@ -11390,6 +11325,9 @@ const docTemplate = `{
                 "province_name": {
                     "type": "string"
                 },
+                "shipping_fee": {
+                    "type": "integer"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.OrderStatus"
                 },
@@ -12573,18 +12511,6 @@ const docTemplate = `{
                 "variant_id"
             ],
             "properties": {
-                "height": {
-                    "description": "in centimeters",
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 15
-                },
-                "length": {
-                    "description": "in centimeters",
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 10
-                },
                 "quantity": {
                     "type": "integer",
                     "minimum": 1,
@@ -12593,17 +12519,6 @@ const docTemplate = `{
                 "variant_id": {
                     "type": "string",
                     "example": "69700831-4112-44fd-bf7f-07b015f56218"
-                },
-                "weight": {
-                    "description": "in grams",
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 250
-                },
-                "width": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 5
                 }
             }
         },
@@ -12699,11 +12614,19 @@ const docTemplate = `{
                 "order"
             ],
             "properties": {
+                "cancel_url": {
+                    "type": "string",
+                    "example": "https://example.com/cancel"
+                },
                 "delivery_service": {
                     "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
                 },
                 "order": {
                     "$ref": "#/definitions/requests.OrderRequest"
+                },
+                "success_url": {
+                    "type": "string",
+                    "example": "https://example.com/success"
                 }
             }
         },

@@ -109,7 +109,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, 
 	return orders, int(total), nil
 }
 
-func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
+func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
 	now := time.Now()
 	var persistedOrder *model.Order
 
@@ -138,7 +138,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			return err
 		}
 
-		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, now)
+		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, shippingPrice, now)
 		err = uow.Order().Add(ctx, persistedOrder)
 		if err != nil {
 			zap.L().Error("Order().Add", zap.Error(err))
@@ -155,7 +155,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 }
 
 // PayOrder handles the payment process in a atomic transaction
-func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
+func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
 	var paymentTransaction *model.PaymentTransaction
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -193,7 +193,8 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		//generate signature
 		orderCode := o.generateOrderCode()
 		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
-		signature, err := o.generateSignature(int64(amount), o.config.PayOS.CancelURL, description, orderCode, o.config.PayOS.ReturnURL)
+		signature, err := o.generateSignature(int64(amount), cancelURL, description, orderCode, successURL)
+
 		if err != nil {
 			zap.L().Error("Failed to generate signature", zap.Error(err))
 			return fmt.Errorf("failed to generate signature: %w", err)
@@ -208,8 +209,8 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 			BuyerPhone:   utils.PtrOrNil(order.PhoneNumber),
 			BuyerAddress: utils.PtrOrNil(order.AddressLine2),
 			Items:        payOSItems,
-			CancelURL:    o.config.PayOS.CancelURL,
-			ReturnURL:    o.config.PayOS.ReturnURL,
+			CancelURL:    cancelURL,
+			ReturnURL:    successURL,
 			ExpiredAt:    expiredAt, //additional for 5 mins
 			Signature:    signature,
 		}
@@ -282,6 +283,59 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		payOSProxy:                registry.ProxiesRegistry.PayOSProxy,
 		ghnService:                registry.GHNService,
 	}
+}
+
+// region: =========== Helper Methods ===========
+
+func (o *orderService) generateOrderCode() int64 {
+	now := time.Now().Unix()
+	randPart := time.Now().UnixNano() % 1e3
+	return now*1000 + randPart
+}
+
+func (o *orderService) generateSignature(amount int64, cancelURL, description string, orderCode int64, returnURL string) (string, error) {
+	data := fmt.Sprintf(
+		"amount=%d&cancelUrl=%s&description=%s&orderCode=%d&returnUrl=%s",
+		amount, cancelURL, description, orderCode, returnURL,
+	)
+	mac := hmac.New(sha256.New, []byte(o.config.PayOS.ChecksumKey))
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+// ToPayOSItemsWithTotalPrice map OrderItems to PayOSItems with total price
+func toPayOSItemsWithTotalPrice(items []model.OrderItem) (payOSItems []dtos.PayOSItem, total int, err error) {
+	payOSItems = make([]dtos.PayOSItem, 0, len(items))
+	total = 0
+
+	for _, item := range items {
+		// Validate relations: Variant and Product must be preloaded
+		if item.Variant.ID == uuid.Nil || item.Variant.Product.ID == uuid.Nil {
+			err = fmt.Errorf("missing relation: OrderItem.Variant or OrderItem.Variant.Product not loaded for OrderItem ID %s", item.ID)
+			return
+		}
+
+		// Build variant descriptive string (e.g. "250ML - Bottle - Spray")
+		variantPropConcat := fmt.Sprintf("%v", item.Capacity) +
+			utils.ToTitleCase(*item.CapacityUnit) + " - " +
+			utils.ToTitleCase(item.ContainerType.String()) + " - " +
+			utils.ToTitleCase(item.DispenserType.String())
+
+		// Build readable item name (e.g. "Shampoo (250ML - Bottle - Spray)")
+		variantName := utils.ToTitleCase(item.Variant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)
+
+		// Append to PayOS item list
+		payOSItems = append(payOSItems, dtos.PayOSItem{
+			Name:     variantName,
+			Quantity: item.Quantity,
+			Price:    item.UnitPrice,
+		})
+
+		// Accumulate total price (unit price × quantity)
+		total += int(item.UnitPrice) * item.Quantity
+	}
+
+	return
 }
 
 // region: =========== Helper Methods ===========
