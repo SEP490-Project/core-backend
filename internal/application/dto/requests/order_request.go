@@ -56,10 +56,6 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 type OrderItemRequest struct {
 	VariantID uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
 	Quantity  int       `json:"quantity" validate:"required,min=1" example:"1"`
-	Weight    int       `json:"weight" form:"weight" validate:"min=0" example:"250"` // in grams
-	Height    int       `json:"height" form:"height" validate:"min=0" example:"15"`  // in centimeters
-	Length    int       `json:"length" form:"length" validate:"min=0" example:"10"`  // in centimeters
-	Width     int       `json:"width" form:"width" validate:"min=0" example:"5"`     //
 }
 
 // ToModel converts OrderItemRequest to OrderItem model. The purpose of "now" parameter is to set CreatedAt and UpdatedAt fields sync with Order.
@@ -104,6 +100,10 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 		Instructions:          &prdVariant.Instructions,
 		AttributesDescription: attrsJSON,
 		ItemStatus:            enum.OrderStatusPending,
+		Weight:                prdVariant.Weight,
+		Height:                prdVariant.Height,
+		Length:                prdVariant.Length,
+		Width:                 prdVariant.Width,
 		//CreatedAt: now,
 		UpdatedAt: now,
 	}

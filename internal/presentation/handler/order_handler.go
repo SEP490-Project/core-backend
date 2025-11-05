@@ -3,6 +3,8 @@ package handler
 import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/domain/model"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 
@@ -12,7 +14,6 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/domain/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -167,19 +168,20 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 
 // PayOrder godoc
 //
-//	@Summary		Initiate payment for an order
-//	@Description	Generate payment link and create payment transaction for the given order
-//	@Tags			Orders
-//	@Accept			json
-//	@Produce		json
-//	@Param			id	path		string	true	"Order ID (UUID)"
-//	@Success		200	{object}	map[string]any
-//	@Failure		400	{object}	map[string]string
-//	@Failure		401	{object}	map[string]string
-//	@Failure		404	{object}	map[string]string
-//	@Failure		500	{object}	map[string]string
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/{id}/pay [post]
+//		@Summary		Initiate payment for an order
+//	 @Deprecated     This endpoint is deprecated. Please use /place-and-pay to place an order and initiate payment in a single request.
+//		@Description	Generate payment link and create payment transaction for the given order
+//		@Tags			Orders
+//		@Accept			json
+//		@Produce		json
+//		@Param			id	path		string	true	"Order ID (UUID)"
+//		@Success		200	{object}	map[string]any
+//		@Failure		400	{object}	map[string]string
+//		@Failure		401	{object}	map[string]string
+//		@Failure		404	{object}	map[string]string
+//		@Failure		500	{object}	map[string]string
+//		@Security		BearerAuth
+//		@Router			/api/v1/orders/{id}/pay [post]
 func (h *OrderHandler) PayOrder(c *gin.Context) {
 	orderIDStr := c.Param("id")
 	orderID, err := uuid.Parse(orderIDStr)
@@ -196,7 +198,7 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 		}
 	}()
 
-	paymentTx, err := h.orderService.PayOrder(ctx, orderID, uow)
+	paymentTx, err := h.orderService.PayOrder(ctx, orderID, 0, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
@@ -263,7 +265,7 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 		return
 	}
 
-	// 2) Calculate delivery fee using GHN service. If request contains a selected delivery service, pass it.
+	// 2) Calculate delivery fee using GHN service. Use request context but limit external call time
 	var deliveryService dtos.DeliveryAvailableServiceDTO
 	if req.DeliveryService != nil {
 		deliveryService = *req.DeliveryService
@@ -272,14 +274,14 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 	var deliveryFee *dtos.DeliveryFeeSuccess
 	deliveryFee, err = h.ghnService.CalculateDeliveryPriceByID(ctx, order.ID, deliveryService, uow)
 	if err != nil {
-		_ = uow.Rollback()
+		zap.L().Error("failed to calculate delivery fee", zap.Error(err), zap.String("order_id", order.ID.String()))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
 
 	// 3) Initiate payment
 	var paymentTx *model.PaymentTransaction
-	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, uow)
+	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))

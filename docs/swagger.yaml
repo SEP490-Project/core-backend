@@ -8580,6 +8580,7 @@ paths:
     post:
       consumes:
       - application/json
+      deprecated: true
       description: Generate payment link and create payment transaction for the given
         order
       parameters:

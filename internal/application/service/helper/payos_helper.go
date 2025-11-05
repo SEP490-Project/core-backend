@@ -28,7 +28,7 @@ func GeneratePayOSDescription(referenceType string, paymentTransactionID uuid.UU
 	case "ORDER":
 		prefix = "ORD"
 	default:
-		// Fallback to first 3 chars of reference type
+		// Fallback: take first 3 letters of type or default to PAY
 		if len(referenceType) >= 3 {
 			prefix = strings.ToUpper(referenceType[:3])
 		} else {
@@ -36,11 +36,21 @@ func GeneratePayOSDescription(referenceType string, paymentTransactionID uuid.UU
 		}
 	}
 
-	// Get UUID without dashes
+	// Remove dashes from UUID
 	uuidStr := strings.ReplaceAll(paymentTransactionID.String(), "-", "")
 
-	// Format: PREFIX-XXXXX (total 9 characters)
-	return fmt.Sprintf("%s-%s", prefix, uuidStr)
+	// Compute max suffix length to stay ≤ 9 characters total (including dash)
+	maxSuffixLen := 9 - (len(prefix) + 1)
+	if maxSuffixLen < 0 {
+		maxSuffixLen = 0
+	}
+	if maxSuffixLen > len(uuidStr) {
+		maxSuffixLen = len(uuidStr)
+	}
+
+	shortUUID := uuidStr[:maxSuffixLen]
+
+	return fmt.Sprintf("%s-%s", prefix, shortUUID)
 }
 
 // ExtractPaymentTransactionIDFromDescription extracts the payment transaction UUID from the PayOS description
