@@ -52,7 +52,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		PayOsHandler:                  NewPayOsHandler(applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
 		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
-		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		CategoryHandler:               NewCategoryHandler(applicationReg.ProductCategoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		ModifiedHistoryHandler:        NewModifiedHistoryHandler(applicationReg.ModifiedHistoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AdminConfigHandler:            NewAdminConfigHandler(applicationReg.AdminConfigService, applicationReg.InfrastructureRegistry.UnitOfWork),

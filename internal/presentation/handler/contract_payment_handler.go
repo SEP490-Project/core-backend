@@ -112,8 +112,8 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 //	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
 //	@Param		page			query		int											false	"Page number"		default(1)						example(1)
 //	@Param		limit			query		int											false	"Items per page"	default(10)						example(10)
-//	@Param 		sort_by 		query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
-//	@Param 		sort_order 		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
+//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
+//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
 //	@Success	200				{object}	responses.ContractPaymentPaginationResponse	"Contract payments retrieved successfully"
 //	@Failure	400				{object}	responses.APIResponse						"Invalid request or validation error"
 //	@Failure	401				{object}	responses.APIResponse						"Unauthorized"
@@ -202,8 +202,8 @@ func (h *ContractPaymentHandler) GetContractPaymentByID(c *gin.Context) {
 //	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
 //	@Param		page			query		int											false	"Page number"		default(1)						example(1)
 //	@Param		limit			query		int											false	"Items per page"	default(10)						example(10)
-//	@Param 		sort_by 		query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
-//	@Param 		sort_order 		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
+//	@Param		sort_by			query		string										false	"Sort by field"		enums(due_date,amount,status)	example("due_date")
+//	@Param		sort_order		query		string										false	"Sort order"		enums(asc,desc)					example("asc")
 //	@Success	200				{object}	responses.ContractPaymentPaginationResponse	"Contract payments retrieved successfully"
 //	@Failure	400				{object}	responses.APIResponse						"Invalid request or validation error"
 //	@Failure	401				{object}	responses.APIResponse						"Unauthorized"

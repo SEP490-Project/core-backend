@@ -9,6 +9,7 @@ import (
 
 type CampaignContext struct {
 	State      CampaignState
+	Campaign   *model.Campaign
 	MileStones []*model.Milestone
 }
 

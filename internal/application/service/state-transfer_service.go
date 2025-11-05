@@ -209,48 +209,46 @@ func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileSton
 	return nil
 }
 
-func (t stateTransferService) MoveCampaignToState(ctx context.Context, campaignID uuid.UUID, targetState enum.CampaignStatus, updatedBy uuid.UUID) error {
+func (t stateTransferService) MoveCampaignToState(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	campaignID uuid.UUID,
+	targetState enum.CampaignStatus,
+	updatedBy uuid.UUID,
+) error {
 	//1. Load current task from DB
-	trx := t.uow.Begin(ctx)
-	defer func() {
-		if r := recover(); r != nil {
-			_ = trx.Rollback()
-			zap.L().Error("panic recovered in MoveCampaignToState", zap.Any("recover", r))
-		}
-	}()
-
-	campaignRepo := trx.Campaigns()
+	campaignRepo := uow.Campaigns()
 	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
 	if err != nil {
-		_ = trx.Rollback()
 		zap.L().Error("Failed to load campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to load campaign: " + err.Error())
 	}
-	//TODO: Set updatedBy AFTER successful fetch -> incase for cascade
 	campaign.UpdatedByID = &updatedBy
 
 	//2. Load task context
-	cCtx := &campaignsm.CampaignContext{State: campaignsm.NewCampaignState(campaign.Status), MileStones: campaign.Milestones}
+	cCtx := &campaignsm.CampaignContext{
+		State:      campaignsm.NewCampaignState(campaign.Status),
+		Campaign:   campaign,
+		MileStones: campaign.Milestones,
+	}
 
 	//3. Init target State
 	nextState := campaignsm.NewCampaignState(targetState)
 	if nextState == nil {
-		_ = trx.Rollback()
 		zap.L().Error("Invalid target campaign state", zap.String("campaign_id", campaignID.String()), zap.String("target_state", targetState.String()))
 		return errors.New("invalid target campaign state")
 	}
 
 	//4. Forward state
 	if err := cCtx.State.Next(cCtx, nextState); err != nil {
-		_ = trx.Rollback()
 		zap.L().Error("Campaign state transition failed", zap.String("campaign_id", campaignID.String()), zap.String("from", cCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
 		return errors.New("campaign state transition failed: " + err.Error())
 	}
 
 	//5. Persist task new state
+	campaign = cCtx.Campaign // reflect any in-memory changes made by state machine
 	campaign.Status = targetState
 	if err := campaignRepo.Update(ctx, campaign); err != nil {
-		_ = trx.Rollback()
 		zap.L().Error("Failed to persist campaign state", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to persist campaign state: " + err.Error())
 	}
