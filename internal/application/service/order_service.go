@@ -109,7 +109,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, 
 	return orders, int(total), nil
 }
 
-func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
+func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
 	now := time.Now()
 	var persistedOrder *model.Order
 
@@ -138,7 +138,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			return err
 		}
 
-		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, now)
+		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, shippingPrice, now)
 		err = uow.Order().Add(ctx, persistedOrder)
 		if err != nil {
 			zap.L().Error("Order().Add", zap.Error(err))
@@ -155,7 +155,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 }
 
 // PayOrder handles the payment process in a atomic transaction
-func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
+func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
 	var paymentTransaction *model.PaymentTransaction
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -193,7 +193,8 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		//generate signature
 		orderCode := o.generateOrderCode()
 		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
-		signature, err := o.generateSignature(int64(amount), o.config.PayOS.CancelURL, description, orderCode, o.config.PayOS.ReturnURL)
+		signature, err := o.generateSignature(int64(amount), cancelURL, description, orderCode, successURL)
+
 		if err != nil {
 			zap.L().Error("Failed to generate signature", zap.Error(err))
 			return fmt.Errorf("failed to generate signature: %w", err)
@@ -208,8 +209,8 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 			BuyerPhone:   utils.PtrOrNil(order.PhoneNumber),
 			BuyerAddress: utils.PtrOrNil(order.AddressLine2),
 			Items:        payOSItems,
-			CancelURL:    o.config.PayOS.CancelURL,
-			ReturnURL:    o.config.PayOS.ReturnURL,
+			CancelURL:    cancelURL,
+			ReturnURL:    successURL,
 			ExpiredAt:    expiredAt, //additional for 5 mins
 			Signature:    signature,
 		}

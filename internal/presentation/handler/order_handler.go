@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
 	"go.uber.org/zap"
@@ -16,7 +15,6 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type OrderHandler struct {
@@ -31,66 +29,6 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_p
 		ghnService:   ghnService,
 		unitOfWork:   uow,
 	}
-}
-
-// PlaceOrder godoc
-//
-//	@Summary		Place an order
-//	@Description	Create an order for the authenticated user
-//	@Tags			Orders
-//	@Accept			json
-//	@Produce		json
-//	@Param			data	body		requests.OrderRequest	true	"Order payload"
-//	@Success		201		{object}	map[string]any
-//	@Failure		400		{object}	map[string]string
-//	@Failure		401		{object}	map[string]string
-//	@Failure		500		{object}	map[string]string
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders [post]
-func (h *OrderHandler) PlaceOrder(c *gin.Context) {
-	// Bind request
-	var req requests.OrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
-		return
-	}
-
-	// Extract user
-	userID, err := extractUserID(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
-		return
-	}
-
-	if len(req.Items) == 0 {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order must contain at least one item", http.StatusBadRequest))
-		return
-	}
-
-	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin(ctx)
-	defer func() {
-		// ensure transaction ended if still open
-		if uow.InTransaction() {
-			_ = uow.Rollback()
-		}
-	}()
-
-	order, err := h.orderService.PlaceOrder(ctx, userID, req, uow)
-	if err != nil {
-		// rollback already handled in service in many places; ensure rollback
-		_ = uow.Rollback()
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	if err := uow.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	resp := responses.SuccessResponse("Create order successfully", ptr.Int(http.StatusCreated), order)
-	c.JSON(http.StatusCreated, resp)
 }
 
 // GetOrdersByUserIDWithPagination handles HTTP GET requests to retrieve paginated orders for a specific user.
@@ -166,54 +104,6 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// PayOrder godoc
-//
-//		@Summary		Initiate payment for an order
-//	 @Deprecated     This endpoint is deprecated. Please use /place-and-pay to place an order and initiate payment in a single request.
-//		@Description	Generate payment link and create payment transaction for the given order
-//		@Tags			Orders
-//		@Accept			json
-//		@Produce		json
-//		@Param			id	path		string	true	"Order ID (UUID)"
-//		@Success		200	{object}	map[string]any
-//		@Failure		400	{object}	map[string]string
-//		@Failure		401	{object}	map[string]string
-//		@Failure		404	{object}	map[string]string
-//		@Failure		500	{object}	map[string]string
-//		@Security		BearerAuth
-//		@Router			/api/v1/orders/{id}/pay [post]
-func (h *OrderHandler) PayOrder(c *gin.Context) {
-	orderIDStr := c.Param("id")
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid order id: "+err.Error(), http.StatusBadRequest))
-		return
-	}
-
-	ctx := c.Request.Context()
-	uow := h.unitOfWork.Begin(ctx)
-	defer func() {
-		if uow.InTransaction() {
-			_ = uow.Rollback()
-		}
-	}()
-
-	paymentTx, err := h.orderService.PayOrder(ctx, orderID, 0, uow)
-	if err != nil {
-		_ = uow.Rollback()
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	if err := uow.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	resp := responses.SuccessResponse("Payment initiated", ptr.Int(http.StatusOK), paymentTx)
-	c.JSON(http.StatusOK, resp)
-}
-
 // PlaceAndPayOrder godoc
 //
 //	@Summary		Place an order and initiate payment
@@ -257,31 +147,25 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 		}
 	}()
 
-	// 1) Create Order
-	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, uow)
+	// 1) Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
+	deliveryFee, err := h.ghnService.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, *req.DeliveryService, req.Order.Items, uow)
+	if err != nil {
+		zap.L().Error("failed to calculate delivery fee", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// 2) Create order
+	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, deliveryFee.Total, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
 
-	// 2) Calculate delivery fee using GHN service. Use request context but limit external call time
-	var deliveryService dtos.DeliveryAvailableServiceDTO
-	if req.DeliveryService != nil {
-		deliveryService = *req.DeliveryService
-	}
-
-	var deliveryFee *dtos.DeliveryFeeSuccess
-	deliveryFee, err = h.ghnService.CalculateDeliveryPriceByID(ctx, order.ID, deliveryService, uow)
-	if err != nil {
-		zap.L().Error("failed to calculate delivery fee", zap.Error(err), zap.String("order_id", order.ID.String()))
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-
 	// 3) Initiate payment
 	var paymentTx *model.PaymentTransaction
-	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, uow)
+	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))

@@ -4,11 +4,12 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
-	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/httpclient"
+	"core-backend/pkg/utils"
 	"fmt"
 	"net/http"
 	"time"
@@ -142,17 +143,25 @@ func (g ghnService) CalculateDeliveryPriceByDimensionItems(ctx context.Context, 
 
 }
 
-//----------------------------- ATOMIC TRANSACTIONS ---------------------------------------------
-
-// CalculateDeliveryPriceByOrder calculates delivery fee for an order by contacting GHN and returns the first fee result.
-// require eager fetch of following relations: "OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"
-func (g ghnService) CalculateDeliveryPriceByOrder(ctx context.Context, order model.Order, deliveryService dtos.DeliveryAvailableServiceDTO, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g ghnService) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, deliveryService dtos.DeliveryAvailableServiceDTO, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeeURL := g.cfg.GHN.FeeBaseURL + "/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// get shipping address
+		address, err := uow.ShippingAddresses().GetByID(ctx, shippingAddressID, []string{})
+		if err != nil {
+			return fmt.Errorf("shipping address Not Found: %w", err)
+		}
+
+		// convert order items to application delivery fee items
+		appDeliveryFeeItems, err := convertOrderItemRequestToApplicationDeliveryFeeItem(ctx, items, uow)
+		if err != nil {
+			return err
+		}
+
 		// build http client body using order
-		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidation(&order, deliveryService)
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV3(*address, appDeliveryFeeItems, deliveryService)
 		if err != nil {
 			return fmt.Errorf(err.Error())
 		}
@@ -177,4 +186,30 @@ func NewGHNService(cfg *config.AppConfig) iservice_third_party.GHNService {
 		cfg:    cfg,
 		client: client,
 	}
+}
+
+// Helper
+func convertOrderItemRequestToApplicationDeliveryFeeItem(ctx context.Context, items []requests.OrderItemRequest, uow irepository.UnitOfWork) ([]dtos.ApplicationDeliveryFeeItem, error) {
+	var appDeliveryFeeItems []dtos.ApplicationDeliveryFeeItem
+	for _, item := range items {
+		//validate variant exists
+		variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, []string{"Product"})
+		if err != nil {
+			return nil, fmt.Errorf("product variant not found, id: %s", item.VariantID.String())
+		}
+		variantPropConcat := fmt.Sprintf("%d", variant.Capacity) + utils.ToTitleCase(variant.CapacityUnit.String()) + " - " + utils.ToTitleCase(variant.ContainerType.String()) + " - " + utils.ToTitleCase(variant.DispenserType.String())
+		variantName := utils.ToTitleCase(variant.Product.Name) + fmt.Sprintf(" (%s) ", variantPropConcat)
+
+		appDeliveryFeeItem := dtos.ApplicationDeliveryFeeItem{
+			Name:     variantName,
+			Quantity: item.Quantity,
+			Height:   variant.Height,
+			Weight:   variant.Weight,
+			Length:   variant.Length,
+			Width:    variant.Width,
+		}
+		appDeliveryFeeItems = append(appDeliveryFeeItems, appDeliveryFeeItem)
+	}
+	return appDeliveryFeeItems, nil
+
 }
