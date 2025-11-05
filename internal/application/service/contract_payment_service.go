@@ -112,17 +112,12 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 	zap.L().Info("ContractPaymentService - GetContractPaymentsByFilter called", zap.Any("filter", filter))
 
 	filterQuery := func(db *gorm.DB) *gorm.DB {
-		if filter.ContractKeyword != nil {
-			// db = db.Where("contract_id = ?", *filter.ContractID)
-			if contractID, err := uuid.Parse(*filter.ContractKeyword); err == nil {
-				db = db.Where("contract_id = ?", contractID)
-			} else if contractNumber := strings.TrimSpace(*filter.ContractKeyword); contractNumber != "" {
-				db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
-					Where("c.contract_number = ?", contractNumber)
-			} else {
-				db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
-					Where("c.title ILIKE ?", "%"+contractNumber+"%")
-			}
+		if filter.BrandID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Where("c.brand_id = ?", *filter.BrandID)
+		}
+		if filter.ContractID != nil {
+			db = db.Where("contract_id = ?", *filter.ContractID)
 		}
 		if filter.Status != nil {
 			db = db.Where("status = ?", *filter.Status)
