@@ -185,6 +185,67 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wa
 
 }
 
+func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.ShippingAddress, items []ApplicationDeliveryFeeItem, deliveryService DeliveryAvailableServiceDTO) (*DeliveryFeeBody, error) {
+	var (
+		totalWeight int
+		totalHeight int
+		maxLength   int
+		maxWidth    int
+	)
+
+	for _, item := range items {
+		// actualWeight
+		totalWeight += item.Weight * item.Quantity
+		// max of each dimension (height excluded)
+		if item.Length > maxLength {
+			maxLength = item.Length
+		}
+		if item.Width > maxWidth {
+			maxWidth = item.Width
+		}
+		// stack up height
+		totalHeight += item.Height * item.Quantity
+	}
+
+	maxDimension := max(maxLength, maxWidth, totalHeight)
+	if maxDimension > 200 {
+		return nil, errors.New(fmt.Sprintf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension))
+	}
+
+	chargeableWeight := (maxLength * maxWidth * totalHeight) / 3000
+
+	finalWeight := max(totalWeight, chargeableWeight)
+	if finalWeight > 50000 {
+		return nil, errors.New(fmt.Sprintf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight))
+	}
+
+	return &DeliveryFeeBody{
+		ToDistrictID:   address.GhnDistrictID,
+		ToWardCode:     address.GhnWardCode,
+		ServiceID:      deliveryService.ServiceID,
+		ServiceTypeID:  deliveryService.ServiceTypeID,
+		InsuranceValue: 0,
+		Items: func() []DeliveryFeeItem {
+			var deliveryFeeItems []DeliveryFeeItem
+			for _, item := range items {
+				deliveryFeeItems = append(deliveryFeeItems, DeliveryFeeItem{
+					Name:     item.Name,
+					Quantity: item.Quantity,
+					Height:   item.Height,
+					Weight:   item.Weight,
+					Length:   item.Length,
+					Width:    item.Width,
+				})
+			}
+			return deliveryFeeItems
+		}(),
+		Height: totalHeight,
+		Length: maxLength,
+		Width:  maxWidth,
+		Weight: finalWeight,
+	}, nil
+}
+
 func (d DeliveryFeeItem) ToDeliveryFeeItemDTOList(orderItems []model.OrderItem) []DeliveryFeeItem {
 	var deliveryFeeItems []DeliveryFeeItem
 	for _, item := range orderItems {

@@ -228,8 +228,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			// Get orders for current user with pagination
 			ordersGroup.GET("", orderHandler.GetOrdersByUserIDWithPagination)
-			ordersGroup.POST("", orderHandler.PlaceOrder)
-			ordersGroup.POST(":id/pay", orderHandler.PayOrder)
+			//ordersGroup.POST(":id/pay", orderHandler.PayOrder)
 			// Place and immediately pay
 			ordersGroup.POST("/place-and-pay", orderHandler.PlaceAndPayOrder)
 		}

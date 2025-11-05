@@ -1,0 +1,2 @@
+ALTER TABLE orders
+    ADD COLUMN shipping_fee INTEGER DEFAULT 0;

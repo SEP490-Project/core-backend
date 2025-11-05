@@ -961,6 +961,8 @@ definitions:
         type: string
       province_name:
         type: string
+      shipping_fee:
+        type: integer
       status:
         $ref: '#/definitions/enum.OrderStatus'
       street:
@@ -1829,16 +1831,6 @@ definitions:
     type: object
   requests.OrderItemRequest:
     properties:
-      height:
-        description: in centimeters
-        example: 15
-        minimum: 0
-        type: integer
-      length:
-        description: in centimeters
-        example: 10
-        minimum: 0
-        type: integer
       quantity:
         example: 1
         minimum: 1
@@ -1846,15 +1838,6 @@ definitions:
       variant_id:
         example: 69700831-4112-44fd-bf7f-07b015f56218
         type: string
-      weight:
-        description: in grams
-        example: 250
-        minimum: 0
-        type: integer
-      width:
-        example: 5
-        minimum: 0
-        type: integer
     required:
     - quantity
     - variant_id
@@ -1919,10 +1902,16 @@ definitions:
     type: object
   requests.PlaceAndPayRequest:
     properties:
+      cancel_url:
+        example: https://example.com/cancel
+        type: string
       delivery_service:
         $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
       order:
         $ref: '#/definitions/requests.OrderRequest'
+      success_url:
+        example: https://example.com/success
+        type: string
     required:
     - order
     type: object
@@ -8670,7 +8659,7 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
-  /api/v1/payos/cancel-expired:
+  /api/v1/payos/cancel:
     post:
       description: Manually trigger cancellation of all expired PayOS payment links
       produces:
