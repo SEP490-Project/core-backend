@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
 	"fmt"

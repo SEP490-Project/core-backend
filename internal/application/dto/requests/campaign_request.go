@@ -16,7 +16,7 @@ import (
 
 // CreateCampaignRequest represents the request payload for creating a new campaign.
 type CreateCampaignRequest struct {
-	ContractID  string                           `json:"contract_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractID  string                           `json:"contract_id,omitempty" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Name        string                           `json:"name" validate:"required,min=3,max=255" example:"Summer Sale Campaign"`
 	Description *string                          `json:"description" validate:"omitempty,max=1000" example:"A campaign for the summer sale."`
 	StartDate   time.Time                        `json:"start_date" validate:"required" example:"2023-06-01T00:00:00Z"`
@@ -54,11 +54,13 @@ type CampaignFilterRequest struct {
 
 // ToModel converts the CreateCampaignRequest to a Campaign model.
 func (ccr *CreateCampaignRequest) ToModel(userID uuid.UUID) (modelResult *model.Campaign, totalTasksCount int, err error) {
-	var contractID uuid.UUID
-	contractID, err = uuid.Parse(ccr.ContractID)
-	if err != nil {
-		zap.L().Error("Failed to parse ContractID", zap.Error(err))
-		return nil, 0, err
+	contractID := uuid.Nil
+	if ccr.ContractID != "" {
+		contractID, err = uuid.Parse(ccr.ContractID)
+		if err != nil {
+			zap.L().Error("Failed to parse ContractID", zap.Error(err))
+			return nil, 0, err
+		}
 	}
 	campaignType := enum.ContractType(ccr.Type)
 	if !campaignType.IsValid() {

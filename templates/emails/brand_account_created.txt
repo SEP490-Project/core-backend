@@ -1,0 +1,53 @@
+====================================================
+  WELCOME TO {{.CompanyName}}!
+  Your Brand Account Has Been Successfully Created
+====================================================
+
+Hello {{.BrandRepresentativeName}},
+
+We're excited to have {{.BrandName}} join our platform! Your brand account 
+has been successfully created, and you can now access all our features and 
+services.
+
+----------------------------------------------------
+YOUR LOGIN CREDENTIALS
+----------------------------------------------------
+
+Email Address:        {{.Email}}
+Temporary Password:   {{.TemporaryPassword}}
+{{if .BrandID}}Brand ID:             {{.BrandID}}{{end}}
+
+⚠️  IMPORTANT SECURITY NOTICE
+----------------------------------------------------
+This is a system-generated temporary password. For your security, please 
+change it immediately upon your first login. Do not share this password 
+with anyone.
+
+----------------------------------------------------
+NEXT STEPS
+----------------------------------------------------
+
+1. Visit our login page: {{.LoginURL}}
+2. Enter your email and temporary password
+3. You are recommended to change your password immediately to ensure account security 
+4. Complete your brand profile information
+5. Start exploring the platform features
+
+----------------------------------------------------
+NEED HELP?
+----------------------------------------------------
+
+Our support team is here to assist you.
+{{if .SupportEmail}}Email: {{.SupportEmail}}{{end}}
+{{if .SupportPhone}}Phone: {{.SupportPhone}}{{end}}
+
+Best regards,
+{{.CompanyName}} Team
+
+----------------------------------------------------
+© {{.Year}} {{.CompanyName}}. All rights reserved.
+This is an automated message. Please do not reply to this email.
+{{if .PrivacyPolicyURL}}
+Privacy Policy: {{.PrivacyPolicyURL}}{{end}}
+{{if .TermsOfServiceURL}}
+Terms of Service: {{.TermsOfServiceURL}}{{end}}
