@@ -194,10 +194,10 @@ func (d DeliveryFeeItem) ToDeliveryFeeItemDTOList(orderItems []model.OrderItem) 
 		deliveryFeeItems = append(deliveryFeeItems, DeliveryFeeItem{
 			Name:     variantName,
 			Quantity: item.Quantity,
-			Height:   int(item.Height),
-			Weight:   int(item.Weight),
-			Length:   int(item.Length),
-			Width:    int(item.Width),
+			Height:   item.Height,
+			Weight:   item.Weight,
+			Length:   item.Length,
+			Width:    item.Width,
 		})
 	}
 	return deliveryFeeItems
