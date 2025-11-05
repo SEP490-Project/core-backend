@@ -53,4 +53,10 @@ type CampaignService interface {
 
 	// SuggestCampaignFromContract generates campaign suggestions based on contract deliverables.
 	SuggestCampaignFromContract(ctx context.Context, contractID uuid.UUID) (*responses.CampaignSuggestionResponse, error)
+
+	// UpdateCampaign updates the campaign with the provided details.
+	UpdateCampaign(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, request *requests.UpdateCampaignRequest) (*responses.CampaignDetailsResponse, error)
+
+	// SetRejectReason sets the rejection reason for a campaign.
+	SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error
 }

@@ -17,7 +17,7 @@ type PaymentItemRequest struct {
 type PaymentRequest struct {
 	// Reference information
 	ReferenceID   uuid.UUID                            `json:"referenceId" validate:"required,uuid"`
-	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType" validate:"required,oneof=ORDER CONTRACT"`
+	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType" validate:"required,oneof=ORDER CONTRACT_PAYMENT"`
 
 	// Payment details
 	Amount      int64                `json:"amount" validate:"required,gt=0"`

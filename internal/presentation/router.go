@@ -387,13 +387,9 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	{
 		editGroup.POST("", campaignHandler.CreateCampaignFromContract)
 		editGroup.POST("/internal", campaignHandler.CreateInternalCampaign)
+		editGroup.PUT("/id/:id", campaignHandler.UpdateCampaign)
 		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
-	}
-
-	suggestGroup := campaigns.Group("")
-	suggestGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
-	{
-		suggestGroup.GET("/:campaign_id/suggest", campaignHandler.SuggestCampaign)
+		editGroup.GET("/:id/suggest", campaignHandler.SuggestCampaign)
 	}
 
 	viewGroup := campaigns.Group("")
@@ -411,6 +407,8 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
 	{
 		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
+		brandGroup.PATCH("/id/:id/approve", campaignHandler.ApproveCampaign)
+		brandGroup.PATCH("/id/:id/reject", campaignHandler.RejectCampaign)
 	}
 }
 

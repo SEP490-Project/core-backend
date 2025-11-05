@@ -49,6 +49,7 @@ type Contract struct {
 	Currency        *string             `json:"currency" gorm:"type:varchar(3);column:currency;default:'VND'"`
 	ContractFileURL *string             `json:"contract_file_url" gorm:"type:text;column:contract_file_url"`
 	ProposalFileURL *string             `json:"proposal_file_url" gorm:"type:text;column:proposal_file_url"`
+	RejectReason    *string             `json:"reject_reason" gorm:"type:text;column:reject_reason"`
 	CreatedAt       time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt       time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	DeletedAt       gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at;index"`

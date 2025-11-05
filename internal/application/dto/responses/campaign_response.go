@@ -21,6 +21,7 @@ type CampaignInfoResponse struct {
 	EndDate        string  `json:"end_date,omitempty" example:"2023-08-31 23:59:59"`
 	Status         string  `json:"status" example:"RUNNING"`
 	Type           string  `json:"type" example:"ADVERTISING"`
+	RejectReason   *string `json:"reject_reason,omitempty" example:"Insufficient budget allocated."`
 	CreatedAt      string  `json:"created_at,omitempty" example:"2023-06-01 00:00:00"`
 	UpdatedAt      string  `json:"updated_at,omitempty" example:"2023-06-15 12:00:00"`
 }
@@ -37,6 +38,7 @@ type CampaignDetailsResponse struct {
 	EndDate             string                  `json:"end_date" example:"2023-08-31 23:59:59"`
 	Status              string                  `json:"status" example:"RUNNING"`
 	Type                string                  `json:"type" example:"ADVERTISING"`
+	RejectReason        *string                 `json:"reject_reason,omitempty" example:"Insufficient budget allocated."`
 	Milestones          []CampaignMilestoneInfo `json:"milestones"`
 	NumberOfTasks       int                     `json:"number_of_tasks" example:"25"`
 	PercentageCompleted float64                 `json:"percentage_completed" example:"60.5"`
@@ -70,6 +72,7 @@ func (cir CampaignInfoResponse) ToCampaignInfoResponse(model *model.Campaign) *C
 		EndDate:        model.EndDate.String(),
 		Status:         model.Status.String(),
 		Type:           model.Type.String(),
+		RejectReason:   model.RejectReason,
 		CreatedAt:      model.CreatedAt.String(),
 		UpdatedAt:      model.UpdatedAt.String(),
 	}
@@ -109,6 +112,7 @@ func (cdr CampaignDetailsResponse) ToCampaignDetailsResponse(model *model.Campai
 		EndDate:             model.EndDate.String(),
 		Status:              model.Status.String(),
 		Type:                model.Type.String(),
+		RejectReason:        model.RejectReason,
 		Milestones:          milestones,
 		NumberOfTasks:       totalTasks,
 		PercentageCompleted: percentageCompleted,

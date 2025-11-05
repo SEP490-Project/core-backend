@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"fmt"
 	"net/http"
@@ -14,22 +15,25 @@ import (
 )
 
 type CampaignHandler struct {
-	campaignService iservice.CampaignService
-	uow             irepository.UnitOfWork
-	validartor      *validator.Validate
+	campaignService      iservice.CampaignService
+	stateTransferService iservice.StateTransferService
+	uow                  irepository.UnitOfWork
+	validartor           *validator.Validate
 }
 
 func NewCampaignHandler(
 	campaignService iservice.CampaignService,
+	stateTransferService iservice.StateTransferService,
 	uow irepository.UnitOfWork,
 ) *CampaignHandler {
 	validator := validator.New()
 	validator.RegisterStructValidation(requests.ValidateCreateCampaignRequest, requests.CreateCampaignRequest{})
 
 	return &CampaignHandler{
-		campaignService: campaignService,
-		uow:             uow,
-		validartor:      validator,
+		campaignService:      campaignService,
+		stateTransferService: stateTransferService,
+		uow:                  uow,
+		validartor:           validator,
 	}
 }
 
@@ -468,18 +472,18 @@ func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 //	@Tags			Campaigns
 //	@Accept			json
 //	@Produce		json
-//	@Param			campaign_id	path		string																true	"Campaign ID"	format(uuid)
-//	@Success		200			{object}	responses.APIResponse{data=responses.CampaignSuggestionResponse}	"Campaign suggestion generated successfully"
-//	@Failure		400			{object}	responses.APIResponse												"Invalid request or validation error"
-//	@Failure		401			{object}	responses.APIResponse												"Unauthorized"
-//	@Failure		403			{object}	responses.APIResponse												"Forbidden - Requires ADMIN or SALES_STAFF role"
-//	@Failure		404			{object}	responses.APIResponse												"Contract not found"
-//	@Failure		409			{object}	responses.APIResponse												"Contract is not ACTIVE or has no deliverables"
-//	@Failure		500			{object}	responses.APIResponse												"Internal server error"
+//	@Param			id	path		string																true	"Campaign ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse{data=responses.CampaignSuggestionResponse}	"Campaign suggestion generated successfully"
+//	@Failure		400	{object}	responses.APIResponse												"Invalid request or validation error"
+//	@Failure		401	{object}	responses.APIResponse												"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse												"Forbidden - Requires ADMIN or SALES_STAFF role"
+//	@Failure		404	{object}	responses.APIResponse												"Contract not found"
+//	@Failure		409	{object}	responses.APIResponse												"Contract is not ACTIVE or has no deliverables"
+//	@Failure		500	{object}	responses.APIResponse												"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/campaigns/{campaign_id}/suggest [get]
+//	@Router			/api/v1/campaigns/{id}/suggest [get]
 func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
-	campaignID, err := extractParamID(c, "campaign_id")
+	campaignID, err := extractParamID(c, "id")
 	if err != nil {
 		response := responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
@@ -506,5 +510,200 @@ func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
 
 	// Return success response
 	response := responses.SuccessResponse("Campaign suggestion generated successfully", nil, suggestion)
+	c.JSON(http.StatusOK, response)
+}
+
+// ApproveCampaign godoc
+//
+//	@Summary		Approve Campaign
+//	@Description	Approve a campaign by ID
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"Campaign ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse	"Campaign approved successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid campaign ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		403	{object}	responses.APIResponse	"Forbidden"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/{id}/approve [patch]
+func (h *CampaignHandler) ApproveCampaign(c *gin.Context) {
+	campaignID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+	userRole, err := extractUserRoles(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+	var campaignResponse *responses.CampaignInfoResponse
+	campaignResponse, err = h.campaignService.GetCampaignInfoByID(c.Request.Context(), campaignID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to approve campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	if campaignResponse.Status == enum.CampaignDraft.String() &&
+		!utils.ContainsSlice([]string{enum.UserRoleAdmin.String(), enum.UserRoleBrandPartner.String()}, *userRole) {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("Forbidden: only ADMIN or BRAND_PARTNER can approve DRAFT campaigns", http.StatusForbidden))
+		return
+	}
+
+	uow := h.uow.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err = h.stateTransferService.MoveCampaignToState(
+		c.Request.Context(), uow, campaignID, enum.CampaignRunning, userID,
+	); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to approve campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err = uow.Commit(); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to approve campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse("Campaign approved successfully", utils.PtrOrNil(http.StatusOK), nil))
+}
+
+// RejectCampaign godoc
+//
+//	@Summary		Reject Campaign
+//	@Description	Reject a campaign by providing a reason.
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string					true	"Campaign ID"	format(uuid)
+//	@Param			reason	query		string					false	"Reason for rejecting the campaign"
+//	@Success		200		{object}	responses.APIResponse	"Campaign rejected successfully"
+//	@Failure		400		{object}	responses.APIResponse	"Invalid campaign ID"
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/{id}/reject [patch]
+func (h *CampaignHandler) RejectCampaign(c *gin.Context) {
+	campaignID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	rejectReason := c.Query("reason")
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	uow := h.uow.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err = h.campaignService.SetRejectReason(c.Request.Context(), uow, campaignID, rejectReason, userID); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to reject campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err = uow.Commit(); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to reject campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse("Campaign rejected successfully", utils.PtrOrNil(http.StatusOK), nil))
+}
+
+// UpdateCampaign godoc
+//
+//	@Summary		Update Campaign
+//	@Description	Update campaign details by ID.
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string															true	"Campaign ID"	format(uuid)
+//	@Param			data	body		requests.UpdateCampaignRequest									true	"Campaign update data"
+//	@Success		200		{object}	responses.APIResponse{data=responses.CampaignDetailsResponse}	"Campaign updated successfully"
+//	@Failure		400		{object}	responses.APIResponse											"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		404		{object}	responses.APIResponse											"Campaign not found"
+//	@Failure		500		{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/id/{id} [put]
+func (h *CampaignHandler) UpdateCampaign(c *gin.Context) {
+	campaignID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+	var request *requests.UpdateCampaignRequest
+	if err = c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	request.UpdatedBy = &userID
+	if err = h.validartor.Struct(request); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	uow := h.uow.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	campaignDetailsResponse, err := h.campaignService.UpdateCampaign(c.Request.Context(), uow, campaignID, request)
+	if err != nil {
+		uow.Rollback()
+		var response *responses.APIResponse
+		var statusCode int
+		switch err.Error() {
+		case "campaign not found":
+			statusCode = http.StatusNotFound
+			response = responses.ErrorResponse(err.Error(), statusCode)
+		case "only DRAFT campaigns can be updated":
+			statusCode = http.StatusBadRequest
+			response = responses.ErrorResponse(err.Error(), statusCode)
+		default:
+			statusCode = http.StatusInternalServerError
+			response = responses.ErrorResponse("Failed to update campaign: "+err.Error(), statusCode)
+		}
+		c.JSON(statusCode, response)
+		return
+	}
+
+	if err = uow.Commit(); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to update campaign: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	response := responses.SuccessResponse("Campaign updated successfully", utils.PtrOrNil(http.StatusOK), campaignDetailsResponse)
 	c.JSON(http.StatusOK, response)
 }

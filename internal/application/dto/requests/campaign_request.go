@@ -14,6 +14,57 @@ import (
 	"go.uber.org/zap"
 )
 
+// CampaignFilterRequest represents the request payload for filtering campaigns.
+type CampaignFilterRequest struct {
+	PaginationRequest
+	StartDate *time.Time `json:"start_date" validate:"omitempty" example:"2023-06-01T00:00:00Z"`
+	EndDate   *time.Time `json:"end_date" validate:"omitempty,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
+	Keyword   *string    `json:"keyword" validate:"omitempty,min=1,max=255" example:"Summer"`
+	Status    *string    `json:"status" validate:"omitempty,oneof=RUNNING COMPLETED CANCELLED" example:"RUNNING"`
+	Type      *string    `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
+}
+
+// UpdateCampaignRequest represents the request payload for updating an existing campaign.
+type UpdateCampaignRequest struct {
+	Name        *string `json:"name" validate:"omitempty,min=3,max=255" example:"Summer Sale Campaign"`
+	Description *string `json:"description" validate:"omitempty,max=1000" example:"A campaign for the summer sale."`
+	StartDate   *time.Time
+	EndDate     *time.Time
+	Type        *string `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
+
+	// Metadata fields (not exposed in JSON)
+	UpdatedBy *uuid.UUID `json:"-" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+}
+
+func (r UpdateCampaignRequest) ToExistingModel(existing *model.Campaign) (*model.Campaign, error) {
+	if existing == nil || existing.ID == uuid.Nil {
+		return nil, fmt.Errorf("existing campaign model is nil")
+	}
+
+	if r.Name != nil {
+		existing.Name = *r.Name
+	}
+	if r.Description != nil {
+		existing.Description = r.Description
+	}
+	if r.StartDate != nil {
+		existing.StartDate = *r.StartDate
+	}
+	if r.EndDate != nil {
+		existing.EndDate = *r.EndDate
+	}
+	if r.Type != nil {
+		campaignType := enum.ContractType(*r.Type)
+		if !campaignType.IsValid() {
+			return nil, fmt.Errorf("invalid campaign type: %s", *r.Type)
+		}
+		existing.Type = campaignType
+	}
+	return existing, nil
+}
+
+// region: ======= Create Campaign Requests =======
+
 // CreateCampaignRequest represents the request payload for creating a new campaign.
 type CreateCampaignRequest struct {
 	ContractID  string                           `json:"contract_id,omitempty" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -40,16 +91,6 @@ type CreateTaskCampaignRequest struct {
 	Deadline     time.Time `json:"deadline" validate:"required" example:"2023-06-10T00:00:00Z"`
 	Type         string    `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"PRODUCT"`
 	AssignedToID *string   `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-}
-
-// CampaignFilterRequest represents the request payload for filtering campaigns.
-type CampaignFilterRequest struct {
-	PaginationRequest
-	StartDate *time.Time `json:"start_date" validate:"omitempty" example:"2023-06-01T00:00:00Z"`
-	EndDate   *time.Time `json:"end_date" validate:"omitempty,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
-	Keyword   *string    `json:"keyword" validate:"omitempty,min=1,max=255" example:"Summer"`
-	Status    *string    `json:"status" validate:"omitempty,oneof=RUNNING COMPLETED CANCELLED" example:"RUNNING"`
-	Type      *string    `json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 }
 
 // ToModel converts the CreateCampaignRequest to a Campaign model.
@@ -208,6 +249,10 @@ func (ccr *CreateCampaignRequest) ToTaskModels(
 	return taskModels, nil
 }
 
+// endregion
+
+// region: ======= Custom Validators =======
+
 // ValidateCreateCampaignRequest is a custom validator for CreateCampaignRequest.
 // It ensures that the task types are valid for the given campaign type.
 // "ADVERTISING": {"CONTENT", "OTHER"},
@@ -255,3 +300,5 @@ func ValidateCreateCampaignRequest(sl validator.StructLevel) {
 		}
 	}
 }
+
+// endregion

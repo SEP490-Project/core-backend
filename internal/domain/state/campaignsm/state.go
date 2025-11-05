@@ -9,6 +9,7 @@ import (
 
 type CampaignContext struct {
 	State      CampaignState
+	Campaign   *model.Campaign
 	MileStones []*model.Milestone
 }
 
@@ -21,7 +22,7 @@ type CampaignState interface {
 func NewCampaignState(status enum.CampaignStatus) CampaignState {
 	switch status {
 	case enum.CampaignRunning:
-		return &OnGoingState{}
+		return &RunningState{}
 	case enum.CampaignCompleted:
 		return &CompletedState{}
 	case enum.CampaignCancelled:
