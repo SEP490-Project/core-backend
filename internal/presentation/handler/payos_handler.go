@@ -228,7 +228,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 //	@Success		200	{object}	responses.APIResponse{data=map[string]int}	"Cancellation completed"
 //	@Failure		500	{object}	responses.APIResponse						"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/payos/cancel-expired [post]
+//	@Router			/api/v1/payos/cancel [post]
 func (h *PayOsHandler) CancelExpiredLinks(c *gin.Context) {
 	cancelledCount, err := h.paymentTransactionService.CancelExpiredLinks(c.Request.Context())
 	if err != nil {
