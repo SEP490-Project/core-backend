@@ -18,6 +18,7 @@ type ContractPayment struct {
 	DueDate               time.Time                  `json:"due_date" gorm:"column:due_date;not null"`
 	PaymentMethod         enum.ContractPaymentMethod `json:"payment_method" gorm:"column:payment_method;not null;check:payment_method IN ('BANK_TRANSFER','CASH','CHECK')"`
 	Note                  *string                    `json:"note" gorm:"type:text;column:note"`
+	IsDeposit             bool                       `json:"is_deposit" gorm:"column:is_deposit;not null;default:false"`
 	CreatedAt             time.Time                  `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt             time.Time                  `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	CreatedBy             *uuid.UUID                 `json:"created_by" gorm:"type:uuid;column:created_by"`

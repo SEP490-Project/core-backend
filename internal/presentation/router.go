@@ -387,6 +387,7 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	editGroup.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
 		editGroup.POST("", campaignHandler.CreateCampaignFromContract)
+		editGroup.POST("/internal", campaignHandler.CreateInternalCampaign)
 		editGroup.DELETE("/id/:id", campaignHandler.DeleteCampaign)
 	}
 
@@ -450,6 +451,11 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 			viewGroup.GET("", contractPaymentHandler.GetContractPaymentsByFilter)
 			viewGroup.GET("/:contract_payment_id", contractPaymentHandler.GetContractPaymentByID)
 			viewGroup.POST("/:contract_payment_id/payment-link", contractPaymentHandler.GeneratePaymentLink)
+		}
+
+		brandGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(brand))
+		{
+			brandGroup.GET("/profile", contractPaymentHandler.GetContractPaymentByProfile)
 		}
 	}
 }

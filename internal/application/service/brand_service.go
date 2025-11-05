@@ -16,12 +16,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type BrandService struct {
+type brandService struct {
 	BrandRepository irepository.GenericRepository[model.Brand]
 }
 
 // CreateBrand implements iservice.BrandService.
-func (b *BrandService) CreateBrand(ctx context.Context, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
+func (b *brandService) CreateBrand(ctx context.Context, request *requests.CreateBrandRequest) (*responses.BrandResponse, error) {
 	zap.L().Info("Creating new brand", zap.Any("request", request))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -55,7 +55,7 @@ func (b *BrandService) CreateBrand(ctx context.Context, request *requests.Create
 }
 
 // GetByFilter implements iservice.BrandService.
-func (b *BrandService) GetByFilter(ctx context.Context, request *requests.ListBrandsRequest) ([]responses.BrandResponse, int64, error) {
+func (b *brandService) GetByFilter(ctx context.Context, request *requests.ListBrandsRequest) ([]responses.BrandResponse, int64, error) {
 	zap.L().Info("Fetching brands with filter", zap.Any("request", request))
 
 	filter := func(db *gorm.DB) *gorm.DB {
@@ -125,7 +125,7 @@ func (b *BrandService) GetByFilter(ctx context.Context, request *requests.ListBr
 }
 
 // GetByID implements iservice.BrandService.
-func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandDetailResponse, error) {
+func (b *brandService) GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandDetailResponse, error) {
 	zap.L().Info("Fetching brand by ID", zap.String("brand_id", brandID.String()))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -145,7 +145,7 @@ func (b *BrandService) GetByID(ctx context.Context, brandID uuid.UUID) (*respons
 }
 
 // UpdateBrand implements iservice.BrandService.
-func (b *BrandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, request *requests.UpdateBrandRequest) (*responses.BrandResponse, error) {
+func (b *brandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, request *requests.UpdateBrandRequest) (*responses.BrandResponse, error) {
 	zap.L().Info("Updating brand", zap.String("brand_id", brandID.String()), zap.Any("request", request))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -171,7 +171,7 @@ func (b *BrandService) UpdateBrand(ctx context.Context, brandID uuid.UUID, reque
 }
 
 // UpdateBrandStatus implements iservice.BrandService.
-func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID, status enum.BrandStatus) (*responses.BrandResponse, error) {
+func (b *brandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID, status enum.BrandStatus) (*responses.BrandResponse, error) {
 	zap.L().Info("Updating brand status", zap.String("brand_id", brandID.String()), zap.String("status", string(status)))
 
 	conditions := func(db *gorm.DB) *gorm.DB {
@@ -197,7 +197,7 @@ func (b *BrandService) UpdateBrandStatus(ctx context.Context, brandID uuid.UUID,
 }
 
 // CreateBrandWithInActiveUsers implements iservice.BrandService.
-func (b *BrandService) CreateBrandWithInActiveUsers(
+func (b *brandService) CreateBrandWithInActiveUsers(
 	ctx context.Context,
 	uow *irepository.UnitOfWork,
 	request *requests.CreateBrandWithUserRequest,
@@ -265,5 +265,5 @@ func (b *BrandService) CreateBrandWithInActiveUsers(
 }
 
 func NewBrandService(brandRepository irepository.GenericRepository[model.Brand]) iservice.BrandService {
-	return &BrandService{BrandRepository: brandRepository}
+	return &brandService{BrandRepository: brandRepository}
 }

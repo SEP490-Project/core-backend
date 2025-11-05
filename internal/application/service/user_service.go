@@ -6,12 +6,14 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -20,13 +22,14 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type UserService struct {
+type userService struct {
 	// userRepository irepository.UserRepository
 	userRepository irepository.GenericRepository[model.User]
+	emailService   iservicethirdparty.EmailService
 }
 
 // ActivateBrandUser implements iservice.UserService.
-func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error {
+func (s *userService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, unitOfWork irepository.UnitOfWork) error {
 	zap.L().Info("Activating brand user",
 		zap.String("user_id", userID.String()),
 	)
@@ -73,18 +76,25 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 	}
 
 	brandUsers.Brand.Status = enum.BrandStatusActive
-	if err := userRepo.Update(ctx, brandUsers); err != nil {
+	if err = userRepo.Update(ctx, brandUsers); err != nil {
 		zap.L().Error("Failed to activate brand user",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("failed to activate brand user")
 	}
-	if err := brandRepo.Update(ctx, brandUsers.Brand); err != nil {
+	if err = brandRepo.Update(ctx, brandUsers.Brand); err != nil {
 		zap.L().Error("Failed to update brand status during user activation",
 			zap.String("user_id", userID.String()),
 			zap.String("brand_id", brandUsers.Brand.ID.String()),
 			zap.Error(err))
 		return errors.New("failed to update brand status during user activation")
+	}
+	err = s.sendBrandAccountCreatedEmail(ctx, brandUsers.Brand, brandUsers, generatedPassword)
+	if err != nil {
+		zap.L().Error("Failed to send brand account created email",
+			zap.String("user_id", userID.String()),
+			zap.Error(err))
+		return errors.New("failed to send brand account created email")
 	}
 
 	zap.L().Info("Brand user activated successfully",
@@ -97,7 +107,7 @@ func (s *UserService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 }
 
 // GetUsers retrieves users with pagination and filters
-func (s *UserService) GetUsers(ctx context.Context, filterRequest *requests.UserFilterRequest) ([]*responses.UserListResponse, int64, error) {
+func (s *userService) GetUsers(ctx context.Context, filterRequest *requests.UserFilterRequest) ([]*responses.UserListResponse, int64, error) {
 	zap.L().Debug("Retrieving users with filters",
 		zap.Any("request", *filterRequest))
 
@@ -149,7 +159,7 @@ func (s *UserService) GetUsers(ctx context.Context, filterRequest *requests.User
 }
 
 // UpdateUserStatus updates a user's active status
-func (s *UserService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error {
+func (s *userService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error {
 	zap.L().Info("Updating user status",
 		zap.String("user_id", userID.String()),
 		zap.Bool("is_active", isActive))
@@ -190,7 +200,7 @@ func (s *UserService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, is
 }
 
 // UpdateUserRole updates a user's role
-func (s *UserService) UpdateUserRole(ctx context.Context, userID uuid.UUID, role string) error {
+func (s *userService) UpdateUserRole(ctx context.Context, userID uuid.UUID, role string) error {
 	zap.L().Info("Updating user role",
 		zap.String("user_id", userID.String()),
 		zap.String("new_role", role))
@@ -234,7 +244,7 @@ func (s *UserService) UpdateUserRole(ctx context.Context, userID uuid.UUID, role
 }
 
 // DeleteUser soft deletes a user
-func (s *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
+func (s *userService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	zap.L().Info("Deleting user",
 		zap.String("user_id", userID.String()))
 
@@ -266,7 +276,7 @@ func (s *UserService) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 }
 
 // GetUserByID implements iservice.UserService.
-func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error) {
+func (s *userService) GetUserByID(ctx context.Context, userID uuid.UUID) (*responses.UserResponse, error) {
 	zap.L().Debug("Retrieving user by ID",
 		zap.String("user_id", userID.String()))
 
@@ -293,7 +303,7 @@ func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*respo
 }
 
 // UpdateProfile updates the current user's profile
-func (s *UserService) UpdateProfile(
+func (s *userService) UpdateProfile(
 	ctx context.Context,
 	userID uuid.UUID,
 	updateRequest *requests.UpdateProfileRequest,
@@ -379,7 +389,7 @@ func (s *UserService) UpdateProfile(
 
 // GetPreferences retrieves notification preferences for a user
 // Returns default enabled preferences if none exist
-func (s *UserService) GetPreferences(ctx context.Context, userID uuid.UUID) (*responses.UserNotificationPreferenceResponse, error) {
+func (s *userService) GetPreferences(ctx context.Context, userID uuid.UUID) (*responses.UserNotificationPreferenceResponse, error) {
 	user, err := s.userRepository.GetByID(ctx, userID, nil)
 	// If not found, return default enabled preferences
 	if err != nil {
@@ -403,7 +413,7 @@ func (s *UserService) GetPreferences(ctx context.Context, userID uuid.UUID) (*re
 
 // UpdatePreferences updates notification preferences for a user
 // Creates preferences if they don't exist
-func (s *UserService) UpdatePreferences(
+func (s *userService) UpdatePreferences(
 	ctx context.Context,
 	userID uuid.UUID,
 	req *requests.UserNotificationPreferenceRequest,
@@ -444,7 +454,7 @@ func (s *UserService) UpdatePreferences(
 // GetOrCreateDefault gets existing preferences or creates default ones
 // Used internally by notification consumers
 // Returns (emailEnabled, pushEnabled, error)
-func (s *UserService) GetOrCreateDefault(ctx context.Context, userID uuid.UUID) (bool, bool, error) {
+func (s *userService) GetOrCreateDefault(ctx context.Context, userID uuid.UUID) (bool, bool, error) {
 	// Try to find existing preferences
 	pref, err := s.userRepository.GetByID(ctx, userID, nil)
 	// If not found, return defaults (both enabled)
@@ -458,8 +468,40 @@ func (s *UserService) GetOrCreateDefault(ctx context.Context, userID uuid.UUID) 
 	return pref.EmailEnabled, pref.PushEnabled, nil
 }
 
+// region: ======= Helper Functions =========
+
+func (s *userService) sendBrandAccountCreatedEmail(
+	ctx context.Context,
+	brand *model.Brand,
+	user *model.User,
+	temporaryPassword string,
+) error {
+	// Generate email template
+	templateName := "brand_account_created"
+	data := map[string]any{
+		"CompanyName":             "B-ShowSell",
+		"BrandRepresentativeName": brand.RepresentativeName,
+		"BrandName":               brand.Name,
+		"Email":                   user.Email,
+		"TemporaryPassword":       temporaryPassword,
+		"LoginURL":                "https://bshowsell.site/login",
+		"Year":                    time.Now().Year(),
+		"BrandID":                 brand.ID.String(),
+		"SupportEmail":            "support@yourplatform.com",
+		"SupportPhone":            "+1 (555) 123-4567",
+		"PrivacyPolicyURL":        "https://bshowsell.site/privacy",
+		"TermsOfServiceURL":       "https://bshowsell.site/terms",
+		"UnsubscribeURL":          "https://api.bshowsell.site/api/v1/user/unsubscribe",
+	}
+
+	// Send email
+	return s.emailService.SendTemplatedEmail(ctx, brand.ContactEmail, brand.Name, templateName, data)
+}
+
+// endregion
+
 func NewUserService(userRepository irepository.GenericRepository[model.User]) iservice.UserService {
-	return &UserService{
+	return &userService{
 		userRepository: userRepository,
 	}
 }
