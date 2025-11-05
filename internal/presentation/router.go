@@ -151,7 +151,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			// State update (Sales, Brand only)
 			stateGroup := productsGroup.Group("")
-			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+			stateGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand, admin))
 			{
 				stateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 			}
