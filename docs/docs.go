@@ -7042,82 +7042,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/orders/{id}/pay": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Generate payment link and create payment transaction for the given order",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Initiate payment for an order",
-                "deprecated": true,
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/payos/cancel-expired": {
+        "/api/v1/payos/cancel": {
             "post": {
                 "security": [
                     {
@@ -14223,6 +14148,10 @@ const docTemplate = `{
                     "type": "number",
                     "example": 60.5
                 },
+                "reject_reason": {
+                    "type": "string",
+                    "example": "Insufficient budget allocated."
+                },
                 "start_date": {
                     "type": "string",
                     "example": "2023-06-01 00:00:00"
@@ -14301,6 +14230,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Summer Sale Campaign"
+                },
+                "reject_reason": {
+                    "type": "string",
+                    "example": "Insufficient budget allocated."
                 },
                 "start_date": {
                     "type": "string",

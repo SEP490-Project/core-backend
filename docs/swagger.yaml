@@ -2739,6 +2739,9 @@ definitions:
       percentage_completed:
         example: 60.5
         type: number
+      reject_reason:
+        example: Insufficient budget allocated.
+        type: string
       start_date:
         example: "2023-06-01 00:00:00"
         type: string
@@ -2794,6 +2797,9 @@ definitions:
         type: string
       name:
         example: Summer Sale Campaign
+        type: string
+      reject_reason:
+        example: Insufficient budget allocated.
         type: string
       start_date:
         example: "2023-06-01 00:00:00"
@@ -8838,98 +8844,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get paginated orders by user ID
-      tags:
-      - Orders
-    post:
-      consumes:
-      - application/json
-      description: Create an order for the authenticated user
-      parameters:
-      - description: Order payload
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.OrderRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Place an order
-      tags:
-      - Orders
-  /api/v1/orders/{id}/pay:
-    post:
-      consumes:
-      - application/json
-      deprecated: true
-      description: Generate payment link and create payment transaction for the given
-        order
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Initiate payment for an order
       tags:
       - Orders
   /api/v1/orders/place-and-pay:
