@@ -8,6 +8,7 @@ import (
 type CampaignStatus string
 
 const (
+	CampaignDraft     CampaignStatus = "DRAFT"
 	CampaignRunning   CampaignStatus = "RUNNING"
 	CampaignCompleted CampaignStatus = "COMPLETED"
 	CampaignCancelled CampaignStatus = "CANCELLED"
@@ -15,7 +16,7 @@ const (
 
 func (cs CampaignStatus) IsValid() bool {
 	switch cs {
-	case CampaignRunning, CampaignCompleted, CampaignCancelled:
+	case CampaignDraft, CampaignRunning, CampaignCompleted, CampaignCancelled:
 		return true
 	}
 	return false

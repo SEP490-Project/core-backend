@@ -245,6 +245,72 @@ func (c *CampaignService) CreateCampaignFromContract(
 	}
 	creatingMilestoneModels := creatingCampaignModel.Milestones
 	creatingCampaignModel.Milestones = nil
+	creatingCampaignModel.Status = enum.CampaignDraft
+	if err = campaignRepo.Add(ctx, creatingCampaignModel); err != nil {
+		zap.L().Error("Failed to add campaign to repository", zap.Error(err))
+		return nil, err
+	}
+
+	var rowsAffected int64
+	if len(creatingMilestoneModels) > 0 {
+		rowsAffected, err = milstoneRepo.BulkAdd(ctx, creatingMilestoneModels, 0)
+		if err != nil {
+			zap.L().Error("Failed to bulk add milestones", zap.Error(err))
+			return nil, err
+		}
+		if rowsAffected != int64(len(creatingMilestoneModels)) {
+			zap.L().Warn("Not all milestones were added",
+				zap.Int64("expected", int64(len(creatingMilestoneModels))),
+				zap.Int64("actual", rowsAffected))
+		}
+	}
+
+	creatingTaskModels := utils.FlatMapMapper(creatingCampaignModel.Milestones, func(m *model.Milestone) []*model.Task { return m.Tasks })
+	if totalTasksCount > 0 {
+		rowsAffected, err = taskRepo.BulkAdd(ctx, creatingTaskModels, 0)
+		if err != nil {
+			zap.L().Error("Failed to bulk add tasks", zap.Error(err))
+			return nil, err
+		}
+		if rowsAffected != int64(len(creatingTaskModels)) {
+			zap.L().Warn("Not all tasks were added",
+				zap.Int64("expected", int64(len(creatingTaskModels))),
+				zap.Int64("actual", rowsAffected))
+		}
+	}
+
+	var createdCampaign *model.Campaign
+	if createdCampaign, err = campaignRepo.GetByID(ctx, creatingCampaignModel.ID, []string{"Contract", "Milestones.Tasks"}); err != nil {
+		zap.L().Error("Failed to retrieve created campaign", zap.Error(err))
+		return nil, err
+	}
+
+	response := responses.CampaignDetailsResponse{}.ToCampaignDetailsResponse(createdCampaign)
+	zap.L().Info("Successfully created campaign", zap.Any("campaign", response))
+	return response, nil
+}
+
+func (c *CampaignService) CreateInternalCampaign(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	request *requests.CreateCampaignRequest,
+	createdBy uuid.UUID,
+) (*responses.CampaignDetailsResponse, error) {
+	zap.L().Info("Creating internal campaigns without contract", zap.Any("request", request))
+
+	campaignRepo := uow.Campaigns()
+	milstoneRepo := uow.Milestones()
+	taskRepo := uow.Tasks()
+
+	creatingCampaignModel, totalTasksCount, err := request.ToModel(createdBy)
+	if err != nil {
+		zap.L().Error("Failed to convert request to model", zap.Error(err))
+		return nil, err
+	}
+	creatingMilestoneModels := creatingCampaignModel.Milestones
+	creatingCampaignModel.Milestones = nil
+	// Set campaign status to RUNNING for internal campaigns
+	creatingCampaignModel.Status = enum.CampaignRunning
 	if err = campaignRepo.Add(ctx, creatingCampaignModel); err != nil {
 		zap.L().Error("Failed to add campaign to repository", zap.Error(err))
 		return nil, err

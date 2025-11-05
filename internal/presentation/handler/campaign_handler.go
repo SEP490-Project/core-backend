@@ -66,6 +66,10 @@ func (h *CampaignHandler) CreateCampaignFromContract(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses)
 		return
 	}
+	if request.ContractID == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("ContractID is required", http.StatusBadRequest))
+		return
+	}
 
 	uow := h.uow.Begin(c.Request.Context())
 	var campaignResponse *responses.CampaignDetailsResponse
@@ -81,6 +85,54 @@ func (h *CampaignHandler) CreateCampaignFromContract(c *gin.Context) {
 			responses := responses.ErrorResponse("Failed to create campaign: "+err.Error(), http.StatusInternalServerError)
 			c.JSON(http.StatusInternalServerError, responses)
 		}
+		return
+	}
+
+	uow.Commit()
+	responses := responses.SuccessResponse("Campaign created successfully", utils.IntPtr(http.StatusCreated), campaignResponse)
+	c.JSON(http.StatusCreated, responses)
+}
+
+// CreateInternalCampaign godoc
+//
+//	@Summary		Create Internal Campaign
+//	@Description	Create a new internal campaign not linked to any contract.
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.CreateCampaignRequest									true	"Internal campaign creation data"
+//	@Success		201		{object}	responses.APIResponse{data=responses.CampaignDetailsResponse}	"Internal campaign created successfully"
+//	@Failure		400		{object}	responses.APIResponse											"Invalid request or validation error"
+//	@Failure		401		{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse											"Forbidden"
+//	@Failure		500		{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/internal [post]
+func (h *CampaignHandler) CreateInternalCampaign(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+		return
+	}
+	var request *requests.CreateCampaignRequest
+	if err = c.ShouldBindJSON(&request); err != nil {
+		responses := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	if err = h.validartor.Struct(request); err != nil {
+		responses := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+	uow := h.uow.Begin(c.Request.Context())
+	var campaignResponse *responses.CampaignDetailsResponse
+	campaignResponse, err = h.campaignService.CreateInternalCampaign(c.Request.Context(), uow, request, userID)
+	if err != nil {
+		uow.Rollback()
+		response := responses.ErrorResponse("Failed to create campaign: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
