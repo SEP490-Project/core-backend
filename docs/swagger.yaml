@@ -1320,7 +1320,6 @@ definitions:
         example: ADVERTISING
         type: string
     required:
-    - contract_id
     - end_date
     - name
     - start_date
@@ -1894,7 +1893,7 @@ definitions:
         - $ref: '#/definitions/enum.PaymentTransactionReferenceType'
         enum:
         - ORDER
-        - CONTRACT
+        - CONTRACT_PAYMENT
     required:
     - amount
     - referenceId
@@ -2100,6 +2099,30 @@ definitions:
       website:
         example: https://www.acme.com
         maxLength: 255
+        type: string
+    type: object
+  requests.UpdateCampaignRequest:
+    properties:
+      description:
+        example: A campaign for the summer sale.
+        maxLength: 1000
+        type: string
+      endDate:
+        type: string
+      name:
+        example: Summer Sale Campaign
+        maxLength: 255
+        minLength: 3
+        type: string
+      startDate:
+        type: string
+      type:
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        example: ADVERTISING
         type: string
     type: object
   requests.UpdateChannelRequest:
@@ -5482,7 +5505,87 @@ paths:
       summary: Create Campaign from Contract
       tags:
       - Campaigns
-  /api/v1/campaigns/{campaign_id}/suggest:
+  /api/v1/campaigns/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Approve a campaign by ID
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign approved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve Campaign
+      tags:
+      - Campaigns
+  /api/v1/campaigns/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Reject a campaign by providing a reason.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for rejecting the campaign
+        in: query
+        name: reason
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign rejected successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reject Campaign
+      tags:
+      - Campaigns
+  /api/v1/campaigns/{id}/suggest:
     get:
       consumes:
       - application/json
@@ -5492,7 +5595,7 @@ paths:
       - description: Campaign ID
         format: uuid
         in: path
-        name: campaign_id
+        name: id
         required: true
         type: string
       produces:
@@ -5761,6 +5864,56 @@ paths:
       summary: Get Campaign Info by ID
       tags:
       - Campaigns
+    put:
+      consumes:
+      - application/json
+      description: Update campaign details by ID.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Campaign update data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignDetailsResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Campaign not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Campaign
+      tags:
+      - Campaigns
   /api/v1/campaigns/id/{id}/details:
     get:
       consumes:
@@ -5801,6 +5954,51 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Campaign Details by ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/internal:
+    post:
+      consumes:
+      - application/json
+      description: Create a new internal campaign not linked to any contract.
+      parameters:
+      - description: Internal campaign creation data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Internal campaign created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CampaignDetailsResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Internal Campaign
       tags:
       - Campaigns
   /api/v1/categories:
@@ -6872,6 +7070,11 @@ paths:
       consumes:
       - application/json
       parameters:
+      - description: Brand ID
+        example: '"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"'
+        in: query
+        name: brand_id
+        type: string
       - description: Contract ID
         example: '"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"'
         in: query
@@ -6919,6 +7122,23 @@ paths:
         in: query
         name: limit
         type: integer
+      - description: Sort by field
+        enum:
+        - due_date
+        - amount
+        - status
+        example: '"due_date"'
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        example: '"asc"'
+        in: query
+        name: sort_order
+        type: string
       produces:
       - application/json
       responses:
@@ -7074,6 +7294,103 @@ paths:
       security:
       - BearerAuth: []
       summary: Create contract payments based on a contract ID
+      tags:
+      - Contract Payments
+  /api/v1/contract_payments/profile:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Contract ID
+        example: '"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"'
+        in: query
+        name: contract_id
+        type: string
+      - description: Payment Status
+        enum:
+        - PENDING
+        - PAID
+        - OVERDUE
+        example: '"PAID"'
+        in: query
+        name: status
+        type: string
+      - description: Due Date From
+        example: '"2023-01-01"'
+        format: date
+        in: query
+        name: due_date_from
+        type: string
+      - description: Due Date To
+        example: '"2023-12-31"'
+        format: date
+        in: query
+        name: due_date_to
+        type: string
+      - description: Payment Method
+        enum:
+        - BANK_TRANSFER
+        - CASH
+        - CHECK
+        example: '"BANK_TRANSFER"'
+        in: query
+        name: payment_method
+        type: string
+      - default: 1
+        description: Page number
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      - description: Sort by field
+        enum:
+        - due_date
+        - amount
+        - status
+        example: '"due_date"'
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        example: '"asc"'
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contract payments retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.ContractPaymentPaginationResponse'
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: 'Forbidden: insufficient permissions'
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get contract payments for the authenticated brand partner
       tags:
       - Contract Payments
   /api/v1/contracts:
