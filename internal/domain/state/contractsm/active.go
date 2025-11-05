@@ -11,8 +11,9 @@ func (a ActiveState) Name() enum.ContractStatus {
 }
 
 func (a ActiveState) Next(ctx *ContractContext, next ContractState) error {
-	return transition(ctx, a, next, func(next ContractState) {
+	return transition(ctx, a, next, func(next ContractState) bool {
 		ctx.IsTerminatedAndCascade(next)
+		return true
 	})
 }
 

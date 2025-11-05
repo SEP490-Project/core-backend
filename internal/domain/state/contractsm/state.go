@@ -39,13 +39,14 @@ func NewContractState(state enum.ContractStatus) ContractState {
 // region: ================ Helper Methods ================
 
 // transition is a helper function to manage state transitions and apply side effects if needed
-func transition(ctx *ContractContext, current, next ContractState, effects func(next ContractState)) error {
+func transition(ctx *ContractContext, current, next ContractState, effects func(next ContractState) bool) error {
 	if _, ok := current.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
-		if effects != nil {
-			effects(next)
+		if effects == nil || effects(next) {
+			ctx.State = next
+			return nil
+		} else { // effects returned false, meaning transition should not occur
+			return fmt.Errorf("transition effects prevented state change: %s -> %s", current.Name(), next.Name())
 		}
-		return nil
 	}
 
 	return fmt.Errorf("invalid transition: %s -> %s", current.Name(), next.Name())

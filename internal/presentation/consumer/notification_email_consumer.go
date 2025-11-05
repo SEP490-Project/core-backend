@@ -125,12 +125,12 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 		// Send HTML email
 		zap.L().Debug("Sending HTML email",
 			zap.String("notification_id", msg.NotificationID.String()))
-		err = c.emailService.SendEmail(ctx, msg.To, msg.Subject, msg.HTMLBody, true)
+		err = c.emailService.SendEmail(ctx, msg.To, msg.Subject, &msg.HTMLBody, true)
 	} else if msg.Body != "" {
 		// Send plain text email
 		zap.L().Debug("Sending plain text email",
 			zap.String("notification_id", msg.NotificationID.String()))
-		err = c.emailService.SendEmail(ctx, msg.To, msg.Subject, msg.Body, false)
+		err = c.emailService.SendEmail(ctx, msg.To, msg.Subject, &msg.Body, false)
 	} else {
 		err = fmt.Errorf("no email content provided: body, html_body, or template_name required")
 	}
