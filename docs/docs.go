@@ -6676,6 +6676,7 @@ const docTemplate = `{
                     "Orders"
                 ],
                 "summary": "Initiate payment for an order",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "string",

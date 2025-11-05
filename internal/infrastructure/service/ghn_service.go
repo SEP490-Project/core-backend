@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/httpclient"
 	"fmt"
 	"net/http"
@@ -139,6 +140,35 @@ func (g ghnService) CalculateDeliveryPriceByDimensionItems(ctx context.Context, 
 
 	return &deliveryFee, nil
 
+}
+
+//----------------------------- ATOMIC TRANSACTIONS ---------------------------------------------
+
+// CalculateDeliveryPriceByOrder calculates delivery fee for an order by contacting GHN and returns the first fee result.
+// require eager fetch of following relations: "OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"
+func (g ghnService) CalculateDeliveryPriceByOrder(ctx context.Context, order model.Order, deliveryService dtos.DeliveryAvailableServiceDTO, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+	deliveryFeeURL := g.cfg.GHN.FeeBaseURL + "/fee"
+	var deliveryFee dtos.DeliveryFeeSuccess
+
+	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// build http client body using order
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidation(&order, deliveryService)
+		if err != nil {
+			return fmt.Errorf(err.Error())
+		}
+
+		deliveryFee, err = httpclient.DoRequestSingle[dtos.DeliveryFeeSuccess](ctx, g.client, g.cfg.GHN.Token, http.MethodPost, deliveryFeeURL, body)
+		if err != nil {
+			return fmt.Errorf("error when fetching delivery fee: %w", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate delivery price: %w", err)
+	}
+
+	return &deliveryFee, nil
 }
 
 func NewGHNService(cfg *config.AppConfig) iservice_third_party.GHNService {
