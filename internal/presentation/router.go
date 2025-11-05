@@ -645,7 +645,7 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 	{
 		payosGroup.POST("/payment", payOsHandler.GeneratePaymentLink)
 		payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
-		payosGroup.POST("/cancel-expired", payOsHandler.CancelExpiredLinks)
+		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
 	}
 }
