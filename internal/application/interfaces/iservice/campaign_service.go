@@ -18,6 +18,14 @@ type CampaignService interface {
 		uow irepository.UnitOfWork,
 	) (*responses.CampaignDetailsResponse, error)
 
+	// CreateInternalCampaign creates a new campaign internally without linking to a contract.
+	CreateInternalCampaign(
+		ctx context.Context,
+		uow irepository.UnitOfWork,
+		request *requests.CreateCampaignRequest,
+		createdBy uuid.UUID,
+	) (*responses.CampaignDetailsResponse, error)
+
 	// GetCampaignByID returns the campaign with the provided ID.
 	GetCampaignInfoByID(ctx context.Context, id uuid.UUID) (*responses.CampaignInfoResponse, error)
 

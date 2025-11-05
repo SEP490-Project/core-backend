@@ -2,21 +2,19 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
-	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +24,7 @@ import (
 
 type contractPaymentService struct {
 	contractPaymentRepo irepository.GenericRepository[model.ContractPayment]
+	config              *config.AdminConfig
 }
 
 // GetContractPaymentByID implements iservice.ContractPaymentService.
@@ -112,17 +111,12 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 	zap.L().Info("ContractPaymentService - GetContractPaymentsByFilter called", zap.Any("filter", filter))
 
 	filterQuery := func(db *gorm.DB) *gorm.DB {
-		if filter.ContractKeyword != nil {
-			// db = db.Where("contract_id = ?", *filter.ContractID)
-			if contractID, err := uuid.Parse(*filter.ContractKeyword); err == nil {
-				db = db.Where("contract_id = ?", contractID)
-			} else if contractNumber := strings.TrimSpace(*filter.ContractKeyword); contractNumber != "" {
-				db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
-					Where("c.contract_number = ?", contractNumber)
-			} else {
-				db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
-					Where("c.title ILIKE ?", "%"+contractNumber+"%")
-			}
+		if filter.BrandID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Where("c.brand_id = ?", *filter.BrandID)
+		}
+		if filter.ContractID != nil {
+			db = db.Where("contract_id = ?", *filter.ContractID)
 		}
 		if filter.Status != nil {
 			db = db.Where("status = ?", *filter.Status)
@@ -155,8 +149,8 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 		zap.String("contract_id", contractID.String()))
 
 	contractRepo := uow.Contracts()
-	configRepo := uow.AdminConfigs()
 	contractPaymentRepo := uow.ContractPayments()
+	minimumDayBeforeDueDate := c.config.MinimumDayBeforeContracPaymentDue
 
 	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand"})
 	if err != nil {
@@ -165,23 +159,6 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 	} else if contract == nil {
 		zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
 		return fmt.Errorf("contract with ID %s not found", contractID)
-	}
-
-	minimumDayBeforeDueDateConfig, err := configRepo.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-		return db.Where("key = ?", constant.ConfigKeyMinimumDayBeforeContracPaymentDue)
-	}, nil)
-	var minimumDayBeforeDueDate int
-	if err == nil && minimumDayBeforeDueDateConfig != nil && minimumDayBeforeDueDateConfig.ValueType == enum.ConfigValueTypeNumber {
-		minimumDayBeforeDueDate, err = strconv.Atoi(strings.TrimSpace(minimumDayBeforeDueDateConfig.Value))
-		if err != nil {
-			zap.L().Error("Failed to parse minimum day before contract payment due date config value",
-				zap.String("value", minimumDayBeforeDueDateConfig.Value),
-				zap.Error(err))
-			return err
-		}
-	} else if minimumDayBeforeDueDateConfig == nil {
-		zap.L().Warn("Failed to fetch minimum day before contract payment due date config, default to 5", zap.Error(err))
-		minimumDayBeforeDueDate = 5
 	}
 
 	contractPaymentsSlice, err := c.processPaymentDateFromContract(minimumDayBeforeDueDate, userID, contract)
@@ -204,9 +181,11 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 
 func NewContractPaymentService(
 	databaseRegistry *gormrepository.DatabaseRegistry,
+	config *config.AdminConfig,
 ) iservice.ContractPaymentService {
 	return &contractPaymentService{
 		contractPaymentRepo: databaseRegistry.ContractPaymentRepository,
+		config:              config,
 	}
 
 }
@@ -231,6 +210,7 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 		DueDate:               contract.StartDate,
 		PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
 		Note:                  &depositNote,
+		IsDeposit:             true,
 		CreatedBy:             &userID,
 		UpdatedBy:             &userID,
 	}

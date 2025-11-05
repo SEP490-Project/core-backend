@@ -294,6 +294,8 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		zap.L().Error("Contract state transition failed", zap.String("contract_id", contractID.String()), zap.String("from", cCtx.State.Name().String()), zap.String("to", targetState.String()), zap.Error(err))
 		return errors.New("contract state transition failed: " + err.Error())
 	}
+	// Override in case of any adjustments to the targetState
+	targetState = cCtx.State.Name()
 
 	contract.Status = targetState
 	filterQuery := func(db *gorm.DB) *gorm.DB {
@@ -398,10 +400,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		)
 	}
 
-	if err := trx.Commit(); err != nil {
-		zap.L().Error("Contract transaction commit failed", zap.Error(err))
-		return errors.New("transaction commit failed: " + err.Error())
-	}
 	return nil
 }
 
@@ -490,7 +488,9 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 	return nil
 }
 
-func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context, uow irepository.UnitOfWork, transactionID uuid.UUID, targetState enum.PaymentTransactionStatus) error {
+// region: ============== Payment Transaction State Transfer ==============
+
+func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context, uow irepository.UnitOfWork, transactionID uuid.UUID, targetState enum.PaymentTransactionStatus, updatedBy uuid.UUID) error {
 	// Use transactional repository from UnitOfWork
 	transactionRepo := uow.PaymentTransaction()
 	contractPaymentRepo := uow.ContractPayments()
@@ -523,7 +523,8 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 
 	switch transaction.ReferenceType {
 	case enum.PaymentTransactionReferenceTypeContractPayment:
-		contractPayment, err := contractPaymentRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		var contractPayment *model.ContractPayment
+		contractPayment, err = contractPaymentRepo.GetByID(ctx, transaction.ReferenceID, nil)
 		if err != nil {
 			zap.L().Error("Failed to load contract payment",
 				zap.String("contract_payment_id", transaction.ReferenceID.String()),
@@ -533,7 +534,8 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 		transactionCtx.ContractPayment = contractPayment
 
 	case enum.PaymentTransactionReferenceTypeOrder:
-		order, err := orderRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		var order *model.Order
+		order, err = orderRepo.GetByID(ctx, transaction.ReferenceID, nil)
 		if err != nil {
 			zap.L().Error("Failed to load order",
 				zap.String("order_id", transaction.ReferenceID.String()),
@@ -574,7 +576,7 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	}
 
 	// 7. Handle side effects based on reference type and target state
-	if err := t.handlePaymentTransactionSideEffects(ctx, uow, transactionCtx, targetState); err != nil {
+	if err := t.handlePaymentTransactionSideEffects(ctx, uow, transactionCtx, targetState, updatedBy); err != nil {
 		zap.L().Error("Failed to handle payment transaction side effects",
 			zap.String("transaction_id", transactionID.String()),
 			zap.String("target_state", string(targetState)),
@@ -596,13 +598,14 @@ func (t stateTransferService) handlePaymentTransactionSideEffects(
 	uow irepository.UnitOfWork,
 	transactionCtx *paymenttransactionsm.PaymentTransactionContext,
 	targetState enum.PaymentTransactionStatus,
+	updatedBy uuid.UUID,
 ) error {
 	switch transactionCtx.ReferenceType {
 	case enum.PaymentTransactionReferenceTypeContractPayment:
-		return t.handleContractPaymentSideEffect(ctx, uow, transactionCtx.ContractPayment, targetState)
+		return t.handleContractPaymentSideEffect(ctx, uow, transactionCtx.ContractPayment, targetState, updatedBy)
 
 	case enum.PaymentTransactionReferenceTypeOrder:
-		return t.handleOrderSideEffect(ctx, uow, transactionCtx.Order, targetState)
+		return t.handleOrderSideEffect(ctx, uow, transactionCtx.Order, targetState, updatedBy)
 
 	default:
 		zap.L().Warn("Unknown reference type, skipping side effects",
@@ -617,6 +620,7 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 	uow irepository.UnitOfWork,
 	contractPayment *model.ContractPayment,
 	transactionStatus enum.PaymentTransactionStatus,
+	updatedBy uuid.UUID,
 ) error {
 	if contractPayment == nil {
 		return errors.New("contract payment is nil")
@@ -630,6 +634,17 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 		newStatus = enum.ContractPaymentStatusPaid
 		zap.L().Info("Updating contract payment to PAID",
 			zap.String("contract_payment_id", contractPayment.ID.String()))
+
+		// Update contract to ACTIVE if the contract payment is deposit
+		if contractPayment.IsDeposit {
+			err := t.MoveContractToState(ctx, uow, contractPayment.ContractID, enum.ContractStatusActive, updatedBy)
+			if err != nil {
+				zap.L().Error("Failed to update contract to ACTIVE after deposit payment",
+					zap.String("contract_id", contractPayment.ContractID.String()),
+					zap.Error(err))
+				return errors.New("failed to update contract to ACTIVE: " + err.Error())
+			}
+		}
 
 	case enum.PaymentTransactionStatusFailed,
 		enum.PaymentTransactionStatusCancelled,
@@ -669,6 +684,7 @@ func (t stateTransferService) handleOrderSideEffect(
 	uow irepository.UnitOfWork,
 	order *model.Order,
 	transactionStatus enum.PaymentTransactionStatus,
+	_ uuid.UUID,
 ) error {
 	if order == nil {
 		return errors.New("order is nil")
@@ -715,6 +731,8 @@ func (t stateTransferService) handleOrderSideEffect(
 
 	return nil
 }
+
+// endregion
 
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
