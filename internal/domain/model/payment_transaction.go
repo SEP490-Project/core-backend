@@ -72,7 +72,7 @@ type PaymentTransaction struct {
 	TransactionDate time.Time                            `gorm:"type:timestamptz;default:current_timestamp" json:"transaction_date"`
 	GatewayRef      string                               `gorm:"type:varchar(255)" json:"gateway_ref"`
 	GatewayID       string                               `gorm:"type:varchar(255)" json:"gateway_id"`
-	PayOSMetadata   *PayOSMetadata                       `gorm:"type:jsonb" json:"payos_metadata,omitempty"`
+	PayOSMetadata   *PayOSMetadata                       `gorm:"column:payos_metadata;type:jsonb" json:"payos_metadata,omitempty"`
 	UpdatedAt       time.Time                            `gorm:"type:timestamptz;default:current_timestamp" json:"updated_at"`
 }
 
