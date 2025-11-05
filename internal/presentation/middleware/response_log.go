@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"bytes"
-	"encoding/json"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -25,16 +25,11 @@ func NewResponseLogMiddleware() gin.HandlerFunc {
 
 		c.Next()
 
-		if c.Writer.Header().Get("Content-Type") == "application/json" {
-			var pretty bytes.Buffer
-			var body string
-			if err := json.Indent(&pretty, []byte(body), "", "  "); err == nil {
-				body = pretty.String()
-			}
+		if strings.Contains(c.Writer.Header().Get("Content-Type"), "application/json") {
 			zap.L().Debug("Response Body",
 				zap.String("path", c.Request.URL.Path),
 				zap.String("method", c.Request.Method),
-				zap.String("response_body", w.body.String()),
+				zap.Any("response_body", w.body),
 			)
 		}
 	}
