@@ -11,12 +11,13 @@ import (
 )
 
 type OrderItem struct {
-	ID                    uuid.UUID           `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
-	OrderID               uuid.UUID           `json:"order_id" gorm:"type:uuid;column:order_id;not null"`
-	VariantID             uuid.UUID           `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
-	Quantity              int                 `json:"quantity" gorm:"column:quantity;not null"`
-	Subtotal              float64             `json:"subtotal" gorm:"column:subtotal;not null"`
-	UnitPrice             float64             `json:"unit_price" gorm:"column:unit_price;not null"`
+	ID        uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	OrderID   uuid.UUID `json:"order_id" gorm:"type:uuid;column:order_id;not null"`
+	VariantID uuid.UUID `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
+	Quantity  int       `json:"quantity" gorm:"column:quantity;not null"`
+	Subtotal  float64   `json:"subtotal" gorm:"column:subtotal;not null"`
+	UnitPrice float64   `json:"unit_price" gorm:"column:unit_price;not null"`
+
 	Capacity              *float64            `json:"capacity" gorm:"column:capacity"`
 	CapacityUnit          *string             `json:"capacity_unit" gorm:"column:capacity_unit"`
 	ContainerType         *enum.ContainerType `json:"container_type" gorm:"type:varchar(255);column:container_type;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
