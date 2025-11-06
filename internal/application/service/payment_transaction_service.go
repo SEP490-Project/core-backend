@@ -76,10 +76,24 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		BuyerEmail:  utils.PtrOrNil(req.BuyerEmail),
 		BuyerPhone:  utils.PtrOrNil(req.BuyerPhone),
 		Items:       s.mapPaymentItems(req.Items),
-		CancelURL:   s.config.PayOS.CancelURL,
-		ReturnURL:   s.config.PayOS.ReturnURL,
 		ExpiredAt:   expiredAt,
 		Signature:   signature,
+	}
+	if req.CancelURL != nil {
+		var tempURL string
+		tempURL, err = utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
+		if err != nil {
+			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
+			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
+		}
+		payosReq.CancelURL = tempURL
+	} else {
+		payosReq.CancelURL = s.config.PayOS.CancelURL
+	}
+	if req.ReturnURL != nil {
+		payosReq.ReturnURL = *req.ReturnURL
+	} else {
+		payosReq.ReturnURL = s.config.PayOS.ReturnURL
 	}
 
 	// 6. Call PayOS API via proxy

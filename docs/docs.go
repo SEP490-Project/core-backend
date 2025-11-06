@@ -780,6 +780,531 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/analytics/marketing/active-brands": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total count of brands with status = 'ACTIVE'",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get active brands count",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/active-campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the total count of campaigns with status = 'RUNNING'",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get active campaigns count",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns aggregated analytics data including counts, revenue, top brands, and upcoming deadlines",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get marketing analytics dashboard",
+                "parameters": [
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "description": "Year (defaults to current)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Month (defaults to current)",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.MarketingDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/draft-campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the count of campaigns with status = 'DRAFT' and contract_id IS NOT NULL",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get draft campaigns count",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer",
+                                            "format": "int64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/monthly-revenue": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns total revenue from paid contract payments for specified month",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get monthly contract revenue",
+                "parameters": [
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "description": "Year (e.g., 2024)",
+                        "name": "year",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Month (1-12)",
+                        "name": "month",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "number",
+                                            "format": "float64"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/revenue-by-type": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING) + standard products",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get revenue breakdown by contract type",
+                "parameters": [
+                    {
+                        "enum": [
+                            "MONTH",
+                            "QUARTER",
+                            "YEAR"
+                        ],
+                        "type": "string",
+                        "description": "Filter type",
+                        "name": "filter_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "description": "Year (e.g., 2024)",
+                        "name": "year",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Month (required for MONTH filter)",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 4,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Quarter (required for QUARTER filter)",
+                        "name": "quarter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueByTypeResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/top-brands": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top 4 brands by total revenue (contract payments + standard product sales)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get top brands by revenue",
+                "parameters": [
+                    {
+                        "enum": [
+                            "MONTH",
+                            "QUARTER",
+                            "YEAR"
+                        ],
+                        "type": "string",
+                        "description": "Filter type",
+                        "name": "filter_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "description": "Year (e.g., 2024)",
+                        "name": "year",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Month (required for MONTH filter)",
+                        "name": "month",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 4,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Quarter (required for QUARTER filter)",
+                        "name": "quarter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandRevenueResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/marketing/upcoming-deadlines": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns campaigns with status = 'RUNNING' and end_date within specified days",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics/MarketingStaffs"
+                ],
+                "summary": "Get campaigns approaching deadline",
+                "parameters": [
+                    {
+                        "maximum": 365,
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Days before deadline (default: 10)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.UpcomingCampaignResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with credentials",
@@ -7112,6 +7637,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/payos/cancel-callback": {
+            "get": {
+                "description": "Handles user redirection after cancelling a PayOS payment. Cancels the payment link and redirects the user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Handle PayOS payment cancellation callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "URL to redirect to after cancellation",
+                        "name": "returnUrl",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Payment link code",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Payment transaction ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Indicates if the payment was cancelled",
+                        "name": "cancel",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "CANCELLED",
+                            "EXPIRED"
+                        ],
+                        "type": "string",
+                        "description": "Status of the payment link",
+                        "name": "status",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order code associated with the payment",
+                        "name": "orderCode",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to the specified return URL or default cancel URL"
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/confirm-webhook": {
             "post": {
                 "security": [
@@ -7257,7 +7860,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Order Code",
-                        "name": "orderCode",
+                        "name": "order_code",
                         "in": "path",
                         "required": true
                     }
@@ -12027,10 +12630,10 @@ const docTemplate = `{
         "requests.ConfirmWebhookRequest": {
             "type": "object",
             "required": [
-                "webhookUrl"
+                "webhook_url"
             ],
             "properties": {
-                "webhookUrl": {
+                "webhook_url": {
                     "type": "string"
                 }
             }
@@ -12961,22 +13564,25 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "amount",
-                "referenceId",
-                "referenceType"
+                "reference_id",
+                "reference_type"
             ],
             "properties": {
                 "amount": {
                     "description": "Payment details",
                     "type": "integer"
                 },
-                "buyerEmail": {
+                "buyer_email": {
                     "type": "string"
                 },
-                "buyerName": {
+                "buyer_name": {
                     "description": "Buyer information (for PayOS fields)",
                     "type": "string"
                 },
-                "buyerPhone": {
+                "buyer_phone": {
+                    "type": "string"
+                },
+                "cancel_url": {
                     "type": "string"
                 },
                 "description": {
@@ -12988,11 +13594,11 @@ const docTemplate = `{
                         "$ref": "#/definitions/requests.PaymentItemRequest"
                     }
                 },
-                "referenceId": {
+                "reference_id": {
                     "description": "Reference information",
                     "type": "string"
                 },
-                "referenceType": {
+                "reference_type": {
                     "enum": [
                         "ORDER",
                         "CONTRACT_PAYMENT"
@@ -13002,6 +13608,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/enum.PaymentTransactionReferenceType"
                         }
                     ]
+                },
+                "return_url": {
+                    "description": "URLs",
+                    "type": "string"
                 }
             }
         },
@@ -14058,6 +14668,27 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandRevenueResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "brand_name": {
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "rank": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "revenue": {
+                    "type": "number",
+                    "example": 150000000.5
+                }
+            }
+        },
         "responses.BrandSummary": {
             "type": "object",
             "properties": {
@@ -15099,6 +15730,54 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.MarketingDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "active_brands": {
+                    "description": "Counts",
+                    "type": "integer",
+                    "example": 45
+                },
+                "active_campaigns": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "draft_campaigns": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "monthly_revenue": {
+                    "description": "Revenue for specified month (or current month)",
+                    "type": "number",
+                    "example": 85000000
+                },
+                "revenue_by_type": {
+                    "$ref": "#/definitions/responses.RevenueByTypeResponse"
+                },
+                "revenue_month": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "revenue_year": {
+                    "type": "integer",
+                    "example": 2024
+                },
+                "top_brands": {
+                    "description": "Top performers (for the same month as revenue)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandRevenueResponse"
+                    }
+                },
+                "upcoming_deadlines": {
+                    "description": "Upcoming deadlines (always relative to current date)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.UpcomingCampaignResponse"
+                    }
+                }
+            }
+        },
         "responses.MilestoneResponse": {
             "type": "object",
             "properties": {
@@ -15767,6 +16446,35 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.RevenueByTypeResponse": {
+            "type": "object",
+            "properties": {
+                "advertising": {
+                    "type": "number",
+                    "example": 50000000
+                },
+                "affiliate": {
+                    "type": "number",
+                    "example": 30000000
+                },
+                "brand_ambassador": {
+                    "type": "number",
+                    "example": 20000000
+                },
+                "co_produce": {
+                    "type": "number",
+                    "example": 15000000
+                },
+                "standard_product": {
+                    "type": "number",
+                    "example": 25000000
+                },
+                "total_revenue": {
+                    "type": "number",
+                    "example": 140000000
+                }
+            }
+        },
         "responses.SessionInfo": {
             "type": "object",
             "properties": {
@@ -16254,6 +16962,35 @@ const docTemplate = `{
                 },
                 "unique_users": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.UpcomingCampaignResponse": {
+            "type": "object",
+            "properties": {
+                "brand_name": {
+                    "type": "string",
+                    "example": "Acme Corp"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "contract_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                },
+                "days_remaining": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "end_date": {
+                    "type": "string",
+                    "example": "2024-11-16 23:59:59"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Summer Sale 2024"
                 }
             }
         },

@@ -38,6 +38,7 @@ type HandlerRegistry struct {
 	AffiliateLinkHandler          *AffiliateLinkHandler
 	RedirectHandler               *RedirectHandler
 	AffiliateLinkAnalyticsHandler *AffiliateLinkAnalyticsHandler
+	MarketingAnalyticsHandler     *MarketingAnalyticsHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConfig *config.AppConfig) *HandlerRegistry {
@@ -49,7 +50,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		ProductHandler:                NewProductHandler(applicationReg.ProductService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		BrandHandler:                  NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:                   NewS3Handler(applicationReg.FileService),
-		PayOsHandler:                  NewPayOsHandler(applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
+		PayOsHandler:                  NewPayOsHandler(appConfig, applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
 		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
@@ -71,5 +72,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		AffiliateLinkHandler:          NewAffiliateLinkHandler(applicationReg.AffiliateLinkService),
 		RedirectHandler:               NewRedirectHandler(applicationReg.ClickTrackingService, appConfig),
 		AffiliateLinkAnalyticsHandler: NewAffiliateLinkAnalyticsHandler(applicationReg.AffiliateLinkAnalyticsService),
+		MarketingAnalyticsHandler:     NewMarketingAnalyticsHandler(applicationReg.MarketingAnalyticsService),
 	}
 }
