@@ -13,9 +13,10 @@ import (
 
 // ===========================PREORDER==============================//
 type PreOrderRequest struct {
-	AddressID uuid.UUID `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
-	VariantID uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
-	//Quantity  int       `json:"quantity" validate:"required,min=1" example:"1"`
+	AddressID  uuid.UUID `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
+	VariantID  uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
+	CancelURL  string    `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
+	SuccessURL string    `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
 }
 
 func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {

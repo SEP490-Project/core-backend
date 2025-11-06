@@ -275,3 +275,25 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 	statusCode := http.StatusOK
 	c.JSON(http.StatusOK, responses.SuccessResponse("Webhook URL confirmed successfully", &statusCode, result))
 }
+
+func (h *PayOsHandler) PayOSCancelInterceptor(c *gin.Context) {
+	// Get all query parameters
+	queryParams := c.Request.URL.Query()
+
+	// Log all query parameters with zap
+	for key, values := range queryParams {
+		zap.L().Info("Query parameter",
+			zap.String("key", key),
+			zap.Strings("values", values),
+		)
+	}
+
+	// Extract fwdUrl if present
+	fwdUrl := c.Query("fwdUrl")
+	if fwdUrl == "" {
+		fwdUrl = "https://facebook.com"
+	}
+
+	// Redirect to fwdUrl
+	c.Redirect(http.StatusFound, fwdUrl)
+}

@@ -5,8 +5,11 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/model"
 	"net/http"
 	"strconv"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +19,21 @@ type PreOrderHandler struct {
 	unitOfWork      irepository.UnitOfWork
 }
 
+// GetAllPreorders godoc
+// @Summary Get paginated preorders by current user
+// @Description Returns user's preorders with pagination, optional status filter and search by product name or receiver name
+// @Tags Preorders
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param search query string false "Search by product name or receiver full name"
+// @Param status query string false "Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
+// @Success 200 {object} responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+// @Failure 401 {object} responses.APIResponse
+// @Failure 500 {object} responses.APIResponse
+// @Security BearerAuth
+// @Router /api/v1/preorders [get]
 func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -40,16 +58,42 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 	}
 
 	search := c.DefaultQuery("search", "")
+	status := c.DefaultQuery("status", "")
 
-	// TODO: wire to service when implemented
-	_ = userID
-	_ = search
+	items, total, err := p.preOrderService.GetPreOrdersByUserIDWithPagination(userID, limit, page, search, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch preorders: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
 
-	// placeholder response
-	c.JSON(http.StatusOK, responses.SuccessResponse("Not implemented", nil, nil))
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int(total) / limit
+		if total%limit != 0 {
+			totalPages++
+		}
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Preorders retrieved successfully",
+		http.StatusOK,
+		items,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
 }
 
-// CreatePreOrder godoc
+// CreatePreOrderAndPay  godoc
 // @Summary Create a PreOrder (reserve stock)
 // @Description Reserve a product variant as a preorder. This will decrement variant stock and create a preorder record.
 // @Tags Preorders
@@ -61,8 +105,8 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 // @Failure 401 {object} responses.APIResponse
 // @Failure 500 {object} responses.APIResponse
 // @Security BearerAuth
-// @Router /api/v1/preorders [post]
-func (p *PreOrderHandler) CreatePreOrder(c *gin.Context) {
+// @Router /api/v1/preorders/place-and-pay [post]
+func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	var req requests.PreOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
@@ -83,6 +127,7 @@ func (p *PreOrderHandler) CreatePreOrder(c *gin.Context) {
 		}
 	}()
 
+	//1. Preserve order
 	preorder, err := p.preOrderService.PreserverOrder(ctx, req, uow)
 	if err != nil {
 		_ = uow.Rollback()
@@ -90,12 +135,28 @@ func (p *PreOrderHandler) CreatePreOrder(c *gin.Context) {
 		return
 	}
 
+	//2. Initiate payment
+	var paymentTx *model.PaymentTransaction
+	paymentTx, err = p.preOrderService.PayPreOrder(ctx, preorder.ID, req.SuccessURL, req.CancelURL, uow)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	//3. Commit transaction
 	if err := uow.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
 
-	c.JSON(http.StatusCreated, responses.SuccessResponse("Created successful", nil, preorder))
+	// 4) Return response
+	resp := responses.SuccessResponse("Order placed and payment initiated", ptr.Int(http.StatusOK), map[string]any{
+		"pre-order":  preorder,
+		"payment_tx": paymentTx,
+	})
+
+	c.JSON(http.StatusCreated, resp)
 }
 
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork) *PreOrderHandler {

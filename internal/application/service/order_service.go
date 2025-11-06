@@ -166,6 +166,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 			return err
 		}
 
+		//Map order items to PayOS items
 		payOSItems, total, err := toPayOSItemsWithTotalPrice(order.OrderItems)
 		if err != nil {
 			zap.L().Error("Failed to map order items to PayOS items", zap.Error(err))
@@ -191,7 +192,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
 
 		//generate signature
-		orderCode := o.generateOrderCode()
+		orderCode := GenerateOrderCode()
 		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
 		signature, err := o.generateSignature(int64(amount), cancelURL, description, orderCode, successURL)
 
@@ -285,9 +286,9 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 	}
 }
 
-// region: =========== Helper Methods ===========
+//=========== Helper Methods ===========
 
-func (o *orderService) generateOrderCode() int64 {
+func GenerateOrderCode() int64 {
 	now := time.Now().Unix()
 	randPart := time.Now().UnixNano() % 1e3
 	return now*1000 + randPart

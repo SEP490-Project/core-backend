@@ -11,7 +11,7 @@ import (
 )
 
 type PreOrder struct {
-	ID          uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;default:gen_random_uuid()"`
 	UserID      uuid.UUID `json:"user_id" gorm:"type:uuid;column:user_id;not null"`
 	VariantID   uuid.UUID `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
 	Quantity    int       `json:"quantity" gorm:"column:quantity;not null"`
@@ -50,16 +50,16 @@ type PreOrder struct {
 	Status    enum.PreOrderStatus `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
 	CreatedAt time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"`
+	//DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
 
 	// Relationships
 	User           *User           `json:"-" gorm:"foreignKey:UserID"`
 	ProductVariant *ProductVariant `json:"-" gorm:"foreignKey:VariantID"`
 }
 
-func (PreOrder) TableName() string { return "pre_order" }
+func (PreOrder) TableName() string { return "pre_orders" }
 
-func (po *PreOrder) BeforeCreate(tx any) (err error) {
+func (po *PreOrder) BeforeCreate(tx *gorm.DB) (err error) {
 	if po.ID == uuid.Nil {
 		po.ID = uuid.New()
 	}

@@ -147,6 +147,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				protectedProducts.POST("/limited/:limited-id/concept/:concept-id", productHandler.AddConceptToLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
+				//Debt: do not allow brand to active this
+				protectedProducts.PATCH("/publish/:id/:is-active", productHandler.PublishProduct)
 			}
 
 			// State update (Sales, Brand only)
@@ -282,6 +284,15 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			ghnPublicGroup.GET("/:district-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByDistrictID)
 			ghnPublicGroup.POST("/delivery/calculate-by-dimension", ghnHandler.CalculateDeliveryPriceByDimension)
+		}
+
+		// ---------- PRE-ORDERS ----------
+		preOrderHandler := r.handlerRegistry.PreOrderHandler
+		preOrderGroup := v1.Group("/preorders")
+		preOrderGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			preOrderGroup.POST("/place-and-pay", preOrderHandler.CreatePreOrderAndPay)
+			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
@@ -652,5 +663,11 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
 		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
+	}
+
+	//Custom Interceptor
+	payosInternalGroup := group.Group("/payos/internal")
+	{
+		payosInternalGroup.GET("/cancel", payOsHandler.PayOSCancelInterceptor)
 	}
 }
