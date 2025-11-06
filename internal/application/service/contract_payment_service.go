@@ -131,7 +131,7 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 			db = db.Where("contract_id = ?", *filter.ContractID)
 		}
 		if filter.Status != nil {
-			db = db.Where("status = ?", *filter.Status)
+			db = db.Where("contract_payments.status = ?", *filter.Status)
 		}
 		if filter.DueDateFrom != nil {
 			db = db.Where("due_date >= ?", *filter.DueDateFrom)
