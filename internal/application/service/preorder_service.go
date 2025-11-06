@@ -185,7 +185,7 @@ func (p preOrderService) PayPreOrder(ctx context.Context, orderID uuid.UUID, suc
 
 	var paymentTransaction *model.PaymentTransaction
 
-	rftCancelURL := fmt.Sprintf("%s?fwdUrl=%s", "http://localhost:8080/api/v1/payos/internal/cancel", cancelURL)
+	rftCancelURL := fmt.Sprintf("%s?fwdUrl=%s", "http://localhost:8080/api/v1/payos/cancel-callback", cancelURL)
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// 1. Preload pre-order

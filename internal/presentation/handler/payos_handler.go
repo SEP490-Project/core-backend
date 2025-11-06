@@ -308,14 +308,6 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
 		return
 	}
-  
-  //DEBUG
-  for key, values := range queryParams {
-	  zap.L().Info("Query parameter",
-			zap.String("key", key),
-			zap.Strings("values", values),
-		)
-	}
 
 	uow := h.unitOfWork.Begin(c.Request.Context())
 	defer func() {

@@ -686,10 +686,4 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
 	}
-
-	//Custom Interceptor
-	payosInternalGroup := group.Group("/payos/internal")
-	{
-		payosInternalGroup.GET("/cancel", payOsHandler.PayOSCancelInterceptor)
-	}
 }
