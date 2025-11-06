@@ -15,22 +15,22 @@ type PayOSWebhookPayload struct {
 
 // PayOSWebhookData represents the data field in PayOS webhook payload
 type PayOSWebhookData struct {
-	OrderCode              int64   `json:"orderCode"`
-	Amount                 int64   `json:"amount"`
-	Description            string  `json:"description"`
-	AccountNumber          string  `json:"accountNumber"`
-	Reference              string  `json:"reference"`
-	TransactionDateTime    string  `json:"transactionDateTime"`
-	Currency               string  `json:"currency"`
-	PaymentLinkID          string  `json:"paymentLinkId"`
-	Code                   string  `json:"code"`
-	Desc                   string  `json:"desc"`
-	CounterAccountBankID   *string `json:"counterAccountBankId,omitempty"`
-	CounterAccountBankName *string `json:"counterAccountBankName,omitempty"`
-	CounterAccountName     *string `json:"counterAccountName,omitempty"`
-	CounterAccountNumber   *string `json:"counterAccountNumber,omitempty"`
-	VirtualAccountName     *string `json:"virtualAccountName,omitempty"`
-	VirtualAccountNumber   *string `json:"virtualAccountNumber,omitempty"`
+	OrderCode              int64  `json:"orderCode"`
+	Amount                 int64  `json:"amount"`
+	Description            string `json:"description"`
+	AccountNumber          string `json:"accountNumber"`
+	Reference              string `json:"reference"`
+	TransactionDateTime    string `json:"transactionDateTime"`
+	Currency               string `json:"currency"`
+	PaymentLinkID          string `json:"paymentLinkId"`
+	Code                   string `json:"code"`
+	Desc                   string `json:"desc"`
+	CounterAccountBankID   string `json:"counterAccountBankId"`
+	CounterAccountBankName string `json:"counterAccountBankName"`
+	CounterAccountName     string `json:"counterAccountName"`
+	CounterAccountNumber   string `json:"counterAccountNumber"`
+	VirtualAccountName     string `json:"virtualAccountName"`
+	VirtualAccountNumber   string `json:"virtualAccountNumber"`
 }
 
 // PayOSCreateLinkRequest represents the internal request structure for creating a PayOS payment link
