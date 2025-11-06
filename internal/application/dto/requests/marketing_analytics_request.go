@@ -12,7 +12,7 @@ import (
 type TimeFilter struct {
 	FilterType string `form:"filter_type" json:"filter_type" validate:"required,oneof=MONTH QUARTER YEAR" example:"MONTH"`
 	Year       int    `form:"year" json:"year" validate:"required,min=2000,max=2100" example:"2024"`
-	Month      *int   `form:"month" json:"month" validate:"omitempty,min=1,max=12" example:"11"` // Required for MONTH
+	Month      *int   `form:"month" json:"month" validate:"omitempty,min=1,max=12" example:"11"`   // Required for MONTH
 	Quarter    *int   `form:"quarter" json:"quarter" validate:"omitempty,min=1,max=4" example:"4"` // Required for QUARTER
 }
 

@@ -22,14 +22,15 @@ func NewMarketingAnalyticsHandler(marketingAnalyticsService iservice.MarketingAn
 }
 
 // GetActiveBrandsCount godoc
-// @Summary      Get active brands count
-// @Description  Returns the total count of brands with status = 'ACTIVE'
-// @Tags         Analytics/MarketingStaffs
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=int64}
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/active-brands [get]
+//
+//	@Summary		Get active brands count
+//	@Description	Returns the total count of brands with status = 'ACTIVE'
+//	@Tags			Analytics/MarketingStaffs
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=int64}
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/active-brands [get]
 func (h *MarketingAnalyticsHandler) GetActiveBrandsCount(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -46,14 +47,15 @@ func (h *MarketingAnalyticsHandler) GetActiveBrandsCount(c *gin.Context) {
 }
 
 // GetActiveCampaignsCount godoc
-// @Summary      Get active campaigns count
-// @Description  Returns the total count of campaigns with status = 'RUNNING'
-// @Tags         Analytics/MarketingStaffs
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=int64}
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/active-campaigns [get]
+//
+//	@Summary		Get active campaigns count
+//	@Description	Returns the total count of campaigns with status = 'RUNNING'
+//	@Tags			Analytics/MarketingStaffs
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=int64}
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/active-campaigns [get]
 func (h *MarketingAnalyticsHandler) GetActiveCampaignsCount(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -70,14 +72,15 @@ func (h *MarketingAnalyticsHandler) GetActiveCampaignsCount(c *gin.Context) {
 }
 
 // GetDraftCampaignsCount godoc
-// @Summary      Get draft campaigns count
-// @Description  Returns the count of campaigns with status = 'DRAFT' and contract_id IS NOT NULL
-// @Tags         Analytics/MarketingStaffs
-// @Produce      json
-// @Success      200 {object} responses.APIResponse{data=int64}
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/draft-campaigns [get]
+//
+//	@Summary		Get draft campaigns count
+//	@Description	Returns the count of campaigns with status = 'DRAFT' and contract_id IS NOT NULL
+//	@Tags			Analytics/MarketingStaffs
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=int64}
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/draft-campaigns [get]
 func (h *MarketingAnalyticsHandler) GetDraftCampaignsCount(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -94,18 +97,19 @@ func (h *MarketingAnalyticsHandler) GetDraftCampaignsCount(c *gin.Context) {
 }
 
 // GetMonthlyContractRevenue godoc
-// @Summary      Get monthly contract revenue
-// @Description  Returns total revenue from paid contract payments for specified month
-// @Tags         Analytics/MarketingStaffs
-// @Accept       json
-// @Produce      json
-// @Param        year   query int true  "Year (e.g., 2024)" minimum(2000) maximum(2100)
-// @Param        month  query int true  "Month (1-12)" minimum(1) maximum(12)
-// @Success      200 {object} responses.APIResponse{data=float64}
-// @Failure      400 {object} responses.APIResponse
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/monthly-revenue [get]
+//
+//	@Summary		Get monthly contract revenue
+//	@Description	Returns total revenue from paid contract payments for specified month
+//	@Tags			Analytics/MarketingStaffs
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	query		int	true	"Year (e.g., 2024)"	minimum(2000)	maximum(2100)
+//	@Param			month	query		int	true	"Month (1-12)"		minimum(1)		maximum(12)
+//	@Success		200		{object}	responses.APIResponse{data=float64}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/monthly-revenue [get]
 func (h *MarketingAnalyticsHandler) GetMonthlyContractRevenue(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -133,20 +137,21 @@ func (h *MarketingAnalyticsHandler) GetMonthlyContractRevenue(c *gin.Context) {
 }
 
 // GetTopBrandsByRevenue godoc
-// @Summary      Get top brands by revenue
-// @Description  Returns top 4 brands by total revenue (contract payments + standard product sales)
-// @Tags         Analytics/MarketingStaffs
-// @Accept       json
-// @Produce      json
-// @Param        filter_type query string true  "Filter type" Enums(MONTH, QUARTER, YEAR)
-// @Param        year        query int    true  "Year (e.g., 2024)" minimum(2000) maximum(2100)
-// @Param        month       query int    false "Month (required for MONTH filter)" minimum(1) maximum(12)
-// @Param        quarter     query int    false "Quarter (required for QUARTER filter)" minimum(1) maximum(4)
-// @Success      200 {object} responses.APIResponse{data=[]responses.BrandRevenueResponse}
-// @Failure      400 {object} responses.APIResponse
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/top-brands [get]
+//
+//	@Summary		Get top brands by revenue
+//	@Description	Returns top 4 brands by total revenue (contract payments + standard product sales)
+//	@Tags			Analytics/MarketingStaffs
+//	@Accept			json
+//	@Produce		json
+//	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
+//	@Param			year		query		int		true	"Year (e.g., 2024)"						minimum(2000)	maximum(2100)
+//	@Param			month		query		int		false	"Month (required for MONTH filter)"		minimum(1)		maximum(12)
+//	@Param			quarter		query		int		false	"Quarter (required for QUARTER filter)"	minimum(1)		maximum(4)
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandRevenueResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/top-brands [get]
 func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -173,20 +178,21 @@ func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 }
 
 // GetRevenueByContractType godoc
-// @Summary      Get revenue breakdown by contract type
-// @Description  Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING) + standard products
-// @Tags         Analytics/MarketingStaffs
-// @Accept       json
-// @Produce      json
-// @Param        filter_type query string true  "Filter type" Enums(MONTH, QUARTER, YEAR)
-// @Param        year        query int    true  "Year (e.g., 2024)" minimum(2000) maximum(2100)
-// @Param        month       query int    false "Month (required for MONTH filter)" minimum(1) maximum(12)
-// @Param        quarter     query int    false "Quarter (required for QUARTER filter)" minimum(1) maximum(4)
-// @Success      200 {object} responses.APIResponse{data=responses.RevenueByTypeResponse}
-// @Failure      400 {object} responses.APIResponse
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/revenue-by-type [get]
+//
+//	@Summary		Get revenue breakdown by contract type
+//	@Description	Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING) + standard products
+//	@Tags			Analytics/MarketingStaffs
+//	@Accept			json
+//	@Produce		json
+//	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
+//	@Param			year		query		int		true	"Year (e.g., 2024)"						minimum(2000)	maximum(2100)
+//	@Param			month		query		int		false	"Month (required for MONTH filter)"		minimum(1)		maximum(12)
+//	@Param			quarter		query		int		false	"Quarter (required for QUARTER filter)"	minimum(1)		maximum(4)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueByTypeResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/revenue-by-type [get]
 func (h *MarketingAnalyticsHandler) GetRevenueByContractType(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -213,17 +219,18 @@ func (h *MarketingAnalyticsHandler) GetRevenueByContractType(c *gin.Context) {
 }
 
 // GetUpcomingDeadlineCampaigns godoc
-// @Summary      Get campaigns approaching deadline
-// @Description  Returns campaigns with status = 'RUNNING' and end_date within specified days
-// @Tags         Analytics/MarketingStaffs
-// @Accept       json
-// @Produce      json
-// @Param        days query int false "Days before deadline (default: 10)" minimum(1) maximum(365)
-// @Success      200 {object} responses.APIResponse{data=[]responses.UpcomingCampaignResponse}
-// @Failure      400 {object} responses.APIResponse
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/upcoming-deadlines [get]
+//
+//	@Summary		Get campaigns approaching deadline
+//	@Description	Returns campaigns with status = 'RUNNING' and end_date within specified days
+//	@Tags			Analytics/MarketingStaffs
+//	@Accept			json
+//	@Produce		json
+//	@Param			days	query		int	false	"Days before deadline (default: 10)"	minimum(1)	maximum(365)
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.UpcomingCampaignResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/upcoming-deadlines [get]
 func (h *MarketingAnalyticsHandler) GetUpcomingDeadlineCampaigns(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -248,18 +255,19 @@ func (h *MarketingAnalyticsHandler) GetUpcomingDeadlineCampaigns(c *gin.Context)
 }
 
 // GetDashboard godoc
-// @Summary      Get marketing analytics dashboard
-// @Description  Returns aggregated analytics data including counts, revenue, top brands, and upcoming deadlines
-// @Tags         Analytics/MarketingStaffs
-// @Accept       json
-// @Produce      json
-// @Param        year  query int false "Year (defaults to current)" minimum(2000) maximum(2100)
-// @Param        month query int false "Month (defaults to current)" minimum(1) maximum(12)
-// @Success      200 {object} responses.APIResponse{data=responses.MarketingDashboardResponse}
-// @Failure      400 {object} responses.APIResponse
-// @Failure      500 {object} responses.APIResponse
-// @Security     BearerAuth
-// @Router       /api/v1/analytics/marketing/dashboard [get]
+//
+//	@Summary		Get marketing analytics dashboard
+//	@Description	Returns aggregated analytics data including counts, revenue, top brands, and upcoming deadlines
+//	@Tags			Analytics/MarketingStaffs
+//	@Accept			json
+//	@Produce		json
+//	@Param			year	query		int	false	"Year (defaults to current)"	minimum(2000)	maximum(2100)
+//	@Param			month	query		int	false	"Month (defaults to current)"	minimum(1)		maximum(12)
+//	@Success		200		{object}	responses.APIResponse{data=responses.MarketingDashboardResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/marketing/dashboard [get]
 func (h *MarketingAnalyticsHandler) GetDashboard(c *gin.Context) {
 	ctx := c.Request.Context()
 
