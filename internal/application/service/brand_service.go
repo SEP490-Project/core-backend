@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
@@ -17,7 +18,8 @@ import (
 )
 
 type brandService struct {
-	BrandRepository irepository.GenericRepository[model.Brand]
+	BrandRepository   irepository.GenericRepository[model.Brand]
+	ProductRepository irepository.GenericRepository[model.Product]
 }
 
 // CreateBrand implements iservice.BrandService.
@@ -283,6 +285,55 @@ func (b *brandService) CreateBrandWithInActiveUsers(
 
 }
 
-func NewBrandService(brandRepository irepository.GenericRepository[model.Brand]) iservice.BrandService {
-	return &brandService{BrandRepository: brandRepository}
+func (b *brandService) MyProducts(ctx context.Context, brandID uuid.UUID) ([]responses.ProductResponseV2, int64, error) {
+	filter := func(db *gorm.DB) *gorm.DB {
+		if request.Keywords != nil && *request.Keywords != "" {
+			likePattern := fmt.Sprintf("%%%s%%", *request.Keywords)
+			db = db.Where("name ILIKE ?", likePattern)
+		}
+		if request.Status != nil && *request.Status != "" {
+			db = db.Where("status = ?", enum.BrandStatus(*request.Status))
+		}
+
+		sortBy := "created_at"
+		sortOrder := "desc"
+
+		if request.SortBy != "" {
+			sortBy = request.SortBy
+		}
+		if request.SortOrder != "" {
+			sortOrder = request.SortOrder
+		}
+
+		switch sortBy {
+		case "number_of_contracts":
+			db = db.
+				Select("brands.*, COUNT(contracts.id) AS number_of_contracts").
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("COUNT(contracts.id) %s", sortOrder))
+		case "number_of_active_contracts":
+			db = db.
+				Select("brands.*, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("SUM(CASE WHEN contracts.status = '%s' THEN 1 ELSE 0 END) %s", enum.ContractStatusActive, sortOrder))
+		default:
+			db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+		}
+
+		return db
+	}
+
+	var brands []model.brand
+	var err error
+	var totalCount int64
+	resp := make([]responses.ProductResponseV2, 0)
+}
+
+func NewBrandService(brandRepository irepository.GenericRepository[model.Brand], productRepository irepository.GenericRepository[model.Product]) iservice.BrandService {
+	return &brandService{
+		BrandRepository:   brandRepository,
+		ProductRepository: productRepository,
+	}
 }

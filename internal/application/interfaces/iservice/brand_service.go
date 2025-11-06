@@ -17,4 +17,7 @@ type BrandService interface {
 	GetByID(ctx context.Context, brandID uuid.UUID) (*responses.BrandDetailResponse, error)
 	GetByFilter(ctx context.Context, request *requests.ListBrandsRequest) ([]responses.BrandResponse, int64, error)
 	UpdateBrandStatus(ctx context.Context, brandID uuid.UUID, status enum.BrandStatus) (*responses.BrandResponse, error)
+
+	// Products under brand Pagination
+	MyProducts(ctx context.Context, brandID uuid.UUID) ([]responses.ProductResponseV2, int64, error)
 }
