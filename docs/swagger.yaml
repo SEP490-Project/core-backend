@@ -5986,6 +5986,71 @@ paths:
       summary: Update Brand Status
       tags:
       - Brands
+  /api/v1/brands/my-product:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of brands with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search keywords for brand name
+        in: query
+        name: keywords
+        type: string
+      - description: Filter by brand status
+        enum:
+        - ACTIVE
+        - INACTIVE
+        in: query
+        name: status
+        type: string
+      - default: created_at
+        description: Sort by field
+        enum:
+        - name
+        - created_at
+        - number_of_contracts
+        - number_of_active_contracts
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Brands fetched successfully
+          schema:
+            $ref: '#/definitions/responses.BrandPaginationResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brands List by filter
+      tags:
+      - Brands
   /api/v1/brands/with-users:
     post:
       consumes:
@@ -7875,6 +7940,16 @@ paths:
         in: path
         name: contract_payment_id
         required: true
+        type: string
+      - description: Return URL after payment completion
+        example: '"https://example.com/return"'
+        in: query
+        name: return_url
+        type: string
+      - description: Cancel URL after payment cancellation
+        example: '"https://example.com/cancel"'
+        in: query
+        name: cancel_url
         type: string
       produces:
       - application/json

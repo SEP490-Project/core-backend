@@ -56,3 +56,16 @@ ALTER TABLE pre_orders
     ADD COLUMN IF NOT EXISTS province_name VARCHAR(100),
     ADD COLUMN IF NOT EXISTS district_name VARCHAR(100),
     ADD COLUMN IF NOT EXISTS ward_name VARCHAR(100);
+
+
+-- Refactor Product
+-- 1. Cho phép task_id có thể NULL (hiện tại đã đúng)
+ALTER TABLE products
+    ALTER COLUMN task_id DROP NOT NULL;
+
+-- 2. Đảm bảo ràng buộc khóa ngoại là SET NULL khi task bị xóa
+ALTER TABLE products
+DROP CONSTRAINT IF EXISTS products_task_id_fkey,
+    ADD CONSTRAINT products_task_id_fkey
+    FOREIGN KEY (task_id) REFERENCES tasks(id)
+    ON DELETE SET NULL;

@@ -361,15 +361,15 @@ type ProductResponseV2 struct {
 	BrandName    string                    `json:"brand_name,omitempty"`    // optional
 	ThumbnailURL *[]string                 `json:"thumbnail_url,omitempty"` // optional
 	IsActive     bool                      `json:"is_active"`
-	Category     ProductCategoryResponse   `json:"category"`
+	CreatedAt    string                    `json:"created_at"` // FE parse về Date
+	UpdatedAt    string                    `json:"updated_at"`
+	Status       enum.ProductStatus        `json:"status"`
 	Description  string                    `json:"description"`
 	Name         string                    `json:"name"`
 	Price        float64                   `json:"price"`
 	Type         enum.ProductType          `json:"type"`
+	Category     ProductCategoryResponse   `json:"category"`
 	Variants     []*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedAt    string                    `json:"created_at"` // FE parse về Date
-	UpdatedAt    string                    `json:"updated_at"`
-	Status       enum.ProductStatus        `json:"status"`
 	CreatedBy    *UserListResponse         `json:"created_by"`
 	UpdatedBy    *UserListResponse         `json:"updated_by"`
 }

@@ -50,7 +50,7 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 	//2. Load task context
 	taskCtx := &tasksm.TaskContext{
 		State:    tasksm.NewTaskState(task.Status),
-		Products: task.Products,
+		Products: task.Product,
 	}
 
 	//3. Init target State
@@ -83,20 +83,20 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 	}
 
 	//6. Cascade UpdatedByID (and any status changes applied by state machine) to products, if any
-	for _, p := range taskCtx.Products {
-		if p == nil {
-			continue
-		}
-		// Ensure task back-reference present (if not, assign for safety)
-		if p.Task == nil {
-			p.Task = task
-		}
-		p.UpdatedByID = &updatedBy
-		if err := t.productRepository.Update(ctx, p); err != nil {
-			// Log and continue; do not fail whole operation after task updated
-			zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", p.ID.String()), zap.Error(err))
-		}
+	//for _, p := range taskCtx.Products {
+	//	if p == nil {
+	//		continue
+	//	}
+	// Ensure task back-reference present (if not, assign for safety)
+	if taskCtx.Products.Task == nil {
+		taskCtx.Products.Task = task
 	}
+	taskCtx.Products.UpdatedByID = &updatedBy
+	if err := t.productRepository.Update(ctx, taskCtx.Products); err != nil {
+		// Log and continue; do not fail whole operation after task updated
+		zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", taskCtx.Products.ID.String()), zap.Error(err))
+	}
+	//}
 
 	return nil
 }
@@ -361,11 +361,11 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 					continue
 				}
 				tk.Status = enum.TaskStatusCancelled
-				for _, p := range tk.Products {
-					if p != nil {
-						p.Status = enum.ProductStatusInactived
-					}
+				//for _, p := range tk.Products {
+				if tk.Product != nil {
+					tk.Product.Status = enum.ProductStatusInactived
 				}
+				//}
 			}
 		}
 

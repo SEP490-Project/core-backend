@@ -2,9 +2,8 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
-	"time"
-
 	"gorm.io/datatypes"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
