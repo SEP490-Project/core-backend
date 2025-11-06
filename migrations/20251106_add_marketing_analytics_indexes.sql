@@ -46,6 +46,11 @@ CREATE INDEX IF NOT EXISTS idx_orders_status_created_at
 COMMENT ON INDEX idx_orders_status_created_at IS
     'Optimizes standard product revenue queries filtering by PAID status and order date';
 
+
+-- Update enum type campaign_status to include 'DRAFT' if not exists
+ALTER TYPE campaign_status
+    ADD VALUE 'DRAFT';
+
 -- Verify indexes were created
 DO
 $$
