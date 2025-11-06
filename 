@@ -1,0 +1,26 @@
+# This is a combination of 2 commits.
+# This is the 1st commit message:
+
+fix: after merge
+
+# This is the commit message #2:
+
+fix: after merge
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Date:      Thu Nov 6 14:49:44 2025 +0700
+#
+# interactive rebase in progress; onto 0bb797b
+# Last commands done (2 commands done):
+#    pick 826cf9f fix: after merge
+#    squash 0998979 fix: after merge
+# No commands remaining.
+# You are currently rebasing branch 'feat/payment_and_preorder_20251103' on '0bb797b'.
+#
+# Changes to be committed:
+#	modified:   internal/application/service/preorder_service.go
+#	modified:   internal/presentation/handler/payos_handler.go
+#	modified:   internal/presentation/router.go
+#

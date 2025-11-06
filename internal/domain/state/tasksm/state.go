@@ -7,7 +7,7 @@ import (
 
 type TaskContext struct {
 	State    TaskState
-	Products []*model.Product
+	Products *model.Product
 	Contents []*model.Content
 }
 
@@ -49,16 +49,18 @@ func PrintAllowedTransitions(state TaskState) []string {
 
 // helper
 func (c *TaskContext) IsAllProductsActive() bool {
-	if c.Products == nil || len(c.Products) == 0 {
+	if c.Products == nil {
 		return false
 	}
 
-	for _, p := range c.Products {
-		if p.Status != enum.ProductStatusActived && p.Status != enum.ProductStatusInactived {
-			return false
-		}
+	//for _, p := range c.Products {
+	//	if p.Status != enum.ProductStatusActived && p.Status != enum.ProductStatusInactived {
+	//		return false
+	//	}
+	//}
+	if c.Products.Status != enum.ProductStatusActived && c.Products.Status != enum.ProductStatusInactived {
+		return false
 	}
-
 	return true
 }
 
@@ -82,13 +84,18 @@ func (c *TaskContext) IsCancelAndCascade(state TaskState) {
 		return
 	}
 	// Cascade cancel status to products
-	if c.Products != nil && len(c.Products) > 0 {
-		for _, p := range c.Products {
-			if p != nil {
-				p.Status = enum.ProductStatusInactived
-				p.UpdatedByID = p.Task.UpdatedByID
-			}
-		}
+	//if c.Products != nil && len(c.Products) > 0 {
+	//	for _, p := range c.Products {
+	//		if p != nil {
+	//			p.Status = enum.ProductStatusInactived
+	//			p.UpdatedByID = p.Task.UpdatedByID
+	//		}
+	//	}
+	//}
+	if c.Products != nil {
+		c.Products.Status = enum.ProductStatusInactived
+		c.Products.UpdatedByID = c.Products.Task.UpdatedByID
 	}
+
 	// Future: cascade to contents if required (business rule not requested yet)
 }

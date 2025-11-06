@@ -146,7 +146,20 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 	expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
 
 	// 4. Generate signature
-	signature, err := s.generateSignature(req.Amount, s.config.PayOS.CancelURL, description, orderCode, s.config.PayOS.ReturnURL)
+	cancelURL := s.config.PayOS.CancelURL
+	returnURL := s.config.PayOS.ReturnURL
+	if req.CancelURL != nil && *req.CancelURL != "" {
+		tempURL, err := utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
+		if err != nil {
+			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
+			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
+		}
+		cancelURL = tempURL
+	}
+	if req.ReturnURL != nil {
+		returnURL = *req.ReturnURL
+	}
+	signature, err := s.generateSignature(req.Amount, cancelURL, description, orderCode, returnURL)
 	if err != nil {
 		zap.L().Error("Failed to generate signature", zap.Error(err))
 		return nil, fmt.Errorf("failed to generate signature: %w", err)
@@ -163,25 +176,12 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		Items:       s.mapPaymentItems(req.Items),
 		ExpiredAt:   expiredAt,
 		Signature:   signature,
-	}
-	if req.CancelURL != nil {
-		var tempURL string
-		tempURL, err = utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
-		if err != nil {
-			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
-			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
-		}
-		payosReq.CancelURL = tempURL
-	} else {
-		payosReq.CancelURL = s.config.PayOS.CancelURL
-	}
-	if req.ReturnURL != nil {
-		payosReq.ReturnURL = *req.ReturnURL
-	} else {
-		payosReq.ReturnURL = s.config.PayOS.ReturnURL
+		CancelURL:   cancelURL,
+		ReturnURL:   returnURL,
 	}
 
 	// 6. Call PayOS API via proxy
+	zap.L().Debug("Creating PayOS payment link", zap.Any("payos_request", payosReq))
 	payosResp, err := s.payosProxy.CreatePaymentLink(ctx, payosReq)
 	if err != nil {
 		zap.L().Error("Failed to create PayOS payment link", zap.Error(err))

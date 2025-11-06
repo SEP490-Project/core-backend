@@ -60,7 +60,7 @@ func (c *MilestoneContext) IsCancelAndCascade(state MilestoneState) {
 
 			taskCtx := tasksm.TaskContext{
 				State:    tasksm.NewTaskState(t.Status),
-				Products: t.Products,
+				Products: t.Product,
 				Contents: t.Contents,
 			}
 			// Cascade all product & content to cancelled
