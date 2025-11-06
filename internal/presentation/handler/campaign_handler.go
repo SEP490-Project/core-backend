@@ -444,7 +444,7 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 	userID, err := extractUserID(c)
 	var filterRequest *requests.CampaignFilterRequest
-	if err := c.ShouldBindQuery(&filterRequest); err != nil {
+	if err = c.ShouldBindQuery(&filterRequest); err != nil {
 		responses := responses.ErrorResponse("Invalid filter request: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
 		return
@@ -455,7 +455,7 @@ func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 		return
 	}
 
-	if err := h.validartor.Struct(filterRequest); err != nil {
+	if err = h.validartor.Struct(filterRequest); err != nil {
 		responses := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
 		return

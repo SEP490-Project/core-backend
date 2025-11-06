@@ -306,15 +306,11 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 //	@Router			/api/v1/payos/cancel-callback [get]
 func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	var req requests.CancelPaymentRequest
-	var queryMap map[string]string
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
 		return
 	}
-	if err := c.ShouldBindQuery(&queryMap); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
+	zap.L().Debug("Cancel payment callback received", zap.Any("req", req))
 
 	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), req.OrderCode)
 	if err != nil {
@@ -324,7 +320,7 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 
 	switch paymentResponse.Status {
 	case enum.PaymentTransactionStatusCancelled.String(), enum.PaymentTransactionStatusExpired.String():
-		c.JSON(http.StatusOK, responses.ErrorResponse("Payment transaction is already cancelled or expired", http.StatusOK))
+		c.JSON(http.StatusOK, responses.SuccessResponse("Payment transaction is already cancelled or expired", utils.PtrOrNil(http.StatusOK), nil))
 		return
 	case enum.PaymentTransactionStatusCompleted.String():
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Payment transaction is already completed", http.StatusBadRequest))
@@ -335,7 +331,7 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
 		}
 	}()
 
@@ -351,7 +347,13 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	}
 
 	var redirectURL string
-	delete(queryMap, "returnUrl")
+	queryMap := map[string]any{
+		"code":      req.Code,
+		"id":        req.ID,
+		"cancel":    req.Cancel,
+		"status":    req.Status,
+		"orderCode": req.OrderCode,
+	}
 	if req.ReturnURL != "" {
 		redirectURL, err = utils.AddQueryParams(req.ReturnURL, queryMap)
 	} else {
