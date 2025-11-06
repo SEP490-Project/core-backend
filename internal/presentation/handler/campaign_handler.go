@@ -218,14 +218,14 @@ func (h *CampaignHandler) GetCampaignDetailsByID(c *gin.Context) {
 //	@Tags			Campaigns
 //	@Accept			json
 //	@Produce		json
-//	@Param			page		query		int											false	"Page number"		default(1)
-//	@Param			limit		query		int											false	"Items per page"	default(10)
-//	@Param			keyword		query		string										false	"Search keyword for campaign name"
-//	@Param			status		query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
-//	@Param			type		query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
-//	@Success		200			{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
-//	@Failure		400			{object}	responses.APIResponse						"Invalid query parameters"
-//	@Failure		500			{object}	responses.APIResponse						"Internal server error"
+//	@Param			page	query		int											false	"Page number"		default(1)
+//	@Param			limit	query		int											false	"Items per page"	default(10)
+//	@Param			keyword	query		string										false	"Search keyword for campaign name"
+//	@Param			status	query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
+//	@Param			type	query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
+//	@Success		200		{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
+//	@Failure		400		{object}	responses.APIResponse						"Invalid query parameters"
+//	@Failure		500		{object}	responses.APIResponse						"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/campaigns [get]
 func (h *CampaignHandler) GetCampaignsByFilter(c *gin.Context) {
@@ -429,16 +429,16 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 //	@Tags			Campaigns
 //	@Accept			json
 //	@Produce		json
-//	@Param			page		query		int											false	"Page number"		default(1)
-//	@Param			limit		query		int											false	"Items per page"	default(10)
-//	@Param			keyword		query		string										false	"Search keywords for campaign name"
-//	@Param			status		query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
-//	@Param			type		query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
-//	@Success		200	{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
-//	@Failure		400	{object}	responses.APIResponse						"Invalid query parameters"
-//	@Failure		401	{object}	responses.APIResponse						"Unauthorized"
-//	@Failure		403	{object}	responses.APIResponse						"Forbidden"
-//	@Failure		500	{object}	responses.APIResponse						"Internal server error"
+//	@Param			page	query		int											false	"Page number"		default(1)
+//	@Param			limit	query		int											false	"Items per page"	default(10)
+//	@Param			keyword	query		string										false	"Search keywords for campaign name"
+//	@Param			status	query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
+//	@Param			type	query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
+//	@Success		200		{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
+//	@Failure		400		{object}	responses.APIResponse						"Invalid query parameters"
+//	@Failure		401		{object}	responses.APIResponse						"Unauthorized"
+//	@Failure		403		{object}	responses.APIResponse						"Forbidden"
+//	@Failure		500		{object}	responses.APIResponse						"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/campaigns/brand/profile [get]
 func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {

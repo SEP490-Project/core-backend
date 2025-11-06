@@ -20,20 +20,21 @@ type PreOrderHandler struct {
 }
 
 // GetAllPreorders godoc
-// @Summary Get paginated preorders by current user
-// @Description Returns user's preorders with pagination, optional status filter and search by product name or receiver name
-// @Tags Preorders
-// @Accept json
-// @Produce json
-// @Param page query int false "Page number (default: 1)"
-// @Param limit query int false "Items per page (default: 10, max: 100)"
-// @Param search query string false "Search by product name or receiver full name"
-// @Param status query string false "Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
-// @Success 200 {object} responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
-// @Failure 401 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/preorders [get]
+//
+//	@Summary		Get paginated preorders by current user
+//	@Description	Returns user's preorders with pagination, optional status filter and search by product name or receiver name
+//	@Tags			Preorders
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number (default: 1)"
+//	@Param			limit	query		int		false	"Items per page (default: 10, max: 100)"
+//	@Param			search	query		string	false	"Search by product name or receiver full name"
+//	@Param			status	query		string	false	"Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders [get]
 func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
@@ -94,18 +95,19 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 }
 
 // CreatePreOrderAndPay  godoc
-// @Summary Create a PreOrder (reserve stock)
-// @Description Reserve a product variant as a preorder. This will decrement variant stock and create a preorder record.
-// @Tags Preorders
-// @Accept json
-// @Produce json
-// @Param data body requests.PreOrderRequest true "PreOrder payload"
-// @Success 201 {object} responses.APIResponse
-// @Failure 400 {object} responses.APIResponse
-// @Failure 401 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/preorders/place-and-pay [post]
+//
+//	@Summary		Create a PreOrder (reserve stock)
+//	@Description	Reserve a product variant as a preorder. This will decrement variant stock and create a preorder record.
+//	@Tags			Preorders
+//	@Accept			json
+//	@Produce		json
+//	@Param			data	body		requests.PreOrderRequest	true	"PreOrder payload"
+//	@Success		201		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/place-and-pay [post]
 func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	var req requests.PreOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
