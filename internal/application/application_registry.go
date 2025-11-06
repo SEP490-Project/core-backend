@@ -43,6 +43,7 @@ type ApplicationRegistry struct {
 	ClickTrackingService          iservice.ClickTrackingService
 	AffiliateLinkAnalyticsService iservice.AffiliateLinkAnalyticsService
 	PaymentTransactionService     iservice.PaymentTransactionService
+	PreOrderService               iservice.PreOrderService
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 
 	//Manual Scheduler Trigger
@@ -116,6 +117,7 @@ func NewApplicationRegistry(
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
 		PaymentTransactionService:     service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy),
+		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 
 		//Manual Scheduler Trigger
