@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -299,4 +300,71 @@ func (bh *BrandHandler) UpdateBrandStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Brand status updated successfully", nil, brand))
+}
+
+// MyProductsByFilter godoc
+//
+//	@Summary		Get Brands List by filter
+//	@Description	Get paginated list of brands with optional filters
+//	@Tags			Brands
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int									false	"Page number"		default(1)
+//	@Param			limit		query		int									false	"Items per page"	default(10)
+//	@Param			keywords	query		string								false	"Search keywords for brand name"
+//	@Param			status		query		string								false	"Filter by brand status"	Enums(ACTIVE, INACTIVE)
+//	@Param			sort_by		query		string								false	"Sort by field"				Enums(name, created_at, number_of_contracts, number_of_active_contracts)	default(created_at)
+//	@Param			sort_order	query		string								false	"Sort order"				Enums(asc, desc)															default(desc)
+//	@Success		200			{object}	responses.BrandPaginationResponse	"Brands fetched successfully"
+//	@Failure		400			{object}	responses.APIResponse				"Invalid request"
+//	@Failure		500			{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/brands/my-product [get]
+func (bh *BrandHandler) MyProductsByFilter(c *gin.Context) {
+	// existing placeholder kept for compatibility; now implemented as wrapper that accepts brand id path param and query parameters
+	userID, err := extractUserID(c)
+	if err != nil {
+		response := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	products, total, err := bh.BrandService.MyProducts(c.Request.Context(), userID, page, limit)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get products: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		products,
+		pagination,
+	)
+	c.JSON(http.StatusOK, resp)
 }

@@ -19,6 +19,12 @@ type PaymentTransactionService interface {
 	// GetPaymentStatus retrieves the current payment status from PayOS (read-only, no UnitOfWork needed)
 	GetPaymentStatus(ctx context.Context, orderCode string) (*responses.PayOSOrderInfoResponse, error)
 
+	GetPaymentTransactionByFilter(ctx context.Context, filter *requests.PaymentTransactionFilterRequest) ([]responses.PaymentTransactionResponse, int64, error)
+
+	GetPaymentTransactionByID(ctx context.Context, transactionID uuid.UUID) (*responses.PaymentTransactionResponse, error)
+
+	GetPaymentTransactionByOrderCode(ctx context.Context, orderCode string) (*responses.PaymentTransactionResponse, error)
+
 	// CancelPaymentLink cancels an existing payment link and updates database
 	CancelPaymentLink(ctx context.Context, uow irepository.UnitOfWork, orderCode string, reason string) error
 

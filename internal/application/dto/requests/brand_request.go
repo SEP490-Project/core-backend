@@ -42,6 +42,11 @@ type ListBrandsRequest struct {
 	Status   *string `json:"status" form:"status" validate:"omitempty,oneof=ACTIVE INACTIVE" example:"ACTIVE"`
 }
 
+type ListProductsByBrandRequest struct {
+	PaginationRequest
+	Keywords *string `json:"keywords" form:"keywords" validate:"omitempty,max=255" example:"Acme"`
+}
+
 func (ubr UpdateBrandRequest) ToExistingBrand(brand *model.Brand) *model.Brand {
 	if ubr.Name != nil {
 		brand.Name = *ubr.Name

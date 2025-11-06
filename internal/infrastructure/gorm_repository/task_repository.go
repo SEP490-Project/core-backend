@@ -91,21 +91,24 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			"m.id as milestone_id",
 			"c.name as campaign_name",
 			"c.id as campaign_id",
-			"c.contract_id as contract_id").
+			"c.contract_id as contract_id",
+			"p.status as child_status"). // <-- đây là product status
 		Joins("LEFT JOIN users AS a ON tasks.assigned_to = a.id").
 		Joins("LEFT JOIN milestones AS m ON tasks.milestone_id = m.id").
 		Joins("LEFT JOIN campaigns AS c ON m.campaign_id = c.id").
+		Joins("LEFT JOIN products AS p ON p.task_id = tasks.id"). // 1-1 nên chỉ có 1 product
 		Find(&data)
 
 	if findQuery.Error != nil {
 		return []dtos.TaskListDTO{}, 0, findQuery.Error
 	}
-
+	// Count distinct tasks to avoid duplicates in case joins produce multiple rows
 	countQuery := r.db.WithContext(ctx).Model(new(model.Task)).
 		Joins("LEFT JOIN users AS a ON tasks.assigned_to = a.id").
 		Joins("LEFT JOIN milestones AS m ON tasks.milestone_id = m.id").
-		Joins("LEFT JOIN campaigns AS c ON m.campaign_id = c.id")
-	countQuery = filterQuery(countQuery)
+		Joins("LEFT JOIN campaigns AS c ON m.campaign_id = c.id").
+		Joins("LEFT JOIN products AS p ON p.task_id = tasks.id")
+	countQuery = countQuery.Distinct("tasks.id")
 	if err := countQuery.Count(&total).Error; err != nil {
 		return []dtos.TaskListDTO{}, 0, err
 	}

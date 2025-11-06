@@ -17,7 +17,8 @@ import (
 )
 
 type brandService struct {
-	BrandRepository irepository.GenericRepository[model.Brand]
+	BrandRepository   irepository.GenericRepository[model.Brand]
+	ProductRepository irepository.GenericRepository[model.Product]
 }
 
 // CreateBrand implements iservice.BrandService.
@@ -283,6 +284,51 @@ func (b *brandService) CreateBrandWithInActiveUsers(
 
 }
 
-func NewBrandService(brandRepository irepository.GenericRepository[model.Brand]) iservice.BrandService {
-	return &brandService{BrandRepository: brandRepository}
+func (b *brandService) MyProducts(ctx context.Context, userID uuid.UUID, page int, limit int) ([]responses.ProductResponseV2, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		// default page size
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	// Filter products where the product's brand is owned by the given user (brands.user_id = userID)
+	filter := func(db *gorm.DB) *gorm.DB {
+		// join brands and users to allow filtering by brands.user_id (owner user)
+		return db.Joins("JOIN brands ON brands.id = products.brand_id").
+			Joins("JOIN users ON users.id = brands.user_id").
+			Where("users.id = ?", userID).
+			Order("products.created_at DESC")
+	}
+
+	includes := []string{"Brand", "Brand.User", "Category",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories"}
+
+	products, total, err := b.ProductRepository.GetAll(ctx, filter, includes, limit, offset)
+	if err != nil {
+		zap.L().Error("failed to fetch products for brand owner", zap.Error(err), zap.String("owner_user_id", userID.String()))
+		return nil, 0, err
+	}
+
+	resp := make([]responses.ProductResponseV2, 0, len(products))
+	for _, p := range products {
+		v2 := responses.ProductResponseV2{}
+		mapped := *v2.ToProductResponseV2(&p)
+		resp = append(resp, mapped)
+	}
+
+	return resp, total, nil
+}
+
+func NewBrandService(brandRepository irepository.GenericRepository[model.Brand], productRepository irepository.GenericRepository[model.Product]) iservice.BrandService {
+	return &brandService{
+		BrandRepository:   brandRepository,
+		ProductRepository: productRepository,
+	}
 }
