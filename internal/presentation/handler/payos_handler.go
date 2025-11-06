@@ -287,12 +287,12 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 //	@Description	Handles user redirection after cancelling a PayOS payment. Cancels the payment link and redirects the user.
 //	@Tags			PayOS
 //	@Produce		json
-//	@Param			returnUrl	query		string							false	"URL to redirect to after cancellation"
-//	@Param			code 		query 		string							true	"Payment link code"
-//	@Param			id 			query 		string							true	"Payment transaction ID"
-//	@Param			cancel		query		bool							true	"Indicates if the payment was cancelled"
-//	@Param			status		query		enum.PayOSStatus				true	"Status of the payment link"
-//	@Param			orderCode	query		string							true	"Order code associated with the payment"
+//	@Param			returnUrl	query	string				false	"URL to redirect to after cancellation"
+//	@Param			code		query	string				true	"Payment link code"
+//	@Param			id			query	string				true	"Payment transaction ID"
+//	@Param			cancel		query	bool				true	"Indicates if the payment was cancelled"
+//	@Param			status		query	enum.PayOSStatus	true	"Status of the payment link"
+//	@Param			orderCode	query	string				true	"Order code associated with the payment"
 //	@Success		302			"Redirects to the specified return URL or default cancel URL"
 //	@Failure		400			{object}	responses.APIResponse	"Bad request"
 //	@Failure		500			{object}	responses.APIResponse	"Internal server error"
