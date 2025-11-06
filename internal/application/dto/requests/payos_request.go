@@ -54,12 +54,12 @@ type ConfirmWebhookRequest struct {
 // CancelPaymentRequest represents a request to cancel a payment transaction
 // The json format is adhere to the PayOS return format for cancelling payment instead of internal snake_case format
 type CancelPaymentRequest struct {
-	ReturnURL string           `json:"returnUrl,omitempty" validate:"omitempty,url"`
-	Code      string           `json:"code" validate:"required"`
-	ID        string           `json:"id" validate:"required,uuid"` // payment transaction id
-	Cancel    bool             `json:"cancel" validate:"required"`
-	Status    enum.PayOSStatus `json:"status" validate:"required"`
-	OrderCode string           `json:"orderCode" validate:"required"`
+	ReturnURL string           `json:"returnUrl,omitempty" form:"returnUrl" validate:"required,url"`
+	Code      string           `json:"code" form:"code" validate:"required"`
+	ID        string           `json:"id" form:"id" validate:"required,uuid"` // payment transaction id
+	Cancel    bool             `json:"cancel" form:"cancel" validate:"required"`
+	Status    enum.PayOSStatus `json:"status" form:"status" validate:"required"`
+	OrderCode string           `json:"orderCode" form:"orderCode" validate:"required"`
 }
 
 // MapPaymentItemsFromOrderItems converts OrderItems to PaymentItemRequest

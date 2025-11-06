@@ -327,31 +327,18 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
 	}
 
-	transactions, _, err := uow.PaymentTransaction().GetAll(ctx, filterQuery, nil, 1, 1)
+	transaction, err := uow.PaymentTransaction().GetByCondition(ctx, filterQuery, nil)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
+			return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
+		}
 		zap.L().Error("Failed to find payment transaction", zap.Error(err))
 		return fmt.Errorf("failed to find payment transaction: %w", err)
-	}
-
-	if len(transactions) == 0 {
+	} else if transaction == nil {
 		zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
 		return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
 	}
-
-	transaction := transactions[0]
-
-	// 2. Map PayOS status to internal status
-	var payosStatus string
-	if webhookPayload.Code == "00" {
-		payosStatus = "PAID"
-	} else {
-		payosStatus = webhookPayload.Data.Code
-	}
-
-	newStatus := dtos.MapPayOSStatusString(payosStatus)
-
-	// 3. Update transaction status and metadata
-	transaction.Status = newStatus
 
 	if transaction.PayOSMetadata != nil {
 		// Parse transaction datetime
@@ -376,14 +363,13 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 	}
 
 	// 4. Persist changes using UnitOfWork
-	if err := uow.PaymentTransaction().Update(ctx, &transaction); err != nil {
+	if err := uow.PaymentTransaction().Update(ctx, transaction); err != nil {
 		zap.L().Error("Failed to update payment transaction from webhook", zap.Error(err))
 		return fmt.Errorf("failed to update transaction: %w", err)
 	}
 
 	zap.L().Info("Webhook processed successfully",
-		zap.String("transaction_id", transaction.ID.String()),
-		zap.String("new_status", string(newStatus)))
+		zap.String("transaction_id", transaction.ID.String()))
 
 	return nil
 }
