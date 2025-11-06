@@ -23,6 +23,6 @@ type ContractPaymentService interface {
 	CreatePaymentLinkFromContractPayment(
 		ctx context.Context,
 		uow irepository.UnitOfWork,
-		contractPaymentID uuid.UUID,
+		request *requests.GenerateContractPaymentLinkRequest,
 		paymentTransactionService PaymentTransactionService) (*responses.PayOSLinkResponse, error)
 }

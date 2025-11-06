@@ -4924,6 +4924,13 @@
                     {
                         "type": "string",
                         "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
+                        "description": "Brand User ID",
+                        "name": "brand_user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
                         "description": "Contract ID",
                         "name": "contract_id",
                         "in": "query"

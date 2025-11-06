@@ -42,12 +42,17 @@ func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, con
 }
 
 // CreatePaymentLinkFromContractPayment implements iservice.ContractPaymentService.
-func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(ctx context.Context, uow irepository.UnitOfWork, contractPaymentID uuid.UUID, paymentTransactionService iservice.PaymentTransactionService) (*responses.PayOSLinkResponse, error) {
+func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	request *requests.GenerateContractPaymentLinkRequest,
+	paymentTransactionService iservice.PaymentTransactionService,
+) (*responses.PayOSLinkResponse, error) {
 	zap.L().Info("Creating payment link from contract payment",
-		zap.String("contract_payment_id", contractPaymentID.String()))
+		zap.Any("request", request))
 
 	// 1. Fetch contract payment with contract and brand details
-	contractPayment, err := uow.ContractPayments().GetByID(ctx, contractPaymentID, []string{"Contract", "Contract.Brand"})
+	contractPayment, err := uow.ContractPayments().GetByID(ctx, request.ContractPaymentID, []string{"Contract", "Contract.Brand"})
 	if err != nil {
 		zap.L().Error("Failed to get contract payment", zap.Error(err))
 		return nil, fmt.Errorf("failed to get contract payment: %w", err)
@@ -73,6 +78,8 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(ctx contex
 		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
 		Amount:        int64(contractPayment.Amount),
 		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
+		ReturnURL:     &request.ReturnURL,
+		CancelURL:     &request.CancelURL,
 	}
 
 	// Add buyer information from contract brand if available
@@ -100,7 +107,6 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(ctx contex
 	}
 
 	zap.L().Info("Payment link created successfully for contract payment",
-		zap.String("contract_payment_id", contractPaymentID.String()),
 		zap.String("checkout_url", payosResp.CheckoutURL))
 
 	return payosResp, nil
@@ -114,6 +120,11 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 		if filter.BrandID != nil {
 			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
 				Where("c.brand_id = ?", *filter.BrandID)
+		}
+		if filter.BrandUserID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Joins("JOIN brands b ON b.id = c.brand_id").
+				Where("b.user_id = ?", *filter.BrandUserID)
 		}
 		if filter.ContractID != nil {
 			db = db.Where("contract_id = ?", *filter.ContractID)
