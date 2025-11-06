@@ -4,6 +4,7 @@ package requests
 type ContractPaymentFilterRequest struct {
 	PaginationRequest
 	BrandID       *string `json:"brand_id,omitempty" validate:"omitempty,uuid" example:"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"`
+	BrandUserID   *string `json:"brand_user_id,omitempty" validate:"omitempty,uuid" example:"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"`
 	ContractID    *string `json:"contract_id,omitempty" validate:"omitempty,uuid" example:"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"`
 	Status        *string `json:"status,omitempty" validate:"omitempty,oneof=PENDING PAID OVERDUE" example:"paid"`
 	DueDateFrom   *string `json:"due_date_from,omitempty" validate:"omitempty,datetime=2006-01-02" example:"2023-01-01"`

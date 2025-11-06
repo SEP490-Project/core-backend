@@ -115,6 +115,11 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
 				Where("c.brand_id = ?", *filter.BrandID)
 		}
+		if filter.BrandUserID != nil {
+			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
+				Joins("JOIN brands b ON b.id = c.brand_id").
+				Where("b.user_id = ?", *filter.BrandUserID)
+		}
 		if filter.ContractID != nil {
 			db = db.Where("contract_id = ?", *filter.ContractID)
 		}

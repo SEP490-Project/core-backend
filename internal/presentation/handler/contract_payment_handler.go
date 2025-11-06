@@ -105,6 +105,7 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 //	@Accept		json
 //	@Produce	json
 //	@Param		brand_id		query		string										false	"Brand ID"			example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
+//	@Param		brand_user_id	query		string										false	"Brand User ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE)		example("PAID")
 //	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
@@ -235,7 +236,7 @@ func (h *ContractPaymentHandler) GetContractPaymentByProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	req.BrandID = utils.PtrOrNil(userID.String())
+	req.BrandUserID = utils.PtrOrNil(userID.String())
 	if err = h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
