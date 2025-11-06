@@ -16,6 +16,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -29,6 +30,90 @@ type paymentTransactionService struct {
 	paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction]
 	payosProxy             iproxies.PayOSProxy
 	config                 *config.AppConfig
+}
+
+// GetPaymentTransactionByFilter implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByFilter(ctx context.Context, filter *requests.PaymentTransactionFilterRequest) ([]responses.PaymentTransactionResponse, int64, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByFilter called",
+		zap.Any("request", filter))
+
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		if filter.OrderCode != nil {
+			db = db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(int64(*filter.OrderCode), 10))
+		}
+		if filter.ReferenceID != nil {
+			db = db.Where("reference_id = ?", filter.ReferenceID)
+		}
+		if filter.ReferenceType != nil {
+			db = db.Where("reference_type = ?", filter.ReferenceType.String())
+		}
+		if filter.Status != nil {
+			db = db.Where("status = ?", filter.Status.String())
+		}
+		if filter.TransactionFromDate != nil {
+			db = db.Where("transaction_date >= ?", filter.TransactionFromDate)
+		}
+		if filter.TransactionToDate != nil {
+			db = db.Where("transaction_date <= ?", filter.TransactionToDate)
+		}
+
+		db = db.Order(helper.ConvertToSortString(filter.PaginationRequest))
+		return db
+	}
+
+	transactions, total, err := s.paymentTransactionRepo.GetAll(ctx, filterQuery, nil, filter.Limit, filter.Page)
+	if err != nil {
+		zap.L().Error("Failed to fetch payment transactions", zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to fetch transactions: %w", err)
+	}
+
+	return responses.PaymentTransactionResponse{}.ToResponseList(transactions), total, nil
+}
+
+// GetPaymentTransactionByID implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByID(ctx context.Context, transactionID uuid.UUID) (*responses.PaymentTransactionResponse, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByID called",
+		zap.String("id", transactionID.String()))
+
+	transaction, err := s.paymentTransactionRepo.GetByID(ctx, transactionID, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found", zap.String("id", transactionID.String()))
+			return nil, errors.New("payment transaction not found")
+		}
+		zap.L().Error("Failed to fetch payment transaction", zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
+	} else if transaction == nil {
+		zap.L().Warn("Payment transaction not found", zap.String("id", transactionID.String()))
+		return nil, errors.New("payment transaction not found")
+	}
+
+	return responses.PaymentTransactionResponse{}.ToResponse(transaction), nil
+}
+
+// GetPaymentTransactionByOrderCode implements iservice.PaymentTransactionService.
+func (s *paymentTransactionService) GetPaymentTransactionByOrderCode(ctx context.Context, orderCode string) (*responses.PaymentTransactionResponse, error) {
+	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByOrderCode called",
+		zap.String("order_code", orderCode))
+
+	orderCodeInt, _ := strconv.ParseInt(orderCode, 10, 64)
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(orderCodeInt, 10))
+	}
+	transaction, err := s.paymentTransactionRepo.GetByCondition(ctx, filterQuery, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found", zap.String("order_code", orderCode))
+			return nil, errors.New("payment transaction not found")
+		}
+		zap.L().Error("Failed to fetch payment transaction", zap.Error(err))
+		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
+	} else if transaction == nil {
+		zap.L().Warn("Payment transaction not found", zap.String("order_code", orderCode))
+		return nil, errors.New("payment transaction not found")
+	}
+
+	return responses.PaymentTransactionResponse{}.ToResponse(transaction), nil
 }
 
 // GeneratePaymentLink implements iservice.PaymentTransactionService
