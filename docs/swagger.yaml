@@ -5874,14 +5874,15 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Search keywords for campaign name
+      - description: Search keyword for campaign name
         in: query
-        name: keywords
+        name: keyword
         type: string
       - description: Filter by campaign status
         enum:
-        - ACTIVE
-        - INACTIVE
+        - RUNNING
+        - COMPLETED
+        - CANCELLED
         in: query
         name: status
         type: string
@@ -6130,6 +6131,38 @@ paths:
       - application/json
       description: Get a list of campaigns associated with the authenticated brand
         user.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search keywords for campaign name
+        in: query
+        name: keyword
+        type: string
+      - description: Filter by campaign status
+        enum:
+        - RUNNING
+        - COMPLETED
+        - CANCELLED
+        in: query
+        name: status
+        type: string
+      - description: Filter by campaign type
+        enum:
+        - ADVERTISING
+        - AFFILIATE
+        - BRAND_AMBASSADOR
+        - CO_PRODUCING
+        in: query
+        name: type
+        type: string
       produces:
       - application/json
       responses:

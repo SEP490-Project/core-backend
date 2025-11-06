@@ -2178,14 +2178,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Search keywords for campaign name",
-                        "name": "keywords",
+                        "description": "Search keyword for campaign name",
+                        "name": "keyword",
                         "in": "query"
                     },
                     {
                         "enum": [
-                            "ACTIVE",
-                            "INACTIVE"
+                            "RUNNING",
+                            "COMPLETED",
+                            "CANCELLED"
                         ],
                         "type": "string",
                         "description": "Filter by campaign status",
@@ -2318,6 +2319,51 @@ const docTemplate = `{
                     "Campaigns"
                 ],
                 "summary": "Get Campaigns Info by authenticated brand user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keywords for campaign name",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "RUNNING",
+                            "COMPLETED",
+                            "CANCELLED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by campaign status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ADVERTISING",
+                            "AFFILIATE",
+                            "BRAND_AMBASSADOR",
+                            "CO_PRODUCING"
+                        ],
+                        "type": "string",
+                        "description": "Filter by campaign type",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Campaigns retrieved successfully",

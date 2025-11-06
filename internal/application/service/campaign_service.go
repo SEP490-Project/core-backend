@@ -109,16 +109,55 @@ func (c *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.Un
 }
 
 // GetCampaignsInfoByUserID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error) {
+func (c *CampaignService) GetCampaignsInfoByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+	filterRequest *requests.CampaignFilterRequest,
+) ([]*responses.CampaignInfoResponse, int64, error) {
 	zap.L().Info("Retrieving campaigns info by user ID", zap.String("user_id", userID.String()))
 
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		if filterRequest.StartDate != nil {
+			db = db.Where("start_date >= ?", *filterRequest.StartDate)
+		}
+		if filterRequest.EndDate != nil {
+			db = db.Where("end_date <= ?", *filterRequest.EndDate)
+		}
+		if filterRequest.Keyword != nil {
+			db = db.Where("campaigns.name ILIKE ?", "%"+*filterRequest.Keyword+"%")
+		}
+		if filterRequest.Status != nil {
+			db = db.Where("campaigns.status = ?", *filterRequest.Status)
+		}
+		if filterRequest.Type != nil {
+			db = db.Where("campaigns.type = ?", *filterRequest.Type)
+		}
+		if filterRequest.Keyword != nil {
+			keyword := "%" + *filterRequest.Keyword + "%"
+			db = db.Where("campaigns.name ILIKE ? OR campaigns.description ILIKE ?", keyword, keyword)
+		}
+
+		sortBy := filterRequest.SortBy
+		sortOrder := filterRequest.SortOrder
+		if sortBy == "" {
+			sortBy = "created_at"
+		}
+		if sortOrder == "" || (sortOrder != "asc" && sortOrder != "desc") {
+			sortOrder = "desc"
+		}
+		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+
+		return db
+	}
+
 	query := func(db *gorm.DB) *gorm.DB {
-		return db.
-			InnerJoins("INNER JOIN contracts ON contracts.id = campaigns.contract_id").
-			InnerJoins("INNER JOIN brands on brands.id = contracts.brand_id").
+		return filterQuery(db).
+			Joins("INNER JOIN contracts ON contracts.id = campaigns.contract_id").
+			Joins("INNER JOIN brands ON brands.id = contracts.brand_id").
 			Where("brands.user_id = ?", userID)
 	}
-	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, 0, 0)
+
+	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -126,8 +165,7 @@ func (c *CampaignService) GetCampaignsInfoByUserID(ctx context.Context, userID u
 		return nil, 0, err
 	}
 
-	responses := responses.CampaignInfoResponse{}.ToCampaignInfoResponseList(campaigns)
-	return responses, totalCount, nil
+	return responses.CampaignInfoResponse{}.ToCampaignInfoResponseList(campaigns), totalCount, nil
 }
 
 // GetCampaignDetailsByContractID implements iservice.CampaignService.
