@@ -284,51 +284,46 @@ func (b *brandService) CreateBrandWithInActiveUsers(
 
 }
 
-func (b *brandService) MyProducts(ctx context.Context, brandID uuid.UUID) ([]responses.ProductResponseV2, int64, error) {
-	//	filter := func(db *gorm.DB) *gorm.DB {
-	//		if request.Keywords != nil && *request.Keywords != "" {
-	//			likePattern := fmt.Sprintf("%%%s%%", *request.Keywords)
-	//			db = db.Where("name ILIKE ?", likePattern)
-	//		}
-	//		if request.Status != nil && *request.Status != "" {
-	//			db = db.Where("status = ?", enum.BrandStatus(*request.Status))
-	//		}
-	//
-	//		sortBy := "created_at"
-	//		sortOrder := "desc"
-	//
-	//		if request.SortBy != "" {
-	//			sortBy = request.SortBy
-	//		}
-	//		if request.SortOrder != "" {
-	//			sortOrder = request.SortOrder
-	//		}
-	//
-	//		switch sortBy {
-	//		case "number_of_contracts":
-	//			db = db.
-	//				Select("brands.*, COUNT(contracts.id) AS number_of_contracts").
-	//				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
-	//				Group("brands.id").
-	//				Order(fmt.Sprintf("COUNT(contracts.id) %s", sortOrder))
-	//		case "number_of_active_contracts":
-	//			db = db.
-	//				Select("brands.*, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
-	//				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
-	//				Group("brands.id").
-	//				Order(fmt.Sprintf("SUM(CASE WHEN contracts.status = '%s' THEN 1 ELSE 0 END) %s", enum.ContractStatusActive, sortOrder))
-	//		default:
-	//			db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
-	//		}
-	//
-	//		return db
-	//	}
-	//
-	//	var brands []model.brand
-	//	var err error
-	//	var totalCount int64
-	//	resp := make([]responses.ProductResponseV2, 0)
-	return nil, 0, nil
+func (b *brandService) MyProducts(ctx context.Context, userID uuid.UUID, page int, limit int) ([]responses.ProductResponseV2, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		// default page size
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	// Filter products where the product's brand is owned by the given user (brands.user_id = userID)
+	filter := func(db *gorm.DB) *gorm.DB {
+		// join brands and users to allow filtering by brands.user_id (owner user)
+		return db.Joins("JOIN brands ON brands.id = products.brand_id").
+			Joins("JOIN users ON users.id = brands.user_id").
+			Where("users.id = ?", userID).
+			Order("products.created_at DESC")
+	}
+
+	includes := []string{"Brand", "Brand.User", "Category",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories"}
+
+	products, total, err := b.ProductRepository.GetAll(ctx, filter, includes, limit, offset)
+	if err != nil {
+		zap.L().Error("failed to fetch products for brand owner", zap.Error(err), zap.String("owner_user_id", userID.String()))
+		return nil, 0, err
+	}
+
+	resp := make([]responses.ProductResponseV2, 0, len(products))
+	for _, p := range products {
+		v2 := responses.ProductResponseV2{}
+		mapped := *v2.ToProductResponseV2(&p)
+		resp = append(resp, mapped)
+	}
+
+	return resp, total, nil
 }
 
 func NewBrandService(brandRepository irepository.GenericRepository[model.Brand], productRepository irepository.GenericRepository[model.Product]) iservice.BrandService {

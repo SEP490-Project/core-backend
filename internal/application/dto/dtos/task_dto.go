@@ -40,18 +40,19 @@ type TaskDetailDTO struct {
 
 // TaskListDTO represents a summarized view of a task for listing purposes.
 type TaskListDTO struct {
-	ID             uuid.UUID       `json:"id" gorm:"column:id"`
-	Name           string          `json:"name" gorm:"column:name"`
-	Deadline       time.Time       `json:"deadline" gorm:"column:deadline"`
-	Type           enum.TaskType   `json:"type" gorm:"column:type"`
-	Status         enum.TaskStatus `json:"status" gorm:"column:status"`
-	AssignedToID   *uuid.UUID      `json:"assigned_to_id,omitempty" gorm:"column:assigned_to_id"`
-	AssignedToName *string         `json:"assigned_to_name,omitempty" gorm:"column:assigned_to_name"`
-	AssignedToRole *enum.UserRole  `json:"assigned_to_role,omitempty" gorm:"column:assigned_to_role"`
-	CreatedAt      time.Time       `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt      time.Time       `json:"updated_at" gorm:"column:updated_at"`
-	MilestoneID    *uuid.UUID      `json:"milestone_id" gorm:"column:milestone_id"`
-	CampaignID     *uuid.UUID      `json:"campaign_id" gorm:"column:campaign_id"`
-	CampaignName   *string         `json:"campaign_name,omitempty" gorm:"column:campaign_name"`
-	ContractID     *uuid.UUID      `json:"contract_id" gorm:"column:contract_id"`
+	ID             uuid.UUID           `json:"id" gorm:"column:id"`
+	Name           string              `json:"name" gorm:"column:name"`
+	Deadline       time.Time           `json:"deadline" gorm:"column:deadline"`
+	Type           enum.TaskType       `json:"type" gorm:"column:type"`
+	Status         enum.TaskStatus     `json:"status" gorm:"column:status"`
+	AssignedToID   *uuid.UUID          `json:"assigned_to_id,omitempty" gorm:"column:assigned_to_id"`
+	AssignedToName *string             `json:"assigned_to_name,omitempty" gorm:"column:assigned_to_name"`
+	AssignedToRole *enum.UserRole      `json:"assigned_to_role,omitempty" gorm:"column:assigned_to_role"`
+	CreatedAt      time.Time           `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt      time.Time           `json:"updated_at" gorm:"column:updated_at"`
+	MilestoneID    *uuid.UUID          `json:"milestone_id" gorm:"column:milestone_id"`
+	CampaignID     *uuid.UUID          `json:"campaign_id" gorm:"column:campaign_id"`
+	CampaignName   *string             `json:"campaign_name,omitempty" gorm:"column:campaign_name"`
+	ContractID     *uuid.UUID          `json:"contract_id" gorm:"column:contract_id"`
+	ChildStatus    *enum.ProductStatus `json:"child_status" gorm:"column:child_status"`
 }

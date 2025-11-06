@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -318,51 +319,52 @@ func (bh *BrandHandler) UpdateBrandStatus(c *gin.Context) {
 //	@Failure		400			{object}	responses.APIResponse				"Invalid request"
 //	@Failure		500			{object}	responses.APIResponse				"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/brands [get]
+//	@Router			/api/v1/brands/my-product [get]
 func (bh *BrandHandler) MyProductsByFilter(c *gin.Context) {
-	request := requests.ListProductsByBrandRequest{}
-	if err := c.ShouldBindQuery(&request); err != nil {
-		response := responses.ErrorResponse("Invalid request format: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
-		return
-	}
-	if err := bh.Validator.Struct(&request); err != nil {
-		response := responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
+	// existing placeholder kept for compatibility; now implemented as wrapper that accepts brand id path param and query parameters
+	userID, err := extractUserID(c)
+	if err != nil {
+		response := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
 
-	//products, totalCount, err := bh.BrandService.GetByFilter(c.Request.Context(), &request)
-	//if err != nil {
-	//	response := responses.ErrorResponse("Failed to get products: "+err.Error(), http.StatusInternalServerError)
-	//	c.JSON(http.StatusInternalServerError, response)
-	//	return
-	//}
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
 
-	//if totalCount == 0 || len(products) == 0 {
-	//	response := responses.EmptyPaginationResponse[responses.BrandResponse](
-	//		"No brands found matching the filter criteria",
-	//		nil,
-	//		request.Page,
-	//		request.Limit,
-	//	)
-	//	c.JSON(http.StatusOK, response)
-	//	return
-	//}
-	//
-	//totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
-	//paginationResponse := responses.NewPaginationResponse(
-	//	"Successfully fetched brands",
-	//	http.StatusOK,
-	//	nil,
-	//	responses.Pagination{
-	//		Page:       request.Page,
-	//		Limit:      request.Limit,
-	//		Total:      totalCount,
-	//		TotalPages: totalPages,
-	//		HasNext:    request.Page < totalPages,
-	//		HasPrev:    request.Page > 1,
-	//	},
-	//)
-	c.JSON(http.StatusOK, nil)
+	products, total, err := bh.BrandService.MyProducts(c.Request.Context(), userID, page, limit)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get products: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Products retrieved successfully",
+		http.StatusOK,
+		products,
+		pagination,
+	)
+	c.JSON(http.StatusOK, resp)
 }

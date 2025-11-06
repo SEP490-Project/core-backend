@@ -355,6 +355,13 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 			marketingGroup.POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
 			marketingGroup.PUT("/:id", brandHandler.UpdateBrand)
 		}
+
+		//Brands only
+		brandGroup := brands.Group("")
+		brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
+		{
+			brandGroup.GET("/my-product", brandHandler.MyProductsByFilter)
+		}
 	}
 }
 
