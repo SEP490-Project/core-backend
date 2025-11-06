@@ -27,7 +27,7 @@ type Task struct {
 	// Relationships
 	AssignedStaff *User      `json:"-" gorm:"foreignKey:AssignedToID"`
 	Milestone     *Milestone `json:"-" gorm:"foreignKey:MilestoneID"`
-	Products      []*Product `json:"products" gorm:"foreignKey:TaskID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Product       *Product   `json:"product" gorm:"foreignKey:TaskID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Contents      []*Content `json:"contents" gorm:"foreignKey:TaskID;references:ID"`
 }
 

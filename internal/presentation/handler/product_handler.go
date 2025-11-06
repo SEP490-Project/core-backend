@@ -9,7 +9,9 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"reflect"
@@ -925,5 +927,51 @@ func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 		data,
 		pagination,
 	)
+	c.JSON(http.StatusOK, resp)
+}
+
+// PublishProduct godoc
+//
+//	@Summary		Publish or unpublish a product
+//	@Description	Toggle a product's active status (publish/unpublish). Requires Sales, Brand, or Admin role.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			id			path		string	true	"Product ID (UUID)"
+//	@Param			is-active	path		boolean	true	"Publish payload"
+//	@Success		200			{object}	responses.ProductResponseV2
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		404			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/publish/{id}/{is-active} [patch]
+func (h *ProductHandler) PublishProduct(c *gin.Context) {
+	idParam := c.Param("id")
+	activeParam := c.Param("is-active")
+
+	productID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		return
+	}
+
+	isActive, err := strconv.ParseBool(activeParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid is-active value"})
+		return
+	}
+
+	resp, svcErr := h.productService.PublishProduct(productID, isActive)
+	if svcErr != nil {
+		if errors.Is(svcErr, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+			return
+		}
+		zap.L().Error("publish product failed", zap.String("product_id", productID.String()), zap.Error(svcErr))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update product state"})
+		return
+	}
+
 	c.JSON(http.StatusOK, resp)
 }

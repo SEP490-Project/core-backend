@@ -51,6 +51,9 @@ type UnitOfWork interface {
 	OrderItem() GenericRepository[model.OrderItem]
 	PaymentTransaction() GenericRepository[model.PaymentTransaction]
 
+	//PreOrders
+	PreOrder() GenericRepository[model.PreOrder]
+
 	//Notifications
 	Notifications() NotificationRepository
 	DeviceTokens() DeviceTokenRepository

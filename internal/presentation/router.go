@@ -148,6 +148,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				protectedProducts.POST("/limited/:limited-id/concept/:concept-id", productHandler.AddConceptToLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
+				//Debt: do not allow brand to active this
+				protectedProducts.PATCH("/publish/:id/:is-active", productHandler.PublishProduct)
 			}
 
 			// State update (Sales, Brand only)
@@ -285,6 +287,15 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ghnPublicGroup.POST("/delivery/calculate-by-dimension", ghnHandler.CalculateDeliveryPriceByDimension)
 		}
 
+		// ---------- PRE-ORDERS ----------
+		preOrderHandler := r.handlerRegistry.PreOrderHandler
+		preOrderGroup := v1.Group("/preorders")
+		preOrderGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			preOrderGroup.POST("/place-and-pay", preOrderHandler.CreatePreOrderAndPay)
+			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
+		}
+
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
@@ -343,6 +354,13 @@ func (r *Router) setupBrandRoutes(group *gin.RouterGroup) {
 		{
 			marketingGroup.POST("/with-users", brandHandler.CreateBrandWithInActiveUsers)
 			marketingGroup.PUT("/:id", brandHandler.UpdateBrand)
+		}
+
+		//Brands only
+		brandGroup := brands.Group("")
+		brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
+		{
+			brandGroup.GET("/my-product", brandHandler.MyProductsByFilter)
 		}
 	}
 }
@@ -674,5 +692,13 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		payosGroup.GET("/payment/:orderCode", payOsHandler.GetPaymentInfo)
 		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
+	}
+
+	viewGroup := group.Group("/payments")
+	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
+	{
+		viewGroup.GET("", payOsHandler.GetByFilter)
+		viewGroup.GET("/id/:id", payOsHandler.GetByID)
+		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
 	}
 }

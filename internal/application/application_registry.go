@@ -43,6 +43,7 @@ type ApplicationRegistry struct {
 	ClickTrackingService          iservice.ClickTrackingService
 	AffiliateLinkAnalyticsService iservice.AffiliateLinkAnalyticsService
 	PaymentTransactionService     iservice.PaymentTransactionService
+	PreOrderService               iservice.PreOrderService
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 
 	//Manual Scheduler Trigger
@@ -95,7 +96,7 @@ func NewApplicationRegistry(
 		AuthService:                   service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository)),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
-		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository),
+		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ),
 		ContractService:               service.NewContractService(databaseRegistry),
 		CampaignService:               service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
@@ -116,6 +117,7 @@ func NewApplicationRegistry(
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
 		PaymentTransactionService:     service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy),
+		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 
 		//Manual Scheduler Trigger

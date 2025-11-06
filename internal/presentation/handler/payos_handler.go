@@ -8,16 +8,16 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type PayOsHandler struct {
@@ -26,6 +26,7 @@ type PayOsHandler struct {
 	stateTransferService      iservice.StateTransferService
 	payosProxy                iproxies.PayOSProxy
 	unitOfWork                irepository.UnitOfWork
+	validator                 *validator.Validate
 }
 
 func NewPayOsHandler(
@@ -35,12 +36,16 @@ func NewPayOsHandler(
 	payosProxy iproxies.PayOSProxy,
 	unitOfWork irepository.UnitOfWork,
 ) *PayOsHandler {
+	validator := validator.New()
+	validator.RegisterStructValidation(requests.ValidatePaymentTransactionFilterRequest, requests.PaymentTransactionFilterRequest{})
+
 	return &PayOsHandler{
 		config:                    config,
 		paymentTransactionService: paymentTransactionService,
 		stateTransferService:      stateTransferService,
 		payosProxy:                payosProxy,
 		unitOfWork:                unitOfWork,
+		validator:                 validator,
 	}
 }
 
@@ -175,7 +180,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		}
 	}()
 
@@ -184,25 +189,31 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		uow.Rollback()
 		zap.L().Error("Failed to process webhook", zap.Error(err))
 		// Still return 200 to acknowledge receipt, but log the error
-		c.JSON(http.StatusOK, gin.H{"status": "received", "error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": err.Error()})
 		return
 	}
 
 	// After processing payment transaction, find the updated transaction and trigger state transition
-	filterQuery := func(db *gorm.DB) *gorm.DB {
-		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
-	}
-
-	transactions, _, err := uow.PaymentTransaction().GetAll(c.Request.Context(), filterQuery, nil, 1, 1)
-	if err == nil && len(transactions) > 0 {
-		transaction := transactions[0]
-
+	// transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), strconv.Itoa(webhookPayload.Data.OrderCode))
+	transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), utils.ToString(webhookPayload.Data.OrderCode))
+	if err == nil && transaction != nil {
 		// Use StateTransferService to handle state transition and side effects
+
+		// 2. Map PayOS status to internal status
+		var payosStatus string
+		if webhookPayload.Code == "00" {
+			payosStatus = enum.PayOSStatusPaid.String()
+		} else {
+			payosStatus = webhookPayload.Data.Code
+		}
+
+		newStatus := dtos.MapPayOSStatusString(payosStatus)
+
 		if stateErr := h.stateTransferService.MovePaymentTransactionToState(
 			c.Request.Context(),
 			uow,
 			transaction.ID,
-			transaction.Status,
+			newStatus,
 			uuid.Nil,
 		); stateErr != nil {
 			uow.Rollback()
@@ -210,7 +221,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 				zap.String("transaction_id", transaction.ID.String()),
 				zap.String("status", string(transaction.Status)),
 				zap.Error(stateErr))
-			c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to update related entities"})
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": "Failed to update related entities"})
 			return
 		}
 	}
@@ -299,13 +310,24 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 //	@Router			/api/v1/payos/cancel-callback [get]
 func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	var req requests.CancelPaymentRequest
-	var queryMap map[string]string
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
 		return
 	}
-	if err := c.ShouldBindQuery(&queryMap); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+	zap.L().Debug("Cancel payment callback received", zap.Any("req", req))
+
+	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), req.OrderCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment transaction", http.StatusInternalServerError))
+		return
+	}
+
+	switch paymentResponse.Status {
+	case enum.PaymentTransactionStatusCancelled.String(), enum.PaymentTransactionStatusExpired.String():
+		c.JSON(http.StatusOK, responses.SuccessResponse("Payment transaction is already cancelled or expired", utils.PtrOrNil(http.StatusOK), nil))
+		return
+	case enum.PaymentTransactionStatusCompleted.String():
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Payment transaction is already completed", http.StatusBadRequest))
 		return
 	}
 
@@ -313,19 +335,29 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
 		}
 	}()
 
-	if err := h.paymentTransactionService.CancelPaymentLink(c.Request.Context(), uow, req.OrderCode, "User manually cancelled payment"); err != nil {
+	if err = h.stateTransferService.MovePaymentTransactionToState(c.Request.Context(), uow, paymentResponse.ID, enum.PaymentTransactionStatusCancelled, uuid.Nil); err != nil {
 		uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel payment link", http.StatusInternalServerError))
 		return
 	}
 
+	if err = uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel payment link", http.StatusInternalServerError))
+		return
+	}
+
 	var redirectURL string
-	var err error
-	delete(queryMap, "returnUrl")
+	queryMap := map[string]any{
+		"code":      req.Code,
+		"id":        req.ID,
+		"cancel":    req.Cancel,
+		"status":    req.Status,
+		"orderCode": req.OrderCode,
+	}
 	if req.ReturnURL != "" {
 		redirectURL, err = utils.AddQueryParams(req.ReturnURL, queryMap)
 	} else {
@@ -338,4 +370,120 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	}
 
 	c.Redirect(http.StatusFound, redirectURL)
+}
+
+// GetByFilter godoc
+//
+//	@Summary		Get payment transactions by filter
+//	@Description	Retrieve payment transactions based on various filter criteria with pagination
+//	@Tags			PayOS
+//	@Produce		json
+//	@Param			reference_id			query		string											false	"Filter by Reference ID (UUID)"
+//	@Param			reference_type			query		string											false	"Filter by Reference Type (ORDER, CONTRACT_PAYMENT)"
+//	@Param			status					query		string											false	"Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)"
+//	@Param			method					query		string											false	"Filter by Payment Method (CREDIT_CARD, BANK_TRANSFER, E_WALLET)"
+//	@Param			transaction_from_date	query		string											false	"Filter by Transaction From Date (YYYY-MM-DD)"
+//	@Param			transaction_to_date		query		string											false	"Filter by Transaction To Date (YYYY-MM-DD)"
+//	@Param			page					query		int												false	"Page number for pagination (default is 1)"
+//	@Param			limit					query		int												false	"Number of items per page for pagination (default is 10)"
+//	@Param			sort_by					query		string											false	"Field to sort by (e.g., transaction_date, amount)"
+//	@Param			sort_order				query		string											false	"Sort order (asc or desc)"
+//	@Success		200						{object}	responses.PaymentTransactionPaginationResponse	"Payment transactions retrieved successfully"
+//	@Failure		400						{object}	responses.APIResponse							"Bad request"
+//	@Failure		500						{object}	responses.APIResponse							"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/payments [get]
+func (h *PayOsHandler) GetByFilter(c *gin.Context) {
+	var req requests.PaymentTransactionFilterRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		return
+	}
+	if err := h.validator.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	paymentResponse, total, err := h.paymentTransactionService.GetPaymentTransactionByFilter(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment transactions", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.NewPaginationResponse(
+		"Payment transactions retrieved successfully",
+		http.StatusOK,
+		paymentResponse,
+		responses.Pagination{
+			Total: total,
+			Page:  req.Page,
+			Limit: req.Limit},
+	))
+}
+
+// GetByID godoc
+//
+//	@Summary		Get payment transaction by ID
+//	@Description	Retrieve a payment transaction by its unique ID
+//	@Tags			PayOS
+//	@Produce		json
+//	@Param			id	path		string																true	"Payment Transaction ID (UUID)"
+//	@Success		200	{object}	responses.APIResponse{data=responses.PaymentTransactionResponse}	"Payment transaction retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse												"Bad request"
+//	@Failure		404	{object}	responses.APIResponse												"Payment transaction not found"
+//	@Failure		500	{object}	responses.APIResponse												"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/payments/id/{id} [get]
+func (h *PayOsHandler) GetByID(c *gin.Context) {
+	transactionID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid transaction ID", http.StatusBadRequest))
+		return
+	}
+
+	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByID(c.Request.Context(), transactionID)
+	if err != nil {
+		switch err.Error() {
+		case "payment transaction not found":
+			c.JSON(http.StatusNotFound, responses.ErrorResponse("Payment transaction not found", http.StatusNotFound))
+		default:
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment transaction", http.StatusInternalServerError))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Payment transaction retrieved successfully", nil, paymentResponse))
+}
+
+// GetByOrderCode godoc
+//
+//	@Summary		Get payment transaction by order code
+//	@Description	Retrieve a payment transaction by its associated order code
+//	@Tags			PayOS
+//	@Produce		json
+//	@Param			order_code	path		string																true	"Order Code"
+//	@Success		200			{object}	responses.APIResponse{data=responses.PaymentTransactionResponse}	"Payment transaction retrieved successfully"
+//	@Failure		400			{object}	responses.APIResponse												"Bad request"
+//	@Failure		404			{object}	responses.APIResponse												"Payment transaction not found"
+//	@Failure		500			{object}	responses.APIResponse												"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/payments/order-code/{order_code} [get]
+func (h *PayOsHandler) GetByOrderCode(c *gin.Context) {
+	orderCode := c.Param("order_code")
+	if orderCode == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Order code is required", http.StatusBadRequest))
+		return
+	}
+	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), orderCode)
+	if err != nil {
+		switch err.Error() {
+		case "payment transaction not found":
+			c.JSON(http.StatusNotFound, responses.ErrorResponse("Payment transaction not found", http.StatusNotFound))
+		default:
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment transaction", http.StatusInternalServerError))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Payment transaction retrieved successfully", nil, paymentResponse))
 }

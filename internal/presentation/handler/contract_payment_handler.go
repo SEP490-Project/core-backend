@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type ContractPaymentHandler struct {
@@ -105,6 +106,7 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 //	@Accept		json
 //	@Produce	json
 //	@Param		brand_id		query		string										false	"Brand ID"			example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
+//	@Param		brand_user_id	query		string										false	"Brand User ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE)		example("PAID")
 //	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
@@ -235,7 +237,7 @@ func (h *ContractPaymentHandler) GetContractPaymentByProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	req.BrandID = utils.PtrOrNil(userID.String())
+	req.BrandUserID = utils.PtrOrNil(userID.String())
 	if err = h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
@@ -264,6 +266,8 @@ func (h *ContractPaymentHandler) GetContractPaymentByProfile(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			contract_payment_id	path		string													true	"Contract Payment ID"	example("b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6")
+//	@Param			return_url			query		string													false	"Return URL after payment completion"	example("https://example.com/return")
+//	@Param			cancel_url			query		string													false	"Cancel URL after payment cancellation"	example("https://example.com/cancel")
 //	@Success		200					{object}	responses.APIResponse{data=responses.PayOSLinkResponse}	"Payment link generated successfully"
 //	@Failure		400					{object}	responses.APIResponse									"Invalid request or payment not in PENDING status"
 //	@Failure		404					{object}	responses.APIResponse									"Contract payment not found"
@@ -276,22 +280,24 @@ func (h *ContractPaymentHandler) GeneratePaymentLink(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid contract_payment_id: "+err.Error(), http.StatusBadRequest))
 		return
 	}
+	var req requests.GenerateContractPaymentLinkRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		zap.L().Warn("Failed to bind query parameters for payment link generation, using defaults", zap.Error(err))
+	}
+	req.ContractPaymentID = contractPaymentID
 
 	// Begin transaction
 	uow := h.unitOfWork.Begin(c.Request.Context())
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
 		}
 	}()
 
 	// Generate payment link
 	payosResp, err := h.contractPaymentService.CreatePaymentLinkFromContractPayment(
-		c.Request.Context(),
-		uow,
-		contractPaymentID,
-		h.paymentTransactionService,
+		c.Request.Context(), uow, &req, h.paymentTransactionService,
 	)
 
 	if err != nil {

@@ -1854,6 +1854,102 @@
                 }
             }
         },
+        "/api/v1/brands/my-product": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of brands with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brands"
+                ],
+                "summary": "Get Brands List by filter",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keywords for brand name",
+                        "name": "keywords",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "ACTIVE",
+                            "INACTIVE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by brand status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "name",
+                            "created_at",
+                            "number_of_contracts",
+                            "number_of_active_contracts"
+                        ],
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Brands fetched successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.BrandPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/brands/with-users": {
             "post": {
                 "security": [
@@ -4828,6 +4924,13 @@
                     {
                         "type": "string",
                         "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
+                        "description": "Brand User ID",
+                        "name": "brand_user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
                         "description": "Contract ID",
                         "name": "contract_id",
                         "in": "query"
@@ -5256,6 +5359,20 @@
                         "name": "contract_payment_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"https://example.com/return\"",
+                        "description": "Return URL after payment completion",
+                        "name": "return_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"https://example.com/cancel\"",
+                        "description": "Cancel URL after payment cancellation",
+                        "name": "cancel_url",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -7630,6 +7747,233 @@
                 }
             }
         },
+        "/api/v1/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve payment transactions based on various filter criteria with pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Get payment transactions by filter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by Reference ID (UUID)",
+                        "name": "reference_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Reference Type (ORDER, CONTRACT_PAYMENT)",
+                        "name": "reference_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Payment Method (CREDIT_CARD, BANK_TRANSFER, E_WALLET)",
+                        "name": "method",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Transaction From Date (YYYY-MM-DD)",
+                        "name": "transaction_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Transaction To Date (YYYY-MM-DD)",
+                        "name": "transaction_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default is 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page for pagination (default is 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by (e.g., transaction_date, amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment transactions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaymentTransactionPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments/id/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a payment transaction by its unique ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Get payment transaction by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment Transaction ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment transaction retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Payment transaction not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments/order-code/{order_code}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a payment transaction by its associated order code",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Get payment transaction by order code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order Code",
+                        "name": "order_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment transaction retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Payment transaction not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/payos/cancel": {
             "post": {
                 "security": [
@@ -7993,6 +8337,147 @@
                 }
             }
         },
+        "/api/v1/preorders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns user's preorders with pagination, optional status filter and search by product name or receiver name",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders"
+                ],
+                "summary": "Get paginated preorders by current user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 10, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by product name or receiver full name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.PreOrder"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/place-and-pay": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reserve a product variant as a preorder. This will decrement variant stock and create a preorder record.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders"
+                ],
+                "summary": "Create a PreOrder (reserve stock)",
+                "parameters": [
+                    {
+                        "description": "PreOrder payload",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PreOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products": {
             "get": {
                 "security": [
@@ -8204,6 +8689,94 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/publish/{id}/{is-active}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Toggle a product's active status (publish/unpublish). Requires Sales, Brand, or Admin role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Publish or unpublish a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Publish payload",
+                        "name": "is-active",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductResponseV2"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -12067,6 +12640,31 @@
                 "PlatformTypeAndroid"
             ]
         },
+        "enum.PreOrderStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "PRE_ORDERED",
+                "AWAITING_RELEASE",
+                "AWAITING_PICKUP",
+                "CONFIRMED",
+                "CANCELLED",
+                "IN_TRANSIT",
+                "DELIVERED",
+                "RECEIVED"
+            ],
+            "x-enum-varnames": [
+                "PreOrderStatusPending",
+                "PreOrderStatusPreOrdered",
+                "PreOrderStatusAwaitingRelease",
+                "PreOrderStatusAwaitingPickup",
+                "PreOrderStatusConfirmed",
+                "PreOrderStatusCancelled",
+                "PreOrderStatusInTransit",
+                "PreOrderStatusDelivered",
+                "PreOrderStatusReceived"
+            ]
+        },
         "enum.ProductStatus": {
             "type": "string",
             "enum": [
@@ -12450,6 +13048,116 @@
                 },
                 "weight": {
                     "description": "DeletedAt gorm.DeletedAt `json:\"deleted_at\" gorm:\"column:deleted_at;index\"`",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                }
+            }
+        },
+        "model.PreOrder": {
+            "type": "object",
+            "properties": {
+                "address_line2": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "description": "The same as orderItem",
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "The same as order which Copied shipping address fields",
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.PreOrderStatus"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
@@ -13673,6 +14381,31 @@
                 "success_url": {
                     "type": "string",
                     "example": "https://example.com/success"
+                }
+            }
+        },
+        "requests.PreOrderRequest": {
+            "type": "object",
+            "required": [
+                "address_id",
+                "variant_id"
+            ],
+            "properties": {
+                "address_id": {
+                    "type": "string",
+                    "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                },
+                "cancel_url": {
+                    "type": "string",
+                    "example": "https://example.com/cancel"
+                },
+                "success_url": {
+                    "type": "string",
+                    "example": "https://example.com/success"
+                },
+                "variant_id": {
+                    "type": "string",
+                    "example": "69700831-4112-44fd-bf7f-07b015f56218"
                 }
             }
         },
@@ -16087,6 +16820,77 @@
                             }
                         }
                     }
+                }
+            }
+        },
+        "responses.PaymentTransactionPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.PaymentTransactionResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "string",
+                    "example": "99.99"
+                },
+                "gateway_id": {
+                    "type": "string",
+                    "example": "GATEWAY987654321"
+                },
+                "gateway_ref": {
+                    "type": "string",
+                    "example": "PAYOS123456789"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f"
+                },
+                "method": {
+                    "type": "string",
+                    "example": "CREDIT_CARD"
+                },
+                "reference_id": {
+                    "type": "string",
+                    "example": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
+                },
+                "reference_type": {
+                    "type": "string",
+                    "example": "ORDER"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "COMPLETED"
+                },
+                "transaction_date": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-02T12:00:00Z"
                 }
             }
         },
