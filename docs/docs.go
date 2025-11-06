@@ -1227,6 +1227,30 @@ const docTemplate = `{
                         "description": "Filter by brand status",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "name",
+                            "created_at",
+                            "number_of_contracts",
+                            "number_of_active_contracts"
+                        ],
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -16014,6 +16038,10 @@ const docTemplate = `{
                 "campaign_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "campaign_name": {
+                    "type": "string",
+                    "example": "Summer Sale Campaign"
                 },
                 "contract_id": {
                     "type": "string",

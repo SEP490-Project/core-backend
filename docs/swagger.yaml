@@ -4019,6 +4019,9 @@ definitions:
       campaign_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      campaign_name:
+        example: Summer Sale Campaign
+        type: string
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -5184,6 +5187,24 @@ paths:
         - INACTIVE
         in: query
         name: status
+        type: string
+      - default: created_at
+        description: Sort by field
+        enum:
+        - name
+        - created_at
+        - number_of_contracts
+        - number_of_active_contracts
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
         type: string
       produces:
       - application/json

@@ -66,15 +66,34 @@ func (b *brandService) GetByFilter(ctx context.Context, request *requests.ListBr
 		if request.Status != nil && *request.Status != "" {
 			db = db.Where("status = ?", enum.BrandStatus(*request.Status))
 		}
+
+		sortBy := "created_at"
+		sortOrder := "desc"
+
 		if request.SortBy != "" {
-			sortOrder := "asc" // Default to ascending
-			if request.SortOrder != "" && (request.SortOrder == "asc" || request.SortOrder == "desc") {
-				sortOrder = request.SortOrder
-				db = db.Order(fmt.Sprintf("%s %s", request.SortBy, sortOrder))
-			} else {
-				db = db.Order(fmt.Sprintf("%s %s", request.SortBy, sortOrder))
-			}
+			sortBy = request.SortBy
 		}
+		if request.SortOrder != "" {
+			sortOrder = request.SortOrder
+		}
+
+		switch sortBy {
+		case "number_of_contracts":
+			db = db.
+				Select("brands.*, COUNT(contracts.id) AS number_of_contracts").
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("COUNT(contracts.id) %s", sortOrder))
+		case "number_of_active_contracts":
+			db = db.
+				Select("brands.*, SUM(CASE WHEN contracts.status = ? THEN 1 ELSE 0 END) AS number_of_active_contracts", enum.ContractStatusActive).
+				Joins("LEFT JOIN contracts ON contracts.brand_id = brands.id").
+				Group("brands.id").
+				Order(fmt.Sprintf("SUM(CASE WHEN contracts.status = '%s' THEN 1 ELSE 0 END) %s", enum.ContractStatusActive, sortOrder))
+		default:
+			db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+		}
+
 		return db
 	}
 
