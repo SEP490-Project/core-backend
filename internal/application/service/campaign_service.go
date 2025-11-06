@@ -123,9 +123,6 @@ func (c *CampaignService) GetCampaignsInfoByUserID(
 		if filterRequest.EndDate != nil {
 			db = db.Where("end_date <= ?", *filterRequest.EndDate)
 		}
-		if filterRequest.Keyword != nil {
-			db = db.Where("campaigns.name ILIKE ?", "%"+*filterRequest.Keyword+"%")
-		}
 		if filterRequest.Status != nil {
 			db = db.Where("campaigns.status = ?", *filterRequest.Status)
 		}
@@ -300,9 +297,6 @@ func (c *CampaignService) GetCampaignsByFilter(
 		}
 		if filterRequest.EndDate != nil {
 			db = db.Where("end_date <= ?", *filterRequest.EndDate)
-		}
-		if filterRequest.Keyword != nil {
-			db = db.Where("name ILIKE ?", "%"+*filterRequest.Keyword+"%")
 		}
 		if filterRequest.Status != nil {
 			db = db.Where("status = ?", *filterRequest.Status)
