@@ -13,13 +13,11 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type PayOsHandler struct {
@@ -182,7 +180,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		}
 	}()
 
@@ -191,25 +189,31 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		uow.Rollback()
 		zap.L().Error("Failed to process webhook", zap.Error(err))
 		// Still return 200 to acknowledge receipt, but log the error
-		c.JSON(http.StatusOK, gin.H{"status": "received", "error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": err.Error()})
 		return
 	}
 
 	// After processing payment transaction, find the updated transaction and trigger state transition
-	filterQuery := func(db *gorm.DB) *gorm.DB {
-		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
-	}
-
-	transactions, _, err := uow.PaymentTransaction().GetAll(c.Request.Context(), filterQuery, nil, 1, 1)
-	if err == nil && len(transactions) > 0 {
-		transaction := transactions[0]
-
+	// transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), strconv.Itoa(webhookPayload.Data.OrderCode))
+	transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), utils.ToString(webhookPayload.Data.OrderCode))
+	if err == nil && transaction != nil {
 		// Use StateTransferService to handle state transition and side effects
+
+		// 2. Map PayOS status to internal status
+		var payosStatus string
+		if webhookPayload.Code == "00" {
+			payosStatus = enum.PayOSStatusPaid.String()
+		} else {
+			payosStatus = webhookPayload.Data.Code
+		}
+
+		newStatus := dtos.MapPayOSStatusString(payosStatus)
+
 		if stateErr := h.stateTransferService.MovePaymentTransactionToState(
 			c.Request.Context(),
 			uow,
 			transaction.ID,
-			transaction.Status,
+			newStatus,
 			uuid.Nil,
 		); stateErr != nil {
 			uow.Rollback()
@@ -217,7 +221,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 				zap.String("transaction_id", transaction.ID.String()),
 				zap.String("status", string(transaction.Status)),
 				zap.Error(stateErr))
-			c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to update related entities"})
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": "Failed to update related entities"})
 			return
 		}
 	}
@@ -306,15 +310,11 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 //	@Router			/api/v1/payos/cancel-callback [get]
 func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	var req requests.CancelPaymentRequest
-	var queryMap map[string]string
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
 		return
 	}
-	if err := c.ShouldBindQuery(&queryMap); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
+	zap.L().Debug("Cancel payment callback received", zap.Any("req", req))
 
 	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), req.OrderCode)
 	if err != nil {
@@ -324,7 +324,7 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 
 	switch paymentResponse.Status {
 	case enum.PaymentTransactionStatusCancelled.String(), enum.PaymentTransactionStatusExpired.String():
-		c.JSON(http.StatusOK, responses.ErrorResponse("Payment transaction is already cancelled or expired", http.StatusOK))
+		c.JSON(http.StatusOK, responses.SuccessResponse("Payment transaction is already cancelled or expired", utils.PtrOrNil(http.StatusOK), nil))
 		return
 	case enum.PaymentTransactionStatusCompleted.String():
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Payment transaction is already completed", http.StatusBadRequest))
@@ -335,7 +335,7 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
 		}
 	}()
 
@@ -351,7 +351,13 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 	}
 
 	var redirectURL string
-	delete(queryMap, "returnUrl")
+	queryMap := map[string]any{
+		"code":      req.Code,
+		"id":        req.ID,
+		"cancel":    req.Cancel,
+		"status":    req.Status,
+		"orderCode": req.OrderCode,
+	}
 	if req.ReturnURL != "" {
 		redirectURL, err = utils.AddQueryParams(req.ReturnURL, queryMap)
 	} else {
