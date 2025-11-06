@@ -641,6 +641,7 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 
 	// Public webhook endpoint (no authentication required for PayOS callbacks)
 	group.POST("/payos/webhook", payOsHandler.HandleWebhook)
+	group.GET("/payos/cancel-callback", payOsHandler.HandleCancelCallback)
 
 	// Admin-protected PayOS routes
 	payosGroup := group.Group("/payos")
