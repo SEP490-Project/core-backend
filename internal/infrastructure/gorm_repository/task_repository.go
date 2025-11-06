@@ -22,7 +22,7 @@ type TaskRepository struct {
 func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.TaskFilterRequest) (data []dtos.TaskListDTO, total int64, err error) {
 	filterQuery := func(db *gorm.DB) *gorm.DB {
 		if filter.CreatedByID != nil {
-			db = db.Where("created_by_id = ?", *filter.CreatedByID)
+			db = db.Where("tasks.created_by = ?", *filter.CreatedByID)
 		}
 		if filter.AssignedToID != nil {
 			db = db.Where("a.id = ?", *filter.AssignedToID)
@@ -89,6 +89,7 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			"tasks.created_at",
 			"tasks.updated_at",
 			"m.id as milestone_id",
+			"c.name as campaign_name",
 			"c.id as campaign_id",
 			"c.contract_id as contract_id").
 		Joins("LEFT JOIN users AS a ON tasks.assigned_to = a.id").

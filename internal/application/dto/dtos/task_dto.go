@@ -52,5 +52,6 @@ type TaskListDTO struct {
 	UpdatedAt      time.Time       `json:"updated_at" gorm:"column:updated_at"`
 	MilestoneID    *uuid.UUID      `json:"milestone_id" gorm:"column:milestone_id"`
 	CampaignID     *uuid.UUID      `json:"campaign_id" gorm:"column:campaign_id"`
+	CampaignName   *string         `json:"campaign_name,omitempty" gorm:"column:campaign_name"`
 	ContractID     *uuid.UUID      `json:"contract_id" gorm:"column:contract_id"`
 }

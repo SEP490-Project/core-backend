@@ -27,17 +27,137 @@ type CampaignService struct {
 	contractRepo irepository.GenericRepository[model.Contract]
 }
 
+// SetRejectReason implements iservice.CampaignService.
+func (c *CampaignService) SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error {
+	zap.L().Info("CampaignService - SetRejectReason called",
+		zap.String("campaign_id", campaignID.String()),
+		zap.String("reason", reason),
+		zap.String("updated_by", updatedBy.String()))
+
+	campaignRepo := uow.Campaigns()
+	campaign, err := campaignRepo.GetByID(ctx, campaignID, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Campaign not found", zap.String("campaign_id", campaignID.String()))
+			return fmt.Errorf("campaign with ID %s not found", campaignID.String())
+		}
+		zap.L().Error("Failed to retrieve campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
+		return err
+	} else if campaign == nil {
+		zap.L().Warn("Campaign not found", zap.String("campaign_id", campaignID.String()))
+		return fmt.Errorf("campaign with ID %s not found", campaignID.String())
+	}
+
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ?", campaignID)
+	}
+	if err := campaignRepo.UpdateByCondition(ctx, filterQuery, map[string]any{
+		"reject_reason": &reason,
+		"updated_by":    &updatedBy,
+	}); err != nil {
+		zap.L().Error("Failed to update campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
+		return err
+	}
+
+	zap.L().Info("Successfully set reject reason for campaign",
+		zap.String("campaign_id", campaignID.String()))
+	return nil
+}
+
+// UpdateCampaign implements iservice.CampaignService.
+func (c *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, request *requests.UpdateCampaignRequest) (*responses.CampaignDetailsResponse, error) {
+	zap.L().Info("Updating campaign",
+		zap.String("campaign_id", campaignID.String()),
+		zap.Any("request", request))
+
+	// 1. Load existing campaign
+	campaignRepo := uow.Campaigns()
+	existing, err := campaignRepo.GetByID(ctx, campaignID, nil)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Campaign not found", zap.String("campaign_id", campaignID.String()))
+			return nil, errors.New("campaign not found")
+		}
+		zap.L().Error("Failed to retrieve campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
+		return nil, err
+	} else if existing == nil {
+		zap.L().Warn("Campaign not found", zap.String("campaign_id", campaignID.String()))
+		return nil, errors.New("campaign not found")
+	}
+
+	if existing.Status != enum.CampaignDraft {
+		zap.L().Warn("CampaignService - UpdateCampaign: Only DRAFT campaigns can be updated",
+			zap.String("campaign_id", campaignID.String()))
+		return nil, errors.New("only DRAFT campaigns can be updated")
+	}
+
+	// 2. Apply updates
+	updatingCampaign, err := request.ToExistingModel(existing)
+	if err != nil {
+		zap.L().Error("Failed to apply updates", zap.Error(err))
+		return nil, err
+	}
+
+	// 3. Persist changes
+	if err := campaignRepo.Update(ctx, updatingCampaign); err != nil {
+		zap.L().Error("Failed to update campaign", zap.Error(err))
+		return nil, err
+	}
+
+	zap.L().Info("Successfully updated campaign")
+	return c.GetCampaignDetailsByID(ctx, campaignID)
+}
+
 // GetCampaignsInfoByUserID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error) {
+func (c *CampaignService) GetCampaignsInfoByUserID(
+	ctx context.Context,
+	userID uuid.UUID,
+	filterRequest *requests.CampaignFilterRequest,
+) ([]*responses.CampaignInfoResponse, int64, error) {
 	zap.L().Info("Retrieving campaigns info by user ID", zap.String("user_id", userID.String()))
 
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		if filterRequest.StartDate != nil {
+			db = db.Where("start_date >= ?", *filterRequest.StartDate)
+		}
+		if filterRequest.EndDate != nil {
+			db = db.Where("end_date <= ?", *filterRequest.EndDate)
+		}
+		if filterRequest.Keyword != nil {
+			db = db.Where("campaigns.name ILIKE ?", "%"+*filterRequest.Keyword+"%")
+		}
+		if filterRequest.Status != nil {
+			db = db.Where("campaigns.status = ?", *filterRequest.Status)
+		}
+		if filterRequest.Type != nil {
+			db = db.Where("campaigns.type = ?", *filterRequest.Type)
+		}
+		if filterRequest.Keyword != nil {
+			keyword := "%" + *filterRequest.Keyword + "%"
+			db = db.Where("campaigns.name ILIKE ? OR campaigns.description ILIKE ?", keyword, keyword)
+		}
+
+		sortBy := filterRequest.SortBy
+		sortOrder := filterRequest.SortOrder
+		if sortBy == "" {
+			sortBy = "created_at"
+		}
+		if sortOrder == "" || (sortOrder != "asc" && sortOrder != "desc") {
+			sortOrder = "desc"
+		}
+		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+
+		return db
+	}
+
 	query := func(db *gorm.DB) *gorm.DB {
-		return db.
-			InnerJoins("INNER JOIN contracts ON contracts.id = campaigns.contract_id").
-			InnerJoins("INNER JOIN brands on brands.id = contracts.brand_id").
+		return filterQuery(db).
+			Joins("INNER JOIN contracts ON contracts.id = campaigns.contract_id").
+			Joins("INNER JOIN brands ON brands.id = contracts.brand_id").
 			Where("brands.user_id = ?", userID)
 	}
-	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, 0, 0)
+
+	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -45,8 +165,7 @@ func (c *CampaignService) GetCampaignsInfoByUserID(ctx context.Context, userID u
 		return nil, 0, err
 	}
 
-	responses := responses.CampaignInfoResponse{}.ToCampaignInfoResponseList(campaigns)
-	return responses, totalCount, nil
+	return responses.CampaignInfoResponse{}.ToCampaignInfoResponseList(campaigns), totalCount, nil
 }
 
 // GetCampaignDetailsByContractID implements iservice.CampaignService.
@@ -310,6 +429,7 @@ func (c *CampaignService) CreateInternalCampaign(
 	creatingMilestoneModels := creatingCampaignModel.Milestones
 	creatingCampaignModel.Milestones = nil
 	// Set campaign status to RUNNING for internal campaigns
+	creatingCampaignModel.ContractID = uuid.Nil
 	creatingCampaignModel.Status = enum.CampaignRunning
 	if err = campaignRepo.Add(ctx, creatingCampaignModel); err != nil {
 		zap.L().Error("Failed to add campaign to repository", zap.Error(err))

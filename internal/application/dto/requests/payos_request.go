@@ -16,8 +16,8 @@ type PaymentItemRequest struct {
 // PaymentRequest represents a request to create a payment link for an order or contract
 type PaymentRequest struct {
 	// Reference information
-	ReferenceID   uuid.UUID                            `json:"referenceId" validate:"required,uuid"`
-	ReferenceType enum.PaymentTransactionReferenceType `json:"referenceType" validate:"required,oneof=ORDER CONTRACT"`
+	ReferenceID   uuid.UUID                            `json:"reference_id" validate:"required,uuid"`
+	ReferenceType enum.PaymentTransactionReferenceType `json:"reference_type" validate:"required,oneof=ORDER CONTRACT_PAYMENT"`
 
 	// Payment details
 	Amount      int64                `json:"amount" validate:"required,gt=0"`
@@ -25,14 +25,29 @@ type PaymentRequest struct {
 	Items       []PaymentItemRequest `json:"items,omitempty"`
 
 	// Buyer information (for PayOS fields)
-	BuyerName  string `json:"buyerName"`
-	BuyerEmail string `json:"buyerEmail"`
-	BuyerPhone string `json:"buyerPhone"`
+	BuyerName  string `json:"buyer_name"`
+	BuyerEmail string `json:"buyer_email"`
+	BuyerPhone string `json:"buyer_phone"`
+
+	// URLs
+	ReturnURL *string `json:"return_url,omitempty" validate:"omitempty,url"`
+	CancelURL *string `json:"cancel_url,omitempty" validate:"omitempty,url"`
 }
 
 // ConfirmWebhookRequest represents a request to confirm the webhook URL with PayOS
 type ConfirmWebhookRequest struct {
-	WebhookURL string `json:"webhookUrl" validate:"required,url"`
+	WebhookURL string `json:"webhook_url" validate:"required,url"`
+}
+
+// CancelPaymentRequest represents a request to cancel a payment transaction
+// The json format is adhere to the PayOS return format for cancelling payment instead of internal snake_case format
+type CancelPaymentRequest struct {
+	ReturnURL string           `json:"returnUrl,omitempty" validate:"omitempty,url"`
+	Code      string           `json:"code" validate:"required"`
+	ID        string           `json:"id" validate:"required,uuid"` // payment transaction id
+	Cancel    bool             `json:"cancel" validate:"required"`
+	Status    enum.PayOSStatus `json:"status" validate:"required"`
+	OrderCode string           `json:"orderCode" validate:"required"`
 }
 
 // MapPaymentItemsFromOrderItems converts OrderItems to PaymentItemRequest

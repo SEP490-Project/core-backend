@@ -43,7 +43,7 @@ type CampaignService interface {
 	GetCampaignsInfoByBrandID(ctx context.Context, brandID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error)
 
 	// GetCampaignsInfoByUserID returns a list of campaigns associated with the given user ID (of role BRAND_PARTNER)
-	GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error)
+	GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID, filter *requests.CampaignFilterRequest) ([]*responses.CampaignInfoResponse, int64, error)
 
 	// GetCampaignsByFilter returns a list of campaigns based on the provided filter criteria.
 	GetCampaignsByFilter(ctx context.Context, filter *requests.CampaignFilterRequest) ([]*responses.CampaignInfoResponse, int64, error)
@@ -53,4 +53,10 @@ type CampaignService interface {
 
 	// SuggestCampaignFromContract generates campaign suggestions based on contract deliverables.
 	SuggestCampaignFromContract(ctx context.Context, contractID uuid.UUID) (*responses.CampaignSuggestionResponse, error)
+
+	// UpdateCampaign updates the campaign with the provided details.
+	UpdateCampaign(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, request *requests.UpdateCampaignRequest) (*responses.CampaignDetailsResponse, error)
+
+	// SetRejectReason sets the rejection reason for a campaign.
+	SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error
 }

@@ -76,10 +76,24 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		BuyerEmail:  utils.PtrOrNil(req.BuyerEmail),
 		BuyerPhone:  utils.PtrOrNil(req.BuyerPhone),
 		Items:       s.mapPaymentItems(req.Items),
-		CancelURL:   s.config.PayOS.CancelURL,
-		ReturnURL:   s.config.PayOS.ReturnURL,
 		ExpiredAt:   expiredAt,
 		Signature:   signature,
+	}
+	if req.CancelURL != nil {
+		var tempURL string
+		tempURL, err = utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
+		if err != nil {
+			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
+			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
+		}
+		payosReq.CancelURL = tempURL
+	} else {
+		payosReq.CancelURL = s.config.PayOS.CancelURL
+	}
+	if req.ReturnURL != nil {
+		payosReq.ReturnURL = *req.ReturnURL
+	} else {
+		payosReq.ReturnURL = s.config.PayOS.ReturnURL
 	}
 
 	// 6. Call PayOS API via proxy
@@ -144,11 +158,25 @@ func (s *paymentTransactionService) GetPaymentStatus(ctx context.Context, orderC
 func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow irepository.UnitOfWork, orderCode string, reason string) error {
 	zap.L().Info("Cancelling PayOS payment link", zap.String("order_code", orderCode), zap.String("reason", reason))
 
+	var paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction]
+	if uow != nil {
+		paymentTransactionRepo = uow.PaymentTransaction()
+	} else {
+		paymentTransactionRepo = s.paymentTransactionRepo
+	}
+
 	// 1. Cancel via PayOS API
 	payosResp, err := s.payosProxy.CancelPaymentLink(ctx, orderCode, reason)
 	if err != nil {
-		zap.L().Error("Failed to cancel PayOS payment link", zap.Error(err), zap.String("order_code", orderCode))
-		return fmt.Errorf("failed to cancel payment link: %w", err)
+		if payosResp != nil &&
+			(payosResp.Status == enum.PayOSStatusCancelled.String() || payosResp.Status == enum.PayOSStatusPaid.String()) {
+			zap.L().Info("Payment link already cancelled or paid in PayOS, continueing to update local record",
+				zap.String("order_code", orderCode),
+				zap.String("status", payosResp.Status))
+		} else {
+			zap.L().Error("Failed to cancel PayOS payment link", zap.Error(err), zap.String("order_code", orderCode))
+			return fmt.Errorf("failed to cancel payment link: %w", err)
+		}
 	}
 
 	// 2. Find and update local payment transaction (using UnitOfWork if provided, else use repo directly)
@@ -157,26 +185,19 @@ func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow i
 		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(orderCodeInt, 10))
 	}
 
-	var transactions []model.PaymentTransaction
-
-	// Use transactional repo if UnitOfWork provided, otherwise use direct repo
-	if uow != nil {
-		transactions, _, err = uow.PaymentTransaction().GetAll(ctx, filterQuery, nil, 1, 1)
-	} else {
-		transactions, _, err = s.paymentTransactionRepo.GetAll(ctx, filterQuery, nil, 1, 1)
-	}
-
+	var transaction *model.PaymentTransaction
+	transaction, err = paymentTransactionRepo.GetByCondition(ctx, filterQuery, nil)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found for order code", zap.String("order_code", orderCode))
+			return nil // PayOS link cancelled but no local record found
+		}
 		zap.L().Error("Failed to find payment transaction", zap.Error(err))
 		return fmt.Errorf("failed to find payment transaction: %w", err)
-	}
-
-	if len(transactions) == 0 {
+	} else if transaction == nil {
 		zap.L().Warn("Payment transaction not found for order code", zap.String("order_code", orderCode))
 		return nil // PayOS link cancelled but no local record found
 	}
-
-	transaction := transactions[0]
 
 	// 3. Update status and metadata
 	transaction.Status = enum.PaymentTransactionStatusCancelled
@@ -191,14 +212,7 @@ func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow i
 		}
 	}
 
-	// Use transactional repo if UnitOfWork provided
-	if uow != nil {
-		err = uow.PaymentTransaction().Update(ctx, &transaction)
-	} else {
-		err = s.paymentTransactionRepo.Update(ctx, &transaction)
-	}
-
-	if err != nil {
+	if err = paymentTransactionRepo.Update(ctx, transaction); err != nil {
 		zap.L().Error("Failed to update payment transaction status", zap.Error(err))
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
@@ -265,12 +279,12 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 			AccountNumber:          webhookPayload.Data.AccountNumber,
 			Reference:              webhookPayload.Data.Reference,
 			TransactionDateTime:    transactionTime,
-			CounterAccountBankID:   utils.DerefPtr(webhookPayload.Data.CounterAccountBankID, ""),
-			CounterAccountBankName: utils.DerefPtr(webhookPayload.Data.CounterAccountBankName, ""),
-			CounterAccountName:     utils.DerefPtr(webhookPayload.Data.CounterAccountName, ""),
-			CounterAccountNumber:   utils.DerefPtr(webhookPayload.Data.CounterAccountNumber, ""),
-			VirtualAccountName:     utils.DerefPtr(webhookPayload.Data.VirtualAccountName, ""),
-			VirtualAccountNumber:   utils.DerefPtr(webhookPayload.Data.VirtualAccountNumber, ""),
+			CounterAccountBankID:   webhookPayload.Data.CounterAccountBankID,
+			CounterAccountBankName: webhookPayload.Data.CounterAccountBankName,
+			CounterAccountName:     webhookPayload.Data.CounterAccountName,
+			CounterAccountNumber:   webhookPayload.Data.CounterAccountNumber,
+			VirtualAccountName:     webhookPayload.Data.VirtualAccountName,
+			VirtualAccountNumber:   webhookPayload.Data.VirtualAccountNumber,
 		}
 
 		transaction.PayOSMetadata.Transactions = append(transaction.PayOSMetadata.Transactions, payosTransaction)

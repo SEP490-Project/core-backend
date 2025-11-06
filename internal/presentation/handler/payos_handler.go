@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -19,6 +21,7 @@ import (
 )
 
 type PayOsHandler struct {
+	config                    *config.AppConfig
 	paymentTransactionService iservice.PaymentTransactionService
 	stateTransferService      iservice.StateTransferService
 	payosProxy                iproxies.PayOSProxy
@@ -26,12 +29,14 @@ type PayOsHandler struct {
 }
 
 func NewPayOsHandler(
+	config *config.AppConfig,
 	paymentTransactionService iservice.PaymentTransactionService,
 	stateTransferService iservice.StateTransferService,
 	payosProxy iproxies.PayOSProxy,
 	unitOfWork irepository.UnitOfWork,
 ) *PayOsHandler {
 	return &PayOsHandler{
+		config:                    config,
 		paymentTransactionService: paymentTransactionService,
 		stateTransferService:      stateTransferService,
 		payosProxy:                payosProxy,
@@ -94,14 +99,14 @@ func (h *PayOsHandler) GeneratePaymentLink(c *gin.Context) {
 //	@Description	Retrieve payment details by order code
 //	@Tags			PayOS
 //	@Produce		json
-//	@Param			orderCode	path		string															true	"Order Code"
+//	@Param			order_code	path		string															true	"Order Code"
 //	@Success		200			{object}	responses.APIResponse{data=responses.PayOSOrderInfoResponse}	"Payment info retrieved successfully"
 //	@Failure		400			{object}	responses.APIResponse											"Bad request"
 //	@Failure		404			{object}	responses.APIResponse											"Payment not found"
 //	@Security		BearerAuth
 //	@Router			/api/v1/payos/payment/{orderCode} [get]
 func (h *PayOsHandler) GetPaymentInfo(c *gin.Context) {
-	orderCode := c.Param("orderCode")
+	orderCode := c.Param("order_code")
 	if orderCode == "" {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Order code is required", http.StatusBadRequest))
 		return
@@ -276,24 +281,69 @@ func (h *PayOsHandler) ConfirmWebhookURL(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Webhook URL confirmed successfully", &statusCode, result))
 }
 
-func (h *PayOsHandler) PayOSCancelInterceptor(c *gin.Context) {
-	// Get all query parameters
-	queryParams := c.Request.URL.Query()
-
-	// Log all query parameters with zap
-	for key, values := range queryParams {
-		zap.L().Info("Query parameter",
+// HandleCancelCallback godoc
+//
+//	@Summary		Handle PayOS payment cancellation callback
+//	@Description	Handles user redirection after cancelling a PayOS payment. Cancels the payment link and redirects the user.
+//	@Tags			PayOS
+//	@Produce		json
+//	@Param			returnUrl	query	string				false	"URL to redirect to after cancellation"
+//	@Param			code		query	string				true	"Payment link code"
+//	@Param			id			query	string				true	"Payment transaction ID"
+//	@Param			cancel		query	bool				true	"Indicates if the payment was cancelled"
+//	@Param			status		query	enum.PayOSStatus	true	"Status of the payment link"
+//	@Param			orderCode	query	string				true	"Order code associated with the payment"
+//	@Success		302			"Redirects to the specified return URL or default cancel URL"
+//	@Failure		400			{object}	responses.APIResponse	"Bad request"
+//	@Failure		500			{object}	responses.APIResponse	"Internal server error"
+//	@Router			/api/v1/payos/cancel-callback [get]
+func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
+	var req requests.CancelPaymentRequest
+	var queryMap map[string]string
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		return
+	}
+	if err := c.ShouldBindQuery(&queryMap); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		return
+	}
+  
+  //DEBUG
+  for key, values := range queryParams {
+	  zap.L().Info("Query parameter",
 			zap.String("key", key),
 			zap.Strings("values", values),
 		)
 	}
 
-	// Extract fwdUrl if present
-	fwdUrl := c.Query("fwdUrl")
-	if fwdUrl == "" {
-		fwdUrl = "https://facebook.com"
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err := h.paymentTransactionService.CancelPaymentLink(c.Request.Context(), uow, req.OrderCode, "User manually cancelled payment"); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel payment link", http.StatusInternalServerError))
+		return
 	}
 
-	// Redirect to fwdUrl
-	c.Redirect(http.StatusFound, fwdUrl)
+	var redirectURL string
+	var err error
+	delete(queryMap, "returnUrl")
+	if req.ReturnURL != "" {
+		redirectURL, err = utils.AddQueryParams(req.ReturnURL, queryMap)
+	} else {
+		redirectURL, err = utils.AddQueryParams(h.config.PayOS.FrontendCancelURL, queryMap)
+	}
+	if err != nil {
+		zap.L().Error("Failed to add return URL query param", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to add return URL query param", http.StatusInternalServerError))
+		return
+	}
+
+	c.Redirect(http.StatusFound, redirectURL)
 }
