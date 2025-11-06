@@ -332,37 +332,37 @@ func (bh *BrandHandler) MyProductsByFilter(c *gin.Context) {
 		return
 	}
 
-	products, totalCount, err := bh.BrandService.GetByFilter(c.Request.Context(), &request)
-	if err != nil {
-		response := responses.ErrorResponse("Failed to get products: "+err.Error(), http.StatusInternalServerError)
-		c.JSON(http.StatusInternalServerError, response)
-		return
-	}
+	//products, totalCount, err := bh.BrandService.GetByFilter(c.Request.Context(), &request)
+	//if err != nil {
+	//	response := responses.ErrorResponse("Failed to get products: "+err.Error(), http.StatusInternalServerError)
+	//	c.JSON(http.StatusInternalServerError, response)
+	//	return
+	//}
 
-	if totalCount == 0 || len(products) == 0 {
-		response := responses.EmptyPaginationResponse[responses.BrandResponse](
-			"No brands found matching the filter criteria",
-			nil,
-			request.Page,
-			request.Limit,
-		)
-		c.JSON(http.StatusOK, response)
-		return
-	}
-
-	totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
-	paginationResponse := responses.NewPaginationResponse(
-		"Successfully fetched brands",
-		http.StatusOK,
-		brands,
-		responses.Pagination{
-			Page:       request.Page,
-			Limit:      request.Limit,
-			Total:      totalCount,
-			TotalPages: totalPages,
-			HasNext:    request.Page < totalPages,
-			HasPrev:    request.Page > 1,
-		},
-	)
-	c.JSON(http.StatusOK, paginationResponse)
+	//if totalCount == 0 || len(products) == 0 {
+	//	response := responses.EmptyPaginationResponse[responses.BrandResponse](
+	//		"No brands found matching the filter criteria",
+	//		nil,
+	//		request.Page,
+	//		request.Limit,
+	//	)
+	//	c.JSON(http.StatusOK, response)
+	//	return
+	//}
+	//
+	//totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
+	//paginationResponse := responses.NewPaginationResponse(
+	//	"Successfully fetched brands",
+	//	http.StatusOK,
+	//	nil,
+	//	responses.Pagination{
+	//		Page:       request.Page,
+	//		Limit:      request.Limit,
+	//		Total:      totalCount,
+	//		TotalPages: totalPages,
+	//		HasNext:    request.Page < totalPages,
+	//		HasPrev:    request.Page > 1,
+	//	},
+	//)
+	c.JSON(http.StatusOK, nil)
 }

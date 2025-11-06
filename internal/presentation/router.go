@@ -686,4 +686,12 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
 	}
+
+	viewGroup := group.Group("/payments")
+	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
+	{
+		viewGroup.GET("", payOsHandler.GetByFilter)
+		viewGroup.GET("/id/:id", payOsHandler.GetByID)
+		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
+	}
 }

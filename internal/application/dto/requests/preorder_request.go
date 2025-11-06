@@ -5,10 +5,11 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"encoding/json"
+	"time"
+
 	"github.com/aws/smithy-go/ptr"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-	"time"
 )
 
 // ===========================PREORDER==============================//

@@ -745,6 +745,28 @@ definitions:
     x-enum-varnames:
     - PlatformTypeIOS
     - PlatformTypeAndroid
+  enum.PreOrderStatus:
+    enum:
+    - PENDING
+    - PRE_ORDERED
+    - AWAITING_RELEASE
+    - AWAITING_PICKUP
+    - CONFIRMED
+    - CANCELLED
+    - IN_TRANSIT
+    - DELIVERED
+    - RECEIVED
+    type: string
+    x-enum-varnames:
+    - PreOrderStatusPending
+    - PreOrderStatusPreOrdered
+    - PreOrderStatusAwaitingRelease
+    - PreOrderStatusAwaitingPickup
+    - PreOrderStatusConfirmed
+    - PreOrderStatusCancelled
+    - PreOrderStatusInTransit
+    - PreOrderStatusDelivered
+    - PreOrderStatusReceived
   enum.ProductStatus:
     enum:
     - DRAFT
@@ -1019,6 +1041,81 @@ definitions:
         type: string
       weight:
         description: DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+        type: integer
+      width:
+        description: in centimeters
+        type: integer
+    type: object
+  model.PreOrder:
+    properties:
+      address_line2:
+        type: string
+      capacity:
+        description: The same as orderItem
+        type: number
+      capacity_unit:
+        type: string
+      city:
+        type: string
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      created_at:
+        type: string
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      district_name:
+        type: string
+      email:
+        type: string
+      expiry_date:
+        type: string
+      full_name:
+        description: The same as order which Copied shipping address fields
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_province_id:
+        type: integer
+      ghn_ward_code:
+        type: string
+      height:
+        description: in centimeters
+        type: integer
+      id:
+        type: string
+      instructions:
+        type: string
+      length:
+        description: in centimeters
+        type: integer
+      manufacturing_date:
+        type: string
+      phone_number:
+        type: string
+      province_name:
+        type: string
+      quantity:
+        type: integer
+      status:
+        $ref: '#/definitions/enum.PreOrderStatus'
+      street:
+        type: string
+      total_amount:
+        type: number
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      uses:
+        type: string
+      variant_id:
+        type: string
+      ward_name:
+        type: string
+      weight:
+        description: in grams
         type: integer
       width:
         description: in centimeters
@@ -1918,6 +2015,24 @@ definitions:
         type: string
     required:
     - order
+    type: object
+  requests.PreOrderRequest:
+    properties:
+      address_id:
+        example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        type: string
+      cancel_url:
+        example: https://example.com/cancel
+        type: string
+      success_url:
+        example: https://example.com/success
+        type: string
+      variant_id:
+        example: 69700831-4112-44fd-bf7f-07b015f56218
+        type: string
+    required:
+    - address_id
+    - variant_id
     type: object
   requests.PublishContentRequest:
     properties:
@@ -3616,6 +3731,56 @@ definitions:
               type: string
           type: object
         type: array
+    type: object
+  responses.PaymentTransactionPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.PaymentTransactionResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.PaymentTransactionResponse:
+    properties:
+      amount:
+        example: "99.99"
+        type: string
+      gateway_id:
+        example: GATEWAY987654321
+        type: string
+      gateway_ref:
+        example: PAYOS123456789
+        type: string
+      id:
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      method:
+        example: CREDIT_CARD
+        type: string
+      reference_id:
+        example: a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6
+        type: string
+      reference_type:
+        example: ORDER
+        type: string
+      status:
+        example: COMPLETED
+        type: string
+      transaction_date:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      updated_at:
+        example: "2024-01-02T12:00:00Z"
+        type: string
     type: object
   responses.PeriodInfo:
     properties:
@@ -9370,6 +9535,147 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
+  /api/v1/payments:
+    get:
+      description: Retrieve payment transactions based on various filter criteria
+        with pagination
+      parameters:
+      - description: Filter by Reference ID (UUID)
+        in: query
+        name: reference_id
+        type: string
+      - description: Filter by Reference Type (ORDER, CONTRACT_PAYMENT)
+        in: query
+        name: reference_type
+        type: string
+      - description: Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)
+        in: query
+        name: status
+        type: string
+      - description: Filter by Payment Method (CREDIT_CARD, BANK_TRANSFER, E_WALLET)
+        in: query
+        name: method
+        type: string
+      - description: Filter by Transaction From Date (YYYY-MM-DD)
+        in: query
+        name: transaction_from_date
+        type: string
+      - description: Filter by Transaction To Date (YYYY-MM-DD)
+        in: query
+        name: transaction_to_date
+        type: string
+      - description: Page number for pagination (default is 1)
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page for pagination (default is 10)
+        in: query
+        name: limit
+        type: integer
+      - description: Field to sort by (e.g., transaction_date, amount)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment transactions retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaymentTransactionPaginationResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get payment transactions by filter
+      tags:
+      - PayOS
+  /api/v1/payments/id/{id}:
+    get:
+      description: Retrieve a payment transaction by its unique ID
+      parameters:
+      - description: Payment Transaction ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment transaction retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PaymentTransactionResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Payment transaction not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get payment transaction by ID
+      tags:
+      - PayOS
+  /api/v1/payments/order-code/{order_code}:
+    get:
+      description: Retrieve a payment transaction by its associated order code
+      parameters:
+      - description: Order Code
+        in: path
+        name: order_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment transaction retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PaymentTransactionResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Payment transaction not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get payment transaction by order code
+      tags:
+      - PayOS
   /api/v1/payos/cancel:
     post:
       description: Manually trigger cancellation of all expired PayOS payment links
@@ -9597,6 +9903,96 @@ paths:
       summary: PayOS webhook endpoint
       tags:
       - PayOS
+  /api/v1/preorders:
+    get:
+      consumes:
+      - application/json
+      description: Returns user's preorders with pagination, optional status filter
+        and search by product name or receiver name
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search by product name or receiver full name
+        in: query
+        name: search
+        type: string
+      - description: Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP,
+          CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.PreOrder'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get paginated preorders by current user
+      tags:
+      - Preorders
+  /api/v1/preorders/place-and-pay:
+    post:
+      consumes:
+      - application/json
+      description: Reserve a product variant as a preorder. This will decrement variant
+        stock and create a preorder record.
+      parameters:
+      - description: PreOrder payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PreOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a PreOrder (reserve stock)
+      tags:
+      - Preorders
   /api/v1/products:
     get:
       consumes:
@@ -9886,6 +10282,63 @@ paths:
       security:
       - BearerAuth: []
       summary: Add Concept to Limited Product
+      tags:
+      - Products
+  /api/v1/products/publish/{id}/{is-active}:
+    patch:
+      consumes:
+      - application/json
+      description: Toggle a product's active status (publish/unpublish). Requires
+        Sales, Brand, or Admin role.
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Publish payload
+        in: path
+        name: is-active
+        required: true
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductResponseV2'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish or unpublish a product
       tags:
       - Products
   /api/v1/products/standard:

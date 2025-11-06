@@ -700,9 +700,12 @@ func (t stateTransferService) handleOrderSideEffect(
 	case enum.PaymentTransactionStatusFailed,
 		enum.PaymentTransactionStatusCancelled,
 		enum.PaymentTransactionStatusExpired:
-		// Revert order to PENDING state if payment failed
-		newStatus = enum.OrderStatusPending
-		zap.L().Info("Keeping/reverting order to PENDING",
+		// TODO:: Cancel order if payment failed
+		newStatus = enum.OrderStatusCancelled
+		for _, item := range order.OrderItems {
+			item.ItemStatus = newStatus
+		}
+		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
 
