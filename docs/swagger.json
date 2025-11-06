@@ -2172,6 +2172,81 @@
                 }
             }
         },
+        "/api/v1/campaigns/internal": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new internal campaign not linked to any contract.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Create Internal Campaign",
+                "parameters": [
+                    {
+                        "description": "Internal campaign creation data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Internal campaign created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CampaignDetailsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/campaigns/{campaign_id}/suggest": {
             "get": {
                 "security": [
@@ -3946,6 +4021,13 @@
                     {
                         "type": "string",
                         "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
                         "description": "Contract ID",
                         "name": "contract_id",
                         "in": "query"
@@ -4004,6 +4086,29 @@
                         "example": 10,
                         "description": "Items per page",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "due_date",
+                            "amount",
+                            "status"
+                        ],
+                        "type": "string",
+                        "example": "\"due_date\"",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "example": "\"asc\"",
+                        "description": "Sort order",
+                        "name": "sort_order",
                         "in": "query"
                     }
                 ],
@@ -4100,6 +4205,145 @@
                     },
                     "409": {
                         "description": "Contract number already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contract_payments/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Payments"
+                ],
+                "summary": "Get contract payments for the authenticated brand partner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6\"",
+                        "description": "Contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "OVERDUE"
+                        ],
+                        "type": "string",
+                        "example": "\"PAID\"",
+                        "description": "Payment Status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "example": "\"2023-01-01\"",
+                        "description": "Due Date From",
+                        "name": "due_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "example": "\"2023-12-31\"",
+                        "description": "Due Date To",
+                        "name": "due_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "BANK_TRANSFER",
+                            "CASH",
+                            "CHECK"
+                        ],
+                        "type": "string",
+                        "example": "\"BANK_TRANSFER\"",
+                        "description": "Payment Method",
+                        "name": "payment_method",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "example": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "due_date",
+                            "amount",
+                            "status"
+                        ],
+                        "type": "string",
+                        "example": "\"due_date\"",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "example": "\"asc\"",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contract payments retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ContractPaymentPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden: insufficient permissions",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6586,82 +6830,7 @@
                 }
             }
         },
-        "/api/v1/orders/{id}/pay": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Generate payment link and create payment transaction for the given order",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Initiate payment for an order",
-                "deprecated": true,
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/payos/cancel-expired": {
+        "/api/v1/payos/cancel": {
             "post": {
                 "security": [
                     {
@@ -11772,7 +11941,6 @@
         "requests.CreateCampaignRequest": {
             "type": "object",
             "required": [
-                "contract_id",
                 "end_date",
                 "name",
                 "start_date",

@@ -10,10 +10,11 @@ import (
 )
 
 type ProductVariant struct {
-	ID              uuid.UUID          `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
-	ProductID       uuid.UUID          `json:"product_id" gorm:"type:uuid;column:product_id;not null"`
-	Price           float64            `json:"price" gorm:"column:price;not null"`
-	CurrentStock    *int               `json:"current_stock" gorm:"column:current_stock"`
+	ID           uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	ProductID    uuid.UUID `json:"product_id" gorm:"type:uuid;column:product_id;not null"`
+	Price        float64   `json:"price" gorm:"column:price;not null"`
+	CurrentStock *int      `json:"current_stock" gorm:"column:current_stock"`
+
 	Capacity        float64            `json:"capacity" gorm:"column:capacity"`
 	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" gorm:"column:capacity_unit;not null;check:capacity_unit in ('ML', 'L', 'G', 'KG', 'OZ')"`
 	ContainerType   enum.ContainerType `json:"container_type" gorm:"column:container_type;not null;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
