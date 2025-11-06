@@ -160,12 +160,17 @@ func (p *payosProxy) CancelPaymentLink(ctx context.Context, orderCode string, re
 	}
 
 	// Check response code
-	if payosResp.Code != "00" {
+	if payosResp.Code == "221" {
+		zap.L().Info("PayOS payment link already cancelled",
+			zap.String("order_code", orderCode),
+			zap.String("reason", reason))
+		return &payosResp.Data, nil
+	} else if payosResp.Code != "00" {
 		zap.L().Error("PayOS returned error",
 			zap.String("code", payosResp.Code),
 			zap.String("desc", payosResp.Desc),
 			zap.Int("http_status", resp.StatusCode))
-		return nil, fmt.Errorf("PayOS error: %s - %s", payosResp.Code, payosResp.Desc)
+		return &payosResp.Data, fmt.Errorf("PayOS error: %s - %s", payosResp.Code, payosResp.Desc)
 	}
 
 	zap.L().Info("PayOS payment link cancelled successfully",

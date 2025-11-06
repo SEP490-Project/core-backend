@@ -316,6 +316,21 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 		return
 	}
 
+	paymentResponse, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), req.OrderCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment transaction", http.StatusInternalServerError))
+		return
+	}
+
+	switch paymentResponse.Status {
+	case enum.PaymentTransactionStatusCancelled.String(), enum.PaymentTransactionStatusExpired.String():
+		c.JSON(http.StatusOK, responses.ErrorResponse("Payment transaction is already cancelled or expired", http.StatusOK))
+		return
+	case enum.PaymentTransactionStatusCompleted.String():
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Payment transaction is already completed", http.StatusBadRequest))
+		return
+	}
+
 	uow := h.unitOfWork.Begin(c.Request.Context())
 	defer func() {
 		if r := recover(); r != nil {
@@ -324,14 +339,18 @@ func (h *PayOsHandler) HandleCancelCallback(c *gin.Context) {
 		}
 	}()
 
-	if err := h.paymentTransactionService.CancelPaymentLink(c.Request.Context(), uow, req.OrderCode, "User manually cancelled payment"); err != nil {
+	if err = h.stateTransferService.MovePaymentTransactionToState(c.Request.Context(), uow, paymentResponse.ID, enum.PaymentTransactionStatusCancelled, uuid.Nil); err != nil {
 		uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel payment link", http.StatusInternalServerError))
 		return
 	}
 
+	if err = uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to cancel payment link", http.StatusInternalServerError))
+		return
+	}
+
 	var redirectURL string
-	var err error
 	delete(queryMap, "returnUrl")
 	if req.ReturnURL != "" {
 		redirectURL, err = utils.AddQueryParams(req.ReturnURL, queryMap)
