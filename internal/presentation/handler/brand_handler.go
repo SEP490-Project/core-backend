@@ -158,8 +158,8 @@ func (bh *BrandHandler) GetBrandByID(c *gin.Context) {
 //	@Param			limit		query		int									false	"Items per page"	default(10)
 //	@Param			keywords	query		string								false	"Search keywords for brand name"
 //	@Param			status		query		string								false	"Filter by brand status"	Enums(ACTIVE, INACTIVE)
-//	@Param			sort_by		query		string								false	"Sort by field"			Enums(name, created_at, number_of_contracts, number_of_active_contracts)	default(created_at)
-//	@Param			sort_order	query		string								false	"Sort order"				Enums(asc, desc)	default(desc)
+//	@Param			sort_by		query		string								false	"Sort by field"				Enums(name, created_at, number_of_contracts, number_of_active_contracts)	default(created_at)
+//	@Param			sort_order	query		string								false	"Sort order"				Enums(asc, desc)															default(desc)
 //	@Success		200			{object}	responses.BrandPaginationResponse	"Brands fetched successfully"
 //	@Failure		400			{object}	responses.APIResponse				"Invalid request"
 //	@Failure		500			{object}	responses.APIResponse				"Internal server error"

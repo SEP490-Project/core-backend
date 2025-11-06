@@ -1176,10 +1176,10 @@ definitions:
     type: object
   requests.ConfirmWebhookRequest:
     properties:
-      webhookUrl:
+      webhook_url:
         type: string
     required:
-    - webhookUrl
+    - webhook_url
     type: object
   requests.CreateAffiliateLinkRequest:
     properties:
@@ -1872,12 +1872,14 @@ definitions:
       amount:
         description: Payment details
         type: integer
-      buyerEmail:
+      buyer_email:
         type: string
-      buyerName:
+      buyer_name:
         description: Buyer information (for PayOS fields)
         type: string
-      buyerPhone:
+      buyer_phone:
+        type: string
+      cancel_url:
         type: string
       description:
         type: string
@@ -1885,19 +1887,22 @@ definitions:
         items:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
-      referenceId:
+      reference_id:
         description: Reference information
         type: string
-      referenceType:
+      reference_type:
         allOf:
         - $ref: '#/definitions/enum.PaymentTransactionReferenceType'
         enum:
         - ORDER
         - CONTRACT_PAYMENT
+      return_url:
+        description: URLs
+        type: string
     required:
     - amount
-    - referenceId
-    - referenceType
+    - reference_id
+    - reference_type
     type: object
   requests.PlaceAndPayRequest:
     properties:
@@ -2655,6 +2660,21 @@ definitions:
       website:
         type: string
     type: object
+  responses.BrandRevenueResponse:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      brand_name:
+        example: Acme Corp
+        type: string
+      rank:
+        example: 1
+        type: integer
+      revenue:
+        example: 1.500000005e+08
+        type: number
+    type: object
   responses.BrandSummary:
     properties:
       address:
@@ -3382,6 +3402,41 @@ definitions:
       message:
         type: string
     type: object
+  responses.MarketingDashboardResponse:
+    properties:
+      active_brands:
+        description: Counts
+        example: 45
+        type: integer
+      active_campaigns:
+        example: 12
+        type: integer
+      draft_campaigns:
+        example: 5
+        type: integer
+      monthly_revenue:
+        description: Revenue for specified month (or current month)
+        example: 85000000
+        type: number
+      revenue_by_type:
+        $ref: '#/definitions/responses.RevenueByTypeResponse'
+      revenue_month:
+        example: 11
+        type: integer
+      revenue_year:
+        example: 2024
+        type: integer
+      top_brands:
+        description: Top performers (for the same month as revenue)
+        items:
+          $ref: '#/definitions/responses.BrandRevenueResponse'
+        type: array
+      upcoming_deadlines:
+        description: Upcoming deadlines (always relative to current date)
+        items:
+          $ref: '#/definitions/responses.UpcomingCampaignResponse'
+        type: array
+    type: object
   responses.MilestoneResponse:
     properties:
       behind_schedule:
@@ -3826,6 +3881,27 @@ definitions:
       timestamp:
         type: string
     type: object
+  responses.RevenueByTypeResponse:
+    properties:
+      advertising:
+        example: 50000000
+        type: number
+      affiliate:
+        example: 30000000
+        type: number
+      brand_ambassador:
+        example: 20000000
+        type: number
+      co_produce:
+        example: 15000000
+        type: number
+      standard_product:
+        example: 25000000
+        type: number
+      total_revenue:
+        example: 140000000
+        type: number
+    type: object
   responses.SessionInfo:
     properties:
       created_at:
@@ -4172,6 +4248,27 @@ definitions:
         type: string
       unique_users:
         type: integer
+    type: object
+  responses.UpcomingCampaignResponse:
+    properties:
+      brand_name:
+        example: Acme Corp
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      contract_id:
+        example: 660e8400-e29b-41d4-a716-446655440000
+        type: string
+      days_remaining:
+        example: 5
+        type: integer
+      end_date:
+        example: "2024-11-16 23:59:59"
+        type: string
+      name:
+        example: Summer Sale 2024
+        type: string
     type: object
   responses.UserBrief:
     properties:
@@ -4925,6 +5022,335 @@ paths:
       summary: Get top performing affiliate links
       tags:
       - Analytics/AffiliateLinks
+  /api/v1/analytics/marketing/active-brands:
+    get:
+      description: Returns the total count of brands with status = 'ACTIVE'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get active brands count
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/active-campaigns:
+    get:
+      description: Returns the total count of campaigns with status = 'RUNNING'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get active campaigns count
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns aggregated analytics data including counts, revenue, top
+        brands, and upcoming deadlines
+      parameters:
+      - description: Year (defaults to current)
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        type: integer
+      - description: Month (defaults to current)
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.MarketingDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get marketing analytics dashboard
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/draft-campaigns:
+    get:
+      description: Returns the count of campaigns with status = 'DRAFT' and contract_id
+        IS NOT NULL
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  format: int64
+                  type: integer
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get draft campaigns count
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/monthly-revenue:
+    get:
+      consumes:
+      - application/json
+      description: Returns total revenue from paid contract payments for specified
+        month
+      parameters:
+      - description: Year (e.g., 2024)
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        required: true
+        type: integer
+      - description: Month (1-12)
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  format: float64
+                  type: number
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get monthly contract revenue
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/revenue-by-type:
+    get:
+      consumes:
+      - application/json
+      description: Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE,
+        BRAND_AMBASSADOR, CO_PRODUCING) + standard products
+      parameters:
+      - description: Filter type
+        enum:
+        - MONTH
+        - QUARTER
+        - YEAR
+        in: query
+        name: filter_type
+        required: true
+        type: string
+      - description: Year (e.g., 2024)
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        required: true
+        type: integer
+      - description: Month (required for MONTH filter)
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      - description: Quarter (required for QUARTER filter)
+        in: query
+        maximum: 4
+        minimum: 1
+        name: quarter
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueByTypeResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get revenue breakdown by contract type
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/top-brands:
+    get:
+      consumes:
+      - application/json
+      description: Returns top 4 brands by total revenue (contract payments + standard
+        product sales)
+      parameters:
+      - description: Filter type
+        enum:
+        - MONTH
+        - QUARTER
+        - YEAR
+        in: query
+        name: filter_type
+        required: true
+        type: string
+      - description: Year (e.g., 2024)
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        required: true
+        type: integer
+      - description: Month (required for MONTH filter)
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      - description: Quarter (required for QUARTER filter)
+        in: query
+        maximum: 4
+        minimum: 1
+        name: quarter
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandRevenueResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get top brands by revenue
+      tags:
+      - Analytics/MarketingStaffs
+  /api/v1/analytics/marketing/upcoming-deadlines:
+    get:
+      consumes:
+      - application/json
+      description: Returns campaigns with status = 'RUNNING' and end_date within specified
+        days
+      parameters:
+      - description: 'Days before deadline (default: 10)'
+        in: query
+        maximum: 365
+        minimum: 1
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.UpcomingCampaignResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get campaigns approaching deadline
+      tags:
+      - Analytics/MarketingStaffs
   /api/v1/auth/login:
     post:
       consumes:
@@ -8970,6 +9396,61 @@ paths:
       summary: Cancel expired payment links
       tags:
       - PayOS
+  /api/v1/payos/cancel-callback:
+    get:
+      description: Handles user redirection after cancelling a PayOS payment. Cancels
+        the payment link and redirects the user.
+      parameters:
+      - description: URL to redirect to after cancellation
+        in: query
+        name: returnUrl
+        type: string
+      - description: Payment link code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: Payment transaction ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Indicates if the payment was cancelled
+        in: query
+        name: cancel
+        required: true
+        type: boolean
+      - description: Status of the payment link
+        enum:
+        - PENDING
+        - PAID
+        - CANCELLED
+        - EXPIRED
+        in: query
+        name: status
+        required: true
+        type: string
+      - description: Order code associated with the payment
+        in: query
+        name: orderCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirects to the specified return URL or default cancel URL
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Handle PayOS payment cancellation callback
+      tags:
+      - PayOS
   /api/v1/payos/confirm-webhook:
     post:
       consumes:
@@ -9051,7 +9532,7 @@ paths:
       parameters:
       - description: Order Code
         in: path
-        name: orderCode
+        name: order_code
         required: true
         type: string
       produces:
