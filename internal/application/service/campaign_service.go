@@ -391,6 +391,7 @@ func (c *CampaignService) CreateInternalCampaign(
 	creatingMilestoneModels := creatingCampaignModel.Milestones
 	creatingCampaignModel.Milestones = nil
 	// Set campaign status to RUNNING for internal campaigns
+	creatingCampaignModel.ContractID = uuid.Nil
 	creatingCampaignModel.Status = enum.CampaignRunning
 	if err = campaignRepo.Add(ctx, creatingCampaignModel); err != nil {
 		zap.L().Error("Failed to add campaign to repository", zap.Error(err))
