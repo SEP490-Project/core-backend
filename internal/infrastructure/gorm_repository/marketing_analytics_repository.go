@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	dtoResponses "core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"errors"
 	"time"
 
@@ -66,7 +67,7 @@ func (r *MarketingAnalyticsRepository) GetDraftCampaignsCount(ctx context.Contex
 	err := r.db.WithContext(ctx).
 		Model(&struct{}{}).
 		Table("campaigns").
-		Where("status = ?", "DRAFT").
+		Where("status = ?", enum.CampaignDraft).
 		Where("contract_id IS NOT NULL").
 		Where("deleted_at IS NULL").
 		Count(&count).Error
@@ -129,9 +130,10 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 			SELECT 
 				p.brand_id,
 				COALESCE(SUM(o.total_amount), 0) as revenue
-			FROM products p
-			JOIN order_items oi ON p.id = oi.product_id
-			JOIN orders o ON oi.order_id = o.id
+			from product_variants pv
+				inner join products p on pv.product_id = p.id
+				JOIN order_items oi ON p.id = oi.variant_id
+				JOIN orders o ON oi.order_id = o.id
 			WHERE p.type = 'STANDARD'
 			  AND o.status = 'PAID'
 			  AND o.created_at >= ?
@@ -181,11 +183,11 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 
 	query := `
 		WITH contract_revenue AS (
-			SELECT 
+			SELECT
 				c.type,
 				COALESCE(SUM(cp.amount), 0) as revenue
 			FROM contracts c
-			JOIN contract_payments cp ON c.id = cp.contract_id
+					 JOIN contract_payments cp ON c.id = cp.contract_id
 			WHERE cp.status = 'PAID'
 			  AND cp.deleted_at IS NULL
 			  AND c.deleted_at IS NULL
@@ -193,17 +195,18 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 			  AND cp.due_date <= ?
 			GROUP BY c.type
 		),
-		standard_product_revenue AS (
-			SELECT COALESCE(SUM(o.total_amount), 0) as revenue
-			FROM products p
-			JOIN order_items oi ON p.id = oi.product_id
-			JOIN orders o ON oi.order_id = o.id
-			WHERE p.type = 'STANDARD'
-			  AND o.status = 'PAID'
-			  AND o.created_at >= ?
-			  AND o.created_at <= ?
-		)
-		SELECT 
+			 standard_product_revenue AS (
+				 SELECT COALESCE(SUM(o.total_amount), 0) as revenue
+				 FROM product_variants pv 
+					 INNER JOIN products p on pv.product_id = p.id
+						  JOIN order_items oi ON p.id = oi.variant_id
+						  JOIN orders o ON oi.order_id = o.id
+				 WHERE p.type = 'STANDARD'
+				   AND o.status = 'PAID'
+				   AND o.created_at >= ?
+				   AND o.created_at <= ?
+			 )
+		SELECT
 			COALESCE(MAX(CASE WHEN type = 'ADVERTISING' THEN revenue END), 0) as advertising,
 			COALESCE(MAX(CASE WHEN type = 'AFFILIATE' THEN revenue END), 0) as affiliate,
 			COALESCE(MAX(CASE WHEN type = 'BRAND_AMBASSADOR' THEN revenue END), 0) as brand_ambassador,
