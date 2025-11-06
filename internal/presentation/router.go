@@ -119,6 +119,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupTagRoutes(v1)
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
+		r.SetupMarketingAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
@@ -635,12 +636,35 @@ func (r *Router) SetupAffiliateLinkAnalyticsRoutes(group *gin.RouterGroup) {
 	}
 }
 
+// SetupMarketingAnalyticsRoutes sets up routes for marketing analytics dashboard
+func (r *Router) SetupMarketingAnalyticsRoutes(group *gin.RouterGroup) {
+	marketingAnalyticsHandler := r.handlerRegistry.MarketingAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/marketing")
+	{
+		// Protected routes (Admin and Marketing Staff can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing))
+		{
+			protectedGroup.GET("/active-brands", marketingAnalyticsHandler.GetActiveBrandsCount)
+			protectedGroup.GET("/active-campaigns", marketingAnalyticsHandler.GetActiveCampaignsCount)
+			protectedGroup.GET("/draft-campaigns", marketingAnalyticsHandler.GetDraftCampaignsCount)
+			protectedGroup.GET("/monthly-revenue", marketingAnalyticsHandler.GetMonthlyContractRevenue)
+			protectedGroup.GET("/top-brands", marketingAnalyticsHandler.GetTopBrandsByRevenue)
+			protectedGroup.GET("/revenue-by-type", marketingAnalyticsHandler.GetRevenueByContractType)
+			protectedGroup.GET("/upcoming-deadlines", marketingAnalyticsHandler.GetUpcomingDeadlineCampaigns)
+			protectedGroup.GET("/dashboard", marketingAnalyticsHandler.GetDashboard)
+		}
+	}
+}
+
 func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 	// ---------- PAYOS ----------
 	payOsHandler := r.handlerRegistry.PayOsHandler
 
 	// Public webhook endpoint (no authentication required for PayOS callbacks)
 	group.POST("/payos/webhook", payOsHandler.HandleWebhook)
+	group.GET("/payos/cancel-callback", payOsHandler.HandleCancelCallback)
 
 	// Admin-protected PayOS routes
 	payosGroup := group.Group("/payos")

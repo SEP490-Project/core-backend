@@ -65,15 +65,22 @@ func (r UpdateCampaignRequest) ToExistingModel(existing *model.Campaign) (*model
 
 // region: ======= Create Campaign Requests =======
 
-// CreateCampaignRequest represents the request payload for creating a new campaign.
-type CreateCampaignRequest struct {
-	ContractID  string                           `json:"contract_id,omitempty" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+// CreateInternalCampaignRequest represents the request payload for creating a new internal campaign.
+// This is only used for Swagger docuemntation purposes.
+type CreateInternalCampaignRequest struct {
 	Name        string                           `json:"name" validate:"required,min=3,max=255" example:"Summer Sale Campaign"`
 	Description *string                          `json:"description" validate:"omitempty,max=1000" example:"A campaign for the summer sale."`
 	StartDate   time.Time                        `json:"start_date" validate:"required" example:"2023-06-01T00:00:00Z"`
 	EndDate     time.Time                        `json:"end_date" validate:"required,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
 	Type        string                           `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Milestones  []CreateMilestoneCampaignRequest `json:"milestones" validate:"dive"`
+}
+
+// CreateCampaignRequest represents the request payload for creating a new campaign.
+// It embeds CreateInternalCampaignRequest to include all necessary fields.
+type CreateCampaignRequest struct {
+	ContractID string `json:"contract_id,omitempty" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CreateInternalCampaignRequest
 }
 
 // CreateMilestoneCampaignRequest represents the request payload for creating a new milestone campaign.
