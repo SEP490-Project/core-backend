@@ -43,7 +43,7 @@ type CampaignService interface {
 	GetCampaignsInfoByBrandID(ctx context.Context, brandID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error)
 
 	// GetCampaignsInfoByUserID returns a list of campaigns associated with the given user ID (of role BRAND_PARTNER)
-	GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error)
+	GetCampaignsInfoByUserID(ctx context.Context, userID uuid.UUID, filter *requests.CampaignFilterRequest) ([]*responses.CampaignInfoResponse, int64, error)
 
 	// GetCampaignsByFilter returns a list of campaigns based on the provided filter criteria.
 	GetCampaignsByFilter(ctx context.Context, filter *requests.CampaignFilterRequest) ([]*responses.CampaignInfoResponse, int64, error)
