@@ -220,8 +220,8 @@ func (h *CampaignHandler) GetCampaignDetailsByID(c *gin.Context) {
 //	@Produce		json
 //	@Param			page		query		int											false	"Page number"		default(1)
 //	@Param			limit		query		int											false	"Items per page"	default(10)
-//	@Param			keywords	query		string										false	"Search keywords for campaign name"
-//	@Param			status		query		string										false	"Filter by campaign status"	Enums(ACTIVE, INACTIVE)
+//	@Param			keyword		query		string										false	"Search keyword for campaign name"
+//	@Param			status		query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
 //	@Param			type		query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
 //	@Success		200			{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
 //	@Failure		400			{object}	responses.APIResponse						"Invalid query parameters"
@@ -429,6 +429,11 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 //	@Tags			Campaigns
 //	@Accept			json
 //	@Produce		json
+//	@Param			page		query		int											false	"Page number"		default(1)
+//	@Param			limit		query		int											false	"Items per page"	default(10)
+//	@Param			keyword		query		string										false	"Search keywords for campaign name"
+//	@Param			status		query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
+//	@Param			type		query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
 //	@Success		200	{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
 //	@Failure		400	{object}	responses.APIResponse						"Invalid query parameters"
 //	@Failure		401	{object}	responses.APIResponse						"Unauthorized"
@@ -438,31 +443,42 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 //	@Router			/api/v1/campaigns/brand/profile [get]
 func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 	userID, err := extractUserID(c)
+	var filterRequest *requests.CampaignFilterRequest
+	if err := c.ShouldBindQuery(&filterRequest); err != nil {
+		responses := responses.ErrorResponse("Invalid filter request: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
 	if err != nil {
 		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
-	var campaignsInfo []*responses.CampaignInfoResponse
-	var totalCount int64
-	if campaignsInfo, totalCount, err = h.campaignService.GetCampaignsInfoByUserID(c.Request.Context(), userID); err != nil {
+	if err := h.validartor.Struct(filterRequest); err != nil {
+		responses := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	campaignsInfo, totalCount, err := h.campaignService.GetCampaignsInfoByUserID(c.Request.Context(), userID, filterRequest)
+	if err != nil {
 		responses := responses.ErrorResponse("Failed to get campaigns info: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, responses)
 		return
 	}
 
-	responses := responses.NewPaginationResponse(
+	paginationResponse := responses.NewPaginationResponse(
 		"Campaigns retrieved successfully",
 		http.StatusOK,
 		campaignsInfo,
 		responses.Pagination{
-			Page:  1,
+			Page:  filterRequest.Page,
 			Limit: int(totalCount),
 			Total: totalCount,
 		},
 	)
-	c.JSON(http.StatusOK, responses)
+	c.JSON(http.StatusOK, paginationResponse)
 }
 
 // SuggestCampaign godoc
