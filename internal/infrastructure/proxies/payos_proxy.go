@@ -287,7 +287,12 @@ func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool 
 	expectedSignature := hex.EncodeToString(mac.Sum(nil))
 
 	// Compare signatures
-	isValid := hmac.Equal([]byte(expectedSignature), []byte(signature))
+	sigBytes, err := hex.DecodeString(signature)
+	if err != nil {
+		return false
+	}
+	expectedBytes, _ := hex.DecodeString(expectedSignature)
+	isValid := hmac.Equal(sigBytes, expectedBytes)
 
 	if !isValid {
 		zap.L().Warn("PayOS webhook signature verification failed",

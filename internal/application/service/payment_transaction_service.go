@@ -265,12 +265,12 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 			AccountNumber:          webhookPayload.Data.AccountNumber,
 			Reference:              webhookPayload.Data.Reference,
 			TransactionDateTime:    transactionTime,
-			CounterAccountBankID:   utils.DerefPtr(webhookPayload.Data.CounterAccountBankID, ""),
-			CounterAccountBankName: utils.DerefPtr(webhookPayload.Data.CounterAccountBankName, ""),
-			CounterAccountName:     utils.DerefPtr(webhookPayload.Data.CounterAccountName, ""),
-			CounterAccountNumber:   utils.DerefPtr(webhookPayload.Data.CounterAccountNumber, ""),
-			VirtualAccountName:     utils.DerefPtr(webhookPayload.Data.VirtualAccountName, ""),
-			VirtualAccountNumber:   utils.DerefPtr(webhookPayload.Data.VirtualAccountNumber, ""),
+			CounterAccountBankID:   webhookPayload.Data.CounterAccountBankID,
+			CounterAccountBankName: webhookPayload.Data.CounterAccountBankName,
+			CounterAccountName:     webhookPayload.Data.CounterAccountName,
+			CounterAccountNumber:   webhookPayload.Data.CounterAccountNumber,
+			VirtualAccountName:     webhookPayload.Data.VirtualAccountName,
+			VirtualAccountNumber:   webhookPayload.Data.VirtualAccountNumber,
 		}
 
 		transaction.PayOSMetadata.Transactions = append(transaction.PayOSMetadata.Transactions, payosTransaction)
