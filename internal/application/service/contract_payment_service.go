@@ -78,8 +78,8 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
 		Amount:        int64(contractPayment.Amount),
 		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
-		ReturnURL:     request.ReturnURL,
-		CancelURL:     request.CancelURL,
+		ReturnURL:     &request.ReturnURL,
+		CancelURL:     &request.CancelURL,
 	}
 
 	// Add buyer information from contract brand if available

@@ -29,6 +29,7 @@ type stateTransferService struct {
 	milestoneRepository     irepository.GenericRepository[model.Milestone]
 	taskRepository          irepository.GenericRepository[model.Task]
 	productRepository       irepository.GenericRepository[model.Product]
+	orderRepository         irepository.GenericRepository[model.Order]
 	affiliateLinkRepository irepository.AffiliateLinkRepository
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
@@ -702,8 +703,15 @@ func (t stateTransferService) handleOrderSideEffect(
 		enum.PaymentTransactionStatusExpired:
 		// TODO:: Cancel order if payment failed
 		newStatus = enum.OrderStatusCancelled
-		for _, item := range order.OrderItems {
-			item.ItemStatus = newStatus
+		// Also cancel all order items
+		orderItemRepo := uow.OrderItem()
+		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
+		}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
+			zap.L().Error("Failed to cancel order items",
+				zap.String("order_id", order.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to cancel order items: " + err.Error())
 		}
 		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),
