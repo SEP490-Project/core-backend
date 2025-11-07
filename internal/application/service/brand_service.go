@@ -241,9 +241,9 @@ func (b *brandService) CreateBrandWithInActiveUsers(
 	// The real password will be auto-generated after the admin verifies the creation of the brand and users
 	usersModel := &model.User{
 		ID:              uuid.New(),
-		Username:        utils.ToUsernameString(request.ContactEmail),
-		Email:           request.ContactEmail,
-		Phone:           request.ContactPhone,
+		Username:        utils.ToUsernameString(*request.RepresentativeName),
+		Email:           *request.RepresentativeEmail,
+		Phone:           *request.RepresentativePhone,
 		PasswordHash:    "<placeholder>",
 		FullName:        "",
 		Role:            enum.UserRoleBrandPartner,

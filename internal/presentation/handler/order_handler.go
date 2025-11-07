@@ -190,20 +190,20 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 
 // GetStaffAvailableOrdersWithPagination handles HTTP GET requests to retrieve paginated staff-available orders with optional status filter.
 //
-//	@Summary      Get staff-available orders with pagination
-//	@Description  Retrieve paginated orders for staff, filterable by status and order number search.
-//	@Tags         Orders
-//	@Accept       json
-//	@Produce      json
-//	@Param        page    query     int     false  "Page number (default: 1)"
-//	@Param        limit   query     int     false  "Number of items per page (default: 10, max: 100)"
-//	@Param        search  query     string  false  "Search term for filtering by order number"
-//	@Param        status  query     string  false  "Order status filter"  Enums(PENDING,PAID,REFUNDED,CONFIRMED,CANCELLED,SHIPPED,IN_TRANSIT,DELIVERED,RECEIVED)
-//	@Success      200     {object}  responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
-//	@Failure      401     {object}  responses.APIResponse  "Unauthorized"
-//	@Failure      500     {object}  responses.APIResponse
-//	@Security     BearerAuth
-//	@Router       /api/v1/orders/staff [get]
+//	@Summary		Get staff-available orders with pagination
+//	@Description	Retrieve paginated orders for staff, filterable by status and order number search.
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			page	query		int		false	"Page number (default: 1)"
+//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
+//	@Param			search	query		string	false	"Search term for filtering by order number"
+//	@Param			status	query		string	false	"Order status filter"	Enums(PENDING,PAID,REFUNDED,CONFIRMED,CANCELLED,SHIPPED,IN_TRANSIT,DELIVERED,RECEIVED)
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff [get]
 func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
