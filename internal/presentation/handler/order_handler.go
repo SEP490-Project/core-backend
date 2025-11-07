@@ -187,3 +187,74 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 	})
 	c.JSON(http.StatusOK, resp)
 }
+
+// GetStaffAvailableOrdersWithPagination handles HTTP GET requests to retrieve paginated staff-available orders with optional status filter.
+//
+//	@Summary      Get staff-available orders with pagination
+//	@Description  Retrieve paginated orders for staff, filterable by status and order number search.
+//	@Tags         Orders
+//	@Accept       json
+//	@Produce      json
+//	@Param        page    query     int     false  "Page number (default: 1)"
+//	@Param        limit   query     int     false  "Number of items per page (default: 10, max: 100)"
+//	@Param        search  query     string  false  "Search term for filtering by order number"
+//	@Param        status  query     string  false  "Order status filter"  Enums(PENDING,PAID,REFUNDED,CONFIRMED,CANCELLED,SHIPPED,IN_TRANSIT,DELIVERED,RECEIVED)
+//	@Success      200     {object}  responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure      401     {object}  responses.APIResponse  "Unauthorized"
+//	@Failure      500     {object}  responses.APIResponse
+//	@Security     BearerAuth
+//	@Router       /api/v1/orders/staff [get]
+func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// auth check (re-use same handler; assume staff auth handled via middleware/role checks)
+	if _, err := extractUserID(c); err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	search := c.DefaultQuery("search", "")
+	status := c.DefaultQuery("status", "")
+
+	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Orders retrieved successfully",
+		http.StatusOK,
+		orders,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
+}

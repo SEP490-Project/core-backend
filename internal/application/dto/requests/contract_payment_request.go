@@ -16,6 +16,6 @@ type ContractPaymentFilterRequest struct {
 
 type GenerateContractPaymentLinkRequest struct {
 	ContractPaymentID uuid.UUID `json:"-" validate:"required,uuid" example:"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"`
-	ReturnURL         *string   `json:"return_url,omitempty" form:"return_url" validate:"url" example:"https://example.com/return"`
-	CancelURL         *string   `json:"cancel_url,omitempty" form:"cancel_url" validate:"url" example:"https://example.com/cancel"`
+	ReturnURL         string    `json:"return_url,omitempty" form:"returnUrl" validate:"required,url" example:"https://example.com/return"`
+	CancelURL         string    `json:"cancel_url,omitempty" form:"cancelUrl" validate:"required,url" example:"https://example.com/cancel"`
 }
