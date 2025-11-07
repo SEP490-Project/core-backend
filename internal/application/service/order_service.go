@@ -157,6 +157,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 // PayOrder handles the payment process in a atomic transaction
 func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
 	var paymentTransaction *model.PaymentTransaction
+	rftCancelURL := fmt.Sprintf("%s?returnUrl=%s", "http://localhost:8080/api/v1/payos/cancel-callback", cancelURL)
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//Check Order
@@ -194,7 +195,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		//generate signature
 		orderCode := GenerateOrderCode()
 		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
-		signature, err := o.generateSignature(int64(amount), cancelURL, description, orderCode, successURL)
+		signature, err := o.generateSignature(int64(amount), rftCancelURL, description, orderCode, successURL)
 
 		if err != nil {
 			zap.L().Error("Failed to generate signature", zap.Error(err))
@@ -210,7 +211,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 			BuyerPhone:   utils.PtrOrNil(order.PhoneNumber),
 			BuyerAddress: utils.PtrOrNil(order.AddressLine2),
 			Items:        payOSItems,
-			CancelURL:    cancelURL,
+			CancelURL:    rftCancelURL,
 			ReturnURL:    successURL,
 			ExpiredAt:    expiredAt, //additional for 5 mins
 			Signature:    signature,
@@ -273,6 +274,97 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 	}
 
 	return paymentTransaction, nil
+}
+
+func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string) ([]model.Order, int, error) {
+	ctx := context.Background()
+
+	pageNum := page
+	pageSize := limit
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (pageNum - 1) * pageSize
+
+	// Validate status if provided; enforce non-PENDING results
+	var validStatus *enum.OrderStatus
+	if status != "" {
+		s := enum.OrderStatus(status)
+		if s.IsValid() {
+			validStatus = &s
+		}
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		// Always exclude PENDING
+		db = db.Where("orders.status <> ?", enum.OrderStatusPending)
+		// If a valid non-PENDING status provided, narrow down further
+		if validStatus != nil && *validStatus != enum.OrderStatusPending {
+			db = db.Where("orders.status = ?", *validStatus)
+		}
+		if search != "" {
+			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
+		}
+		return db.Order("orders.created_at DESC").Order("orders.id")
+	}
+
+	includes := []string{"OrderItems"}
+
+	var orderIDs []uuid.UUID
+	err := o.orderRepository.DB().
+		WithContext(ctx).
+		Model(&model.Order{}).
+		Scopes(filter).
+		Select("orders.id").
+		Limit(pageSize).
+		Offset(offset).
+		Pluck("orders.id", &orderIDs).Error
+	if err != nil {
+		zap.L().Error("Failed to fetch order IDs", zap.Error(err))
+		return nil, 0, err
+	}
+
+	if len(orderIDs) == 0 {
+		return []model.Order{}, 0, nil
+	}
+
+	countScope := func(db *gorm.DB) *gorm.DB {
+		// Always exclude PENDING
+		db = db.Where("orders.status <> ?", enum.OrderStatusPending)
+		// If a valid non-PENDING status provided, narrow down further
+		if validStatus != nil && *validStatus != enum.OrderStatusPending {
+			db = db.Where("orders.status = ?", *validStatus)
+		}
+		if search != "" {
+			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
+		}
+		return db
+	}
+	var total int64
+	if err := o.orderRepository.DB().
+		WithContext(ctx).
+		Model(&model.Order{}).
+		Scopes(countScope).
+		Count(&total).Error; err != nil {
+		zap.L().Error("Failed to count orders", zap.Error(err))
+		return nil, 0, err
+	}
+
+	finalFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("orders.id IN ?", orderIDs).
+			Order("orders.created_at DESC")
+	}
+
+	orders, _, err := o.orderRepository.GetAll(ctx, finalFilter, includes, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch orders with includes", zap.Error(err))
+		return nil, 0, err
+	}
+
+	return orders, int(total), nil
 }
 
 func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry) iservice.OrderService {
