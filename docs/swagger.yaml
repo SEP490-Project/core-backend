@@ -4263,6 +4263,8 @@ definitions:
       campaign_name:
         example: Summer Sale Campaign
         type: string
+      child_status:
+        type: string
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -7940,6 +7942,16 @@ paths:
         in: path
         name: contract_payment_id
         required: true
+        type: string
+      - description: Return URL after payment completion
+        example: '"https://example.com/return"'
+        in: query
+        name: return_url
+        type: string
+      - description: Cancel URL after payment cancellation
+        example: '"https://example.com/cancel"'
+        in: query
+        name: cancel_url
         type: string
       produces:
       - application/json

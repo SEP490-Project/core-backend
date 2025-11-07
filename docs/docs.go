@@ -5366,6 +5366,20 @@ const docTemplate = `{
                         "name": "contract_payment_id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"https://example.com/return\"",
+                        "description": "Return URL after payment completion",
+                        "name": "return_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"https://example.com/cancel\"",
+                        "description": "Cancel URL after payment cancellation",
+                        "name": "cancel_url",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -17586,6 +17600,9 @@ const docTemplate = `{
                 "campaign_name": {
                     "type": "string",
                     "example": "Summer Sale Campaign"
+                },
+                "child_status": {
+                    "type": "string"
                 },
                 "contract_id": {
                     "type": "string",
