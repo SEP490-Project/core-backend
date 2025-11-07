@@ -703,16 +703,15 @@ func (t stateTransferService) handleOrderSideEffect(
 		enum.PaymentTransactionStatusExpired:
 		// TODO:: Cancel order if payment failed
 		newStatus = enum.OrderStatusCancelled
-		// Update in-memory item statuses
-		for i := range order.OrderItems {
-			order.OrderItems[i].ItemStatus = newStatus
-		}
-		// Persist item status updates in batch via OrderItem repo
-		if err := uow.OrderItem().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("order_id = ?", order.ID)
-		}, map[string]any{"item_status": newStatus}); err != nil {
-			zap.L().Error("Failed to update order items status", zap.String("order_id", order.ID.String()), zap.Error(err))
-			return errors.New("failed to update order items status: " + err.Error())
+		// Also cancel all order items
+		orderItemRepo := uow.OrderItem()
+		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
+		}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
+			zap.L().Error("Failed to cancel order items",
+				zap.String("order_id", order.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to cancel order items: " + err.Error())
 		}
 		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),

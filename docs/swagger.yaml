@@ -9617,6 +9617,68 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
+  /api/v1/orders/staff:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated orders for staff, filterable by status and order
+        number search.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Number of items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search term for filtering by order number
+        in: query
+        name: search
+        type: string
+      - description: Order status filter
+        enum:
+        - PENDING
+        - PAID
+        - REFUNDED
+        - CONFIRMED
+        - CANCELLED
+        - SHIPPED
+        - IN_TRANSIT
+        - DELIVERED
+        - RECEIVED
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get staff-available orders with pagination
+      tags:
+      - Orders
   /api/v1/payments:
     get:
       description: Retrieve payment transactions based on various filter criteria
