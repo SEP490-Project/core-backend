@@ -146,7 +146,20 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 	expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
 
 	// 4. Generate signature
-	signature, err := s.generateSignature(req.Amount, s.config.PayOS.CancelURL, description, orderCode, s.config.PayOS.ReturnURL)
+	cancelURL := s.config.PayOS.CancelURL
+	returnURL := s.config.PayOS.ReturnURL
+	if req.CancelURL != nil && *req.CancelURL != "" {
+		tempURL, err := utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
+		if err != nil {
+			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
+			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
+		}
+		cancelURL = tempURL
+	}
+	if req.ReturnURL != nil {
+		returnURL = *req.ReturnURL
+	}
+	signature, err := s.generateSignature(req.Amount, cancelURL, description, orderCode, returnURL)
 	if err != nil {
 		zap.L().Error("Failed to generate signature", zap.Error(err))
 		return nil, fmt.Errorf("failed to generate signature: %w", err)
@@ -163,25 +176,12 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		Items:       s.mapPaymentItems(req.Items),
 		ExpiredAt:   expiredAt,
 		Signature:   signature,
-	}
-	if req.CancelURL != nil {
-		var tempURL string
-		tempURL, err = utils.AddQueryParam(s.config.PayOS.CancelURL, "returnUrl", *req.CancelURL)
-		if err != nil {
-			zap.L().Error("Failed to add cancel URL query param", zap.Error(err))
-			return nil, fmt.Errorf("failed to add cancel URL query param: %w", err)
-		}
-		payosReq.CancelURL = tempURL
-	} else {
-		payosReq.CancelURL = s.config.PayOS.CancelURL
-	}
-	if req.ReturnURL != nil {
-		payosReq.ReturnURL = *req.ReturnURL
-	} else {
-		payosReq.ReturnURL = s.config.PayOS.ReturnURL
+		CancelURL:   cancelURL,
+		ReturnURL:   returnURL,
 	}
 
 	// 6. Call PayOS API via proxy
+	zap.L().Debug("Creating PayOS payment link", zap.Any("payos_request", payosReq))
 	payosResp, err := s.payosProxy.CreatePaymentLink(ctx, payosReq)
 	if err != nil {
 		zap.L().Error("Failed to create PayOS payment link", zap.Error(err))
@@ -327,31 +327,18 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 		return db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(webhookPayload.Data.OrderCode, 10))
 	}
 
-	transactions, _, err := uow.PaymentTransaction().GetAll(ctx, filterQuery, nil, 1, 1)
+	transaction, err := uow.PaymentTransaction().GetByCondition(ctx, filterQuery, nil)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
+			return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
+		}
 		zap.L().Error("Failed to find payment transaction", zap.Error(err))
 		return fmt.Errorf("failed to find payment transaction: %w", err)
-	}
-
-	if len(transactions) == 0 {
+	} else if transaction == nil {
 		zap.L().Warn("Payment transaction not found for webhook", zap.Int64("order_code", webhookPayload.Data.OrderCode))
 		return fmt.Errorf("payment transaction not found for order code: %d", webhookPayload.Data.OrderCode)
 	}
-
-	transaction := transactions[0]
-
-	// 2. Map PayOS status to internal status
-	var payosStatus string
-	if webhookPayload.Code == "00" {
-		payosStatus = "PAID"
-	} else {
-		payosStatus = webhookPayload.Data.Code
-	}
-
-	newStatus := dtos.MapPayOSStatusString(payosStatus)
-
-	// 3. Update transaction status and metadata
-	transaction.Status = newStatus
 
 	if transaction.PayOSMetadata != nil {
 		// Parse transaction datetime
@@ -376,14 +363,13 @@ func (s *paymentTransactionService) ProcessWebhook(ctx context.Context, uow irep
 	}
 
 	// 4. Persist changes using UnitOfWork
-	if err := uow.PaymentTransaction().Update(ctx, &transaction); err != nil {
+	if err := uow.PaymentTransaction().Update(ctx, transaction); err != nil {
 		zap.L().Error("Failed to update payment transaction from webhook", zap.Error(err))
 		return fmt.Errorf("failed to update transaction: %w", err)
 	}
 
 	zap.L().Info("Webhook processed successfully",
-		zap.String("transaction_id", transaction.ID.String()),
-		zap.String("new_status", string(newStatus)))
+		zap.String("transaction_id", transaction.ID.String()))
 
 	return nil
 }
