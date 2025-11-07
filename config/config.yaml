@@ -65,6 +65,7 @@ cors:
     - "PUT"
     - "DELETE"
     - "OPTIONS"
+    - "PATCH"
   allowed_headers:
     - "Origin"
     - "Content-Type"

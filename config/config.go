@@ -327,7 +327,7 @@ func setDefaultValues() {
 	viper.SetDefault("log.level", "info")
 
 	viper.SetDefault("cors.allowed_origins", []string{"*"})
-	viper.SetDefault("cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	viper.SetDefault("cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"})
 	viper.SetDefault("cors.allowed_headers", []string{"Origin", "Content-Type", "Accept", "Authorization"})
 	viper.SetDefault("cors.exposed_headers", []string{"Content-Type", "Authorization"})
 	viper.SetDefault("cors.allow_credentials", true)

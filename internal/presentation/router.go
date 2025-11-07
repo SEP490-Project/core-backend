@@ -432,8 +432,8 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
 	{
 		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
-		brandGroup.PATCH("/id/:id/approve", campaignHandler.ApproveCampaign)
-		brandGroup.PATCH("/id/:id/reject", campaignHandler.RejectCampaign)
+		brandGroup.PATCH("/:id/approve", campaignHandler.ApproveCampaign)
+		brandGroup.PATCH("/:id/reject", campaignHandler.RejectCampaign)
 	}
 }
 
