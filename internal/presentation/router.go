@@ -235,6 +235,12 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			// Place and immediately pay
 			ordersGroup.POST("/place-and-pay", orderHandler.PlaceAndPayOrder)
 		}
+		// Staffs
+		staffOrdersGroup := v1.Group("/orders")
+		staffOrdersGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+		{
+			staffOrdersGroup.GET("/staff", orderHandler.GetStaffAvailableOrdersWithPagination)
+		}
 
 		// ---------- CONCEPTS ----------
 		conceptHandler := r.handlerRegistry.ConceptHandler

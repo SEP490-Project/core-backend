@@ -46,3 +46,7 @@ func (os *OrderStatus) Scan(value any) error {
 func (os OrderStatus) Value() (driver.Value, error) {
 	return string(os), nil
 }
+
+func (os OrderStatus) String() string {
+	return string(os)
+}
