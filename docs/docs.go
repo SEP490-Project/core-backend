@@ -2280,6 +2280,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "DRAFT",
                             "RUNNING",
                             "COMPLETED",
                             "CANCELLED"
@@ -2438,6 +2439,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "DRAFT",
                             "RUNNING",
                             "COMPLETED",
                             "CANCELLED"
@@ -17600,6 +17602,9 @@ const docTemplate = `{
                 "campaign_name": {
                     "type": "string",
                     "example": "Summer Sale Campaign"
+                },
+                "child_status": {
+                    "type": "string"
                 },
                 "contract_id": {
                     "type": "string",

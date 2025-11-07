@@ -4263,6 +4263,8 @@ definitions:
       campaign_name:
         example: Summer Sale Campaign
         type: string
+      child_status:
+        type: string
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -6110,6 +6112,7 @@ paths:
         type: string
       - description: Filter by campaign status
         enum:
+        - DRAFT
         - RUNNING
         - COMPLETED
         - CANCELLED
@@ -6378,6 +6381,7 @@ paths:
         type: string
       - description: Filter by campaign status
         enum:
+        - DRAFT
         - RUNNING
         - COMPLETED
         - CANCELLED

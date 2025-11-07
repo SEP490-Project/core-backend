@@ -20,7 +20,7 @@ type CampaignFilterRequest struct {
 	StartDate *time.Time `json:"start_date" form:"start_date" validate:"omitempty" example:"2023-06-01T00:00:00Z"`
 	EndDate   *time.Time `json:"end_date" form:"end_date" validate:"omitempty,gtfield=StartDate" example:"2023-08-31T23:59:59Z"`
 	Keyword   *string    `json:"keyword" form:"keyword" validate:"omitempty,min=1,max=255" example:"Summer"`
-	Status    *string    `json:"status" form:"status" validate:"omitempty,oneof=RUNNING COMPLETED CANCELLED" example:"RUNNING"`
+	Status    *string    `json:"status" form:"status" validate:"omitempty,oneof=DRAFT RUNNING COMPLETED CANCELLED" example:"RUNNING"`
 	Type      *string    `json:"type" form:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 }
 
