@@ -694,8 +694,18 @@ func (t stateTransferService) handleOrderSideEffect(
 
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
-		newStatus = enum.OrderStatusPending
-		zap.L().Info("Updating order to PENDING (payment completed)",
+		newStatus = enum.OrderStatusPaid
+		orderItemRepo := uow.OrderItem()
+		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("order_id = ?", order.ID)
+		}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
+			zap.L().Error("Failed to paid order items",
+				zap.String("order_id", order.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to paid order items: " + err.Error())
+		}
+	
+		zap.L().Info("Updating order to OrderStatusPaid (payment completed)",
 			zap.String("order_id", order.ID.String()))
 
 	case enum.PaymentTransactionStatusFailed,

@@ -157,7 +157,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 // PayOrder handles the payment process in a atomic transaction
 func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
 	var paymentTransaction *model.PaymentTransaction
-	rftCancelURL := fmt.Sprintf("%s?returnUrl=%s", "http://localhost:8080/api/v1/payos/cancel-callback", cancelURL)
+	rftCancelURL := fmt.Sprintf("%s?returnUrl=%s", "https://api.bshowsell.site/api/v1/payos/cancel-callback", cancelURL)
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//Check Order
