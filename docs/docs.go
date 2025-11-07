@@ -2280,6 +2280,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "DRAFT",
                             "RUNNING",
                             "COMPLETED",
                             "CANCELLED"
@@ -2438,6 +2439,7 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "DRAFT",
                             "RUNNING",
                             "COMPLETED",
                             "CANCELLED"

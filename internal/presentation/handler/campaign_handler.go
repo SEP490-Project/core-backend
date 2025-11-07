@@ -221,7 +221,7 @@ func (h *CampaignHandler) GetCampaignDetailsByID(c *gin.Context) {
 //	@Param			page	query		int											false	"Page number"		default(1)
 //	@Param			limit	query		int											false	"Items per page"	default(10)
 //	@Param			keyword	query		string										false	"Search keyword for campaign name"
-//	@Param			status	query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
+//	@Param			status	query		string										false	"Filter by campaign status"	Enums(DRAFT, RUNNING, COMPLETED, CANCELLED)
 //	@Param			type	query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
 //	@Success		200		{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
 //	@Failure		400		{object}	responses.APIResponse						"Invalid query parameters"
@@ -432,7 +432,7 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 //	@Param			page	query		int											false	"Page number"		default(1)
 //	@Param			limit	query		int											false	"Items per page"	default(10)
 //	@Param			keyword	query		string										false	"Search keywords for campaign name"
-//	@Param			status	query		string										false	"Filter by campaign status"	Enums(RUNNING, COMPLETED, CANCELLED)
+//	@Param			status	query		string										false	"Filter by campaign status"	Enums(DRAFT, RUNNING, COMPLETED, CANCELLED)
 //	@Param			type	query		string										false	"Filter by campaign type"	Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
 //	@Success		200		{object}	responses.CampaignInfoPaginationResponse	"Campaigns retrieved successfully"
 //	@Failure		400		{object}	responses.APIResponse						"Invalid query parameters"
