@@ -46,3 +46,7 @@ func (pos *PreOrderStatus) Scan(value any) error {
 func (pos PreOrderStatus) Value() (driver.Value, error) {
 	return string(pos), nil
 }
+
+func (pos PreOrderStatus) String() string {
+	return string(pos)
+}
