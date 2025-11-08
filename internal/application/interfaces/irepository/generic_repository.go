@@ -18,6 +18,7 @@ type GenericRepository[T any] interface {
 	Exists(ctx context.Context, filter func(*gorm.DB) *gorm.DB) (bool, error)
 	ExistsByID(ctx context.Context, id any) (bool, error)
 	Add(ctx context.Context, entity *T) error
+	AddWithIncludes(ctx context.Context, entity *T, includes []string) error
 
 	// BulkAdd adds multiple entities to the database in batches of the specified size.
 	// If batchSize is less than or equal to 100, the operations will be performed using the default batch size defined in config.

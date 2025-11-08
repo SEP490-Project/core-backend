@@ -8,12 +8,15 @@ type PaymentTransactionReferenceType string
 const (
 	PaymentTransactionReferenceTypeOrder           PaymentTransactionReferenceType = "ORDER"
 	PaymentTransactionReferenceTypeContractPayment PaymentTransactionReferenceType = "CONTRACT_PAYMENT"
+	PaymentTransactionReferenceTypePreOrder        PaymentTransactionReferenceType = "PREORDER"
 )
 
 // IsValid checks if the payment transaction status is valid
 func (rt PaymentTransactionReferenceType) IsValid() bool {
 	switch rt {
-	case PaymentTransactionReferenceTypeOrder, PaymentTransactionReferenceTypeContractPayment:
+	case PaymentTransactionReferenceTypeOrder,
+		PaymentTransactionReferenceTypeContractPayment,
+		PaymentTransactionReferenceTypePreOrder:
 		return true
 	}
 	return false

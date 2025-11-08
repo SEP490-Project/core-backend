@@ -62,6 +62,10 @@ func DoRequestSingle[T any](ctx context.Context, client *http.Client, token stri
 		return zero, fmt.Errorf("unmarshal response: %w", err)
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return zero, fmt.Errorf("api error: %s", result.Message)
+	}
+
 	return result.Data, nil
 }
 

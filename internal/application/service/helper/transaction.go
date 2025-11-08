@@ -21,7 +21,7 @@ func WithTransaction(
 
 	startedHere := false
 	if !uow.InTransaction() {
-		uow.Begin(ctx)
+		uow = uow.Begin(ctx)
 		startedHere = true
 	}
 

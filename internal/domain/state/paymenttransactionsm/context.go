@@ -11,4 +11,5 @@ type PaymentTransactionContext struct {
 	ReferenceType   enum.PaymentTransactionReferenceType
 	ContractPayment *model.ContractPayment // Set if ReferenceType is CONTRACT_PAYMENT
 	Order           *model.Order           // Set if ReferenceType is ORDER
+	PreOrder        *model.PreOrder        // Set if ReferenceType is PREORDER
 }
