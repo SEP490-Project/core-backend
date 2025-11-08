@@ -10,6 +10,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
 
@@ -67,22 +68,20 @@ func (s *ContractService) GetContractsByUserID(
 
 		// Filter by date range
 		if filterRequest.StartDate != nil {
-			db = db.Where("start_date >= ?", filterRequest.StartDate)
+			startDate := utils.ParseLocalTimeWithFallback(*filterRequest.StartDate, utils.DateFormat)
+			if startDate != nil {
+				db.Where("start_date >= ?", startDate)
+			}
 		}
 		if filterRequest.EndDate != nil {
-			db = db.Where("end_date <= ?", filterRequest.EndDate)
+			endDate := utils.ParseLocalTimeWithFallback(*filterRequest.EndDate, utils.DateFormat)
+			if endDate != nil {
+				db = db.Where("end_date <= ?", endDate)
+			}
 		}
 
 		// Sorting
-		sortBy := filterRequest.SortBy
-		if sortBy == "" {
-			sortBy = "created_at"
-		}
-		sortOrder := filterRequest.SortOrder
-		if sortOrder != "asc" && sortOrder != "desc" {
-			sortOrder = "desc"
-		}
-		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+		db = db.Order(helper.ConvertToSortString(filterRequest.PaginationRequest))
 
 		return db
 	}
@@ -398,10 +397,16 @@ func (s *ContractService) GetByFilter(ctx context.Context, filterReq *requests.C
 
 		// Filter by date range
 		if filterReq.StartDate != nil {
-			db = db.Where("start_date >= ?", filterReq.StartDate)
+			startDate := utils.ParseLocalTimeWithFallback(*filterReq.StartDate, utils.DateFormat)
+			if startDate != nil {
+				db.Where("start_date >= ?", startDate)
+			}
 		}
 		if filterReq.EndDate != nil {
-			db = db.Where("end_date <= ?", filterReq.EndDate)
+			endDate := utils.ParseLocalTimeWithFallback(*filterReq.EndDate, utils.DateFormat)
+			if endDate != nil {
+				db = db.Where("end_date <= ?", endDate)
+			}
 		}
 
 		if filterReq.NoCampaign != nil {
