@@ -274,6 +274,11 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 	}
 	oldStatus := contract.Status
 
+	if oldStatus == targetState {
+		zap.L().Info("Contract already in target state, no action taken", zap.String("contract_id", contractID.String()), zap.String("state", targetState.String()))
+		return nil
+	}
+
 	// Preload deeper campaign tree if contract has a campaign
 	if contract.Campaign != nil {
 		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
@@ -498,10 +503,26 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	// 1. Load payment transaction with reference entity
 	transaction, err := transactionRepo.GetByID(ctx, transactionID, nil)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Error("Payment transaction not found",
+				zap.String("transaction_id", transactionID.String()))
+			return errors.New("payment transaction not found")
+		}
 		zap.L().Error("Failed to load payment transaction from DB",
 			zap.String("transaction_id", transactionID.String()),
 			zap.Error(err))
 		return errors.New("unable to find payment transaction: " + err.Error())
+	} else if transaction == nil {
+		zap.L().Error("Payment transaction not found",
+			zap.String("transaction_id", transactionID.String()))
+		return errors.New("payment transaction not found")
+	}
+
+	if transaction.Status == targetState {
+		zap.L().Info("Payment transaction already in target state, no action taken",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("state", targetState.String()))
+		return nil
 	}
 
 	// 2. Load current state for FSM
