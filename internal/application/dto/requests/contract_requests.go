@@ -548,7 +548,7 @@ type ContractFilterRequest struct {
 	PaginationRequest
 	BrandID    *string `form:"brand_id" json:"brand_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Type       *string `form:"type" json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
-	Status     *string `form:"status" json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
+	Status     *string `form:"status" json:"status" validate:"omitempty,oneof=DRAFT APPROVED ACTIVE COMPLETED INACTIVE TERMINATED" example:"ACTIVE"`
 	Keyword    *string `form:"keyword" json:"keyword" validate:"omitempty,max=255" example:"contract title"`
 	StartDate  *string `form:"start_date" json:"start_date" validate:"omitempty" example:"2023-10-01"`
 	EndDate    *string `form:"end_date" json:"end_date" validate:"omitempty" example:"2023-12-31"`
