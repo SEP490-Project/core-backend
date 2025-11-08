@@ -727,7 +727,9 @@ func (t stateTransferService) handleOrderSideEffect(
 
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
+		//&&&
 		newStatus = enum.OrderStatusPaid
+		zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
 		orderItemRepo := uow.OrderItem()
 		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("order_id = ?", order.ID)
@@ -794,11 +796,14 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	if preorder == nil {
 		return errors.New("pre-order is nil")
 	}
+	var newStatus enum.OrderStatus
 
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
+		//&&&
 		// mark preorder as pre-ordered (payment succeeded)
 		preorder.Status = enum.PreOrderStatusPreOrdered
+		zap.L().Info("Payment completed for PreOrder -> Change status to: " + newStatus.String())
 		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to PRE_ORDERED",
 				zap.String("preorder_id", preorder.ID.String()),
