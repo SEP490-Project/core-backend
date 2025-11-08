@@ -29,7 +29,6 @@ type CreateContractRequest struct {
 
 	// Contract basic information
 	Title          string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
-	ContractNumber string  `json:"contract_number" validate:"required,min=2,max=255" example:"CONTRACT-2023-001"`
 	Type           string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
 	DepositPercent *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
@@ -104,12 +103,6 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 			return nil, errors.New("invalid status: must be one of DRAFT, ACTIVE, COMPLETED, TERMINATED")
 		}
 		status = contractStatus
-	}
-
-	if r.ContractNumber == "" {
-		r.ContractNumber = fmt.Sprintf("CONTRACT-%s-%s",
-			time.Now().Format("20060102"),
-			utils.AbbreviateString(contractType.String(), 3))
 	}
 
 	var wg sync.WaitGroup
@@ -316,9 +309,13 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 	}
 
 	return &model.Contract{
-		ParentContractID:                parentContractID,
-		Title:                           &r.Title,
-		ContractNumber:                  &r.ContractNumber,
+		ParentContractID: parentContractID,
+		Title:            &r.Title,
+		ContractNumber: utils.PtrOrNil(fmt.Sprintf("CONTRACT-%s-%s-%s",
+			utils.AbbreviateString(contractType.String(), 4),
+			utils.AbbreviateString(r.BrandID, 4),
+			utils.GetFormattedCurrentTime(utils.TimestampStringFormat, "")),
+		),
 		BrandID:                         &brandID,
 		BrandBankName:                   r.BrandBankName,
 		BrandBankAccountNumber:          r.BrandBankAccountNumber,
@@ -549,13 +546,13 @@ func (r *UpdateContractRequest) ApplyToContract(contract *model.Contract) error 
 // ContractFilterRequest represents query parameters for filtering contracts
 type ContractFilterRequest struct {
 	PaginationRequest
-	BrandID    *string    `form:"brand_id" json:"brand_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Type       *string    `form:"type" json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
-	Status     *string    `form:"status" json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
-	Keyword    *string    `form:"keyword" json:"keyword" validate:"omitempty,max=255" example:"contract title"`
-	StartDate  *time.Time `form:"start_date" json:"start_date" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
-	EndDate    *time.Time `form:"end_date" json:"end_date" validate:"omitempty" example:"2023-12-31T23:59:59Z"`
-	NoCampaign *bool      `form:"no_campaign" json:"no_campaign" validate:"omitempty" example:"true"`
+	BrandID    *string `form:"brand_id" json:"brand_id" validate:"omitempty,uuid4" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Type       *string `form:"type" json:"type" validate:"omitempty,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
+	Status     *string `form:"status" json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"ACTIVE"`
+	Keyword    *string `form:"keyword" json:"keyword" validate:"omitempty,max=255" example:"contract title"`
+	StartDate  *string `form:"start_date" json:"start_date" validate:"omitempty" example:"2023-10-01"`
+	EndDate    *string `form:"end_date" json:"end_date" validate:"omitempty" example:"2023-12-31"`
+	NoCampaign *bool   `form:"no_campaign" json:"no_campaign" validate:"omitempty" example:"true"`
 }
 
 // endregion

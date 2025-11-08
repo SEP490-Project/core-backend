@@ -41,8 +41,8 @@ func (ContractPaymenntResponse) ToResponse(model *model.ContractPayment) *Contra
 		DueDate:               utils.FormatLocalTime(&model.DueDate, utils.DateFormat),
 		PaymentMethod:         model.PaymentMethod.String(),
 		Note:                  model.Note,
-		CreatedAt:             utils.FormatLocalTime(&model.CreatedAt, utils.TimezonwFormat),
-		UpdatedAt:             utils.FormatLocalTime(&model.UpdatedAt, utils.TimezonwFormat),
+		CreatedAt:             utils.FormatLocalTime(&model.CreatedAt, utils.TimezoneFormat),
+		UpdatedAt:             utils.FormatLocalTime(&model.UpdatedAt, utils.TimezoneFormat),
 	}
 	if model.ContractID != uuid.Nil && model.Contract != nil {
 		response.ContractID = model.Contract.ID.String()
