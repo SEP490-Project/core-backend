@@ -409,11 +409,19 @@ func (s *ContractService) GetByFilter(ctx context.Context, filterReq *requests.C
 			}
 		}
 
+		// if filterReq.NoCampaign != nil {
+		// 	if *filterReq.NoCampaign {
+		// 		db = db.Where("campaign_id IS NULL")
+		// 	} else {
+		// 		db = db.Where("campaign_id IS NOT NULL")
+		// 	}
+		// }
+
 		if filterReq.NoCampaign != nil {
 			if *filterReq.NoCampaign {
-				db = db.Where("campaign_id IS NULL")
+				db = db.Where("NOT EXISTS (SELECT 1 FROM campaigns WHERE campaigns.contract_id = contracts.id)")
 			} else {
-				db = db.Where("campaign_id IS NOT NULL")
+				db = db.Where("EXISTS (SELECT 1 FROM campaigns WHERE campaigns.contract_id = contracts.id)")
 			}
 		}
 

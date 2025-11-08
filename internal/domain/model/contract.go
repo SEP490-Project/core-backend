@@ -38,7 +38,7 @@ type Contract struct {
 
 	// Contract Details
 	Type            enum.ContractType   `json:"type" gorm:"type:varchar(50);column:type;not null;check:type IN ('ADVERTISING', 'AFFILIATE', 'BRAND_AMBASSADOR', 'CO_PRODUCING')"`
-	Status          enum.ContractStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED')"`
+	Status          enum.ContractStatus `json:"status" gorm:"type:varchar(50);column:status;not null;check:status IN ('DRAFT','APPROVED','ACTIVE','COMPLETED','INACTIVE','TERMINATED')"`
 	DepositPercent  *int                `json:"deposit_percent" gorm:"type:int;column:deposit_percent;check:deposit_percent >= 0 AND deposit_percent <= 100"`
 	DepositAmount   *int                `json:"deposit_amount" gorm:"type:int;column:deposit_amount;check:deposit_amount >= 0"`
 	IsDepositPaid   *bool               `json:"is_deposit_paid" gorm:"type:boolean;column:is_deposit_paid;default:false"`

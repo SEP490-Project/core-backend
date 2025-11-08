@@ -796,14 +796,12 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	if preorder == nil {
 		return errors.New("pre-order is nil")
 	}
-	var newStatus enum.OrderStatus
-
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		//&&&
 		// mark preorder as pre-ordered (payment succeeded)
 		preorder.Status = enum.PreOrderStatusPreOrdered
-		zap.L().Info("Payment completed for PreOrder -> Change status to: " + newStatus.String())
+		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())
 		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to PRE_ORDERED",
 				zap.String("preorder_id", preorder.ID.String()),
