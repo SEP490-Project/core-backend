@@ -89,9 +89,6 @@ func (h *ContractHandler) CreateContract(c *gin.Context) {
 		errorStr := err.Error()
 		if errorStr == "brand not found" {
 			statusCode = http.StatusNotFound
-		} else if errorStr == fmt.Sprintf("contract number %s already exists", req.ContractNumber) ||
-			errorStr == "failed to validate contract number" {
-			statusCode = http.StatusConflict
 		}
 
 		zap.L().Error("Failed to create contract", zap.Error(err))
@@ -150,14 +147,11 @@ func (h *ContractHandler) CreateContractAsync(c *gin.Context) {
 	}
 
 	var contractResponse *responses.ContractResponse
-	if err = h.contractService.ValidateBrandAndContractNumber(c.Request.Context(), brandID, req.ContractNumber); err != nil {
+	if err = h.contractService.ValidateBrandAndContractNumber(c.Request.Context(), brandID, ""); err != nil {
 		statusCode := http.StatusInternalServerError
 		errorStr := err.Error()
 		if errorStr == "brand not found" {
 			statusCode = http.StatusNotFound
-		} else if errorStr == fmt.Sprintf("contract number %s already exists", req.ContractNumber) ||
-			errorStr == "failed to validate contract number" {
-			statusCode = http.StatusConflict
 		}
 
 		zap.L().Error("Failed to create contract", zap.Error(err))

@@ -335,20 +335,47 @@ func (c *CampaignService) CreateCampaignFromContract(
 ) (*responses.CampaignDetailsResponse, error) {
 	zap.L().Info("Creating campaign from contract", zap.Any("request", request))
 
+	contractRepo := uow.Contracts()
 	campaignRepo := uow.Campaigns()
 	milstoneRepo := uow.Milestones()
 	taskRepo := uow.Tasks()
 
-	existFilterQuery := func(db *gorm.DB) *gorm.DB {
-		return db.Where("contract_id = ?", request.ContractID)
+	existCampaignFunc := func(ctx context.Context) error {
+		existFilterQuery := func(db *gorm.DB) *gorm.DB {
+			return db.Where("contract_id = ?", request.ContractID)
+		}
+		if exists, err := campaignRepo.Exists(ctx, existFilterQuery); err != nil {
+			zap.L().Error("Failed to check if campaign exists for contract", zap.Error(err))
+			return err
+		} else if exists {
+			errorStr := fmt.Sprintf("Campaign already exists for contract %s", request.ContractID)
+			zap.L().Warn(errorStr, zap.String("contract_id", request.ContractID))
+			return errors.New(errorStr)
+		}
+		return nil
 	}
-	if exists, err := campaignRepo.Exists(ctx, existFilterQuery); err != nil {
-		zap.L().Error("Failed to check if campaign exists for contract", zap.Error(err))
+	contractStatusFunc := func(ctx context.Context) error {
+		contract, err := contractRepo.GetByID(ctx, request.ContractID, nil)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				zap.L().Warn("Contract not found", zap.String("contract_id", request.ContractID))
+				return errors.New("contract not found")
+			}
+			zap.L().Error("Failed to retrieve contract", zap.String("contract_id", request.ContractID), zap.Error(err))
+			return err
+		} else if contract == nil {
+			zap.L().Warn("Contract not found", zap.String("contract_id", request.ContractID))
+			return errors.New("contract not found")
+		}
+		if contract.Status != enum.ContractStatusActive {
+			zap.L().Warn("Contract is not active", zap.String("contract_id", request.ContractID), zap.String("status", string(contract.Status)))
+			return errors.New("contract is not active")
+		}
+		return nil
+	}
+	if err := utils.RunParallel(ctx, 2, existCampaignFunc, contractStatusFunc); err != nil {
+		zap.L().Error("Pre-creation checks failed", zap.Error(err))
 		return nil, err
-	} else if exists {
-		errorStr := fmt.Sprintf("Campaign already exists for contract %s", request.ContractID)
-		zap.L().Warn(errorStr, zap.String("contract_id", request.ContractID))
-		return nil, errors.New(errorStr)
 	}
 
 	creatingCampaignModel, totalTasksCount, err := request.ToModel(userID)

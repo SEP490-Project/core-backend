@@ -38,7 +38,7 @@ type stateTransferService struct {
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
 	// Preload nested product -> task to have back-reference available ("Products.Task")
-	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Products", "Products.Task", "Contents"})
+	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Product", "Contents"})
 	if err != nil {
 		zap.L().Error("Failed to load task from DB",
 			zap.String("task ID", taskID.String()),
@@ -160,7 +160,7 @@ func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileSton
 
 	milestoneRepo := trx.Milestones()
 	// We want tasks (and optionally their products/contents if later cascades rely on them)
-	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Milestone", "Tasks.Products", "Tasks.Contents"})
+	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Milestone", "Tasks.Product", "Tasks.Contents"})
 	if err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Failed to load milestone from DB", zap.String("milestone_id", mileStoneID.String()), zap.Error(err))
@@ -219,7 +219,7 @@ func (t stateTransferService) MoveCampaignToState(
 ) error {
 	//1. Load current task from DB
 	campaignRepo := uow.Campaigns()
-	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
+	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
 	if err != nil {
 		zap.L().Error("Failed to load campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to load campaign: " + err.Error())
@@ -274,9 +274,14 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 	}
 	oldStatus := contract.Status
 
+	if oldStatus == targetState {
+		zap.L().Info("Contract already in target state, no action taken", zap.String("contract_id", contractID.String()), zap.String("state", targetState.String()))
+		return nil
+	}
+
 	// Preload deeper campaign tree if contract has a campaign
 	if contract.Campaign != nil {
-		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
+		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
 		if err2 == nil {
 			contract.Campaign = camp
 		}
@@ -498,10 +503,26 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	// 1. Load payment transaction with reference entity
 	transaction, err := transactionRepo.GetByID(ctx, transactionID, nil)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			zap.L().Error("Payment transaction not found",
+				zap.String("transaction_id", transactionID.String()))
+			return errors.New("payment transaction not found")
+		}
 		zap.L().Error("Failed to load payment transaction from DB",
 			zap.String("transaction_id", transactionID.String()),
 			zap.Error(err))
 		return errors.New("unable to find payment transaction: " + err.Error())
+	} else if transaction == nil {
+		zap.L().Error("Payment transaction not found",
+			zap.String("transaction_id", transactionID.String()))
+		return errors.New("payment transaction not found")
+	}
+
+	if transaction.Status == targetState {
+		zap.L().Info("Payment transaction already in target state, no action taken",
+			zap.String("transaction_id", transactionID.String()),
+			zap.String("state", targetState.String()))
+		return nil
 	}
 
 	// 2. Load current state for FSM
