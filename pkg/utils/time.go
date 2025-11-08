@@ -3,11 +3,23 @@ package utils
 import "time"
 
 const (
-	TimezonwFormat string = "2006-01-02T15:04:05Z07:00"
-	TimeFormat     string = "2006-01-02 15:04:05"
-	DateFormat     string = "2006-01-02"
-	Timezone       string = "Asia/Ho_Chi_Minh"
+	TimezoneFormat        string = "2006-01-02T15:04:05Z07:00"
+	TimestampStringFormat string = "20060102150405"
+	TimeFormat            string = "2006-01-02 15:04:05"
+	DateFormat            string = "2006-01-02"
+	Timezone              string = "Asia/Ho_Chi_Minh"
 )
+
+func GetFormattedCurrentTime(layout, timezone string) string {
+	if layout == "" {
+		layout = TimeFormat
+	}
+	if timezone == "" {
+		timezone = Timezone
+	}
+	loc, _ := time.LoadLocation(timezone)
+	return time.Now().In(loc).Format(layout)
+}
 
 func FormatTimeWithTimezone(data *time.Time, layout, timezone string) string {
 	if data == nil {

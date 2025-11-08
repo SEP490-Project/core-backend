@@ -29,7 +29,6 @@ type CreateContractRequest struct {
 
 	// Contract basic information
 	Title          string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
-	ContractNumber string  `json:"contract_number" validate:"required,min=2,max=255" example:"CONTRACT-2023-001"`
 	Type           string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
 	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
 	DepositPercent *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
@@ -104,12 +103,6 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 			return nil, errors.New("invalid status: must be one of DRAFT, ACTIVE, COMPLETED, TERMINATED")
 		}
 		status = contractStatus
-	}
-
-	if r.ContractNumber == "" {
-		r.ContractNumber = fmt.Sprintf("CONTRACT-%s-%s",
-			time.Now().Format("20060102"),
-			utils.AbbreviateString(contractType.String(), 3))
 	}
 
 	var wg sync.WaitGroup
@@ -316,9 +309,13 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 	}
 
 	return &model.Contract{
-		ParentContractID:                parentContractID,
-		Title:                           &r.Title,
-		ContractNumber:                  &r.ContractNumber,
+		ParentContractID: parentContractID,
+		Title:            &r.Title,
+		ContractNumber: utils.PtrOrNil(fmt.Sprintf("CONTRACT-%s-%s-%s",
+			utils.AbbreviateString(contractType.String(), 4),
+			utils.AbbreviateString(r.BrandID, 4),
+			utils.GetFormattedCurrentTime(utils.TimestampStringFormat, "")),
+		),
 		BrandID:                         &brandID,
 		BrandBankName:                   r.BrandBankName,
 		BrandBankAccountNumber:          r.BrandBankAccountNumber,
