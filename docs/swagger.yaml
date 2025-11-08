@@ -733,10 +733,12 @@ definitions:
     enum:
     - ORDER
     - CONTRACT_PAYMENT
+    - PREORDER
     type: string
     x-enum-varnames:
     - PaymentTransactionReferenceTypeOrder
     - PaymentTransactionReferenceTypeContractPayment
+    - PaymentTransactionReferenceTypePreOrder
   enum.PlatformType:
     enum:
     - IOS
@@ -809,8 +811,6 @@ definitions:
     - UserRoleBrandPartner
   handler.CalculateDeliveryPriceByDimensionRequest:
     properties:
-      delivery_service:
-        $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
       items:
         items:
           $ref: '#/definitions/dtos.ApplicationDeliveryFeeItem'
@@ -1496,11 +1496,6 @@ definitions:
         description: File URLs
         example: https://example.com/contracts/contract.pdf
         type: string
-      contract_number:
-        example: CONTRACT-2023-001
-        maxLength: 255
-        minLength: 2
-        type: string
       currency:
         description: Financial
         example: VND
@@ -1603,7 +1598,6 @@ definitions:
         type: string
     required:
     - brand_id
-    - contract_number
     - end_date
     - financial_terms
     - legal_terms
@@ -2006,8 +2000,6 @@ definitions:
       cancel_url:
         example: https://example.com/cancel
         type: string
-      delivery_service:
-        $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
       order:
         $ref: '#/definitions/requests.OrderRequest'
       success_url:
@@ -3149,6 +3141,9 @@ definitions:
       end_date:
         example: "2006-01-02 15:04:05"
         type: string
+      has_campaign:
+        example: true
+        type: boolean
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -3308,6 +3303,9 @@ definitions:
         type: string
       financial_terms:
         description: Complex JSONB fields (unmarshaled)
+      has_campaign:
+        example: true
+        type: boolean
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
@@ -8151,8 +8149,10 @@ paths:
       - description: Contract status
         enum:
         - DRAFT
+        - APPROVED
         - ACTIVE
         - COMPLETED
+        - INACTIVE
         - TERMINATED
         in: query
         name: status
@@ -8161,6 +8161,11 @@ paths:
         in: query
         name: keyword
         type: string
+      - description: Filter contracts with no campaign (true = no campaign, false
+          = has campaign)
+        in: query
+        name: no_campaign
+        type: boolean
       - description: Start date filter
         format: date-time
         in: query
@@ -9014,6 +9019,7 @@ paths:
     get:
       consumes:
       - application/json
+      deprecated: true
       description: Fetch GHN delivery service options available for a specific district
       parameters:
       - description: District ID
@@ -9070,10 +9076,47 @@ paths:
       summary: Calculate delivery fee by explicit destination and items
       tags:
       - ghn
+  /api/v1/ghn/order/{order-id}/calculate:
+    post:
+      consumes:
+      - application/json
+      description: Compute GHN delivery fee based on an existing order ID and selected
+        delivery service
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: order-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.DeliveryFeeSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Calculate delivery fee for a given order
+      tags:
+      - ghn
   /api/v1/ghn/order/{order-id}/shipping-services:
     get:
       consumes:
       - application/json
+      deprecated: true
       description: Retrieve list of GHN delivery service options based on the order's
         destination
       parameters:
@@ -9106,48 +9149,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Get available GHN delivery services for an order
-      tags:
-      - ghn
-  /api/v1/ghn/orders/{order-id}/calculate:
-    post:
-      consumes:
-      - application/json
-      description: Compute GHN delivery fee based on an existing order ID and selected
-        delivery service
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: order-id
-        required: true
-        type: string
-      - description: Selected delivery service
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.DeliveryAvailableServiceDTO'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.DeliveryFeeSuccess'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Calculate delivery fee for a given order
       tags:
       - ghn
   /api/v1/location/address:
@@ -9575,12 +9576,10 @@ paths:
       summary: Get paginated orders by user ID
       tags:
       - Orders
-  /api/v1/orders/place-and-pay:
     post:
       consumes:
       - application/json
-      description: Create an order and immediately calculate delivery fee and create
-        payment transaction
+      description: Create an order -> calculate delivery fee -> create payment transaction
       parameters:
       - description: Place and pay payload
         in: body
@@ -10102,7 +10101,6 @@ paths:
       summary: Get paginated preorders by current user
       tags:
       - Preorders
-  /api/v1/preorders/place-and-pay:
     post:
       consumes:
       - application/json
