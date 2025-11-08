@@ -25,7 +25,7 @@ import (
 
 type orderService struct {
 	config                       *config.AppConfig
-	orderRepository              irepository.GenericRepository[model.Order]
+	orderRepository              irepository.OrderRepository
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	payOSProxy                   iproxies.PayOSProxy
@@ -222,95 +222,10 @@ func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee in
 	return paymentItems, total
 }
 
-func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string) ([]model.Order, int, error) {
+func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
+	// Delegate to repository implementation
 	ctx := context.Background()
-
-	pageNum := page
-	pageSize := limit
-	if pageNum < 1 {
-		pageNum = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
-	offset := (pageNum - 1) * pageSize
-
-	// Validate status if provided; enforce non-PENDING results
-	var validStatus *enum.OrderStatus
-	if status != "" {
-		s := enum.OrderStatus(status)
-		if s.IsValid() {
-			validStatus = &s
-		}
-	}
-
-	filter := func(db *gorm.DB) *gorm.DB {
-		// Always exclude PENDING
-		db = db.Where("orders.status <> ?", enum.OrderStatusPending)
-		// If a valid non-PENDING status provided, narrow down further
-		if validStatus != nil && *validStatus != enum.OrderStatusPending {
-			db = db.Where("orders.status = ?", *validStatus)
-		}
-		if search != "" {
-			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
-		}
-		return db.Order("orders.created_at DESC").Order("orders.id")
-	}
-
-	includes := []string{"OrderItems"}
-
-	var orderIDs []uuid.UUID
-	err := o.orderRepository.DB().
-		WithContext(ctx).
-		Model(&model.Order{}).
-		Scopes(filter).
-		Select("orders.id").
-		Limit(pageSize).
-		Offset(offset).
-		Pluck("orders.id", &orderIDs).Error
-	if err != nil {
-		zap.L().Error("Failed to fetch order IDs", zap.Error(err))
-		return nil, 0, err
-	}
-
-	if len(orderIDs) == 0 {
-		return []model.Order{}, 0, nil
-	}
-
-	countScope := func(db *gorm.DB) *gorm.DB {
-		// Always exclude PENDING
-		db = db.Where("orders.status <> ?", enum.OrderStatusPending)
-		// If a valid non-PENDING status provided, narrow down further
-		if validStatus != nil && *validStatus != enum.OrderStatusPending {
-			db = db.Where("orders.status = ?", *validStatus)
-		}
-		if search != "" {
-			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
-		}
-		return db
-	}
-	var total int64
-	if err := o.orderRepository.DB().
-		WithContext(ctx).
-		Model(&model.Order{}).
-		Scopes(countScope).
-		Count(&total).Error; err != nil {
-		zap.L().Error("Failed to count orders", zap.Error(err))
-		return nil, 0, err
-	}
-
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("orders.id IN ?", orderIDs).
-			Order("orders.created_at DESC")
-	}
-
-	orders, _, err := o.orderRepository.GetAll(ctx, finalFilter, includes, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to fetch orders with includes", zap.Error(err))
-		return nil, 0, err
-	}
-
-	return orders, int(total), nil
+	return o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
 }
 
 func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.OrderService {

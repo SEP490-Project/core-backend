@@ -47,7 +47,7 @@ type UnitOfWork interface {
 	LimitedProducts() GenericRepository[model.LimitedProduct]
 
 	//Orders & Payment
-	Order() GenericRepository[model.Order]
+	Order() OrderRepository
 	OrderItem() GenericRepository[model.OrderItem]
 	PaymentTransaction() GenericRepository[model.PaymentTransaction]
 

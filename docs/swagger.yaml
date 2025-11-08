@@ -979,6 +979,11 @@ definitions:
         items:
           $ref: '#/definitions/model.OrderItem'
         type: array
+      payment_bin:
+        type: string
+      payment_id:
+        description: Transient fields populated by repository (not persisted)
+        type: string
       phone_number:
         type: string
       province_name:
@@ -9625,19 +9630,66 @@ paths:
       description: Retrieve paginated orders for staff, filterable by status and order
         number search.
       parameters:
-      - description: 'Page number (default: 1)'
+      - description: |-
+          GHN district id
+          in: query
+          example: 10
+        example: "10"
         in: query
-        name: page
-        type: integer
-      - description: 'Number of items per page (default: 10, max: 100)'
+        name: district_id
+        type: string
+      - description: |-
+          Customer full name to filter
+          in: query
+          example: "John Doe"
+        example: John Doe
+        in: query
+        name: full_name
+        type: string
+      - description: |-
+          Number of items per page (default: 10, max: 100)
+          in: query
+          example: 10
+        example: 10
         in: query
         name: limit
         type: integer
-      - description: Search term for filtering by order number
+      - description: |-
+          Page number (default: 1)
+          in: query
+          example: 1
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: |-
+          Customer phone number to filter
+          in: query
+          example: "0912345678"
+        example: "0912345678"
+        in: query
+        name: phone
+        type: string
+      - description: |-
+          GHN province id
+          in: query
+          example: 1
+        example: "1"
+        in: query
+        name: province_id
+        type: string
+      - description: |-
+          Search term to filter by order number
+          in: query
+          example: "ORDER123"
+        example: ORDER123
         in: query
         name: search
         type: string
-      - description: Order status filter
+      - description: |-
+          Order status filter
+          in: query
+          example: "PAID"
         enum:
         - PENDING
         - PAID
@@ -9648,8 +9700,27 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
+        example: PAID
         in: query
         name: status
+        type: string
+        x-enum-varnames:
+        - OrderStatusPending
+        - OrderStatusPaid
+        - OrderStatusRefunded
+        - OrderStatusConfirmed
+        - OrderStatusCancelled
+        - OrderStatusShipped
+        - OrderStatusInTransit
+        - OrderStatusDelivered
+        - OrderStatusReceived
+      - description: |-
+          GHN ward code
+          in: query
+          example: "01234"
+        example: "01234"
+        in: query
+        name: ward_code
         type: string
       produces:
       - application/json

@@ -7775,20 +7775,51 @@ const docTemplate = `{
                 "summary": "Get staff-available orders with pagination",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Page number (default: 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of items per page (default: 10, max: 100)",
-                        "name": "limit",
+                        "type": "string",
+                        "example": "10",
+                        "description": "GHN district id\nin: query\nexample: 10",
+                        "name": "district_id",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Search term for filtering by order number",
+                        "example": "John Doe",
+                        "description": "Customer full name to filter\nin: query\nexample: \"John Doe\"",
+                        "name": "full_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of items per page (default: 10, max: 100)\nin: query\nexample: 10",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)\nin: query\nexample: 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "0912345678",
+                        "description": "Customer phone number to filter\nin: query\nexample: \"0912345678\"",
+                        "name": "phone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "1",
+                        "description": "GHN province id\nin: query\nexample: 1",
+                        "name": "province_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "ORDER123",
+                        "description": "Search term to filter by order number\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -7805,8 +7836,27 @@ const docTemplate = `{
                             "RECEIVED"
                         ],
                         "type": "string",
-                        "description": "Order status filter",
+                        "example": "PAID",
+                        "x-enum-varnames": [
+                            "OrderStatusPending",
+                            "OrderStatusPaid",
+                            "OrderStatusRefunded",
+                            "OrderStatusConfirmed",
+                            "OrderStatusCancelled",
+                            "OrderStatusShipped",
+                            "OrderStatusInTransit",
+                            "OrderStatusDelivered",
+                            "OrderStatusReceived"
+                        ],
+                        "description": "Order status filter\nin: query\nexample: \"PAID\"",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "01234",
+                        "description": "GHN ward code\nin: query\nexample: \"01234\"",
+                        "name": "ward_code",
                         "in": "query"
                     }
                 ],
@@ -13056,6 +13106,13 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.OrderItem"
                     }
+                },
+                "payment_bin": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "description": "Transient fields populated by repository (not persisted)",
+                    "type": "string"
                 },
                 "phone_number": {
                     "type": "string"
