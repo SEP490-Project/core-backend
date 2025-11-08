@@ -5465,8 +5465,10 @@ const docTemplate = `{
                     {
                         "enum": [
                             "DRAFT",
+                            "APPROVED",
                             "ACTIVE",
                             "COMPLETED",
+                            "INACTIVE",
                             "TERMINATED"
                         ],
                         "type": "string",
@@ -5478,6 +5480,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Search keyword (title or contract number)",
                         "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter contracts with no campaign (true = no campaign, false = has campaign)",
+                        "name": "no_campaign",
                         "in": "query"
                     },
                     {
@@ -6834,6 +6842,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/order/{order-id}/calculate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Compute GHN delivery fee based on an existing order ID and selected delivery service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Calculate delivery fee for a given order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "order-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.DeliveryFeeSuccess"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ghn/order/{order-id}/shipping-services": {
             "get": {
                 "security": [
@@ -6852,6 +6915,7 @@ const docTemplate = `{
                     "ghn"
                 ],
                 "summary": "Get available GHN delivery services for an order",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "string",
@@ -6892,70 +6956,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/ghn/orders/{order-id}/calculate": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Compute GHN delivery fee based on an existing order ID and selected delivery service",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "ghn"
-                ],
-                "summary": "Calculate delivery fee for a given order",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "order-id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Selected delivery service",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.DeliveryFeeSuccess"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/ghn/{district-id}/shipping-services": {
             "get": {
                 "description": "Fetch GHN delivery service options available for a specific district",
@@ -6969,6 +6969,7 @@ const docTemplate = `{
                     "ghn"
                 ],
                 "summary": "Get GHN delivery services by district ID (public endpoint)",
+                "deprecated": true,
                 "parameters": [
                     {
                         "type": "integer",
@@ -7687,16 +7688,14 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/orders/place-and-pay": {
+            },
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create an order and immediately calculate delivery fee and create payment transaction",
+                "description": "Create an order -\u003e calculate delivery fee -\u003e create payment transaction",
                 "consumes": [
                     "application/json"
                 ],
@@ -8523,9 +8522,7 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/api/v1/preorders/place-and-pay": {
+            },
             "post": {
                 "security": [
                     {
@@ -12726,11 +12723,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "ORDER",
-                "CONTRACT_PAYMENT"
+                "CONTRACT_PAYMENT",
+                "PREORDER"
             ],
             "x-enum-varnames": [
                 "PaymentTransactionReferenceTypeOrder",
-                "PaymentTransactionReferenceTypeContractPayment"
+                "PaymentTransactionReferenceTypeContractPayment",
+                "PaymentTransactionReferenceTypePreOrder"
             ]
         },
         "enum.PlatformType": {
@@ -12821,9 +12820,6 @@ const docTemplate = `{
         "handler.CalculateDeliveryPriceByDimensionRequest": {
             "type": "object",
             "properties": {
-                "delivery_service": {
-                    "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
-                },
                 "items": {
                     "type": "array",
                     "items": {
@@ -13753,7 +13749,6 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "brand_id",
-                "contract_number",
                 "end_date",
                 "financial_terms",
                 "legal_terms",
@@ -13789,12 +13784,6 @@ const docTemplate = `{
                     "description": "File URLs",
                     "type": "string",
                     "example": "https://example.com/contracts/contract.pdf"
-                },
-                "contract_number": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 2,
-                    "example": "CONTRACT-2023-001"
                 },
                 "currency": {
                     "description": "Financial",
@@ -14475,9 +14464,6 @@ const docTemplate = `{
                 "cancel_url": {
                     "type": "string",
                     "example": "https://example.com/cancel"
-                },
-                "delivery_service": {
-                    "$ref": "#/definitions/dtos.DeliveryAvailableServiceDTO"
                 },
                 "order": {
                     "$ref": "#/definitions/requests.OrderRequest"
@@ -16077,6 +16063,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2006-01-02 15:04:05"
                 },
+                "has_campaign": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
@@ -16303,6 +16293,10 @@ const docTemplate = `{
                 },
                 "financial_terms": {
                     "description": "Complex JSONB fields (unmarshaled)"
+                },
+                "has_campaign": {
+                    "type": "boolean",
+                    "example": true
                 },
                 "id": {
                     "type": "string",
