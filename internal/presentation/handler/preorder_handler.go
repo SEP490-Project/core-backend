@@ -5,7 +5,6 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/domain/model"
 	"net/http"
 	"strconv"
 
@@ -107,19 +106,13 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 //	@Failure		401		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/preorders/place-and-pay [post]
+//	@Router			/api/v1/preorders [post]
 func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	var req requests.PreOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-
-	//userID, err := extractUserID(c)
-	//if err != nil {
-	//	c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
-	//	return
-	//}
 
 	ctx := c.Request.Context()
 	uow := p.unitOfWork.Begin(ctx)
@@ -138,8 +131,8 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	}
 
 	//2. Initiate payment
-	var paymentTx *model.PaymentTransaction
-	paymentTx, err = p.preOrderService.PayPreOrder(ctx, preorder.ID, req.SuccessURL, req.CancelURL, uow)
+	var paymentTx *responses.PayOSLinkResponse
+	paymentTx, err = p.preOrderService.PayForPreservationSlot(ctx, preorder.ID, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))

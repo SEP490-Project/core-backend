@@ -5,6 +5,7 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
+	responses "core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -18,7 +19,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"github.com/aws/smithy-go/ptr"
 	"github.com/google/uuid"
@@ -34,6 +34,7 @@ type preOrderService struct {
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	ghnService                   iservice_third_party.GHNService
+	paymentTransactionService    iservice.PaymentTransactionService
 }
 
 func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*model.PreOrder, error) {
@@ -181,104 +182,37 @@ func (p preOrderService) GetPreOrdersByUserIDWithPagination(userID uuid.UUID, li
 	return preorders, int(total), nil
 }
 
-func (p preOrderService) PayPreOrder(ctx context.Context, orderID uuid.UUID, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
-
-	var paymentTransaction *model.PaymentTransaction
-
-	rftCancelURL := fmt.Sprintf("%s?returnUrl=%s", "https://api.bshowsell.site/api/v1/payos/cancel-callback", cancelURL)
+func (p preOrderService) PayForPreservationSlot(ctx context.Context, preOrderID uuid.UUID, returnURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error) {
+	var paymentTransaction *responses.PayOSLinkResponse
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		// 1. Preload pre-order
-		preOrder, err := uow.PreOrder().GetByID(ctx, orderID, []string{"ProductVariant", "ProductVariant.Product"})
+		//*1. Preload pre-order
+		preOrder, err := uow.PreOrder().GetByID(ctx, preOrderID, []string{"ProductVariant", "ProductVariant.Product"})
 		if err != nil {
 			return fmt.Errorf("failed to get pre-order: %w", err)
 		}
 
-		// 2. Map pre-order to PayOSItem
-		// Create PayOS items (part of payment link)
-		payOSItems, total := preOrderToPayOSItemsWithTotalPrice(*preOrder)
-
-		// 3. Prerequisite To Create PayOS Link
-		// 3.1 Calculate expiry time
-		expirySeconds := p.config.AdminConfig.PayOSLinkExpiry
-		if expirySeconds == 0 {
-			expirySeconds = 300 // Default 5 minutes
+		//*2 Build Payment Request:
+		paymentItemRequest, total := toPaymentItemRequestWithTotalPrice(*preOrder)
+		paymentRq := requests.PaymentRequest{
+			ReferenceID:   preOrderID,
+			ReferenceType: enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:        total,
+			Description:   fmt.Sprintf("Payment for preservation %s", preOrder.ID),
+			Items:         paymentItemRequest,
+			BuyerName:     preOrder.FullName,
+			BuyerEmail:    preOrder.Email,
+			BuyerPhone:    preOrder.PhoneNumber,
+			ReturnURL:     &returnURL,
+			CancelURL:     &cancelURL,
 		}
-		expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
 
-		// 3.2 Setup Signature and Description
-		orderCode := GenerateOrderCode()
-		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
-		signature, err := p.generateSignature(total, rftCancelURL, description, orderCode, successURL)
-
+		//*3. Create Payment Transaction
+		paymentTransaction, err = p.paymentTransactionService.GeneratePaymentLink(ctx, uow, &paymentRq)
 		if err != nil {
-			zap.L().Error("Failed to generate signature", zap.Error(err))
-			return fmt.Errorf("failed to generate signature: %w", err)
-		}
-
-		// 4. Create PayOS Payment Transaction
-		// 4.1 Build CreateLinkRequestDTO to create payment link
-		createLinkReq := dtos.PayOSCreateLinkRequest{
-			OrderCode:    orderCode,
-			Amount:       total,
-			Description:  description,
-			BuyerName:    utils.PtrOrNil(preOrder.FullName),
-			BuyerEmail:   utils.PtrOrNil(preOrder.Email),
-			BuyerPhone:   utils.PtrOrNil(preOrder.PhoneNumber),
-			BuyerAddress: utils.PtrOrNil(preOrder.AddressLine2),
-			Items:        payOSItems,
-			CancelURL:    rftCancelURL,
-			ReturnURL:    successURL,
-			ExpiredAt:    expiredAt, //additional for 5 mins
-			Signature:    signature,
-		}
-
-		// 4.2 Call PayOS Proxy to create payment transaction
-		payosCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		payosResp, err := p.payOSProxy.CreatePaymentLink(payosCtx, &createLinkReq)
-		if err != nil {
-			// If the error is due to context deadline, return a clear error
-			if errors.Is(err, context.DeadlineExceeded) {
-				zap.L().Error("PayOS CreatePaymentLink timed out", zap.Error(err), zap.String("order_id", preOrder.ID.String()))
-				return fmt.Errorf("payment provider timeout: %w", err)
-			}
-			zap.L().Error("paymentTransactionService.CreatePaymentLink failed", zap.Error(err), zap.String("order_id", preOrder.ID.String()))
+			zap.L().Error("Failed to initiate payment transaction for order", zap.Error(err))
 			return err
 		}
-
-		// 5. Build PaymentTransaction model
-		// Build local PaymentTransaction record and persist
-		pt := &model.PaymentTransaction{
-			ReferenceID:     preOrder.ID,
-			ReferenceType:   "PREORDER",
-			Amount:          utils.PtrOrNil(float64(total)),
-			Method:          "PAYOS",
-			Status:          enum.PaymentTransactionStatusPending,
-			TransactionDate: time.Now(),
-			PayOSMetadata: &model.PayOSMetadata{
-				PaymentLinkID: payosResp.PaymentLinkID,
-				OrderCode:     orderCode,
-				CheckoutURL:   payosResp.CheckoutURL,
-				QRCode:        payosResp.QRCode,
-				Bin:           payosResp.Bin,
-				AccountNumber: payosResp.AccountNumber,
-				AccountName:   payosResp.AccountName,
-				ExpiredAt:     payosResp.ExpiredAt,
-				Amount:        payosResp.Amount,
-				Description:   payosResp.Description,
-				Currency:      payosResp.Currency,
-			},
-			GatewayRef: payosResp.CheckoutURL,
-			GatewayID:  payosResp.PaymentLinkID,
-		}
-
-		if err := uow.PaymentTransaction().Add(ctx, pt); err != nil {
-			zap.L().Error("Failed to save payment transaction", zap.Error(err))
-			return err
-		}
-
-		paymentTransaction = pt
 		return nil
 	})
 	if err != nil {
@@ -287,7 +221,7 @@ func (p preOrderService) PayPreOrder(ctx context.Context, orderID uuid.UUID, suc
 	return paymentTransaction, nil
 }
 
-func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry) iservice.PreOrderService {
+func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.PreOrderService {
 	return &preOrderService{
 		config:                       cfg,
 		preOrderRepository:           dbRegistry.PreOrderRepository,
@@ -295,6 +229,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
 		ghnService:                   registry.GHNService,
+		paymentTransactionService:    paymentTransactionSvc,
 	}
 }
 
@@ -355,4 +290,27 @@ func preOrderToPayOSItemsWithTotalPrice(preOrder model.PreOrder) ([]dtos.PayOSIt
 	total += int(preOrder.UnitPrice)
 
 	return items, int64(total)
+}
+
+func toPaymentItemRequestWithTotalPrice(preOrder model.PreOrder) ([]requests.PaymentItemRequest, int64) {
+	items := make([]requests.PaymentItemRequest, 0)
+	total := int64(0)
+
+	// Build variant descriptive string (e.g. "250ML - Bottle - Spray")
+	variantPropConcat := fmt.Sprintf("%v", preOrder.Capacity) +
+		utils.ToTitleCase(*preOrder.CapacityUnit) + " - " +
+		utils.ToTitleCase(preOrder.ContainerType.String()) + " - " +
+		utils.ToTitleCase(preOrder.DispenserType.String())
+
+	// Build readable item name (e.g. "Shampoo (250ML - Bottle - Spray)")
+	variantName := utils.ToTitleCase(preOrder.ProductVariant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)
+	mappedModel := requests.PaymentItemRequest{
+		Name:     variantName,
+		Quantity: 1,
+		Price:    int64(preOrder.UnitPrice),
+	}
+
+	items = append(items, mappedModel)
+	total += int64(preOrder.UnitPrice)
+	return items, total
 }

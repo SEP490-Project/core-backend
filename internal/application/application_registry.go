@@ -86,6 +86,11 @@ func NewApplicationRegistry(
 		affiliateLinkService,
 	)
 
+	paymentTransactionService := service.NewPaymentTransactionService(
+		databaseRegistry.PaymentTransactionRepository,
+		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
+	)
+
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -105,7 +110,7 @@ func NewApplicationRegistry(
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, &configs.AdminConfig),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry),
+		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
 		ChannelService:                service.NewChannelService(databaseRegistry.ChannelRepository),
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
@@ -116,8 +121,8 @@ func NewApplicationRegistry(
 		AffiliateLinkService:          affiliateLinkService,
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
-		PaymentTransactionService:     service.NewPaymentTransactionService(databaseRegistry.PaymentTransactionRepository, infrastructureRegistry.ProxiesRegistry.PayOSProxy),
-		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry),
+		PaymentTransactionService:     paymentTransactionService,
+		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 
 		//Manual Scheduler Trigger

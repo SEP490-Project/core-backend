@@ -69,7 +69,7 @@ func (a ApplicationDeliveryFeeItem) ToApplicationDeliveryFeeItem(item model.Orde
 	}
 }
 
-func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidation(order *model.Order, deliveryService DeliveryAvailableServiceDTO) (*DeliveryFeeBody, error) {
+func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidation(order *model.Order) (*DeliveryFeeBody, error) {
 	var (
 		totalWeight int
 		totalHeight int
@@ -107,28 +107,29 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidation(order *model.Order, 
 	return &DeliveryFeeBody{
 		ToDistrictID:   order.GhnDistrictID,
 		ToWardCode:     order.GhnWardCode,
-		ServiceID:      deliveryService.ServiceID,
-		ServiceTypeID:  deliveryService.ServiceTypeID,
+		ServiceTypeID:  2,
 		InsuranceValue: int(order.TotalAmount),
-
-		Items: DeliveryFeeItem{}.ToDeliveryFeeItemDTOList(order.OrderItems),
-
-		Height: totalHeight,
-		Length: maxLength,
-		Width:  maxWidth,
-		Weight: finalWeight,
+		Items:          DeliveryFeeItem{}.ToDeliveryFeeItemDTOList(order.OrderItems),
+		Height:         totalHeight,
+		Length:         maxLength,
+		Width:          maxWidth,
+		Weight:         finalWeight,
 	}, nil
 }
 
-func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wardCode string, items []ApplicationDeliveryFeeItem, deliveryService DeliveryAvailableServiceDTO) (*DeliveryFeeBody, error) {
+func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wardCode string, items []ApplicationDeliveryFeeItem) (*DeliveryFeeBody, error) {
 	var (
-		totalWeight int
-		totalHeight int
-		maxLength   int
-		maxWidth    int
+		totalWeight    int
+		totalHeight    int
+		maxLength      int
+		maxWidth       int
+		insuranceValue int
 	)
 
 	for _, item := range items {
+		//calculate insurance value
+		insuranceValue += item.Price * item.Quantity
+
 		// actualWeight
 		totalWeight += item.Weight * item.Quantity
 		// max of each dimension (height excluded)
@@ -158,10 +159,8 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wa
 	return &DeliveryFeeBody{
 		ToDistrictID:   districtID,
 		ToWardCode:     wardCode,
-		ServiceID:      deliveryService.ServiceID,
-		ServiceTypeID:  deliveryService.ServiceTypeID,
-		InsuranceValue: 0,
-
+		InsuranceValue: insuranceValue,
+		ServiceTypeID:  2,
 		Items: func() []DeliveryFeeItem {
 			var deliveryFeeItems []DeliveryFeeItem
 			for _, item := range items {
@@ -185,15 +184,18 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wa
 
 }
 
-func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.ShippingAddress, items []ApplicationDeliveryFeeItem, deliveryService DeliveryAvailableServiceDTO) (*DeliveryFeeBody, error) {
+func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.ShippingAddress, items []ApplicationDeliveryFeeItem) (*DeliveryFeeBody, error) {
 	var (
-		totalWeight int
-		totalHeight int
-		maxLength   int
-		maxWidth    int
+		totalWeight    int
+		totalHeight    int
+		maxLength      int
+		maxWidth       int
+		insuranceValue int
 	)
 
 	for _, item := range items {
+		//calculate insurance value
+		insuranceValue += item.Price * item.Quantity
 		// actualWeight
 		totalWeight += item.Weight * item.Quantity
 		// max of each dimension (height excluded)
@@ -222,9 +224,8 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.Ship
 	return &DeliveryFeeBody{
 		ToDistrictID:   address.GhnDistrictID,
 		ToWardCode:     address.GhnWardCode,
-		ServiceID:      deliveryService.ServiceID,
-		ServiceTypeID:  deliveryService.ServiceTypeID,
-		InsuranceValue: 0,
+		ServiceTypeID:  2,
+		InsuranceValue: insuranceValue,
 		Items: func() []DeliveryFeeItem {
 			var deliveryFeeItems []DeliveryFeeItem
 			for _, item := range items {

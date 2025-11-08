@@ -23,7 +23,7 @@ type ghnService struct {
 }
 
 // CalculateDeliveryPriceByID calculates delivery fee for an order by contacting GHN and returns the first fee result.
-func (g ghnService) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, deliveryService dtos.DeliveryAvailableServiceDTO, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g ghnService) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeeURL := g.cfg.GHN.FeeBaseURL + "/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
@@ -36,7 +36,7 @@ func (g ghnService) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid
 		}
 
 		// build http client body using order
-		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidation(order, deliveryService)
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidation(order)
 		if err != nil {
 			return fmt.Errorf(err.Error())
 		}
@@ -116,14 +116,14 @@ func (g ghnService) GetAvailableDeliveryServicesByDistrictID(ctx context.Context
 	return availableSvc, nil
 }
 
-func (g ghnService) CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, deliveryService dtos.DeliveryAvailableServiceDTO, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g ghnService) CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeeURL := g.cfg.GHN.FeeBaseURL + "/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 
 		// build http client body using order
-		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV2(toDistrictID, toWardCode, items, deliveryService)
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV2(toDistrictID, toWardCode, items)
 		if err != nil {
 			return fmt.Errorf(err.Error())
 		}
@@ -143,7 +143,7 @@ func (g ghnService) CalculateDeliveryPriceByDimensionItems(ctx context.Context, 
 
 }
 
-func (g ghnService) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, deliveryService dtos.DeliveryAvailableServiceDTO, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g ghnService) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeeURL := g.cfg.GHN.FeeBaseURL + "/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
@@ -161,7 +161,7 @@ func (g ghnService) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx cont
 		}
 
 		// build http client body using order
-		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV3(*address, appDeliveryFeeItems, deliveryService)
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV3(*address, appDeliveryFeeItems)
 		if err != nil {
 			return fmt.Errorf(err.Error())
 		}

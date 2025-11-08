@@ -494,6 +494,7 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	transactionRepo := uow.PaymentTransaction()
 	contractPaymentRepo := uow.ContractPayments()
 	orderRepo := uow.Order()
+	preorderRepo := uow.PreOrder()
 
 	// 1. Load payment transaction with reference entity
 	transaction, err := transactionRepo.GetByID(ctx, transactionID, nil)
@@ -542,6 +543,17 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 			return errors.New("unable to find order: " + err.Error())
 		}
 		transactionCtx.Order = order
+
+	case enum.PaymentTransactionReferenceTypePreOrder:
+		var preorder *model.PreOrder
+		preorder, err = preorderRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		if err != nil {
+			zap.L().Error("Failed to load pre-order",
+				zap.String("preorder_id", transaction.ReferenceID.String()),
+				zap.Error(err))
+			return errors.New("unable to find pre-order: " + err.Error())
+		}
+		transactionCtx.PreOrder = preorder
 	}
 
 	// 4. Initialize target state
@@ -602,10 +614,10 @@ func (t stateTransferService) handlePaymentTransactionSideEffects(
 	switch transactionCtx.ReferenceType {
 	case enum.PaymentTransactionReferenceTypeContractPayment:
 		return t.handleContractPaymentSideEffect(ctx, uow, transactionCtx.ContractPayment, targetState, updatedBy)
-
 	case enum.PaymentTransactionReferenceTypeOrder:
 		return t.handleOrderSideEffect(ctx, uow, transactionCtx.Order, targetState, updatedBy)
-
+	case enum.PaymentTransactionReferenceTypePreOrder:
+		return t.handlePreOrderSideEffect(ctx, uow, transactionCtx.PreOrder, targetState, updatedBy)
 	default:
 		zap.L().Warn("Unknown reference type, skipping side effects",
 			zap.String("reference_type", string(transactionCtx.ReferenceType)))
@@ -704,7 +716,7 @@ func (t stateTransferService) handleOrderSideEffect(
 				zap.Error(err))
 			return errors.New("failed to paid order items: " + err.Error())
 		}
-	
+
 		zap.L().Info("Updating order to OrderStatusPaid (payment completed)",
 			zap.String("order_id", order.ID.String()))
 
@@ -749,6 +761,69 @@ func (t stateTransferService) handleOrderSideEffect(
 		zap.String("new_status", string(newStatus)))
 
 	return nil
+}
+
+func (t stateTransferService) handlePreOrderSideEffect(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	preorder *model.PreOrder,
+	transactionStatus enum.PaymentTransactionStatus,
+	_ uuid.UUID,
+) error {
+	if preorder == nil {
+		return errors.New("pre-order is nil")
+	}
+
+	switch transactionStatus {
+	case enum.PaymentTransactionStatusCompleted:
+		// mark preorder as pre-ordered (payment succeeded)
+		preorder.Status = enum.PreOrderStatusPreOrdered
+		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+			zap.L().Error("Failed to update preorder status to PRE_ORDERED",
+				zap.String("preorder_id", preorder.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to update preorder status: " + err.Error())
+		}
+		zap.L().Info("Preorder marked as PRE_ORDERED", zap.String("preorder_id", preorder.ID.String()))
+		return nil
+
+	case enum.PaymentTransactionStatusFailed, enum.PaymentTransactionStatusCancelled, enum.PaymentTransactionStatusExpired:
+		// revert stock (restore) and mark preorder cancelled
+		// attempt to load variant and restore stock
+		variantRepo := uow.ProductVariant()
+		variant, err := variantRepo.GetByID(ctx, preorder.VariantID, nil)
+		if err != nil {
+			// log and continue; still update preorder status so system reflects payment failure
+			zap.L().Error("Failed to load variant to restore stock", zap.String("variant_id", preorder.VariantID.String()), zap.Error(err))
+		} else if variant != nil {
+			if variant.CurrentStock == nil {
+				v := preorder.Quantity
+				variant.CurrentStock = &v
+			} else {
+				*variant.CurrentStock += preorder.Quantity
+			}
+			if err := variantRepo.Update(ctx, variant); err != nil {
+				zap.L().Error("Failed to restore variant stock after preorder payment failure",
+					zap.String("variant_id", variant.ID.String()), zap.Error(err))
+			} else {
+				zap.L().Info("Restored variant stock due to preorder payment failure", zap.String("variant_id", variant.ID.String()), zap.Int("restored", preorder.Quantity))
+			}
+		}
+
+		preorder.Status = enum.PreOrderStatusCancelled
+		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+			zap.L().Error("Failed to update preorder status to CANCELLED",
+				zap.String("preorder_id", preorder.ID.String()), zap.Error(err))
+			return errors.New("failed to update preorder status: " + err.Error())
+		}
+		zap.L().Info("Preorder cancelled due to payment failure/expiry", zap.String("preorder_id", preorder.ID.String()))
+		return nil
+
+	default:
+		// For other statuses (PENDING etc.) we don't change preorder
+		zap.L().Debug("No preorder side-effect for transaction status", zap.String("transaction_status", string(transactionStatus)))
+		return nil
+	}
 }
 
 // endregion

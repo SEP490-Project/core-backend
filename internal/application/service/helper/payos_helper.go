@@ -27,6 +27,8 @@ func GeneratePayOSDescription(referenceType string, paymentTransactionID uuid.UU
 		prefix = "CON"
 	case "ORDER":
 		prefix = "ORD"
+	case "PREORDER":
+		prefix = "PRE"
 	default:
 		// Fallback: take first 3 letters of type or default to PAY
 		if len(referenceType) >= 3 {

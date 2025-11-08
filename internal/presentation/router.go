@@ -233,8 +233,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.GET("", orderHandler.GetOrdersByUserIDWithPagination)
 			//ordersGroup.POST(":id/pay", orderHandler.PayOrder)
 			// Place and immediately pay
-			ordersGroup.POST("/place-and-pay", orderHandler.PlaceAndPayOrder)
+			ordersGroup.POST("", orderHandler.CreateOrder)
 		}
+
 		// Staffs
 		staffOrdersGroup := v1.Group("/orders")
 		staffOrdersGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
@@ -298,7 +299,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		preOrderGroup := v1.Group("/preorders")
 		preOrderGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
-			preOrderGroup.POST("/place-and-pay", preOrderHandler.CreatePreOrderAndPay)
+			preOrderGroup.POST("", preOrderHandler.CreatePreOrderAndPay)
 			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
 		}
 

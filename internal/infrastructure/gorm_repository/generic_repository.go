@@ -93,6 +93,27 @@ func (r *genericRepository[T]) Add(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Create(entity).Error
 }
 
+func (r *genericRepository[T]) AddWithIncludes(ctx context.Context, entity *T, includes []string) error {
+	// 1. Thêm entity
+	if err := r.db.WithContext(ctx).Create(entity).Error; err != nil {
+		return err
+	}
+
+	// 2. Lấy lại entity vừa thêm với preload
+	query := r.db.WithContext(ctx).Model(entity)
+	for _, inc := range includes {
+		query = query.Preload(inc)
+	}
+
+	// Lấy theo ID của entity vừa thêm
+	// Giả sử entity có field "ID", nếu bạn dùng UUID hoặc auto-increment
+	if err := query.First(entity).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // BulkAdd adds multiple entities to the database in a single operation.
 // If batchSize is less than or equal to 100, the operations will be performed using the default batch size defined in config.
 func (r *genericRepository[T]) BulkAdd(ctx context.Context, entities []*T, batchSize int) (rowsAffected int64, err error) {

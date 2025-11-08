@@ -1,7 +1,6 @@
 package requests
 
 import (
-	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"encoding/json"
@@ -115,8 +114,7 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 // PlaceAndPayRequest wraps OrderRequest with an optional delivery service selection
 // used by the place-and-pay endpoint.
 type PlaceAndPayRequest struct {
-	Order           OrderRequest                      `json:"order" validate:"required,dive"`
-	DeliveryService *dtos.DeliveryAvailableServiceDTO `json:"delivery_service,omitempty"`
-	CancelURL       string                            `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
-	SuccessURL      string                            `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
+	Order      OrderRequest `json:"order" validate:"required,dive"`
+	CancelURL  string       `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
+	SuccessURL string       `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
 }
