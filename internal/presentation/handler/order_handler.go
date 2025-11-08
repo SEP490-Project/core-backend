@@ -2,7 +2,6 @@ package handler
 
 import (
 	"core-backend/internal/application/interfaces/iservice_third_party"
-	"core-backend/internal/domain/model"
 	"net/http"
 	"strconv"
 
@@ -108,7 +107,7 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 // PlaceAndPayOrder godoc
 //
 //	@Summary		Place an order and initiate payment
-//	@Description	Create an order and immediately calculate delivery fee and create payment transaction
+//	@Description	Create an order -> calculate delivery fee -> create payment transaction
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
@@ -118,8 +117,8 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 //	@Failure		401		{object}	map[string]string
 //	@Failure		500		{object}	map[string]string
 //	@Security		BearerAuth
-//	@Router			/api/v1/orders/place-and-pay [post]
-func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
+//	@Router			/api/v1/orders [post]
+func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	// Bind request
 	var req requests.PlaceAndPayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -148,28 +147,27 @@ func (h *OrderHandler) PlaceAndPayOrder(c *gin.Context) {
 		}
 	}()
 
-	// 1) Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
-	deliveryFee, err := h.ghnService.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, *req.DeliveryService, req.Order.Items, uow)
+	//*1 Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
+	deliveryFee, err := h.ghnService.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, req.Order.Items, uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery fee", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	// 2) Create order
+	//*2 Create order with payment
 	order, err := h.orderService.PlaceOrder(ctx, userID, req.Order, deliveryFee.Total, uow)
 	if err != nil {
 		_ = uow.Rollback()
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to place order: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	// 3) Initiate payment
-	var paymentTx *model.PaymentTransaction
-	paymentTx, err = h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, req.SuccessURL, req.CancelURL, uow)
+	//*3 Initiate payment
+	paymentTx, err := h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 

@@ -29,12 +29,11 @@ type GHNHandler struct {
 //	@Accept			json
 //	@Produce		json
 //	@Param			order-id	path		string								true	"Order ID (UUID)"
-//	@Param			body		body		dtos.DeliveryAvailableServiceDTO	true	"Selected delivery service"
 //	@Success		200			{object}	dtos.DeliveryFeeSuccess
 //	@Failure		400			{object}	map[string]string
 //	@Failure		500			{object}	map[string]string
 //	@Security		BearerAuth
-//	@Router			/api/v1/ghn/orders/{order-id}/calculate [post]
+//	@Router			/api/v1/ghn/order/{order-id}/calculate [post]
 func (h *GHNHandler) CalculateDeliveryPriceByOrderID(c *gin.Context) {
 	orderIDStr := c.Param("order-id")
 	orderID, err := uuid.Parse(orderIDStr)
@@ -43,14 +42,8 @@ func (h *GHNHandler) CalculateDeliveryPriceByOrderID(c *gin.Context) {
 		return
 	}
 
-	var req dtos.DeliveryAvailableServiceDTO
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
-		return
-	}
-
 	ctx := context.Background()
-	result, err := h.ghnService.CalculateDeliveryPriceByID(ctx, orderID, req, h.uow)
+	result, err := h.ghnService.CalculateDeliveryPriceByID(ctx, orderID, h.uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery fee", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to calculate delivery price: %s", err.Error()), http.StatusBadRequest))
@@ -62,17 +55,18 @@ func (h *GHNHandler) CalculateDeliveryPriceByOrderID(c *gin.Context) {
 
 // GetAvailableDeliveryServicesByOrderID godoc
 //
-//	@Summary		Get available GHN delivery services for an order
-//	@Description	Retrieve list of GHN delivery service options based on the order's destination
-//	@Tags			ghn
-//	@Accept			json
-//	@Produce		json
-//	@Param			order-id	path		string	true	"Order ID (UUID)"
-//	@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
-//	@Failure		400			{object}	map[string]string
-//	@Failure		500			{object}	map[string]string
-//	@Security		BearerAuth
-//	@Router			/api/v1/ghn/order/{order-id}/shipping-services [get]
+//	 @Deprecated
+//		@Summary		Get available GHN delivery services for an order
+//		@Description	Retrieve list of GHN delivery service options based on the order's destination
+//		@Tags			ghn
+//		@Accept			json
+//		@Produce		json
+//		@Param			order-id	path		string	true	"Order ID (UUID)"
+//		@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
+//		@Failure		400			{object}	map[string]string
+//		@Failure		500			{object}	map[string]string
+//		@Security		BearerAuth
+//		@Router			/api/v1/ghn/order/{order-id}/shipping-services [get]
 func (h *GHNHandler) GetAvailableDeliveryServicesByOrderID(c *gin.Context) {
 	orderIDStr := c.Param("order-id")
 	orderID, err := uuid.Parse(orderIDStr)
@@ -94,16 +88,17 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByOrderID(c *gin.Context) {
 
 // GetAvailableDeliveryServicesByDistrictID godoc
 //
-//	@Summary		Get GHN delivery services by district ID (public endpoint)
-//	@Description	Fetch GHN delivery service options available for a specific district
-//	@Tags			ghn
-//	@Accept			json
-//	@Produce		json
-//	@Param			district-id	path		int	true	"District ID"
-//	@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
-//	@Failure		400			{object}	map[string]string
-//	@Failure		500			{object}	map[string]string
-//	@Router			/api/v1/ghn/{district-id}/shipping-services [get]
+//	 @Deprecated
+//		@Summary		Get GHN delivery services by district ID (public endpoint)
+//		@Description	Fetch GHN delivery service options available for a specific district
+//		@Tags			ghn
+//		@Accept			json
+//		@Produce		json
+//		@Param			district-id	path		int	true	"District ID"
+//		@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
+//		@Failure		400			{object}	map[string]string
+//		@Failure		500			{object}	map[string]string
+//		@Router			/api/v1/ghn/{district-id}/shipping-services [get]
 func (h *GHNHandler) GetAvailableDeliveryServicesByDistrictID(c *gin.Context) {
 	districtIDStr := c.Param("district-id")
 	var districtID int
@@ -126,10 +121,9 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByDistrictID(c *gin.Context) {
 
 // CalculateDeliveryPriceByDimensionRequest defines the request body for calculating delivery fee by dimensions/items
 type CalculateDeliveryPriceByDimensionRequest struct {
-	ToDistrictID    int                               `json:"to_district_id" example:"1454"`
-	ToWardCode      string                            `json:"to_ward_code" example:"012345"`
-	DeliveryService dtos.DeliveryAvailableServiceDTO  `json:"delivery_service"`
-	Items           []dtos.ApplicationDeliveryFeeItem `json:"items"`
+	ToDistrictID int                               `json:"to_district_id" example:"1454"`
+	ToWardCode   string                            `json:"to_ward_code" example:"012345"`
+	Items        []dtos.ApplicationDeliveryFeeItem `json:"items"`
 }
 
 // CalculateDeliveryPriceByDimension godoc
@@ -151,7 +145,7 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnService.CalculateDeliveryPriceByDimensionItems(ctx, req.ToDistrictID, req.ToWardCode, req.DeliveryService, req.Items, h.uow)
+	result, err := h.ghnService.CalculateDeliveryPriceByDimensionItems(ctx, req.ToDistrictID, req.ToWardCode, req.Items, h.uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery price by dimension", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to calculate delivery price: %s", err.Error()), http.StatusBadRequest))

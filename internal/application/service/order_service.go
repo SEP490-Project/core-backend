@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"core-backend/config"
-	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
+	responses "core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -14,10 +14,6 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
-	"core-backend/pkg/utils"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -35,6 +31,7 @@ type orderService struct {
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	ghnService                   iservice_third_party.GHNService
+	paymentTransactionService    iservice.PaymentTransactionService
 }
 
 func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string) ([]model.Order, int, error) {
@@ -112,11 +109,10 @@ func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, 
 func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
 	now := time.Now()
 	var persistedOrder *model.Order
-
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		//Create Item
+		//*1. Create Order
+		//1.1.Build order items from request
 		var persistedOrderItem []model.OrderItem
-
 		for _, item := range request.Items {
 			//check variantID:
 			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images"}
@@ -131,19 +127,22 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			persistedOrderItem = append(persistedOrderItem, *persistedItem)
 		}
 
-		//Create Order
+		//1.2.Build shipping address
 		shippingAddress, err := o.shippingAddressRepository.GetByID(ctx, request.AddressID, nil)
 		if err != nil {
 			zap.L().Error("ShippingAddress().GetByID", zap.Error(err))
 			return err
 		}
 
-		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, shippingPrice, now)
+		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(shippingPrice), now)
+
+		//1.3.Persist
 		err = uow.Order().Add(ctx, persistedOrder)
 		if err != nil {
 			zap.L().Error("Order().Add", zap.Error(err))
 			return err
 		}
+
 		return nil
 	})
 
@@ -155,12 +154,11 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 }
 
 // PayOrder handles the payment process in a atomic transaction
-func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*model.PaymentTransaction, error) {
-	var paymentTransaction *model.PaymentTransaction
-	rftCancelURL := fmt.Sprintf("%s?returnUrl=%s", "http://localhost:8080/api/v1/payos/cancel-callback", cancelURL)
+func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shippingFee int, returnURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error) {
+	var paymentTransaction *responses.PayOSLinkResponse
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		//Check Order
+		//*1 Fetch Order with Preload
 		includes := []string{"User", "OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
 		order, err := uow.Order().GetByID(ctx, orderID, includes)
 		if err != nil {
@@ -168,104 +166,28 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		}
 
 		//Map order items to PayOS items
-		payOSItems, total, err := toPayOSItemsWithTotalPrice(order.OrderItems)
+		paymentItemRequest, total := toPaymentItemRequestsWithTotalPrice(order.OrderItems, shippingFee)
+
+		//*2 Build Payment Request:
+		paymentRq := requests.PaymentRequest{
+			ReferenceID:   order.ID,
+			ReferenceType: enum.PaymentTransactionReferenceTypeOrder,
+			Amount:        int64(total),
+			Description:   fmt.Sprintf("Payment for Order %s", order.ID),
+			Items:         paymentItemRequest,
+			BuyerName:     order.FullName,
+			BuyerEmail:    order.Email,
+			BuyerPhone:    order.PhoneNumber,
+			ReturnURL:     &returnURL,
+			CancelURL:     &cancelURL,
+		}
+
+		//*3. Create Payment Transaction
+		paymentTransaction, err = o.paymentTransactionService.GeneratePaymentLink(ctx, uow, &paymentRq)
 		if err != nil {
-			zap.L().Error("Failed to map order items to PayOS items", zap.Error(err))
+			zap.L().Error("Failed to initiate payment transaction for order", zap.Error(err))
 			return err
 		}
-
-		//Add shipping fee item as additional info
-		shippingFeeItem := dtos.PayOSItem{
-			Name:     "Shipping Fee from \"Giao Hàng Nhanh\"",
-			Quantity: 1,
-			Price:    float64(shippingFee),
-		}
-		//Calc total ammount
-		amount := total + shippingFee
-
-		payOSItems = append(payOSItems, shippingFeeItem)
-
-		//Calculate expiry time
-		expirySeconds := o.config.AdminConfig.PayOSLinkExpiry
-		if expirySeconds == 0 {
-			expirySeconds = 300 // Default 5 minutes
-		}
-		expiredAt := time.Now().Add(time.Duration(expirySeconds) * time.Second).Unix()
-
-		//generate signature
-		orderCode := GenerateOrderCode()
-		description := helper.GeneratePayOSDescription(enum.PaymentTransactionReferenceTypeOrder.String(), orderID)
-		signature, err := o.generateSignature(int64(amount), rftCancelURL, description, orderCode, successURL)
-
-		if err != nil {
-			zap.L().Error("Failed to generate signature", zap.Error(err))
-			return fmt.Errorf("failed to generate signature: %w", err)
-		}
-
-		createLinkReq := dtos.PayOSCreateLinkRequest{
-			OrderCode:    orderCode,
-			Amount:       int64(total + shippingFee),
-			Description:  description,
-			BuyerName:    utils.PtrOrNil(order.FullName),
-			BuyerEmail:   utils.PtrOrNil(order.Email),
-			BuyerPhone:   utils.PtrOrNil(order.PhoneNumber),
-			BuyerAddress: utils.PtrOrNil(order.AddressLine2),
-			Items:        payOSItems,
-			CancelURL:    rftCancelURL,
-			ReturnURL:    successURL,
-			ExpiredAt:    expiredAt, //additional for 5 mins
-			Signature:    signature,
-		}
-
-		// Call PayOS and persist local payment transaction using UnitOfWork
-		// Use a short timeout for external call so we don't block forever and to avoid being canceled by Gin timeout
-		payosCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		payosResp, err := o.payOSProxy.CreatePaymentLink(payosCtx, &createLinkReq)
-		if err != nil {
-			// If the error is due to context deadline, return a clear error
-			if errors.Is(err, context.DeadlineExceeded) {
-				zap.L().Error("PayOS CreatePaymentLink timed out", zap.Error(err), zap.String("order_id", order.ID.String()))
-				return fmt.Errorf("payment provider timeout: %w", err)
-			}
-			zap.L().Error("paymentTransactionService.CreatePaymentLink failed", zap.Error(err), zap.String("order_id", order.ID.String()))
-			return err
-		}
-
-		// Build local PaymentTransaction record and persist
-		pt := &model.PaymentTransaction{
-			ID:              uuid.New(),
-			ReferenceID:     order.ID,
-			ReferenceType:   "ORDER",
-			Amount:          utils.PtrOrNil(float64(amount)),
-			Method:          "PAYOS",
-			Status:          enum.PaymentTransactionStatusPending,
-			TransactionDate: time.Now(),
-			PayOSMetadata: &model.PayOSMetadata{
-				PaymentLinkID: payosResp.PaymentLinkID,
-				OrderCode:     orderCode,
-				CheckoutURL:   payosResp.CheckoutURL,
-				QRCode:        payosResp.QRCode,
-				Bin:           payosResp.Bin,
-				AccountNumber: payosResp.AccountNumber,
-				AccountName:   payosResp.AccountName,
-				ExpiredAt:     payosResp.ExpiredAt,
-				Amount:        payosResp.Amount,
-				Description:   payosResp.Description,
-				Currency:      payosResp.Currency,
-			},
-			GatewayRef: payosResp.CheckoutURL,
-			GatewayID:  payosResp.PaymentLinkID,
-		}
-
-		if err := uow.PaymentTransaction().Add(ctx, pt); err != nil {
-			zap.L().Error("Failed to save payment transaction", zap.Error(err))
-			return err
-		}
-
-		// set the paymentTransaction to the created record for returning later
-		paymentTransaction = pt
-
 		return nil
 	})
 
@@ -274,6 +196,30 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 	}
 
 	return paymentTransaction, nil
+}
+
+// PayOrder Helper
+func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee int) ([]requests.PaymentItemRequest, int) {
+	paymentItems := make([]requests.PaymentItemRequest, 0, len(items))
+	var total int = shippingFee
+	for _, item := range items {
+		paymentItems = append(paymentItems, requests.PaymentItemRequest{
+			Name:     item.Variant.Product.Name,
+			Quantity: item.Quantity,
+			Price:    int64(item.UnitPrice),
+		})
+		total += int(item.UnitPrice) * item.Quantity
+	}
+
+	//Add shipping fee item as additional info
+	shippingFeeItem := requests.PaymentItemRequest{
+		Name:     "Shipping Fee from \"Giao Hàng Nhanh\"",
+		Quantity: 1,
+		Price:    int64(shippingFee),
+	}
+
+	paymentItems = append(paymentItems, shippingFeeItem)
+	return paymentItems, total
 }
 
 func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string) ([]model.Order, int, error) {
@@ -367,7 +313,7 @@ func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, se
 	return orders, int(total), nil
 }
 
-func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry) iservice.OrderService {
+func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.OrderService {
 	return &orderService{
 		config:                    cfg,
 		orderRepository:           dbRegistry.OrderRepository,
@@ -375,58 +321,8 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		shippingAddressRepository: dbRegistry.ShippingAddressRepository,
 		payOSProxy:                registry.ProxiesRegistry.PayOSProxy,
 		ghnService:                registry.GHNService,
+		paymentTransactionService: paymentTransactionSvc,
 	}
 }
 
 //=========== Helper Methods ===========
-
-func GenerateOrderCode() int64 {
-	now := time.Now().Unix()
-	randPart := time.Now().UnixNano() % 1e3
-	return now*1000 + randPart
-}
-
-func (o *orderService) generateSignature(amount int64, cancelURL, description string, orderCode int64, returnURL string) (string, error) {
-	data := fmt.Sprintf(
-		"amount=%d&cancelUrl=%s&description=%s&orderCode=%d&returnUrl=%s",
-		amount, cancelURL, description, orderCode, returnURL,
-	)
-	mac := hmac.New(sha256.New, []byte(o.config.PayOS.ChecksumKey))
-	mac.Write([]byte(data))
-	return hex.EncodeToString(mac.Sum(nil)), nil
-}
-
-// ToPayOSItemsWithTotalPrice map OrderItems to PayOSItems with total price
-func toPayOSItemsWithTotalPrice(items []model.OrderItem) (payOSItems []dtos.PayOSItem, total int, err error) {
-	payOSItems = make([]dtos.PayOSItem, 0, len(items))
-	total = 0
-
-	for _, item := range items {
-		// Validate relations: Variant and Product must be preloaded
-		if item.Variant.ID == uuid.Nil || item.Variant.Product.ID == uuid.Nil {
-			err = fmt.Errorf("missing relation: OrderItem.Variant or OrderItem.Variant.Product not loaded for OrderItem ID %s", item.ID)
-			return
-		}
-
-		// Build variant descriptive string (e.g. "250ML - Bottle - Spray")
-		variantPropConcat := fmt.Sprintf("%v", item.Capacity) +
-			utils.ToTitleCase(*item.CapacityUnit) + " - " +
-			utils.ToTitleCase(item.ContainerType.String()) + " - " +
-			utils.ToTitleCase(item.DispenserType.String())
-
-		// Build readable item name (e.g. "Shampoo (250ML - Bottle - Spray)")
-		variantName := utils.ToTitleCase(item.Variant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)
-
-		// Append to PayOS item list
-		payOSItems = append(payOSItems, dtos.PayOSItem{
-			Name:     variantName,
-			Quantity: item.Quantity,
-			Price:    item.UnitPrice,
-		})
-
-		// Accumulate total price (unit price × quantity)
-		total += int(item.UnitPrice) * item.Quantity
-	}
-
-	return
-}
