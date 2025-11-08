@@ -41,9 +41,9 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_p
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param			page	query		int		false	"Page number (default: 1)"
-//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
-//	@Param			search	query		string	false	"Search term for filtering orders by order number"
+//	@Param		page	query		int		false	"Page number (default: 1)"
+//	@Param		limit	query		int		false	"Number of items per page (default: 10, max: 100)"
+//	@Param		search	query		string	false	"Search term for filtering orders by order number"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
@@ -111,7 +111,7 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param			data	body		requests.PlaceAndPayRequest	true	"Place and pay payload"
+//	@Param		data	body		requests.PlaceAndPayRequest	true	"Place and pay payload"
 //	@Success		200		{object}	map[string]any
 //	@Failure		400		{object}	map[string]string
 //	@Failure		401		{object}	map[string]string
@@ -193,41 +193,38 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param			page	query		int		false	"Page number (default: 1)"
-//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
-//	@Param			search	query		string	false	"Search term for filtering by order number"
-//	@Param			status	query		string	false	"Order status filter"	Enums(PENDING,PAID,REFUNDED,CONFIRMED,CANCELLED,SHIPPED,IN_TRANSIT,DELIVERED,RECEIVED)
+//	@Param		query	query		requests.StaffOrdersQuery	false	"Staff orders query"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/orders/staff [get]
 func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
-	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "10")
+	// Bind query params into struct for swag and cleaner code
+	var q requests.StaffOrdersQuery
+	_ = c.ShouldBindQuery(&q)
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	page := q.Page
+	limit := q.Limit
+	if page < 1 {
 		page = 1
 	}
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit <= 0 {
+	if limit <= 0 {
 		limit = 10
 	}
 	if limit > 100 {
 		limit = 100
 	}
 
-	// auth check (re-use same handler; assume staff auth handled via middleware/role checks)
-	if _, err := extractUserID(c); err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
-		return
-	}
+	search := q.Search
+	status := q.Status
+	fullName := q.FullName
+	phone := q.Phone
+	provinceID := q.ProvinceID
+	districtID := q.DistrictID
+	wardCode := q.WardCode
 
-	search := c.DefaultQuery("search", "")
-	status := c.DefaultQuery("status", "")
-
-	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status)
+	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusInternalServerError))
 		return
