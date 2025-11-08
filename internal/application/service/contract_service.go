@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -85,7 +86,7 @@ func (s *ContractService) GetContractsByUserID(
 
 		return db
 	}
-	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand"}, 0, 0)
+	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand", "Campaign"}, 0, 0)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -318,7 +319,7 @@ func (s *ContractService) UpdateContractFileURL(
 func (s *ContractService) GetContractByID(ctx context.Context, contractID uuid.UUID) (*responses.ContractResponse, error) {
 	zap.L().Info("Fetching contract by ID", zap.String("contract_id", contractID.String()))
 
-	contract, err := s.contractRepository.GetByID(ctx, contractID, []string{"Brand", "ParentContract"})
+	contract, err := s.contractRepository.GetByID(ctx, contractID, []string{"Brand", "ParentContract", "Campaign"})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
@@ -342,7 +343,7 @@ func (s *ContractService) GetContractsByBrandID(ctx context.Context, brandID uui
 		return db.Where("brand_id = ?", brandID).Order("created_at DESC")
 	}
 
-	contracts, total, err := s.contractRepository.GetAll(ctx, filter, []string{"Brand"}, limit, page)
+	contracts, total, err := s.contractRepository.GetAll(ctx, filter, []string{"Brand", "Campaign"}, limit, page)
 	if err != nil {
 		zap.L().Error("Failed to fetch contracts", zap.Error(err))
 		return nil, 0, errors.New("failed to fetch contracts")
@@ -411,38 +412,20 @@ func (s *ContractService) GetByFilter(ctx context.Context, filterReq *requests.C
 			}
 		}
 
-		// Sorting
-		sortBy := filterReq.SortBy
-		if sortBy == "" {
-			sortBy = "created_at"
-		}
-		sortOrder := filterReq.SortOrder
-		if sortOrder != "asc" && sortOrder != "desc" {
-			sortOrder = "desc"
-		}
-		db = db.Order(fmt.Sprintf("%s %s", sortBy, sortOrder))
+		db = db.Order(helper.ConvertToSortString(filterReq.PaginationRequest))
 
 		return db
 	}
 
-	page := max(filterReq.Page, 1)
-	limit := filterReq.Limit
-	if limit < 1 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	contracts, total, err := s.contractRepository.GetAll(ctx, filter, []string{"Brand"}, limit, page)
+	contracts, total, err := s.contractRepository.GetAll(ctx, filter, []string{"Brand", "Campaign"}, filterReq.Limit, filterReq.Page)
 	if err != nil {
 		zap.L().Error("Failed to fetch contracts", zap.Error(err))
 		return nil, 0, errors.New("failed to fetch contracts")
 	}
 
-	result := make([]*responses.ContractListResponse, 0, len(contracts))
-	for _, contract := range contracts {
-		result = append(result, responses.ToContractListResponse(&contract))
+	result := make([]*responses.ContractListResponse, len(contracts))
+	for i, contract := range contracts {
+		result[i] = responses.ToContractListResponse(&contract)
 	}
 
 	zap.L().Info("Contracts fetched successfully", zap.Int64("total", total))
