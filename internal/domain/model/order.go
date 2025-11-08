@@ -36,6 +36,10 @@ type Order struct {
 	// Relationships
 	User       User        `json:"-" gorm:"foreignKey:UserID"`
 	OrderItems []OrderItem `json:"order_items" gorm:"foreignKey:OrderID"`
+
+	// Transient fields populated by repository (not persisted)
+	PaymentID  *uuid.UUID `json:"payment_id,omitempty" gorm:"-"`
+	PaymentBin *string    `json:"payment_bin,omitempty" gorm:"-"`
 }
 
 func (Order) TableName() string { return "orders" }

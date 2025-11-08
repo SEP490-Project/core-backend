@@ -34,7 +34,7 @@ type DatabaseRegistry struct {
 	VariantAttributeRepository irepository.GenericRepository[model.VariantAttribute]
 
 	//Orders & Payment
-	OrderRepository              irepository.GenericRepository[model.Order]
+	OrderRepository              irepository.OrderRepository
 	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
 	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 
@@ -83,7 +83,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ContentChannelRepository:     NewGenericRepository[model.ContentChannel](db),
 		BlogRepository:               NewGenericRepository[model.Blog](db),
 		TagRepository:                NewTagRepository(db),
-		OrderRepository:              NewGenericRepository[model.Order](db),
+		OrderRepository:              NewOrderRepository(db),
 		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
 		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
 		NotificationRepository:       NewNotificationRepository(db),

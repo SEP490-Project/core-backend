@@ -18,5 +18,5 @@ type OrderService interface {
 	PayOrder(ctx context.Context, orderID uuid.UUID, shippingPrice int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error)
 
 	//Staff
-	GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string) ([]model.Order, int, error)
+	GetStaffAvailableOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
 }
