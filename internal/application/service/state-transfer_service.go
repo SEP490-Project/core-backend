@@ -38,7 +38,7 @@ type stateTransferService struct {
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
 	//1. Load current task from DB
 	// Preload nested product -> task to have back-reference available ("Products.Task")
-	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Products", "Products.Task", "Contents"})
+	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Product", "Contents"})
 	if err != nil {
 		zap.L().Error("Failed to load task from DB",
 			zap.String("task ID", taskID.String()),
@@ -160,7 +160,7 @@ func (t stateTransferService) MoveMileStoneToState(ctx context.Context, mileSton
 
 	milestoneRepo := trx.Milestones()
 	// We want tasks (and optionally their products/contents if later cascades rely on them)
-	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Milestone", "Tasks.Products", "Tasks.Contents"})
+	milestone, err := milestoneRepo.GetByID(ctx, mileStoneID, []string{"Tasks", "Tasks.Milestone", "Tasks.Product", "Tasks.Contents"})
 	if err != nil {
 		_ = trx.Rollback()
 		zap.L().Error("Failed to load milestone from DB", zap.String("milestone_id", mileStoneID.String()), zap.Error(err))
@@ -219,7 +219,7 @@ func (t stateTransferService) MoveCampaignToState(
 ) error {
 	//1. Load current task from DB
 	campaignRepo := uow.Campaigns()
-	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
+	campaign, err := campaignRepo.GetByID(ctx, campaignID, []string{"Milestones", "Milestones.Campaign", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
 	if err != nil {
 		zap.L().Error("Failed to load campaign", zap.String("campaign_id", campaignID.String()), zap.Error(err))
 		return errors.New("failed to load campaign: " + err.Error())
@@ -276,7 +276,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 
 	// Preload deeper campaign tree if contract has a campaign
 	if contract.Campaign != nil {
-		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Products", "Milestones.Tasks.Contents"})
+		camp, err2 := campaignRepo.GetByID(ctx, contract.Campaign.ID, []string{"Milestones", "Milestones.Tasks", "Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
 		if err2 == nil {
 			contract.Campaign = camp
 		}
