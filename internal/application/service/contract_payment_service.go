@@ -78,8 +78,8 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
 		Amount:        int64(contractPayment.Amount),
 		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
-		ReturnURL:     &request.ReturnURL,
-		CancelURL:     &request.CancelURL,
+		ReturnURL:     request.ReturnURL,
+		CancelURL:     request.CancelURL,
 	}
 
 	// Add buyer information from contract brand if available
@@ -119,8 +119,7 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 	filterQuery := func(db *gorm.DB) *gorm.DB {
 		if filter.BrandID != nil {
 			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
-				Joins("JOIN brands b ON b.id = c.brand_id").
-				Where("b.user_id = ?", *filter.BrandID)
+				Where("c.brand_id = ?", *filter.BrandID)
 		}
 		if filter.BrandUserID != nil {
 			db = db.Joins("JOIN contracts c ON c.id = contract_payments.contract_id").
@@ -128,16 +127,16 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 				Where("b.user_id = ?", *filter.BrandUserID)
 		}
 		if filter.ContractID != nil {
-			db = db.Where("contract_id = ?", *filter.ContractID)
+			db = db.Where("contract_payments.contract_id = ?", *filter.ContractID)
 		}
 		if filter.Status != nil {
 			db = db.Where("contract_payments.status = ?", *filter.Status)
 		}
 		if filter.DueDateFrom != nil {
-			db = db.Where("due_date >= ?", *filter.DueDateFrom)
+			db = db.Where("contract_payments.due_date >= ?", *filter.DueDateFrom)
 		}
 		if filter.DueDateTo != nil {
-			db = db.Where("due_date <= ?", *filter.DueDateTo)
+			db = db.Where("contract_payments.due_date <= ?", *filter.DueDateTo)
 		}
 
 		db = db.Order(helper.ConvertToSortString(filter.PaginationRequest))

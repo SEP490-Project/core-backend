@@ -19,6 +19,7 @@ type ContractResponse struct {
 	DepositPercent *int   `json:"deposit_percent,omitempty" example:"30"`
 	DepositAmount  *int   `json:"deposit_amount,omitempty" example:"3000000"`
 	IsDepositPaid  *bool  `json:"is_deposit_paid,omitempty" example:"true"`
+	HasCampaign    bool   `json:"has_campaign,omitempty" example:"true"`
 
 	// Brand information (from relationship)
 	Brand *BrandSummary `json:"brand,omitempty"`
@@ -186,6 +187,10 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 		}
 	}
 
+	if contract.Campaign != nil {
+		response.HasCampaign = true
+	}
+
 	return response, nil
 }
 
@@ -200,6 +205,7 @@ type ContractListResponse struct {
 	BrandName      *string `json:"brand_name,omitempty" example:"Acme Corp"`
 	StartDate      string  `json:"start_date" example:"2006-01-02 15:04:05"`
 	EndDate        string  `json:"end_date" example:"2006-01-02 15:04:05"`
+	HasCampaign    bool    `json:"has_campaign,omitempty" example:"true"`
 	SignedDate     string  `json:"signed_date" example:"2006-01-02 15:04:05"`
 	CreatedAt      string  `json:"created_at" example:"2006-01-02 15:04:05"`
 	UpdatedAt      string  `json:"updated_at" example:"2006-01-02 15:04:05"`
@@ -232,6 +238,10 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 	// Set BrandName if Brand is loaded
 	if contract.Brand != nil {
 		response.BrandName = &contract.Brand.Name
+	}
+
+	if contract.Campaign != nil {
+		response.HasCampaign = true
 	}
 
 	return response

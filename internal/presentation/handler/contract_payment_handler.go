@@ -265,7 +265,7 @@ func (h *ContractPaymentHandler) GetContractPaymentByProfile(c *gin.Context) {
 //	@Tags			Contract Payments
 //	@Accept			json
 //	@Produce		json
-//	@Param			contract_payment_id	path		string													true	"Contract Payment ID"	example("b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6")
+//	@Param			contract_payment_id	path		string													true	"Contract Payment ID"					example("b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6")
 //	@Param			return_url			query		string													false	"Return URL after payment completion"	example("https://example.com/return")
 //	@Param			cancel_url			query		string													false	"Cancel URL after payment cancellation"	example("https://example.com/cancel")
 //	@Success		200					{object}	responses.APIResponse{data=responses.PayOSLinkResponse}	"Payment link generated successfully"

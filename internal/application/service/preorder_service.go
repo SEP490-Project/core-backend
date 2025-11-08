@@ -20,11 +20,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"time"
+
 	"github.com/aws/smithy-go/ptr"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"time"
 )
 
 type preOrderService struct {

@@ -37,16 +37,28 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			db = db.Where("c.contract_id = ?", *filter.ContractID)
 		}
 		if filter.DeadlineFromDate != nil {
-			db = db.Where("tasks.deadline >= ?", *filter.DeadlineFromDate)
+			deadlineFromDate := utils.ParseLocalTimeWithFallback(*filter.DeadlineFromDate, utils.DateFormat)
+			if deadlineFromDate != nil {
+				db = db.Where("tasks.deadline >= ?", deadlineFromDate)
+			}
 		}
 		if filter.DeadlineToDate != nil {
-			db = db.Where("tasks.deadline <= ?", *filter.DeadlineToDate)
+			deadlineToDate := utils.ParseLocalTimeWithFallback(*filter.DeadlineToDate, utils.DateFormat)
+			if deadlineToDate != nil {
+				db = db.Where("tasks.deadline <= ?", deadlineToDate)
+			}
 		}
 		if filter.UpdatedFromDate != nil {
-			db = db.Where("tasks.updated_at >= ? or tasks.created_at >= ?", *filter.UpdatedFromDate, *filter.UpdatedFromDate)
+			updatedFromDate := utils.ParseLocalTimeWithFallback(*filter.UpdatedFromDate, utils.DateFormat)
+			if updatedFromDate != nil {
+				db = db.Where("tasks.updated_at >= ? or tasks.created_at >= ?", updatedFromDate, updatedFromDate)
+			}
 		}
 		if filter.UpdatedToDate != nil {
-			db = db.Where("tasks.updated_at <= ? or tasks.created_at <= ?", *filter.UpdatedToDate, *filter.UpdatedToDate)
+			updatedToDate := utils.ParseLocalTimeWithFallback(*filter.UpdatedToDate, utils.DateFormat)
+			if updatedToDate != nil {
+				db = db.Where("tasks.updated_at <= ? or tasks.created_at <= ?", updatedToDate, updatedToDate)
+			}
 		}
 		if filter.Status != nil {
 			db = db.Where("tasks.status = ?", *filter.Status)
