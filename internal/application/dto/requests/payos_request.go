@@ -79,12 +79,16 @@ func ValidatePaymentTransactionFilterRequest(sl validator.StructLevel) {
 	filterRequest := sl.Current().Interface().(PaymentTransactionFilterRequest)
 	var err error
 
-	_, err = utils.ParseLocalTime(*filterRequest.TransactionFromDate, utils.DateFormat)
-	if err != nil {
-		sl.ReportError(filterRequest.TransactionFromDate, "transaction_from_date", "TransactionFromDate", "Filter.TransactionFromDate", "Invalid transaction from date format, should be YYYY-MM-DD")
+	if filterRequest.TransactionFromDate != nil {
+		_, err = utils.ParseLocalTime(*filterRequest.TransactionFromDate, utils.DateFormat)
+		if err != nil {
+			sl.ReportError(filterRequest.TransactionFromDate, "transaction_from_date", "TransactionFromDate", "Filter.TransactionFromDate", "Invalid transaction from date format, should be YYYY-MM-DD")
+		}
 	}
-	_, err = utils.ParseLocalTime(*filterRequest.TransactionToDate, utils.DateFormat)
-	if err != nil {
-		sl.ReportError(filterRequest.TransactionToDate, "transaction_to_date", "TransactionToDate", "Filter.TransactionToDate", "Invalid transaction to date format, should be YYYY-MM-DD")
+	if filterRequest.TransactionToDate != nil {
+		_, err = utils.ParseLocalTime(*filterRequest.TransactionToDate, utils.DateFormat)
+		if err != nil {
+			sl.ReportError(filterRequest.TransactionToDate, "transaction_to_date", "TransactionToDate", "Filter.TransactionToDate", "Invalid transaction to date format, should be YYYY-MM-DD")
+		}
 	}
 }
