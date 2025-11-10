@@ -52,7 +52,7 @@ type UnitOfWork interface {
 	PaymentTransaction() GenericRepository[model.PaymentTransaction]
 
 	//PreOrders
-	PreOrder() GenericRepository[model.PreOrder]
+	PreOrder() PreOrderRepository
 
 	//Notifications
 	Notifications() NotificationRepository

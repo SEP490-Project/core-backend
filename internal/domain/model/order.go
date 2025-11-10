@@ -2,12 +2,48 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+type OrderActionNote struct {
+	UserID     uuid.UUID        `json:"user_id"`
+	UserName   string           `json:"user_name"`
+	UserEmail  string           `json:"user_email"`
+	ActionType enum.OrderStatus `json:"action_type"`
+	Reason     string           `json:"reason"`
+	CreatedAt  time.Time        `json:"created_at"`
+}
+
+// OrderActionNotes wrapper type for JSONB handling
+type OrderActionNotes []OrderActionNote
+
+// Value implements driver.Valuer interface for JSONB storage
+func (notes OrderActionNotes) Value() (driver.Value, error) {
+	if notes == nil {
+		return nil, nil
+	}
+	return json.Marshal(notes)
+}
+
+// Scan implements sql.Scanner interface for JSONB retrieval
+func (notes *OrderActionNotes) Scan(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+
+	return json.Unmarshal(bytes, notes)
+}
 
 type Order struct {
 	ID          uuid.UUID        `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
@@ -31,7 +67,8 @@ type Order struct {
 	ShippingFee   int       `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
 	CreatedAt     time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	//DeletedAt   gorm.DeletedAt   `json:"deleted_at" gorm:"column:deleted_at;index"`
+
+	ActionNotes *OrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
 
 	// Relationships
 	User       User        `json:"-" gorm:"foreignKey:UserID"`
@@ -55,4 +92,17 @@ func (o *Order) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 
 	return nil
+}
+
+func (o *Order) AddActionNote(note OrderActionNote) {
+	if o.ActionNotes == nil {
+		notes := make(OrderActionNotes, 0)
+		o.ActionNotes = &notes
+	}
+
+	if note.CreatedAt.IsZero() {
+		note.CreatedAt = time.Now()
+	}
+
+	*o.ActionNotes = append(*o.ActionNotes, note)
 }

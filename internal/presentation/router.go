@@ -237,10 +237,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		}
 
 		// Staffs
-		staffOrdersGroup := v1.Group("/orders")
+		staffOrdersGroup := v1.Group("/orders/staff")
 		staffOrdersGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
 		{
-			staffOrdersGroup.GET("/staff", orderHandler.GetStaffAvailableOrdersWithPagination)
+			staffOrdersGroup.GET("", orderHandler.GetStaffAvailableOrdersWithPagination)
+			staffOrdersGroup.POST("/:orderID/censore", orderHandler.OrderCensorship)
 		}
 
 		// ---------- CONCEPTS ----------
@@ -301,6 +302,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			preOrderGroup.POST("", preOrderHandler.CreatePreOrderAndPay)
 			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
+		}
+
+		// Staffs
+		staffPreOrderGroup := v1.Group("/preorders/staff")
+		staffPreOrderGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+		{
+			staffPreOrderGroup.GET("", preOrderHandler.GetStaffAvailablePreOrdersWithPagination)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE

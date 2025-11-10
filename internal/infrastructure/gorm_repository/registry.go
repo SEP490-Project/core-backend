@@ -39,7 +39,7 @@ type DatabaseRegistry struct {
 	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 
 	//PreOrders
-	PreOrderRepository irepository.GenericRepository[model.PreOrder]
+	PreOrderRepository irepository.PreOrderRepository
 
 	//Notifications
 	NotificationRepository irepository.NotificationRepository
@@ -95,7 +95,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		AffiliateLinkRepository:      NewAffiliateLinkRepository(db),
 		ClickEventRepository:         NewClickEventRepository(db),
 		KPIMetricsRepository:         NewGenericRepository[model.KPIMetrics](db),
-		PreOrderRepository:           NewGenericRepository[model.PreOrder](db),
+		PreOrderRepository:           NewPreOrderRepository(db),
 		MarketingAnalyticsRepository: NewMarketingAnalyticsRepository(db),
 	}
 }

@@ -56,6 +56,10 @@ type PreOrder struct {
 	// Relationships
 	User           *User           `json:"-" gorm:"foreignKey:UserID"`
 	ProductVariant *ProductVariant `json:"-" gorm:"foreignKey:VariantID"`
+
+	// Transient fields populated by repository (not persisted)
+	PaymentID  *uuid.UUID `json:"payment_id,omitempty" gorm:"-"`
+	PaymentBin *string    `json:"payment_bin,omitempty" gorm:"-"`
 }
 
 func (PreOrder) TableName() string { return "pre_orders" }
