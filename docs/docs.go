@@ -7819,7 +7819,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by order number\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -7858,88 +7858,6 @@ const docTemplate = `{
                         "description": "GHN ward code\nin: query\nexample: \"01234\"",
                         "name": "ward_code",
                         "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/model.Order"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "$ref": "#/definitions/responses.Pagination"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/staff/{orderID}/censore": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Change order state to CONFIRMED or CANCELLED. Use query param ` + "`" + `action=CONFIRM` + "`" + ` or ` + "`" + `action=CANCEL` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Censor an order (confirm or cancel)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "orderID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Action (CONFIRM|CANCEL)",
-                        "name": "action",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "Cancel reason (required when action=CANCEL)",
-                        "name": "reason",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/handler.CensorOrderRequest"
-                        }
                     }
                 ],
                 "responses": {

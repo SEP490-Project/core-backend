@@ -9714,7 +9714,7 @@ paths:
         name: province_id
         type: string
       - description: |-
-          Search term to filter by orderID/paymentID/paymentBin
+          Search term to filter by order number
           in: query
           example: "ORDER123"
         example: ORDER123

@@ -73,7 +73,8 @@ type PaymentTransaction struct {
 	GatewayRef      string                               `gorm:"type:varchar(255)" json:"gateway_ref"`
 	GatewayID       string                               `gorm:"type:varchar(255)" json:"gateway_id"`
 	PayOSMetadata   *PayOSMetadata                       `gorm:"column:payos_metadata;type:jsonb" json:"payos_metadata,omitempty"`
-	UpdatedAt       time.Time                            `gorm:"type:timestamptz;default:current_timestamp" json:"updated_at"`
+	CreatedAt       time.Time                            `gorm:"type:timestamptz;autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time                            `gorm:"type:timestamptz;autoUpdateTime" json:"updated_at"`
 }
 
 func (PaymentTransaction) TableName() string {

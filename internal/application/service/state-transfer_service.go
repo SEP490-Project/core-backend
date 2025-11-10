@@ -856,7 +856,6 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	}
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
-
 		// mark preorder as pre-ordered (payment succeeded)
 		preorder.Status = enum.PreOrderStatusPreOrdered
 		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())

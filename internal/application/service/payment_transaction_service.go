@@ -51,10 +51,16 @@ func (s *paymentTransactionService) GetPaymentTransactionByFilter(ctx context.Co
 			db = db.Where("status = ?", filter.Status.String())
 		}
 		if filter.TransactionFromDate != nil {
-			db = db.Where("transaction_date >= ?", filter.TransactionFromDate)
+			fromDate := utils.ParseLocalTimeWithFallback(*filter.TransactionFromDate, utils.DateFormat)
+			if fromDate != nil {
+				db = db.Where("transaction_date >= ?", fromDate)
+			}
 		}
 		if filter.TransactionToDate != nil {
-			db = db.Where("transaction_date <= ?", filter.TransactionToDate)
+			toDate := utils.ParseLocalTimeWithFallback(*filter.TransactionToDate, utils.DateFormat)
+			if toDate != nil {
+				db = db.Where("transaction_date <= ?", toDate)
+			}
 		}
 
 		db = db.Order(helper.ConvertToSortString(filter.PaginationRequest))
