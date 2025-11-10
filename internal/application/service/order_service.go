@@ -12,6 +12,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"errors"
@@ -228,6 +229,132 @@ func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, se
 	return o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
 }
 
+// ConfirmOrder transitions an order to CONFIRMED. For LIMITED products, decrements variant stock accordingly.
+func (o *orderService) ConfirmOrder(ctx context.Context, orderID uuid.UUID, updatedBy uuid.UUID, orderStatus enum.OrderStatus, unitOfWork irepository.UnitOfWork) error {
+	return helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// 1) Load order with items and variants + product
+		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
+		order, err := uow.Order().GetByID(ctx, orderID, includes)
+		if err != nil {
+			zap.L().Error("Failed to load order for confirm", zap.Error(err))
+			return fmt.Errorf("failed to load order: %w", err)
+		}
+
+		if order == nil {
+			return errors.New("order not found")
+		}
+
+		//&&&
+		// 2) Validate state transition using state machine
+		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
+		nextState := ordersm.NewOrderState(enum.OrderStatusConfirmed)
+		if nextState == nil {
+			return errors.New("invalid target state")
+		}
+		if err := ctxState.State.Next(ctxState, nextState); err != nil {
+			zap.L().Error("Order state transition validation failed", zap.Error(err))
+			return fmt.Errorf("state transition not allowed: %w", err)
+		}
+
+		// 3) For each order item, if product type is LIMITED, check and decrement variant stock
+		for _, it := range order.OrderItems {
+			if it.VariantID == uuid.Nil || it.Variant.ProductID == uuid.Nil {
+				return fmt.Errorf("invalid order item: variant not found")
+			}
+
+			if it.Variant.Product.Type == enum.ProductTypeLimited {
+				// ensure CurrentStock present
+				if it.Variant.CurrentStock == nil {
+					return fmt.Errorf("variant %s stock is nil", it.VariantID.String())
+				}
+
+				if *it.Variant.CurrentStock < it.Quantity {
+					return fmt.Errorf("insufficient stock for variant %s: have %d, need %d", it.VariantID.String(), *it.Variant.CurrentStock, it.Quantity)
+				}
+
+				// decrement stock
+				*it.Variant.CurrentStock = *it.Variant.CurrentStock - it.Quantity
+				if err := uow.ProductVariant().Update(ctx, &it.Variant); err != nil {
+					zap.L().Error("Failed to update variant stock", zap.Error(err))
+					return fmt.Errorf("failed to update variant stock: %w", err)
+				}
+			}
+		}
+
+		// 4) Persist order status change to CONFIRMED
+		order.Status = enum.OrderStatusConfirmed
+		if err := uow.Order().Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order status to confirmed", zap.Error(err))
+			return fmt.Errorf("failed to update order: %w", err)
+		}
+
+		// optionally: publish events or perform side-effects here
+		return nil
+	})
+}
+
+func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updatedBy uuid.UUID, reason string, unitOfWork irepository.UnitOfWork) error {
+	return helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Load order with items and variants + product
+		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
+		order, err := uow.Order().GetByID(ctx, orderID, includes)
+		if err != nil {
+			zap.L().Error("Failed to load order for cancel", zap.Error(err))
+			return fmt.Errorf("failed to load order: %w", err)
+		}
+
+		if order == nil {
+			return errors.New("order not found")
+		}
+
+		// Validate state transition using state machine
+		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
+		nextState := ordersm.NewOrderState(enum.OrderStatusCancelled)
+		if nextState == nil {
+			return errors.New("invalid target state")
+		}
+		if err := ctxState.State.Next(ctxState, nextState); err != nil {
+			zap.L().Error("Order state transition validation failed for cancel", zap.Error(err))
+			return fmt.Errorf("state transition not allowed: %w", err)
+		}
+
+		// If cancelling an already CONFIRMED order, and products are LIMITED, restock variants
+		wasConfirmed := order.Status == enum.OrderStatusConfirmed
+		if wasConfirmed {
+			for _, it := range order.OrderItems {
+				if it.VariantID == uuid.Nil || it.Variant.ProductID == uuid.Nil {
+					return fmt.Errorf("invalid order item: variant not found")
+				}
+
+				if it.Variant.Product.Type == enum.ProductTypeLimited {
+					// ensure CurrentStock present
+					if it.Variant.CurrentStock == nil {
+						// initialize to zero and then add
+						zero := 0
+						it.Variant.CurrentStock = &zero
+					}
+
+					*it.Variant.CurrentStock = *it.Variant.CurrentStock + it.Quantity
+					if err := uow.ProductVariant().Update(ctx, &it.Variant); err != nil {
+						zap.L().Error("Failed to update variant stock during cancel", zap.Error(err))
+						return fmt.Errorf("failed to update variant stock: %w", err)
+					}
+				}
+			}
+		}
+
+		// Persist order status change to CANCELLED
+		order.Status = enum.OrderStatusCancelled
+		if err := uow.Order().Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order status to cancelled", zap.Error(err))
+			return fmt.Errorf("failed to update order: %w", err)
+		}
+
+		// optionally log cancellation reason/actor here
+		return nil
+	})
+}
+
 func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.OrderService {
 	return &orderService{
 		config:                    cfg,
@@ -239,5 +366,3 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		paymentTransactionService: paymentTransactionSvc,
 	}
 }
-
-//=========== Helper Methods ===========

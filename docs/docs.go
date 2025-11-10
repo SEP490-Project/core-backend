@@ -7819,7 +7819,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by order number\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -7858,6 +7858,88 @@ const docTemplate = `{
                         "description": "GHN ward code\nin: query\nexample: \"01234\"",
                         "name": "ward_code",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Order"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/{orderID}/censore": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change order state to CONFIRMED or CANCELLED. Use query param ` + "`" + `action=CONFIRM` + "`" + ` or ` + "`" + `action=CANCEL` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Censor an order (confirm or cancel)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action (CONFIRM|CANCEL)",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel reason (required when action=CANCEL)",
+                        "name": "reason",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CensorOrderRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -8612,6 +8694,151 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated preorders for staff, filterable by status and search (id/payment id/bin) and address fields.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders"
+                ],
+                "summary": "Get staff-available preorders with pagination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "10",
+                        "description": "GHN district id\nin: query\nexample: 10",
+                        "name": "district_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "John Doe",
+                        "description": "Customer full name to filter\nin: query\nexample: \"John Doe\"",
+                        "name": "full_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of items per page (default: 10, max: 100)\nin: query\nexample: 10",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)\nin: query\nexample: 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "0912345678",
+                        "description": "Customer phone number to filter\nin: query\nexample: \"0912345678\"",
+                        "name": "phone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "1",
+                        "description": "GHN province id\nin: query\nexample: 1",
+                        "name": "province_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "ORDER123",
+                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "REFUNDED",
+                            "CONFIRMED",
+                            "CANCELLED",
+                            "SHIPPED",
+                            "IN_TRANSIT",
+                            "DELIVERED",
+                            "RECEIVED"
+                        ],
+                        "type": "string",
+                        "example": "PAID",
+                        "x-enum-varnames": [
+                            "OrderStatusPending",
+                            "OrderStatusPaid",
+                            "OrderStatusRefunded",
+                            "OrderStatusConfirmed",
+                            "OrderStatusCancelled",
+                            "OrderStatusShipped",
+                            "OrderStatusInTransit",
+                            "OrderStatusDelivered",
+                            "OrderStatusReceived"
+                        ],
+                        "description": "Order status filter\nin: query\nexample: \"PAID\"",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "01234",
+                        "description": "GHN ward code\nin: query\nexample: \"01234\"",
+                        "name": "ward_code",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.PreOrder"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
@@ -12886,6 +13113,18 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.CensorOrderRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Reason for cancelling the order. Required when action=CANCEL\nin: body\nexample: \"Customer requested cancellation due to wrong size\"",
+                    "type": "string"
+                }
+            }
+        },
         "handler.UpdateMilestoneStateRequest": {
             "type": "object",
             "required": [
@@ -13070,6 +13309,12 @@ const docTemplate = `{
         "model.Order": {
             "type": "object",
             "properties": {
+                "action_notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderActionNote"
+                    }
+                },
                 "address_line2": {
                     "type": "string"
                 },
@@ -13139,6 +13384,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "ward_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.OrderActionNote": {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "$ref": "#/definitions/enum.OrderStatus"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_name": {
                     "type": "string"
                 }
             }
@@ -13275,6 +13543,13 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "manufacturing_date": {
+                    "type": "string"
+                },
+                "payment_bin": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "description": "Transient fields populated by repository (not persisted)",
                     "type": "string"
                 },
                 "phone_number": {

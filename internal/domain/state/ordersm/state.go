@@ -1,10 +1,8 @@
 package ordersm
 
-import "core-backend/internal/domain/enum"
-
-type OrderContext struct {
-	State OrderState
-}
+import (
+	"core-backend/internal/domain/enum"
+)
 
 type OrderState interface {
 	Name() enum.OrderStatus
@@ -28,6 +26,10 @@ func NewOrderState(status enum.OrderStatus) OrderState {
 		return &DeliveredState{}
 	case enum.OrderStatusReceived:
 		return nil
+	case enum.OrderStatusCancelled:
+		return &CancelledState{}
+	case enum.OrderStatusRefunded:
+		return &RefundedState{}
 	default:
 		return nil
 	}

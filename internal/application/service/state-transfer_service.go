@@ -5,18 +5,22 @@ import (
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/campaignsm"
 	"core-backend/internal/domain/state/contentsm"
 	"core-backend/internal/domain/state/contractsm"
 	"core-backend/internal/domain/state/milestonesm"
+	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/domain/state/paymenttransactionsm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -624,6 +628,61 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	return nil
 }
 
+func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedUserID uuid.UUID, note *string) error {
+
+	err := helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// 1) Load order with items and variants + product
+		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
+		order, err := uow.Order().GetByID(ctx, orderID, includes)
+		if err != nil {
+			zap.L().Error("Failed to load order for confirm", zap.Error(err))
+			return fmt.Errorf("failed to load order: %w", err)
+		}
+
+		if order == nil {
+			return errors.New("order not found")
+		}
+
+		// check if staff's censore time pass 5min?
+		if order.UpdatedAt.Add(5 * time.Minute).After(time.Now()) {
+			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + order.UpdatedAt.Add(5*time.Minute).Sub(time.Now()).String())
+		}
+
+		updatedBy, err := uow.Users().GetByID(ctx, updatedUserID, []string{})
+		if err != nil {
+			return err
+		}
+
+		// 2) Validate state transition using state machine
+		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
+		nextState := ordersm.NewOrderState(targetState)
+		if nextState == nil {
+			return errors.New("invalid target state")
+		}
+		if err := ctxState.State.Next(ctxState, nextState); err != nil {
+			zap.L().Error("Order state transition validation failed", zap.Error(err))
+			return fmt.Errorf("state transition not allowed: %w", err)
+		}
+
+		// 3) Handle order side effects
+		err = t.handleOrderStatusSideEffect(ctx, uow, ctxState, targetState, order, updatedBy, note)
+		if err != nil {
+			return err
+		}
+
+		// 4) Persist new state to database
+		order.Status = targetState
+		if err := uow.Order().Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order state", zap.Error(err))
+			return fmt.Errorf("failed to update order state: %w", err)
+		}
+		return nil
+	})
+
+	return err
+
+}
+
 // handlePaymentTransactionSideEffects handles cascading updates based on payment status
 func (t stateTransferService) handlePaymentTransactionSideEffects(
 	ctx context.Context,
@@ -797,7 +856,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	}
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
-	
+
 		// mark preorder as pre-ordered (payment succeeded)
 		preorder.Status = enum.PreOrderStatusPreOrdered
 		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())
@@ -847,6 +906,63 @@ func (t stateTransferService) handlePreOrderSideEffect(
 		zap.L().Debug("No preorder side-effect for transaction status", zap.String("transaction_status", string(transactionStatus)))
 		return nil
 	}
+}
+
+func (t stateTransferService) handleOrderStatusSideEffect(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	transactionCtx *ordersm.OrderContext,
+	nextStatus enum.OrderStatus,
+	order *model.Order,
+	updatedBy *model.User,
+	reason *string, //optional
+) error {
+	//&&&
+	var err error
+
+	if order == nil {
+		return errors.New("order is nil")
+	}
+	orderRepo := uow.Order()
+
+	note := transactionCtx.GenerateActionNote(updatedBy, reason)
+
+	switch nextStatus {
+	case enum.OrderStatusConfirmed:
+		zap.L().Info("Order confirmation")
+		if order.Status != enum.OrderStatusPaid {
+			return fmt.Errorf("Order must be PAID before confirmation action")
+		}
+
+		// For each order item, if product type is LIMITED, check and decrement variant stock
+		for _, it := range order.OrderItems {
+			if it.VariantID == uuid.Nil || it.Variant.ProductID == uuid.Nil {
+				return fmt.Errorf("invalid order item: variant not found")
+			}
+			if it.Variant.Product.Type == enum.ProductTypeLimited {
+				if it.Variant.CurrentStock == nil {
+					return fmt.Errorf("variant %s stock is nil", it.VariantID.String())
+				}
+				if *it.Variant.CurrentStock < it.Quantity {
+					return fmt.Errorf("insufficient stock for variant %s: have %d, need %d", it.VariantID.String(), *it.Variant.CurrentStock, it.Quantity)
+				}
+				*it.Variant.CurrentStock = *it.Variant.CurrentStock - it.Quantity
+			}
+		}
+		zap.L().Info("Here goes the email :D")
+	case enum.OrderStatusCancelled:
+		//Add action notes as log
+		zap.L().Info("Order cancelled, bending rejected email")
+		//Add Note
+		order.AddActionNote(*note)
+		//Update action will do outside
+		//err = orderRepo.Update(ctx, order)
+	case enum.OrderStatusRefunded:
+		zap.L().Info("Order refunded, sending rejected email")
+		order.AddActionNote(*note)
+		err = orderRepo.Update(ctx, order)
+	}
+	return err
 }
 
 // endregion

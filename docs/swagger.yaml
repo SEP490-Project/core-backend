@@ -822,6 +822,17 @@ definitions:
         example: "012345"
         type: string
     type: object
+  handler.CensorOrderRequest:
+    properties:
+      reason:
+        description: |-
+          Reason for cancelling the order. Required when action=CANCEL
+          in: body
+          example: "Customer requested cancellation due to wrong size"
+        type: string
+    required:
+    - reason
+    type: object
   handler.UpdateMilestoneStateRequest:
     properties:
       state:
@@ -953,6 +964,10 @@ definitions:
     type: object
   model.Order:
     properties:
+      action_notes:
+        items:
+          $ref: '#/definitions/model.OrderActionNote'
+        type: array
       address_line2:
         type: string
       city:
@@ -1001,6 +1016,21 @@ definitions:
       user_id:
         type: string
       ward_name:
+        type: string
+    type: object
+  model.OrderActionNote:
+    properties:
+      action_type:
+        $ref: '#/definitions/enum.OrderStatus'
+      created_at:
+        type: string
+      reason:
+        type: string
+      user_email:
+        type: string
+      user_id:
+        type: string
+      user_name:
         type: string
     type: object
   model.OrderItem:
@@ -1094,6 +1124,11 @@ definitions:
         description: in centimeters
         type: integer
       manufacturing_date:
+        type: string
+      payment_bin:
+        type: string
+      payment_id:
+        description: Transient fields populated by repository (not persisted)
         type: string
       phone_number:
         type: string
@@ -9679,7 +9714,7 @@ paths:
         name: province_id
         type: string
       - description: |-
-          Search term to filter by order number
+          Search term to filter by orderID/paymentID/paymentBin
           in: query
           example: "ORDER123"
         example: ORDER123
@@ -9749,6 +9784,57 @@ paths:
       security:
       - BearerAuth: []
       summary: Get staff-available orders with pagination
+      tags:
+      - Orders
+  /api/v1/orders/staff/{orderID}/censore:
+    post:
+      consumes:
+      - application/json
+      description: Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM`
+        or `action=CANCEL`. If cancelling, provide optional `reason` query param.
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Action (CONFIRM|CANCEL)
+        in: query
+        name: action
+        required: true
+        type: string
+      - description: Cancel reason (required when action=CANCEL)
+        in: body
+        name: reason
+        schema:
+          $ref: '#/definitions/handler.CensorOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Censor an order (confirm or cancel)
       tags:
       - Orders
   /api/v1/payments:
@@ -10206,6 +10292,134 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a PreOrder (reserve stock)
+      tags:
+      - Preorders
+  /api/v1/preorders/staff:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve paginated preorders for staff, filterable by status and
+        search (id/payment id/bin) and address fields.
+      parameters:
+      - description: |-
+          GHN district id
+          in: query
+          example: 10
+        example: "10"
+        in: query
+        name: district_id
+        type: string
+      - description: |-
+          Customer full name to filter
+          in: query
+          example: "John Doe"
+        example: John Doe
+        in: query
+        name: full_name
+        type: string
+      - description: |-
+          Number of items per page (default: 10, max: 100)
+          in: query
+          example: 10
+        example: 10
+        in: query
+        name: limit
+        type: integer
+      - description: |-
+          Page number (default: 1)
+          in: query
+          example: 1
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: |-
+          Customer phone number to filter
+          in: query
+          example: "0912345678"
+        example: "0912345678"
+        in: query
+        name: phone
+        type: string
+      - description: |-
+          GHN province id
+          in: query
+          example: 1
+        example: "1"
+        in: query
+        name: province_id
+        type: string
+      - description: |-
+          Search term to filter by orderID/paymentID/paymentBin
+          in: query
+          example: "ORDER123"
+        example: ORDER123
+        in: query
+        name: search
+        type: string
+      - description: |-
+          Order status filter
+          in: query
+          example: "PAID"
+        enum:
+        - PENDING
+        - PAID
+        - REFUNDED
+        - CONFIRMED
+        - CANCELLED
+        - SHIPPED
+        - IN_TRANSIT
+        - DELIVERED
+        - RECEIVED
+        example: PAID
+        in: query
+        name: status
+        type: string
+        x-enum-varnames:
+        - OrderStatusPending
+        - OrderStatusPaid
+        - OrderStatusRefunded
+        - OrderStatusConfirmed
+        - OrderStatusCancelled
+        - OrderStatusShipped
+        - OrderStatusInTransit
+        - OrderStatusDelivered
+        - OrderStatusReceived
+      - description: |-
+          GHN ward code
+          in: query
+          example: "01234"
+        example: "01234"
+        in: query
+        name: ward_code
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.PreOrder'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get staff-available preorders with pagination
       tags:
       - Preorders
   /api/v1/products:
