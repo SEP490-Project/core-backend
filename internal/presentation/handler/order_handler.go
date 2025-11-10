@@ -282,7 +282,7 @@ type CensorOrderRequest struct {
 // @Failure		500		{object}	responses.APIResponse
 // @Security	BearerAuth
 //
-//	@Router			/api/v1/orders/staff/{orderID}/censore [POST]
+//	@Router			/api/v1/orders/staff/{orderID}/censorship [POST]
 func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 
 	ctx := c.Request.Context()

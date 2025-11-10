@@ -241,7 +241,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		staffOrdersGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
 		{
 			staffOrdersGroup.GET("", orderHandler.GetStaffAvailableOrdersWithPagination)
-			staffOrdersGroup.POST("/:orderID/censore", orderHandler.OrderCensorship)
+			staffOrdersGroup.POST("/:orderID/censorship", orderHandler.OrderCensorship)
 		}
 
 		// ---------- CONCEPTS ----------
