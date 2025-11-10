@@ -22,5 +22,7 @@ func (p PaidState) Next(ctx *OrderContext, next OrderState) error {
 func (p PaidState) AllowedTransitions() map[enum.OrderStatus]struct{} {
 	return map[enum.OrderStatus]struct{}{
 		enum.OrderStatusConfirmed: {},
+		enum.OrderStatusRefunded:  {},
+		enum.OrderStatusCancelled: {},
 	}
 }

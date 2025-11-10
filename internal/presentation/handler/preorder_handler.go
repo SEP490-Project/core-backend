@@ -154,6 +154,76 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
+// GetStaffAvailablePreOrdersWithPagination handles staff-facing GET requests to list preorders with same query fields as orders
+//
+//	@Summary		Get staff-available preorders with pagination
+//	@Description	Retrieve paginated preorders for staff, filterable by status and search (id/payment id/bin) and address fields.
+//	@Tags			Preorders
+//	@Accept			json
+//	@Produce		json
+//	@Param		query	query		requests.StaffOrdersQuery	false	"Staff preorders query"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff [get]
+func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Context) {
+	var q requests.StaffOrdersQuery
+	_ = c.ShouldBindQuery(&q)
+
+	page := q.Page
+	limit := q.Limit
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := q.Search
+	status := q.Status
+	fullName := q.FullName
+	phone := q.Phone
+	provinceID := q.ProvinceID
+	districtID := q.DistrictID
+	wardCode := q.WardCode
+
+	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff preorders: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	totalPages := 0
+	if limit > 0 {
+		totalPages = int(total) / limit
+		if total%limit != 0 {
+			totalPages++
+		}
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Preorders retrieved successfully",
+		http.StatusOK,
+		preorders,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
+}
+
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService: preOrderService,

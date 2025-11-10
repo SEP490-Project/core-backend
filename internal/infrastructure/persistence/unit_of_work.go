@@ -48,7 +48,7 @@ type unitOfWork struct {
 	orderRepository              irepository.OrderRepository
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
-	preOrderRepository           irepository.GenericRepository[model.PreOrder]
+	preOrderRepository           irepository.PreOrderRepository
 
 	//Notifications
 	notificationRepository irepository.NotificationRepository
@@ -119,7 +119,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.orderItemRepository = gormrepository.NewGenericRepository[model.OrderItem](tx)
 	txUow.paymentTransactionRepository = gormrepository.NewGenericRepository[model.PaymentTransaction](tx)
 	// Initialize PreOrder repository
-	txUow.preOrderRepository = gormrepository.NewGenericRepository[model.PreOrder](tx)
+	txUow.preOrderRepository = gormrepository.NewPreOrderRepository(tx)
 
 	//Notifications
 	txUow.notificationRepository = gormrepository.NewNotificationRepository(tx)
@@ -308,7 +308,7 @@ func (u *unitOfWork) KPIMetrics() irepository.GenericRepository[model.KPIMetrics
 	return u.kpiMetricsRepository
 }
 
-func (u *unitOfWork) PreOrder() irepository.GenericRepository[model.PreOrder] {
+func (u *unitOfWork) PreOrder() irepository.PreOrderRepository {
 	return u.preOrderRepository
 }
 

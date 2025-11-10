@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -13,21 +14,25 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type OrderHandler struct {
-	orderService iservice.OrderService
-	ghnService   iservice_third_party.GHNService
-	unitOfWork   irepository.UnitOfWork
+	orderService         iservice.OrderService
+	ghnService           iservice_third_party.GHNService
+	unitOfWork           irepository.UnitOfWork
+	stateTransferService iservice.StateTransferService
 }
 
-func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_party.GHNService, uow irepository.UnitOfWork) *OrderHandler {
+func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_party.GHNService, uow irepository.UnitOfWork, stateTransferService iservice.StateTransferService) *OrderHandler {
 	return &OrderHandler{
-		orderService: orderSvc,
-		ghnService:   ghnService,
-		unitOfWork:   uow,
+		orderService:         orderSvc,
+		ghnService:           ghnService,
+		unitOfWork:           uow,
+		stateTransferService: stateTransferService,
 	}
 }
 
@@ -252,4 +257,107 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 	)
 
 	c.JSON(http.StatusOK, resp)
+}
+
+// CensorOrderRequest represents payload for censoring an order (reason required when cancelling)
+// swagger:model CensorOrderRequest
+type CensorOrderRequest struct {
+	// Reason for cancelling the order. Required when action=CANCEL
+	// in: body
+	// example: "Customer requested cancellation due to wrong size"
+	Reason string `json:"reason" binding:"required"`
+}
+
+// OrderCensorship:
+// @Summary	Censor an order (confirm or cancel)
+// @Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
+// @Tags		Orders
+// @Accept		json
+// @Produce		json
+// @Param	orderID	path	string	true	"Order ID"
+// @Param	action	query	string	true	"Action (CONFIRM|CANCEL)"
+// @Param   reason body CensorOrderRequest false "Cancel reason (required when action=CANCEL)"
+// @Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+// @Failure		401		{object}	responses.APIResponse	"Unauthorized"
+// @Failure		500		{object}	responses.APIResponse
+// @Security	BearerAuth
+//
+//	@Router			/api/v1/orders/staff/{orderID}/censore [POST]
+func (h *OrderHandler) OrderCensorship(c *gin.Context) {
+
+	ctx := c.Request.Context()
+
+	orderIDStr := c.Param("orderID")
+	if orderIDStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order_id is required", http.StatusBadRequest))
+		return
+	}
+
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid order_id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	action := strings.ToUpper(strings.TrimSpace(c.DefaultQuery("action", "")))
+	if action == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("action query param is required", http.StatusBadRequest))
+		return
+	}
+
+	var targetStatus enum.OrderStatus
+	switch action {
+	case "CONFIRM":
+		targetStatus = enum.OrderStatusConfirmed
+	case "CANCEL":
+		targetStatus = enum.OrderStatusCancelled
+	default:
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid action, allowed: CONFIRM, CANCEL", http.StatusBadRequest))
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// If cancelling, require a JSON body with reason
+	var reasonPtr *string
+	if targetStatus == enum.OrderStatusCancelled {
+		var req CensorOrderRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when action=CANCEL: "+err.Error(), http.StatusBadRequest))
+			return
+		}
+		trimmed := strings.TrimSpace(req.Reason)
+		if trimmed == "" {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason cannot be empty", http.StatusBadRequest))
+			return
+		}
+		reasonPtr = &trimmed
+	}
+
+	uow := h.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, updatedBy, reasonPtr); err != nil {
+		_ = uow.Rollback()
+		zap.L().Error("failed to censor order", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to update order: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		zap.L().Error("failed to commit transaction for censor order", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Order updated successfully", ptr.Int(http.StatusOK), nil))
 }
