@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
@@ -10,7 +11,9 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
 
@@ -178,6 +181,48 @@ func (g ghnService) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx cont
 	}
 
 	return &deliveryFee, nil
+}
+
+func (g ghnService) GetOrderInfo(ctx context.Context, orderCode string) (*dtos.OrderInfo, error) {
+	//Create HTTP request
+	url := fmt.Sprintf("%s/%s", g.cfg.GHN.FeeBaseURL, "/detail")
+
+	//build body
+	body, err := json.Marshal(map[string]string{"order_code": orderCode})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	// Set headers
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-client-id", p.clientID)
+	httpReq.Header.Set("x-api-key", p.apiKey)
+
+	// Send HTTP request
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		zap.L().Error("Failed to execute PayOS create link request", zap.Error(err))
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	//TODO implement me
+	panic("implement me")
+}
+
+func (g ghnService) CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (g ghnService) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (float64, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewGHNService(cfg *config.AppConfig) iservice_third_party.GHNService {

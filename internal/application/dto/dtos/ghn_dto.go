@@ -5,6 +5,7 @@ import (
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // ============================ DELIVERY FEE =============================
@@ -278,7 +279,7 @@ type DeliveryAvailableServiceBody struct {
 	ToDistrict   int `json:"to_district"`
 }
 
-// ============================ CREATE ORDER ============================================
+// ============================ ORDER MANAGEMENT ============================================
 type CreateOrderBody struct {
 	PaymentTypeID    int         `json:"payment_type_id"`
 	Note             string      `json:"note"`
@@ -325,4 +326,210 @@ type CreateOrderBody struct {
 			Level1 string `json:"level1"`
 		} `json:"category"`
 	} `json:"items"`
+}
+
+type OrderInfo struct {
+	ShopID           int    `json:"shop_id"`
+	ClientID         int    `json:"client_id"`
+	ReturnName       string `json:"return_name"`
+	ReturnPhone      string `json:"return_phone"`
+	ReturnAddress    string `json:"return_address"`
+	ReturnWardCode   string `json:"return_ward_code"`
+	ReturnDistrictID int    `json:"return_district_id"`
+	ReturnLocation   struct {
+		Lat        float64 `json:"lat"`
+		Long       float64 `json:"long"`
+		CellCode   string  `json:"cell_code"`
+		PlaceID    string  `json:"place_id"`
+		TrustLevel int     `json:"trust_level"`
+		Wardcode   string  `json:"wardcode"`
+		MapSource  string  `json:"map_source"`
+	} `json:"return_location"`
+	FromName       string `json:"from_name"`
+	FromPhone      string `json:"from_phone"`
+	FromHotline    string `json:"from_hotline"`
+	FromAddress    string `json:"from_address"`
+	FromWardCode   string `json:"from_ward_code"`
+	FromDistrictID int    `json:"from_district_id"`
+	FromLocation   struct {
+		Lat        float64 `json:"lat"`
+		Long       float64 `json:"long"`
+		CellCode   string  `json:"cell_code"`
+		PlaceID    string  `json:"place_id"`
+		TrustLevel int     `json:"trust_level"`
+		Wardcode   string  `json:"wardcode"`
+		MapSource  string  `json:"map_source"`
+	} `json:"from_location"`
+	DeliverStationID int    `json:"deliver_station_id"`
+	ToName           string `json:"to_name"`
+	ToPhone          string `json:"to_phone"`
+	ToAddress        string `json:"to_address"`
+	ToWardCode       string `json:"to_ward_code"`
+	ToDistrictID     int    `json:"to_district_id"`
+	ToLocation       struct {
+		Lat        float64 `json:"lat"`
+		Long       float64 `json:"long"`
+		CellCode   string  `json:"cell_code"`
+		PlaceID    string  `json:"place_id"`
+		TrustLevel int     `json:"trust_level"`
+		Wardcode   string  `json:"wardcode"`
+		MapSource  string  `json:"map_source"`
+	} `json:"to_location"`
+	Weight               int         `json:"weight"`
+	Length               int         `json:"length"`
+	Width                int         `json:"width"`
+	Height               int         `json:"height"`
+	ConvertedWeight      int         `json:"converted_weight"`
+	CalculateWeight      int         `json:"calculate_weight"`
+	ImageIds             interface{} `json:"image_ids"`
+	ServiceTypeID        int         `json:"service_type_id"`
+	ServiceID            int         `json:"service_id"`
+	PaymentTypeID        int         `json:"payment_type_id"`
+	PaymentTypeIds       []int       `json:"payment_type_ids"`
+	CustomServiceFee     int         `json:"custom_service_fee"`
+	SortCode             string      `json:"sort_code"`
+	CodAmount            int         `json:"cod_amount"`
+	CodCollectDate       interface{} `json:"cod_collect_date"`
+	CodTransferDate      interface{} `json:"cod_transfer_date"`
+	IsCodTransferred     bool        `json:"is_cod_transferred"`
+	IsCodCollected       bool        `json:"is_cod_collected"`
+	InsuranceValue       int         `json:"insurance_value"`
+	OrderValue           int         `json:"order_value"`
+	PickStationID        int         `json:"pick_station_id"`
+	ClientOrderCode      string      `json:"client_order_code"`
+	CodFailedAmount      int         `json:"cod_failed_amount"`
+	CodFailedCollectDate interface{} `json:"cod_failed_collect_date"`
+	RequiredNote         string      `json:"required_note"`
+	Content              string      `json:"content"`
+	Note                 string      `json:"note"`
+	EmployeeNote         string      `json:"employee_note"`
+	SealCode             string      `json:"seal_code"`
+	PickupTime           time.Time   `json:"pickup_time"`
+	RequestDeliveryTime  interface{} `json:"request_delivery_time"`
+	DeadlinePickupTime   interface{} `json:"deadline_pickup_time"`
+	Items                []struct {
+		Name     string `json:"name"`
+		Quantity int    `json:"quantity"`
+		Length   int    `json:"length"`
+		Width    int    `json:"width"`
+		Height   int    `json:"height"`
+		Category struct {
+		} `json:"category"`
+		Weight             int    `json:"weight"`
+		Status             string `json:"status"`
+		ItemOrderCode      string `json:"item_order_code"`
+		CurrentWarehouseID int    `json:"current_warehouse_id"`
+	} `json:"items"`
+	Coupon           string    `json:"coupon"`
+	CouponCampaignID int       `json:"coupon_campaign_id"`
+	ID               string    `json:"_id"`
+	OrderCode        string    `json:"order_code"`
+	VersionNo        string    `json:"version_no"`
+	UpdatedIP        string    `json:"updated_ip"`
+	UpdatedEmployee  int       `json:"updated_employee"`
+	UpdatedClient    int       `json:"updated_client"`
+	UpdatedSource    string    `json:"updated_source"`
+	UpdatedDate      time.Time `json:"updated_date"`
+	UpdatedWarehouse int       `json:"updated_warehouse"`
+	CreatedIP        string    `json:"created_ip"`
+	CreatedEmployee  int       `json:"created_employee"`
+	CreatedClient    int       `json:"created_client"`
+	CreatedSource    string    `json:"created_source"`
+	CreatedDate      time.Time `json:"created_date"`
+	Status           string    `json:"status"`
+	InternalProcess  struct {
+		Status string `json:"status"`
+		Type   string `json:"type"`
+	} `json:"internal_process"`
+	PickWarehouseID             int       `json:"pick_warehouse_id"`
+	DeliverWarehouseID          int       `json:"deliver_warehouse_id"`
+	CurrentWarehouseID          int       `json:"current_warehouse_id"`
+	ReturnWarehouseID           int       `json:"return_warehouse_id"`
+	NextWarehouseID             int       `json:"next_warehouse_id"`
+	CurrentTransportWarehouseID int       `json:"current_transport_warehouse_id"`
+	Leadtime                    time.Time `json:"leadtime"`
+	LeadtimeOrder               struct {
+		FromEstimateDate time.Time `json:"from_estimate_date"`
+		ToEstimateDate   time.Time `json:"to_estimate_date"`
+	} `json:"leadtime_order"`
+	OrderDate time.Time `json:"order_date"`
+	Data      struct {
+	} `json:"data"`
+	SocID            string      `json:"soc_id"`
+	FinishDate       interface{} `json:"finish_date"`
+	Tag              []string    `json:"tag"`
+	IsPartialReturn  bool        `json:"is_partial_return"`
+	IsDocumentReturn bool        `json:"is_document_return"`
+	PickupShift      struct {
+	} `json:"pickup_shift"`
+	TransactionIds       []string `json:"transaction_ids"`
+	TransportationStatus string   `json:"transportation_status"`
+	TransportationPhase  string   `json:"transportation_phase"`
+	ExtraService         struct {
+		DocumentReturn struct {
+			Flag bool `json:"flag"`
+		} `json:"document_return"`
+		DoubleCheck                bool   `json:"double_check"`
+		LastmileAhamoveBulky       bool   `json:"lastmile_ahamove_bulky"`
+		LastmileTripCode           string `json:"lastmile_trip_code"`
+		OriginalDeliverWarehouseID int    `json:"original_deliver_warehouse_id"`
+	} `json:"extra_service"`
+	ConfigFeeID             string `json:"config_fee_id"`
+	ExtraCostID             string `json:"extra_cost_id"`
+	StandardConfigFeeID     string `json:"standard_config_fee_id"`
+	StandardExtraCostID     string `json:"standard_extra_cost_id"`
+	EcomConfigFeeID         int    `json:"ecom_config_fee_id"`
+	EcomExtraCostID         int    `json:"ecom_extra_cost_id"`
+	EcomStandardConfigFeeID int    `json:"ecom_standard_config_fee_id"`
+	EcomStandardExtraCostID int    `json:"ecom_standard_extra_cost_id"`
+	IsB2B                   bool   `json:"is_b2b"`
+	OperationPartner        string `json:"operation_partner"`
+	ProcessPartnerName      string `json:"process_partner_name"`
+	DeliveryDaysOfWeek      int    `json:"delivery_days_of_week"`
+	IsNewMultiple           bool   `json:"is_new_multiple"`
+	FromAddressV2           string `json:"from_address_v2"`
+	FromWardIDV2            int    `json:"from_ward_id_v2"`
+	FromProvinceIDV2        int    `json:"from_province_id_v2"`
+	IsNewFromAddress        bool   `json:"is_new_from_address"`
+	ToAddressV2             string `json:"to_address_v2"`
+	ToWardIDV2              int    `json:"to_ward_id_v2"`
+	ToProvinceIDV2          int    `json:"to_province_id_v2"`
+	IsNewToAddress          bool   `json:"is_new_to_address"`
+	ReturnAddressV2         string `json:"return_address_v2"`
+	ReturnWardIDV2          int    `json:"return_ward_id_v2"`
+	ReturnProvinceIDV2      int    `json:"return_province_id_v2"`
+	IsNewReturnAddress      bool   `json:"is_new_return_address"`
+}
+
+type CancelOrder struct {
+	OrderCode string `json:"order_code"`
+	Result    bool   `json:"result"`
+	Message   string `json:"message"`
+}
+
+type CreateOrder struct {
+	PaymentTypeID    int                          `json:"payment_type_id"`
+	Note             string                       `json:"note"`
+	RequiredNote     string                       `json:"required_note"`
+	FromName         string                       `json:"from_name"`
+	FromPhone        string                       `json:"from_phone"`
+	FromAddress      string                       `json:"from_address"`
+	FromWardName     string                       `json:"from_ward_name"`
+	FromDistrictName string                       `json:"from_district_name"`
+	FromProvinceName string                       `json:"from_province_name"`
+	ClientOrderCode  string                       `json:"client_order_code"`
+	ToName           string                       `json:"to_name"`
+	ToPhone          string                       `json:"to_phone"`
+	ToAddress        string                       `json:"to_address"`
+	ToWardCode       string                       `json:"to_ward_code"`
+	ToDistrictID     int                          `json:"to_district_id"`
+	Content          string                       `json:"content"`
+	Weight           int                          `json:"weight"`
+	Length           int                          `json:"length"`
+	Width            int                          `json:"width"`
+	Height           int                          `json:"height"`
+	InsuranceValue   int                          `json:"insurance_value"`
+	ServiceID        int                          `json:"service_id"`
+	ServiceTypeID    int                          `json:"service_type_id"`
+	Items            []ApplicationDeliveryFeeItem `json:"items"`
 }
