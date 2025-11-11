@@ -386,6 +386,25 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  dtos.GHNSessionResponse:
+    properties:
+      otp_phone_number:
+        type: string
+      otp_ttl:
+        type: integer
+      qr_code:
+        type: string
+      sso_refresh_token:
+        type: string
+      sso_token:
+        type: string
+      sso_token_expires_in:
+        type: integer
+      stage:
+        type: string
+      token_temp:
+        type: string
+    type: object
   dtos.KPIGoal:
     properties:
       description:
@@ -1359,7 +1378,7 @@ definitions:
         type: string
       user_id:
         type: string
-      user_notes:
+      user_note:
         type: string
       ward_name:
         type: string
@@ -9505,6 +9524,27 @@ paths:
       summary: Get expected delivery time from GHN
       tags:
       - ghn
+  /api/v1/ghn/mocking/session:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a session token from GHN for authenticated requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNSessionResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN session token
+      tags:
+      - ghn
   /api/v1/ghn/order/{order-id}/calculate:
     post:
       consumes:
@@ -9580,15 +9620,15 @@ paths:
       summary: Get available GHN delivery services for an order
       tags:
       - ghn
-  /api/v1/ghn/order/info/{order-code}:
+  /api/v1/ghn/order/info/{order-id}:
     get:
       consumes:
       - application/json
       description: Fetch GHN order details for a given GHN order code
       parameters:
-      - description: GHN order code
+      - description: ID of Order that related to GHN order (not Limited)
         in: path
-        name: order-code
+        name: order-id
         required: true
         type: string
       produces:

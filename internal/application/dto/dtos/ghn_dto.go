@@ -537,3 +537,15 @@ type ExpectedDeliveryTime struct {
 		ToEstimateDate   time.Time `json:"to_estimate_date"`
 	} `json:"leadtime_order"`
 }
+
+// Mock DELIVERY STATUS
+type GHNSessionResponse struct {
+	TokenTemp         string `json:"token_temp"`
+	Stage             string `json:"stage"`
+	QrCode            string `json:"qr_code"`
+	OtpTTL            int    `json:"otp_ttl"`
+	OtpPhoneNumber    string `json:"otp_phone_number"`
+	SsoToken          string `json:"sso_token"`
+	SsoRefreshToken   string `json:"sso_refresh_token"`
+	SsoTokenExpiresIn int    `json:"sso_token_expires_in"`
+}

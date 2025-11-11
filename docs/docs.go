@@ -6899,7 +6899,39 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/ghn/order/info/{order-code}": {
+        "/api/v1/ghn/mocking/session": {
+            "get": {
+                "description": "Retrieve a session token from GHN for authenticated requests",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get GHN session token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNSessionResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/info/{order-id}": {
             "get": {
                 "security": [
                     {
@@ -6920,8 +6952,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "GHN order code",
-                        "name": "order-code",
+                        "description": "ID of Order that related to GHN order (not Limited)",
+                        "name": "order-id",
                         "in": "path",
                         "required": true
                     }
@@ -12660,6 +12692,35 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.GHNSessionResponse": {
+            "type": "object",
+            "properties": {
+                "otp_phone_number": {
+                    "type": "string"
+                },
+                "otp_ttl": {
+                    "type": "integer"
+                },
+                "qr_code": {
+                    "type": "string"
+                },
+                "sso_refresh_token": {
+                    "type": "string"
+                },
+                "sso_token": {
+                    "type": "string"
+                },
+                "sso_token_expires_in": {
+                    "type": "integer"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "token_temp": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.KPIGoal": {
             "type": "object",
             "properties": {
@@ -14013,7 +14074,7 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string"
                 },
-                "user_notes": {
+                "user_note": {
                     "type": "string"
                 },
                 "ward_name": {

@@ -137,6 +137,13 @@ ghn:
   # Company Info
   shop_id: "197482"
   district_id: "3695"
+  #Webhook mocking
+  mock_session_info:
+    mock_url: "https://dev-online-gateway.ghn.vn/sso-v2/public-api/staff/login"
+    user_id: "242614"
+    password: "JVDpnEPnMqonQnHb6c9LDu0fp+/H10lVZdDKTy720tm14n/8/xPPJEfpIifAC5oNnv8nyQaoQoCvAZPDzcjKoKgPrR8mNUW3c5C7cKS1jrwme5ZNqBXo7QwKo/4Su0ilo59dPH8G3SkYTXMUxq0boO9paEwMiIQKYoXdubzAsbw="
+    device_id: "58e07e60-beb9-11f0-b728-6f09cf018581"
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0"
 
 # Gmail SMTP configuration
 gmail_smtp:

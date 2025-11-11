@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
@@ -17,6 +18,12 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"net/http"
+	"sync"
+)
+
+var (
+	mockSession     string
+	mockSessionOnce sync.Once
 )
 
 type ghnProxy struct {
@@ -24,6 +31,8 @@ type ghnProxy struct {
 	cfg    *config.AppConfig
 	client *http.Client
 	db     *gorm.DB
+	//mocking
+	mockSession string
 }
 
 func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
@@ -288,11 +297,22 @@ func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx contex
 	return &deliveryFee, nil
 }
 
-func (g ghnProxy) GetOrderInfo(ctx context.Context, orderCode string) (*dtos.OrderInfo, error) {
+func (g ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error) {
+	// Fetch ghnOrderCode from OrderID
+	var order *model.Order
+	err := g.db.WithContext(ctx).First(&order, "id = ?", orderID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find order: %w", err)
+	}
+	orderCode := order.GHNOrderCode
+	if orderCode == nil {
+		return nil, fmt.Errorf("this order does not have associated GHN order code")
+	}
+
 	path := "/v2/shipping-order/detail"
 
 	// build body
-	body := map[string]string{"order_code": orderCode}
+	body := map[string]string{"order_code": *orderCode}
 
 	headers := map[string]string{
 		"ShopId": fmt.Sprintf("%d", g.cfg.GHN.ShopID),
@@ -314,10 +334,10 @@ func (g ghnProxy) GetOrderInfo(ctx context.Context, orderCode string) (*dtos.Ord
 
 	//Check response code
 	if orderInfoResp.Code == 200 {
-		zap.L().Info("Successfully fetched GHN order info", zap.String("orderCode", orderCode))
+		zap.L().Info("Successfully fetched GHN order info", zap.String("orderCode", *orderCode))
 		return &orderInfoResp.Data, nil
 	} else {
-		zap.L().Error("Failed to fetch GHN order info", zap.String("orderCode", orderCode), zap.String("responseCode", fmt.Sprintf("%d", orderInfoResp.Code)), zap.String("responseDesc", orderInfoResp.Message))
+		zap.L().Error("Failed to fetch GHN order info", zap.String("orderCode", *orderCode), zap.String("responseCode", fmt.Sprintf("%d", orderInfoResp.Code)), zap.String("responseDesc", orderInfoResp.Message))
 		return nil, fmt.Errorf("failed to fetch GHN order info: %s", orderInfoResp.Message)
 	}
 }
@@ -396,6 +416,65 @@ func (g ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int,
 
 }
 
+// ========================================================================= Webhook Mocking =========================================================================
+func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (g *ghnProxy) GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error) {
+	path := g.cfg.GHN.MockSessionInfo.MockURL
+
+	body := struct {
+		UserID    int    `json:"user_id"`
+		Password  string `json:"password"`
+		DeviceID  string `json:"device_id"`
+		UserAgent string `json:"user_agent"`
+	}{
+		UserID:    g.cfg.GHN.MockSessionInfo.UserID,
+		Password:  g.cfg.GHN.MockSessionInfo.Password,
+		DeviceID:  g.cfg.GHN.MockSessionInfo.DeviceID,
+		UserAgent: g.cfg.GHN.MockSessionInfo.UserAgent,
+	}
+
+	headers := map[string]string{
+		"Content-Type":   "application/json",
+		"User-Agent":     g.cfg.GHN.MockSessionInfo.UserAgent,
+		"Accept":         "application/json",
+		"Origin":         "https://sso-v2.ghn.dev",
+		"Connection":     "keep-alive",
+		"Referer":        "https://sso-v2.ghn.dev/",
+		"Sec-Fetch-Dest": "empty",
+		"Sec-Fetch-Mode": "cors",
+		"Sec-Fetch-Site": "cross-site",
+		"TE":             "trailers",
+		"token":          "1633e350-9091-43c2-97ea-bc9c95fb8022",
+	}
+
+	resp, err := g.BaseProxy.Post(ctx, path, headers, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var sessionResp dtos.GHNWrapperResponse[dtos.GHNSessionResponse]
+	if err := json.NewDecoder(resp.Body).Decode(&sessionResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
+	}
+
+	if sessionResp.Code == 200 {
+		return &sessionResp.Data, nil
+	} else {
+
+		zap.L().Info("Non-200 response", zap.Any("response", sessionResp),
+			zap.Any("body", body),
+			zap.Any("headers", headers),
+		)
+		return nil, fmt.Errorf("failed to get a session: %s", sessionResp.Message)
+	}
+}
+
+// ========================================================================= Webhook Mocking =========================================================================
 func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB) iproxies.GHNProxy {
 	return &ghnProxy{
 		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL),
@@ -442,9 +521,9 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 		dtoItems = append(dtoItems, dtos.ApplicationDeliveryFeeItem{}.ToApplicationDeliveryFeeItem(item))
 	}
 
-	requiredNote := ""
+	userNote := ""
 	if order.UserNote != nil {
-		requiredNote = *order.UserNote
+		userNote = *order.UserNote
 	}
 
 	clientOrderCode := order.ID.String()
@@ -454,8 +533,8 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 
 	return &dtos.CreateGHNOrderDTO{
 		PaymentTypeID:    2,
-		Note:             "",
-		RequiredNote:     requiredNote,
+		Note:             userNote,
+		RequiredNote:     "CHOXEMHANGKHONGTHU",
 		FromName:         "BShowSell.Co",
 		FromPhone:        "0944488274",
 		FromAddress:      "7 Đ. D1",

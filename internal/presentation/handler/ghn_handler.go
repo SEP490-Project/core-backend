@@ -162,23 +162,23 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 //	@Tags		ghn
 //	@Accept		json
 //	@Produce	json
-//	@Param		order-code	path	string	true	"GHN order code"
+//	@Param		order-id	path	string	true	"ID of Order that related to GHN order (not Limited)"
 //	@Success	200		{object}	dtos.OrderInfo
 //	@Failure	400		{object}	map[string]string
 //	@Failure	500		{object}	map[string]string
 //	@Security	BearerAuth
-//	@Router		/api/v1/ghn/order/info/{order-code} [get]
+//	@Router		/api/v1/ghn/order/info/{order-id} [get]
 func (h *GHNHandler) GetOrderInfo(c *gin.Context) {
-	orderCode := c.Param("order-code")
-	if orderCode == "" {
+	orderID := c.Param("order-id")
+	if orderID == "" {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order code is required", http.StatusBadRequest))
 		return
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnProxy.GetOrderInfo(ctx, orderCode)
+	result, err := h.ghnProxy.GetOrderInfo(ctx, orderID)
 	if err != nil {
-		zap.L().Error("failed to fetch GHN order info", zap.Error(err), zap.String("order_code", orderCode))
+		zap.L().Error("failed to fetch GHN order info", zap.Error(err), zap.String("order-id", orderID))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN order info: %s", err.Error()), http.StatusBadRequest))
 		return
 	}
@@ -223,6 +223,28 @@ func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Expected delivery time fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNSession godoc
+//
+//	@Summary		Get GHN session token
+//	@Description	Retrieve a session token from GHN for authenticated requests
+//	@Tags		ghn
+//	@Accept		json
+//	@Produce	json
+//	@Success	200		{object}	dtos.GHNSessionResponse
+//	@Failure	500		{object}	map[string]string
+//	@Router		/api/v1/ghn/mocking/session [get]
+func (h *GHNHandler) GetGHNSession(c *gin.Context) {
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetSession(ctx)
+	if err != nil {
+		zap.L().Error("failed to fetch GHN session", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN session: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN session fetched successfully", ptr.Int(http.StatusOK), result))
 }
 
 // NewGHNHandler creates a new GHNHandler instance

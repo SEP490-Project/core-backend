@@ -157,11 +157,18 @@ type PayOSConfig struct {
 }
 
 type GHNConfig struct {
-	BaseURL    string `mapstructure:"base_url"`
-	FeeBaseURL string `mapstructure:"fee_base_url"`
-	Token      string `mapstructure:"token"`
-	ShopID     int    `mapstructure:"shop_id"`
-	DistrictID int    `mapstructure:"district_id"`
+	BaseURL         string `mapstructure:"base_url"`
+	FeeBaseURL      string `mapstructure:"fee_base_url"`
+	Token           string `mapstructure:"token"`
+	ShopID          int    `mapstructure:"shop_id"`
+	DistrictID      int    `mapstructure:"district_id"`
+	MockSessionInfo struct {
+		MockURL   string `mapstructure:"mock_url"`
+		UserID    int    `mapstructure:"user_id"`
+		Password  string `mapstructure:"password"`
+		DeviceID  string `mapstructure:"device_id"`
+		UserAgent string `mapstructure:"user_agent"`
+	} `mapstructure:"mock_session_info"`
 }
 
 type EmailConfig struct {
