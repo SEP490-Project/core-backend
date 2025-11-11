@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/application/interfaces/iproxies"
 	"net/http"
 	"strconv"
 	"strings"
@@ -22,15 +22,15 @@ import (
 
 type OrderHandler struct {
 	orderService         iservice.OrderService
-	ghnService           iservice_third_party.GHNService
+	ghnProxy             iproxies.GHNProxy
 	unitOfWork           irepository.UnitOfWork
 	stateTransferService iservice.StateTransferService
 }
 
-func NewOrderHandler(orderSvc iservice.OrderService, ghnService iservice_third_party.GHNService, uow irepository.UnitOfWork, stateTransferService iservice.StateTransferService) *OrderHandler {
+func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy, uow irepository.UnitOfWork, stateTransferService iservice.StateTransferService) *OrderHandler {
 	return &OrderHandler{
 		orderService:         orderSvc,
-		ghnService:           ghnService,
+		ghnProxy:             ghnProxy,
 		unitOfWork:           uow,
 		stateTransferService: stateTransferService,
 	}
@@ -153,7 +153,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}()
 
 	//*1 Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
-	deliveryFee, err := h.ghnService.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, req.Order.Items, uow)
+	deliveryFee, err := h.ghnProxy.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, req.Order.Items, uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery fee", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusBadRequest))
@@ -346,12 +346,15 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 		}
 	}()
 
+	// Perform state transfer
 	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, updatedBy, reasonPtr); err != nil {
 		_ = uow.Rollback()
 		zap.L().Error("failed to censor order", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to update order: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
+
+	//
 
 	if err := uow.Commit(); err != nil {
 		zap.L().Error("failed to commit transaction for censor order", zap.Error(err))

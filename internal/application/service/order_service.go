@@ -8,7 +8,6 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
@@ -31,7 +30,7 @@ type orderService struct {
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
-	ghnService                   iservice_third_party.GHNService
+	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
@@ -362,7 +361,7 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		orderItemRepository:       dbRegistry.OrderItemRepository,
 		shippingAddressRepository: dbRegistry.ShippingAddressRepository,
 		payOSProxy:                registry.ProxiesRegistry.PayOSProxy,
-		ghnService:                registry.GHNService,
+		ghnProxy:                  registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionService: paymentTransactionSvc,
 	}
 }

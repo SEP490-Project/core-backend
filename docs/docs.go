@@ -6842,6 +6842,118 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/expected-delivery-time": {
+            "get": {
+                "description": "Retrieve estimated delivery lead time for a destination (district + ward)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get expected delivery time from GHN",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Destination district ID",
+                        "name": "to_district_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Destination ward code",
+                        "name": "to_ward_code",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.ExpectedDeliveryTime"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/info/{order-code}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetch GHN order details for a given GHN order code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get GHN order info by GHN order code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GHN order code",
+                        "name": "order-code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrderInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ghn/order/{order-id}/calculate": {
             "post": {
                 "security": [
@@ -7819,7 +7931,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by order number\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -7858,6 +7970,88 @@ const docTemplate = `{
                         "description": "GHN ward code\nin: query\nexample: \"01234\"",
                         "name": "ward_code",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Order"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/{orderID}/censorship": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change order state to CONFIRMED or CANCELLED. Use query param ` + "`" + `action=CONFIRM` + "`" + ` or ` + "`" + `action=CANCEL` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Censor an order (confirm or cancel)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action (CONFIRM|CANCEL)",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel reason (required when action=CANCEL)",
+                        "name": "reason",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CensorOrderRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -12346,6 +12540,25 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.ExpectedDeliveryTime": {
+            "type": "object",
+            "properties": {
+                "leadtime": {
+                    "type": "integer"
+                },
+                "leadtime_order": {
+                    "type": "object",
+                    "properties": {
+                        "from_estimate_date": {
+                            "type": "string"
+                        },
+                        "to_estimate_date": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "dtos.FinancialTerms": {
             "type": "object",
             "properties": {
@@ -12501,6 +12714,502 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 1,
                     "example": 1
+                }
+            }
+        },
+        "dtos.OrderInfo": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "calculate_weight": {
+                    "type": "integer"
+                },
+                "client_id": {
+                    "type": "integer"
+                },
+                "client_order_code": {
+                    "type": "string"
+                },
+                "cod_amount": {
+                    "type": "integer"
+                },
+                "cod_collect_date": {},
+                "cod_failed_amount": {
+                    "type": "integer"
+                },
+                "cod_failed_collect_date": {},
+                "cod_transfer_date": {},
+                "config_fee_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "converted_weight": {
+                    "type": "integer"
+                },
+                "coupon": {
+                    "type": "string"
+                },
+                "coupon_campaign_id": {
+                    "type": "integer"
+                },
+                "created_client": {
+                    "type": "integer"
+                },
+                "created_date": {
+                    "type": "string"
+                },
+                "created_employee": {
+                    "type": "integer"
+                },
+                "created_ip": {
+                    "type": "string"
+                },
+                "created_source": {
+                    "type": "string"
+                },
+                "current_transport_warehouse_id": {
+                    "type": "integer"
+                },
+                "current_warehouse_id": {
+                    "type": "integer"
+                },
+                "custom_service_fee": {
+                    "type": "integer"
+                },
+                "data": {
+                    "type": "object"
+                },
+                "deadline_pickup_time": {},
+                "deliver_station_id": {
+                    "type": "integer"
+                },
+                "deliver_warehouse_id": {
+                    "type": "integer"
+                },
+                "delivery_days_of_week": {
+                    "type": "integer"
+                },
+                "ecom_config_fee_id": {
+                    "type": "integer"
+                },
+                "ecom_extra_cost_id": {
+                    "type": "integer"
+                },
+                "ecom_standard_config_fee_id": {
+                    "type": "integer"
+                },
+                "ecom_standard_extra_cost_id": {
+                    "type": "integer"
+                },
+                "employee_note": {
+                    "type": "string"
+                },
+                "extra_cost_id": {
+                    "type": "string"
+                },
+                "extra_service": {
+                    "type": "object",
+                    "properties": {
+                        "document_return": {
+                            "type": "object",
+                            "properties": {
+                                "flag": {
+                                    "type": "boolean"
+                                }
+                            }
+                        },
+                        "double_check": {
+                            "type": "boolean"
+                        },
+                        "lastmile_ahamove_bulky": {
+                            "type": "boolean"
+                        },
+                        "lastmile_trip_code": {
+                            "type": "string"
+                        },
+                        "original_deliver_warehouse_id": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "finish_date": {},
+                "from_address": {
+                    "type": "string"
+                },
+                "from_address_v2": {
+                    "type": "string"
+                },
+                "from_district_id": {
+                    "type": "integer"
+                },
+                "from_hotline": {
+                    "type": "string"
+                },
+                "from_location": {
+                    "type": "object",
+                    "properties": {
+                        "cell_code": {
+                            "type": "string"
+                        },
+                        "lat": {
+                            "type": "number"
+                        },
+                        "long": {
+                            "type": "number"
+                        },
+                        "map_source": {
+                            "type": "string"
+                        },
+                        "place_id": {
+                            "type": "string"
+                        },
+                        "trust_level": {
+                            "type": "integer"
+                        },
+                        "wardcode": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "from_name": {
+                    "type": "string"
+                },
+                "from_phone": {
+                    "type": "string"
+                },
+                "from_province_id_v2": {
+                    "type": "integer"
+                },
+                "from_ward_code": {
+                    "type": "string"
+                },
+                "from_ward_id_v2": {
+                    "type": "integer"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "image_ids": {},
+                "insurance_value": {
+                    "type": "integer"
+                },
+                "internal_process": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "is_b2b": {
+                    "type": "boolean"
+                },
+                "is_cod_collected": {
+                    "type": "boolean"
+                },
+                "is_cod_transferred": {
+                    "type": "boolean"
+                },
+                "is_document_return": {
+                    "type": "boolean"
+                },
+                "is_new_from_address": {
+                    "type": "boolean"
+                },
+                "is_new_multiple": {
+                    "type": "boolean"
+                },
+                "is_new_return_address": {
+                    "type": "boolean"
+                },
+                "is_new_to_address": {
+                    "type": "boolean"
+                },
+                "is_partial_return": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "category": {
+                                "type": "object"
+                            },
+                            "current_warehouse_id": {
+                                "type": "integer"
+                            },
+                            "height": {
+                                "type": "integer"
+                            },
+                            "item_order_code": {
+                                "type": "string"
+                            },
+                            "length": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "quantity": {
+                                "type": "integer"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "weight": {
+                                "type": "integer"
+                            },
+                            "width": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                },
+                "leadtime": {
+                    "type": "string"
+                },
+                "leadtime_order": {
+                    "type": "object",
+                    "properties": {
+                        "from_estimate_date": {
+                            "type": "string"
+                        },
+                        "to_estimate_date": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "length": {
+                    "type": "integer"
+                },
+                "next_warehouse_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "operation_partner": {
+                    "type": "string"
+                },
+                "order_code": {
+                    "type": "string"
+                },
+                "order_date": {
+                    "type": "string"
+                },
+                "order_value": {
+                    "type": "integer"
+                },
+                "payment_type_id": {
+                    "type": "integer"
+                },
+                "payment_type_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "pick_station_id": {
+                    "type": "integer"
+                },
+                "pick_warehouse_id": {
+                    "type": "integer"
+                },
+                "pickup_shift": {
+                    "type": "object"
+                },
+                "pickup_time": {
+                    "type": "string"
+                },
+                "process_partner_name": {
+                    "type": "string"
+                },
+                "request_delivery_time": {},
+                "required_note": {
+                    "type": "string"
+                },
+                "return_address": {
+                    "type": "string"
+                },
+                "return_address_v2": {
+                    "type": "string"
+                },
+                "return_district_id": {
+                    "type": "integer"
+                },
+                "return_location": {
+                    "type": "object",
+                    "properties": {
+                        "cell_code": {
+                            "type": "string"
+                        },
+                        "lat": {
+                            "type": "number"
+                        },
+                        "long": {
+                            "type": "number"
+                        },
+                        "map_source": {
+                            "type": "string"
+                        },
+                        "place_id": {
+                            "type": "string"
+                        },
+                        "trust_level": {
+                            "type": "integer"
+                        },
+                        "wardcode": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "return_name": {
+                    "type": "string"
+                },
+                "return_phone": {
+                    "type": "string"
+                },
+                "return_province_id_v2": {
+                    "type": "integer"
+                },
+                "return_ward_code": {
+                    "type": "string"
+                },
+                "return_ward_id_v2": {
+                    "type": "integer"
+                },
+                "return_warehouse_id": {
+                    "type": "integer"
+                },
+                "seal_code": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "integer"
+                },
+                "service_type_id": {
+                    "type": "integer"
+                },
+                "shop_id": {
+                    "type": "integer"
+                },
+                "soc_id": {
+                    "type": "string"
+                },
+                "sort_code": {
+                    "type": "string"
+                },
+                "standard_config_fee_id": {
+                    "type": "string"
+                },
+                "standard_extra_cost_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "to_address": {
+                    "type": "string"
+                },
+                "to_address_v2": {
+                    "type": "string"
+                },
+                "to_district_id": {
+                    "type": "integer"
+                },
+                "to_location": {
+                    "type": "object",
+                    "properties": {
+                        "cell_code": {
+                            "type": "string"
+                        },
+                        "lat": {
+                            "type": "number"
+                        },
+                        "long": {
+                            "type": "number"
+                        },
+                        "map_source": {
+                            "type": "string"
+                        },
+                        "place_id": {
+                            "type": "string"
+                        },
+                        "trust_level": {
+                            "type": "integer"
+                        },
+                        "wardcode": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "to_name": {
+                    "type": "string"
+                },
+                "to_phone": {
+                    "type": "string"
+                },
+                "to_province_id_v2": {
+                    "type": "integer"
+                },
+                "to_ward_code": {
+                    "type": "string"
+                },
+                "to_ward_id_v2": {
+                    "type": "integer"
+                },
+                "transaction_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "transportation_phase": {
+                    "type": "string"
+                },
+                "transportation_status": {
+                    "type": "string"
+                },
+                "updated_client": {
+                    "type": "integer"
+                },
+                "updated_date": {
+                    "type": "string"
+                },
+                "updated_employee": {
+                    "type": "integer"
+                },
+                "updated_ip": {
+                    "type": "string"
+                },
+                "updated_source": {
+                    "type": "string"
+                },
+                "updated_warehouse": {
+                    "type": "integer"
+                },
+                "version_no": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
                 }
             }
         },
@@ -13255,6 +13964,9 @@ const docTemplate = `{
                 "ghn_district_id": {
                     "type": "integer"
                 },
+                "ghn_order_code": {
+                    "type": "string"
+                },
                 "ghn_province_id": {
                     "type": "integer"
                 },
@@ -13299,6 +14011,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
+                    "type": "string"
+                },
+                "user_notes": {
                     "type": "string"
                 },
                 "ward_name": {
@@ -14628,6 +15343,11 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/requests.OrderItemRequest"
                     }
+                },
+                "user_note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Please deliver between 9 AM and 5 PM."
                 }
             }
         },

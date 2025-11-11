@@ -288,11 +288,15 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			ghnGroup.GET("/order/:order-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByOrderID)
 			ghnGroup.POST("/order/:order-id/calculate", ghnHandler.CalculateDeliveryPriceByOrderID)
+			// GHN order info (protected)
+			ghnGroup.GET("/order/info/:order-code", ghnHandler.GetOrderInfo)
 		}
 		ghnPublicGroup := v1.Group("/ghn")
 		{
 			ghnPublicGroup.GET("/:district-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByDistrictID)
 			ghnPublicGroup.POST("/delivery/calculate-by-dimension", ghnHandler.CalculateDeliveryPriceByDimension)
+			// Public endpoint for expected delivery time
+			ghnPublicGroup.GET("/expected-delivery-time", ghnHandler.GetExpectedDeliveryTime)
 		}
 
 		// ---------- PRE-ORDERS ----------
