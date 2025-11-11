@@ -4,6 +4,7 @@ package proxies
 import (
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iproxies"
+	"gorm.io/gorm"
 	"net/http"
 	"time"
 )
@@ -11,9 +12,11 @@ import (
 type ProxiesRegistry struct {
 	httpClient *http.Client
 	PayOSProxy iproxies.PayOSProxy
+	GHNProxy   iproxies.GHNProxy
+	db         *gorm.DB
 }
 
-func NewProxiesRegistry(config *config.AppConfig) *ProxiesRegistry {
+func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry {
 	transport := &http.Transport{
 		MaxIdleConns:          config.HTTPClient.MaxIdleConns,
 		MaxIdleConnsPerHost:   config.HTTPClient.MaxIdleConnsPerHost,
@@ -35,6 +38,11 @@ func NewProxiesRegistry(config *config.AppConfig) *ProxiesRegistry {
 			config.PayOS.ClientID,
 			config.PayOS.APIKey,
 			config.PayOS.ChecksumKey,
+		),
+		GHNProxy: NewGHNProxy(
+			client,
+			config,
+			db,
 		),
 	}
 }

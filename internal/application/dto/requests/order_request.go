@@ -15,6 +15,7 @@ import (
 type OrderRequest struct {
 	AddressID uuid.UUID          `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
 	Items     []OrderItemRequest `json:"items" validate:"required,dive,required"`
+	UserNote  string             `json:"user_note" validate:"omitempty,max=500" example:"Please deliver between 9 AM and 5 PM."`
 }
 
 func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, shippingPrice int, now time.Time) *model.Order {
@@ -45,6 +46,7 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 		ProvinceName:  address.ProvinceName,
 		DistrictName:  address.DistrictName,
 		WardName:      address.WardName,
+		UserNotes:     ptr.String(or.UserNote),
 
 		//Order Relationships
 		UserID:     userID,

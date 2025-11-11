@@ -131,7 +131,7 @@ func (s *locationSyncScheduler) safeSyncOnce(ctx context.Context, manual bool) {
 
 func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 	// 1) Provinces
-	provURL := s.cfg.GHN.BaseURL + "/province"
+	provURL := s.cfg.GHN.BaseURL + "/master-data/province"
 	provinces, err := httpclient.DoRequestList[responses.ProvinceResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, provURL, nil)
 	if err != nil {
 		return fmt.Errorf("fetch provinces: %w", err)
@@ -173,7 +173,7 @@ func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 		go func(provinceID int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			url := fmt.Sprintf("%s/district?province_id=%d", s.cfg.GHN.BaseURL, provinceID)
+			url := fmt.Sprintf("%s/master-data/district?province_id=%d", s.cfg.GHN.BaseURL, provinceID)
 			districts, err := httpclient.DoRequestList[responses.DistrictResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch districts failed", zap.Int("province_id", provinceID), zap.Error(err))
@@ -232,7 +232,7 @@ func (s *locationSyncScheduler) syncOnce(ctx context.Context) error {
 		go func(districtID int) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			url := fmt.Sprintf("%s/ward?district_id=%d", s.cfg.GHN.BaseURL, districtID)
+			url := fmt.Sprintf("%s/master-data/ward?district_id=%d", s.cfg.GHN.BaseURL, districtID)
 			wards, err := httpclient.DoRequestList[responses.WardResponse](ctx, s.client, s.cfg.GHN.Token, http.MethodGet, url, nil)
 			if err != nil {
 				zap.L().Warn("Fetch wards failed", zap.Int("district_id", districtID), zap.Error(err))

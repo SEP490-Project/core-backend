@@ -8,6 +8,20 @@ import (
 	"time"
 )
 
+type GHNWrapperResponse[T any] struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    T      `json:"data"`
+}
+
+type GHNCreateOrderWrapperResponse[T any] struct {
+	Code             int    `json:"code"`
+	CodeMessageValue string `json:"code_message_value"`
+	Data             T      `json:"data"`
+	Message          string `json:"message"`
+	MessageDisplay   string `json:"message_display"`
+}
+
 // ============================ DELIVERY FEE =============================
 type DeliveryFeeBody struct {
 	ToDistrictID   int               `json:"to_district_id"`
@@ -280,54 +294,6 @@ type DeliveryAvailableServiceBody struct {
 }
 
 // ============================ ORDER MANAGEMENT ============================================
-type CreateOrderBody struct {
-	PaymentTypeID    int         `json:"payment_type_id"`
-	Note             string      `json:"note"`
-	RequiredNote     string      `json:"required_note"`
-	FromName         string      `json:"from_name"`
-	FromPhone        string      `json:"from_phone"`
-	FromAddress      string      `json:"from_address"`
-	FromWardName     string      `json:"from_ward_name"`
-	FromDistrictName string      `json:"from_district_name"`
-	FromProvinceName string      `json:"from_province_name"`
-	ReturnPhone      string      `json:"return_phone"`
-	ReturnAddress    string      `json:"return_address"`
-	ReturnDistrictID interface{} `json:"return_district_id"`
-	ReturnWardCode   string      `json:"return_ward_code"`
-	ClientOrderCode  string      `json:"client_order_code"`
-	ToName           string      `json:"to_name"`
-	ToPhone          string      `json:"to_phone"`
-	ToAddress        string      `json:"to_address"`
-	ToWardCode       string      `json:"to_ward_code"`
-	ToDistrictID     int         `json:"to_district_id"`
-	CodAmount        int         `json:"cod_amount"`
-	Content          string      `json:"content"`
-	Weight           int         `json:"weight"`
-	Length           int         `json:"length"`
-	Width            int         `json:"width"`
-	Height           int         `json:"height"`
-	PickStationID    int         `json:"pick_station_id"`
-	DeliverStationID interface{} `json:"deliver_station_id"`
-	InsuranceValue   int         `json:"insurance_value"`
-	ServiceID        int         `json:"service_id"`
-	ServiceTypeID    int         `json:"service_type_id"`
-	Coupon           interface{} `json:"coupon"`
-	PickShift        []int       `json:"pick_shift"`
-	Items            []struct {
-		Name     string `json:"name"`
-		Code     string `json:"code"`
-		Quantity int    `json:"quantity"`
-		Price    int    `json:"price"`
-		Length   int    `json:"length"`
-		Width    int    `json:"width"`
-		Height   int    `json:"height"`
-		Weight   int    `json:"weight"`
-		Category struct {
-			Level1 string `json:"level1"`
-		} `json:"category"`
-	} `json:"items"`
-}
-
 type OrderInfo struct {
 	ShopID           int    `json:"shop_id"`
 	ClientID         int    `json:"client_id"`
@@ -507,7 +473,7 @@ type CancelOrder struct {
 	Message   string `json:"message"`
 }
 
-type CreateOrder struct {
+type CreateGHNOrderDTO struct {
 	PaymentTypeID    int                          `json:"payment_type_id"`
 	Note             string                       `json:"note"`
 	RequiredNote     string                       `json:"required_note"`
@@ -532,4 +498,42 @@ type CreateOrder struct {
 	ServiceID        int                          `json:"service_id"`
 	ServiceTypeID    int                          `json:"service_type_id"`
 	Items            []ApplicationDeliveryFeeItem `json:"items"`
+}
+
+type CreatedGHNOrderResponse struct {
+	OrderCode      string `json:"order_code"`
+	SortCode       string `json:"sort_code"`
+	TransType      string `json:"trans_type"`
+	WardEncode     string `json:"ward_encode"`
+	DistrictEncode string `json:"district_encode"`
+	Fee            struct {
+		MainService                 int `json:"main_service"`
+		Insurance                   int `json:"insurance"`
+		CodFee                      int `json:"cod_fee"`
+		StationDo                   int `json:"station_do"`
+		StationPu                   int `json:"station_pu"`
+		Return                      int `json:"return"`
+		R2S                         int `json:"r2s"`
+		ReturnAgain                 int `json:"return_again"`
+		Coupon                      int `json:"coupon"`
+		DocumentReturn              int `json:"document_return"`
+		DoubleCheck                 int `json:"double_check"`
+		DoubleCheckDeliver          int `json:"double_check_deliver"`
+		PickRemoteAreasFee          int `json:"pick_remote_areas_fee"`
+		DeliverRemoteAreasFee       int `json:"deliver_remote_areas_fee"`
+		PickRemoteAreasFeeReturn    int `json:"pick_remote_areas_fee_return"`
+		DeliverRemoteAreasFeeReturn int `json:"deliver_remote_areas_fee_return"`
+		CodFailedFee                int `json:"cod_failed_fee"`
+	} `json:"fee"`
+	TotalFee             int       `json:"total_fee"`
+	ExpectedDeliveryTime time.Time `json:"expected_delivery_time"`
+	OperationPartner     string    `json:"operation_partner"`
+}
+
+type ExpectedDeliveryTime struct {
+	Leadtime      int `json:"leadtime"`
+	LeadtimeOrder struct {
+		FromEstimateDate time.Time `json:"from_estimate_date"`
+		ToEstimateDate   time.Time `json:"to_estimate_date"`
+	} `json:"leadtime_order"`
 }

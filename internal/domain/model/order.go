@@ -68,8 +68,9 @@ type Order struct {
 	CreatedAt     time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt     time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 
-	ActionNotes *OrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
-
+	ActionNotes  *OrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
+	UserNotes    *string           `json:"user_notes,omitempty" gorm:"column:user_notes;type:text"`
+	GHNOrderCode *string           `json:"ghn_order_code" gorm:"column:ghn_order_code;type:text"`
 	// Relationships
 	User       User        `json:"-" gorm:"foreignKey:UserID"`
 	OrderItems []OrderItem `json:"order_items" gorm:"foreignKey:OrderID"`
