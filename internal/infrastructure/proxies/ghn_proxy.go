@@ -88,7 +88,7 @@ func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.Cre
 
 // CalculateDeliveryPriceByID calculates delivery fee for an order by contacting GHN and returns the first fee result.
 func (g ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
-	deliveryFeeURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
+	deliveryFeePath := "/v2/shipping-order/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -105,10 +105,25 @@ func (g ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.U
 			return fmt.Errorf(err.Error())
 		}
 
-		deliveryFee, err = httpclient.DoRequestSingle[dtos.DeliveryFeeSuccess](ctx, g.client, g.cfg.GHN.Token, http.MethodPost, deliveryFeeURL, body)
+		// Use BaseProxy.Post and decode GHN wrapper
+		headers := map[string]string{
+			"Token":  g.cfg.GHN.Token,
+			"ShopId": fmt.Sprintf("%d", g.cfg.GHN.ShopID),
+		}
+		resp, err := g.BaseProxy.Post(ctx, deliveryFeePath, headers, body)
 		if err != nil {
 			return fmt.Errorf("error when fetching delivery fee: %w", err)
 		}
+		defer func() { _ = resp.Body.Close() }()
+
+		var ghnResp dtos.GHNWrapperResponse[dtos.DeliveryFeeSuccess]
+		if err := json.NewDecoder(resp.Body).Decode(&ghnResp); err != nil {
+			return fmt.Errorf("failed to decode GHN delivery fee response: %w", err)
+		}
+		if ghnResp.Code != 200 {
+			return fmt.Errorf("error when fetching delivery fee: %s", ghnResp.Message)
+		}
+		deliveryFee = ghnResp.Data
 		return nil
 	})
 
@@ -166,6 +181,7 @@ func (g ghnProxy) GetAvailableDeliveryServicesByDistrictID(ctx context.Context, 
 			ToDistrict:   districtID,
 		}
 
+		// Use httpclient helper for list endpoints (kept as-is)
 		availableSvc, err = httpclient.DoRequestList[dtos.DeliveryAvailableServiceDTO](ctx, g.client, g.cfg.GHN.Token, http.MethodPost, deliverySvcURL, body)
 		if err != nil {
 			return fmt.Errorf("Error when fetching delivery fee: %w", err)
@@ -181,7 +197,7 @@ func (g ghnProxy) GetAvailableDeliveryServicesByDistrictID(ctx context.Context, 
 }
 
 func (g ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
-	deliveryFeeURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
+	deliveryFeePath := "/v2/shipping-order/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -192,10 +208,24 @@ func (g ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, to
 			return fmt.Errorf(err.Error())
 		}
 
-		deliveryFee, err = httpclient.DoRequestSingle[dtos.DeliveryFeeSuccess](ctx, g.client, g.cfg.GHN.Token, http.MethodPost, deliveryFeeURL, body)
+		headers := map[string]string{
+			"Token":  g.cfg.GHN.Token,
+			"ShopId": fmt.Sprintf("%d", g.cfg.GHN.ShopID),
+		}
+		resp, err := g.BaseProxy.Post(ctx, deliveryFeePath, headers, body)
 		if err != nil {
 			return fmt.Errorf("error when fetching delivery fee: %w", err)
 		}
+		defer func() { _ = resp.Body.Close() }()
+
+		var ghnResp dtos.GHNWrapperResponse[dtos.DeliveryFeeSuccess]
+		if err := json.NewDecoder(resp.Body).Decode(&ghnResp); err != nil {
+			return fmt.Errorf("failed to decode GHN delivery fee response: %w", err)
+		}
+		if ghnResp.Code != 200 {
+			return fmt.Errorf("error when fetching delivery fee: %s", ghnResp.Message)
+		}
+		deliveryFee = ghnResp.Data
 		return nil
 	})
 
@@ -208,7 +238,7 @@ func (g ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, to
 }
 
 func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
-	deliveryFeeURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
+	deliveryFeePath := "/v2/shipping-order/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -230,10 +260,24 @@ func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx contex
 			return fmt.Errorf(err.Error())
 		}
 
-		deliveryFee, err = httpclient.DoRequestSingle[dtos.DeliveryFeeSuccess](ctx, g.client, g.cfg.GHN.Token, http.MethodPost, deliveryFeeURL, body)
+		headers := map[string]string{
+			"Token":  g.cfg.GHN.Token,
+			"ShopId": fmt.Sprintf("%d", g.cfg.GHN.ShopID),
+		}
+		resp, err := g.BaseProxy.Post(ctx, deliveryFeePath, headers, body)
 		if err != nil {
 			return fmt.Errorf("error when fetching delivery fee: %w", err)
 		}
+		defer func() { _ = resp.Body.Close() }()
+
+		var ghnResp dtos.GHNWrapperResponse[dtos.DeliveryFeeSuccess]
+		if err := json.NewDecoder(resp.Body).Decode(&ghnResp); err != nil {
+			return fmt.Errorf("failed to decode GHN delivery fee response: %w", err)
+		}
+		if ghnResp.Code != 200 {
+			return fmt.Errorf("error when fetching delivery fee: %s", ghnResp.Message)
+		}
+		deliveryFee = ghnResp.Data
 		return nil
 	})
 
@@ -399,8 +443,8 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 	}
 
 	requiredNote := ""
-	if order.UserNotes != nil {
-		requiredNote = *order.UserNotes
+	if order.UserNote != nil {
+		requiredNote = *order.UserNote
 	}
 
 	clientOrderCode := order.ID.String()

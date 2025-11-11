@@ -301,6 +301,18 @@ definitions:
       total:
         type: integer
     type: object
+  dtos.ExpectedDeliveryTime:
+    properties:
+      leadtime:
+        type: integer
+      leadtime_order:
+        properties:
+          from_estimate_date:
+            type: string
+          to_estimate_date:
+            type: string
+        type: object
+    type: object
   dtos.FinancialTerms:
     properties:
       base_per_click:
@@ -414,6 +426,336 @@ definitions:
     - level
     - max_clicks
     - multiplier
+    type: object
+  dtos.OrderInfo:
+    properties:
+      _id:
+        type: string
+      calculate_weight:
+        type: integer
+      client_id:
+        type: integer
+      client_order_code:
+        type: string
+      cod_amount:
+        type: integer
+      cod_collect_date: {}
+      cod_failed_amount:
+        type: integer
+      cod_failed_collect_date: {}
+      cod_transfer_date: {}
+      config_fee_id:
+        type: string
+      content:
+        type: string
+      converted_weight:
+        type: integer
+      coupon:
+        type: string
+      coupon_campaign_id:
+        type: integer
+      created_client:
+        type: integer
+      created_date:
+        type: string
+      created_employee:
+        type: integer
+      created_ip:
+        type: string
+      created_source:
+        type: string
+      current_transport_warehouse_id:
+        type: integer
+      current_warehouse_id:
+        type: integer
+      custom_service_fee:
+        type: integer
+      data:
+        type: object
+      deadline_pickup_time: {}
+      deliver_station_id:
+        type: integer
+      deliver_warehouse_id:
+        type: integer
+      delivery_days_of_week:
+        type: integer
+      ecom_config_fee_id:
+        type: integer
+      ecom_extra_cost_id:
+        type: integer
+      ecom_standard_config_fee_id:
+        type: integer
+      ecom_standard_extra_cost_id:
+        type: integer
+      employee_note:
+        type: string
+      extra_cost_id:
+        type: string
+      extra_service:
+        properties:
+          document_return:
+            properties:
+              flag:
+                type: boolean
+            type: object
+          double_check:
+            type: boolean
+          lastmile_ahamove_bulky:
+            type: boolean
+          lastmile_trip_code:
+            type: string
+          original_deliver_warehouse_id:
+            type: integer
+        type: object
+      finish_date: {}
+      from_address:
+        type: string
+      from_address_v2:
+        type: string
+      from_district_id:
+        type: integer
+      from_hotline:
+        type: string
+      from_location:
+        properties:
+          cell_code:
+            type: string
+          lat:
+            type: number
+          long:
+            type: number
+          map_source:
+            type: string
+          place_id:
+            type: string
+          trust_level:
+            type: integer
+          wardcode:
+            type: string
+        type: object
+      from_name:
+        type: string
+      from_phone:
+        type: string
+      from_province_id_v2:
+        type: integer
+      from_ward_code:
+        type: string
+      from_ward_id_v2:
+        type: integer
+      height:
+        type: integer
+      image_ids: {}
+      insurance_value:
+        type: integer
+      internal_process:
+        properties:
+          status:
+            type: string
+          type:
+            type: string
+        type: object
+      is_b2b:
+        type: boolean
+      is_cod_collected:
+        type: boolean
+      is_cod_transferred:
+        type: boolean
+      is_document_return:
+        type: boolean
+      is_new_from_address:
+        type: boolean
+      is_new_multiple:
+        type: boolean
+      is_new_return_address:
+        type: boolean
+      is_new_to_address:
+        type: boolean
+      is_partial_return:
+        type: boolean
+      items:
+        items:
+          properties:
+            category:
+              type: object
+            current_warehouse_id:
+              type: integer
+            height:
+              type: integer
+            item_order_code:
+              type: string
+            length:
+              type: integer
+            name:
+              type: string
+            quantity:
+              type: integer
+            status:
+              type: string
+            weight:
+              type: integer
+            width:
+              type: integer
+          type: object
+        type: array
+      leadtime:
+        type: string
+      leadtime_order:
+        properties:
+          from_estimate_date:
+            type: string
+          to_estimate_date:
+            type: string
+        type: object
+      length:
+        type: integer
+      next_warehouse_id:
+        type: integer
+      note:
+        type: string
+      operation_partner:
+        type: string
+      order_code:
+        type: string
+      order_date:
+        type: string
+      order_value:
+        type: integer
+      payment_type_id:
+        type: integer
+      payment_type_ids:
+        items:
+          type: integer
+        type: array
+      pick_station_id:
+        type: integer
+      pick_warehouse_id:
+        type: integer
+      pickup_shift:
+        type: object
+      pickup_time:
+        type: string
+      process_partner_name:
+        type: string
+      request_delivery_time: {}
+      required_note:
+        type: string
+      return_address:
+        type: string
+      return_address_v2:
+        type: string
+      return_district_id:
+        type: integer
+      return_location:
+        properties:
+          cell_code:
+            type: string
+          lat:
+            type: number
+          long:
+            type: number
+          map_source:
+            type: string
+          place_id:
+            type: string
+          trust_level:
+            type: integer
+          wardcode:
+            type: string
+        type: object
+      return_name:
+        type: string
+      return_phone:
+        type: string
+      return_province_id_v2:
+        type: integer
+      return_ward_code:
+        type: string
+      return_ward_id_v2:
+        type: integer
+      return_warehouse_id:
+        type: integer
+      seal_code:
+        type: string
+      service_id:
+        type: integer
+      service_type_id:
+        type: integer
+      shop_id:
+        type: integer
+      soc_id:
+        type: string
+      sort_code:
+        type: string
+      standard_config_fee_id:
+        type: string
+      standard_extra_cost_id:
+        type: string
+      status:
+        type: string
+      tag:
+        items:
+          type: string
+        type: array
+      to_address:
+        type: string
+      to_address_v2:
+        type: string
+      to_district_id:
+        type: integer
+      to_location:
+        properties:
+          cell_code:
+            type: string
+          lat:
+            type: number
+          long:
+            type: number
+          map_source:
+            type: string
+          place_id:
+            type: string
+          trust_level:
+            type: integer
+          wardcode:
+            type: string
+        type: object
+      to_name:
+        type: string
+      to_phone:
+        type: string
+      to_province_id_v2:
+        type: integer
+      to_ward_code:
+        type: string
+      to_ward_id_v2:
+        type: integer
+      transaction_ids:
+        items:
+          type: string
+        type: array
+      transportation_phase:
+        type: string
+      transportation_status:
+        type: string
+      updated_client:
+        type: integer
+      updated_date:
+        type: string
+      updated_employee:
+        type: integer
+      updated_ip:
+        type: string
+      updated_source:
+        type: string
+      updated_warehouse:
+        type: integer
+      version_no:
+        type: string
+      weight:
+        type: integer
+      width:
+        type: integer
     type: object
   dtos.PayOSConfirmWebhookResponse:
     properties:
@@ -984,6 +1326,8 @@ definitions:
         type: string
       ghn_district_id:
         type: integer
+      ghn_order_code:
+        type: string
       ghn_province_id:
         type: integer
       ghn_ward_code:
@@ -1014,6 +1358,8 @@ definitions:
       updated_at:
         type: string
       user_id:
+        type: string
+      user_notes:
         type: string
       ward_name:
         type: string
@@ -1981,6 +2327,10 @@ definitions:
         items:
           $ref: '#/definitions/requests.OrderItemRequest'
         type: array
+      user_note:
+        example: Please deliver between 9 AM and 5 PM.
+        maxLength: 500
+        type: string
     required:
     - address_id
     - items
@@ -9116,6 +9466,45 @@ paths:
       summary: Calculate delivery fee by explicit destination and items
       tags:
       - ghn
+  /api/v1/ghn/expected-delivery-time:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve estimated delivery lead time for a destination (district
+        + ward)
+      parameters:
+      - description: Destination district ID
+        in: query
+        name: to_district_id
+        required: true
+        type: integer
+      - description: Destination ward code
+        in: query
+        name: to_ward_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.ExpectedDeliveryTime'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get expected delivery time from GHN
+      tags:
+      - ghn
   /api/v1/ghn/order/{order-id}/calculate:
     post:
       consumes:
@@ -9189,6 +9578,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Get available GHN delivery services for an order
+      tags:
+      - ghn
+  /api/v1/ghn/order/info/{order-code}:
+    get:
+      consumes:
+      - application/json
+      description: Fetch GHN order details for a given GHN order code
+      parameters:
+      - description: GHN order code
+        in: path
+        name: order-code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrderInfo'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get GHN order info by GHN order code
       tags:
       - ghn
   /api/v1/location/address:
@@ -9714,7 +10138,7 @@ paths:
         name: province_id
         type: string
       - description: |-
-          Search term to filter by order number
+          Search term to filter by orderID/paymentID/paymentBin
           in: query
           example: "ORDER123"
         example: ORDER123
@@ -9786,7 +10210,7 @@ paths:
       summary: Get staff-available orders with pagination
       tags:
       - Orders
-  /api/v1/orders/staff/{orderID}/censore:
+  /api/v1/orders/staff/{orderID}/censorship:
     post:
       consumes:
       - application/json

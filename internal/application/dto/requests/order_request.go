@@ -46,7 +46,7 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 		ProvinceName:  address.ProvinceName,
 		DistrictName:  address.DistrictName,
 		WardName:      address.WardName,
-		UserNotes:     ptr.String(or.UserNote),
+		UserNote:      ptr.String(or.UserNote),
 
 		//Order Relationships
 		UserID:     userID,

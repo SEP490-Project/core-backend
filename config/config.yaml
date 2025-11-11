@@ -131,7 +131,6 @@ payos:
 
 #GHN
 ghn:
-#  base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/master-data"
   base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api"
   fee_base_url: "https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order"
   token: "e318b7e8-96a4-11f0-bdaf-ae7fa045a771"
