@@ -83,27 +83,8 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	v1 := engine.Group("/api/v1")
 	{
-		// ---------- AUTH ----------
-		authHandler := r.handlerRegistry.AuthHandler
-		authGroup := v1.Group("/auth")
-		{
-			// Public
-			authGroup.POST("/login", authHandler.Login)
-			authGroup.POST("/signup", authHandler.SignUp)
-			authGroup.POST("/refresh", authHandler.RefreshToken)
-
-			// Protected
-			authProtectedGroup := authGroup.Group("")
-			authProtectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-			{
-				authProtectedGroup.POST("/logout", authHandler.Logout)
-				authProtectedGroup.POST("/logout-all", authHandler.LogoutAll)
-				authProtectedGroup.GET("/sessions", authHandler.GetActiveSessions)
-				authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
-			}
-		}
-
 		// ---------- Routes Setups from functions ----------
+		r.setupAuthRoutes(v1)
 		r.setupUserRoutes(v1)
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
@@ -730,5 +711,28 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		viewGroup.GET("", payOsHandler.GetByFilter)
 		viewGroup.GET("/id/:id", payOsHandler.GetByID)
 		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
+	}
+}
+func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
+	authHandler := r.handlerRegistry.AuthHandler
+	authGroup := group.Group("/auth")
+	{
+		// Public
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/signup", authHandler.SignUp)
+		authGroup.POST("/refresh", authHandler.RefreshToken)
+		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
+		authGroup.POST("/reset-password", authHandler.ResetPassword)
+
+		// Protected
+		authProtectedGroup := authGroup.Group("")
+		authProtectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			authProtectedGroup.POST("/logout", authHandler.Logout)
+			authProtectedGroup.POST("/logout-all", authHandler.LogoutAll)
+			authProtectedGroup.GET("/sessions", authHandler.GetActiveSessions)
+			authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
+			authProtectedGroup.POST("/change-password", authHandler.ChangePassword)
+		}
 	}
 }

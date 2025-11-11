@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 type AuthHandler struct {
@@ -327,3 +328,118 @@ func (h *AuthHandler) buildDeviceFingerprint(c *gin.Context) string {
 	// Combine multiple factors for better device identification
 	return fmt.Sprintf("%s|%s|%s", userAgent, ip, acceptLanguage)
 }
+
+// region: ============== Password Management Handlers Methods ==============
+
+// ForgotPassword godoc
+//
+//	@Summary		Request password reset
+//	@Description	Initiates password reset process by sending reset link to user's email
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ForgotPasswordRequest	true	"Email address"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Router			/api/v1/auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req requests.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind forgot password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ForgotPassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to process forgot password request", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// ResetPassword godoc
+//
+//	@Summary		Reset password with token
+//	@Description	Completes password reset process using token from email
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ResetPasswordRequest	true	"Reset token and new password"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Router			/api/v1/auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req requests.ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind reset password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ResetPassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to reset password", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// ChangePassword godoc
+//
+//	@Summary		Change password (authenticated)
+//	@Description	Allows authenticated users to change their password
+//	@Tags			Authentication
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.ChangePasswordRequest	true	"Current and new password"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/auth/change-password [post]
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized", http.StatusUnauthorized))
+		return
+	}
+	var req requests.ChangePasswordRequest
+	if err = c.ShouldBindJSON(&req); err != nil {
+		zap.L().Error("Failed to bind change password request", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+	req.UserID = userID
+	if err = h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	message, err := h.authService.ChangePassword(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to change password", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse(message, nil, nil))
+}
+
+// endregion

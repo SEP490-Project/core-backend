@@ -98,7 +98,7 @@ func NewApplicationRegistry(
 		JWTService:                    jwtService,
 		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
-		AuthService:                   service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository)),
+		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
