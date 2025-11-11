@@ -15,7 +15,7 @@ type StatePayload struct {
 	Nonce     string `json:"nonce"`
 	Timestamp int64  `json:"timestamp"`
 	Expiry    int64  `json:"expiry,omitempty"`
-	Redirect  string `json:"redirect,omitempty"`
+	// Redirect  string `json:"redirect,omitempty"`
 }
 
 // GenerateStateToken generates a signed state token using an RSA private key
@@ -24,7 +24,7 @@ func GenerateStateToken(privateKey *rsa.PrivateKey, expiry *int64, redirect stri
 		Nonce:     generateRandomString(16),
 		Timestamp: time.Now().Unix(),
 		Expiry:    300, // Token valid for 5 minutes
-		Redirect:  redirect,
+		// Redirect:  redirect,
 	}
 	if expiry != nil && *expiry > 0 {
 		payload.Expiry = *expiry
@@ -74,18 +74,18 @@ func VerifyStateToken(publicKey *rsa.PublicKey, token string) (*StatePayload, er
 	}
 
 	if err = json.Unmarshal(tokenBytes, &tokenStruct); err != nil {
-		return nil, err
+		return nil, errors.New("invalid state token format")
 	}
 
 	var payloadBytes []byte
 	payloadBytes, err = base64.RawURLEncoding.DecodeString(tokenStruct.Payload)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid state token payload encoding")
 	}
 
 	sigBytes, err := base64.RawURLEncoding.DecodeString(tokenStruct.Signature)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid state token signature encoding")
 	}
 
 	// Verify signature
@@ -96,7 +96,7 @@ func VerifyStateToken(publicKey *rsa.PublicKey, token string) (*StatePayload, er
 
 	var payload StatePayload
 	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
-		return nil, err
+		return nil, errors.New("invalid state token payload format")
 	}
 
 	// Check expiry

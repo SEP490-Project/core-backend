@@ -1,6 +1,10 @@
 package requests
 
-import "core-backend/internal/domain/enum"
+import (
+	"core-backend/internal/domain/enum"
+
+	"github.com/google/uuid"
+)
 
 // LoginRequest represents login request data
 type LoginRequest struct {
@@ -26,4 +30,24 @@ type SignUpRequest struct {
 // LogoutRequest represents logout request data
 type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"omitempty" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+}
+
+// ForgotPasswordRequest is the request DTO for initiating password reset
+type ForgotPasswordRequest struct {
+	Email       string `json:"email" validate:"required,email"`
+	FrontendURL string `json:"frontend_url" validate:"required,url"`
+}
+
+// ResetPasswordRequest is the request DTO for completing password reset via email link
+type ResetPasswordRequest struct {
+	Email       string `json:"email" validate:"required,email"`
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
+}
+
+// ChangePasswordRequest is the request DTO for authenticated users changing their password
+type ChangePasswordRequest struct {
+	UserID          uuid.UUID `json:"-" validate:"required,uuid"`
+	CurrentPassword string    `json:"current_password" validate:"required"`
+	NewPassword     string    `json:"new_password" validate:"required,min=8"`
 }

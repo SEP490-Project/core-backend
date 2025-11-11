@@ -1,5 +1,8 @@
 payos_link_expiry: 300 # in seconds
 minimum_day_before_contract_payment_due: 5 # in days
+forget_password_expiry_in_seconds: 3600 # in seconds
+
+# Representative Information
 representative_name: "Đinh Thị Ngọc Trinh"
 representative_role: "Beauty Blogger"
 representative_phone: "+84917956697"

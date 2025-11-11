@@ -176,7 +176,7 @@ func (h *RedirectHandler) Redirect(c *gin.Context) {
 
 // isRateLimited checks if the client IP has exceeded rate limits
 // Simple in-memory rate limiting (for production, use Redis-based solution)
-func (h *RedirectHandler) isRateLimited(c *gin.Context) bool {
+func (h *RedirectHandler) isRateLimited(_ *gin.Context) bool {
 	// TODO: Implement Redis-based rate limiting
 	// For now, return false (no rate limiting)
 	// Production implementation should use:
