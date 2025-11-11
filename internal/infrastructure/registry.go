@@ -32,7 +32,6 @@ type InfrastructureRegistry struct {
 	EmailService      iservicethirdparty.EmailService
 	FCMService        iservicethirdparty.FCMService
 	HealthMonitor     iservicethirdparty.HealthMonitor
-	GHNService        iservicethirdparty.GHNService
 	ProxiesRegistry   *proxies.ProxiesRegistry
 
 	//Automatic Trigger
@@ -119,7 +118,6 @@ func NewInfrastructureRegistry(
 
 	//External Services
 	zap.L().Debug("Initializing GHN Service...")
-	registry.GHNService = service.NewGHNService(config)
 
 	//==============================================================
 
@@ -151,7 +149,7 @@ func NewInfrastructureRegistry(
 
 	// Initialize Proxies Registry
 	zap.L().Debug("Initializing Proxies Registry...")
-	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config)
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db)
 	zap.L().Info("Proxies Registry initialized successfully")
 
 	// Override AdminConfig from Database

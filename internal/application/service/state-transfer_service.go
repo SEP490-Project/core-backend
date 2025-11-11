@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
@@ -37,6 +38,7 @@ type stateTransferService struct {
 	affiliateLinkRepository irepository.AffiliateLinkRepository
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
+	ghnProxy                iproxies.GHNProxy
 }
 
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
@@ -670,12 +672,27 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return err
 		}
 
-		// 4) Persist new state to database
+		// 4) If order Status is Confirmed, create GHN Order first so we can persist GHNOrderCode together with status in a single DB update
+		var ghnOrderCode string
+		if targetState == enum.OrderStatusConfirmed {
+			ghnOrder, err := t.ghnProxy.CreateOrder(ctx, order.ID)
+			if err != nil {
+				zap.L().Error("Failed to create GHN order", zap.Error(err))
+				return fmt.Errorf("failed to create GHN order: %w", err)
+			}
+			ghnOrderCode = ghnOrder.OrderCode
+		}
+
+		// 5) Persist new state (and GHNOrderCode if any) to database in one update
 		order.Status = targetState
+		if targetState == enum.OrderStatusConfirmed && ghnOrderCode != "" {
+			order.GHNOrderCode = &ghnOrderCode
+		}
 		if err := uow.Order().Update(ctx, order); err != nil {
 			zap.L().Error("Failed to update order state", zap.Error(err))
 			return fmt.Errorf("failed to update order state: %w", err)
 		}
+
 		return nil
 	})
 
@@ -970,6 +987,7 @@ func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
+	ghnProxy iproxies.GHNProxy,
 ) iservice.StateTransferService {
 	return &stateTransferService{
 		contractRepository:      dbReg.ContractRepository,
@@ -980,5 +998,6 @@ func NewStateTransferService(
 		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
+		ghnProxy:                ghnProxy,
 	}
 }

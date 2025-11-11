@@ -1,4 +1,4 @@
-package iservice_third_party
+package iproxies
 
 import (
 	"context"
@@ -9,11 +9,21 @@ import (
 	"github.com/google/uuid"
 )
 
-type GHNService interface {
+type GHNProxy interface {
+	// Delivery Management
 	CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
 	CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
+	// GetAvailableDeliveryServicesByOrderID
+	//@Deprecated
 	GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error)
+
+	//Order Management
+	GetOrderInfo(ctx context.Context, orderCode string) (*dtos.OrderInfo, error)
+	CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error)
+	CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error)
+
 	//PublicAPI
 	CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
 	GetAvailableDeliveryServicesByDistrictID(ctx context.Context, districtID int, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error)
+	GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error)
 }

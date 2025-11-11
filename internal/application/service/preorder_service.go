@@ -9,7 +9,6 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
@@ -36,7 +35,7 @@ type preOrderService struct {
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
-	ghnService                   iservice_third_party.GHNService
+	ghnService                   iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
@@ -231,7 +230,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
-		ghnService:                   registry.GHNService,
+		ghnService:                   registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionService:    paymentTransactionSvc,
 	}
 }

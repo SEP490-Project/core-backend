@@ -4,8 +4,8 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
-	iExtService "core-backend/internal/application/interfaces/iservice_third_party"
 	"fmt"
 	"net/http"
 
@@ -17,8 +17,8 @@ import (
 
 // GHNHandler handles GHN delivery-related operations (delivery fee, service availability)
 type GHNHandler struct {
-	ghnService iExtService.GHNService
-	uow        irepository.UnitOfWork
+	ghnProxy iproxies.GHNProxy
+	uow      irepository.UnitOfWork
 }
 
 // CalculateDeliveryPriceByOrderID godoc
@@ -43,7 +43,7 @@ func (h *GHNHandler) CalculateDeliveryPriceByOrderID(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnService.CalculateDeliveryPriceByID(ctx, orderID, h.uow)
+	result, err := h.ghnProxy.CalculateDeliveryPriceByID(ctx, orderID, h.uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery fee", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to calculate delivery price: %s", err.Error()), http.StatusBadRequest))
@@ -76,7 +76,7 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByOrderID(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnService.GetAvailableDeliveryServicesByOrderID(ctx, orderID, h.uow)
+	result, err := h.ghnProxy.GetAvailableDeliveryServicesByOrderID(ctx, orderID, h.uow)
 	if err != nil {
 		zap.L().Error("failed to fetch delivery services", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to fetch delivery services: %s", err.Error()), http.StatusInternalServerError))
@@ -109,7 +109,7 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByDistrictID(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnService.GetAvailableDeliveryServicesByDistrictID(ctx, districtID, h.uow)
+	result, err := h.ghnProxy.GetAvailableDeliveryServicesByDistrictID(ctx, districtID, h.uow)
 	if err != nil {
 		zap.L().Error("failed to fetch GHN delivery services by district", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN delivery services: %s", err.Error()), http.StatusInternalServerError))
@@ -145,7 +145,7 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnService.CalculateDeliveryPriceByDimensionItems(ctx, req.ToDistrictID, req.ToWardCode, req.Items, h.uow)
+	result, err := h.ghnProxy.CalculateDeliveryPriceByDimensionItems(ctx, req.ToDistrictID, req.ToWardCode, req.Items, h.uow)
 	if err != nil {
 		zap.L().Error("failed to calculate delivery price by dimension", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to calculate delivery price: %s", err.Error()), http.StatusBadRequest))
@@ -155,10 +155,80 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Delivery price calculated successfully", ptr.Int(http.StatusOK), result))
 }
 
+// GetOrderInfo godoc
+//
+//	@Summary		Get GHN order info by GHN order code
+//	@Description	Fetch GHN order details for a given GHN order code
+//	@Tags		ghn
+//	@Accept		json
+//	@Produce	json
+//	@Param		order-code	path	string	true	"GHN order code"
+//	@Success	200		{object}	dtos.OrderInfo
+//	@Failure	400		{object}	map[string]string
+//	@Failure	500		{object}	map[string]string
+//	@Security	BearerAuth
+//	@Router		/api/v1/ghn/order/info/{order-code} [get]
+func (h *GHNHandler) GetOrderInfo(c *gin.Context) {
+	orderCode := c.Param("order-code")
+	if orderCode == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order code is required", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetOrderInfo(ctx, orderCode)
+	if err != nil {
+		zap.L().Error("failed to fetch GHN order info", zap.Error(err), zap.String("order_code", orderCode))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN order info: %s", err.Error()), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN order info fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetExpectedDeliveryTime godoc
+//
+//	@Summary		Get expected delivery time from GHN
+//	@Description	Retrieve estimated delivery lead time for a destination (district + ward)
+//	@Tags		ghn
+//	@Accept		json
+//	@Produce	json
+//	@Param		to_district_id	query	int	true	"Destination district ID"
+//	@Param		to_ward_code	query	string	true	"Destination ward code"
+//	@Success	200		{object}	dtos.ExpectedDeliveryTime
+//	@Failure	400		{object}	map[string]string
+//	@Failure	500		{object}	map[string]string
+//	@Router		/api/v1/ghn/expected-delivery-time [get]
+func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
+	districtStr := c.Query("to_district_id")
+	wardCode := c.Query("to_ward_code")
+	if districtStr == "" || wardCode == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("to_district_id and to_ward_code query params are required", http.StatusBadRequest))
+		return
+	}
+
+	var districtID int
+	_, err := fmt.Sscanf(districtStr, "%d", &districtID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("to_district_id must be an integer", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetExpectedDeliveryTime(ctx, districtID, wardCode)
+	if err != nil {
+		zap.L().Error("failed to fetch expected delivery time", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to fetch expected delivery time: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Expected delivery time fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
 // NewGHNHandler creates a new GHNHandler instance
-func NewGHNHandler(ghnService iExtService.GHNService, uow irepository.UnitOfWork) *GHNHandler {
+func NewGHNHandler(ghnProxy iproxies.GHNProxy, uow irepository.UnitOfWork) *GHNHandler {
 	return &GHNHandler{
-		ghnService: ghnService,
-		uow:        uow,
+		ghnProxy: ghnProxy,
+		uow:      uow,
 	}
 }
