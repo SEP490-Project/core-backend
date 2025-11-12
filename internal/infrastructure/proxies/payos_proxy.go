@@ -3,6 +3,7 @@ package proxies
 import (
 	"bytes"
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
@@ -313,11 +314,12 @@ func (p *payosProxy) VerifyWebhookSignature(data []byte, signature string) bool 
 }
 
 // NewPayOSProxy creates a new PayOS proxy instance
-func NewPayOSProxy(httpClient *http.Client, baseURL, clientID, apiKey, checksumKey string) iproxies.PayOSProxy {
+func NewPayOSProxy(httpClient *http.Client, config *config.AppConfig) iproxies.PayOSProxy {
+	payosConfig := config.PayOS
 	return &payosProxy{
-		BaseProxy:   NewBaseProxy(httpClient, baseURL),
-		clientID:    clientID,
-		apiKey:      apiKey,
-		checksumKey: checksumKey,
+		BaseProxy:   NewBaseProxy(httpClient, payosConfig.BaseURL, config),
+		clientID:    payosConfig.ClientID,
+		apiKey:      payosConfig.APIKey,
+		checksumKey: payosConfig.ChecksumKey,
 	}
 }

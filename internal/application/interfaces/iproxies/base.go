@@ -13,4 +13,5 @@ type BaseProxy interface {
 	Patch(ctx context.Context, path string, headers map[string]string, body any) (*http.Response, error)
 	Delete(ctx context.Context, path string, headers map[string]string) (*http.Response, error)
 	SetBaseURL(baseURL string)
+	HandleNon2xxHTTPResponse(resp *http.Response) error
 }
