@@ -120,7 +120,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 // GetUsers godoc
 //
 //	@Summary		Get Users List
-//	@Description	Get paginated list of users (admin only)
+//	@Description	Get paginated list of users (admin and marketing only)
 //	@Tags			Users
 //	@Accept			json
 //	@Produce		json
