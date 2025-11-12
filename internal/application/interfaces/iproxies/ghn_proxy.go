@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 
 	"github.com/google/uuid"
 )
@@ -18,7 +19,7 @@ type GHNProxy interface {
 	GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error)
 
 	//Order Management
-	GetOrderInfo(ctx context.Context, orderCode string) (*dtos.OrderInfo, error)
+	GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error)
 	CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error)
 	CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error)
 
@@ -26,4 +27,13 @@ type GHNProxy interface {
 	CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
 	GetAvailableDeliveryServicesByDistrictID(ctx context.Context, districtID int, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error)
 	GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error)
+
+	//GHN Webhook Mocking Service
+
+	//Tokens
+	GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error)
+	GetGHNServiceToken(ctx context.Context, ghnSession string) (*dtos.GHNServiceToken, error)
+	GetGHNGSOToken(ctx context.Context, serviceToken string) (*dtos.GHNTokenGSO, error)
+
+	UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) (*dtos.UpdateGHNDeliveryStatusResponse, error)
 }

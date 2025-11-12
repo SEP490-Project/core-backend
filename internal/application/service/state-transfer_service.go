@@ -645,8 +645,10 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return errors.New("order not found")
 		}
 
-		// check if staff's censore time pass 5min?
-		if order.UpdatedAt.Add(5 * time.Minute).After(time.Now()) {
+		// 1) check if staff's censor time pass 5min?
+		isCurrentStatePerfomedByCustomer := order.Status.String() == enum.OrderStatusPaid.String()
+		isPass5Mins := order.UpdatedAt.Add(5 * time.Minute).After(time.Now())
+		if isCurrentStatePerfomedByCustomer && isPass5Mins {
 			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + order.UpdatedAt.Add(5*time.Minute).Sub(time.Now()).String())
 		}
 
@@ -787,6 +789,7 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 }
 
 // handleOrderSideEffect updates order status based on payment transaction status
+// This handle side effect of Transactions onto Order
 func (t stateTransferService) handleOrderSideEffect(
 	ctx context.Context,
 	uow irepository.UnitOfWork,
@@ -802,8 +805,9 @@ func (t stateTransferService) handleOrderSideEffect(
 	var newStatus enum.OrderStatus
 
 	switch transactionStatus {
+	// Payment paid -> mark order as PAID
 	case enum.PaymentTransactionStatusCompleted:
-
+		//Update Order to Confirm and handle the
 		newStatus = enum.OrderStatusPaid
 		zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
 		orderItemRepo := uow.OrderItem()
@@ -924,6 +928,8 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	}
 }
 
+// &&&
+// handleOrderStatusSideEffect: handler side effect of OrderStatus itself
 func (t stateTransferService) handleOrderStatusSideEffect(
 	ctx context.Context,
 	uow irepository.UnitOfWork,
