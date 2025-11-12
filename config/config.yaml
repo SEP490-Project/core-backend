@@ -220,6 +220,7 @@ social:
       - "user.info.profile"
       - "user.info.stats"
       - "video.list"
+      - "research.data.basic"
     response_type: "code"
 
 # Token Storage Configuration (OAuth tokens)

@@ -36,6 +36,8 @@ func NewTikTokSocialHandler(config *config.AppConfig, tiktokSocialService iservi
 	}
 }
 
+// region: ============== TikTok OAuth Handlers ==============
+
 // HandleLogin godoc
 //
 //	@Summary		Initiate TikTok OAuth HandleLogin process
@@ -70,12 +72,12 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 		return
 	}
 
-	redirectURL, err := h.buildBackendCallbackURL(req.IsInternal, req.RedirectURL, req.CancelURL)
-	if err != nil {
-		zap.L().Error("Failed to build backend callback URL", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to construct OAuth URL", http.StatusInternalServerError))
-		return
-	}
+	// redirectURL, err := h.buildBackendCallbackURL(req.IsInternal, req.RedirectURL, req.CancelURL)
+	// if err != nil {
+	// 	zap.L().Error("Failed to build backend callback URL", zap.Error(err))
+	// 	c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to construct OAuth URL", http.StatusInternalServerError))
+	// 	return
+	// }
 	tiktokConfig := h.config.Social.TikTok
 	var scopeStr string
 	if req.IsInternal {
@@ -83,8 +85,14 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	} else {
 		scopeStr = strings.Join(tiktokConfig.UserScopes, ",")
 	}
-	encodedRedirectURL := url.QueryEscape(redirectURL)
-	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, encodedRedirectURL)
+	encodedRedirectURL := url.QueryEscape(h.config.Social.TikTok.RedirectURL)
+	stateData := map[string]string{
+		"redirect_uri": encodedRedirectURL,
+		"is_internal":  strconv.FormatBool(req.IsInternal),
+		"redirect_url": req.RedirectURL,
+		"cancel_url":   req.CancelURL,
+	}
+	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, stateData)
 	if err != nil {
 		zap.L().Debug("Failed to generate state token for TikTok OAuth", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
@@ -130,18 +138,40 @@ func (h *TikTokSocialHandler) HandleCallback(c *gin.Context) {
 	code := c.Query("code")
 	errorParam := c.Query("error")
 
-	if errorParam != "" {
-		h.handleError(c)
-		return
-	}
-
 	if code != "" {
 		h.handleSuccess(c)
+		return
+	} else if errorParam != "" {
+		h.handleError(c)
 		return
 	}
 
 	c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid TikTok OAuth callback", http.StatusBadRequest))
 }
+
+// endregion
+
+// region: ============== TikTok Content Handlers ==============
+
+// endregion
+
+// region: ============== TikTok Webhook Handler ==============
+
+func (h *TikTokSocialHandler) HandleWebhook(c *gin.Context) {
+	var body map[string]any
+	if err := c.ShouldBindJSON(&body); err != nil {
+		responses := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, responses)
+		return
+	}
+
+	zap.L().Debug("TikTokSocialHandler HandleWebhook called - Not Implemented",
+		zap.Any("headers", c.Request.Header),
+		zap.Any("query_params", c.Request.URL.Query()),
+		zap.Any("body", body))
+}
+
+// endregion
 
 // region: ============== Helper Methods ==============
 
@@ -149,17 +179,11 @@ func (h *TikTokSocialHandler) handleSuccess(c *gin.Context) {
 	var (
 		req                 requests.TikTokOAuthSuccessRequest
 		err                 error
-		redirectURL         = c.Query("redirect_url")
-		cancelURL           = c.Query("cancel_url")
-		backendCallbackURL  string
+		redirectURL         = h.config.Social.TikTok.FrontendRedirectURL
+		cancelURL           = h.config.Social.TikTok.FrontendCancelURL
 		redirectQueryParams map[string]string
+		stateToken          *crypto.StatePayload
 	)
-	if redirectURL == "" {
-		redirectURL = h.config.Social.TikTok.FrontendRedirectURL
-	}
-	if cancelURL == "" {
-		cancelURL = h.config.Social.TikTok.FrontendCancelURL
-	}
 	if err = c.ShouldBindQuery(&req); err != nil {
 		zap.L().Error("Failed to bind TikTok OAuth success query parameters", zap.Error(err))
 		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
@@ -170,7 +194,7 @@ func (h *TikTokSocialHandler) handleSuccess(c *gin.Context) {
 		return
 	}
 
-	if _, err = crypto.VerifyStateToken(h.config.GetPublicKey(), req.State); err != nil {
+	if stateToken, err = crypto.VerifyStateToken(h.config.GetPublicKey(), req.State); err != nil {
 		zap.L().Error("Failed to verify state token", zap.Error(err))
 		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
 			"error":             "invalid_state_token",
@@ -179,18 +203,21 @@ func (h *TikTokSocialHandler) handleSuccess(c *gin.Context) {
 		c.Redirect(http.StatusFound, cancelURL)
 		return
 	}
-	backendCallbackURL, err = h.buildBackendCallbackURL(req.IsInternal, redirectURL, cancelURL)
-	if err != nil {
-		zap.L().Error("Failed to reconstruct original backend callback URL", zap.Error(err))
-		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
-			"error_reason":      "internal_error",
-			"error":             "url_construction_failed",
-			"error_description": "Could not reconstruct the callback URL for token exchange.",
-		})
-		c.Redirect(http.StatusFound, cancelURL)
-		return
+	stateData := stateToken.Data
+	if redirectURI, ok := stateData["redirect_uri"]; ok {
+		req.BackendCallbackURL = redirectURI
 	}
-	req.BackendCallbackURL = backendCallbackURL
+	if isInternal, ok := stateData["is_internal"]; ok {
+		req.IsInternal, _ = strconv.ParseBool(isInternal)
+	}
+	if redirectURLStr, ok := stateData["redirect_url"]; ok {
+		redirectURL = redirectURLStr
+		req.RedirectURL = redirectURLStr
+	}
+	if cancelURLStr, ok := stateData["cancel_url"]; ok {
+		cancelURL = cancelURLStr
+		req.CancelURL = cancelURLStr
+	}
 
 	withTransaction(c, h.unitOfWork, func(uow irepository.UnitOfWork) error {
 		if req.IsInternal {
@@ -215,7 +242,7 @@ func (h *TikTokSocialHandler) handleSuccess(c *gin.Context) {
 			// Handle normal OAuth flow for user authentication
 			deviceFingerprint := buildDeviceFingerprint(c)
 			var loginResponse *responses.LoginResponse
-			loginResponse, err = h.tiktokSocialService.HandleOAuthLogin(c.Request.Context(), uow, req.Code, req.RedirectURL, deviceFingerprint)
+			loginResponse, err = h.tiktokSocialService.HandleOAuthLogin(c.Request.Context(), uow, req.Code, req.BackendCallbackURL, deviceFingerprint)
 			if err != nil {
 				zap.L().Error("Failed to authenticate user via TikTok OAuth", zap.Error(err))
 				cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
@@ -279,17 +306,6 @@ func (h *TikTokSocialHandler) handleError(c *gin.Context) {
 
 	zap.L().Debug("Redirecting to TikTok OAuth error URL", zap.String("url", redirectURL))
 	c.Redirect(http.StatusFound, redirectURL)
-}
-
-func (h *TikTokSocialHandler) buildBackendCallbackURL(isInternal bool, finalRedirectURL, finalCancelURL string) (string, error) {
-	callbackParams := map[string]string{
-		"is_internal":  strconv.FormatBool(isInternal),
-		"redirect_url": finalRedirectURL,
-		"cancel_url":   finalCancelURL,
-	}
-
-	// Use the base callback URL from the config and add the required parameters.
-	return utils.AddQueryParams(h.config.Social.TikTok.RedirectURL, callbackParams)
 }
 
 // endregion
