@@ -80,7 +80,7 @@ func (h *FacebookSocialHandler) HandleLogin(c *gin.Context) {
 	encodedRedirectURL := url.QueryEscape(redirectURL)
 	facebookConfig := h.config.Social.Facebook
 	scopeStr := strings.Join(facebookConfig.Scopes, ",")
-	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, encodedRedirectURL)
+	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, map[string]string{"redirect_uri": encodedRedirectURL})
 	if err != nil {
 		zap.L().Debug("Failed to generate state token for Facebook OAuth", zap.Error(err))
 		c.JSON(http.StatusInternalServerError,

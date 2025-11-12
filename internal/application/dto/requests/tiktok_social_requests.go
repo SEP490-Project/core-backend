@@ -8,13 +8,14 @@ type TikTokOAuthRequest struct {
 
 // TikTokOAuthSuccessRequest represents the structure of a successful response from TikTok OAuth
 type TikTokOAuthSuccessRequest struct {
-	CancelURL   string `json:"cancel_url" form:"cancel_url"`
-	RedirectURL string `json:"redirect_url" form:"redirect_url"`
-	IsInternal  bool   `json:"is_internal,omitempty" form:"is_internal"`
-	State       string `json:"state" form:"state"`
-	Code        string `json:"code" form:"code"`
+	State  string `json:"state" form:"state"`
+	Scopes string `json:"scopes" form:"scopes"`
+	Code   string `json:"code" form:"code"`
 
 	BackendCallbackURL string `json:"-" form:"-"`
+	CancelURL          string `json:"-" form:"-"`
+	RedirectURL        string `json:"-" form:"-"`
+	IsInternal         bool   `json:"-" form:"-"`
 }
 
 // TikTokOAuthErrorRequest represents the structure of an error response from TikTok OAuth
