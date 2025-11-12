@@ -83,27 +83,8 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	v1 := engine.Group("/api/v1")
 	{
-		// ---------- AUTH ----------
-		authHandler := r.handlerRegistry.AuthHandler
-		authGroup := v1.Group("/auth")
-		{
-			// Public
-			authGroup.POST("/login", authHandler.Login)
-			authGroup.POST("/signup", authHandler.SignUp)
-			authGroup.POST("/refresh", authHandler.RefreshToken)
-
-			// Protected
-			authProtectedGroup := authGroup.Group("")
-			authProtectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-			{
-				authProtectedGroup.POST("/logout", authHandler.Logout)
-				authProtectedGroup.POST("/logout-all", authHandler.LogoutAll)
-				authProtectedGroup.GET("/sessions", authHandler.GetActiveSessions)
-				authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
-			}
-		}
-
 		// ---------- Routes Setups from functions ----------
+		r.setupAuthRoutes(v1)
 		r.setupUserRoutes(v1)
 		r.setupBrandRoutes(v1)
 		r.setupContractRoutes(v1)
@@ -121,6 +102,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
+		r.setupFacebookSocialRoutes(v1)
+		r.setupTikTokSocialRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -730,5 +713,49 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		viewGroup.GET("", payOsHandler.GetByFilter)
 		viewGroup.GET("/id/:id", payOsHandler.GetByID)
 		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
+	}
+}
+
+func (r *Router) setupFacebookSocialRoutes(group *gin.RouterGroup) {
+	facebookHandler := r.handlerRegistry.FacebookSocialHandler
+
+	authFacebookGroup := group.Group("/auth/facebook")
+	{
+		authFacebookGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), facebookHandler.HandleLogin)
+		authFacebookGroup.GET("/callback", facebookHandler.HandleCallback)
+	}
+}
+
+func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
+	tiktokHandler := r.handlerRegistry.TikTokSocialHandler
+
+	authTikTokGroup := group.Group("/auth/tiktok")
+	{
+		authTikTokGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), tiktokHandler.HandleLogin)
+		authTikTokGroup.GET("/callback", tiktokHandler.HandleCallback)
+	}
+}
+
+func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
+	authHandler := r.handlerRegistry.AuthHandler
+	authGroup := group.Group("/auth")
+	{
+		// Public
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/signup", authHandler.SignUp)
+		authGroup.POST("/refresh", authHandler.RefreshToken)
+		authGroup.POST("/forgot-password", authHandler.ForgotPassword)
+		authGroup.POST("/reset-password", authHandler.ResetPassword)
+
+		// Protected
+		authProtectedGroup := authGroup.Group("")
+		authProtectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			authProtectedGroup.POST("/logout", authHandler.Logout)
+			authProtectedGroup.POST("/logout-all", authHandler.LogoutAll)
+			authProtectedGroup.GET("/sessions", authHandler.GetActiveSessions)
+			authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
+			authProtectedGroup.POST("/change-password", authHandler.ChangePassword)
+		}
 	}
 }

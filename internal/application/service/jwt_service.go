@@ -2,7 +2,6 @@ package service
 
 import (
 	"core-backend/config"
-	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
 	"crypto/rand"
 	"crypto/rsa"
@@ -21,16 +20,14 @@ type JWTService struct {
 	privateKey *rsa.PrivateKey
 }
 
-func NewJwtService() iservice.JWTService {
-	jwtConfig := config.GetAppConfig().JWT
-
-	if jwtConfig.GetPublicKey() == nil || jwtConfig.GetPrivateKey() == nil {
+func NewJwtService(config *config.AppConfig) *JWTService {
+	if config.GetPublicKey() == nil || config.GetPrivateKey() == nil {
 		panic("Failed to load RSA keys from configuration")
 	}
 
 	return &JWTService{
-		publicKey:  jwtConfig.GetPublicKey(),
-		privateKey: jwtConfig.GetPrivateKey(),
+		publicKey:  config.GetPublicKey(),
+		privateKey: config.GetPrivateKey(),
 	}
 }
 

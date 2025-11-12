@@ -46,9 +46,9 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy,
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param		page	query		int		false	"Page number (default: 1)"
-//	@Param		limit	query		int		false	"Number of items per page (default: 10, max: 100)"
-//	@Param		search	query		string	false	"Search term for filtering orders by order number"
+//	@Param			page	query		int		false	"Page number (default: 1)"
+//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
+//	@Param			search	query		string	false	"Search term for filtering orders by order number"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
@@ -116,7 +116,7 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param		data	body		requests.PlaceAndPayRequest	true	"Place and pay payload"
+//	@Param			data	body		requests.PlaceAndPayRequest	true	"Place and pay payload"
 //	@Success		200		{object}	map[string]any
 //	@Failure		400		{object}	map[string]string
 //	@Failure		401		{object}	map[string]string
@@ -198,7 +198,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param		query	query		requests.StaffOrdersQuery	false	"Staff orders query"
+//	@Param			query	query		requests.StaffOrdersQuery	false	"Staff orders query"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse

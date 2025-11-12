@@ -40,6 +40,8 @@ type HandlerRegistry struct {
 	AffiliateLinkAnalyticsHandler *AffiliateLinkAnalyticsHandler
 	PreOrderHandler               *PreOrderHandler
 	MarketingAnalyticsHandler     *MarketingAnalyticsHandler
+	FacebookSocialHandler         *FacebookSocialHandler
+	TikTokSocialHandler           *TikTokSocialHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConfig *config.AppConfig) *HandlerRegistry {
@@ -75,5 +77,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		AffiliateLinkAnalyticsHandler: NewAffiliateLinkAnalyticsHandler(applicationReg.AffiliateLinkAnalyticsService),
 		PreOrderHandler:               NewPreOrderHandler(applicationReg.PreOrderService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		MarketingAnalyticsHandler:     NewMarketingAnalyticsHandler(applicationReg.MarketingAnalyticsService),
+		FacebookSocialHandler:         NewFacebookSocialHandler(appConfig, applicationReg.FacebookSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		TikTokSocialHandler:           NewTikTokSocialHandler(appConfig, applicationReg.TikTokSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }

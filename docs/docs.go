@@ -1305,6 +1305,210 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows authenticated users to change their password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Change password (authenticated)",
+                "parameters": [
+                    {
+                        "description": "Current and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/facebook/callback": {
+            "get": {
+                "description": "Handles the callback from Facebook OAuth after the user has authorized the application",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social Authentication"
+                ],
+                "summary": "Handle Facebook OAuth callback",
+                "responses": {
+                    "200": {
+                        "description": "Login response",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.LoginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/facebook/login": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Redirects the user to Facebook's OAuth authorization URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social Authentication"
+                ],
+                "summary": "Initiate Facebook OAuth HandleLogin process",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "URL to redirect after successful login",
+                        "name": "redirect_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "URL to redirect if the user cancels the login",
+                        "name": "cancel_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Whether to use internal scopes for admin users",
+                        "name": "is_internal",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Facebook OAuth URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/forgot-password": {
+            "post": {
+                "description": "Initiates password reset process by sending reset link to user's email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request password reset",
+                "parameters": [
+                    {
+                        "description": "Email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user with credentials",
@@ -1530,6 +1734,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/reset-password": {
+            "post": {
+                "description": "Completes password reset process using token from email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Reset password with token",
+                "parameters": [
+                    {
+                        "description": "Reset token and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/sessions": {
             "get": {
                 "security": [
@@ -1697,6 +1947,121 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/tiktok/callback": {
+            "get": {
+                "description": "Processes the OAuth callback from TikTok and redirects based on success or error",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social Authentication"
+                ],
+                "summary": "Handle TikTok OAuth callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code from TikTok",
+                        "name": "code",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "State token for CSRF protection",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Error code if authorization failed",
+                        "name": "error",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Error description if authorization failed",
+                        "name": "error_description",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to success or cancel URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/tiktok/login": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Redirects the user to TikTok's OAuth authorization URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social Authentication"
+                ],
+                "summary": "Initiate TikTok OAuth HandleLogin process",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "URL to redirect after successful login",
+                        "name": "redirect_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "URL to redirect if the user cancels the login",
+                        "name": "cancel_url",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Whether to use internal scopes for admin users",
+                        "name": "is_internal",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to TikTok OAuth URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -14412,6 +14777,22 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
         "requests.ConceptRequest": {
             "type": "object",
             "required": [
@@ -14642,9 +15023,16 @@ const docTemplate = `{
         "requests.CreateChannelRequest": {
             "type": "object",
             "required": [
+                "code",
                 "name"
             ],
             "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "FACEBOOK"
+                },
                 "description": {
                     "type": "string",
                     "maxLength": 100,
@@ -15160,6 +15548,21 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "frontend_url"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "frontend_url": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.InputAddressRequest": {
             "type": "object",
             "required": [
@@ -15525,6 +15928,26 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.SignUpRequest": {
             "type": "object",
             "required": [
@@ -15755,7 +16178,16 @@ const docTemplate = `{
         },
         "requests.UpdateChannelRequest": {
             "type": "object",
+            "required": [
+                "code"
+            ],
             "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "FACEBOOK"
+                },
                 "description": {
                     "type": "string",
                     "maxLength": 100,
@@ -16860,6 +17292,10 @@ const docTemplate = `{
         "responses.ChannelResponse": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "FACEBOOK"
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2023-01-01T00:00:00Z"
