@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -14,8 +15,14 @@ type ContentChannel struct {
 	ChannelID      uuid.UUID           `json:"channel_id" gorm:"type:uuid;column:channel_id;not null;index"`
 	PostDate       *time.Time          `json:"post_date" gorm:"column:post_date"`
 	AutoPostStatus enum.AutoPostStatus `json:"auto_post_status" gorm:"column:auto_post_status;not null;type:varchar(35);check:auto_post_status in ('PENDING', 'POSTED', 'FAILED', 'SKIPPED')"`
-	CreatedAt      time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt      time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	// Publishing fields
+	ExternalPostID *string        `json:"external_post_id" gorm:"type:varchar(255);column:external_post_id"`
+	PublishedAt    *time.Time     `json:"published_at" gorm:"column:published_at"`
+	LastError      *string        `json:"last_error" gorm:"type:text;column:last_error"`
+	Metrics        datatypes.JSON `json:"metrics" gorm:"type:jsonb;column:metrics"`
+
+	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
 	Content *Content `json:"-" gorm:"foreignKey:ContentID"`
