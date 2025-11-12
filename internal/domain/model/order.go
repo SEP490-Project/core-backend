@@ -52,21 +52,23 @@ type Order struct {
 	TotalAmount float64          `json:"total_amount" gorm:"column:total_amount;not null"`
 
 	// Copied shipping address fields (migration moved from a foreign key to flat columns)
-	FullName      string    `json:"full_name" gorm:"column:full_name"`
-	PhoneNumber   string    `json:"phone_number" gorm:"column:phone_number"`
-	Email         string    `json:"email" gorm:"column:email"`
-	Street        string    `json:"street" gorm:"column:street"`
-	AddressLine2  string    `json:"address_line2" gorm:"column:address_line2"`
-	City          string    `json:"city" gorm:"column:city"`
-	GhnProvinceID int       `json:"ghn_province_id" gorm:"column:ghn_province_id"`
-	GhnDistrictID int       `json:"ghn_district_id" gorm:"column:ghn_district_id"`
-	GhnWardCode   string    `json:"ghn_ward_code" gorm:"column:ghn_ward_code"`
-	ProvinceName  string    `json:"province_name" gorm:"column:province_name"`
-	DistrictName  string    `json:"district_name" gorm:"column:district_name"`
-	WardName      string    `json:"ward_name" gorm:"column:ward_name"`
-	ShippingFee   int       `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
-	CreatedAt     time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt     time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	FullName          string    `json:"full_name" gorm:"column:full_name"`
+	PhoneNumber       string    `json:"phone_number" gorm:"column:phone_number"`
+	Email             string    `json:"email" gorm:"column:email"`
+	Street            string    `json:"street" gorm:"column:street"`
+	AddressLine2      string    `json:"address_line2" gorm:"column:address_line2"`
+	City              string    `json:"city" gorm:"column:city"`
+	GhnProvinceID     int       `json:"ghn_province_id" gorm:"column:ghn_province_id"`
+	GhnDistrictID     int       `json:"ghn_district_id" gorm:"column:ghn_district_id"`
+	GhnWardCode       string    `json:"ghn_ward_code" gorm:"column:ghn_ward_code"`
+	ProvinceName      string    `json:"province_name" gorm:"column:province_name"`
+	DistrictName      string    `json:"district_name" gorm:"column:district_name"`
+	WardName          string    `json:"ward_name" gorm:"column:ward_name"`
+	ShippingFee       int       `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
+	CreatedAt         time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt         time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	IsSelfPickedUp    bool      `json:"is_self_picked_up" gorm:"column:is_self_picked_up;not null;default:false"`
+	SelfPickedUpImage *string   `json:"self_picked_up_image,omitempty" gorm:"column:self_picked_up_image;type:text"`
 
 	ActionNotes  *OrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
 	UserNote     *string           `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
