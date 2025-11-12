@@ -1106,7 +1106,6 @@ definitions:
     - IN_TRANSIT
     - DELIVERED
     - RECEIVED
-    - AWAITING_PICKUP
     type: string
     x-enum-varnames:
     - OrderStatusPending
@@ -1118,7 +1117,6 @@ definitions:
     - OrderStatusInTransit
     - OrderStatusDelivered
     - OrderStatusReceived
-    - OrderStatusAwaitingPickUp
   enum.PaymentCycle:
     enum:
     - MONTHLY
@@ -1405,8 +1403,6 @@ definitions:
         type: string
       id:
         type: string
-      is_self_picked_up:
-        type: boolean
       order_items:
         items:
           $ref: '#/definitions/model.OrderItem'
@@ -1419,8 +1415,6 @@ definitions:
       phone_number:
         type: string
       province_name:
-        type: string
-      self_picked_up_image:
         type: string
       shipping_fee:
         type: integer
@@ -2425,8 +2419,6 @@ definitions:
       address_id:
         example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
         type: string
-      is_self_pickup:
-        type: boolean
       items:
         items:
           $ref: '#/definitions/requests.OrderItemRequest'
@@ -2437,7 +2429,6 @@ definitions:
         type: string
     required:
     - address_id
-    - is_self_pickup
     - items
     type: object
   requests.PaymentItemRequest:
@@ -10568,50 +10559,7 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
-  /api/v1/orders/limited:
-    post:
-      consumes:
-      - application/json
-      description: Create an order -> calculate delivery fee -> create payment transaction
-      parameters:
-      - description: Place and pay payload
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.PlaceAndPayRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Place an order and initiate payment
-      tags:
-      - Orders
-  /api/v1/orders/received/{orderID}:
+  /api/v1/orders/{orderID}/received:
     patch:
       consumes:
       - application/json
@@ -10730,7 +10678,6 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
-        - AWAITING_PICKUP
         example: PAID
         in: query
         name: status
@@ -10745,7 +10692,6 @@ paths:
         - OrderStatusInTransit
         - OrderStatusDelivered
         - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
       - description: |-
           GHN ward code
           in: query
@@ -10832,95 +10778,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Censor an order (confirm or cancel)
-      tags:
-      - Orders
-  /api/v1/orders/staff/readyToPickedUp/{orderID}:
-    patch:
-      consumes:
-      - application/json
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: orderID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Order marked as received successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid order ID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Order not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Mark order as ready to picked up
-      tags:
-      - Orders
-  /api/v1/orders/staff/receivedAfterPickup/{orderID}:
-    patch:
-      consumes:
-      - multipart/form-data
-      description: Upload proof image and mark the order as received (only for orders
-        awaiting pick-up)
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: orderID
-        required: true
-        type: string
-      - description: Proof image(s) of self pick-up
-        in: formData
-        name: files
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Order marked as received successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid order ID or status
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Order not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Mark order as received after self pick-up
       tags:
       - Orders
   /api/v1/payments:
@@ -11457,7 +11314,6 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
-        - AWAITING_PICKUP
         example: PAID
         in: query
         name: status
@@ -11472,7 +11328,6 @@ paths:
         - OrderStatusInTransit
         - OrderStatusDelivered
         - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
       - description: |-
           GHN ward code
           in: query
@@ -12941,7 +12796,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get paginated list of users (admin only)
+      description: Get paginated list of users (admin and marketing only)
       parameters:
       - default: 1
         description: Page number
@@ -12967,10 +12822,13 @@ paths:
         in: query
         name: search
         type: string
-      - description: Filter by user role
+      - collectionFormat: multi
+        description: Filter by user role
         in: query
+        items:
+          type: string
         name: role
-        type: string
+        type: array
       - description: Filter by active status
         in: query
         name: is_active

@@ -12,19 +12,19 @@ import (
 )
 
 type StatePayload struct {
-	Nonce     string `json:"nonce"`
-	Timestamp int64  `json:"timestamp"`
-	Expiry    int64  `json:"expiry,omitempty"`
-	// Redirect  string `json:"redirect,omitempty"`
+	Nonce     string            `json:"nonce"`
+	Timestamp int64             `json:"timestamp"`
+	Expiry    int64             `json:"expiry,omitempty"`
+	Data      map[string]string `json:"data,omitempty"`
 }
 
 // GenerateStateToken generates a signed state token using an RSA private key
-func GenerateStateToken(privateKey *rsa.PrivateKey, expiry *int64, redirect string) (string, error) {
+func GenerateStateToken(privateKey *rsa.PrivateKey, expiry *int64, data map[string]string) (string, error) {
 	payload := StatePayload{
 		Nonce:     generateRandomString(16),
 		Timestamp: time.Now().Unix(),
 		Expiry:    300, // Token valid for 5 minutes
-		// Redirect:  redirect,
+		Data:      data,
 	}
 	if expiry != nil && *expiry > 0 {
 		payload.Expiry = *expiry

@@ -111,7 +111,7 @@ func (t *TikTokProxy) GetSystemUserProfile(ctx context.Context, accessToken stri
 }
 
 func NewTikTokProxy(httpClient *http.Client, config *config.TikTokSocialConfig) iproxies.TikTokProxy {
-	baseURL := fmt.Sprintf("%s/%s", config.BaseURL, config.APIVersion)
+	baseURL := fmt.Sprintf("%s/v%s", config.BaseURL, config.APIVersion)
 	return &TikTokProxy{
 		BaseProxy: NewBaseProxy(httpClient, baseURL),
 		config:    config,

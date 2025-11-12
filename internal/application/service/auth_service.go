@@ -520,7 +520,7 @@ func (s *authService) ForgotPassword(ctx context.Context, request *requests.Forg
 	}
 
 	// Generate state token for password reset (valid for 30 minutes)
-	resetToken, err := crypto.GenerateStateToken(s.config.GetPrivateKey(), &s.config.AdminConfig.ForgetPasswordExpiryInSeconds, request.FrontendURL)
+	resetToken, err := crypto.GenerateStateToken(s.config.GetPrivateKey(), &s.config.AdminConfig.ForgetPasswordExpiryInSeconds, map[string]string{"redirect_url": request.FrontendURL})
 	if err != nil {
 		zap.L().Error("Failed to generate reset token", zap.Error(err))
 		return "", errors.New("failed to generate password reset token")
