@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"fmt"
 	"net/http"
 
@@ -162,23 +163,23 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 //	@Tags		ghn
 //	@Accept		json
 //	@Produce	json
-//	@Param		order-code	path	string	true	"GHN order code"
+//	@Param		order-id	path	string	true	"ID of Order that related to GHN order (not Limited)"
 //	@Success	200		{object}	dtos.OrderInfo
 //	@Failure	400		{object}	map[string]string
 //	@Failure	500		{object}	map[string]string
 //	@Security	BearerAuth
-//	@Router		/api/v1/ghn/order/info/{order-code} [get]
+//	@Router		/api/v1/ghn/order/info/{order-id} [get]
 func (h *GHNHandler) GetOrderInfo(c *gin.Context) {
-	orderCode := c.Param("order-code")
-	if orderCode == "" {
+	orderID := c.Param("order-id")
+	if orderID == "" {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order code is required", http.StatusBadRequest))
 		return
 	}
 
 	ctx := context.Background()
-	result, err := h.ghnProxy.GetOrderInfo(ctx, orderCode)
+	result, err := h.ghnProxy.GetOrderInfo(ctx, orderID)
 	if err != nil {
-		zap.L().Error("failed to fetch GHN order info", zap.Error(err), zap.String("order_code", orderCode))
+		zap.L().Error("failed to fetch GHN order info", zap.Error(err), zap.String("order-id", orderID))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN order info: %s", err.Error()), http.StatusBadRequest))
 		return
 	}
@@ -223,6 +224,132 @@ func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Expected delivery time fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNSession godoc
+//
+//	@Summary		Get GHN session token
+//	@Description	Retrieve a session token from GHN for authenticated requests
+//	@Tags		ghn-mocking
+//	@Accept		json
+//	@Produce	json
+//	@Success	200		{object}	dtos.GHNSessionResponse
+//	@Failure	500		{object}	map[string]string
+//	@Router		/api/v1/ghn/mocking/session [get]
+func (h *GHNHandler) GetGHNSession(c *gin.Context) {
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetSession(ctx)
+	if err != nil {
+		zap.L().Error("failed to fetch GHN session", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to fetch GHN session: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN session fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNServiceToken godoc
+//
+//	@Summary		Get GHN Service Token (step 2)
+//	@Description	Retrieve GHN Service Token using GHN session
+//	@Tags			ghn-mocking
+//	@Accept			json
+//	@Produce		json
+//	@Param			token	query	string	true	"GHN Session Token"
+//	@Success		200		{object}	dtos.GHNServiceToken
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/ghn/mocking/service-token [get]
+func (h *GHNHandler) GetGHNServiceToken(c *gin.Context) {
+	ghnSession := c.Query("token")
+	if ghnSession == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("token query param is required", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetGHNServiceToken(ctx, ghnSession)
+	if err != nil {
+		zap.L().Error("failed to get GHN service token", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to get GHN service token: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN service token fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNGSOToken godoc
+//
+//	@Summary		Get GHN GSO Token (step 3)
+//	@Description	Retrieve GHN GSO Token using Service Token
+//	@Tags			ghn-mocking
+//	@Accept			json
+//	@Produce		json
+//	@Param			service_token	query	string	true	"GHN Service Token"
+//	@Success		200		{object}	dtos.GHNTokenGSO
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/ghn/mocking/gso-token [get]
+func (h *GHNHandler) GetGHNGSOToken(c *gin.Context) {
+	serviceToken := c.Query("service_token")
+	if serviceToken == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("service_token query param is required", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetGHNGSOToken(ctx, serviceToken)
+	if err != nil {
+		zap.L().Error("failed to get GHN GSO token", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to get GHN GSO token: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN GSO token fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+type UpdateGHNDeliveryStatusRequest struct {
+	OrderCode string                 `json:"order_code" example:"L4TFM8" binding:"required"`
+	Status    enum.GHNDeliveryStatus `json:"status" example:"storing" binding:"required"`
+}
+
+// UpdateGHNDeliveryStatus godoc
+// @Summary Update GHN Order Delivery Status
+// @Description Allowed values: ready_to_pick, storing, delivering, delivered, cancel
+// @Tags ghn
+// @Accept json
+// @Produce json
+// @Param request body UpdateGHNDeliveryStatusRequest true "Order status update payload"
+// @Success 200 {object} dtos.UpdateGHNDeliveryStatusResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /api/v1/ghn/order/status [post]
+func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
+	var req UpdateGHNDeliveryStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate enum
+	if !req.Status.IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("invalid status value: %s. Allowed values: ready_to_pick, storing, delivering, delivered, cancel", req.Status),
+		})
+		return
+	}
+
+	ctx := c.Request.Context()
+	status := enum.GHNDeliveryStatus(req.Status)
+
+	result, err := h.ghnProxy.UpdateGHNDeliveryStatus(ctx, req.OrderCode, status)
+	if err != nil {
+		zap.L().Error("failed to update GHN delivery status", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	resp := responses.SuccessResponse("Updated GHN delivery status successfully", ptr.Int(http.StatusOK), result)
+	c.JSON(http.StatusOK, resp)
 }
 
 // NewGHNHandler creates a new GHNHandler instance

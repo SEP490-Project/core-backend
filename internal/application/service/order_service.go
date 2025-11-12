@@ -34,6 +34,27 @@ type orderService struct {
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
+func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) error {
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
+		return err
+	}
+
+	//Some validate:
+	if order.Status != enum.OrderStatusDelivered {
+		return errors.New("only delivered orders can be marked as received")
+	}
+
+	order.Status = enum.OrderStatusReceived
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to completed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string) ([]model.Order, int, error) {
 	ctx := context.Background()
 

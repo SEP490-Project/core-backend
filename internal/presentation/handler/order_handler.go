@@ -364,3 +364,35 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Order updated successfully", ptr.Int(http.StatusOK), nil))
 }
+
+// MarkAsReceived godoc
+// @Summary Mark order as received
+// @Description Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param orderID path string true "Order ID (UUID)"
+// @Success 200 {object} map[string]interface{} "Order marked as received successfully"
+// @Failure 400 {object} map[string]string "Invalid order ID"
+// @Failure 404 {object} map[string]string "Order not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/orders/{orderID}/received [patch]
+func (h *OrderHandler) MarkAsReceived(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.MarkAsReceived(ctx, orderID); err != nil {
+		resp := responses.ErrorResponse("order not found", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	resp := responses.SuccessResponse("Order marked as received successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
