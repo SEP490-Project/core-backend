@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -24,4 +25,15 @@ type ChannelService interface {
 
 	// DeleteChannel deletes a channel by its ID
 	DeleteChannel(ctx context.Context, channelID uuid.UUID, uow irepository.UnitOfWork) error
+
+	UpdateChannelToken(ctx context.Context, uow irepository.UnitOfWork, channelName string, externalID string,
+		accountName string, accessToken string, refreshToken *string, expiresAt *time.Time, refreshExpiresAt *time.Time) error
+
+	GetDecryptedToken(ctx context.Context, channelName string) (string, error)
+
+	GetDecryptedRefreshToken(ctx context.Context, channelName string) (string, error)
+
+	IsTokenExpiringSoon(ctx context.Context, channelName string, threshold time.Duration) (bool, error)
+
+	ClearChannelToken(ctx context.Context, uow irepository.UnitOfWork, channelName string) error
 }

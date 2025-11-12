@@ -53,7 +53,7 @@ jwt:
 
 # Logging configuration
 log:
-  level: "info" # debug, info, warn, error
+  level: "debug" # debug, info, warn, error
 
 # CORS configuration
 cors:
@@ -85,11 +85,11 @@ otel:
 
 # RabbitMQ configuration
 rabbitmq:
-  # url: "amqp://guest:guest@localhost:5672/"
-  host: my-vps
-  port: 5672
-  username: "admin"
-  password: "170504"
+  url: "amqp://guest:guest@localhost:5672/"
+  # host: my-vps
+  # port: 5672
+  # username: "admin"
+  # password: "170504"
   vhost: "/"
   reconnectDelayMs: 5000
   connectionTimeoutMs: 10000
@@ -181,3 +181,53 @@ task_scheduler:
     enabled: false
     sync_hour: 3
     concurrency: 5
+
+
+social:
+  facebook:
+    base_url: "https://graph.facebook.com"
+    client_id: ""
+    client_secret: ""
+    api_version: "24.0"
+    redirect_url: "http://localhost:8080/api/v1/auth/facebook/callback"
+    frontend_redirect_url: "https://bshowsell.site/social/success"
+    frontend_cancel_url: "https://bshowsell.site/social/error"
+    scopes:
+      - "pages_show_list"
+      - "pages_messaging"
+      - "pages_read_engagement"
+      - "pages_manage_posts"
+      - "pages_manage_metadata"
+      - "pages_manage_engagement"
+      - "public_profile"
+    response_type: "code"
+  tiktok:
+    base_url: "https://open.tiktokapis.com"
+    client_key: ""
+    client_secret: ""
+    api_version: "2"
+    redirect_url: "http://localhost:8080/api/v1/auth/tiktok/callback"
+    frontend_redirect_url: "https://bshowsell.site/social/success"
+    frontend_cancel_url: "https://bshowsell.site/social/error"
+    user_scopes: 
+      - "user.info.basic"
+      - "user.info.profile"
+      - "video.list"
+    scopes:
+      - "user.info.basic"
+      - "video.upload"
+      - "video.publish"
+      - "user.info.profile"
+      - "user.info.stats"
+      - "video.list"
+    response_type: "code"
+
+# Token Storage Configuration (OAuth tokens)
+token_storage:
+  # For database backend: 32-byte AES-256 key (hex-encoded = 64 characters)
+  # Generate with: openssl rand -hex 32
+  encryption_key: ""
+  
+  # For vault backend
+  vault_path_prefix: "secret/data/social-tokens"
+  use_vault: false  # Set to true to use Vault instead of database encryption

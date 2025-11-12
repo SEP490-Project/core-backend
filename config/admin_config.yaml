@@ -1,5 +1,8 @@
 payos_link_expiry: 300 # in seconds
 minimum_day_before_contract_payment_due: 5 # in days
+forget_password_expiry_in_seconds: 3600 # in seconds
+
+# Representative Information
 representative_name: "Đinh Thị Ngọc Trinh"
 representative_role: "Beauty Blogger"
 representative_phone: "+84917956697"
@@ -61,3 +64,7 @@ expired_contract_cleanup_enabled: false
 expired_contract_cleanup_cron_expr: "0 0 * * *" # Daily at midnight
 payos_expiry_check_enabled: false # Enable/disable PayOS expired payment link cancellation
 payos_expiry_check_interval_minutes: 30 # Interval in minutes for PayOS expiry check cron job
+
+# Social Media Expiry Threshold Notifications
+facebook_expiry_threshold_notifications: 7
+tiktok_expiry_threshold_notifications: 7

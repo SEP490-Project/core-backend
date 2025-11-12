@@ -3,14 +3,18 @@ package service
 import (
 	"context"
 	"core-backend/config"
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/pkg/crypto"
 	"core-backend/pkg/utils"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,28 +23,34 @@ import (
 	"gorm.io/gorm"
 )
 
-type AuthService struct {
+type authService struct {
+	config                  *config.AppConfig
 	jwtService              iservice.JWTService
 	userRepository          irepository.GenericRepository[model.User]
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession]
 	deviceTokenService      iservice.DeviceTokenService
+	rabbitmq                *rabbitmq.RabbitMQ
 }
 
 func NewAuthService(
+	config *config.AppConfig,
 	jwtService iservice.JWTService,
 	userRepository irepository.GenericRepository[model.User],
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession],
 	deviceTokenService iservice.DeviceTokenService,
-) *AuthService {
-	return &AuthService{
+	rabbitmq *rabbitmq.RabbitMQ,
+) iservice.AuthService {
+	return &authService{
+		config:                  config,
 		jwtService:              jwtService,
 		userRepository:          userRepository,
 		loggedSessionRepository: loggedSessionRepository,
 		deviceTokenService:      deviceTokenService,
+		rabbitmq:                rabbitmq,
 	}
 }
 
-func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
+func (s *authService) Login(ctx context.Context, request *requests.LoginRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
 	zap.L().Info("User login attempt",
 		zap.String("login_identifier", request.LoginIdentifier),
 		zap.String("device_fingerprint", deviceFingerprint))
@@ -175,7 +185,7 @@ func (s *AuthService) Login(ctx context.Context, request *requests.LoginRequest,
 	}, nil
 }
 
-func (s *AuthService) RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
+func (s *authService) RefreshToken(ctx context.Context, request *requests.RefreshTokenRequest, deviceFingerprint string) (*responses.LoginResponse, error) {
 	zap.L().Debug("Token refresh attempt")
 
 	if request.RefreshToken == "" {
@@ -282,7 +292,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, request *requests.Refres
 	}, nil
 }
 
-func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error) {
+func (s *authService) SignUp(ctx context.Context, request *requests.SignUpRequest) (*responses.SignUpResponse, error) {
 	zap.L().Info("User signup attempt",
 		zap.String("username", request.Username),
 		zap.String("email", request.Email),
@@ -368,7 +378,7 @@ func (s *AuthService) SignUp(ctx context.Context, request *requests.SignUpReques
 	}, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, request *requests.LogoutRequest) (*responses.LogoutResponse, error) {
+func (s *authService) Logout(ctx context.Context, request *requests.LogoutRequest) (*responses.LogoutResponse, error) {
 	zap.L().Debug("User logout attempt")
 
 	if request.RefreshToken == "" {
@@ -410,7 +420,7 @@ func (s *AuthService) Logout(ctx context.Context, request *requests.LogoutReques
 	}, nil
 }
 
-func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error) {
+func (s *authService) LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error) {
 	zap.L().Info("User logout all sessions attempt",
 		zap.String("user_id", userID.String()))
 
@@ -432,7 +442,7 @@ func (s *AuthService) LogoutAll(ctx context.Context, userID uuid.UUID) (*respons
 	}, nil
 }
 
-func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) ([]*responses.SessionInfo, error) {
+func (s *authService) GetActiveSessions(ctx context.Context, userID uuid.UUID) ([]*responses.SessionInfo, error) {
 	zap.L().Debug("Retrieving active sessions",
 		zap.String("user_id", userID.String()))
 
@@ -466,7 +476,7 @@ func (s *AuthService) GetActiveSessions(ctx context.Context, userID uuid.UUID) (
 	return sessionInfos, nil
 }
 
-func (s *AuthService) RevokeSession(ctx context.Context, sessionID uuid.UUID) (*responses.LogoutResponse, error) {
+func (s *authService) RevokeSession(ctx context.Context, sessionID uuid.UUID) (*responses.LogoutResponse, error) {
 	zap.L().Info("Session revocation attempt",
 		zap.String("session_id", sessionID.String()))
 
@@ -487,3 +497,179 @@ func (s *AuthService) RevokeSession(ctx context.Context, sessionID uuid.UUID) (*
 		Message: "Session revoked successfully",
 	}, nil
 }
+
+// ForgotPassword initiates the password reset process by sending an email with reset link
+func (s *authService) ForgotPassword(ctx context.Context, request *requests.ForgotPasswordRequest) (string, error) {
+	zap.L().Info("AuthService - ForgotPassword called", zap.String("email", request.Email))
+
+	// Check if user exists
+	filters := func(db *gorm.DB) *gorm.DB {
+		return db.Where("email = ?", request.Email)
+	}
+	user, err := s.userRepository.GetByCondition(ctx, filters, nil)
+	if err != nil || user == nil {
+		// Don't reveal if email exists or not for security
+		zap.L().Debug("User not found for password reset", zap.String("email", request.Email))
+		return "If your email exists in our system, you will receive a password reset link shortly.", nil
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		zap.L().Debug("Password reset requested for inactive account", zap.String("email", request.Email))
+		return "If your email exists in our system, you will receive a password reset link shortly.", nil
+	}
+
+	// Generate state token for password reset (valid for 30 minutes)
+	resetToken, err := crypto.GenerateStateToken(s.config.GetPrivateKey(), &s.config.AdminConfig.ForgetPasswordExpiryInSeconds, request.FrontendURL)
+	if err != nil {
+		zap.L().Error("Failed to generate reset token", zap.Error(err))
+		return "", errors.New("failed to generate password reset token")
+	}
+
+	// Build reset URL
+	resetURL, err := utils.AddQueryParams(request.FrontendURL, map[string]string{
+		"state": resetToken,
+		"email": user.Email,
+	})
+	if err != nil {
+		zap.L().Error("Failed to build reset URL", zap.Error(err))
+		return "", errors.New("failed to generate password reset link")
+	}
+
+	// Send email with reset link
+	emailData := map[string]any{
+		"UserName":  user.FullName,
+		"ResetURL":  resetURL,
+		"ExpiresIn": fmt.Sprintf("%d minutes", s.config.AdminConfig.ForgetPasswordExpiryInSeconds/60),
+	}
+
+	if err = s.sendEmail(ctx, user, user.Email, "Password Reset Request", "password_reset", emailData); err != nil {
+		zap.L().Error("Failed to queue password reset email", zap.Error(err))
+		return "", errors.New("failed to send password reset email")
+	}
+
+	zap.L().Info("Password reset email sent successfully", zap.String("email", user.Email))
+	return "If your email exists in our system, you will receive a password reset link shortly.", nil
+}
+
+// ResetPassword completes the password reset process using the token from email
+func (s *authService) ResetPassword(ctx context.Context, request *requests.ResetPasswordRequest) (string, error) {
+	zap.L().Info("Password reset attempt with token")
+
+	// Verify and decode token
+	_, err := crypto.VerifyStateToken(s.config.GetPublicKey(), request.Token)
+	if err != nil {
+		zap.L().Error("Invalid or expired reset token", zap.Error(err))
+		return "", errors.New("invalid or expired password reset token")
+	}
+
+	// Get user by email from token payload
+	email := request.Email
+	filters := func(db *gorm.DB) *gorm.DB {
+		return db.Where("email = ?", email)
+	}
+	user, err := s.userRepository.GetByCondition(ctx, filters, nil)
+	if err != nil || user == nil {
+		zap.L().Error("User not found for password reset", zap.String("email", email))
+		return "", errors.New("user not found")
+	}
+
+	// Check if user is active
+	if !user.IsActive {
+		zap.L().Warn("Password reset attempt for inactive account", zap.String("email", email))
+		return "", errors.New("account is deactivated")
+	}
+
+	// Hash new password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(request.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		zap.L().Error("Failed to hash new password", zap.Error(err))
+		return "", errors.New("failed to update password")
+	}
+
+	// Update password
+	user.PasswordHash = string(passwordHash)
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to update user password", zap.Error(err))
+		return "", errors.New("failed to update password")
+	}
+
+	// Revoke all existing sessions for security
+	conditions := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND is_revoked = ?", user.ID, false)
+	}
+	if err := s.loggedSessionRepository.UpdateByCondition(ctx, conditions, map[string]any{"is_revoked": true}); err != nil {
+		zap.L().Warn("Failed to revoke existing sessions after password reset", zap.Error(err))
+	}
+
+	zap.L().Info("Password reset successful", zap.String("user_id", user.ID.String()))
+
+	return "Password has been reset successfully. Please login with your new password.", nil
+}
+
+// ChangePassword allows authenticated users to change their password
+func (s *authService) ChangePassword(ctx context.Context, request *requests.ChangePasswordRequest) (string, error) {
+	zap.L().Info("Password change request", zap.String("user_id", request.UserID.String()))
+
+	// Get user
+	user, err := s.userRepository.GetByID(ctx, request.UserID, nil)
+	if err != nil || user == nil {
+		zap.L().Error("User not found for password change", zap.String("user_id", request.UserID.String()))
+		return "", errors.New("user not found")
+	}
+
+	// Verify current password
+	if err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.CurrentPassword)); err != nil {
+		zap.L().Debug("Current password verification failed", zap.String("user_id", request.UserID.String()))
+		return "", errors.New("current password is incorrect")
+	}
+
+	// Check if new password is same as current password
+	if err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.NewPassword)); err == nil {
+		zap.L().Debug("New password is same as current password", zap.String("user_id", request.UserID.String()))
+		return "", errors.New("new password must be different from current password")
+	}
+
+	// Hash new password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(request.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		zap.L().Error("Failed to hash new password", zap.Error(err))
+		return "", errors.New("failed to update password")
+	}
+
+	// Update password
+	user.PasswordHash = string(passwordHash)
+	if err := s.userRepository.Update(ctx, user); err != nil {
+		zap.L().Error("Failed to update user password", zap.Error(err))
+		return "", errors.New("failed to update password")
+	}
+
+	zap.L().Info("Password changed successfully", zap.String("user_id", request.UserID.String()))
+
+	return "Password has been changed successfully.", nil
+}
+
+// region: ======= Helper Functions =========
+
+func (s *authService) sendEmail(ctx context.Context, user *model.User, email string, subject, templateName string, data map[string]any) error {
+	emailProducer, err := s.rabbitmq.GetProducer("notification-email-producer")
+	if err != nil {
+		zap.L().Error("Failed to get email producer from RabbitMQ", zap.Error(err))
+		return err
+	}
+	payload := &consumers.EmailNotificationMessage{
+		NotificationID: uuid.New(),
+		UserID:         user.ID,
+		To:             email,
+		Subject:        subject,
+		TemplateName:   templateName,
+		TemplateData:   data,
+	}
+	if err := emailProducer.PublishJSON(ctx, payload); err != nil {
+		zap.L().Error("Failed to publish email notification message to RabbitMQ", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+// endregion

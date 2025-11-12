@@ -2,6 +2,7 @@ package handler
 
 import (
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // extractUserID utility extracts the user ID from the Gin context.
@@ -130,4 +132,36 @@ func IsAllowRole(c *gin.Context, allowFullViewRoles []enum.UserRole) bool {
 		return false
 	}
 	return slices.Contains(allowFullViewRoles, enum.UserRole(*rolePtr))
+}
+
+func withTransaction(c *gin.Context, unitOfWork irepository.UnitOfWork, f func(uow irepository.UnitOfWork) error) {
+	uow := unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Panic recovered in withTransaction, rolling back transaction", zap.Any("error", r))
+			uow.Rollback()
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
+		}
+	}()
+
+	if err := f(uow); err != nil {
+		uow.Rollback()
+		zap.L().Error("Failed to execute transaction", zap.Error(err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
+	}
+
+	if err := uow.Commit(); err != nil {
+		uow.Rollback()
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
+	}
+}
+
+func buildDeviceFingerprint(c *gin.Context) string {
+	userAgent := c.Request.UserAgent()
+	ip := c.ClientIP()
+	acceptLanguage := c.GetHeader("Accept-Language")
+
+	// Combine multiple factors for better device identification
+	return fmt.Sprintf("%s|%s|%s", userAgent, ip, acceptLanguage)
 }

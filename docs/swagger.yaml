@@ -1637,6 +1637,17 @@ definitions:
     - dispenser_type
     - price
     type: object
+  requests.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        minLength: 8
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
   requests.ConceptRequest:
     properties:
       banner_url:
@@ -1810,6 +1821,11 @@ definitions:
     type: object
   requests.CreateChannelRequest:
     properties:
+      code:
+        example: FACEBOOK
+        maxLength: 100
+        minLength: 3
+        type: string
       description:
         example: This is a social media channel.
         maxLength: 100
@@ -1827,6 +1843,7 @@ definitions:
         minLength: 3
         type: string
     required:
+    - code
     - name
     type: object
   requests.CreateContentRequest:
@@ -2200,6 +2217,16 @@ definitions:
     - unit
     - value
     type: object
+  requests.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+      frontend_url:
+        type: string
+    required:
+    - email
+    - frontend_url
+    type: object
   requests.InputAddressRequest:
     properties:
       address_line_2:
@@ -2452,6 +2479,20 @@ definitions:
     required:
     - feedback
     type: object
+  requests.ResetPasswordRequest:
+    properties:
+      email:
+        type: string
+      new_password:
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - email
+    - new_password
+    - token
+    type: object
   requests.SignUpRequest:
     properties:
       email:
@@ -2629,6 +2670,11 @@ definitions:
     type: object
   requests.UpdateChannelRequest:
     properties:
+      code:
+        example: FACEBOOK
+        maxLength: 100
+        minLength: 3
+        type: string
       description:
         example: This is a social media channel.
         maxLength: 100
@@ -2645,6 +2691,8 @@ definitions:
         maxLength: 100
         minLength: 3
         type: string
+    required:
+    - code
     type: object
   requests.UpdateContentRequest:
     properties:
@@ -3413,6 +3461,9 @@ definitions:
     type: object
   responses.ChannelResponse:
     properties:
+      code:
+        example: FACEBOOK
+        type: string
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
@@ -5906,6 +5957,136 @@ paths:
       summary: Get campaigns approaching deadline
       tags:
       - Analytics/MarketingStaffs
+  /api/v1/auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Allows authenticated users to change their password
+      parameters:
+      - description: Current and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password (authenticated)
+      tags:
+      - Authentication
+  /api/v1/auth/facebook/callback:
+    get:
+      consumes:
+      - application/json
+      description: Handles the callback from Facebook OAuth after the user has authorized
+        the application
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login response
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Handle Facebook OAuth callback
+      tags:
+      - Social Authentication
+  /api/v1/auth/facebook/login:
+    get:
+      consumes:
+      - application/json
+      description: Redirects the user to Facebook's OAuth authorization URL
+      parameters:
+      - description: URL to redirect after successful login
+        in: query
+        name: redirect_url
+        type: string
+      - description: URL to redirect if the user cancels the login
+        in: query
+        name: cancel_url
+        type: string
+      - description: Whether to use internal scopes for admin users
+        in: query
+        name: is_internal
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to Facebook OAuth URL
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Initiate Facebook OAuth HandleLogin process
+      tags:
+      - Social Authentication
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Initiates password reset process by sending reset link to user's
+        email
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Request password reset
+      tags:
+      - Authentication
   /api/v1/auth/login:
     post:
       consumes:
@@ -6039,6 +6220,36 @@ paths:
       summary: Refresh Access Token
       tags:
       - Authentication
+  /api/v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Completes password reset process using token from email
+      parameters:
+      - description: Reset token and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Reset password with token
+      tags:
+      - Authentication
   /api/v1/auth/sessions:
     get:
       consumes:
@@ -6142,6 +6353,81 @@ paths:
       summary: User Registration
       tags:
       - Authentication
+  /api/v1/auth/tiktok/callback:
+    get:
+      consumes:
+      - application/json
+      description: Processes the OAuth callback from TikTok and redirects based on
+        success or error
+      parameters:
+      - description: Authorization code from TikTok
+        in: query
+        name: code
+        type: string
+      - description: State token for CSRF protection
+        in: query
+        name: state
+        type: string
+      - description: Error code if authorization failed
+        in: query
+        name: error
+        type: string
+      - description: Error description if authorization failed
+        in: query
+        name: error_description
+        type: string
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to success or cancel URL
+          schema:
+            type: string
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Handle TikTok OAuth callback
+      tags:
+      - Social Authentication
+  /api/v1/auth/tiktok/login:
+    get:
+      consumes:
+      - application/json
+      description: Redirects the user to TikTok's OAuth authorization URL
+      parameters:
+      - description: URL to redirect after successful login
+        in: query
+        name: redirect_url
+        type: string
+      - description: URL to redirect if the user cancels the login
+        in: query
+        name: cancel_url
+        type: string
+      - description: Whether to use internal scopes for admin users
+        in: query
+        name: is_internal
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to TikTok OAuth URL
+          schema:
+            type: string
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Initiate TikTok OAuth HandleLogin process
+      tags:
+      - Social Authentication
   /api/v1/brands:
     get:
       consumes:

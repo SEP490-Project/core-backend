@@ -29,7 +29,7 @@ type GHNHandler struct {
 //	@Tags			ghn
 //	@Accept			json
 //	@Produce		json
-//	@Param			order-id	path		string								true	"Order ID (UUID)"
+//	@Param			order-id	path		string	true	"Order ID (UUID)"
 //	@Success		200			{object}	dtos.DeliveryFeeSuccess
 //	@Failure		400			{object}	map[string]string
 //	@Failure		500			{object}	map[string]string
@@ -56,18 +56,18 @@ func (h *GHNHandler) CalculateDeliveryPriceByOrderID(c *gin.Context) {
 
 // GetAvailableDeliveryServicesByOrderID godoc
 //
-//	 @Deprecated
-//		@Summary		Get available GHN delivery services for an order
-//		@Description	Retrieve list of GHN delivery service options based on the order's destination
-//		@Tags			ghn
-//		@Accept			json
-//		@Produce		json
-//		@Param			order-id	path		string	true	"Order ID (UUID)"
-//		@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
-//		@Failure		400			{object}	map[string]string
-//		@Failure		500			{object}	map[string]string
-//		@Security		BearerAuth
-//		@Router			/api/v1/ghn/order/{order-id}/shipping-services [get]
+//	@Deprecated
+//	@Summary		Get available GHN delivery services for an order
+//	@Description	Retrieve list of GHN delivery service options based on the order's destination
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			order-id	path		string	true	"Order ID (UUID)"
+//	@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
+//	@Failure		400			{object}	map[string]string
+//	@Failure		500			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/ghn/order/{order-id}/shipping-services [get]
 func (h *GHNHandler) GetAvailableDeliveryServicesByOrderID(c *gin.Context) {
 	orderIDStr := c.Param("order-id")
 	orderID, err := uuid.Parse(orderIDStr)
@@ -89,17 +89,17 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByOrderID(c *gin.Context) {
 
 // GetAvailableDeliveryServicesByDistrictID godoc
 //
-//	 @Deprecated
-//		@Summary		Get GHN delivery services by district ID (public endpoint)
-//		@Description	Fetch GHN delivery service options available for a specific district
-//		@Tags			ghn
-//		@Accept			json
-//		@Produce		json
-//		@Param			district-id	path		int	true	"District ID"
-//		@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
-//		@Failure		400			{object}	map[string]string
-//		@Failure		500			{object}	map[string]string
-//		@Router			/api/v1/ghn/{district-id}/shipping-services [get]
+//	@Deprecated
+//	@Summary		Get GHN delivery services by district ID (public endpoint)
+//	@Description	Fetch GHN delivery service options available for a specific district
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			district-id	path		int	true	"District ID"
+//	@Success		200			{array}		dtos.DeliveryAvailableServiceDTO
+//	@Failure		400			{object}	map[string]string
+//	@Failure		500			{object}	map[string]string
+//	@Router			/api/v1/ghn/{district-id}/shipping-services [get]
 func (h *GHNHandler) GetAvailableDeliveryServicesByDistrictID(c *gin.Context) {
 	districtIDStr := c.Param("district-id")
 	var districtID int

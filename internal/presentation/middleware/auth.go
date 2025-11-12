@@ -79,6 +79,44 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	}
 }
 
+func (a *AuthMiddleware) OptionalAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		// Extract Bearer token
+		tokenParts := strings.SplitN(authHeader, " ", 2)
+		if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		token := tokenParts[1]
+		claims, err := a.jwtService.ValidateAccessToken(token)
+		if err != nil {
+			return
+		}
+
+		// Set user context
+		c.Set("user_id", claims.UserID)
+		c.Set("subject", claims.Subject)
+		c.Set("username", claims.Username)
+		c.Set("email", claims.Email)
+		c.Set("roles", claims.Roles)
+		c.Set("claims", claims)
+
+		// Add user ID to request context
+		currentContext := c.Request.Context()
+		newContext := context.WithValue(currentContext, userIDKey, claims.UserID)
+		c.Request = c.Request.WithContext(newContext)
+
+		c.Next()
+	}
+}
+
 // RequireRole validates user has specific role
 func (a *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
