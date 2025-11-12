@@ -3,6 +3,7 @@ package dtos
 import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -22,7 +23,6 @@ type GHNCreateOrderWrapperResponse[T any] struct {
 }
 
 // ============================ DELIVERY FEE =============================
-
 type DeliveryFeeBody struct {
 	ToDistrictID   int               `json:"to_district_id"`
 	ToWardCode     string            `json:"to_ward_code"`
@@ -72,7 +72,6 @@ type DeliveryFeeSuccess struct {
 }
 
 // Mapper
-
 func (a ApplicationDeliveryFeeItem) ToApplicationDeliveryFeeItem(item model.OrderItem) ApplicationDeliveryFeeItem {
 	return ApplicationDeliveryFeeItem{
 		Name:     item.Variant.Product.Name,
@@ -110,14 +109,14 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidation(order *model.Order) 
 
 	maxDimension := max(maxLength, maxWidth, totalHeight)
 	if maxDimension > 200 {
-		return nil, fmt.Errorf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension))
 	}
 
 	chargeableWeight := (maxLength * maxWidth * totalHeight) / 3000
 
 	finalWeight := max(totalWeight, chargeableWeight)
 	if finalWeight > 50000 {
-		return nil, fmt.Errorf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight))
 	}
 
 	return &DeliveryFeeBody{
@@ -162,14 +161,14 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV2(districtID int, wa
 
 	maxDimension := max(maxLength, maxWidth, totalHeight)
 	if maxDimension > 200 {
-		return nil, fmt.Errorf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension))
 	}
 
 	chargeableWeight := (maxLength * maxWidth * totalHeight) / 3000
 
 	finalWeight := max(totalWeight, chargeableWeight)
 	if finalWeight > 50000 {
-		return nil, fmt.Errorf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight))
 	}
 
 	return &DeliveryFeeBody{
@@ -227,14 +226,14 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.Ship
 
 	maxDimension := max(maxLength, maxWidth, totalHeight)
 	if maxDimension > 200 {
-		return nil, fmt.Errorf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum dimension limit: %d cm (max 200 cm)", maxDimension))
 	}
 
 	chargeableWeight := (maxLength * maxWidth * totalHeight) / 3000
 
 	finalWeight := max(totalWeight, chargeableWeight)
 	if finalWeight > 50000 {
-		return nil, fmt.Errorf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight)
+		return nil, errors.New(fmt.Sprintf("exceeded maximum weight limit: %d grams (max 500000 grams)", finalWeight))
 	}
 
 	return &DeliveryFeeBody{
@@ -282,7 +281,6 @@ func (d DeliveryFeeItem) ToDeliveryFeeItemDTOList(orderItems []model.OrderItem) 
 }
 
 // ============================ AVAILABLE DELIVERY SERVICES =============================
-
 type DeliveryAvailableServiceDTO struct {
 	ServiceID     int    `json:"service_id"`
 	ShortName     string `json:"short_name"`
@@ -296,7 +294,6 @@ type DeliveryAvailableServiceBody struct {
 }
 
 // ============================ ORDER MANAGEMENT ============================================
-
 type OrderInfo struct {
 	ShopID           int    `json:"shop_id"`
 	ClientID         int    `json:"client_id"`
@@ -344,38 +341,38 @@ type OrderInfo struct {
 		Wardcode   string  `json:"wardcode"`
 		MapSource  string  `json:"map_source"`
 	} `json:"to_location"`
-	Weight               int       `json:"weight"`
-	Length               int       `json:"length"`
-	Width                int       `json:"width"`
-	Height               int       `json:"height"`
-	ConvertedWeight      int       `json:"converted_weight"`
-	CalculateWeight      int       `json:"calculate_weight"`
-	ImageIds             any       `json:"image_ids"`
-	ServiceTypeID        int       `json:"service_type_id"`
-	ServiceID            int       `json:"service_id"`
-	PaymentTypeID        int       `json:"payment_type_id"`
-	PaymentTypeIds       []int     `json:"payment_type_ids"`
-	CustomServiceFee     int       `json:"custom_service_fee"`
-	SortCode             string    `json:"sort_code"`
-	CodAmount            int       `json:"cod_amount"`
-	CodCollectDate       any       `json:"cod_collect_date"`
-	CodTransferDate      any       `json:"cod_transfer_date"`
-	IsCodTransferred     bool      `json:"is_cod_transferred"`
-	IsCodCollected       bool      `json:"is_cod_collected"`
-	InsuranceValue       int       `json:"insurance_value"`
-	OrderValue           int       `json:"order_value"`
-	PickStationID        int       `json:"pick_station_id"`
-	ClientOrderCode      string    `json:"client_order_code"`
-	CodFailedAmount      int       `json:"cod_failed_amount"`
-	CodFailedCollectDate any       `json:"cod_failed_collect_date"`
-	RequiredNote         string    `json:"required_note"`
-	Content              string    `json:"content"`
-	Note                 string    `json:"note"`
-	EmployeeNote         string    `json:"employee_note"`
-	SealCode             string    `json:"seal_code"`
-	PickupTime           time.Time `json:"pickup_time"`
-	RequestDeliveryTime  any       `json:"request_delivery_time"`
-	DeadlinePickupTime   any       `json:"deadline_pickup_time"`
+	Weight               int         `json:"weight"`
+	Length               int         `json:"length"`
+	Width                int         `json:"width"`
+	Height               int         `json:"height"`
+	ConvertedWeight      int         `json:"converted_weight"`
+	CalculateWeight      int         `json:"calculate_weight"`
+	ImageIds             interface{} `json:"image_ids"`
+	ServiceTypeID        int         `json:"service_type_id"`
+	ServiceID            int         `json:"service_id"`
+	PaymentTypeID        int         `json:"payment_type_id"`
+	PaymentTypeIds       []int       `json:"payment_type_ids"`
+	CustomServiceFee     int         `json:"custom_service_fee"`
+	SortCode             string      `json:"sort_code"`
+	CodAmount            int         `json:"cod_amount"`
+	CodCollectDate       interface{} `json:"cod_collect_date"`
+	CodTransferDate      interface{} `json:"cod_transfer_date"`
+	IsCodTransferred     bool        `json:"is_cod_transferred"`
+	IsCodCollected       bool        `json:"is_cod_collected"`
+	InsuranceValue       int         `json:"insurance_value"`
+	OrderValue           int         `json:"order_value"`
+	PickStationID        int         `json:"pick_station_id"`
+	ClientOrderCode      string      `json:"client_order_code"`
+	CodFailedAmount      int         `json:"cod_failed_amount"`
+	CodFailedCollectDate interface{} `json:"cod_failed_collect_date"`
+	RequiredNote         string      `json:"required_note"`
+	Content              string      `json:"content"`
+	Note                 string      `json:"note"`
+	EmployeeNote         string      `json:"employee_note"`
+	SealCode             string      `json:"seal_code"`
+	PickupTime           time.Time   `json:"pickup_time"`
+	RequestDeliveryTime  interface{} `json:"request_delivery_time"`
+	DeadlinePickupTime   interface{} `json:"deadline_pickup_time"`
 	Items                []struct {
 		Name     string `json:"name"`
 		Quantity int    `json:"quantity"`
@@ -424,11 +421,11 @@ type OrderInfo struct {
 	OrderDate time.Time `json:"order_date"`
 	Data      struct {
 	} `json:"data"`
-	SocID            string   `json:"soc_id"`
-	FinishDate       any      `json:"finish_date"`
-	Tag              []string `json:"tag"`
-	IsPartialReturn  bool     `json:"is_partial_return"`
-	IsDocumentReturn bool     `json:"is_document_return"`
+	SocID            string      `json:"soc_id"`
+	FinishDate       interface{} `json:"finish_date"`
+	Tag              []string    `json:"tag"`
+	IsPartialReturn  bool        `json:"is_partial_return"`
+	IsDocumentReturn bool        `json:"is_document_return"`
 	PickupShift      struct {
 	} `json:"pickup_shift"`
 	TransactionIds       []string `json:"transaction_ids"`
@@ -542,7 +539,6 @@ type ExpectedDeliveryTime struct {
 }
 
 // Mock DELIVERY STATUS
-
 type GHNSessionResponse struct {
 	TokenTemp         string `json:"token_temp"`
 	Stage             string `json:"stage"`

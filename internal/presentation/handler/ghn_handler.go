@@ -122,8 +122,8 @@ func (h *GHNHandler) GetAvailableDeliveryServicesByDistrictID(c *gin.Context) {
 
 // CalculateDeliveryPriceByDimensionRequest defines the request body for calculating delivery fee by dimensions/items
 type CalculateDeliveryPriceByDimensionRequest struct {
-	ToDistrictID int                               `json:"to_district_id" example:"1454"`
-	ToWardCode   string                            `json:"to_ward_code" example:"012345"`
+	ToDistrictID int                               `json:"to_district_id" example:"1750"`
+	ToWardCode   string                            `json:"to_ward_code" example:"511110"`
 	Items        []dtos.ApplicationDeliveryFeeItem `json:"items"`
 }
 
