@@ -16,4 +16,9 @@ type AuthService interface {
 	LogoutAll(ctx context.Context, userID uuid.UUID) (*responses.LogoutResponse, error)
 	GetActiveSessions(ctx context.Context, userID uuid.UUID) ([]*responses.SessionInfo, error)
 	RevokeSession(ctx context.Context, sessionID uuid.UUID) (*responses.LogoutResponse, error)
+
+	// Password management
+	ForgotPassword(ctx context.Context, request *requests.ForgotPasswordRequest) (string, error)
+	ResetPassword(ctx context.Context, request *requests.ResetPasswordRequest) (string, error)
+	ChangePassword(ctx context.Context, request *requests.ChangePasswordRequest) (string, error)
 }

@@ -8,6 +8,7 @@ import (
 // ChannelResponse represents channel information in responses
 type ChannelResponse struct {
 	ID          string  `json:"id" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Code        string  `json:"code" example:"FACEBOOK"`
 	Name        string  `json:"name" example:"Facebook"`
 	Description *string `json:"description,omitempty" example:"This is a social media channel."`
 	HomePageURL *string `json:"home_page_url,omitempty" example:"https://www.facebook.com"`
@@ -21,6 +22,7 @@ func (ChannelResponse) ToResponse(model *model.Channel) *ChannelResponse {
 	return &ChannelResponse{
 		ID:          model.ID.String(),
 		Name:        model.Name,
+		Code:        model.Code,
 		Description: model.Description,
 		HomePageURL: model.HomePageURL,
 		IsActive:    model.IsActive,

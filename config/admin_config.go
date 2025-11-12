@@ -12,16 +12,19 @@ import (
 
 // AdminConfig holds the admin-related configuration settings
 type AdminConfig struct {
-	PayOSLinkExpiry                   int    `mapstructure:"payos_link_expiry"`
-	MinimumDayBeforeContracPaymentDue int    `mapstructure:"minimum_day_before_contract_payment_due"`
-	RepresentativeName                string `mapstructure:"representative_name"`
-	RepresentativeRole                string `mapstructure:"representative_role"`
-	RepresentativePhone               string `mapstructure:"representative_phone"`
-	RepresentativeEmail               string `mapstructure:"representative_email"`
-	RepresentativeTaxNumber           string `mapstructure:"representative_tax_number"`
-	RepresentativeBankName            string `mapstructure:"representative_bank_name"`
-	RepresentativeBankAccountNumber   string `mapstructure:"representative_bank_account_number"`
-	RepresentativeBankAccountHolder   string `mapstructure:"representative_bank_account_holder"`
+	PayOSLinkExpiry                   int   `mapstructure:"payos_link_expiry"`
+	MinimumDayBeforeContracPaymentDue int   `mapstructure:"minimum_day_before_contract_payment_due"`
+	ForgetPasswordExpiryInSeconds     int64 `mapstructure:"forget_password_expiry_in_seconds"`
+
+	// Representative Information
+	RepresentativeName              string `mapstructure:"representative_name"`
+	RepresentativeRole              string `mapstructure:"representative_role"`
+	RepresentativePhone             string `mapstructure:"representative_phone"`
+	RepresentativeEmail             string `mapstructure:"representative_email"`
+	RepresentativeTaxNumber         string `mapstructure:"representative_tax_number"`
+	RepresentativeBankName          string `mapstructure:"representative_bank_name"`
+	RepresentativeBankAccountNumber string `mapstructure:"representative_bank_account_number"`
+	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
 
 	// Affiliate Link Tracking Configuration
 	TrackingLinkTrustedDomains []string `mapstructure:"tracking_link_trusted_domains"`
@@ -34,6 +37,11 @@ type AdminConfig struct {
 	ExpiredContractCleanupCronExpr  string `mapstructure:"expired_contract_cleanup_cron_expr"`
 	PayOSExpiryCheckEnabled         bool   `mapstructure:"payos_expiry_check_enabled"`
 	PayOSExpiryCheckIntervalMinutes int    `mapstructure:"payos_expiry_check_interval_minutes"`
+
+	// Social Media Integration
+	// This is used to determine when to send notifications for expiring OAuth tokens
+	FacebookExpiryThresholdNotifications int `mapstructure:"facebook_expiry_threshold_notifications"` // in days
+	TikTokExpiryThresholdNotifications   int `mapstructure:"tiktok_expiry_threshold_notifications"`   // in days
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -71,16 +79,24 @@ func loadAdminConfig(configPath string) error {
 }
 
 func setDefaultAdminConfig(adminViper *viper.Viper) {
-	adminViper.SetDefault("admin.payos_link_expiry", 300)
-	adminViper.SetDefault("admin.minimum_day_before_contract_payment_due", 5)
-	adminViper.SetDefault("admin.representative_name", "Đinh Thị Ngọc Trinh")
-	adminViper.SetDefault("admin.representative_role", "Beauty Blogger")
-	adminViper.SetDefault("admin.representative_phone", "+84917956697")
-	adminViper.SetDefault("admin.representative_email", "mrstrinh.work@gmail.com")
-	adminViper.SetDefault("admin.representative_tax_number", "01234567890")
-	adminViper.SetDefault("admin.representative_bank_name", "")
-	adminViper.SetDefault("admin.representative_bank_account_number", "")
-	adminViper.SetDefault("admin.representative_bank_account_holder", "TRAN GIANH KHANH")
+	adminViper.SetDefault("payos_link_expiry", 300)
+	adminViper.SetDefault("minimum_day_before_contract_payment_due", 5)
+	adminViper.SetDefault("forget_password_expiry_in_seconds", 300)
+
+	adminViper.SetDefault("representative_name", "Đinh Thị Ngọc Trinh")
+	adminViper.SetDefault("representative_role", "Beauty Blogger")
+	adminViper.SetDefault("representative_phone", "+84917956697")
+	adminViper.SetDefault("representative_email", "mrstrinh.work@gmail.com")
+	adminViper.SetDefault("representative_tax_number", "01234567890")
+	adminViper.SetDefault("representative_bank_name", "")
+	adminViper.SetDefault("representative_bank_account_number", "")
+	adminViper.SetDefault("representative_bank_account_holder", "TRAN GIANH KHANH")
+
+	adminViper.SetDefault("tracking_link_trusted_domains", []string{"example.com", "trustedpartner.com"})
+	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
+
+	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
+	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database

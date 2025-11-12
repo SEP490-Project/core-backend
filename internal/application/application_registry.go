@@ -45,6 +45,8 @@ type ApplicationRegistry struct {
 	PaymentTransactionService     iservice.PaymentTransactionService
 	PreOrderService               iservice.PreOrderService
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
+	FacebookSocialService         iservice.FacebookSocialService
+	TikTokSocialService           iservice.TikTokSocialService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -55,7 +57,7 @@ func NewApplicationRegistry(
 	databaseRegistry *gormrepository.DatabaseRegistry,
 	infrastructureRegistry *infrastructure.InfrastructureRegistry,
 ) *ApplicationRegistry {
-	jwtService := service.NewJwtService()
+	jwtService := service.NewJwtService(configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -91,6 +93,30 @@ func NewApplicationRegistry(
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
 	)
 
+	channelService := service.NewChannelService(
+		databaseRegistry.ChannelRepository,
+		configs,
+		infrastructureRegistry.VaultService,
+	)
+
+	facebookSocialService := service.NewFacebookSocialService(
+		configs,
+		infrastructureRegistry.ProxiesRegistry.FacebookProxy,
+		channelService,
+		jwtService,
+		databaseRegistry.UserRepository,
+		databaseRegistry.LoggedSessionRepository,
+	)
+
+	tiktokSocialService := service.NewTikTokSocialService(
+		configs,
+		infrastructureRegistry.ProxiesRegistry.TikTokProxy,
+		channelService,
+		jwtService,
+		databaseRegistry.UserRepository,
+		databaseRegistry.LoggedSessionRepository,
+	)
+
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -98,7 +124,7 @@ func NewApplicationRegistry(
 		JWTService:                    jwtService,
 		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
-		AuthService:                   service.NewAuthService(jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository)),
+		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
@@ -111,7 +137,7 @@ func NewApplicationRegistry(
 		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, &configs.AdminConfig),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
 		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
-		ChannelService:                service.NewChannelService(databaseRegistry.ChannelRepository),
+		ChannelService:                channelService,
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
 		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository),
@@ -124,6 +150,8 @@ func NewApplicationRegistry(
 		PaymentTransactionService:     paymentTransactionService,
 		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
+		FacebookSocialService:         facebookSocialService,
+		TikTokSocialService:           tiktokSocialService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),

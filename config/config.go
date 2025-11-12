@@ -34,6 +34,8 @@ type AppConfig struct {
 	Notification      NotificationConfig      `mapstructure:"notification"`
 	TaskScheduler     TaskSchedulerConfig     `mapstructure:"task_scheduler"`
 	HTTPClient        HTTPClientConfig        `mapstructure:"http_client"`
+	Social            SocialConfig            `mapstructure:"social"`
+	TokenStorage      TokenStorageConfig      `mapstructure:"token_storage"`
 }
 
 type ServerConfig struct {
@@ -213,6 +215,13 @@ type HTTPClientConfig struct {
 	ExpectContinueTimeout int `mapstructure:"expect_continue_timeout"` // in seconds (default: 1)
 }
 
+// TokenStorageConfig controls where and how OAuth tokens are stored
+type TokenStorageConfig struct {
+	EncryptionKey   string `mapstructure:"encryption_key"`
+	VaultPathPrefix string `mapstructure:"vault_path_prefix"`
+	UseVault        bool   `mapstructure:"use_vault"`
+}
+
 // TaskSchedulerConfig holds configuration for task schedulers
 type TaskSchedulerConfig struct {
 	LocationSync locationSynchronizationConfig `mapstructure:"location_synchronization"`
@@ -223,6 +232,36 @@ type locationSynchronizationConfig struct {
 	Enabled     bool `mapstructure:"enabled"`
 	SyncHour    int  `mapstructure:"sync_hour"`
 	Concurrency int  `mapstructure:"concurrency"`
+}
+
+type SocialConfig struct {
+	Facebook FacebookSocialConfig `mapstructure:"facebook"`
+	TikTok   TikTokSocialConfig   `mapstructure:"tiktok"`
+}
+
+type FacebookSocialConfig struct {
+	BaseURL             string   `mapstructure:"base_url"`
+	ClientID            string   `mapstructure:"client_id"`
+	ClientSecret        string   `mapstructure:"client_secret"`
+	APIVersion          string   `mapstructure:"api_version"`
+	RedirectURL         string   `mapstructure:"redirect_url"`
+	FrontendRedirectURL string   `mapstructure:"frontend_redirect_url"`
+	FrontendCancelURL   string   `mapstructure:"frontend_cancel_url"`
+	Scopes              []string `mapstructure:"scopes"`
+	ResponseType        string   `mapstructure:"response_type"`
+}
+
+type TikTokSocialConfig struct {
+	BaseURL             string   `mapstructure:"base_url"`
+	ClientKey           string   `mapstructure:"client_key"` // TikTok uses "client_key" not "client_id"
+	ClientSecret        string   `mapstructure:"client_secret"`
+	APIVersion          string   `mapstructure:"api_version"`
+	RedirectURL         string   `mapstructure:"redirect_url"`
+	FrontendRedirectURL string   `mapstructure:"frontend_redirect_url"`
+	FrontendCancelURL   string   `mapstructure:"frontend_cancel_url"`
+	UserScopes          []string `mapstructure:"user_scopes"`
+	Scopes              []string `mapstructure:"scopes"`
+	ResponseType        string   `mapstructure:"response_type"`
 }
 
 //End of Schedulers
@@ -458,13 +497,13 @@ func GetAppConfig() *AppConfig {
 }
 
 // GetPrivateKey returns the parsed private key.
-func (jc *JWTConfig) GetPrivateKey() *rsa.PrivateKey {
-	return jc.parsedPrivateKey
+func (config *AppConfig) GetPrivateKey() *rsa.PrivateKey {
+	return config.JWT.parsedPrivateKey
 }
 
 // GetPublicKey returns the parsed public key.
-func (jc *JWTConfig) GetPublicKey() *rsa.PublicKey {
-	return jc.parsedPublicKey
+func (config *AppConfig) GetPublicKey() *rsa.PublicKey {
+	return config.JWT.parsedPublicKey
 }
 
 // UpdateRSAKeys updates the parsed RSA keys with new PEM-encoded keys

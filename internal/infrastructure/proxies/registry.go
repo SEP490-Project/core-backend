@@ -10,10 +10,12 @@ import (
 )
 
 type ProxiesRegistry struct {
-	httpClient *http.Client
-	PayOSProxy iproxies.PayOSProxy
-	GHNProxy   iproxies.GHNProxy
-	db         *gorm.DB
+	httpClient    *http.Client
+	PayOSProxy    iproxies.PayOSProxy
+	GHNProxy      iproxies.GHNProxy
+	FacebookProxy iproxies.FacebookProxy
+	TikTokProxy   iproxies.TikTokProxy
+	db            *gorm.DB
 }
 
 func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry {
@@ -44,6 +46,8 @@ func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry 
 			config,
 			db,
 		),
+		FacebookProxy: NewFacebookProxy(client, &config.Social.Facebook),
+		TikTokProxy:   NewTikTokProxy(client, &config.Social.TikTok),
 	}
 }
 

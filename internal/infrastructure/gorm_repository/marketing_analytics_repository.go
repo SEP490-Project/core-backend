@@ -81,6 +81,7 @@ func (r *MarketingAnalyticsRepository) GetDraftCampaignsCount(ctx context.Contex
 }
 
 // GetMonthlyContractRevenue returns sum of PAID contract payments for specified month
+// due_date is used to determine the month and year
 func (r *MarketingAnalyticsRepository) GetMonthlyContractRevenue(ctx context.Context, year, month int) (float64, error) {
 	var revenue float64
 

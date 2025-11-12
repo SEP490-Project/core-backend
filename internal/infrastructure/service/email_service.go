@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/smtp"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	textTemplate "text/template"
@@ -396,24 +397,37 @@ func (p *smtpConnectionPool) getConnection(_ context.Context) (*smtpConnection, 
 
 // createConnection establishes a new SMTP connection
 func (p *smtpConnectionPool) createConnection() (*smtpConnection, error) {
-	serverAddr := fmt.Sprintf("%s:%d", p.smtpHost, p.smtpPort)
+	serverAddr := net.JoinHostPort(p.smtpHost, strconv.Itoa(p.smtpPort))
 
-	// Establish TLS connection
-	tlsConfig := &tls.Config{
-		ServerName: p.smtpHost,
-		MinVersion: tls.VersionTLS12,
-	}
-
-	conn, err := tls.Dial("tcp", serverAddr, tlsConfig)
+	//1. Establish a plain text connection.
+	conn, err := net.DialTimeout("tcp", serverAddr, 10*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 
-	// Create SMTP client
+	// 2. Create a new SMTP client from the plain connection.
 	client, err := smtp.NewClient(conn, p.smtpHost)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create SMTP client: %w", err)
+	}
+
+	// 3. Check if the server supports the STARTTLS extension.
+	if ok, _ := client.Extension("STARTTLS"); !ok {
+		client.Quit()
+		conn.Close()
+		return nil, errors.New("SMTP server does not support STARTTLS")
+	}
+
+	// 4. Upgrade the connection to TLS.
+	tlsConfig := &tls.Config{
+		ServerName: p.smtpHost,
+		MinVersion: tls.VersionTLS12,
+	}
+	if err = client.StartTLS(tlsConfig); err != nil {
+		client.Quit()
+		conn.Close()
+		return nil, fmt.Errorf("failed to start TLS handshake: %w", err)
 	}
 
 	// Authenticate
