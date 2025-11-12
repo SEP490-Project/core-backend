@@ -11,6 +11,7 @@ import (
 
 type OrderContext struct {
 	State OrderState
+	Order *model.Order
 }
 
 func (s *OrderContext) GenerateActionNote(user *model.User, reason *string) *model.OrderActionNote {

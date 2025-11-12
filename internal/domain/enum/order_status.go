@@ -8,20 +8,21 @@ import (
 type OrderStatus string
 
 const (
-	OrderStatusPending   OrderStatus = "PENDING"
-	OrderStatusPaid      OrderStatus = "PAID"
-	OrderStatusRefunded  OrderStatus = "REFUNDED"
-	OrderStatusConfirmed OrderStatus = "CONFIRMED"
-	OrderStatusCancelled OrderStatus = "CANCELLED"
-	OrderStatusShipped   OrderStatus = "SHIPPED"
-	OrderStatusInTransit OrderStatus = "IN_TRANSIT"
-	OrderStatusDelivered OrderStatus = "DELIVERED"
-	OrderStatusReceived  OrderStatus = "RECEIVED"
+	OrderStatusPending        OrderStatus = "PENDING"
+	OrderStatusPaid           OrderStatus = "PAID"
+	OrderStatusRefunded       OrderStatus = "REFUNDED"
+	OrderStatusConfirmed      OrderStatus = "CONFIRMED"
+	OrderStatusCancelled      OrderStatus = "CANCELLED"
+	OrderStatusShipped        OrderStatus = "SHIPPED"
+	OrderStatusInTransit      OrderStatus = "IN_TRANSIT"
+	OrderStatusDelivered      OrderStatus = "DELIVERED"
+	OrderStatusReceived       OrderStatus = "RECEIVED"
+	OrderStatusAwaitingPickUp OrderStatus = "AWAITING_PICKUP"
 )
 
 func (os OrderStatus) IsValid() bool {
 	switch os {
-	case OrderStatusPending, OrderStatusPaid, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCancelled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived:
+	case OrderStatusPending, OrderStatusPaid, OrderStatusRefunded, OrderStatusConfirmed, OrderStatusCancelled, OrderStatusShipped, OrderStatusInTransit, OrderStatusDelivered, OrderStatusReceived, OrderStatusAwaitingPickUp:
 		return true
 	}
 	return false

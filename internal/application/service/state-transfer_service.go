@@ -675,8 +675,9 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		}
 
 		// 4) If order Status is Confirmed, create GHN Order first so we can persist GHNOrderCode together with status in a single DB update
+		// But if its mark as SELF PICK UP we skip GHN order creation
 		var ghnOrderCode string
-		if targetState == enum.OrderStatusConfirmed {
+		if targetState == enum.OrderStatusConfirmed && !order.IsSelfPickedUp {
 			ghnOrder, err := t.ghnProxy.CreateOrder(ctx, order.ID)
 			if err != nil {
 				zap.L().Error("Failed to create GHN order", zap.Error(err))
