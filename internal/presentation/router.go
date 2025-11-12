@@ -102,6 +102,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
+		r.setupFacebookSocialRoutes(v1)
+		r.setupTikTokSocialRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -713,6 +715,27 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
 	}
 }
+
+func (r *Router) setupFacebookSocialRoutes(group *gin.RouterGroup) {
+	facebookHandler := r.handlerRegistry.FacebookSocialHandler
+
+	authFacebookGroup := group.Group("/auth/facebook")
+	{
+		authFacebookGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), facebookHandler.HandleLogin)
+		authFacebookGroup.GET("/callback", facebookHandler.HandleCallback)
+	}
+}
+
+func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
+	tiktokHandler := r.handlerRegistry.TikTokSocialHandler
+
+	authTikTokGroup := group.Group("/auth/tiktok")
+	{
+		authTikTokGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), tiktokHandler.HandleLogin)
+		authTikTokGroup.GET("/callback", tiktokHandler.HandleCallback)
+	}
+}
+
 func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
 	authHandler := r.handlerRegistry.AuthHandler
 	authGroup := group.Group("/auth")
