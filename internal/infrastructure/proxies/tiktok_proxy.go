@@ -26,7 +26,7 @@ func (t *TikTokProxy) ExchangeCodeForToken(ctx context.Context, code string, red
 		zap.Int("code_length", len(code)),
 		zap.String("redirect_url", redirectURL))
 
-	path := "/oauth/token/"
+	path := "oauth/token/"
 
 	// TikTok expects application/x-www-form-urlencoded
 	formData := url.Values{}
@@ -47,6 +47,9 @@ func (t *TikTokProxy) ExchangeCodeForToken(ctx context.Context, code string, red
 	}
 	defer resp.Body.Close()
 
+	if err = t.HandleNon2xxHTTPResponse(resp); err != nil {
+		return nil, err
+	}
 	var tokenResp dtos.TikTokTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		zap.L().Error("Failed to decode token response", zap.Error(err))
@@ -60,7 +63,7 @@ func (t *TikTokProxy) RefreshAccessToken(ctx context.Context, refreshToken strin
 	zap.L().Info("TikTokProxy - RefreshAccessToken called",
 		zap.Int("refresh_token_length", len(refreshToken)))
 
-	path := "/oauth/token/"
+	path := "oauth/token/"
 
 	formData := url.Values{}
 	formData.Set("client_key", t.config.ClientKey)
@@ -79,6 +82,14 @@ func (t *TikTokProxy) RefreshAccessToken(ctx context.Context, refreshToken strin
 	}
 	defer resp.Body.Close()
 
+	if err = t.HandleNon2xxHTTPResponse(resp); err != nil {
+		var errResp dtos.TikTokTokenErrorResponse
+		if decodeErr := json.NewDecoder(resp.Body).Decode(&errResp); decodeErr == nil {
+			zap.L().Error("TikTok API returned error on token refresh",
+				zap.Any("error", errResp))
+			return nil, fmt.Errorf("TikTok API error: %s - %s", errResp.Error, errResp.ErrorDescription)
+		}
+	}
 	var tokenResp dtos.TikTokTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		zap.L().Error("Failed to decode token response", zap.Error(err))
@@ -110,18 +121,19 @@ func (t *TikTokProxy) GetSystemUserProfile(ctx context.Context, accessToken stri
 	return t.getUserProfile(ctx, accessToken, scopes)
 }
 
-func NewTikTokProxy(httpClient *http.Client, config *config.TikTokSocialConfig) iproxies.TikTokProxy {
-	baseURL := fmt.Sprintf("%s/v%s", config.BaseURL, config.APIVersion)
+func NewTikTokProxy(httpClient *http.Client, config *config.AppConfig) iproxies.TikTokProxy {
+	tiktokConfig := config.Social.TikTok
+	baseURL := fmt.Sprintf("%s/v%s/", tiktokConfig.BaseURL, tiktokConfig.APIVersion)
 	return &TikTokProxy{
-		BaseProxy: NewBaseProxy(httpClient, baseURL),
-		config:    config,
+		BaseProxy: NewBaseProxy(httpClient, baseURL, config),
+		config:    &tiktokConfig,
 	}
 }
 
 // region: ========= Helper Methods =========
 
 func (t *TikTokProxy) getUserProfile(ctx context.Context, accessToken string, fields string) (*dtos.TikTokUserProfileResponse, error) {
-	url, err := utils.AddQueryParams("/user/info/", map[string]string{
+	url, err := utils.AddQueryParams("user/info/", map[string]string{
 		"fields": fields,
 	})
 	if err != nil {

@@ -12041,6 +12041,177 @@
                 }
             }
         },
+        "/api/v1/test/tiktok/exchange-code-for-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Exchanges the authorization code received from TikTok OAuth for an access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Exchange TikTok OAuth code for access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code received from TikTok OAuth",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI used in the OAuth flow",
+                        "name": "redirect_uri",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully exchanged code for token",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/get-system-user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok system user profile using the provided access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Get TikTok system user profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access token used to retrieve the system user profile",
+                        "name": "access_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved system user profile",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/get-user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok user profile using the provided access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Get TikTok user profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access token used to retrieve the user profile",
+                        "name": "access_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved user profile",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/refresh-access-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Refreshes the TikTok OAuth access token using the provided refresh token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Refresh TikTok OAuth access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Refresh token used to obtain a new access token",
+                        "name": "refresh_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully refreshed access token",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users": {
             "get": {
                 "security": [

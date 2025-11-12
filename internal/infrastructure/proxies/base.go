@@ -3,6 +3,7 @@ package proxies
 import (
 	"bytes"
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/iproxies"
 	"encoding/json"
 	"fmt"
@@ -17,12 +18,14 @@ import (
 type BaseProxy struct {
 	httpClient *http.Client
 	baseURL    string
+	config     *config.AppConfig
 }
 
-func NewBaseProxy(httpClient *http.Client, baseURL string) *BaseProxy {
+func NewBaseProxy(httpClient *http.Client, baseURL string, config *config.AppConfig) *BaseProxy {
 	return &BaseProxy{
 		httpClient: httpClient,
 		baseURL:    baseURL,
+		config:     config,
 	}
 }
 
@@ -105,6 +108,7 @@ func (p *BaseProxy) doRequest(
 		zap.String("url", endpoint),
 		zap.Int("status_code", resp.StatusCode),
 	)
+	p.handleDebugResponseLog(resp)
 	return resp, nil
 }
 
@@ -151,15 +155,16 @@ func GetGeneric[T any](p iproxies.BaseProxy, ctx context.Context, path string, h
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		zap.L().Debug("received non-2xx status code", zap.Int("status_code", resp.StatusCode), zap.Any("response_body", resp.Body))
-		return fmt.Errorf("received non-2xx status code: %d", resp.StatusCode)
+	if err := p.HandleNon2xxHTTPResponse(resp); err != nil {
+		return err
 	}
 
 	// Parse response
 	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
+
+	zap.L().Debug("GET request successful", zap.String("path", path), zap.Any("response", response))
 
 	return nil
 }
@@ -182,4 +187,29 @@ func (p *BaseProxy) urlResolution(path string) (string, error) {
 
 	// ResolveReference correctly combines the base URL with the relative path and query.
 	return base.ResolveReference(rel).String(), nil
+}
+
+func (p *BaseProxy) HandleNon2xxHTTPResponse(resp *http.Response) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+
+	return fmt.Errorf("received non-2xx status code: %d", resp.StatusCode)
+}
+
+func (p *BaseProxy) handleDebugResponseLog(resp *http.Response) {
+	if p.config.IsDevelopmentDebugging() {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			zap.L().Debug("Failed to read body for debug logging", zap.Error(err))
+			return
+		}
+		var data map[string]any
+		if err := json.Unmarshal(bodyBytes, &data); err == nil {
+			zap.L().Debug("response body decoded", zap.Any("response_body", data))
+		} else {
+			zap.L().Debug("Failed to decode response body", zap.Error(err))
+		}
+		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
 }
