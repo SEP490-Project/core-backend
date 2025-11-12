@@ -187,9 +187,15 @@ func (t *TikTokSocialService) HandleRefreshAccessToken(ctx context.Context, uow 
 
 	// Get the stored refresh token from the channel
 	refreshToken, err := t.channelService.GetDecryptedRefreshToken(ctx, "TIKTOK")
-	if err != nil {
-		zap.L().Error("Failed to get refresh token", zap.Error(err))
-		return errors.New("no refresh token found for TikTok channel")
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		zap.L().Warn("Failed to get refresh token, generate new token for TikTok channel", zap.Error(err))
+		err = t.generateTikTokChannelAccessToken(ctx, uow, successReq.Code, successReq.BackendCallbackURL)
+		if err != nil {
+			zap.L().Error("Failed to refresh TikTok access token", zap.Error(err))
+			return errors.New("failed to refresh TikTok access token")
+		}
+	} else if err != nil {
+		return err
 	}
 
 	if refreshToken == "" {
