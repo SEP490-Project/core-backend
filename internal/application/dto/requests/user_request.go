@@ -171,10 +171,10 @@ type UpdateUserRoleRequest struct {
 // UserFilterRequest represents user list query parameters
 type UserFilterRequest struct {
 	PaginationRequest
-	Search         *string `form:"search" json:"search" validate:"omitempty,max=100" example:"john"`
-	Role           *string `form:"role" json:"role" validate:"omitempty,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
-	IsActive       *bool   `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
-	IsBrandAccount *bool   `form:"is_brand_account" json:"is_brand_account" validate:"omitempty" example:"true"`
+	Search         *string  `form:"search" json:"search" validate:"omitempty,max=100" example:"john"`
+	Role           []string `form:"role" json:"role" validate:"omitempty,oneof=ADMIN MARKETING_STAFF CONTENT_STAFF SALES_STAFF CUSTOMER BRAND_PARTNER" example:"CUSTOMER"`
+	IsActive       *bool    `form:"is_active" json:"is_active" validate:"omitempty" example:"true"`
+	IsBrandAccount *bool    `form:"is_brand_account" json:"is_brand_account" validate:"omitempty" example:"true"`
 }
 
 // UserNotificationPreferenceRequest represents a request to update notification preferences

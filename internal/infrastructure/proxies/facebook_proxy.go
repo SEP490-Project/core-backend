@@ -119,10 +119,11 @@ func (f *FacebookProxy) GetUserProfile(ctx context.Context, userAccessToken stri
 	return &userProfile, nil
 }
 
-func NewFacebookProxy(httpClient *http.Client, config *config.FacebookSocialConfig) iproxies.FacebookProxy {
-	baseURL := fmt.Sprintf("%s/v%s", config.BaseURL, config.APIVersion)
+func NewFacebookProxy(httpClient *http.Client, config *config.AppConfig) iproxies.FacebookProxy {
+	facebookConfig := config.Social.Facebook
+	baseURL := fmt.Sprintf("%s/v%s", facebookConfig.BaseURL, facebookConfig.APIVersion)
 	return &FacebookProxy{
-		BaseProxy: NewBaseProxy(httpClient, baseURL),
-		config:    config,
+		BaseProxy: NewBaseProxy(httpClient, baseURL, config),
+		config:    &facebookConfig,
 	}
 }

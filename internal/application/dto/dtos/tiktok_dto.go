@@ -34,6 +34,12 @@ type TikTokTokenResponse struct {
 	TokenType        string `json:"token_type"` // "Bearer"
 }
 
+type TikTokTokenErrorResponse struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
+	LogID            string `json:"log_id"`
+}
+
 type TikTokErrorResponse struct {
 	Code    TikTokErrorCode `json:"code"`
 	Message string          `json:"message"`

@@ -8416,6 +8416,138 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/orders/limited": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an order -\u003e calculate delivery fee -\u003e create payment transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Place an order and initiate payment",
+                "parameters": [
+                    {
+                        "description": "Place and pay payload",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PlaceAndPayRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/received/{orderID}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Đánh dấu đơn hàng là \"đã nhận\" (Received) sau khi giao thành công",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark order as received",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as received successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/orders/staff": {
             "get": {
                 "security": [
@@ -8494,7 +8626,8 @@ const docTemplate = `{
                             "SHIPPED",
                             "IN_TRANSIT",
                             "DELIVERED",
-                            "RECEIVED"
+                            "RECEIVED",
+                            "AWAITING_PICKUP"
                         ],
                         "type": "string",
                         "example": "PAID",
@@ -8507,7 +8640,8 @@ const docTemplate = `{
                             "OrderStatusShipped",
                             "OrderStatusInTransit",
                             "OrderStatusDelivered",
-                            "OrderStatusReceived"
+                            "OrderStatusReceived",
+                            "OrderStatusAwaitingPickUp"
                         ],
                         "description": "Order status filter\nin: query\nexample: \"PAID\"",
                         "name": "status",
@@ -8556,6 +8690,142 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/readyToPickedUp/{orderID}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark order as ready to picked up",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as received successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/receivedAfterPickup/{orderID}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload proof image and mark the order as received (only for orders awaiting pick-up)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark order as received after self pick-up",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Proof image(s) of self pick-up",
+                        "name": "files",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as received successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID or status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -9515,7 +9785,8 @@ const docTemplate = `{
                             "SHIPPED",
                             "IN_TRANSIT",
                             "DELIVERED",
-                            "RECEIVED"
+                            "RECEIVED",
+                            "AWAITING_PICKUP"
                         ],
                         "type": "string",
                         "example": "PAID",
@@ -9528,7 +9799,8 @@ const docTemplate = `{
                             "OrderStatusShipped",
                             "OrderStatusInTransit",
                             "OrderStatusDelivered",
-                            "OrderStatusReceived"
+                            "OrderStatusReceived",
+                            "OrderStatusAwaitingPickUp"
                         ],
                         "description": "Order status filter\nin: query\nexample: \"PAID\"",
                         "name": "status",
@@ -11776,6 +12048,177 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/test/tiktok/exchange-code-for-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Exchanges the authorization code received from TikTok OAuth for an access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Exchange TikTok OAuth code for access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authorization code received from TikTok OAuth",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI used in the OAuth flow",
+                        "name": "redirect_uri",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully exchanged code for token",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/get-system-user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok system user profile using the provided access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Get TikTok system user profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access token used to retrieve the system user profile",
+                        "name": "access_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved system user profile",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/get-user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok user profile using the provided access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Get TikTok user profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access token used to retrieve the user profile",
+                        "name": "access_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved user profile",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/refresh-access-token": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Refreshes the TikTok OAuth access token using the provided refresh token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Refresh TikTok OAuth access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Refresh token used to obtain a new access token",
+                        "name": "refresh_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully refreshed access token",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users": {
             "get": {
                 "security": [
@@ -11830,7 +12273,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
                         "description": "Filter by user role",
                         "name": "role",
                         "in": "query"
@@ -14292,7 +14739,8 @@ const docTemplate = `{
                 "SHIPPED",
                 "IN_TRANSIT",
                 "DELIVERED",
-                "RECEIVED"
+                "RECEIVED",
+                "AWAITING_PICKUP"
             ],
             "x-enum-varnames": [
                 "OrderStatusPending",
@@ -14303,7 +14751,8 @@ const docTemplate = `{
                 "OrderStatusShipped",
                 "OrderStatusInTransit",
                 "OrderStatusDelivered",
-                "OrderStatusReceived"
+                "OrderStatusReceived",
+                "OrderStatusAwaitingPickUp"
             ]
         },
         "enum.PaymentCycle": {
@@ -14693,6 +15142,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
                 "order_items": {
                     "type": "array",
                     "items": {
@@ -14710,6 +15162,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "province_name": {
+                    "type": "string"
+                },
+                "self_picked_up_image": {
                     "type": "string"
                 },
                 "shipping_fee": {
@@ -16086,12 +16541,16 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "address_id",
+                "is_self_pickup",
                 "items"
             ],
             "properties": {
                 "address_id": {
                     "type": "string",
                     "example": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                },
+                "is_self_pickup": {
+                    "type": "boolean"
                 },
                 "items": {
                     "type": "array",
