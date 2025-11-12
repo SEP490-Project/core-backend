@@ -7264,7 +7264,139 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/ghn/order/info/{order-code}": {
+        "/api/v1/ghn/mocking/gso-token": {
+            "get": {
+                "description": "Retrieve GHN GSO Token using Service Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn-mocking"
+                ],
+                "summary": "Get GHN GSO Token (step 3)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GHN Service Token",
+                        "name": "service_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNTokenGSO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/mocking/service-token": {
+            "get": {
+                "description": "Retrieve GHN Service Token using GHN session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn-mocking"
+                ],
+                "summary": "Get GHN Service Token (step 2)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GHN Session Token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNServiceToken"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/mocking/session": {
+            "get": {
+                "description": "Retrieve a session token from GHN for authenticated requests",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn-mocking"
+                ],
+                "summary": "Get GHN session token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNSessionResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/info/{order-id}": {
             "get": {
                 "security": [
                     {
@@ -7285,8 +7417,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "GHN order code",
-                        "name": "order-code",
+                        "description": "ID of Order that related to GHN order (not Limited)",
+                        "name": "order-id",
                         "in": "path",
                         "required": true
                     }
@@ -7296,6 +7428,58 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.OrderInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/status": {
+            "post": {
+                "description": "Allowed values: ready_to_pick, storing, delivering, delivered, cancel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Update GHN Order Delivery Status",
+                "parameters": [
+                    {
+                        "description": "Order status update payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateGHNDeliveryStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateGHNDeliveryStatusResponse"
                         }
                     },
                     "400": {
@@ -8454,6 +8638,71 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{orderID}/received": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Đánh dấu đơn hàng là \"đã nhận\" (Received) sau khi giao thành công",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark order as received",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as received successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -11581,7 +11830,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "multi",
                         "description": "Filter by user role",
                         "name": "role",
                         "in": "query"
@@ -13025,6 +13278,54 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.GHNServiceToken": {
+            "type": "object",
+            "properties": {
+                "callback_url": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.GHNSessionResponse": {
+            "type": "object",
+            "properties": {
+                "otp_phone_number": {
+                    "type": "string"
+                },
+                "otp_ttl": {
+                    "type": "integer"
+                },
+                "qr_code": {
+                    "type": "string"
+                },
+                "sso_refresh_token": {
+                    "type": "string"
+                },
+                "sso_token": {
+                    "type": "string"
+                },
+                "sso_token_expires_in": {
+                    "type": "integer"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "token_temp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.GHNTokenGSO": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.KPIGoal": {
             "type": "object",
             "properties": {
@@ -13782,6 +14083,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.UpdateGHNDeliveryStatusResponse": {
+            "type": "object",
+            "properties": {
+                "current_status": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "order_code": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "boolean"
+                }
+            }
+        },
         "enum.AddressType": {
             "type": "string",
             "enum": [
@@ -13922,6 +14240,23 @@ const docTemplate = `{
                 "DispenserTypeTwistUp",
                 "DispenserTypeSqueeze",
                 "DispenserTypeNone"
+            ]
+        },
+        "enum.GHNDeliveryStatus": {
+            "type": "string",
+            "enum": [
+                "ready_to_pick",
+                "storing",
+                "delivering",
+                "delivered",
+                "cancel"
+            ],
+            "x-enum-varnames": [
+                "GHNDeliveryStatusReadyToPick",
+                "GHNDeliveryStatusStoring",
+                "GHNDeliveryStatusDelivering",
+                "GHNDeliveryStatusDelivered",
+                "GHNDeliveryStatusCancel"
             ]
         },
         "enum.NotificationStatus": {
@@ -14097,11 +14432,11 @@ const docTemplate = `{
                 },
                 "to_district_id": {
                     "type": "integer",
-                    "example": 1454
+                    "example": 1750
                 },
                 "to_ward_code": {
                     "type": "string",
-                    "example": "012345"
+                    "example": "511110"
                 }
             }
         },
@@ -14114,6 +14449,27 @@ const docTemplate = `{
                 "reason": {
                     "description": "Reason for cancelling the order. Required when action=CANCEL\nin: body\nexample: \"Customer requested cancellation due to wrong size\"",
                     "type": "string"
+                }
+            }
+        },
+        "handler.UpdateGHNDeliveryStatusRequest": {
+            "type": "object",
+            "required": [
+                "order_code",
+                "status"
+            ],
+            "properties": {
+                "order_code": {
+                    "type": "string",
+                    "example": "L4TFM8"
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.GHNDeliveryStatus"
+                        }
+                    ],
+                    "example": "storing"
                 }
             }
         },
@@ -14378,7 +14734,7 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string"
                 },
-                "user_notes": {
+                "user_note": {
                     "type": "string"
                 },
                 "ward_name": {
