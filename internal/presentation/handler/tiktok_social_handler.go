@@ -62,6 +62,12 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, processValidationError(err))
 		return
 	}
+	if req.RedirectURL == "" {
+		req.RedirectURL = h.config.Social.TikTok.FrontendRedirectURL
+	}
+	if req.CancelURL == "" {
+		req.CancelURL = h.config.Social.TikTok.FrontendCancelURL
+	}
 
 	// If is_internal is true, only allow admin users to proceed
 	userRole, err := extractUserRoles(c)
@@ -85,7 +91,7 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	} else {
 		scopeStr = strings.Join(tiktokConfig.UserScopes, ",")
 	}
-	encodedRedirectURL := url.QueryEscape(h.config.Social.TikTok.RedirectURL)
+	encodedRedirectURL := url.QueryEscape(tiktokConfig.RedirectURL)
 	stateData := map[string]string{
 		"redirect_uri": encodedRedirectURL,
 		"is_internal":  strconv.FormatBool(req.IsInternal),
@@ -100,20 +106,24 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	}
 
 	// TikTok uses client_key instead of client_id
-	authorizationURL := fmt.Sprintf("https://www.tiktok.com/v%s/auth/authorize/?client_key=%s&scope=%s&response_type=%s&redirect_uri=%s&state=%s",
+	urlStr := "https://www.tiktok.com/v%s/auth/authorize/?client_key=%s&scope=%s&response_type=%s&redirect_uri=%s&state=%s"
+	authorizationURL := fmt.Sprintf(urlStr,
 		tiktokConfig.APIVersion,
 		tiktokConfig.ClientKey,
 		scopeStr,
 		tiktokConfig.ResponseType,
 		encodedRedirectURL,
-		stateToken,
-	)
+		stateToken)
 
 	// safeURL := fmt.Sprintf(urlStr,
-	// 	facebookConfig.APIVersion, "******", encodedRedirectURL, "******", scopeStr, facebookConfig.ResponseType,
-	// )
+	// 	tiktokConfig.APIVersion,
+	// 	""+tiktokConfig.ClientKey[:4]+"****",
+	// 	scopeStr,
+	// 	tiktokConfig.ResponseType,
+	// 	encodedRedirectURL,
+	// 	""+stateToken[:4]+"****")
 
-	zap.L().Debug("Redirecting to Facebook OAuth URL", zap.String("url", authorizationURL))
+	zap.L().Debug("Redirecting to TikTok OAuth URL", zap.String("url", authorizationURL))
 	c.Redirect(http.StatusFound, authorizationURL)
 }
 

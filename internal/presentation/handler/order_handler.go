@@ -368,20 +368,20 @@ type CensorOrderRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-// OrderCensorship:
-// @Summary	Censor an order (confirm or cancel)
-// @Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
-// @Tags		Orders
-// @Accept		json
-// @Produce		json
-// @Param	orderID	path	string	true	"Order ID"
-// @Param	action	query	string	true	"Action (CONFIRM|CANCEL)"
-// @Param   reason body CensorOrderRequest false "Cancel reason (required when action=CANCEL)"
-// @Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
-// @Failure		401		{object}	responses.APIResponse	"Unauthorized"
-// @Failure		500		{object}	responses.APIResponse
-// @Security	BearerAuth
+// OrderCensorship godoc
 //
+//	@Summary		Censor an order (confirm or cancel)
+//	@Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string				true	"Order ID"
+//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
+//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
 //	@Router			/api/v1/orders/staff/{orderID}/censorship [POST]
 func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 
@@ -466,18 +466,19 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 }
 
 // MarkAsReceived godoc
-// @Summary Mark order as received
-// @Description Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
-// @Tags Orders
-// @Accept json
-// @Produce json
-// @Param orderID path string true "Order ID (UUID)"
-// @Success 200 {object} map[string]interface{} "Order marked as received successfully"
-// @Failure 400 {object} map[string]string "Invalid order ID"
-// @Failure 404 {object} map[string]string "Order not found"
-// @Failure 500 {object} map[string]string "Internal server error"
-// @Security BearerAuth
-// @Router /api/v1/orders/received/{orderID} [patch]
+//
+//	@Summary		Mark order as received
+//	@Description	Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string					true	"Order ID (UUID)"
+//	@Success		200		{object}	map[string]interface{}	"Order marked as received successfully"
+//	@Failure		400		{object}	map[string]string		"Invalid order ID"
+//	@Failure		404		{object}	map[string]string		"Order not found"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/{orderID}/received [patch]
 func (h *OrderHandler) MarkAsReceived(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -498,18 +499,19 @@ func (h *OrderHandler) MarkAsReceived(c *gin.Context) {
 }
 
 // MarkAsReadyToPickedUp godoc
-// @Summary Mark order as ready to picked up
-// @Description
-// @Tags Orders
-// @Accept json
-// @Produce json
-// @Param orderID path string true "Order ID (UUID)"
-// @Success 200 {object} map[string]interface{} "Order marked as received successfully"
-// @Failure 400 {object} map[string]string "Invalid order ID"
-// @Failure 404 {object} map[string]string "Order not found"
-// @Failure 500 {object} map[string]string "Internal server error"
-// @Security BearerAuth
-// @Router /api/v1/orders/staff/readyToPickedUp/{orderID} [patch]
+//
+//	@Summary	Mark order as ready to picked up
+//	@Description
+//	@Tags		Orders
+//	@Accept		json
+//	@Produce	json
+//	@Param		orderID	path		string					true	"Order ID (UUID)"
+//	@Success	200		{object}	map[string]interface{}	"Order marked as received successfully"
+//	@Failure	400		{object}	map[string]string		"Invalid order ID"
+//	@Failure	404		{object}	map[string]string		"Order not found"
+//	@Failure	500		{object}	map[string]string		"Internal server error"
+//	@Security	BearerAuth
+//	@Router		/api/v1/orders/staff/readyToPickedUp/{orderID} [patch]
 func (h *OrderHandler) MarkAsReadyToPickedUp(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -530,19 +532,20 @@ func (h *OrderHandler) MarkAsReadyToPickedUp(c *gin.Context) {
 }
 
 // MarkAsReceivedAfterPickedUp godoc
-// @Summary Mark order as received after self pick-up
-// @Description Upload proof image and mark the order as received (only for orders awaiting pick-up)
-// @Tags Orders
-// @Accept multipart/form-data
-// @Produce json
-// @Param orderID path string true "Order ID (UUID)"
-// @Param files formData file true "Proof image(s) of self pick-up"
-// @Success 200 {object} map[string]interface{} "Order marked as received successfully"
-// @Failure 400 {object} map[string]string "Invalid order ID or status"
-// @Failure 404 {object} map[string]string "Order not found"
-// @Failure 500 {object} map[string]string "Internal server error"
-// @Security BearerAuth
-// @Router /api/v1/orders/staff/receivedAfterPickup/{orderID} [patch]
+//
+//	@Summary		Mark order as received after self pick-up
+//	@Description	Upload proof image and mark the order as received (only for orders awaiting pick-up)
+//	@Tags			Orders
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID	path		string					true	"Order ID (UUID)"
+//	@Param			files	formData	file					true	"Proof image(s) of self pick-up"
+//	@Success		200		{object}	map[string]interface{}	"Order marked as received successfully"
+//	@Failure		400		{object}	map[string]string		"Invalid order ID or status"
+//	@Failure		404		{object}	map[string]string		"Order not found"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/receivedAfterPickup/{orderID} [patch]
 func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)

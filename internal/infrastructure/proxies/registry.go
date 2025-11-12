@@ -4,9 +4,10 @@ package proxies
 import (
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iproxies"
-	"gorm.io/gorm"
 	"net/http"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type ProxiesRegistry struct {
@@ -33,21 +34,11 @@ func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry 
 	}
 
 	return &ProxiesRegistry{
-		httpClient: client,
-		PayOSProxy: NewPayOSProxy(
-			client,
-			config.PayOS.BaseURL,
-			config.PayOS.ClientID,
-			config.PayOS.APIKey,
-			config.PayOS.ChecksumKey,
-		),
-		GHNProxy: NewGHNProxy(
-			client,
-			config,
-			db,
-		),
-		FacebookProxy: NewFacebookProxy(client, &config.Social.Facebook),
-		TikTokProxy:   NewTikTokProxy(client, &config.Social.TikTok),
+		httpClient:    client,
+		PayOSProxy:    NewPayOSProxy(client, config),
+		GHNProxy:      NewGHNProxy(client, config, db),
+		FacebookProxy: NewFacebookProxy(client, config),
+		TikTokProxy:   NewTikTokProxy(client, config),
 	}
 }
 

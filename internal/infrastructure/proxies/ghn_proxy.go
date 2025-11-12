@@ -16,13 +16,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 var (
@@ -111,7 +112,8 @@ func (g ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.U
 }
 
 // GetAvailableDeliveryServicesByOrderID fetches available delivery services for an order from GHN.
-// @Deprecated
+//
+//	@Deprecated
 func (g ghnProxy) GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error) {
 	deliverySvcURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/available-services"
 	var availableSvc []dtos.DeliveryAvailableServiceDTO
@@ -465,7 +467,7 @@ func (g *ghnProxy) getValidAccessToken(ctx context.Context) (string, error) {
 
 func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB) iproxies.GHNProxy {
 	return &ghnProxy{
-		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL),
+		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL, cfg),
 		cfg:       cfg,
 		db:        db,
 	}
