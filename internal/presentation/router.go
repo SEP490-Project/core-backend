@@ -324,11 +324,13 @@ func (r *Router) setupUserRoutes(group *gin.RouterGroup) {
 		userGroup.GET("/profile", userHandler.GetProfile)
 		userGroup.PUT("/profile", userHandler.UpdateProfile)
 
+		// Route cho cả ADMIN và MARKETING_STAFF
+		userGroup.GET("", r.middlewareRegistry.Auth.RequireRole(admin, marketing), userHandler.GetUsers)
+
 		// Admin only routes
 		adminUserGroup := userGroup.Group("")
 		adminUserGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 		{
-			adminUserGroup.GET("", userHandler.GetUsers)
 			adminUserGroup.GET("/:id", userHandler.GetUserByID)
 			adminUserGroup.PUT("/:id/status", userHandler.UpdateUserStatus)
 			adminUserGroup.PUT("/:id/role", userHandler.UpdateUserRole)

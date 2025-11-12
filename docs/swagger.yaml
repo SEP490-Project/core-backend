@@ -12796,7 +12796,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get paginated list of users (admin only)
+      description: Get paginated list of users (admin and marketing only)
       parameters:
       - default: 1
         description: Page number

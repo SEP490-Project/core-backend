@@ -11783,7 +11783,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated list of users (admin only)",
+                "description": "Get paginated list of users (admin and marketing only)",
                 "consumes": [
                     "application/json"
                 ],
