@@ -304,7 +304,7 @@ func (h *ContractHandler) GetContractByID(c *gin.Context) {
 //	@Param			type		query		string									false	"Contract type"		Enums(ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING)
 //	@Param			status		query		string									false	"Contract status"	Enums(DRAFT,APPROVED,ACTIVE,COMPLETED,INACTIVE,TERMINATED)
 //	@Param			keyword		query		string									false	"Search keyword (title or contract number)"
-//	@Param			no_campaign		query		bool		false	"Filter contracts with no campaign (true = no campaign, false = has campaign)"
+//	@Param			no_campaign	query		bool									false	"Filter contracts with no campaign (true = no campaign, false = has campaign)"
 //	@Param			start_date	query		string									false	"Start date filter"	format(date-time)
 //	@Param			end_date	query		string									false	"End date filter"	format(date-time)
 //	@Param			page		query		int										false	"Page number"		default(1)

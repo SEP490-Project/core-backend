@@ -17,6 +17,8 @@ type OrderService interface {
 	GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string) ([]model.Order, int, error)
 	PayOrder(ctx context.Context, orderID uuid.UUID, shippingPrice int, successURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error)
 
+	MarkAsReceived(ctx context.Context, orderID uuid.UUID) error
+
 	//Staff
 	GetStaffAvailableOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
 }
