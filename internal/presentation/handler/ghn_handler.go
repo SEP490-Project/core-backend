@@ -309,13 +309,13 @@ func (h *GHNHandler) GetGHNGSOToken(c *gin.Context) {
 }
 
 type UpdateGHNDeliveryStatusRequest struct {
-	OrderCode string `json:"order_code" example:"L4TFM8" binding:"required"`
-	Status    string `json:"status" example:"storing" binding:"required"`
+	OrderCode string                 `json:"order_code" example:"L4TFM8" binding:"required"`
+	Status    enum.GHNDeliveryStatus `json:"status" example:"storing" binding:"required"`
 }
 
 // UpdateGHNDeliveryStatus godoc
 // @Summary Update GHN Order Delivery Status
-// @Description Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)
+// @Description Allowed values: ready_to_pick, storing, delivering, delivered, cancel
 // @Tags ghn
 // @Accept json
 // @Produce json
@@ -331,6 +331,14 @@ func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
 		return
 	}
 
+	// Validate enum
+	if !req.Status.IsValid() {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("invalid status value: %s. Allowed values: ready_to_pick, storing, delivering, delivered, cancel", req.Status),
+		})
+		return
+	}
+
 	ctx := c.Request.Context()
 	status := enum.GHNDeliveryStatus(req.Status)
 
@@ -340,8 +348,8 @@ func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, result)
+	resp := responses.SuccessResponse("Updated GHN delivery status successfully", ptr.Int(http.StatusOK), result)
+	c.JSON(http.StatusOK, resp)
 }
 
 // NewGHNHandler creates a new GHNHandler instance

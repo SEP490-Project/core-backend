@@ -7088,7 +7088,7 @@ const docTemplate = `{
         },
         "/api/v1/ghn/order/status": {
             "post": {
-                "description": "Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)",
+                "description": "Allowed values: ready_to_pick, storing, delivering, delivered, cancel",
                 "consumes": [
                     "application/json"
                 ],
@@ -8273,6 +8273,71 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{orderID}/received": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Đánh dấu đơn hàng là \"đã nhận\" (Received) sau khi giao thành công",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark order as received",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as received successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -13808,6 +13873,23 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.GHNDeliveryStatus": {
+            "type": "string",
+            "enum": [
+                "ready_to_pick",
+                "storing",
+                "delivering",
+                "delivered",
+                "cancel"
+            ],
+            "x-enum-varnames": [
+                "GHNDeliveryStatusReadyToPick",
+                "GHNDeliveryStatusStoring",
+                "GHNDeliveryStatusDelivering",
+                "GHNDeliveryStatusDelivered",
+                "GHNDeliveryStatusCancel"
+            ]
+        },
         "enum.NotificationStatus": {
             "type": "string",
             "enum": [
@@ -14013,7 +14095,11 @@ const docTemplate = `{
                     "example": "L4TFM8"
                 },
                 "status": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.GHNDeliveryStatus"
+                        }
+                    ],
                     "example": "storing"
                 }
             }

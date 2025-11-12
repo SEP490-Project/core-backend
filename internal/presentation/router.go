@@ -234,6 +234,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			//ordersGroup.POST(":id/pay", orderHandler.PayOrder)
 			// Place and immediately pay
 			ordersGroup.POST("", orderHandler.CreateOrder)
+			ordersGroup.PATCH("/:orderID/received", orderHandler.MarkAsReceived)
 		}
 
 		// Staffs

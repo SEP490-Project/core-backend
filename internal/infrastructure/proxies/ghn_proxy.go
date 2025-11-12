@@ -14,6 +14,7 @@ import (
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -422,7 +423,21 @@ func (g ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int,
 }
 
 // ========================================================================= Webhook Mocking =========================================================================
-func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string, deliveryStatus enum.GHNDeliveryStatus) ([]dtos.UpdateGHNDeliveryStatusResponse, error) {
+func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string, deliveryStatus enum.GHNDeliveryStatus) (*dtos.UpdateGHNDeliveryStatusResponse, error) {
+
+	//1. Validate If the orderBelong to orderCode existed?
+	var order model.Order
+	//Find order by GHNOrderCode
+	if err := g.db.WithContext(ctx).
+		Where("ghn_order_code = ?", orderCode).
+		First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			zap.L().Warn("Order not found for GHN order code", zap.String("order_code", orderCode))
+			return nil, fmt.Errorf("order not found for GHN order code")
+		}
+		return nil, fmt.Errorf("failed to find order by GHNOrderCode: %w", err)
+	}
+
 	url := "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/v2/order/switchStatus"
 
 	body := map[string]interface{}{
@@ -459,10 +474,53 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 		}
 	}
 
-	if resultPtr == nil {
-		return nil, nil
+	if resultPtr == nil || len(*resultPtr) == 0 {
+		return nil, fmt.Errorf("empty response from GHN")
 	}
-	return *resultPtr, nil // <- dereference để trả về []dtos.UpdateGHNDeliveryStatusResponse
+
+	firstRes := (*resultPtr)[0]
+
+	// ✅ Nếu GHN trả Result=true thì thực hiện side-effect
+	if firstRes.Result {
+		zap.L().Info("Handling Side Effect")
+		if firstRes.Result {
+			zap.L().Info("Handling Side Effect for GHN status", zap.String("status", string(deliveryStatus)))
+			if err := g.handleSideEffect(ctx, deliveryStatus, &order); err != nil {
+				zap.L().Warn("side effect failed", zap.Error(err))
+			}
+		}
+	}
+
+	return &firstRes, nil
+}
+
+func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, order *model.Order) error {
+	// Map GHNDeliveryStatus → OrderStatus
+	var newStatus enum.OrderStatus
+	switch deliveryStatus {
+	case enum.GHNDeliveryStatusStoring:
+		newStatus = enum.OrderStatusShipped
+	case enum.GHNDeliveryStatusDelivering:
+		newStatus = enum.OrderStatusInTransit
+	case enum.GHNDeliveryStatusDelivered:
+		newStatus = enum.OrderStatusDelivered
+	default:
+		zap.L().Info("GHN status does not trigger side effect", zap.String("status", string(deliveryStatus)))
+	}
+
+	if err := g.db.WithContext(ctx).
+		Model(&order).
+		Update("status", newStatus).Error; err != nil {
+		return fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	zap.L().Info("Order status updated successfully",
+		zap.String("order_id", order.ID.String()),
+		zap.String("order_code", *order.GHNOrderCode),
+		zap.String("old_status", string(order.Status)),
+		zap.String("new_status", string(newStatus)))
+
+	return nil
 }
 
 // 1️⃣ Mock Session

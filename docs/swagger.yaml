@@ -1061,6 +1061,20 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.GHNDeliveryStatus:
+    enum:
+    - ready_to_pick
+    - storing
+    - delivering
+    - delivered
+    - cancel
+    type: string
+    x-enum-varnames:
+    - GHNDeliveryStatusReadyToPick
+    - GHNDeliveryStatusStoring
+    - GHNDeliveryStatusDelivering
+    - GHNDeliveryStatusDelivered
+    - GHNDeliveryStatusCancel
   enum.NotificationStatus:
     enum:
     - PENDING
@@ -1223,8 +1237,9 @@ definitions:
         example: L4TFM8
         type: string
       status:
+        allOf:
+        - $ref: '#/definitions/enum.GHNDeliveryStatus'
         example: storing
-        type: string
     required:
     - order_code
     - status
@@ -9760,7 +9775,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)
+      description: 'Allowed values: ready_to_pick, storing, delivering, delivered,
+        cancel'
       parameters:
       - description: Order status update payload
         in: body
@@ -10255,6 +10271,48 @@ paths:
       security:
       - BearerAuth: []
       summary: Place an order and initiate payment
+      tags:
+      - Orders
+  /api/v1/orders/{orderID}/received:
+    patch:
+      consumes:
+      - application/json
+      description: Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order marked as received successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid order ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Order not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark order as received
       tags:
       - Orders
   /api/v1/orders/staff:

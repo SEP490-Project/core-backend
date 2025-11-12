@@ -35,5 +35,5 @@ type GHNProxy interface {
 	GetGHNServiceToken(ctx context.Context, ghnSession string) (*dtos.GHNServiceToken, error)
 	GetGHNGSOToken(ctx context.Context, serviceToken string) (*dtos.GHNTokenGSO, error)
 
-	UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) ([]dtos.UpdateGHNDeliveryStatusResponse, error)
+	UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) (*dtos.UpdateGHNDeliveryStatusResponse, error)
 }
