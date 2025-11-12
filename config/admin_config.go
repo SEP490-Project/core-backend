@@ -37,6 +37,11 @@ type AdminConfig struct {
 	ExpiredContractCleanupCronExpr  string `mapstructure:"expired_contract_cleanup_cron_expr"`
 	PayOSExpiryCheckEnabled         bool   `mapstructure:"payos_expiry_check_enabled"`
 	PayOSExpiryCheckIntervalMinutes int    `mapstructure:"payos_expiry_check_interval_minutes"`
+
+	// Social Media Integration
+	// This is used to determine when to send notifications for expiring OAuth tokens
+	FacebookExpiryThresholdNotifications int `mapstructure:"facebook_expiry_threshold_notifications"` // in days
+	TikTokExpiryThresholdNotifications   int `mapstructure:"tiktok_expiry_threshold_notifications"`   // in days
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -86,6 +91,12 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("representative_bank_name", "")
 	adminViper.SetDefault("representative_bank_account_number", "")
 	adminViper.SetDefault("representative_bank_account_holder", "TRAN GIANH KHANH")
+
+	adminViper.SetDefault("tracking_link_trusted_domains", []string{"example.com", "trustedpartner.com"})
+	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
+
+	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
+	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database

@@ -3,11 +3,13 @@ package proxies
 import (
 	"bytes"
 	"context"
+	"core-backend/internal/application/interfaces/iproxies"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -33,7 +35,7 @@ func (p *BaseProxy) doRequest(
 	body any,
 ) (*http.Response, error) {
 	// Construct full URL
-	endpoint, err := url.JoinPath(p.baseURL, path)
+	endpoint, err := p.urlResolution(path)
 	if err != nil {
 		zap.L().Debug("Failed to construct URL", zap.String("baseURL", p.baseURL), zap.String("path", path), zap.Error(err))
 		return nil, fmt.Errorf("invalid URL path: %w", err)
@@ -41,10 +43,23 @@ func (p *BaseProxy) doRequest(
 
 	// Marshal body if present
 	var bodyReader io.Reader
+	var contentType string
 	if body != nil {
+		for k, v := range headers {
+			if strings.EqualFold(k, "content-type") {
+				contentType = v
+				break
+			}
+		}
+
 		switch v := body.(type) {
 		case io.Reader:
 			bodyReader = v
+		case url.Values:
+			bodyReader = strings.NewReader(v.Encode())
+			if contentType == "" {
+				contentType = "application/x-www-form-urlencoded"
+			}
 		default:
 			var data []byte
 			data, err = json.Marshal(v)
@@ -53,6 +68,9 @@ func (p *BaseProxy) doRequest(
 				return nil, fmt.Errorf("failed to marshal request body: %w", err)
 			}
 			bodyReader = bytes.NewReader(data)
+			if contentType == "" {
+				contentType = "application/json"
+			}
 		}
 	}
 
@@ -64,7 +82,9 @@ func (p *BaseProxy) doRequest(
 
 	// Default headers
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	} else if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
@@ -88,7 +108,7 @@ func (p *BaseProxy) doRequest(
 	return resp, nil
 }
 
-// ---- Common HTTP methods ----
+// region: ======== BaseProxy Common HTTP Methods ========
 
 // Get make a GET request to the API with the specified path and headers
 func (p *BaseProxy) Get(ctx context.Context, path string, headers map[string]string) (*http.Response, error) {
@@ -118,4 +138,48 @@ func (p *BaseProxy) Delete(ctx context.Context, path string, headers map[string]
 // SetBaseURL updates the base URL for the proxy
 func (p *BaseProxy) SetBaseURL(baseURL string) {
 	p.baseURL = baseURL
+}
+
+// endregion
+
+// region: ======== Generic HTTP Helper Functions ========
+
+func GetGeneric[T any](p iproxies.BaseProxy, ctx context.Context, path string, headers map[string]string, response *T) error {
+	resp, err := p.Get(ctx, path, headers)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		zap.L().Debug("received non-2xx status code", zap.Int("status_code", resp.StatusCode), zap.Any("response_body", resp.Body))
+		return fmt.Errorf("received non-2xx status code: %d", resp.StatusCode)
+	}
+
+	// Parse response
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return nil
+}
+
+// endregion
+
+func (p *BaseProxy) urlResolution(path string) (string, error) {
+	base, err := url.Parse(p.baseURL)
+	if err != nil {
+		zap.L().Error("Failed to parse base URL", zap.String("baseURL", p.baseURL), zap.Error(err))
+		return "", fmt.Errorf("invalid base URL: %w", err)
+	}
+
+	// Parse the relative path and query string.
+	rel, err := url.Parse(path)
+	if err != nil {
+		zap.L().Debug("Failed to parse relative path", zap.String("path", path), zap.Error(err))
+		return "", fmt.Errorf("invalid relative path: %w", err)
+	}
+
+	// ResolveReference correctly combines the base URL with the relative path and query.
+	return base.ResolveReference(rel).String(), nil
 }
