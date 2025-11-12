@@ -12822,13 +12822,10 @@ paths:
         in: query
         name: search
         type: string
-      - collectionFormat: multi
-        description: Filter by user role
+      - description: Filter by user role
         in: query
-        items:
-          type: string
         name: role
-        type: array
+        type: string
       - description: Filter by active status
         in: query
         name: is_active

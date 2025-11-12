@@ -11830,11 +11830,7 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "multi",
+                        "type": "string",
                         "description": "Filter by user role",
                         "name": "role",
                         "in": "query"
