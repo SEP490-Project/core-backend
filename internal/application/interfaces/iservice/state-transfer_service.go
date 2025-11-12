@@ -35,5 +35,8 @@ type StateTransferService interface {
 	MoveContentToState(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, targetState enum.ContentStatus, updatedBy uuid.UUID) error
 	MovePaymentTransactionToState(ctx context.Context, uow irepository.UnitOfWork, transactionID uuid.UUID, targetState enum.PaymentTransactionStatus, updatedBy uuid.UUID) error
 
+	// MoveOrderToState moves an order to a new state
+	// Rules: I current state was perfomed by Customer. Staff can only allow to perform an action after 5 minutes.
+	// Move status depends on the FSM ->
 	MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedBy uuid.UUID, note *string) error
 }

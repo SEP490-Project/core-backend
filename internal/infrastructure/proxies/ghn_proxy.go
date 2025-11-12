@@ -1,6 +1,7 @@
 package proxies
 
 import (
+	"bytes"
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
@@ -8,15 +9,25 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"net/http"
+	"strings"
+	"sync"
+	"time"
+)
+
+var (
+	mockSession     string
+	mockSessionOnce sync.Once
 )
 
 type ghnProxy struct {
@@ -24,6 +35,10 @@ type ghnProxy struct {
 	cfg    *config.AppConfig
 	client *http.Client
 	db     *gorm.DB
+	//mocking
+	tokenMutex   sync.Mutex
+	cachedToken  *string
+	tokenExpires time.Time
 }
 
 func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
@@ -288,11 +303,22 @@ func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx contex
 	return &deliveryFee, nil
 }
 
-func (g ghnProxy) GetOrderInfo(ctx context.Context, orderCode string) (*dtos.OrderInfo, error) {
+func (g ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error) {
+	// Fetch ghnOrderCode from OrderID
+	var order *model.Order
+	err := g.db.WithContext(ctx).First(&order, "id = ?", orderID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to find order: %w", err)
+	}
+	orderCode := order.GHNOrderCode
+	if orderCode == nil {
+		return nil, fmt.Errorf("this order does not have associated GHN order code")
+	}
+
 	path := "/v2/shipping-order/detail"
 
 	// build body
-	body := map[string]string{"order_code": orderCode}
+	body := map[string]string{"order_code": *orderCode}
 
 	headers := map[string]string{
 		"ShopId": fmt.Sprintf("%d", g.cfg.GHN.ShopID),
@@ -314,10 +340,10 @@ func (g ghnProxy) GetOrderInfo(ctx context.Context, orderCode string) (*dtos.Ord
 
 	//Check response code
 	if orderInfoResp.Code == 200 {
-		zap.L().Info("Successfully fetched GHN order info", zap.String("orderCode", orderCode))
+		zap.L().Info("Successfully fetched GHN order info", zap.String("orderCode", *orderCode))
 		return &orderInfoResp.Data, nil
 	} else {
-		zap.L().Error("Failed to fetch GHN order info", zap.String("orderCode", orderCode), zap.String("responseCode", fmt.Sprintf("%d", orderInfoResp.Code)), zap.String("responseDesc", orderInfoResp.Message))
+		zap.L().Error("Failed to fetch GHN order info", zap.String("orderCode", *orderCode), zap.String("responseCode", fmt.Sprintf("%d", orderInfoResp.Code)), zap.String("responseDesc", orderInfoResp.Message))
 		return nil, fmt.Errorf("failed to fetch GHN order info: %s", orderInfoResp.Message)
 	}
 }
@@ -396,6 +422,188 @@ func (g ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int,
 
 }
 
+// ========================================================================= Webhook Mocking =========================================================================
+func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string, deliveryStatus enum.GHNDeliveryStatus) (*dtos.UpdateGHNDeliveryStatusResponse, error) {
+
+	//1. Validate If the orderBelong to orderCode existed?
+	var order model.Order
+	//Find order by GHNOrderCode
+	if err := g.db.WithContext(ctx).
+		Where("ghn_order_code = ?", orderCode).
+		First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			zap.L().Warn("Order not found for GHN order code", zap.String("order_code", orderCode))
+			return nil, fmt.Errorf("order not found for GHN order code")
+		}
+		return nil, fmt.Errorf("failed to find order by GHNOrderCode: %w", err)
+	}
+
+	url := "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/v2/order/switchStatus"
+
+	body := map[string]interface{}{
+		"order_code": orderCode,
+		"status":     deliveryStatus,
+	}
+
+	token, err := g.getValidAccessToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{
+		"token":        token,
+		"Content-Type": "application/json",
+	}
+
+	resultPtr, err := doGHNRequest[[]dtos.UpdateGHNDeliveryStatusResponse](ctx, http.MethodPost, url, headers, body)
+	if err != nil && strings.Contains(err.Error(), "Token không hợp lệ") {
+		// Token hết hạn → refresh rồi retry
+		g.tokenMutex.Lock()
+		g.cachedToken = nil
+		g.tokenMutex.Unlock()
+
+		token, err = g.getValidAccessToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+		headers["token"] = token
+
+		resultPtr, err = doGHNRequest[[]dtos.UpdateGHNDeliveryStatusResponse](ctx, http.MethodPost, url, headers, body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if resultPtr == nil || len(*resultPtr) == 0 {
+		return nil, fmt.Errorf("empty response from GHN")
+	}
+
+	firstRes := (*resultPtr)[0]
+
+	// ✅ Nếu GHN trả Result=true thì thực hiện side-effect
+	if firstRes.Result {
+		zap.L().Info("Handling Side Effect")
+		if firstRes.Result {
+			zap.L().Info("Handling Side Effect for GHN status", zap.String("status", string(deliveryStatus)))
+			if err := g.handleSideEffect(ctx, deliveryStatus, &order); err != nil {
+				zap.L().Warn("side effect failed", zap.Error(err))
+			}
+		}
+	}
+
+	return &firstRes, nil
+}
+
+func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, order *model.Order) error {
+	// Map GHNDeliveryStatus → OrderStatus
+	var newStatus enum.OrderStatus
+	switch deliveryStatus {
+	case enum.GHNDeliveryStatusStoring:
+		newStatus = enum.OrderStatusShipped
+	case enum.GHNDeliveryStatusDelivering:
+		newStatus = enum.OrderStatusInTransit
+	case enum.GHNDeliveryStatusDelivered:
+		newStatus = enum.OrderStatusDelivered
+	default:
+		zap.L().Info("GHN status does not trigger side effect", zap.String("status", string(deliveryStatus)))
+	}
+
+	if err := g.db.WithContext(ctx).
+		Model(&order).
+		Update("status", newStatus).Error; err != nil {
+		return fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	zap.L().Info("Order status updated successfully",
+		zap.String("order_id", order.ID.String()),
+		zap.String("order_code", *order.GHNOrderCode),
+		zap.String("old_status", string(order.Status)),
+		zap.String("new_status", string(newStatus)))
+
+	return nil
+}
+
+// 1️⃣ Mock Session
+func (g *ghnProxy) GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error) {
+	body := map[string]interface{}{
+		"user_id":    g.cfg.GHN.MockSessionInfo.UserID,
+		"password":   g.cfg.GHN.MockSessionInfo.Password,
+		"device_id":  g.cfg.GHN.MockSessionInfo.DeviceID,
+		"user_agent": g.cfg.GHN.MockSessionInfo.UserAgent,
+	}
+
+	return doGHNRequest[dtos.GHNSessionResponse](ctx, http.MethodGet, g.cfg.GHN.MockSessionInfo.MockURL, map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   g.cfg.GHN.MockSessionInfo.UserAgent,
+	}, body)
+}
+
+// 2️⃣ Service Token
+func (g *ghnProxy) GetGHNServiceToken(ctx context.Context, ssoToken string) (*dtos.GHNServiceToken, error) {
+	body := map[string]interface{}{
+		"app_key":       "431f8318-bfed-40a6-9611-71a2f7d67025",
+		"response_type": "authorization_code",
+	}
+	headers := map[string]string{
+		"token":        ssoToken,
+		"Content-Type": "application/json",
+	}
+
+	return doGHNRequest[dtos.GHNServiceToken](ctx, http.MethodPost, "https://dev-online-gateway.ghn.vn/sso-v2/public-api/staff/gen-service-token", headers, body)
+}
+
+// 3️⃣ GSO Token
+func (g *ghnProxy) GetGHNGSOToken(ctx context.Context, authorizationCode string) (*dtos.GHNTokenGSO, error) {
+	body := map[string]interface{}{
+		"authorization_code": authorizationCode,
+	}
+	headers := map[string]string{
+		"token":        authorizationCode,
+		"Content-Type": "application/json",
+	}
+
+	return doGHNRequest[dtos.GHNTokenGSO](ctx, http.MethodPost, "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/auth/generateTokenSSO", headers, body)
+}
+
+// Comparison of 3 above
+func (g *ghnProxy) getValidAccessToken(ctx context.Context) (string, error) {
+	g.tokenMutex.Lock()
+	defer g.tokenMutex.Unlock()
+
+	// Nếu token còn hạn thì trả về luôn
+	if g.cachedToken != nil && time.Now().Before(g.tokenExpires) {
+		return *g.cachedToken, nil
+	}
+
+	zap.L().Info("Fetching new GHN AccessToken via Postman flow")
+
+	// 1️⃣ Lấy sso_token từ Mock Session
+	session, err := g.GetSession(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN session: %w", err)
+	}
+
+	// 2️⃣ Lấy Service Token từ sso_token
+	serviceToken, err := g.GetGHNServiceToken(ctx, session.SsoToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN service token: %w", err)
+	}
+
+	// 3️⃣ Lấy GSO Access Token từ Service Token (authorization_code)
+	gsoToken, err := g.GetGHNGSOToken(ctx, serviceToken.Code)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN GSO token: %w", err)
+	}
+
+	// 4️⃣ Cache token (ví dụ 25 phút)
+	g.cachedToken = &gsoToken.AccessToken
+	g.tokenExpires = time.Now().Add(25 * time.Minute)
+	zap.L().Info("GHN AccessToken cached", zap.String("token", *g.cachedToken))
+
+	return *g.cachedToken, nil
+}
+
+// ========================================================================= Webhook Mocking ===help me======================================================================
 func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB) iproxies.GHNProxy {
 	return &ghnProxy{
 		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL),
@@ -442,9 +650,9 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 		dtoItems = append(dtoItems, dtos.ApplicationDeliveryFeeItem{}.ToApplicationDeliveryFeeItem(item))
 	}
 
-	requiredNote := ""
+	userNote := ""
 	if order.UserNote != nil {
-		requiredNote = *order.UserNote
+		userNote = *order.UserNote
 	}
 
 	clientOrderCode := order.ID.String()
@@ -454,8 +662,8 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 
 	return &dtos.CreateGHNOrderDTO{
 		PaymentTypeID:    2,
-		Note:             "",
-		RequiredNote:     requiredNote,
+		Note:             userNote,
+		RequiredNote:     "CHOXEMHANGKHONGTHU",
 		FromName:         "BShowSell.Co",
 		FromPhone:        "0944488274",
 		FromAddress:      "7 Đ. D1",
@@ -478,4 +686,71 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 		ServiceTypeID:    2,
 		Items:            dtoItems,
 	}
+}
+
+func doGHNRequest[T any](ctx context.Context, method, url string, headers map[string]string, body any) (*T, error) {
+	start := time.Now()
+
+	// Marshal body
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	duration := time.Since(start)
+
+	if err != nil {
+		zap.L().Error("GHN request failed",
+			zap.String("url", url),
+			zap.Any("headers", headers),
+			zap.Any("body", body),
+			zap.Duration("duration", duration),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			zap.L().Warn("failed to close GHN response body", zap.Error(err))
+		}
+	}()
+
+	var wrapper dtos.GHNWrapperResponse[T]
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		zap.L().Error("GHN decode response failed",
+			zap.String("url", url),
+			zap.Int("status_code", resp.StatusCode),
+			zap.Duration("duration", duration),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to decode GHN response: %w", err)
+	}
+
+	zap.L().Info("GHN request completed",
+		zap.String("url", url),
+		zap.Int("status_code", resp.StatusCode),
+		zap.Duration("duration", duration),
+		zap.Any("body", body),
+		zap.Any("response", wrapper),
+	)
+
+	if resp.StatusCode != http.StatusOK || wrapper.Code != 200 {
+		return nil, fmt.Errorf("GHN error: http=%d code=%d msg=%s",
+			resp.StatusCode, wrapper.Code, wrapper.Message)
+	}
+
+	return &wrapper.Data, nil
 }
