@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"fmt"
 	"net/http"
 
@@ -229,7 +230,7 @@ func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
 //
 //	@Summary		Get GHN session token
 //	@Description	Retrieve a session token from GHN for authenticated requests
-//	@Tags		ghn
+//	@Tags		ghn-mocking
 //	@Accept		json
 //	@Produce	json
 //	@Success	200		{object}	dtos.GHNSessionResponse
@@ -245,6 +246,102 @@ func (h *GHNHandler) GetGHNSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("GHN session fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNServiceToken godoc
+//
+//	@Summary		Get GHN Service Token (step 2)
+//	@Description	Retrieve GHN Service Token using GHN session
+//	@Tags			ghn-mocking
+//	@Accept			json
+//	@Produce		json
+//	@Param			token	query	string	true	"GHN Session Token"
+//	@Success		200		{object}	dtos.GHNServiceToken
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/ghn/mocking/service-token [get]
+func (h *GHNHandler) GetGHNServiceToken(c *gin.Context) {
+	ghnSession := c.Query("token")
+	if ghnSession == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("token query param is required", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetGHNServiceToken(ctx, ghnSession)
+	if err != nil {
+		zap.L().Error("failed to get GHN service token", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to get GHN service token: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN service token fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+// GetGHNGSOToken godoc
+//
+//	@Summary		Get GHN GSO Token (step 3)
+//	@Description	Retrieve GHN GSO Token using Service Token
+//	@Tags			ghn-mocking
+//	@Accept			json
+//	@Produce		json
+//	@Param			service_token	query	string	true	"GHN Service Token"
+//	@Success		200		{object}	dtos.GHNTokenGSO
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/api/v1/ghn/mocking/gso-token [get]
+func (h *GHNHandler) GetGHNGSOToken(c *gin.Context) {
+	serviceToken := c.Query("service_token")
+	if serviceToken == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("service_token query param is required", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.GetGHNGSOToken(ctx, serviceToken)
+	if err != nil {
+		zap.L().Error("failed to get GHN GSO token", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(fmt.Sprintf("failed to get GHN GSO token: %s", err.Error()), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN GSO token fetched successfully", ptr.Int(http.StatusOK), result))
+}
+
+type UpdateGHNDeliveryStatusRequest struct {
+	OrderCode string `json:"order_code" example:"L4TFM8" binding:"required"`
+	Status    string `json:"status" example:"storing" binding:"required"`
+}
+
+// UpdateGHNDeliveryStatus godoc
+// @Summary Update GHN Order Delivery Status
+// @Description Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)
+// @Tags ghn
+// @Accept json
+// @Produce json
+// @Param request body UpdateGHNDeliveryStatusRequest true "Order status update payload"
+// @Success 200 {object} dtos.UpdateGHNDeliveryStatusResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /api/v1/ghn/order/status [post]
+func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
+	var req UpdateGHNDeliveryStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+	status := enum.GHNDeliveryStatus(req.Status)
+
+	result, err := h.ghnProxy.UpdateGHNDeliveryStatus(ctx, req.OrderCode, status)
+	if err != nil {
+		zap.L().Error("failed to update GHN delivery status", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // NewGHNHandler creates a new GHNHandler instance

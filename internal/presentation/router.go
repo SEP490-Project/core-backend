@@ -297,10 +297,16 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ghnPublicGroup.POST("/delivery/calculate-by-dimension", ghnHandler.CalculateDeliveryPriceByDimension)
 			// Public endpoint for expected delivery time
 			ghnPublicGroup.GET("/expected-delivery-time", ghnHandler.GetExpectedDeliveryTime)
+
+			//TET
+			ghnPublicGroup.POST("/order/status", ghnHandler.UpdateGHNDeliveryStatus)
 		}
 		ghnMockingGroup := v1.Group("/ghn/mocking")
 		{
 			ghnMockingGroup.GET("/session", ghnHandler.GetGHNSession)
+			ghnMockingGroup.POST("/order/:order-code/update-status", ghnHandler.UpdateGHNDeliveryStatus)
+			ghnMockingGroup.GET("/service-token", ghnHandler.GetGHNServiceToken)
+			ghnMockingGroup.GET("/gso-token", ghnHandler.GetGHNGSOToken)
 		}
 
 		// ---------- PRE-ORDERS ----------

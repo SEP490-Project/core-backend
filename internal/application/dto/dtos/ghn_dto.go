@@ -549,3 +549,19 @@ type GHNSessionResponse struct {
 	SsoRefreshToken   string `json:"sso_refresh_token"`
 	SsoTokenExpiresIn int    `json:"sso_token_expires_in"`
 }
+
+type GHNServiceToken struct {
+	Code        string `json:"code"`
+	CallbackURL string `json:"callback_url"`
+}
+
+type GHNTokenGSO struct {
+	AccessToken string `json:"access_token"`
+}
+
+type UpdateGHNDeliveryStatusResponse struct {
+	CurrentStatus string `json:"current_status"`
+	Message       string `json:"message"`
+	OrderCode     string `json:"order_code"`
+	Result        bool   `json:"result"`
+}

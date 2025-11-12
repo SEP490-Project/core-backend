@@ -386,6 +386,13 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  dtos.GHNServiceToken:
+    properties:
+      callback_url:
+        type: string
+      code:
+        type: string
+    type: object
   dtos.GHNSessionResponse:
     properties:
       otp_phone_number:
@@ -403,6 +410,11 @@ definitions:
       stage:
         type: string
       token_temp:
+        type: string
+    type: object
+  dtos.GHNTokenGSO:
+    properties:
+      access_token:
         type: string
     type: object
   dtos.KPIGoal:
@@ -920,6 +932,17 @@ definitions:
     required:
     - title
     type: object
+  dtos.UpdateGHNDeliveryStatusResponse:
+    properties:
+      current_status:
+        type: string
+      message:
+        type: string
+      order_code:
+        type: string
+      result:
+        type: boolean
+    type: object
   enum.AddressType:
     enum:
     - BILLING
@@ -1193,6 +1216,18 @@ definitions:
         type: string
     required:
     - reason
+    type: object
+  handler.UpdateGHNDeliveryStatusRequest:
+    properties:
+      order_code:
+        example: L4TFM8
+        type: string
+      status:
+        example: storing
+        type: string
+    required:
+    - order_code
+    - status
     type: object
   handler.UpdateMilestoneStateRequest:
     properties:
@@ -9524,6 +9559,72 @@ paths:
       summary: Get expected delivery time from GHN
       tags:
       - ghn
+  /api/v1/ghn/mocking/gso-token:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve GHN GSO Token using Service Token
+      parameters:
+      - description: GHN Service Token
+        in: query
+        name: service_token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNTokenGSO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN GSO Token (step 3)
+      tags:
+      - ghn-mocking
+  /api/v1/ghn/mocking/service-token:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve GHN Service Token using GHN session
+      parameters:
+      - description: GHN Session Token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNServiceToken'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN Service Token (step 2)
+      tags:
+      - ghn-mocking
   /api/v1/ghn/mocking/session:
     get:
       consumes:
@@ -9544,7 +9645,7 @@ paths:
             type: object
       summary: Get GHN session token
       tags:
-      - ghn
+      - ghn-mocking
   /api/v1/ghn/order/{order-id}/calculate:
     post:
       consumes:
@@ -9653,6 +9754,40 @@ paths:
       security:
       - BearerAuth: []
       summary: Get GHN order info by GHN order code
+      tags:
+      - ghn
+  /api/v1/ghn/order/status:
+    post:
+      consumes:
+      - application/json
+      description: Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)
+      parameters:
+      - description: Order status update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateGHNDeliveryStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UpdateGHNDeliveryStatusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update GHN Order Delivery Status
       tags:
       - ghn
   /api/v1/location/address:

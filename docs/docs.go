@@ -6899,6 +6899,106 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/mocking/gso-token": {
+            "get": {
+                "description": "Retrieve GHN GSO Token using Service Token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn-mocking"
+                ],
+                "summary": "Get GHN GSO Token (step 3)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GHN Service Token",
+                        "name": "service_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNTokenGSO"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/mocking/service-token": {
+            "get": {
+                "description": "Retrieve GHN Service Token using GHN session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn-mocking"
+                ],
+                "summary": "Get GHN Service Token (step 2)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "GHN Session Token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.GHNServiceToken"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ghn/mocking/session": {
             "get": {
                 "description": "Retrieve a session token from GHN for authenticated requests",
@@ -6909,7 +7009,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ghn"
+                    "ghn-mocking"
                 ],
                 "summary": "Get GHN session token",
                 "responses": {
@@ -6963,6 +7063,58 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.OrderInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/order/status": {
+            "post": {
+                "description": "Gọi API GHN để cập nhật trạng thái đơn hàng (switchStatus)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Update GHN Order Delivery Status",
+                "parameters": [
+                    {
+                        "description": "Order status update payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateGHNDeliveryStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.UpdateGHNDeliveryStatusResponse"
                         }
                     },
                     "400": {
@@ -12692,6 +12844,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.GHNServiceToken": {
+            "type": "object",
+            "properties": {
+                "callback_url": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
         "dtos.GHNSessionResponse": {
             "type": "object",
             "properties": {
@@ -12717,6 +12880,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token_temp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.GHNTokenGSO": {
+            "type": "object",
+            "properties": {
+                "access_token": {
                     "type": "string"
                 }
             }
@@ -13478,6 +13649,23 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.UpdateGHNDeliveryStatusResponse": {
+            "type": "object",
+            "properties": {
+                "current_status": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "order_code": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "boolean"
+                }
+            }
+        },
         "enum.AddressType": {
             "type": "string",
             "enum": [
@@ -13810,6 +13998,23 @@ const docTemplate = `{
                 "reason": {
                     "description": "Reason for cancelling the order. Required when action=CANCEL\nin: body\nexample: \"Customer requested cancellation due to wrong size\"",
                     "type": "string"
+                }
+            }
+        },
+        "handler.UpdateGHNDeliveryStatusRequest": {
+            "type": "object",
+            "required": [
+                "order_code",
+                "status"
+            ],
+            "properties": {
+                "order_code": {
+                    "type": "string",
+                    "example": "L4TFM8"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "storing"
                 }
             }
         },

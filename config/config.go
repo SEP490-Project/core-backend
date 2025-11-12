@@ -168,6 +168,7 @@ type GHNConfig struct {
 		Password  string `mapstructure:"password"`
 		DeviceID  string `mapstructure:"device_id"`
 		UserAgent string `mapstructure:"user_agent"`
+		AppKey    string `mapstructure:"app_key"`
 	} `mapstructure:"mock_session_info"`
 }
 

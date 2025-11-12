@@ -1,6 +1,7 @@
 package proxies
 
 import (
+	"bytes"
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
@@ -18,7 +19,9 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -32,7 +35,9 @@ type ghnProxy struct {
 	client *http.Client
 	db     *gorm.DB
 	//mocking
-	mockSession string
+	tokenMutex   sync.Mutex
+	cachedToken  *string
+	tokenExpires time.Time
 }
 
 func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
@@ -417,64 +422,130 @@ func (g ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int,
 }
 
 // ========================================================================= Webhook Mocking =========================================================================
-func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) error {
-	//TODO implement me
-	panic("implement me")
-}
+func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string, deliveryStatus enum.GHNDeliveryStatus) ([]dtos.UpdateGHNDeliveryStatusResponse, error) {
+	url := "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/v2/order/switchStatus"
 
-func (g *ghnProxy) GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error) {
-	path := g.cfg.GHN.MockSessionInfo.MockURL
+	body := map[string]interface{}{
+		"order_code": orderCode,
+		"status":     deliveryStatus,
+	}
 
-	body := struct {
-		UserID    int    `json:"user_id"`
-		Password  string `json:"password"`
-		DeviceID  string `json:"device_id"`
-		UserAgent string `json:"user_agent"`
-	}{
-		UserID:    g.cfg.GHN.MockSessionInfo.UserID,
-		Password:  g.cfg.GHN.MockSessionInfo.Password,
-		DeviceID:  g.cfg.GHN.MockSessionInfo.DeviceID,
-		UserAgent: g.cfg.GHN.MockSessionInfo.UserAgent,
+	token, err := g.getValidAccessToken(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	headers := map[string]string{
-		"Content-Type":   "application/json",
-		"User-Agent":     g.cfg.GHN.MockSessionInfo.UserAgent,
-		"Accept":         "application/json",
-		"Origin":         "https://sso-v2.ghn.dev",
-		"Connection":     "keep-alive",
-		"Referer":        "https://sso-v2.ghn.dev/",
-		"Sec-Fetch-Dest": "empty",
-		"Sec-Fetch-Mode": "cors",
-		"Sec-Fetch-Site": "cross-site",
-		"TE":             "trailers",
-		"token":          "1633e350-9091-43c2-97ea-bc9c95fb8022",
+		"token":        token,
+		"Content-Type": "application/json",
 	}
 
-	resp, err := g.BaseProxy.Post(ctx, path, headers, body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
+	resultPtr, err := doGHNRequest[[]dtos.UpdateGHNDeliveryStatusResponse](ctx, http.MethodPost, url, headers, body)
+	if err != nil && strings.Contains(err.Error(), "Token không hợp lệ") {
+		// Token hết hạn → refresh rồi retry
+		g.tokenMutex.Lock()
+		g.cachedToken = nil
+		g.tokenMutex.Unlock()
 
-	var sessionResp dtos.GHNWrapperResponse[dtos.GHNSessionResponse]
-	if err := json.NewDecoder(resp.Body).Decode(&sessionResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %w", err)
+		token, err = g.getValidAccessToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+		headers["token"] = token
+
+		resultPtr, err = doGHNRequest[[]dtos.UpdateGHNDeliveryStatusResponse](ctx, http.MethodPost, url, headers, body)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if sessionResp.Code == 200 {
-		return &sessionResp.Data, nil
-	} else {
-
-		zap.L().Info("Non-200 response", zap.Any("response", sessionResp),
-			zap.Any("body", body),
-			zap.Any("headers", headers),
-		)
-		return nil, fmt.Errorf("failed to get a session: %s", sessionResp.Message)
+	if resultPtr == nil {
+		return nil, nil
 	}
+	return *resultPtr, nil // <- dereference để trả về []dtos.UpdateGHNDeliveryStatusResponse
 }
 
-// ========================================================================= Webhook Mocking =========================================================================
+// 1️⃣ Mock Session
+func (g *ghnProxy) GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error) {
+	body := map[string]interface{}{
+		"user_id":    g.cfg.GHN.MockSessionInfo.UserID,
+		"password":   g.cfg.GHN.MockSessionInfo.Password,
+		"device_id":  g.cfg.GHN.MockSessionInfo.DeviceID,
+		"user_agent": g.cfg.GHN.MockSessionInfo.UserAgent,
+	}
+
+	return doGHNRequest[dtos.GHNSessionResponse](ctx, http.MethodGet, g.cfg.GHN.MockSessionInfo.MockURL, map[string]string{
+		"Content-Type": "application/json",
+		"User-Agent":   g.cfg.GHN.MockSessionInfo.UserAgent,
+	}, body)
+}
+
+// 2️⃣ Service Token
+func (g *ghnProxy) GetGHNServiceToken(ctx context.Context, ssoToken string) (*dtos.GHNServiceToken, error) {
+	body := map[string]interface{}{
+		"app_key":       "431f8318-bfed-40a6-9611-71a2f7d67025",
+		"response_type": "authorization_code",
+	}
+	headers := map[string]string{
+		"token":        ssoToken,
+		"Content-Type": "application/json",
+	}
+
+	return doGHNRequest[dtos.GHNServiceToken](ctx, http.MethodPost, "https://dev-online-gateway.ghn.vn/sso-v2/public-api/staff/gen-service-token", headers, body)
+}
+
+// 3️⃣ GSO Token
+func (g *ghnProxy) GetGHNGSOToken(ctx context.Context, authorizationCode string) (*dtos.GHNTokenGSO, error) {
+	body := map[string]interface{}{
+		"authorization_code": authorizationCode,
+	}
+	headers := map[string]string{
+		"token":        authorizationCode,
+		"Content-Type": "application/json",
+	}
+
+	return doGHNRequest[dtos.GHNTokenGSO](ctx, http.MethodPost, "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/auth/generateTokenSSO", headers, body)
+}
+
+// Comparison of 3 above
+func (g *ghnProxy) getValidAccessToken(ctx context.Context) (string, error) {
+	g.tokenMutex.Lock()
+	defer g.tokenMutex.Unlock()
+
+	// Nếu token còn hạn thì trả về luôn
+	if g.cachedToken != nil && time.Now().Before(g.tokenExpires) {
+		return *g.cachedToken, nil
+	}
+
+	zap.L().Info("Fetching new GHN AccessToken via Postman flow")
+
+	// 1️⃣ Lấy sso_token từ Mock Session
+	session, err := g.GetSession(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN session: %w", err)
+	}
+
+	// 2️⃣ Lấy Service Token từ sso_token
+	serviceToken, err := g.GetGHNServiceToken(ctx, session.SsoToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN service token: %w", err)
+	}
+
+	// 3️⃣ Lấy GSO Access Token từ Service Token (authorization_code)
+	gsoToken, err := g.GetGHNGSOToken(ctx, serviceToken.Code)
+	if err != nil {
+		return "", fmt.Errorf("failed to get GHN GSO token: %w", err)
+	}
+
+	// 4️⃣ Cache token (ví dụ 25 phút)
+	g.cachedToken = &gsoToken.AccessToken
+	g.tokenExpires = time.Now().Add(25 * time.Minute)
+	zap.L().Info("GHN AccessToken cached", zap.String("token", *g.cachedToken))
+
+	return *g.cachedToken, nil
+}
+
+// ========================================================================= Webhook Mocking ===help me======================================================================
 func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB) iproxies.GHNProxy {
 	return &ghnProxy{
 		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL),
@@ -557,4 +628,71 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 		ServiceTypeID:    2,
 		Items:            dtoItems,
 	}
+}
+
+func doGHNRequest[T any](ctx context.Context, method, url string, headers map[string]string, body any) (*T, error) {
+	start := time.Now()
+
+	// Marshal body
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	duration := time.Since(start)
+
+	if err != nil {
+		zap.L().Error("GHN request failed",
+			zap.String("url", url),
+			zap.Any("headers", headers),
+			zap.Any("body", body),
+			zap.Duration("duration", duration),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			zap.L().Warn("failed to close GHN response body", zap.Error(err))
+		}
+	}()
+
+	var wrapper dtos.GHNWrapperResponse[T]
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+		zap.L().Error("GHN decode response failed",
+			zap.String("url", url),
+			zap.Int("status_code", resp.StatusCode),
+			zap.Duration("duration", duration),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("failed to decode GHN response: %w", err)
+	}
+
+	zap.L().Info("GHN request completed",
+		zap.String("url", url),
+		zap.Int("status_code", resp.StatusCode),
+		zap.Duration("duration", duration),
+		zap.Any("body", body),
+		zap.Any("response", wrapper),
+	)
+
+	if resp.StatusCode != http.StatusOK || wrapper.Code != 200 {
+		return nil, fmt.Errorf("GHN error: http=%d code=%d msg=%s",
+			resp.StatusCode, wrapper.Code, wrapper.Message)
+	}
+
+	return &wrapper.Data, nil
 }

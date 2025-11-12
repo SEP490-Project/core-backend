@@ -29,6 +29,11 @@ type GHNProxy interface {
 	GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error)
 
 	//GHN Webhook Mocking Service
-	UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) error
+
+	//Tokens
 	GetSession(ctx context.Context) (*dtos.GHNSessionResponse, error)
+	GetGHNServiceToken(ctx context.Context, ghnSession string) (*dtos.GHNServiceToken, error)
+	GetGHNGSOToken(ctx context.Context, serviceToken string) (*dtos.GHNTokenGSO, error)
+
+	UpdateGHNDeliveryStatus(ctx context.Context, ghnOrderCode string, deliveryStatus enum.GHNDeliveryStatus) ([]dtos.UpdateGHNDeliveryStatusResponse, error)
 }
