@@ -217,7 +217,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			//ordersGroup.POST(":id/pay", orderHandler.PayOrder)
 			// Place and immediately pay
 			ordersGroup.POST("", orderHandler.CreateOrder)
-			ordersGroup.PATCH("/:orderID/received", orderHandler.MarkAsReceived)
+			ordersGroup.POST("/limited", orderHandler.CreateLimitedOrder)
+			ordersGroup.PATCH("/received/:orderID", orderHandler.MarkAsReceived)
 		}
 
 		// Staffs
@@ -226,6 +227,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			staffOrdersGroup.GET("", orderHandler.GetStaffAvailableOrdersWithPagination)
 			staffOrdersGroup.POST("/:orderID/censorship", orderHandler.OrderCensorship)
+			staffOrdersGroup.PATCH("/readyToPickedUp/:orderID", orderHandler.MarkAsReadyToPickedUp)
+			staffOrdersGroup.PATCH("/receivedAfterPickup/:orderID", orderHandler.MarkAsReceivedAfterPickedUp)
 		}
 
 		// ---------- CONCEPTS ----------

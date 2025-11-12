@@ -34,6 +34,49 @@ type orderService struct {
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
+func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageUrl string) error {
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
+		return err
+	}
+	//Some validate:
+	if order.Status != enum.OrderStatusAwaitingPickUp {
+		return errors.New("only orders awaiting pick-up can be marked as received")
+	}
+	order.Status = enum.OrderStatusReceived
+	order.SelfPickedUpImage = &imageUrl
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to completed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID uuid.UUID) error {
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as pickedup", zap.Error(err))
+		return err
+	}
+
+	//Some validate:
+	if order.Status != enum.OrderStatusConfirmed {
+		return errors.New("only confirmed orders can be marked as picked up")
+	} else if !order.IsSelfPickedUp {
+		return errors.New("this product is not for self pick-up")
+	}
+
+	order.Status = enum.OrderStatusAwaitingPickUp
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to completed", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
@@ -127,16 +170,36 @@ func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, 
 	return orders, int(total), nil
 }
 
-func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
+// categorizeVariant will return int base on its product's type:
+// -1: limited
+// 0: unknown
+// 1: standard
+func categorizeVariant(variant model.ProductVariant) int {
+	if variant.ProductID == uuid.Nil {
+		return 0
+	}
+	switch variant.Product.Type {
+	case enum.ProductTypeLimited:
+		return -1
+	case enum.ProductTypeStandard:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, isOrderLimited bool, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
 	now := time.Now()
 	var persistedOrder *model.Order
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//*1. Create Order
 		//1.1.Build order items from request
 		var persistedOrderItem []model.OrderItem
+
+		var prevItemCategory *int = nil
 		for _, item := range request.Items {
 			//check variantID:
-			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images"}
+			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product"}
 			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
 			if err != nil {
 				zap.L().Error("ProductVariant().GetByID", zap.Error(err))
@@ -144,18 +207,40 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			} else if variant == nil {
 				return errors.New("Product Variant not found")
 			}
+
+			//Categorize variant
+			currentItemCategory := categorizeVariant(*variant)
+			if isOrderLimited && currentItemCategory != -1 {
+				return fmt.Errorf("STANDARD product found: %s (id = %s)", variant.Product.Name, variant.ID.String())
+			}
+			if currentItemCategory == 0 {
+				msg := fmt.Sprintf("unknown product type", variant.ID.String())
+				return errors.New(msg)
+			}
+			if prevItemCategory != nil && *prevItemCategory != currentItemCategory {
+				msg := fmt.Sprintf("Cannot place order with mixed product types in a single order")
+				return errors.New(msg)
+			}
+			//update prevItemCategory
+			prevItemCategory = &currentItemCategory
+
+			//Build persisted order item
 			persistedItem := item.ToModel(*variant, now)
 			persistedOrderItem = append(persistedOrderItem, *persistedItem)
 		}
 
-		//1.2.Build shipping address
+		//1.2.Build shipping address add to order only when it is STANDARD (type = 1)
 		shippingAddress, err := o.shippingAddressRepository.GetByID(ctx, request.AddressID, nil)
 		if err != nil {
 			zap.L().Error("ShippingAddress().GetByID", zap.Error(err))
 			return err
 		}
 
-		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(shippingPrice), now)
+		if *prevItemCategory == 1 {
+			persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(shippingPrice), now)
+		} else {
+			persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, 0, now)
+		}
 
 		//1.3.Persist
 		err = uow.Order().Add(ctx, persistedOrder)
@@ -264,7 +349,6 @@ func (o *orderService) ConfirmOrder(ctx context.Context, orderID uuid.UUID, upda
 			return errors.New("order not found")
 		}
 
-		//&&&
 		// 2) Validate state transition using state machine
 		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
 		nextState := ordersm.NewOrderState(enum.OrderStatusConfirmed)

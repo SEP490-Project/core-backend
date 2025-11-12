@@ -386,6 +386,37 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  dtos.GHNServiceToken:
+    properties:
+      callback_url:
+        type: string
+      code:
+        type: string
+    type: object
+  dtos.GHNSessionResponse:
+    properties:
+      otp_phone_number:
+        type: string
+      otp_ttl:
+        type: integer
+      qr_code:
+        type: string
+      sso_refresh_token:
+        type: string
+      sso_token:
+        type: string
+      sso_token_expires_in:
+        type: integer
+      stage:
+        type: string
+      token_temp:
+        type: string
+    type: object
+  dtos.GHNTokenGSO:
+    properties:
+      access_token:
+        type: string
+    type: object
   dtos.KPIGoal:
     properties:
       description:
@@ -901,6 +932,17 @@ definitions:
     required:
     - title
     type: object
+  dtos.UpdateGHNDeliveryStatusResponse:
+    properties:
+      current_status:
+        type: string
+      message:
+        type: string
+      order_code:
+        type: string
+      result:
+        type: boolean
+    type: object
   enum.AddressType:
     enum:
     - BILLING
@@ -1019,6 +1061,20 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.GHNDeliveryStatus:
+    enum:
+    - ready_to_pick
+    - storing
+    - delivering
+    - delivered
+    - cancel
+    type: string
+    x-enum-varnames:
+    - GHNDeliveryStatusReadyToPick
+    - GHNDeliveryStatusStoring
+    - GHNDeliveryStatusDelivering
+    - GHNDeliveryStatusDelivered
+    - GHNDeliveryStatusCancel
   enum.NotificationStatus:
     enum:
     - PENDING
@@ -1050,6 +1106,7 @@ definitions:
     - IN_TRANSIT
     - DELIVERED
     - RECEIVED
+    - AWAITING_PICKUP
     type: string
     x-enum-varnames:
     - OrderStatusPending
@@ -1061,6 +1118,7 @@ definitions:
     - OrderStatusInTransit
     - OrderStatusDelivered
     - OrderStatusReceived
+    - OrderStatusAwaitingPickUp
   enum.PaymentCycle:
     enum:
     - MONTHLY
@@ -1158,10 +1216,10 @@ definitions:
           $ref: '#/definitions/dtos.ApplicationDeliveryFeeItem'
         type: array
       to_district_id:
-        example: 1454
+        example: 1750
         type: integer
       to_ward_code:
-        example: "012345"
+        example: "511110"
         type: string
     type: object
   handler.CensorOrderRequest:
@@ -1174,6 +1232,19 @@ definitions:
         type: string
     required:
     - reason
+    type: object
+  handler.UpdateGHNDeliveryStatusRequest:
+    properties:
+      order_code:
+        example: L4TFM8
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/enum.GHNDeliveryStatus'
+        example: storing
+    required:
+    - order_code
+    - status
     type: object
   handler.UpdateMilestoneStateRequest:
     properties:
@@ -1334,6 +1405,8 @@ definitions:
         type: string
       id:
         type: string
+      is_self_picked_up:
+        type: boolean
       order_items:
         items:
           $ref: '#/definitions/model.OrderItem'
@@ -1347,6 +1420,8 @@ definitions:
         type: string
       province_name:
         type: string
+      self_picked_up_image:
+        type: string
       shipping_fee:
         type: integer
       status:
@@ -1359,7 +1434,7 @@ definitions:
         type: string
       user_id:
         type: string
-      user_notes:
+      user_note:
         type: string
       ward_name:
         type: string
@@ -2350,6 +2425,8 @@ definitions:
       address_id:
         example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
         type: string
+      is_self_pickup:
+        type: boolean
       items:
         items:
           $ref: '#/definitions/requests.OrderItemRequest'
@@ -2360,6 +2437,7 @@ definitions:
         type: string
     required:
     - address_id
+    - is_self_pickup
     - items
     type: object
   requests.PaymentItemRequest:
@@ -9791,6 +9869,93 @@ paths:
       summary: Get expected delivery time from GHN
       tags:
       - ghn
+  /api/v1/ghn/mocking/gso-token:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve GHN GSO Token using Service Token
+      parameters:
+      - description: GHN Service Token
+        in: query
+        name: service_token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNTokenGSO'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN GSO Token (step 3)
+      tags:
+      - ghn-mocking
+  /api/v1/ghn/mocking/service-token:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve GHN Service Token using GHN session
+      parameters:
+      - description: GHN Session Token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNServiceToken'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN Service Token (step 2)
+      tags:
+      - ghn-mocking
+  /api/v1/ghn/mocking/session:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a session token from GHN for authenticated requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.GHNSessionResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN session token
+      tags:
+      - ghn-mocking
   /api/v1/ghn/order/{order-id}/calculate:
     post:
       consumes:
@@ -9866,15 +10031,15 @@ paths:
       summary: Get available GHN delivery services for an order
       tags:
       - ghn
-  /api/v1/ghn/order/info/{order-code}:
+  /api/v1/ghn/order/info/{order-id}:
     get:
       consumes:
       - application/json
       description: Fetch GHN order details for a given GHN order code
       parameters:
-      - description: GHN order code
+      - description: ID of Order that related to GHN order (not Limited)
         in: path
-        name: order-code
+        name: order-id
         required: true
         type: string
       produces:
@@ -9899,6 +10064,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Get GHN order info by GHN order code
+      tags:
+      - ghn
+  /api/v1/ghn/order/status:
+    post:
+      consumes:
+      - application/json
+      description: 'Allowed values: ready_to_pick, storing, delivering, delivered,
+        cancel'
+      parameters:
+      - description: Order status update payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateGHNDeliveryStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.UpdateGHNDeliveryStatusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update GHN Order Delivery Status
       tags:
       - ghn
   /api/v1/location/address:
@@ -10368,6 +10568,91 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
+  /api/v1/orders/limited:
+    post:
+      consumes:
+      - application/json
+      description: Create an order -> calculate delivery fee -> create payment transaction
+      parameters:
+      - description: Place and pay payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PlaceAndPayRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Place an order and initiate payment
+      tags:
+      - Orders
+  /api/v1/orders/received/{orderID}:
+    patch:
+      consumes:
+      - application/json
+      description: Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order marked as received successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid order ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Order not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark order as received
+      tags:
+      - Orders
   /api/v1/orders/staff:
     get:
       consumes:
@@ -10445,6 +10730,7 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
+        - AWAITING_PICKUP
         example: PAID
         in: query
         name: status
@@ -10459,6 +10745,7 @@ paths:
         - OrderStatusInTransit
         - OrderStatusDelivered
         - OrderStatusReceived
+        - OrderStatusAwaitingPickUp
       - description: |-
           GHN ward code
           in: query
@@ -10545,6 +10832,95 @@ paths:
       security:
       - BearerAuth: []
       summary: Censor an order (confirm or cancel)
+      tags:
+      - Orders
+  /api/v1/orders/staff/readyToPickedUp/{orderID}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order marked as received successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid order ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Order not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark order as ready to picked up
+      tags:
+      - Orders
+  /api/v1/orders/staff/receivedAfterPickup/{orderID}:
+    patch:
+      consumes:
+      - multipart/form-data
+      description: Upload proof image and mark the order as received (only for orders
+        awaiting pick-up)
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Proof image(s) of self pick-up
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order marked as received successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid order ID or status
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Order not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark order as received after self pick-up
       tags:
       - Orders
   /api/v1/payments:
@@ -11081,6 +11457,7 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
+        - AWAITING_PICKUP
         example: PAID
         in: query
         name: status
@@ -11095,6 +11472,7 @@ paths:
         - OrderStatusInTransit
         - OrderStatusDelivered
         - OrderStatusReceived
+        - OrderStatusAwaitingPickUp
       - description: |-
           GHN ward code
           in: query
