@@ -13,9 +13,10 @@ import (
 
 // ===========================ORDER==============================//
 type OrderRequest struct {
-	AddressID uuid.UUID          `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
-	Items     []OrderItemRequest `json:"items" validate:"required,dive,required"`
-	UserNote  string             `json:"user_note" validate:"omitempty,max=500" example:"Please deliver between 9 AM and 5 PM."`
+	AddressID    uuid.UUID          `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
+	Items        []OrderItemRequest `json:"items" validate:"required,dive,required"`
+	UserNote     string             `json:"user_note" validate:"omitempty,max=500" example:"Please deliver between 9 AM and 5 PM."`
+	IsSelfPickup bool               `json:"is_self_pickup" validate:"required"`
 }
 
 func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, shippingPrice int, now time.Time) *model.Order {
@@ -34,19 +35,20 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 		UpdatedAt:   now,
 
 		//Copy shipping address fields
-		FullName:      address.FullName,
-		PhoneNumber:   address.PhoneNumber,
-		Email:         address.Email,
-		Street:        address.Street,
-		AddressLine2:  address.AddressLine2,
-		City:          address.City,
-		GhnProvinceID: address.GhnProvinceID,
-		GhnDistrictID: address.GhnDistrictID,
-		GhnWardCode:   address.GhnWardCode,
-		ProvinceName:  address.ProvinceName,
-		DistrictName:  address.DistrictName,
-		WardName:      address.WardName,
-		UserNote:      ptr.String(or.UserNote),
+		FullName:       address.FullName,
+		PhoneNumber:    address.PhoneNumber,
+		Email:          address.Email,
+		Street:         address.Street,
+		AddressLine2:   address.AddressLine2,
+		City:           address.City,
+		GhnProvinceID:  address.GhnProvinceID,
+		GhnDistrictID:  address.GhnDistrictID,
+		GhnWardCode:    address.GhnWardCode,
+		ProvinceName:   address.ProvinceName,
+		DistrictName:   address.DistrictName,
+		WardName:       address.WardName,
+		UserNote:       ptr.String(or.UserNote),
+		IsSelfPickedUp: or.IsSelfPickup,
 
 		//Order Relationships
 		UserID:     userID,
