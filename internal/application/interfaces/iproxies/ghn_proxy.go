@@ -1,4 +1,4 @@
-package iservice_third_party
+package iproxies
 
 import (
 	"context"
