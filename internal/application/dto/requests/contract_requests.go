@@ -566,6 +566,8 @@ type ContractFilterRequest struct {
 //   - For CO_PRODUCING type, it ensures the profit distribution cycle and dates are valid and within the contract period.
 //   - For AFFILIATE type, it ensure the level values are valid and the payment cycle and dates are valid and within the contract period.
 //
+// - It also cross-validates deposit_amount and deposit_percent to ensure consistency with the total cost in financial_terms.
+//
 // - For scope_of_work, it validates the structure and values based on the contract type (e.g., ADVERTISING, CO_PRODUCING, AFFICLIATE).
 func CreateContractRequestValidator(sl validator.StructLevel) {
 	contract := sl.Current().Interface().(CreateContractRequest)
@@ -573,6 +575,9 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 	// Validate deposit percent and amount
 	if contract.DepositAmount == nil && contract.DepositPercent == nil {
 		sl.ReportError(contract.DepositAmount, "deposit_amount", "DepositAmount", "depositinfo", "at least one of deposit_amount or deposit_percent must be provided")
+	}
+	if *contract.DepositPercent > 50 {
+		sl.ReportError(contract.DepositPercent, "deposit_percent", "DepositPercent", "maxdepositpercent", "deposit_percent cannot exceed 50%")
 	}
 
 	contractType := enum.ContractType(contract.Type)
@@ -644,6 +649,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 			}
 
 			// Validate if the total Schedules percentage equals too 100% and Amount are calculate correctly
+			// The calculated data will includes deposit amount if provided
 			sortedFinancialSchedules := financialTerms.Schedules
 			slices.SortFunc(sortedFinancialSchedules, func(a, b dtos.Schedule) int {
 				dueDateA, _ := time.Parse(utils.DateFormat, fmt.Sprintf("%v", a.DueDate))
@@ -655,6 +661,17 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 			errorValue := 0
 			totalCalculatedAmount := 0
 			isAmountExisted := false
+			if contract.DepositAmount != nil {
+				totalPercent += int((float64(*contract.DepositAmount) / float64(financialTerms.TotalCost)) * 100)
+				totalCalculatedAmount += *contract.DepositAmount
+			} else if contract.DepositPercent != nil {
+				totalPercent += *contract.DepositPercent
+				calculated := int(math.Round(float64((financialTerms.TotalCost * *contract.DepositPercent) / 100)))
+				if calculated != 0 {
+					isAmountExisted = true
+				}
+				totalCalculatedAmount += calculated
+			}
 			for _, schedule := range sortedFinancialSchedules {
 				totalPercent += schedule.Percent
 				calculated := int(math.Round(float64((financialTerms.TotalCost * schedule.Percent) / 100)))

@@ -18,6 +18,7 @@ import (
 
 type TaskService struct {
 	taskRepo irepository.TaskRepository
+	userRepo irepository.GenericRepository[model.User]
 }
 
 // AssignTask implements iservice.TaskService.
@@ -27,13 +28,12 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 		zap.Any("user_id", userID))
 
 	taskRepo := uow.Tasks()
-	userRepo := uow.Users()
 
 	var task *model.Task
 	// Validate if tasks and users exists
 	validateTaskFunc := func(ctx context.Context) error {
 		var err error
-		task, err = taskRepo.GetByID(ctx, taskID, nil)
+		task, err = t.taskRepo.GetByID(ctx, taskID, nil)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				zap.L().Warn("TaskService - AssignTask - task not found",
@@ -48,7 +48,7 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 		return nil
 	}
 	validateUserFunc := func(ctx context.Context) error {
-		if exists, err := userRepo.ExistsByID(ctx, userID); err != nil {
+		if exists, err := t.userRepo.ExistsByID(ctx, userID); err != nil {
 			zap.L().Error("TaskService - AssignTask - user not found",
 				zap.Error(err))
 			return err
@@ -233,6 +233,9 @@ func (t *TaskService) GetTaskByID(ctx context.Context, taskID uuid.UUID) (*respo
 	return responses.TaskResponse{}.ToResponse(task), nil
 }
 
-func NewTaskService(taskRepo irepository.TaskRepository) iservice.TaskService {
-	return &TaskService{taskRepo: taskRepo}
+func NewTaskService(taskRepo irepository.TaskRepository, userRepo irepository.GenericRepository[model.User]) iservice.TaskService {
+	return &TaskService{
+		taskRepo: taskRepo,
+		userRepo: userRepo,
+	}
 }

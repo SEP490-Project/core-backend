@@ -359,6 +359,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 		paymentRq := requests.PaymentRequest{
 			ReferenceID:   order.ID,
 			ReferenceType: enum.PaymentTransactionReferenceTypeOrder,
+			PayerID:       &order.UserID,
 			Amount:        int64(total),
 			Description:   fmt.Sprintf("Payment for Order %s", order.ID),
 			Items:         paymentItemRequest,
