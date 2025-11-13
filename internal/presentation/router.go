@@ -104,6 +104,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
+		r.setupTestRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -766,5 +767,17 @@ func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
 			authProtectedGroup.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
 			authProtectedGroup.POST("/change-password", authHandler.ChangePassword)
 		}
+	}
+}
+
+func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
+	testHandler := r.handlerRegistry.TestHandler
+	testGroup := group.Group("/test")
+	testGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		testGroup.GET("/tiktok/exchange-code-for-token", testHandler.TikTokExchangeCodeForToken)
+		testGroup.GET("/tiktok/refresh-access-token", testHandler.TikTokRefreshAccessToken)
+		testGroup.GET("/tiktok/get-user-profile", testHandler.TikTokGetUserProfile)
+		testGroup.GET("/tiktok/get-system-user-profile", testHandler.TikTokGetSystemUserProfile)
 	}
 }

@@ -160,15 +160,15 @@ func (h *GHNHandler) CalculateDeliveryPriceByDimension(c *gin.Context) {
 //
 //	@Summary		Get GHN order info by GHN order code
 //	@Description	Fetch GHN order details for a given GHN order code
-//	@Tags		ghn
-//	@Accept		json
-//	@Produce	json
-//	@Param		order-id	path	string	true	"ID of Order that related to GHN order (not Limited)"
-//	@Success	200		{object}	dtos.OrderInfo
-//	@Failure	400		{object}	map[string]string
-//	@Failure	500		{object}	map[string]string
-//	@Security	BearerAuth
-//	@Router		/api/v1/ghn/order/info/{order-id} [get]
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			order-id	path		string	true	"ID of Order that related to GHN order (not Limited)"
+//	@Success		200			{object}	dtos.OrderInfo
+//	@Failure		400			{object}	map[string]string
+//	@Failure		500			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/ghn/order/info/{order-id} [get]
 func (h *GHNHandler) GetOrderInfo(c *gin.Context) {
 	orderID := c.Param("order-id")
 	if orderID == "" {
@@ -191,15 +191,15 @@ func (h *GHNHandler) GetOrderInfo(c *gin.Context) {
 //
 //	@Summary		Get expected delivery time from GHN
 //	@Description	Retrieve estimated delivery lead time for a destination (district + ward)
-//	@Tags		ghn
-//	@Accept		json
-//	@Produce	json
-//	@Param		to_district_id	query	int	true	"Destination district ID"
-//	@Param		to_ward_code	query	string	true	"Destination ward code"
-//	@Success	200		{object}	dtos.ExpectedDeliveryTime
-//	@Failure	400		{object}	map[string]string
-//	@Failure	500		{object}	map[string]string
-//	@Router		/api/v1/ghn/expected-delivery-time [get]
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			to_district_id	query		int		true	"Destination district ID"
+//	@Param			to_ward_code	query		string	true	"Destination ward code"
+//	@Success		200				{object}	dtos.ExpectedDeliveryTime
+//	@Failure		400				{object}	map[string]string
+//	@Failure		500				{object}	map[string]string
+//	@Router			/api/v1/ghn/expected-delivery-time [get]
 func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
 	districtStr := c.Query("to_district_id")
 	wardCode := c.Query("to_ward_code")
@@ -230,12 +230,12 @@ func (h *GHNHandler) GetExpectedDeliveryTime(c *gin.Context) {
 //
 //	@Summary		Get GHN session token
 //	@Description	Retrieve a session token from GHN for authenticated requests
-//	@Tags		ghn-mocking
-//	@Accept		json
-//	@Produce	json
-//	@Success	200		{object}	dtos.GHNSessionResponse
-//	@Failure	500		{object}	map[string]string
-//	@Router		/api/v1/ghn/mocking/session [get]
+//	@Tags			ghn-mocking
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	dtos.GHNSessionResponse
+//	@Failure		500	{object}	map[string]string
+//	@Router			/api/v1/ghn/mocking/session [get]
 func (h *GHNHandler) GetGHNSession(c *gin.Context) {
 	ctx := context.Background()
 	result, err := h.ghnProxy.GetSession(ctx)
@@ -255,7 +255,7 @@ func (h *GHNHandler) GetGHNSession(c *gin.Context) {
 //	@Tags			ghn-mocking
 //	@Accept			json
 //	@Produce		json
-//	@Param			token	query	string	true	"GHN Session Token"
+//	@Param			token	query		string	true	"GHN Session Token"
 //	@Success		200		{object}	dtos.GHNServiceToken
 //	@Failure		400		{object}	map[string]string
 //	@Failure		500		{object}	map[string]string
@@ -285,10 +285,10 @@ func (h *GHNHandler) GetGHNServiceToken(c *gin.Context) {
 //	@Tags			ghn-mocking
 //	@Accept			json
 //	@Produce		json
-//	@Param			service_token	query	string	true	"GHN Service Token"
-//	@Success		200		{object}	dtos.GHNTokenGSO
-//	@Failure		400		{object}	map[string]string
-//	@Failure		500		{object}	map[string]string
+//	@Param			service_token	query		string	true	"GHN Service Token"
+//	@Success		200				{object}	dtos.GHNTokenGSO
+//	@Failure		400				{object}	map[string]string
+//	@Failure		500				{object}	map[string]string
 //	@Router			/api/v1/ghn/mocking/gso-token [get]
 func (h *GHNHandler) GetGHNGSOToken(c *gin.Context) {
 	serviceToken := c.Query("service_token")
@@ -314,16 +314,17 @@ type UpdateGHNDeliveryStatusRequest struct {
 }
 
 // UpdateGHNDeliveryStatus godoc
-// @Summary Update GHN Order Delivery Status
-// @Description Allowed values: ready_to_pick, storing, delivering, delivered, cancel
-// @Tags ghn
-// @Accept json
-// @Produce json
-// @Param request body UpdateGHNDeliveryStatusRequest true "Order status update payload"
-// @Success 200 {object} dtos.UpdateGHNDeliveryStatusResponse
-// @Failure 400 {object} map[string]string "Bad Request"
-// @Failure 500 {object} map[string]string "Internal Server Error"
-// @Router /api/v1/ghn/order/status [post]
+//
+//	@Summary		Update GHN Order Delivery Status
+//	@Description	Allowed values: ready_to_pick, storing, delivering, delivered, cancel
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		UpdateGHNDeliveryStatusRequest	true	"Order status update payload"
+//	@Success		200		{object}	dtos.UpdateGHNDeliveryStatusResponse
+//	@Failure		400		{object}	map[string]string	"Bad Request"
+//	@Failure		500		{object}	map[string]string	"Internal Server Error"
+//	@Router			/api/v1/ghn/order/status [post]
 func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
 	var req UpdateGHNDeliveryStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

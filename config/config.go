@@ -525,3 +525,8 @@ func (jc *JWTConfig) UpdateRSAKeys(privateKeyPEM, publicKeyPEM string) error {
 
 	return nil
 }
+
+func (c *AppConfig) IsDevelopmentDebugging() bool {
+	return strings.ToLower(c.Server.Environment) == "development" &&
+		strings.ToLower(c.Log.Level) == "debug"
+}
