@@ -34,6 +34,51 @@ type orderService struct {
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
+func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error {
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as in transit", zap.Error(err))
+		return err
+	}
+	//Some validate:
+	if order.Status != enum.OrderStatusConfirmed {
+		return errors.New("only confirmed orders can be marked as in transit")
+	}
+	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp == true {
+		return errors.New("only limited product orders with self-delivering can be marked as in transit")
+	}
+	order.Status = enum.OrderStatusInTransit
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to in transit", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageUrl string) error {
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as delivered", zap.Error(err))
+		return err
+	}
+	//Some validate:
+	if order.Status != enum.OrderStatusInTransit {
+		return errors.New("only orders in transit can be marked as delivered")
+	}
+	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp == true {
+		return errors.New("only limited product orders with self-delivering can be marked as delivered")
+	}
+	order.Status = enum.OrderStatusDelivered
+	order.SelfPickedUpImage = &imageUrl
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to delivered", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
 func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageUrl string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
@@ -214,8 +259,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				return fmt.Errorf("STANDARD product found: %s (id = %s)", variant.Product.Name, variant.ID.String())
 			}
 			if currentItemCategory == 0 {
-				msg := fmt.Sprintf("unknown product type", variant.ID.String())
-				return errors.New(msg)
+				return errors.New("unknown product type")
 			}
 			if prevItemCategory != nil && *prevItemCategory != currentItemCategory {
 				msg := fmt.Sprintf("Cannot place order with mixed product types in a single order")
@@ -225,22 +269,59 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			prevItemCategory = &currentItemCategory
 
 			//Build persisted order item
+			//Also subtract items stock for LIMITED products
 			persistedItem := item.ToModel(*variant, now)
+
+			if isOrderLimited {
+				oldStock := 0
+				if variant.CurrentStock != nil {
+					oldStock = *variant.CurrentStock
+				}
+				if oldStock-item.Quantity < 0 {
+					return fmt.Errorf("insufficient stock for product: %s (id = %s). Have %d, need %d", variant.Product.Name, variant.ID.String(), oldStock, item.Quantity)
+				}
+				newStock := oldStock - item.Quantity
+				variant.CurrentStock = &newStock
+
+				zap.L().Info("Updating stock for LIMITED product",
+					zap.String("product_variant_id", variant.ID.String()),
+					zap.Int("old_stock", oldStock),
+					zap.Int("new_stock", newStock))
+
+				err = uow.ProductVariant().Update(ctx, variant)
+				if err != nil {
+					zap.L().Error("ProductVariant().Update", zap.Error(err))
+					return err
+				}
+			}
+
 			persistedOrderItem = append(persistedOrderItem, *persistedItem)
 		}
 
-		//1.2.Build shipping address add to order only when it is STANDARD (type = 1)
+		// Validate at least one item present and decide order type + shipping fee
+		if len(persistedOrderItem) == 0 {
+			return errors.New("order has no items")
+		}
+
+		// Determine order type and shipping fee to apply
+		orderType := enum.ProductTypeStandard
+		applyShippingFee := shippingPrice
+		if isOrderLimited || (prevItemCategory != nil && *prevItemCategory == -1) {
+			orderType = enum.ProductTypeLimited
+			applyShippingFee = 0
+		}
+
+		//1.2.Build shipping address add to order
 		shippingAddress, err := o.shippingAddressRepository.GetByID(ctx, request.AddressID, nil)
 		if err != nil {
 			zap.L().Error("ShippingAddress().GetByID", zap.Error(err))
 			return err
 		}
 
-		if *prevItemCategory == 1 {
-			persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(shippingPrice), now)
-		} else {
-			persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, 0, now)
-		}
+		// Build order model now that we have items and fee
+		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(applyShippingFee), now)
+		// Set order type safely after initialization
+		persistedOrder.OrderType = orderType.String()
 
 		//1.3.Persist
 		err = uow.Order().Add(ctx, persistedOrder)
@@ -328,10 +409,15 @@ func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee in
 	return paymentItems, total
 }
 
-func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
+func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error) {
 	// Delegate to repository implementation
 	ctx := context.Background()
-	return o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
+	return o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode, orderType)
+}
+
+func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
+	ctx := context.Background()
+	return o.orderRepository.GetSelfDeliveryOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
 }
 
 // ConfirmOrder transitions an order to CONFIRMED. For LIMITED products, decrements variant stock accordingly.
