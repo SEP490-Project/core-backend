@@ -66,6 +66,7 @@ type PaymentTransaction struct {
 	ID              uuid.UUID                            `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	ReferenceID     uuid.UUID                            `gorm:"type:uuid;not null" json:"reference_id"`
 	ReferenceType   enum.PaymentTransactionReferenceType `gorm:"type:varchar(50);not null" json:"reference_type"`
+	PayerID         *uuid.UUID                           `gorm:"type:uuid;column:payer_id" json:"payer_id"`
 	Amount          *float64                             `gorm:"type:decimal(15,2);not null" json:"amount"`
 	Method          string                               `gorm:"type:varchar(50);not null" json:"method"`
 	Status          enum.PaymentTransactionStatus        `gorm:"type:varchar(50);not null" json:"status"`

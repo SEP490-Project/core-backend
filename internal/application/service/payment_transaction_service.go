@@ -12,6 +12,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -28,6 +29,10 @@ import (
 
 type paymentTransactionService struct {
 	paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction]
+	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
+	orderRepo              irepository.GenericRepository[model.Order]
+	preorderRepo           irepository.GenericRepository[model.PreOrder]
+	userRepo               irepository.GenericRepository[model.User]
 	payosProxy             iproxies.PayOSProxy
 	config                 *config.AppConfig
 }
@@ -46,6 +51,9 @@ func (s *paymentTransactionService) GetPaymentTransactionByFilter(ctx context.Co
 		}
 		if filter.ReferenceType != nil {
 			db = db.Where("reference_type = ?", filter.ReferenceType.String())
+		}
+		if filter.PayerID != nil {
+			db = db.Where("payer_id = ?", filter.PayerID)
 		}
 		if filter.Status != nil {
 			db = db.Where("status = ?", filter.Status.String())
@@ -129,11 +137,74 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		zap.String("reference_id", req.ReferenceID.String()),
 		zap.String("reference_type", req.ReferenceType.String()))
 
+	// 0. Validate reference id and payer user id
+	validateReferenceID := func(ctx context.Context) error {
+		switch req.ReferenceType {
+		case enum.PaymentTransactionReferenceTypeContractPayment:
+			if exists, err := s.contractPaymentRepo.ExistsByID(ctx, req.ReferenceID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+					return errors.New("contract payment not found")
+				}
+				zap.L().Error("Failed to validate contract payment reference ID", zap.Error(err))
+			} else if !exists {
+				zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("contract payment not found")
+			}
+		case enum.PaymentTransactionReferenceTypeOrder:
+			if exists, err := s.orderRepo.ExistsByID(ctx, req.ReferenceID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+					return errors.New("order not found")
+				}
+				zap.L().Error("Failed to validate order reference ID", zap.Error(err))
+			} else if !exists {
+				zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("order not found")
+			}
+		case enum.PaymentTransactionReferenceTypePreOrder:
+			if exists, err := s.preorderRepo.ExistsByID(ctx, req.ReferenceID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+					return errors.New("pre-order not found")
+				}
+				zap.L().Error("Failed to validate pre-order reference ID", zap.Error(err))
+			} else if !exists {
+				zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("pre-order not found")
+			}
+		default:
+			zap.L().Error("Invalid reference type", zap.String("reference_type", req.ReferenceType.String()))
+			return errors.New("invalid reference type")
+		}
+		return nil
+	}
+	validatePayerID := func(ctx context.Context) error {
+		if req.PayerID != nil {
+			if exists, err := s.userRepo.ExistsByID(ctx, *req.PayerID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+					return errors.New("user not found")
+				}
+				zap.L().Error("Failed to validate user ID", zap.Error(err))
+			} else if !exists {
+				zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+				return errors.New("user not found")
+			}
+		}
+		return nil
+	}
+	if err := utils.RunParallel(ctx, 2, validateReferenceID, validatePayerID); err != nil {
+		zap.L().Error("Failed to validate reference ID and payer user ID", zap.Error(err))
+		return nil, err
+	}
+
 	// 1. Create PaymentTransaction record first (to get ID for description)
 	paymentTransaction := &model.PaymentTransaction{
 		ID:              uuid.New(), // Generate ID before insert
 		ReferenceID:     req.ReferenceID,
 		ReferenceType:   req.ReferenceType,
+		PayerID:         req.PayerID,
 		Amount:          utils.PtrOrNil(float64(req.Amount)),
 		Method:          "PAYOS",
 		Status:          enum.PaymentTransactionStatusPending,
@@ -569,11 +640,15 @@ func (s *paymentTransactionService) mapPayOSTransactions(transactions []struct {
 
 // NewPaymentTransactionService creates a new PaymentTransactionService instance
 func NewPaymentTransactionService(
-	paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction],
+	databaseRegistry *gormrepository.DatabaseRegistry,
 	payosProxy iproxies.PayOSProxy,
 ) iservice.PaymentTransactionService {
 	return &paymentTransactionService{
-		paymentTransactionRepo: paymentTransactionRepo,
+		paymentTransactionRepo: databaseRegistry.PaymentTransactionRepository,
+		contractPaymentRepo:    databaseRegistry.ContractPaymentRepository,
+		orderRepo:              databaseRegistry.OrderRepository,
+		preorderRepo:           databaseRegistry.PreOrderRepository,
+		userRepo:               databaseRegistry.UserRepository,
 		payosProxy:             payosProxy,
 		config:                 config.GetAppConfig(),
 	}

@@ -76,6 +76,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 	paymentReq := &requests.PaymentRequest{
 		ReferenceID:   contractPayment.ID,
 		ReferenceType: enum.PaymentTransactionReferenceTypeContractPayment,
+		PayerID:       contractPayment.Contract.Brand.UserID,
 		Amount:        int64(contractPayment.Amount),
 		Description:   fmt.Sprintf("Payment for Contract %s - Installment %.0f%%", contractNumber, contractPayment.InstallmentPercentage),
 		ReturnURL:     request.ReturnURL,
