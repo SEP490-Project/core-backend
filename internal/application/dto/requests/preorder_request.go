@@ -13,6 +13,7 @@ import (
 )
 
 // ===========================PREORDER==============================//
+
 type PreOrderRequest struct {
 	AddressID  uuid.UUID `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
 	VariantID  uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
@@ -86,6 +87,7 @@ func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.Pr
 }
 
 // ===========================PAYMENT==============================//
+
 type PlaceAndPayPreOrderRequest struct {
 	DeliveryService *dtos.DeliveryAvailableServiceDTO `json:"delivery_service,omitempty"`
 	PreOrder        PreOrderRequest                   `json:"pre_order" validate:"required,dive"`

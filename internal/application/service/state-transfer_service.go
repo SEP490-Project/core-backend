@@ -650,7 +650,7 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		isCurrentStatePerfomedByCustomer := order.Status.String() == enum.OrderStatusPaid.String()
 		isPass5Mins := order.UpdatedAt.Add(5 * time.Minute).After(time.Now())
 		if isCurrentStatePerfomedByCustomer && isPass5Mins {
-			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + order.UpdatedAt.Add(5*time.Minute).Sub(time.Now()).String())
+			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + time.Until(order.UpdatedAt.Add(5*time.Minute)).String())
 		}
 
 		updatedBy, err := uow.Users().GetByID(ctx, updatedUserID, []string{})
@@ -664,7 +664,7 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		if nextState == nil {
 			return errors.New("invalid target state")
 		}
-		if err := ctxState.State.Next(ctxState, nextState); err != nil {
+		if err = ctxState.State.Next(ctxState, nextState); err != nil {
 			zap.L().Error("Order state transition validation failed", zap.Error(err))
 			return fmt.Errorf("state transition not allowed: %w", err)
 		}
@@ -982,7 +982,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	case enum.OrderStatusConfirmed:
 		zap.L().Info("Order confirmation")
 		if order.Status != enum.OrderStatusPaid {
-			return fmt.Errorf("Order must be PAID before confirmation action")
+			return fmt.Errorf("order must be PAID before confirmation action")
 		}
 
 		// For each order item, if product type is LIMITED, check and decrement variant stock
