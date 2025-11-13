@@ -35,9 +35,10 @@ func (c productCategoryService) GetAllCategories(
 			db = db.Where("name ILIKE ?", "%"+search+"%")
 		}
 
-		if deleted == "true" {
+		switch deleted {
+		case "true":
 			db = db.Unscoped().Where("deleted_at IS NOT NULL")
-		} else if deleted == "false" {
+		case "false":
 			db = db.Where("deleted_at IS NULL")
 		}
 
@@ -193,7 +194,7 @@ func (c productCategoryService) DeleteCategory(ctx context.Context, categoryID u
 		exists, err := uow.Products().Exists(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("category_id = ?", categoryID)
 		})
-		if exists == true || err != nil {
+		if exists || err != nil {
 			return errors.New("category being used by products, cannot delete")
 		}
 

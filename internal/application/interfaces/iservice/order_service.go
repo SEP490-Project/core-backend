@@ -19,7 +19,12 @@ type OrderService interface {
 	MarkAsReceived(ctx context.Context, orderID uuid.UUID) error
 
 	//Staff
-	GetStaffAvailableOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
+	GetStaffAvailableOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string, orderType string) ([]model.Order, int, error)
 	MarkAsReadyToPickedUp(ctx context.Context, orderID uuid.UUID) error
 	MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageUrl string) error
+
+	//internal delivery service - type = limited & self-delivering = false
+	GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
+	MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error
+	MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageUrl string) error
 }

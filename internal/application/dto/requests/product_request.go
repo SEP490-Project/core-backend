@@ -18,6 +18,7 @@ type ProductListRequest struct {
 }
 
 /*===========================STANDARD PRODUCTS=====================================*/
+
 // CreateStandardProductRequest represents create product request
 type CreateStandardProductRequest struct {
 	BrandID     uuid.UUID `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
@@ -48,6 +49,7 @@ func (d *CreateStandardProductRequest) ToStandardModel(createdBy uuid.UUID) *mod
 }
 
 /*===========================LIMITED PRODUCTS=====================================*/
+
 type CreateLimitedProductRequest struct {
 	BrandID          uuid.UUID                `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	CategoryID       uuid.UUID                `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`

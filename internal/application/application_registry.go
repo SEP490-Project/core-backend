@@ -89,7 +89,7 @@ func NewApplicationRegistry(
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
-		databaseRegistry.PaymentTransactionRepository,
+		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
 	)
 
@@ -125,7 +125,7 @@ func NewApplicationRegistry(
 		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
-		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
+		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy),
@@ -140,7 +140,7 @@ func NewApplicationRegistry(
 		ChannelService:                channelService,
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
-		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository),
+		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
 		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository),
 		LocationService:               service.NewLocationService(databaseRegistry),
 		TagService:                    service.NewTagService(databaseRegistry.TagRepository),

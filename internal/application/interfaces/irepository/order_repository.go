@@ -8,5 +8,6 @@ import (
 // OrderRepository extends GenericRepository for Order with custom query methods
 type OrderRepository interface {
 	GenericRepository[model.Order]
-	GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
+	GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error)
+	GetSelfDeliveryOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
 }

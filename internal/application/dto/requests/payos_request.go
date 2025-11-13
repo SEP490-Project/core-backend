@@ -14,6 +14,7 @@ type PaymentTransactionFilterRequest struct {
 	OrderCode           *int                                  `json:"order_code,omitempty" form:"order_code" validate:"omitempty,gt=0" example:"12345"`
 	ReferenceID         *string                               `json:"reference_id,omitempty" form:"reference_id" validate:"omitempty,uuid" example:"a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"`
 	ReferenceType       *enum.PaymentTransactionReferenceType `json:"reference_type,omitempty" form:"reference_type" validate:"omitempty,oneof=ORDER CONTRACT_PAYMENT" example:"ORDER"`
+	PayerID             *string                               `json:"payer_id,omitempty" form:"payer_id" validate:"omitempty,uuid" example:"a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"`
 	Status              *enum.PaymentTransactionStatus        `json:"status,omitempty" form:"status" validate:"omitempty,oneof=PENDING COMPLETED FAILED CANCELLED REFUNDED" example:"COMPLETED"`
 	TransactionFromDate *string                               `json:"transaction_from_date,omitempty" form:"transaction_from_date" validate:"omitempty,datetime=2006-01-02" example:"2024-01-01"`
 	TransactionToDate   *string                               `json:"transaction_to_date,omitempty" form:"transaction_to_date" validate:"omitempty,datetime=2006-01-02" example:"2024-01-31"`
@@ -30,6 +31,7 @@ type PaymentRequest struct {
 	// Reference information
 	ReferenceID   uuid.UUID                            `json:"reference_id" validate:"required,uuid"`
 	ReferenceType enum.PaymentTransactionReferenceType `json:"reference_type" validate:"required,oneof=ORDER CONTRACT_PAYMENT"`
+	PayerID       *uuid.UUID                           `json:"payer_id,omitempty" validate:"omitempty,uuid"`
 
 	// Payment details
 	Amount      int64                `json:"amount" validate:"required,gt=0"`
