@@ -542,6 +542,7 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 		ID:                content.ID,
 		TaskID:            content.TaskID,
 		Title:             content.Title,
+		ThumbnailURL:      content.ThumbnailURL,
 		Body:              content.Body,
 		Type:              content.Type,
 		Status:            content.Status,

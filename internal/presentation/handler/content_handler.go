@@ -708,3 +708,100 @@ func (h *ContentHandler) ListByAssignedUser(c *gin.Context) {
 	)
 	c.JSON(http.StatusOK, response)
 }
+
+// ListPublic retrieves paginated public content (status=POSTED)
+//
+//	@Summary		List public content
+//	@Description	Retrieves paginated content with status=POSTED. Filters like assigned_to or task_id are ignored for guests.
+//	@Tags			Content
+//	@Accept			json
+//	@Produce		json
+//	@Param			page		query		int		false	"Page number (default: 1)"
+//	@Param			limit		query		int		false	"Items per page (default: 10, max: 100)"
+//	@Param			sort_by		query		string	false	"Sort by field"		Enums(created_at, updated_at, publish_date, title)
+//	@Param			sort_order	query		string	false	"Sort order"		Enums(asc, desc)
+//	@Param			type		query		string	false	"Filter by type"	Enums(POST, VIDEO)
+//	@Param			channel_id	query		string	false	"Filter by channel ID (UUID)"
+//	@Param			search		query		string	false	"Search in title and body"
+//	@Param			from_date	query		string	false	"Filter from date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"Filter to date (YYYY-MM-DD)"
+//	@Success		200			{object}	responses.ContentPaginationResponse
+//	@Failure		400			{object}	responses.APIResponse	"Invalid request parameters"
+//	@Failure		500			{object}	responses.APIResponse	"Internal server error"
+//	@Router			/api/v1/contents/public [get]
+func (h *ContentHandler) ListPublic(c *gin.Context) {
+	var req requests.ContentFilterRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Force status = POSTED
+	status := "POSTED"
+	req.Status = &status
+
+	// Remove filters that are not needed for public
+	req.AssignedTo = nil
+	req.TaskID = nil
+
+	contents, total, err := h.contentService.List(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to retrieve content list", http.StatusInternalServerError))
+		return
+	}
+
+	response := responses.NewPaginationResponse(
+		"Public content list retrieved successfully",
+		http.StatusOK,
+		contents,
+		responses.Pagination{
+			Page:  req.Page,
+			Limit: req.Limit,
+			Total: total,
+		},
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetByIDPublic retrieves public content by ID (status=POSTED)
+//
+//	@Summary		Get public content by ID
+//	@Description	Retrieves content with all relationships (blog, author, channels). Only content with status=POSTED is returned.
+//	@Tags			Content
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Content ID (UUID)"
+//	@Success		200	{object}	responses.APIResponse{data=responses.ContentResponse}
+//	@Failure		400	{object}	responses.APIResponse	"Invalid content ID"
+//	@Failure		404	{object}	responses.APIResponse	"Content not found or not POSTED"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Router			/api/v1/contents/public/{id} [get]
+func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
+	id, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID format", http.StatusBadRequest))
+		return
+	}
+
+	content, err := h.contentService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		message := "Failed to retrieve content"
+
+		if err.Error() == "content not found" {
+			statusCode = http.StatusNotFound
+			message = err.Error()
+		}
+
+		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
+		return
+	}
+
+	// Check status
+	if content.Status != "POSTED" {
+		c.JSON(http.StatusNotFound, responses.ErrorResponse("Content not found", http.StatusNotFound))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Public content retrieved successfully", nil, content))
+}
