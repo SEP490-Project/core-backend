@@ -116,8 +116,9 @@ func (s *userService) GetUsers(ctx context.Context, filterRequest *requests.User
 		if filterRequest.Search != nil {
 			db = db.Where("username ILIKE ? OR email ILIKE ?", "%"+*filterRequest.Search+"%", "%"+*filterRequest.Search+"%")
 		}
-		if len(filterRequest.Role) > 0 {
-			db = db.Where("role IN ?", filterRequest.Role)
+		if filterRequest.Role != nil {
+			roles := strings.Split(*filterRequest.Role, ",")
+			db = db.Where("role IN ?", roles)
 		}
 		if filterRequest.IsActive != nil {
 			db = db.Where("is_active = ?", *filterRequest.IsActive)
