@@ -523,6 +523,11 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	blogHandler := r.handlerRegistry.BlogHandler
 	contentGroup := group.Group("/contents")
 	{
+		publicGroup := contentGroup.Group("/public")
+		{
+			publicGroup.GET("", contentHandler.ListPublic)
+			publicGroup.GET("/:id", contentHandler.GetByIDPublic)
+		}
 		viewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(customer, brand, marketing, sales, content, admin))
 		{
 			viewGroup.GET("", contentHandler.List)
