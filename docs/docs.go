@@ -8589,6 +8589,21 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "STANDARD",
+                            "LIMITED"
+                        ],
+                        "type": "string",
+                        "example": "STANDARD",
+                        "x-enum-varnames": [
+                            "ProductTypeStandard",
+                            "ProductTypeLimited"
+                        ],
+                        "description": "Order type filter\nin: query\nexample: \"STANDARD\"",
+                        "name": "order_type",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "example": 1,
                         "description": "Page number (default: 1)\nin: query\nexample: 1",
@@ -8831,6 +8846,290 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/orders/staff/self-delivering": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve paginated orders for staff, filterable by status and order number search.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Get staff-available orders with pagination",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "10",
+                        "description": "GHN district id\nin: query\nexample: 10",
+                        "name": "district_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "John Doe",
+                        "description": "Customer full name to filter\nin: query\nexample: \"John Doe\"",
+                        "name": "full_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 10,
+                        "description": "Number of items per page (default: 10, max: 100)\nin: query\nexample: 10",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)\nin: query\nexample: 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "0912345678",
+                        "description": "Customer phone number to filter\nin: query\nexample: \"0912345678\"",
+                        "name": "phone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "1",
+                        "description": "GHN province id\nin: query\nexample: 1",
+                        "name": "province_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "ORDER123",
+                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "REFUNDED",
+                            "CONFIRMED",
+                            "CANCELLED",
+                            "SHIPPED",
+                            "IN_TRANSIT",
+                            "DELIVERED",
+                            "RECEIVED",
+                            "AWAITING_PICKUP"
+                        ],
+                        "type": "string",
+                        "example": "PAID",
+                        "x-enum-varnames": [
+                            "OrderStatusPending",
+                            "OrderStatusPaid",
+                            "OrderStatusRefunded",
+                            "OrderStatusConfirmed",
+                            "OrderStatusCancelled",
+                            "OrderStatusShipped",
+                            "OrderStatusInTransit",
+                            "OrderStatusDelivered",
+                            "OrderStatusReceived",
+                            "OrderStatusAwaitingPickUp"
+                        ],
+                        "description": "Order status filter\nin: query\nexample: \"PAID\"",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "01234",
+                        "description": "GHN ward code\nin: query\nexample: \"01234\"",
+                        "name": "ward_code",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Order"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/self-delivering/delivered/{orderID}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload proof image and mark the order as delivered. Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = IN_TRANSIT.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark self-delivering limited order as Delivered",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Proof image(s) of self delivering",
+                        "name": "files",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as delivered successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID or status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/self-delivering/in-transit/{orderID}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = CONFIRMED.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Mark self-delivering limited order as In Transit",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Order marked as in transit successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID or status",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Order not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/orders/staff/{orderID}/censorship": {
             "post": {
                 "security": [
@@ -8908,71 +9207,6 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/{orderID}/received": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Đánh dấu đơn hàng là \"đã nhận\" (Received) sau khi giao thành công",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders"
-                ],
-                "summary": "Mark order as received",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "orderID",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Order marked as received successfully",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid order ID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Order not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
                         }
                     }
                 }
@@ -9745,6 +9979,21 @@ const docTemplate = `{
                         "example": 10,
                         "description": "Number of items per page (default: 10, max: 100)\nin: query\nexample: 10",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "STANDARD",
+                            "LIMITED"
+                        ],
+                        "type": "string",
+                        "example": "STANDARD",
+                        "x-enum-varnames": [
+                            "ProductTypeStandard",
+                            "ProductTypeLimited"
+                        ],
+                        "description": "Order type filter\nin: query\nexample: \"STANDARD\"",
+                        "name": "order_type",
                         "in": "query"
                     },
                     {
@@ -14979,6 +15228,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.OrderItem"
                     }
+                },
+                "order_type": {
+                    "type": "string"
                 },
                 "payment_bin": {
                     "type": "string"

@@ -328,10 +328,79 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 	provinceID := q.ProvinceID
 	districtID := q.DistrictID
 	wardCode := q.WardCode
+	orderType := q.OrderType
 
-	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode)
+	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode, orderType.String())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Orders retrieved successfully",
+		http.StatusOK,
+		orders,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetSelfDeliveringOrdersWithPagination handles HTTP GET requests to retrieve paginated staff-available orders with optional status filter.
+//
+//	@Summary		Get staff-available orders with pagination
+//	@Description	Retrieve paginated orders for staff, filterable by status and order number search.
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			query	query		requests.SelfDeliveringQuery	false	"Staff orders query"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/self-delivering [get]
+func (h *OrderHandler) GetSelfDeliveringOrdersWithPagination(c *gin.Context) {
+	// Bind query params into struct for swag and cleaner code
+	var q requests.SelfDeliveringQuery
+	_ = c.ShouldBindQuery(&q)
+
+	page := q.Page
+	limit := q.Limit
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := q.Search
+	status := q.Status
+	fullName := q.FullName
+	phone := q.Phone
+	provinceID := q.ProvinceID
+	districtID := q.DistrictID
+	wardCode := q.WardCode
+
+	orders, total, err := h.orderService.GetSelfDeliveringOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
@@ -609,6 +678,122 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 	}
 
 	resp := responses.SuccessResponse("Order marked as received successfully", ptr.Int(http.StatusOK), gin.H{
+		"image_url": imageURL,
+	})
+	c.JSON(http.StatusOK, resp)
+}
+
+// MarkSelfDeliveringOrderAsInTransit godoc
+// @Summary Mark self-delivering limited order as In Transit
+// @Description Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = CONFIRMED.
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Param orderID path string true "Order ID (UUID)"
+// @Success 200 {object} map[string]interface{} "Order marked as in transit successfully"
+// @Failure 400 {object} map[string]string "Invalid order ID or status"
+// @Failure 404 {object} map[string]string "Order not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/orders/staff/self-delivering/in-transit/{orderID} [patch]
+func (h *OrderHandler) MarkSelfDeliveringOrderAsInTransit(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.MarkSelfDeliveringOrderAsInTransit(ctx, orderID); err != nil {
+		resp := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	resp := responses.SuccessResponse("Order marked as in transit successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// MarkSelfDeliveringOrderAsDelivered godoc
+// @Summary Mark self-delivering limited order as Delivered
+// @Description Upload proof image and mark the order as delivered. Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = IN_TRANSIT.
+// @Tags Orders
+// @Accept multipart/form-data
+// @Produce json
+// @Param orderID path string true "Order ID (UUID)"
+// @Param files formData file true "Proof image(s) of self delivering"
+// @Success 200 {object} map[string]interface{} "Order marked as delivered successfully"
+// @Failure 400 {object} map[string]string "Invalid order ID or status"
+// @Failure 404 {object} map[string]string "Order not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/orders/staff/self-delivering/delivered/{orderID} [patch]
+func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to parse multipart form"})
+		return
+	}
+
+	files := form.File["files"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no files uploaded"})
+		return
+	}
+
+	userTmpDir := "/tmp/uploads"
+	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create tmp upload directory"})
+		return
+	}
+
+	var uploadedURLs []string
+	for _, fileHeader := range files {
+		timestamp := time.Now().Format("20060102_150405")
+		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+		// Save uploaded file temporarily
+		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+			_ = os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file: " + fileHeader.Filename})
+			return
+		}
+
+		defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+		// Upload to remote storage (e.g., S3, GCS)
+		userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
+		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
+		if err != nil {
+			_ = os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+			return
+		}
+
+		// Cleanup tmp file after upload
+		_ = os.Remove(finalPath)
+		uploadedURLs = append(uploadedURLs, url)
+	}
+
+	imageURL := uploadedURLs[0]
+
+	ctx := c.Request.Context()
+	if err := h.orderService.MarkSelfDeliveringOrderAsDelivered(ctx, orderID, imageURL); err != nil {
+		zap.L().Error("Failed to mark self-delivering order as delivered", zap.Error(err))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp := responses.SuccessResponse("Order marked as delivered successfully", ptr.Int(http.StatusOK), gin.H{
 		"image_url": imageURL,
 	})
 	c.JSON(http.StatusOK, resp)
