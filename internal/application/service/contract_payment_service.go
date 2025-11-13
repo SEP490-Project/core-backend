@@ -240,11 +240,6 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			return
 		}
 
-		remainingPercentRatio := 1.0
-		if *contract.DepositPercent != 0 {
-			remainingPercentRatio = float64((100 - *contract.DepositPercent) / 100)
-		}
-
 		// Process each schedule to create payments
 		for _, schedule := range advertisingFinancialTerms.Schedules {
 			var dueDate time.Time
@@ -258,8 +253,8 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
-				InstallmentPercentage: float64(schedule.Percent) * remainingPercentRatio,
-				Amount:                float64(schedule.Amount) * remainingPercentRatio,
+				InstallmentPercentage: float64(schedule.Percent),
+				Amount:                float64(schedule.Amount),
 				DueDate:               dueDate,
 				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
 				Note:                  &note,
