@@ -89,7 +89,7 @@ func NewApplicationRegistry(
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
-		databaseRegistry.PaymentTransactionRepository,
+		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
 	)
 
