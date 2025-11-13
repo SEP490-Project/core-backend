@@ -129,7 +129,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 //	@Param			sort_by				query		string								false	"Field to sort by"			default(created_at)
 //	@Param			sort_order			query		string								false	"Sort order (asc or desc)"	default(asc)
 //	@Param			search				query		string								false	"Search term for username or email"
-//	@Param			role				query		string							    false	"Filter by user role"
+//	@Param			role				query		string								false	"Filter by user role"
 //	@Param			is_active			query		boolean								false	"Filter by active status"
 //	@Param			is_brand_account	query		boolean								false	"Filter by brand account status"
 //	@Success		200					{object}	responses.UserPaginationResponse	"Users retrieved successfully"

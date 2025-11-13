@@ -39,3 +39,7 @@ func (pt *ProductType) Scan(value any) error {
 func (pt ProductType) Value() (driver.Value, error) {
 	return string(pt), nil
 }
+
+func (pt ProductType) String() string {
+	return string(pt)
+}

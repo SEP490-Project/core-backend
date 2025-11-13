@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Regenerated ProductOverviewResponse provides a flattened, list-optimized snapshot
+// ProductOverviewResponse provides a flattened, list-optimized snapshot
 // of a product including minimal brand/category context and lightweight variants.
 // Suitable for pagination & task-based listing.
 type ProductOverviewResponse struct {

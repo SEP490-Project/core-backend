@@ -17,6 +17,7 @@ type HandlerRegistry struct {
 	BrandHandler                  *BrandHandler
 	FileHandler                   *S3Handler
 	PayOsHandler                  *PayOsHandler
+	PaymentTransactionsHandler    *PaymentTransactionsHandler
 	StateHandler                  *StateHandler
 	ContractHandler               *ContractHandler
 	CampaignHandler               *CampaignHandler
@@ -55,6 +56,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		BrandHandler:                  NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:                   NewS3Handler(applicationReg.FileService),
 		PayOsHandler:                  NewPayOsHandler(appConfig, applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
+		PaymentTransactionsHandler:    NewPaymentTransactionsHandler(applicationReg.PaymentTransactionService),
 		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),

@@ -443,15 +443,14 @@ func (h *CampaignHandler) GetCampaignsInfoByBrandID(c *gin.Context) {
 //	@Router			/api/v1/campaigns/brand/profile [get]
 func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
 	var filterRequest *requests.CampaignFilterRequest
 	if err = c.ShouldBindQuery(&filterRequest); err != nil {
 		responses := responses.ErrorResponse("Invalid filter request: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, responses)
-		return
-	}
-	if err != nil {
-		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, responses)
 		return
 	}
 
