@@ -140,7 +140,7 @@ func NewApplicationRegistry(
 		ChannelService:                channelService,
 		ContentService:                contentService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
-		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository),
+		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
 		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository),
 		LocationService:               service.NewLocationService(databaseRegistry),
 		TagService:                    service.NewTagService(databaseRegistry.TagRepository),

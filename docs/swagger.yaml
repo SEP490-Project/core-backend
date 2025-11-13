@@ -2475,6 +2475,8 @@ definitions:
         items:
           $ref: '#/definitions/requests.PaymentItemRequest'
         type: array
+      payer_id:
+        type: string
       reference_id:
         description: Reference information
         type: string
@@ -11173,6 +11175,10 @@ paths:
         in: query
         name: reference_type
         type: string
+      - description: Filter by Payer User ID (UUID)
+        in: query
+        name: payer_id
+        type: string
       - description: Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)
         in: query
         name: status
@@ -11299,6 +11305,71 @@ paths:
       security:
       - BearerAuth: []
       summary: Get payment transaction by order code
+      tags:
+      - PayOS
+  /api/v1/payments/profile:
+    get:
+      description: Retrieve payment transactions based on various filter criteria
+        with pagination
+      parameters:
+      - description: Filter by Reference ID (UUID)
+        in: query
+        name: reference_id
+        type: string
+      - description: Filter by Reference Type (ORDER, CONTRACT_PAYMENT)
+        in: query
+        name: reference_type
+        type: string
+      - description: Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)
+        in: query
+        name: status
+        type: string
+      - description: Filter by Payment Method (CREDIT_CARD, BANK_TRANSFER, E_WALLET)
+        in: query
+        name: method
+        type: string
+      - description: Filter by Transaction From Date (YYYY-MM-DD)
+        in: query
+        name: transaction_from_date
+        type: string
+      - description: Filter by Transaction To Date (YYYY-MM-DD)
+        in: query
+        name: transaction_to_date
+        type: string
+      - description: Page number for pagination (default is 1)
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page for pagination (default is 10)
+        in: query
+        name: limit
+        type: integer
+      - description: Field to sort by (e.g., transaction_date, amount)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc or desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment transactions retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.PaymentTransactionPaginationResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get payment transactions by profile filter
       tags:
       - PayOS
   /api/v1/payos/cancel:
@@ -13330,13 +13401,10 @@ paths:
         in: query
         name: search
         type: string
-      - collectionFormat: multi
-        description: Filter by user role
+      - description: Filter by user role
         in: query
-        items:
-          type: string
         name: role
-        type: array
+        type: string
       - description: Filter by active status
         in: query
         name: is_active
