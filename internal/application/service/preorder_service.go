@@ -199,6 +199,7 @@ func (p preOrderService) PayForPreservationSlot(ctx context.Context, preOrderID 
 		paymentRq := requests.PaymentRequest{
 			ReferenceID:   preOrderID,
 			ReferenceType: enum.PaymentTransactionReferenceTypePreOrder,
+			PayerID:       &preOrder.UserID,
 			Amount:        total,
 			Description:   fmt.Sprintf("Payment for preservation %s", preOrder.ID),
 			Items:         paymentItemRequest,
