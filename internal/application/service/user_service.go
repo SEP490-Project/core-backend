@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
@@ -23,9 +24,8 @@ import (
 )
 
 type userService struct {
-	// userRepository irepository.UserRepository
 	userRepository irepository.GenericRepository[model.User]
-	emailService   iservicethirdparty.EmailService
+	rabbitmq       *rabbitmq.RabbitMQ
 }
 
 // ActivateBrandUser implements iservice.UserService.
@@ -477,6 +477,13 @@ func (s *userService) sendBrandAccountCreatedEmail(
 	user *model.User,
 	temporaryPassword string,
 ) error {
+	// Get email producer
+	emailProducer, err := s.rabbitmq.GetProducer("notification-email-producer")
+	if err != nil {
+		zap.L().Error("Failed to get email producer from RabbitMQ", zap.Error(err))
+		return err
+	}
+
 	// Generate email template
 	templateName := "brand_account_created"
 	data := map[string]any{
@@ -495,14 +502,31 @@ func (s *userService) sendBrandAccountCreatedEmail(
 		"UnsubscribeURL":          "https://api.bshowsell.site/api/v1/user/unsubscribe",
 	}
 
+	payload := &consumers.EmailNotificationMessage{
+		NotificationID: uuid.New(),
+		UserID:         user.ID,
+		To:             brand.ContactEmail,
+		Subject:        "Your Brand Account Has Been Created",
+		TemplateName:   templateName,
+		TemplateData:   data,
+	}
+
 	// Send email
-	return s.emailService.SendTemplatedEmail(ctx, brand.ContactEmail, brand.Name, templateName, data)
+	if err := emailProducer.PublishJSON(ctx, payload); err != nil {
+		zap.L().Error("Failed to publish email notification message to RabbitMQ", zap.Error(err))
+		return err
+	}
+	return nil
 }
 
 // endregion
 
-func NewUserService(userRepository irepository.GenericRepository[model.User]) iservice.UserService {
+func NewUserService(
+	userRepository irepository.GenericRepository[model.User],
+	rabbitmq *rabbitmq.RabbitMQ,
+) iservice.UserService {
 	return &userService{
 		userRepository: userRepository,
+		rabbitmq:       rabbitmq,
 	}
 }

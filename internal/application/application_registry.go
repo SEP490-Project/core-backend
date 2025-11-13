@@ -125,7 +125,7 @@ func NewApplicationRegistry(
 		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
-		UserService:                   service.NewUserService(databaseRegistry.UserRepository),
+		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy),
