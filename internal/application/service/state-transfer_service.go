@@ -562,7 +562,8 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 
 	case enum.PaymentTransactionReferenceTypeOrder:
 		var order *model.Order
-		order, err = orderRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
+		order, err = orderRepo.GetByID(ctx, transaction.ReferenceID, includes)
 		if err != nil {
 			zap.L().Error("Failed to load order",
 				zap.String("order_id", transaction.ReferenceID.String()),
@@ -842,6 +843,33 @@ func (t stateTransferService) handleOrderSideEffect(
 			zap.String("order_id", order.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
 
+		// Regain stock for LIMITED orders and persist per-variant
+		if order.OrderType == enum.ProductTypeLimited.String() {
+			variantRepo := uow.ProductVariant()
+			for _, item := range order.OrderItems {
+				oldStock := 0
+				if item.Variant.CurrentStock != nil {
+					oldStock = *item.Variant.CurrentStock
+				}
+				regainStock := item.Quantity
+				newStock := oldStock + regainStock
+				item.Variant.CurrentStock = &newStock
+
+				if err := variantRepo.Update(ctx, &item.Variant); err != nil {
+					zap.L().Error("Failed to persist regained stock for variant",
+						zap.String("variant_id", item.Variant.ID.String()),
+						zap.Error(err))
+					return errors.New("failed to persist variant stock: " + err.Error())
+				}
+
+				zap.L().Info("Regained stock for LIMITED variant",
+					zap.String("variant_id", item.Variant.ID.String()),
+					zap.Int("old_stock", oldStock),
+					zap.Int("regain", regainStock),
+					zap.Int("new_stock", newStock))
+			}
+		}
+
 	default:
 		// PENDING or other statuses - no change needed
 		zap.L().Debug("No order status change needed",
@@ -978,6 +1006,34 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		zap.L().Info("Order cancelled, bending rejected email")
 		//Add Note
 		order.AddActionNote(*note)
+
+		// Regain stock for LIMITED orders and persist per-variant
+		if order.OrderType == enum.ProductTypeLimited.String() {
+			variantRepo := uow.ProductVariant()
+			for _, it := range order.OrderItems {
+				// only LIMITED products affect stock
+				if it.Variant.Product.Type != enum.ProductTypeLimited {
+					continue
+				}
+				old := 0
+				if it.Variant.CurrentStock != nil {
+					old = *it.Variant.CurrentStock
+				}
+				newStock := old + it.Quantity
+				it.Variant.CurrentStock = &newStock
+				if err := variantRepo.Update(ctx, &it.Variant); err != nil {
+					zap.L().Error("Failed to persist regained stock for variant (manual cancel)",
+						zap.String("variant_id", it.Variant.ID.String()),
+						zap.Error(err))
+					return err
+				}
+				zap.L().Info("Regained stock for LIMITED variant (manual cancel)",
+					zap.String("variant_id", it.Variant.ID.String()),
+					zap.Int("old_stock", old),
+					zap.Int("regain", it.Quantity),
+					zap.Int("new_stock", newStock))
+			}
+		}
 		//Update action will do outside
 		//err = orderRepo.Update(ctx, order)
 	case enum.OrderStatusRefunded:

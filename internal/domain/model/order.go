@@ -69,6 +69,7 @@ type Order struct {
 	UpdatedAt         time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	IsSelfPickedUp    bool      `json:"is_self_picked_up" gorm:"column:is_self_picked_up;not null;default:false"`
 	SelfPickedUpImage *string   `json:"self_picked_up_image,omitempty" gorm:"column:self_picked_up_image;type:text"`
+	OrderType         string    `json:"order_type" gorm:"column:order_type;type:text;default:'STANDARD'"`
 
 	ActionNotes  *OrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
 	UserNote     *string           `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
