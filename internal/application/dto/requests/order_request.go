@@ -12,6 +12,7 @@ import (
 )
 
 // ===========================ORDER==============================//
+
 type OrderRequest struct {
 	AddressID    uuid.UUID          `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
 	Items        []OrderItemRequest `json:"items" validate:"required,dive,required"`
@@ -57,6 +58,7 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 }
 
 // ===========================ORDER ITEM==============================//
+
 type OrderItemRequest struct {
 	VariantID uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
 	Quantity  int       `json:"quantity" validate:"required,min=1" example:"1"`
