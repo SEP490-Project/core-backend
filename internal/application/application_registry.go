@@ -79,11 +79,7 @@ func NewApplicationRegistry(
 		databaseRegistry.ContractRepository,
 	)
 	contentService := service.NewContentService(
-		databaseRegistry.ContentRepository,
-		databaseRegistry.BlogRepository,
-		databaseRegistry.ContentChannelRepository,
-		databaseRegistry.ChannelRepository,
-		databaseRegistry.TaskRepository,
+		databaseRegistry,
 		infrastructureRegistry.UnitOfWork,
 		affiliateLinkService,
 	)

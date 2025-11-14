@@ -39,3 +39,5 @@ func (ct *ContentType) Scan(value any) error {
 func (ct ContentType) Value() (driver.Value, error) {
 	return string(ct), nil
 }
+
+func (ct ContentType) String() string { return string(ct) }

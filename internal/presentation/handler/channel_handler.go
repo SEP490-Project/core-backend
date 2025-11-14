@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"net/http"
 
@@ -39,8 +40,14 @@ func NewChannelHandler(service iservice.ChannelService, unitOfWork irepository.U
 //	@Failure		500	{object}	responses.APIResponse			"Internal server error"
 //	@Router			/api/v1/channels [get]
 func (h *ChannelHandler) GetAllChannels(c *gin.Context) {
+	isReturningTokenInfo := false
+	userRole, err := extractUserRoles(c)
+	if err == nil && *userRole == enum.UserRoleAdmin.String() {
+		isReturningTokenInfo = true
+	}
+
 	// Get all channels
-	channels, err := h.channelService.GetAllChannels(c.Request.Context())
+	channels, err := h.channelService.GetAllChannels(c.Request.Context(), isReturningTokenInfo)
 	if err != nil {
 		var response *responses.APIResponse
 		var statusCode int
