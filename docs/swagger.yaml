@@ -4443,8 +4443,6 @@ definitions:
         type: boolean
       name:
         type: string
-      price:
-        type: number
       status:
         $ref: '#/definitions/enum.ProductStatus'
       thumbnail_url:
@@ -4453,7 +4451,9 @@ definitions:
           type: string
         type: array
       type:
-        $ref: '#/definitions/enum.ProductType'
+        allOf:
+        - $ref: '#/definitions/enum.ProductType'
+        description: Price        float64                   `json:"price"`
       updated_at:
         type: string
       updated_by:
@@ -10217,7 +10217,7 @@ paths:
             type: object
       summary: Update GHN Order Delivery Status
       tags:
-      - ghn
+      - ghn-mocking
   /api/v1/location/address:
     post:
       consumes:
@@ -10600,7 +10600,7 @@ paths:
       consumes:
       - application/json
       description: This handler extracts pagination parameters (`page`, `limit`) and
-        an optional search term from the query string.
+        optional filters from query string.
       parameters:
       - description: 'Page number (default: 1)'
         in: query
@@ -10610,9 +10610,21 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Search term for filtering orders by order number
+      - description: Search term for filtering orders by order number or GHN code
         in: query
         name: search
+        type: string
+      - description: Filter by order status
+        in: query
+        name: status
+        type: string
+      - description: Filter by start date (YYYY-MM-DD)
+        in: query
+        name: createdFrom
+        type: string
+      - description: Filter by end date (YYYY-MM-DD)
+        in: query
+        name: createdTo
         type: string
       produces:
       - application/json
@@ -10913,7 +10925,7 @@ paths:
       - BearerAuth: []
       summary: Get staff-available orders with pagination
       tags:
-      - Orders
+      - Orders[Staff]
   /api/v1/orders/staff/{orderID}/censorship:
     post:
       consumes:
@@ -10964,7 +10976,7 @@ paths:
       - BearerAuth: []
       summary: Censor an order (confirm or cancel)
       tags:
-      - Orders
+      - Orders.[Staff].States
   /api/v1/orders/staff/readyToPickedUp/{orderID}:
     patch:
       consumes:
@@ -11005,7 +11017,7 @@ paths:
       - BearerAuth: []
       summary: Mark order as ready to picked up
       tags:
-      - Orders
+      - Orders[Staff].States
   /api/v1/orders/staff/receivedAfterPickup/{orderID}:
     patch:
       consumes:
@@ -11053,7 +11065,7 @@ paths:
       - BearerAuth: []
       summary: Mark order as received after self pick-up
       tags:
-      - Orders
+      - Orders[Staff].States
   /api/v1/orders/staff/self-delivering:
     get:
       consumes:
@@ -11183,7 +11195,7 @@ paths:
       - BearerAuth: []
       summary: Get staff-available orders with pagination
       tags:
-      - Orders
+      - Orders[Staff]
   /api/v1/orders/staff/self-delivering/delivered/{orderID}:
     patch:
       consumes:
@@ -11231,7 +11243,7 @@ paths:
       - BearerAuth: []
       summary: Mark self-delivering limited order as Delivered
       tags:
-      - Orders
+      - Orders[Staff].Limited.States
   /api/v1/orders/staff/self-delivering/in-transit/{orderID}:
     patch:
       consumes:
@@ -11274,7 +11286,7 @@ paths:
       - BearerAuth: []
       summary: Mark self-delivering limited order as In Transit
       tags:
-      - Orders
+      - Orders[Staff].Limited.States
   /api/v1/payments:
     get:
       description: Retrieve payment transactions based on various filter criteria
@@ -12052,8 +12064,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED,
-        ACTIVED, INACTIVED)
+      description: Move a product to a target state (DRAFT, SUBMITTED, REVISION, ACTIVED,
+        INACTIVED)
       parameters:
       - description: Product ID (UUID)
         in: path
@@ -12093,7 +12105,7 @@ paths:
       - BearerAuth: []
       summary: Update Product State
       tags:
-      - State Transfer
+      - Products.State
   /api/v1/products/{productId}/variants:
     post:
       consumes:
@@ -12143,7 +12155,7 @@ paths:
       - BearerAuth: []
       summary: Create Product Variant
       tags:
-      - Products
+      - Products.Variants
   /api/v1/products/limited:
     post:
       consumes:
@@ -12186,7 +12198,7 @@ paths:
       - BearerAuth: []
       summary: Create a limited product
       tags:
-      - Products
+      - Products.Limited
   /api/v1/products/limited/{limited-id}/concept/{concept-id}:
     post:
       consumes:
@@ -12235,7 +12247,7 @@ paths:
       - BearerAuth: []
       summary: Add Concept to Limited Product
       tags:
-      - Products
+      - Products.Limited
   /api/v1/products/publish/{id}/{is-active}:
     patch:
       consumes:
@@ -12337,7 +12349,7 @@ paths:
       - BearerAuth: []
       summary: Create Product
       tags:
-      - Products
+      - Products.Standard
   /api/v1/products/v2:
     get:
       consumes:
@@ -12467,7 +12479,7 @@ paths:
       - BearerAuth: []
       summary: Create Variant Image
       tags:
-      - Products
+      - Products.Variants
   /api/v1/tags:
     get:
       consumes:
@@ -13948,7 +13960,7 @@ paths:
       - BearerAuth: []
       summary: List Variant Attributes (Public)
       tags:
-      - Variant-Attributes
+      - Products.Variants.Attributes
     post:
       consumes:
       - application/json
@@ -13992,7 +14004,7 @@ paths:
       - BearerAuth: []
       summary: Create Variant Attribute
       tags:
-      - Variant-Attributes
+      - Products.Variants.Attributes
   /health:
     get:
       consumes:

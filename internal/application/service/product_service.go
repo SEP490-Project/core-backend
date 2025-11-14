@@ -242,6 +242,12 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 	var productVariant *model.ProductVariant
 	var productOfVariant *model.Product
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// validate dimensions
+		err := p.variantDimensionValidation(variant)
+		if err != nil {
+			return err
+		}
+
 		//Validate product
 		if productID == uuid.Nil {
 			return errors.New("invalid product id")
@@ -283,27 +289,43 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 	return productVariant, nil
 }
 
+func (p productService) variantDimensionValidation(dto requests.CreateProductVariantRequest) error {
+	const (
+		maxWidth  = 200
+		maxLength = 200
+		maxHeight = 200
+		maxWeight = 50000
+	)
+
+	var errs []string
+
+	if dto.Width > maxWidth {
+		errs = append(errs, fmt.Sprintf("width exceeds maximum limit of %d cm, your input: %d cm", maxWidth, dto.Width))
+	}
+	if dto.Length > maxLength {
+		errs = append(errs, fmt.Sprintf("length exceeds maximum limit of %d cm, your input: %d cm", maxLength, dto.Length))
+	}
+	if dto.Height > maxHeight {
+		errs = append(errs, fmt.Sprintf("height exceeds maximum limit of %d cm, your input: %d cm", maxHeight, dto.Height))
+	}
+	if dto.Weight > maxWeight {
+		errs = append(errs, fmt.Sprintf("weight exceeds maximum limit of %d grams, your input: %d grams", maxWeight, dto.Weight))
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("validation errors: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 // CreateStandardProduct creates a new product with default status ACTIVE.
 func (p productService) CreateStandardProduct(dto *requests.CreateStandardProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
-	if dto == nil {
-		return nil, errors.New("null request")
-	}
-
 	ctx := context.Background()
 
-	// Validate brand existence
-	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
-		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
-		return nil, errors.New("could not verify brand existence")
-	} else if !exists {
-		return nil, errors.New("brand not found")
-	}
-	// Validate category existence
-	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
-		zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
-		return nil, errors.New("could not verify category existence")
-	} else if !exists {
-		return nil, errors.New("category not found")
+	//Validate Request
+	err := p.standardProductValidation(ctx, dto)
+	if err != nil {
+		return nil, err
 	}
 
 	entity := dto.ToStandardModel(createdBy)
@@ -330,38 +352,35 @@ func (p productService) CreateStandardProduct(dto *requests.CreateStandardProduc
 	return resp.ToProductResponseV2(saved), nil
 }
 
-func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
+func (p productService) standardProductValidation(ctx context.Context, dto *requests.CreateStandardProductRequest) error {
 	if dto == nil {
-		return nil, errors.New("nil dto")
-	}
-	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
-		return nil, errors.New("Task is required: Limited product must depend on a task")
-	}
-	ctx := context.Background()
-
-	// Validate task existence
-	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
-		zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
-		return nil, errors.New("could not verify task existence")
-	} else if found == nil {
-		return nil, errors.New("task not found")
-	} else if found.Status != enum.TaskStatusInProgress {
-		return nil, errors.New("your task may expired or overdue")
+		return errors.New("null request")
 	}
 
 	// Validate brand existence
 	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
 		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
-		return nil, errors.New("could not verify brand existence")
+		return errors.New("could not verify brand existence")
 	} else if !exists {
-		return nil, errors.New("brand not found")
+		return errors.New("brand not found")
 	}
+
 	// Validate category existence
 	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
 		zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
-		return nil, errors.New("could not verify category existence")
+		return errors.New("could not verify category existence")
 	} else if !exists {
-		return nil, errors.New("category not found")
+		return errors.New("category not found")
+	}
+
+	return nil
+}
+
+func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductRequest, createdBy uuid.UUID) (*responses.ProductResponseV2, error) {
+	ctx := context.Background()
+	err := p.limitedProductValidation(ctx, dto)
+	if err != nil {
+		return nil, err
 	}
 
 	entity := dto.ToProductWithLimitedModel(createdBy)
@@ -386,6 +405,43 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 
 	resp := &responses.ProductResponseV2{}
 	return resp.ToProductResponseV2(saved), nil
+}
+
+func (p productService) limitedProductValidation(ctx context.Context, dto *requests.CreateLimitedProductRequest) error {
+	if dto == nil {
+		return errors.New("nil dto")
+	}
+
+	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
+		return errors.New("Task is required: Limited product must depend on a task")
+	}
+	// Validate task existence
+	if found, err := p.taskRepo.GetByID(ctx, dto.TaskID, nil); err != nil {
+		zap.L().Info("failed verifying task existence", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		return errors.New("could not verify task existence")
+	} else if found == nil {
+		return errors.New("task not found")
+	} else if found.Status != enum.TaskStatusInProgress {
+		return errors.New("your task may expired or overdue")
+	}
+
+	// Validate brand existence
+	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
+		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
+		return errors.New("could not verify brand existence")
+	} else if !exists {
+		return errors.New("brand not found")
+	}
+	// Validate category existence
+	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {
+		zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", dto.CategoryID.String()))
+		return errors.New("could not verify category existence")
+	} else if !exists {
+		return errors.New("category not found")
+	}
+	// Additional validation logic for limited products can be added here
+
+	return nil
 }
 
 func (p productService) GetProductsPagination(page, limit int, search, categoryID, productType string) ([]*responses.ProductResponse, int, error) {

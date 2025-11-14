@@ -24,8 +24,8 @@ func NewProductState(status enum.ProductStatus) ProductState {
 		return &SubmittedState{}
 	case enum.ProductStatusRevision:
 		return &RevisionState{}
-	case enum.ProductStatusApproved:
-		return &ApprovedState{}
+	//case enum.ProductStatusApproved:
+	//	return &ApprovedState{}
 	case enum.ProductStatusActived:
 		return &ActivedState{}
 	case enum.ProductStatusInactived:

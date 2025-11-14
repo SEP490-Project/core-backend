@@ -364,7 +364,7 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 //
 //	@Summary		Create Product
 //	@Description	Create a new product (initial state DRAFT)
-//	@Tags			Products
+//	@Tags			Products.Standard
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateStandardProductRequest	true	"Product to create"
@@ -409,7 +409,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //
 //	@Summary		Create a limited product
 //	@Description	Create a limited product with stock/availability constraints. Requires authenticated user (creatorID lấy từ context).
-//	@Tags			Products
+//	@Tags			Products.Limited
 //	@Security		BearerAuth
 //	@Accept			json
 //	@Produce		json
@@ -457,7 +457,7 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 //
 //	@Summary		Create Product Variant
 //	@Description	Create a new product variant with story and attributes
-//	@Tags			Products
+//	@Tags			Products.Variants
 //	@Accept			json
 //	@Produce		json
 //	@Param			productId	path		string						true	"Product ID (UUID)"
@@ -571,7 +571,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 //
 //	@Summary		Create Variant Image
 //	@Description	Upload and create a new image for a product variant
-//	@Tags			Products
+//	@Tags			Products.Variants
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			variantId	path		string	true	"Variant ID (UUID)"
@@ -697,7 +697,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 //
 //	@Summary		Create Variant Attribute
 //	@Description	Create a new variant attribute
-//	@Tags			Variant-Attributes
+//	@Tags			Products.Variants.Attributes
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
@@ -786,7 +786,7 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 //
 //	@Summary		Add Concept to Limited Product
 //	@Description	Associate an existing concept to a limited product
-//	@Tags			Products
+//	@Tags			Products.Limited
 //	@Accept			json
 //	@Produce		json
 //	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
@@ -845,7 +845,7 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 //
 //	@Summary		List Variant Attributes (Public)
 //	@Description	Get paginated list of variant attributes (public view). Returns lightweight attribute responses suitable for front-end listing.
-//	@Tags			Variant-Attributes
+//	@Tags			Products.Variants.Attributes
 //	@Accept			json
 //	@Produce		json
 //	@Param			page	query		int		false	"Page number"		default(1)

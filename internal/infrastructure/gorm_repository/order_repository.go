@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -308,6 +309,114 @@ func (r *OrderRepository) GetSelfDeliveryOrdersWithPagination(ctx context.Contex
 
 	return orders, total, nil
 
+}
+
+// GetOrdersWithFiltersWithPagination searches orders by GHN order code or Order ID,
+// filters by created date range and by status. It follows same pagination pattern
+// as other repository methods and includes payment join for additional metadata.
+func (r *OrderRepository) GetOrdersWithFiltersWithPagination(
+	ctx context.Context,
+	limit, page int,
+	search, status, createdFrom, createdTo, fullName, phone, provinceID, districtID, wardCode, orderType string,
+) ([]model.Order, int, error) {
+
+	pageNum := page
+	pageSize := limit
+	if pageNum < 1 {
+		pageNum = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (pageNum - 1) * pageSize
+
+	// Base query
+	query := r.db.WithContext(ctx).Model(&model.Order{}).
+		Preload("OrderItems").
+		Joins("LEFT JOIN payment_transactions pt ON pt.reference_id = orders.id AND pt.reference_type = 'ORDER'").
+		Where("orders.status <> ?", enum.OrderStatusPending)
+
+	// Filters
+	if status != "" {
+		s := enum.OrderStatus(status)
+		if s.IsValid() && s != enum.OrderStatusPending {
+			query = query.Where("orders.status = ?", s)
+		}
+	}
+	if search != "" {
+		if id, err := uuid.Parse(search); err == nil {
+			query = query.Where("(orders.id = ? OR orders.ghn_order_code = ?)", id, search)
+		} else {
+			like := "%" + search + "%"
+			query = query.Where("(orders.ghn_order_code ILIKE ? OR orders.id::text ILIKE ?)", like, like)
+		}
+	}
+	if createdFrom != "" {
+		if t, err := time.Parse("2006-01-02", createdFrom); err == nil {
+			query = query.Where("orders.created_at >= ?", t)
+		}
+	}
+	if createdTo != "" {
+		if t, err := time.Parse("2006-01-02", createdTo); err == nil {
+			query = query.Where("orders.created_at < ?", t.Add(24*time.Hour))
+		}
+	}
+	if fullName != "" {
+		query = query.Where("orders.full_name ILIKE ?", "%"+fullName+"%")
+	}
+	if phone != "" {
+		query = query.Where("orders.phone_number ILIKE ?", "%"+phone+"%")
+	}
+	if provinceID != "" {
+		if pid, err := strconv.Atoi(provinceID); err == nil {
+			query = query.Where("orders.ghn_province_id = ?", pid)
+		}
+	}
+	if districtID != "" {
+		if did, err := strconv.Atoi(districtID); err == nil {
+			query = query.Where("orders.ghn_district_id = ?", did)
+		}
+	}
+	if wardCode != "" {
+		query = query.Where("orders.ghn_ward_code = ?", wardCode)
+	}
+	if orderType != "" {
+		ot := enum.ProductType(orderType)
+		if ot.IsValid() {
+			query = query.Where("orders.order_type = ?", ot)
+		}
+	}
+
+	// Count total records
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		zap.L().Error("failed to count orders", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// Pagination + ordering
+	var orders []model.Order
+	if err := query.Order("orders.created_at DESC").Limit(pageSize).Offset(offset).Find(&orders).Error; err != nil {
+		zap.L().Error("failed to fetch orders", zap.Error(err))
+		return nil, 0, err
+	}
+
+	// Map payment info (optional)
+	for i := range orders {
+		var pt struct {
+			PaymentID  *uuid.UUID
+			PaymentBin *string
+		}
+		if err := r.db.WithContext(ctx).Raw(
+			"SELECT id AS payment_id, payos_metadata->>'bin' AS payment_bin FROM payment_transactions WHERE reference_id = ? AND reference_type = 'ORDER' LIMIT 1",
+			orders[i].ID,
+		).Scan(&pt).Error; err == nil {
+			orders[i].PaymentID = pt.PaymentID
+			orders[i].PaymentBin = pt.PaymentBin
+		}
+	}
+
+	return orders, int(total), nil
 }
 
 func NewOrderRepository(db *gorm.DB) irepository.OrderRepository {

@@ -10,4 +10,7 @@ type OrderRepository interface {
 	GenericRepository[model.Order]
 	GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error)
 	GetSelfDeliveryOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
+	// GetOrdersWithFiltersWithPagination allows searching by GHN order code or Order ID,
+	// filter by created date range (createdFrom, createdTo as YYYY-MM-DD) and by status.
+	GetOrdersWithFiltersWithPagination(ctx context.Context, limit, page int, search, status, createdFrom, createdTo, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error)
 }

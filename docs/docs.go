@@ -7628,7 +7628,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ghn"
+                    "ghn-mocking"
                 ],
                 "summary": "Update GHN Order Delivery Status",
                 "parameters": [
@@ -8447,7 +8447,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "This handler extracts pagination parameters (` + "`" + `page` + "`" + `, ` + "`" + `limit` + "`" + `) and an optional search term from the query string.",
+                "description": "This handler extracts pagination parameters (` + "`" + `page` + "`" + `, ` + "`" + `limit` + "`" + `) and optional filters from query string.",
                 "consumes": [
                     "application/json"
                 ],
@@ -8473,8 +8473,26 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Search term for filtering orders by order number",
+                        "description": "Search term for filtering orders by order number or GHN code",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by order status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (YYYY-MM-DD)",
+                        "name": "createdFrom",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (YYYY-MM-DD)",
+                        "name": "createdTo",
                         "in": "query"
                     }
                 ],
@@ -8730,7 +8748,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff]"
                 ],
                 "summary": "Get staff-available orders with pagination",
                 "parameters": [
@@ -8891,7 +8909,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff].States"
                 ],
                 "summary": "Mark order as ready to picked up",
                 "parameters": [
@@ -8956,7 +8974,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff].States"
                 ],
                 "summary": "Mark order as received after self pick-up",
                 "parameters": [
@@ -9028,7 +9046,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff]"
                 ],
                 "summary": "Get staff-available orders with pagination",
                 "parameters": [
@@ -9175,7 +9193,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff].Limited.States"
                 ],
                 "summary": "Mark self-delivering limited order as Delivered",
                 "parameters": [
@@ -9247,7 +9265,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders[Staff].Limited.States"
                 ],
                 "summary": "Mark self-delivering limited order as In Transit",
                 "parameters": [
@@ -9312,7 +9330,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders.[Staff].States"
                 ],
                 "summary": "Censor an order (confirm or cancel)",
                 "parameters": [
@@ -10481,7 +10499,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Products"
+                    "Products.Limited"
                 ],
                 "summary": "Create a limited product",
                 "parameters": [
@@ -10547,7 +10565,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Products"
+                    "Products.Limited"
                 ],
                 "summary": "Add Concept to Limited Product",
                 "parameters": [
@@ -10712,7 +10730,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Products"
+                    "Products.Standard"
                 ],
                 "summary": "Create Product",
                 "parameters": [
@@ -10892,7 +10910,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Products"
+                    "Products.Variants"
                 ],
                 "summary": "Create Variant Image",
                 "parameters": [
@@ -11044,7 +11062,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)",
+                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, ACTIVED, INACTIVED)",
                 "consumes": [
                     "application/json"
                 ],
@@ -11052,7 +11070,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "State Transfer"
+                    "Products.State"
                 ],
                 "summary": "Update Product State",
                 "parameters": [
@@ -11122,7 +11140,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Products"
+                    "Products.Variants"
                 ],
                 "summary": "Create Product Variant",
                 "parameters": [
@@ -13426,7 +13444,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Variant-Attributes"
+                    "Products.Variants.Attributes"
                 ],
                 "summary": "List Variant Attributes (Public)",
                 "parameters": [
@@ -13498,7 +13516,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Variant-Attributes"
+                    "Products.Variants.Attributes"
                 ],
                 "summary": "Create Variant Attribute",
                 "parameters": [
@@ -19941,9 +19959,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "price": {
-                    "type": "number"
-                },
                 "status": {
                     "$ref": "#/definitions/enum.ProductStatus"
                 },
@@ -19955,7 +19970,12 @@ const docTemplate = `{
                     }
                 },
                 "type": {
-                    "$ref": "#/definitions/enum.ProductType"
+                    "description": "Price        float64                   ` + "`" + `json:\"price\"` + "`" + `",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ProductType"
+                        }
+                    ]
                 },
                 "updated_at": {
                     "type": "string"
