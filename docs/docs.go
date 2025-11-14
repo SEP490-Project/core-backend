@@ -16409,6 +16409,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
                 "task_id": {
                     "type": "string"
                 },
@@ -17564,6 +17568,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
                 "title": {
                     "type": "string",
                     "maxLength": 500
@@ -18632,7 +18640,7 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
+                    "example": "2023-01-01 00:00:00"
                 },
                 "description": {
                     "type": "string",
@@ -18654,9 +18662,37 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Facebook"
                 },
+                "token_info": {
+                    "$ref": "#/definitions/responses.ChannelTokenInfo"
+                },
                 "updated_at": {
                     "type": "string",
-                    "example": "2023-01-01T00:00:00Z"
+                    "example": "2023-01-01 00:00:00"
+                }
+            }
+        },
+        "responses.ChannelTokenInfo": {
+            "type": "object",
+            "properties": {
+                "access_token_expires_at": {
+                    "type": "string",
+                    "example": "2023-12-31 23:59:59"
+                },
+                "account_name": {
+                    "type": "string",
+                    "example": "my_facebook_account"
+                },
+                "external_id": {
+                    "type": "string",
+                    "example": "9876543210"
+                },
+                "last_synced_at": {
+                    "type": "string",
+                    "example": "2023-06-01 12:00:00"
+                },
+                "refresh_token_expires_at": {
+                    "type": "string",
+                    "example": "2024-12-31 23:59:59"
                 }
             }
         },
@@ -18726,6 +18762,9 @@ const docTemplate = `{
                     }
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "id": {

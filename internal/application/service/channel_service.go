@@ -10,6 +10,7 @@ import (
 	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/crypto"
+	"core-backend/pkg/utils"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -80,7 +81,7 @@ func (c *channelService) DeleteChannel(ctx context.Context, channelID uuid.UUID,
 }
 
 // GetAllChannels implements iservice.ChannelService.
-func (c *channelService) GetAllChannels(ctx context.Context) ([]responses.ChannelResponse, error) {
+func (c *channelService) GetAllChannels(ctx context.Context, isReturnTokenInfo bool) ([]responses.ChannelResponse, error) {
 	zap.L().Info("GetAllChannels called")
 
 	channels, _, err := c.channelRepo.GetAll(ctx, nil, nil, 0, 0)
@@ -89,7 +90,23 @@ func (c *channelService) GetAllChannels(ctx context.Context) ([]responses.Channe
 		return nil, err
 	}
 
-	return responses.ChannelResponse{}.ToListResponse(channels), nil
+	var channelResponses []responses.ChannelResponse
+	for _, model := range channels {
+		tempResp := (responses.ChannelResponse{}.ToResponse(&model))
+		if !isReturnTokenInfo {
+			tempResp.TokenInfo = &responses.ChannelTokenInfo{
+				ExternalID:            *model.ExternalID,
+				AccountName:           *model.AccountName,
+				AccessTokenExpiresAt:  utils.FormatLocalTime(model.AccessTokenExpiresAt, ""),
+				RefreshTokenExpiresAt: utils.PtrOrNil(utils.FormatLocalTime(model.RefreshTokenExpiresAt, "")),
+				LastSyncedAt:          utils.FormatLocalTime(model.LastSyncedAt, ""),
+			}
+		}
+
+		channelResponses = append(channelResponses, *tempResp)
+
+	}
+	return channelResponses, nil
 }
 
 // GetChannelByID implements iservice.ChannelService.

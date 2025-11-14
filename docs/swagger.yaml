@@ -1938,6 +1938,9 @@ definitions:
           type: string
         minItems: 1
         type: array
+      description:
+        maxLength: 1000
+        type: string
       task_id:
         type: string
       title:
@@ -2790,6 +2793,9 @@ definitions:
         items:
           type: string
         type: array
+      description:
+        maxLength: 1000
+        type: string
       title:
         maxLength: 500
         type: string
@@ -3547,7 +3553,7 @@ definitions:
         example: FACEBOOK
         type: string
       created_at:
-        example: "2023-01-01T00:00:00Z"
+        example: "2023-01-01 00:00:00"
         type: string
       description:
         example: This is a social media channel.
@@ -3564,8 +3570,28 @@ definitions:
       name:
         example: Facebook
         type: string
+      token_info:
+        $ref: '#/definitions/responses.ChannelTokenInfo'
       updated_at:
-        example: "2023-01-01T00:00:00Z"
+        example: "2023-01-01 00:00:00"
+        type: string
+    type: object
+  responses.ChannelTokenInfo:
+    properties:
+      access_token_expires_at:
+        example: "2023-12-31 23:59:59"
+        type: string
+      account_name:
+        example: my_facebook_account
+        type: string
+      external_id:
+        example: "9876543210"
+        type: string
+      last_synced_at:
+        example: "2023-06-01 12:00:00"
+        type: string
+      refresh_token_expires_at:
+        example: "2024-12-31 23:59:59"
         type: string
     type: object
   responses.ContentChannelBrief:
@@ -3612,6 +3638,8 @@ definitions:
           $ref: '#/definitions/responses.ContentChannelBrief'
         type: array
       created_at:
+        type: string
+      description:
         type: string
       id:
         type: string

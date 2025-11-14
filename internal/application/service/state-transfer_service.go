@@ -1021,7 +1021,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 				}
 				newStock := old + it.Quantity
 				it.Variant.CurrentStock = &newStock
-				if err := variantRepo.Update(ctx, &it.Variant); err != nil {
+				if err = variantRepo.Update(ctx, &it.Variant); err != nil {
 					zap.L().Error("Failed to persist regained stock for variant (manual cancel)",
 						zap.String("variant_id", it.Variant.ID.String()),
 						zap.Error(err))

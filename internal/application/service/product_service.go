@@ -206,7 +206,7 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 			return fmt.Errorf("product variant with ID %s not found", variantID)
 		}
 
-		if image.IsPrimary == true {
+		if image.IsPrimary {
 			result := uow.VariantImage().
 				DB().
 				WithContext(ctx).
@@ -223,7 +223,7 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 		//Create VariantImage
 		variantImage = image.ToModel()
 
-		if err := uow.(irepository.UnitOfWork).VariantImage().Add(ctx, variantImage); err != nil {
+		if err := uow.VariantImage().Add(ctx, variantImage); err != nil {
 			zap.L().Error("failed to persist variant image", zap.Error(err))
 			return err
 		}
@@ -334,8 +334,8 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 	if dto == nil {
 		return nil, errors.New("nil dto")
 	}
-	if &dto.TaskID == nil || dto.TaskID == uuid.Nil {
-		return nil, errors.New("Task is required: Limited product must depend on a task")
+	if dto.TaskID == uuid.Nil {
+		return nil, errors.New("task is required: Limited product must depend on a task")
 	}
 	ctx := context.Background()
 
@@ -875,7 +875,7 @@ func (p productService) GetVariantAttributePaginationPartial(limit, page int, se
 		return db
 	}
 	var total int64
-	if err := p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
+	if err = p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
 		zap.L().Error("Failed to count variant attributes", zap.Error(err))
 		return nil, 0, err
 	}
@@ -950,7 +950,7 @@ func (p productService) GetVariantAttributePagination(limit, page int, search st
 		return db
 	}
 	var total int64
-	if err := p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
+	if err = p.variantAttributeRepo.DB().WithContext(ctx).Model(&model.VariantAttribute{}).Scopes(countScope).Count(&total).Error; err != nil {
 		zap.L().Error("Failed to count variant attributes", zap.Error(err))
 		return nil, 0, err
 	}
@@ -1007,7 +1007,7 @@ func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5N
 	stdProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
 	limitedProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
 	prdMapper := &responses.ProductResponseV2Partial{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if i < len(stdProducts) {
 			stdItem := prdMapper.ToProductResponseV2(&stdProducts[i])
 			stdProductResp = append(stdProductResp, *stdItem)
@@ -1032,7 +1032,8 @@ func (p productService) UpdateVariantImage(ctx context.Context, variantImageID u
 	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 
 		//Load existing variant image
-		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		var err error
+		variantImage, err = uow.VariantImage().GetByID(ctx, variantImageID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to load variant image by id: %w", err)
 		}
@@ -1082,7 +1083,8 @@ func (p productService) UpdateVariantImageAsync(ctx context.Context, userID, var
 		}
 
 		// Load variant image
-		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		var err error
+		variantImage, err = uow.VariantImage().GetByID(ctx, variantImageID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to load variant image by id: %w", err)
 		}

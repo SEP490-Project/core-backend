@@ -12,7 +12,7 @@ import (
 
 type ChannelService interface {
 	// ChannelService defines the interface for channel-related operations
-	GetAllChannels(ctx context.Context) ([]responses.ChannelResponse, error)
+	GetAllChannels(ctx context.Context, isReturnTokenInfo bool) ([]responses.ChannelResponse, error)
 
 	// GetChannelByID retrieves a channel by its ID
 	GetChannelByID(ctx context.Context, channelID uuid.UUID) (*responses.ChannelResponse, error)

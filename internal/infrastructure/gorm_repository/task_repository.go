@@ -5,8 +5,10 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -211,6 +213,30 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 	data.ContentIDs = contentIDs
 	data.ProductIDs = productIDs
 	return &data, nil
+}
+
+func (r *TaskRepository) GetContractTrackingLinkByTaskID(ctx context.Context, taskID uuid.UUID) (string, uuid.UUID, error) {
+	query := r.db.WithContext(ctx).Model(new(model.Task)).
+		Joins("INNER JOIN milestones AS m ON tasks.milestone_id = m.id").
+		Joins("INNER JOIN campaigns AS c ON m.campaign_id = c.id").
+		Joins("INNER JOIN contracts AS ct ON c.contract_id = ct.id").
+		Where("tasks.id = ?", taskID).
+		Where("ct.type = ?", enum.ContractTypeAffiliate).
+		Select(
+			"ct.scope_of_work -> 'deliverables' ->> 'tracking_link' AS tracking_link",
+			"ct.id AS contract_id",
+		)
+	var result struct {
+		TrackingLink string    `json:"tracking_link"`
+		ContractID   uuid.UUID `json:"contract_id"`
+	}
+	if err := query.Scan(&result).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", uuid.Nil, nil
+		}
+		return "", uuid.Nil, err
+	}
+	return result.TrackingLink, result.ContractID, nil
 }
 
 func NewTaskRepository(db *gorm.DB) irepository.TaskRepository {

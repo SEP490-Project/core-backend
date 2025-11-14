@@ -13,6 +13,7 @@ type Content struct {
 	ID                uuid.UUID          `json:"id" gorm:"type:uuid;primaryKey"`
 	TaskID            *uuid.UUID         `json:"task_id,omitempty" gorm:"type:uuid"`
 	Title             string             `json:"title" gorm:"type:varchar(500);not null"`
+	Description       *string            `json:"description,omitempty" gorm:"type:text"`
 	Body              datatypes.JSON     `json:"body" gorm:"type:text;not null"`
 	Type              enum.ContentType   `json:"type" gorm:"type:varchar(50);not null"`
 	Status            enum.ContentStatus `json:"status" gorm:"type:varchar(50);not null"`
