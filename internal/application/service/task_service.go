@@ -72,8 +72,9 @@ func (t *TaskService) AssignTask(ctx context.Context, uow irepository.UnitOfWork
 			zap.Error(err))
 		return nil, err
 	}
+	uow.Commit()
 
-	taskDetail, err := taskRepo.GetDetailTask(ctx, taskID)
+	taskDetail, err := t.taskRepo.GetDetailTask(ctx, taskID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			zap.L().Warn("TaskService - AssignTask - task not found",
