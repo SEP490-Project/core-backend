@@ -19,9 +19,8 @@ script.groovy
 *.pem
 *.txt
 *.sql
-templates/
+templates/emails/
 specs/
-templates
 specs
 test-reports/
 tests/

@@ -106,6 +106,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
 		r.setupTestRoutes(v1)
+		r.setupPaymentTransactionsRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -717,11 +718,16 @@ func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 		payosGroup.POST("/cancel", payOsHandler.CancelExpiredLinks)
 		payosGroup.POST("/confirm-webhook", payOsHandler.ConfirmWebhookURL)
 	}
+}
+
+func (r *Router) setupPaymentTransactionsRoutes(group *gin.RouterGroup) {
+	payOsHandler := r.handlerRegistry.PaymentTransactionsHandler
 
 	viewGroup := group.Group("/payments")
-	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
+	viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand, customer))
 	{
 		viewGroup.GET("", payOsHandler.GetByFilter)
+		viewGroup.GET("/profile", payOsHandler.GetByProfileFilter)
 		viewGroup.GET("/id/:id", payOsHandler.GetByID)
 		viewGroup.GET("/order-code/:order_code", payOsHandler.GetByOrderCode)
 	}

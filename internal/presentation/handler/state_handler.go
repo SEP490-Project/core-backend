@@ -151,13 +151,13 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	}
 
 	var req UpdateProductStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
-	if err := h.Validate.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -198,14 +198,14 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 
 SkipAdminRoleCheck:
 
-	userId, err := extractUserIDFromContext(c)
+	userID, err := extractUserIDFromContext(c)
 	if err != nil {
 		resp := responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusUnauthorized)
 		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
-	if err := h.StateTransferService.MoveProductToState(c.Request.Context(), id, target, userId); err != nil {
+	if err := h.MoveProductToState(c.Request.Context(), id, target, userID); err != nil {
 		resp := responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict)
 		c.JSON(http.StatusConflict, resp)
 		return
@@ -253,11 +253,11 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 	}
 
 	var req UpdateMilestoneStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	if err := h.Validate.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -282,13 +282,13 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 		return
 	}
 
-	userId, err := extractUserIDFromContext(c)
+	userID, err := extractUserIDFromContext(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.StateTransferService.MoveMileStoneToState(c.Request.Context(), id, target, userId); err != nil {
+	if err := h.MoveMileStoneToState(c.Request.Context(), id, target, userID); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move milestone: "+err.Error(), http.StatusConflict))
 		return
 	}

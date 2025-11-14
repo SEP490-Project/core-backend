@@ -10,6 +10,7 @@ import (
 )
 
 /*===========================PRODUCTS Overview=====================================*/
+
 // ProductResponse represents the response structure for a product.
 type ProductResponse struct {
 	ID           uuid.UUID                  `json:"id"`
@@ -77,6 +78,7 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 }
 
 /*===========================PRODUCTS DETAIL=====================================*/
+
 type ProductDetailResponse struct {
 	ID               uuid.UUID                `json:"id"`
 	BrandID          uuid.UUID                `json:"brand_id"`
@@ -296,7 +298,12 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 }
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
+
 func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.ProductVariant, story *model.ProductStory, attributeValueList []ProductAttributesResponse) *ProductVariantResponse {
+	if variant == nil {
+		return nil
+	}
+
 	resp := ProductVariantResponse{
 		ID:              variant.ID,
 		Price:           variant.Price,
@@ -322,7 +329,7 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 	}
 
 	// Include product-level fields if product relation is present
-	if variant != nil && variant.Product != nil {
+	if variant.Product != nil {
 		resp.Name = variant.Product.Name
 		resp.Description = variant.Product.Description
 		resp.Type = variant.Product.Type
@@ -331,7 +338,7 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 	// Prefer provided story param if present, otherwise fall back to preloaded variant.Story
 	if story != nil {
 		resp.Story = story.Content
-	} else if variant != nil && variant.Story != nil {
+	} else if variant.Story != nil {
 		resp.Story = variant.Story.Content
 	}
 
@@ -354,6 +361,7 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 }
 
 // TODO:====================================== VERSION 2======================================================
+
 type ProductResponseV2 struct {
 	ID           uuid.UUID                 `json:"id"`
 	BrandID      uuid.UUID                 `json:"brand_id"`
@@ -374,7 +382,7 @@ type ProductResponseV2 struct {
 	UpdatedBy    *UserListResponse         `json:"updated_by"`
 }
 
-// ToProductResponse converts a Product model to a ProductResponse DTO.
+// ToProductResponseV2 converts a Product model to a ProductResponse DTO.
 func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductResponseV2 {
 	if pr == nil {
 		pr = &ProductResponseV2{}
@@ -430,7 +438,7 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 	return pr
 }
 
-// ProductV2ForCustomer
+// ProductResponseV2Partial represents a partial response structure for a product.
 type ProductResponseV2Partial struct {
 	ID           uuid.UUID                  `json:"id"`
 	BrandID      uuid.UUID                  `json:"brand_id"`

@@ -9235,6 +9235,12 @@
                     },
                     {
                         "type": "string",
+                        "description": "Filter by Payer User ID (UUID)",
+                        "name": "payer_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)",
                         "name": "status",
                         "in": "query"
@@ -9419,6 +9425,105 @@
                     },
                     "404": {
                         "description": "Payment transaction not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/payments/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve payment transactions based on various filter criteria with pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PayOS"
+                ],
+                "summary": "Get payment transactions by profile filter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by Reference ID (UUID)",
+                        "name": "reference_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Reference Type (ORDER, CONTRACT_PAYMENT)",
+                        "name": "reference_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Payment Status (PENDING, COMPLETED, CANCELLED, EXPIRED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Payment Method (CREDIT_CARD, BANK_TRANSFER, E_WALLET)",
+                        "name": "method",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Transaction From Date (YYYY-MM-DD)",
+                        "name": "transaction_from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by Transaction To Date (YYYY-MM-DD)",
+                        "name": "transaction_to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default is 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page for pagination (default is 10)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Field to sort by (e.g., transaction_date, amount)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order (asc or desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment transactions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.PaymentTransactionPaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -16858,6 +16963,9 @@
                     "items": {
                         "$ref": "#/definitions/requests.PaymentItemRequest"
                     }
+                },
+                "payer_id": {
+                    "type": "string"
                 },
                 "reference_id": {
                     "description": "Reference information",
