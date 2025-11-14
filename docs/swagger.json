@@ -16402,6 +16402,10 @@
                         "type": "string"
                     }
                 },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
                 "task_id": {
                     "type": "string"
                 },
@@ -17556,6 +17560,10 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
                 },
                 "title": {
                     "type": "string",
@@ -18719,6 +18727,9 @@
                     }
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "id": {

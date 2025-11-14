@@ -1938,6 +1938,9 @@ definitions:
           type: string
         minItems: 1
         type: array
+      description:
+        maxLength: 1000
+        type: string
       task_id:
         type: string
       title:
@@ -2790,6 +2793,9 @@ definitions:
         items:
           type: string
         type: array
+      description:
+        maxLength: 1000
+        type: string
       title:
         maxLength: 500
         type: string
@@ -3612,6 +3618,8 @@ definitions:
           $ref: '#/definitions/responses.ContentChannelBrief'
         type: array
       created_at:
+        type: string
+      description:
         type: string
       id:
         type: string
