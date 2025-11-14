@@ -83,11 +83,26 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		ID:              uuid.New(),
 		TaskID:          req.TaskID,
 		Title:           req.Title,
+		Description:     req.Description,
 		Body:            rawBody,
 		Type:            enum.ContentType(req.Type),
 		Status:          enum.ContentStatusDraft,
 		AffiliateLink:   req.AffiliateLink,
 		AIGeneratedText: req.AIGeneratedText,
+	}
+
+	if req.Description == nil || *req.Description == "" {
+		switch req.Type {
+		case enum.ContentTypeVideo.String():
+			var bodyMap map[string]any
+			if err = json.Unmarshal(rawBody, &bodyMap); err == nil {
+				if description, ok := bodyMap["description"].(string); ok {
+					content.Description = &description
+				}
+			}
+		case enum.ContentTypePost.String():
+			// TODO: implement the uses of TipTap parser utility later
+		}
 	}
 
 	if err = contentRepo.Add(ctx, content); err != nil {
@@ -181,6 +196,9 @@ func (s *ContentService) Update(ctx context.Context, id uuid.UUID, req *requests
 
 	if req.Title != nil {
 		content.Title = *req.Title
+	}
+	if req.Description != nil {
+		content.Description = req.Description
 	}
 	if req.Body != nil {
 		if rawBody, err := json.Marshal(req.Body); err == nil {
@@ -543,6 +561,7 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 		TaskID:            content.TaskID,
 		Title:             content.Title,
 		ThumbnailURL:      content.ThumbnailURL,
+		Description:       content.Description,
 		Body:              content.Body,
 		Type:              content.Type,
 		Status:            content.Status,
