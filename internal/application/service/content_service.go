@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
@@ -24,26 +25,22 @@ type ContentService struct {
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	channelRepo          irepository.GenericRepository[model.Channel]
-	taskRepo             irepository.GenericRepository[model.Task]
+	taskRepo             irepository.TaskRepository
 	uow                  irepository.UnitOfWork
 	affiliateLinkService iservice.AffiliateLinkService
 }
 
 func NewContentService(
-	contentRepo irepository.GenericRepository[model.Content],
-	blogRepo irepository.GenericRepository[model.Blog],
-	contentChannelRepo irepository.GenericRepository[model.ContentChannel],
-	channelRepo irepository.GenericRepository[model.Channel],
-	taskRepo irepository.GenericRepository[model.Task],
+	databaseReg *gormrepository.DatabaseRegistry,
 	uow irepository.UnitOfWork,
 	affiliateLinkService iservice.AffiliateLinkService,
 ) iservice.ContentService {
 	return &ContentService{
-		contentRepo:          contentRepo,
-		blogRepo:             blogRepo,
-		contentChannelRepo:   contentChannelRepo,
-		channelRepo:          channelRepo,
-		taskRepo:             taskRepo,
+		contentRepo:          databaseReg.ContentRepository,
+		blogRepo:             databaseReg.BlogRepository,
+		contentChannelRepo:   databaseReg.ContentChannelRepository,
+		channelRepo:          databaseReg.ChannelRepository,
+		taskRepo:             databaseReg.TaskRepository,
 		uow:                  uow,
 		affiliateLinkService: affiliateLinkService,
 	}
@@ -687,45 +684,19 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 		return nil
 	}
 
-	// Get task with full relationship chain: Task → Milestone → Campaign → Contract
-	task, err := s.taskRepo.GetByID(ctx, *content.TaskID, []string{"Milestone", "Milestone.Campaign", "Milestone.Campaign.Contract"})
+	trackingLink, contractID, err := s.taskRepo.GetContractTrackingLinkByTaskID(ctx, *content.TaskID)
 	if err != nil {
-		zap.L().Warn("Failed to retrieve task for affiliate link creation",
+		zap.L().Warn("Failed to retrieve affiliate link for content",
 			zap.String("task_id", content.TaskID.String()),
 			zap.Error(err))
-		return nil // Don't fail content creation if task not found
-	}
-
-	// Validate relationship chain exists
-	if task.Milestone == nil || task.Milestone.Campaign == nil || task.Milestone.Campaign.Contract == nil {
-		zap.L().Debug("Task does not have complete relationship chain for affiliate link",
-			zap.String("task_id", task.ID.String()))
-		return nil
-	}
-
-	contract := task.Milestone.Campaign.Contract
-
-	// Extract TrackingLink from ScopeOfWork JSONB
-	var scopeOfWork map[string]any
-	if err := json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
-		zap.L().Warn("Failed to parse contract ScopeOfWork JSONB",
-			zap.String("contract_id", contract.ID.String()),
-			zap.Error(err))
-		return nil // Don't fail content creation if JSONB is invalid
-	}
-
-	trackingLink, ok := scopeOfWork["TrackingLink"].(string)
-	if !ok || trackingLink == "" {
-		zap.L().Debug("Contract does not have TrackingLink in ScopeOfWork",
-			zap.String("contract_id", contract.ID.String()))
-		return nil // No tracking link configured, skip affiliate link creation
+		return nil // Don't fail content creation if tracking link retrieval fails
 	}
 
 	// Create affiliate links for each channel
 	for _, channelID := range channelIDs {
 		affiliateReq := &requests.CreateAffiliateLinkRequest{
 			TrackingURL: trackingLink,
-			ContractID:  contract.ID,
+			ContractID:  contractID,
 			ContentID:   content.ID,
 			ChannelID:   channelID,
 		}
