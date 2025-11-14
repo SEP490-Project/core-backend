@@ -137,65 +137,8 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		zap.String("reference_id", req.ReferenceID.String()),
 		zap.String("reference_type", req.ReferenceType.String()))
 
-	// 0. Validate reference id and payer user id USING THE SAME UoW/TRANSACTION
-	validateReferenceID := func(ctx context.Context) error {
-		switch req.ReferenceType {
-		case enum.PaymentTransactionReferenceTypeContractPayment:
-			if exists, err := uow.ContractPayments().ExistsByID(ctx, req.ReferenceID); err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
-					return errors.New("contract payment not found")
-				}
-				zap.L().Error("Failed to validate contract payment reference ID", zap.Error(err))
-			} else if !exists {
-				zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
-				return errors.New("contract payment not found")
-			}
-		case enum.PaymentTransactionReferenceTypeOrder:
-			if exists, err := uow.Order().ExistsByID(ctx, req.ReferenceID); err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
-					return errors.New("order not found")
-				}
-				zap.L().Error("Failed to validate order reference ID", zap.Error(err))
-			} else if !exists {
-				zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
-				return errors.New("order not found")
-			}
-		case enum.PaymentTransactionReferenceTypePreOrder:
-			if exists, err := uow.PreOrder().ExistsByID(ctx, req.ReferenceID); err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
-					return errors.New("pre-order not found")
-				}
-				zap.L().Error("Failed to validate pre-order reference ID", zap.Error(err))
-			} else if !exists {
-				zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
-				return errors.New("pre-order not found")
-			}
-		default:
-			zap.L().Error("Invalid reference type", zap.String("reference_type", req.ReferenceType.String()))
-			return errors.New("invalid reference type")
-		}
-		return nil
-	}
-	validatePayerID := func(ctx context.Context) error {
-		if req.PayerID != nil {
-			if exists, err := uow.Users().ExistsByID(ctx, *req.PayerID); err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
-					return errors.New("user not found")
-				}
-				zap.L().Error("Failed to validate user ID", zap.Error(err))
-			} else if !exists {
-				zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
-				return errors.New("user not found")
-			}
-		}
-		return nil
-	}
-	if err := utils.RunParallel(ctx, 2, validateReferenceID, validatePayerID); err != nil {
-		zap.L().Error("Failed to validate reference ID and payer user ID", zap.Error(err))
+	// 0. Validate reference id and payer user id
+	if err := s.validateReferenceIDAndPayerID(ctx, uow, req); err != nil {
 		return nil, err
 	}
 
@@ -634,6 +577,66 @@ func (s *paymentTransactionService) mapPayOSTransactions(transactions []struct {
 		})
 	}
 	return result
+}
+
+func (s *paymentTransactionService) validateReferenceIDAndPayerID(ctx context.Context, uow irepository.UnitOfWork, req *requests.PaymentRequest) error {
+	// Validate reference ID based on reference type
+	switch req.ReferenceType {
+	case enum.PaymentTransactionReferenceTypeContractPayment:
+		if exists, err := uow.ContractPayments().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("contract payment not found")
+			}
+			zap.L().Error("Failed to validate contract payment reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Contract payment not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("contract payment not found")
+		}
+	case enum.PaymentTransactionReferenceTypeOrder:
+		if exists, err := uow.Order().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("order not found")
+			}
+			zap.L().Error("Failed to validate order reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Order not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("order not found")
+		}
+	case enum.PaymentTransactionReferenceTypePreOrder:
+		if exists, err := uow.PreOrder().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("pre-order not found")
+			}
+			zap.L().Error("Failed to validate pre-order reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("pre-order not found")
+		}
+	default:
+		zap.L().Error("Invalid reference type", zap.String("reference_type", req.ReferenceType.String()))
+		return errors.New("invalid reference type")
+	}
+
+	// Validate payer ID
+	if req.PayerID != nil {
+		if exists, err := uow.Users().ExistsByID(ctx, *req.PayerID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+				return errors.New("user not found")
+			}
+			zap.L().Error("Failed to validate user ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("User not found", zap.String("payer_id", req.PayerID.String()))
+			return errors.New("user not found")
+		}
+	} else {
+		return errors.New("payer ID is required")
+	}
+
+	return nil
 }
 
 // endregion
