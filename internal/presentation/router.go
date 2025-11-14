@@ -400,7 +400,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 	contracts.GET("", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), contractHandler.GetContracts)
 	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
 	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandProfile)
-	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandID)
+	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand, marketing), contractHandler.GetContractsByBrandID)
 	contracts.PATCH("/:id/state", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), stateHandler.UpdateContractState)
 
 	// Write/Modify routes for Marketing and Admins
@@ -524,6 +524,11 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	blogHandler := r.handlerRegistry.BlogHandler
 	contentGroup := group.Group("/contents")
 	{
+		publicGroup := contentGroup.Group("/public")
+		{
+			publicGroup.GET("", contentHandler.ListPublic)
+			publicGroup.GET("/:id", contentHandler.GetByIDPublic)
+		}
 		viewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(customer, brand, marketing, sales, content, admin))
 		{
 			viewGroup.GET("", contentHandler.List)
