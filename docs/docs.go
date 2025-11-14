@@ -16409,6 +16409,10 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
                 "task_id": {
                     "type": "string"
                 },
@@ -17563,6 +17567,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000
                 },
                 "title": {
                     "type": "string",
@@ -18726,6 +18734,9 @@ const docTemplate = `{
                     }
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "id": {
