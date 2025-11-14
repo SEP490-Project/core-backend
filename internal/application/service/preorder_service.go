@@ -48,7 +48,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 		variant, err := uow.ProductVariant().GetByID(ctx, request.VariantID, []string{"Product"})
 		if err != nil {
 			return fmt.Errorf("variant %w not found", err)
-		} else if err := validateVariantForPreOrder(*variant); err != nil {
+		} else if err = validateVariantForPreOrder(*variant); err != nil {
 			return err
 		}
 
@@ -257,12 +257,12 @@ func validateVariantForPreOrder(variant model.ProductVariant) error {
 
 //=========== Helper Methods ===========
 
-func (o preOrderService) generateSignature(amount int64, cancelURL, description string, orderCode int64, returnURL string) (string, error) {
+func (p preOrderService) generateSignature(amount int64, cancelURL, description string, orderCode int64, returnURL string) (string, error) {
 	data := fmt.Sprintf(
 		"amount=%d&cancelUrl=%s&description=%s&orderCode=%d&returnUrl=%s",
 		amount, cancelURL, description, orderCode, returnURL,
 	)
-	mac := hmac.New(sha256.New, []byte(o.config.PayOS.ChecksumKey))
+	mac := hmac.New(sha256.New, []byte(p.config.PayOS.ChecksumKey))
 	mac.Write([]byte(data))
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }

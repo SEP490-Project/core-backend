@@ -44,7 +44,7 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	if order.Status != enum.OrderStatusConfirmed {
 		return errors.New("only confirmed orders can be marked as in transit")
 	}
-	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp == true {
+	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as in transit")
 	}
 	order.Status = enum.OrderStatusInTransit
@@ -56,7 +56,7 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	return nil
 }
 
-func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageUrl string) error {
+func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageURL string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as delivered", zap.Error(err))
@@ -66,11 +66,11 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 	if order.Status != enum.OrderStatusInTransit {
 		return errors.New("only orders in transit can be marked as delivered")
 	}
-	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp == true {
+	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as delivered")
 	}
 	order.Status = enum.OrderStatusDelivered
-	order.SelfPickedUpImage = &imageUrl
+	order.SelfPickedUpImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to delivered", zap.Error(err))
@@ -79,7 +79,7 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 	return nil
 }
 
-func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageUrl string) error {
+func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageURL string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
@@ -90,7 +90,7 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID 
 		return errors.New("only orders awaiting pick-up can be marked as received")
 	}
 	order.Status = enum.OrderStatusReceived
-	order.SelfPickedUpImage = &imageUrl
+	order.SelfPickedUpImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -192,7 +192,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, 
 		return db
 	}
 	var total int64
-	if err := o.orderRepository.DB().
+	if err = o.orderRepository.DB().
 		WithContext(ctx).
 		Model(&model.Order{}).
 		Scopes(countScope).
@@ -248,9 +248,9 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
 			if err != nil {
 				zap.L().Error("ProductVariant().GetByID", zap.Error(err))
-				return errors.New("Product Variant not found")
+				return errors.New("product Variant not found")
 			} else if variant == nil {
-				return errors.New("Product Variant not found")
+				return errors.New("product Variant not found")
 			}
 
 			//Categorize variant
@@ -262,8 +262,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				return errors.New("unknown product type")
 			}
 			if prevItemCategory != nil && *prevItemCategory != currentItemCategory {
-				msg := fmt.Sprintf("Cannot place order with mixed product types in a single order")
-				return errors.New(msg)
+				return errors.New("cannot place order with mixed product types in a single order")
 			}
 			//update prevItemCategory
 			prevItemCategory = &currentItemCategory
@@ -389,7 +388,7 @@ func (o *orderService) PayOrder(ctx context.Context, orderID uuid.UUID, shipping
 // PayOrder Helper
 func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee int) ([]requests.PaymentItemRequest, int) {
 	paymentItems := make([]requests.PaymentItemRequest, 0, len(items))
-	var total int = shippingFee
+	total := shippingFee
 	for _, item := range items {
 		paymentItems = append(paymentItems, requests.PaymentItemRequest{
 			Name:     item.Variant.Product.Name,

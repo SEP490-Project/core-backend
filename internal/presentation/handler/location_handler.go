@@ -135,6 +135,10 @@ func (h *LocationHandler) InputUserAddress(c *gin.Context) {
 	}
 
 	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(err.Error(), http.StatusUnauthorized))
+		return
+	}
 	addr, err := h.locationService.InputUserAddress(userID, req)
 	if err != nil {
 		resp := responses.ErrorResponse(fmt.Sprintf("failed to create address: %s", err.Error()), http.StatusBadRequest)
