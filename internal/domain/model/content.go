@@ -16,6 +16,7 @@ type Content struct {
 	Body              datatypes.JSON     `json:"body" gorm:"type:text;not null"`
 	Type              enum.ContentType   `json:"type" gorm:"type:varchar(50);not null"`
 	Status            enum.ContentStatus `json:"status" gorm:"type:varchar(50);not null"`
+	ThumbnailURL      *string            `json:"thumbnail_url,omitempty" gorm:"type:varchar(100)"`
 	PublishDate       *time.Time         `json:"publish_date,omitempty" gorm:"type:timestamp"`
 	AffiliateLink     *string            `json:"affiliate_link,omitempty" gorm:"type:varchar(1000)"`
 	AIGeneratedText   *string            `json:"ai_generated_text,omitempty" gorm:"type:text"`

@@ -3623,6 +3623,8 @@ definitions:
         $ref: '#/definitions/enum.ContentStatus'
       task_id:
         type: string
+      thumbnail_url:
+        type: string
       title:
         type: string
       type:
@@ -8539,6 +8541,117 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
+      tags:
+      - Content
+  /api/v1/contents/public:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves paginated content with status=POSTED. Filters like assigned_to
+        or task_id are ignored for guests.
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Sort by field
+        enum:
+        - created_at
+        - updated_at
+        - publish_date
+        - title
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: Filter by type
+        enum:
+        - POST
+        - VIDEO
+        in: query
+        name: type
+        type: string
+      - description: Filter by channel ID (UUID)
+        in: query
+        name: channel_id
+        type: string
+      - description: Search in title and body
+        in: query
+        name: search
+        type: string
+      - description: Filter from date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Filter to date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ContentPaginationResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: List public content
+      tags:
+      - Content
+  /api/v1/contents/public/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves content with all relationships (blog, author, channels).
+        Only content with status=POSTED is returned.
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentResponse'
+              type: object
+        "400":
+          description: Invalid content ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content not found or not POSTED
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get public content by ID
       tags:
       - Content
   /api/v1/contract_payments:
