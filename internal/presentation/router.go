@@ -72,6 +72,7 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 
 	//File test
 	engine.Static("/tmp", "./tmp")
+	engine.Static("/html", "./templates/public")
 
 	// Fallback route for undefined paths
 	engine.NoRoute(func(c *gin.Context) {
@@ -252,7 +253,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			}
 		}
 
-		// ---------- LOCATIONS ----------
+		// ---------- LOCATIONS ----------/
 		locationHandler := r.handlerRegistry.LocationHandler
 		locationGroup := v1.Group("/location")
 		locationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())

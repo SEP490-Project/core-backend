@@ -405,7 +405,7 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 	}
 
 	// Status & time
-	pr.IsActive = m.Status == enum.ProductStatusActived
+	pr.IsActive = m.IsActive
 	pr.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
 
 	// Thumbnail
