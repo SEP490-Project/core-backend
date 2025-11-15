@@ -12401,6 +12401,14 @@ paths:
         in: query
         name: category_id
         type: string
+      - description: Filter products by brand
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter products by brand user
+        in: query
+        name: user_id
+        type: string
       - description: Filter type of products
         enum:
         - STANDARD
