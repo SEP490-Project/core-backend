@@ -1045,16 +1045,17 @@ func (h *ProductHandler) PublishProduct(c *gin.Context) {
 		return
 	}
 
-	resp, svcErr := h.productService.PublishProduct(productID, isActive)
+	prd, svcErr := h.productService.PublishProduct(productID, isActive)
 	if svcErr != nil {
 		if errors.Is(svcErr, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 			return
 		}
 		zap.L().Error("publish product failed", zap.String("product_id", productID.String()), zap.Error(svcErr))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update product state"})
+		resp := responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
-
+	resp := responses.SuccessResponse("Product publish status updated successfully", ptr.Int(http.StatusOK), prd)
 	c.JSON(http.StatusOK, resp)
 }

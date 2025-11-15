@@ -44,13 +44,14 @@ func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*res
 		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
 		return nil, err
 	}
-	product.IsActive = isActive
-
-	//update
-	if err := p.repository.Update(context.Background(), product); err != nil {
-		zap.L().Error("failed to update product", zap.String("product_id", productID.String()), zap.Error(err))
+	// Persist is_active explicitly to allow setting false (zero value)
+	if err := p.repository.UpdateByCondition(context.Background(), func(db *gorm.DB) *gorm.DB { return db.Where("id = ?", productID) }, map[string]any{"is_active": isActive}); err != nil {
+		zap.L().Error("failed to update product is_active", zap.String("product_id", productID.String()), zap.Error(err))
 		return nil, err
 	}
+	// update in-memory model for response
+	product.IsActive = isActive
+
 	resp := &responses.ProductResponseV2{}
 	return resp.ToProductResponseV2(product), nil
 }
@@ -260,6 +261,17 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			return fmt.Errorf("product with ID %s not found", productID)
 		}
 
+		//Limited variants of a product maximum is 5
+		//Count variants
+		variantCount, err := uow.ProductVariant().Count(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("product_id = ?", productID)
+		})
+		if err != nil {
+			return fmt.Errorf("failed to count product variants: %w", err)
+		} else if variantCount >= 5 {
+			return errors.New("reach maximum variants for a product (5)")
+		}
+
 		// Load product now (check and propagate any error) so we can use it for response
 		productOfVariant, err = uow.Products().GetByID(ctx, productID, nil)
 		if err != nil {
@@ -447,6 +459,17 @@ func (p productService) limitedProductValidation(ctx context.Context, dto *reque
 		return errors.New("task not found")
 	} else if found.Status != enum.TaskStatusInProgress {
 		return errors.New("your task may expired or overdue")
+	}
+
+	// Check if task already has a limited product
+	existed, err := p.repository.Exists(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("task_id = ?", dto.TaskID)
+	})
+	if err != nil {
+		zap.L().Info("failed checking existing limited product for task", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		return errors.New("could not verify existing limited product for task")
+	} else if existed {
+		return errors.New("a limited product for this task already exists")
 	}
 
 	// Validate brand existence
@@ -1134,10 +1157,11 @@ func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5N
 func (p productService) UpdateVariantImage(ctx context.Context, variantImageID uuid.UUID, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error) {
 	var variantImage *model.VariantImage
 
-	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+	if err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 
 		//Load existing variant image
-		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		var err error
+		variantImage, err = uow.VariantImage().GetByID(ctx, variantImageID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to load variant image by id: %w", err)
 		}
@@ -1154,9 +1178,7 @@ func (p productService) UpdateVariantImage(ctx context.Context, variantImageID u
 		}
 
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
