@@ -98,7 +98,10 @@ func (h *FacebookSocialHandler) HandleLogin(c *gin.Context) {
 	// )
 
 	zap.L().Debug("Redirecting to Facebook OAuth URL", zap.String("url", authorizationURL))
-	c.Redirect(http.StatusFound, authorizationURL)
+	// c.Redirect(http.StatusFound, authorizationURL)
+	c.JSON(http.StatusOK, responses.SuccessResponse("Redirect to Facebook OAuth URL", utils.PtrOrNil(http.StatusOK), map[string]any{
+		"url": authorizationURL,
+	}))
 }
 
 // HandleCallback godoc

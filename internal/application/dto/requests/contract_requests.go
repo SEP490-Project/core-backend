@@ -309,13 +309,9 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 	}
 
 	return &model.Contract{
-		ParentContractID: parentContractID,
-		Title:            &r.Title,
-		ContractNumber: utils.PtrOrNil(fmt.Sprintf("CONTRACT-%s-%s-%s",
-			utils.AbbreviateString(contractType.String(), 4),
-			utils.AbbreviateString(r.BrandID, 4),
-			utils.GetFormattedCurrentTime(utils.TimestampStringFormat, "")),
-		),
+		ParentContractID:                parentContractID,
+		Title:                           &r.Title,
+		ContractNumber:                  utils.PtrOrNil(r.GetContractNumber()),
 		BrandID:                         &brandID,
 		BrandBankName:                   r.BrandBankName,
 		BrandBankAccountNumber:          r.BrandBankAccountNumber,
@@ -344,6 +340,13 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		ContractFileURL:                 r.ContractFileURL,
 		ProposalFileURL:                 r.ProposalFileURL,
 	}, nil
+}
+
+func (r *CreateContractRequest) GetContractNumber() string {
+	return fmt.Sprintf("CONTRACT-%s-%s-%s",
+		utils.AbbreviateString(r.Type, 4),
+		utils.AbbreviateString(r.BrandID, 6),
+		utils.GetFormattedCurrentTime(utils.TimestampStringFormat, ""))
 }
 
 // endregion
