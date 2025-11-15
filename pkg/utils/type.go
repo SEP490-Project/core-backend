@@ -142,3 +142,12 @@ func SetStringToReflectValue(object any, fieldName string, value string) error {
 
 	return nil
 }
+
+// IfNotNil executes the getter function if the provided pointer is not nil.
+func IfNotNil[T any, R any](ptr *T, getter func(*T) R) R {
+	var zero R
+	if ptr == nil {
+		return zero
+	}
+	return getter(ptr)
+}

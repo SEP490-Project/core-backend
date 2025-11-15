@@ -317,7 +317,7 @@ type UpdateGHNDeliveryStatusRequest struct {
 //
 //	@Summary		Update GHN Order Delivery Status
 //	@Description	Allowed values: ready_to_pick, storing, delivering, delivered, cancel
-//	@Tags			ghn
+//	@Tags			ghn-mocking
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		UpdateGHNDeliveryStatusRequest	true	"Order status update payload"

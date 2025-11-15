@@ -109,7 +109,9 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 }
 
 func (t stateTransferService) MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {
-	product, err := t.productRepository.GetByID(ctx, productID, []string{})
+	includes := []string{"Variants", "Limited"}
+
+	product, err := t.productRepository.GetByID(ctx, productID, includes)
 	product.UpdatedByID = &updatedBy
 
 	if err != nil {
@@ -121,7 +123,8 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 
 	// load current product context
 	productCtx := &productsm.ProductContext{
-		State: productsm.NewProductState(product.Status),
+		State:   productsm.NewProductState(product.Status),
+		Product: *product,
 	}
 
 	// init next product State
@@ -957,7 +960,6 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	}
 }
 
-// &&&
 // handleOrderStatusSideEffect: handler side effect of OrderStatus itself
 func (t stateTransferService) handleOrderStatusSideEffect(
 	ctx context.Context,

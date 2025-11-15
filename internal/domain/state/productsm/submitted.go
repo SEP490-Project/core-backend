@@ -21,7 +21,9 @@ func (s SubmittedState) Next(ctx *ProductContext, next ProductState) error {
 
 func (s SubmittedState) AllowedTransitions() map[enum.ProductStatus]struct{} {
 	return map[enum.ProductStatus]struct{}{
-		enum.ProductStatusApproved:  {},
+		//Change business rule: Submitted products after brand approve -> when to Actived directly
+		//enum.ProductStatusApproved:  {},
+		enum.ProductStatusActived:   {},
 		enum.ProductStatusRevision:  {},
 		enum.ProductStatusInactived: {},
 	}

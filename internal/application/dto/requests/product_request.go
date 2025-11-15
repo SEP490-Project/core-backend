@@ -61,8 +61,7 @@ type CreateLimitedProductRequest struct {
 
 type LimitedProductAttributes struct {
 	MaxStock              int        `json:"max_stock" validate:"required,min=0" example:"100"`
-	IsFreeShipping        bool       `json:"is_free_shipping" example:"false"`
-	BoughtLimit           int        `json:"bought_limit" validate:"required,min=1" example:"1"`
+	PreOrderLimit         int        `json:"preorder_limit" validate:"required,min=0" example:"1"`
 	PremiereDate          *string    `json:"premiere_date" validate:"required" example:"2023-10-01T10:00:00"`
 	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required" example:"2023-10-01T10:00"`
 	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required" example:"2023-10-31T10:00"`
@@ -75,8 +74,7 @@ func (l *LimitedProductAttributes) ToLimitedProductModel() *model.LimitedProduct
 	}
 	return &model.LimitedProduct{
 		MaxStock:              l.MaxStock,
-		IsFreeShipping:        l.IsFreeShipping,
-		BoughtLimit:           l.BoughtLimit,
+		PreOrderLimit:         l.PreOrderLimit,
 		PremiereDate:          parseTime(l.PremiereDate),
 		AvailabilityStartDate: parseTime(l.AvailabilityStartDate),
 		AvailabilityEndDate:   parseTime(l.AvailabilityEndDate),
@@ -91,7 +89,7 @@ func (d *CreateLimitedProductRequest) ToProductWithLimitedModel(createdBy uuid.U
 	return &model.Product{
 		BrandID:     d.BrandID,
 		CategoryID:  d.CategoryID,
-		TaskID:      nil,
+		TaskID:      &d.TaskID,
 		Name:        d.Name,
 		Description: d.Description,
 		Type:        enum.ProductTypeLimited,

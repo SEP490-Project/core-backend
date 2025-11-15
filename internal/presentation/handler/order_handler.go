@@ -45,30 +45,28 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy,
 // GetOrdersByUserIDWithPagination handles HTTP GET requests to retrieve paginated orders for a specific user.
 //
 //	@Summary		Get paginated orders by user ID
-//	@Description	This handler extracts pagination parameters (`page`, `limit`) and an optional search term from the query string.
-//
-//	It also extracts the user ID from the authentication token and fetches the paginated list of orders
-//
+//	@Description	This handler extracts pagination parameters (`page`, `limit`) and optional filters from query string.
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
-//	@Param			page	query		int		false	"Page number (default: 1)"
-//	@Param			limit	query		int		false	"Number of items per page (default: 10, max: 100)"
-//	@Param			search	query		string	false	"Search term for filtering orders by order number"
+//	@Param			page		query		int		false	"Page number (default: 1)"
+//	@Param			limit		query		int		false	"Number of items per page (default: 10, max: 100)"
+//	@Param			search		query		string	false	"Search term for filtering orders by order number or GHN code"
+//	@Param			status		query		string	false	"Filter by order status"
+//	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
+//	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/orders [get]
 func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
-	pageStr := c.DefaultQuery("page", "1")
-	limitStr := c.DefaultQuery("limit", "10")
-
-	page, err := strconv.Atoi(pageStr)
+	// Pagination
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page < 1 {
 		page = 1
 	}
-	limit, err := strconv.Atoi(limitStr)
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if err != nil || limit <= 0 {
 		limit = 10
 	}
@@ -76,21 +74,27 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 		limit = 100
 	}
 
-	// Extract user
+	// Extract userID from token/context
 	userID, err := extractUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
+	// Filters
 	search := c.DefaultQuery("search", "")
+	status := c.DefaultQuery("status", "")
+	createdFrom := c.DefaultQuery("createdFrom", "")
+	createdTo := c.DefaultQuery("createdTo", "")
 
-	orders, total, err := h.orderService.GetOrdersByUserIDWithPagination(userID, limit, page, search)
+	// Call service
+	orders, total, err := h.orderService.GetOrdersByUserIDWithPagination(userID, limit, page, search, status, createdFrom, createdTo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch orders: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
 
+	// Pagination metadata
 	totalPages := int(total) / limit
 	if total%limit != 0 {
 		totalPages++
@@ -106,7 +110,7 @@ func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {
 	}
 
 	resp := responses.NewPaginationResponse(
-		"Products retrieved successfully",
+		"Orders retrieved successfully",
 		http.StatusOK,
 		orders,
 		pagination,
@@ -295,7 +299,7 @@ func (h *OrderHandler) CreateLimitedOrder(c *gin.Context) {
 //
 //	@Summary		Get staff-available orders with pagination
 //	@Description	Retrieve paginated orders for staff, filterable by status and order number search.
-//	@Tags			Orders
+//	@Tags			Orders[Staff]
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.StaffOrdersQuery	false	"Staff orders query"
@@ -364,7 +368,7 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 //
 //	@Summary		Get staff-available orders with pagination
 //	@Description	Retrieve paginated orders for staff, filterable by status and order number search.
-//	@Tags			Orders
+//	@Tags			Orders[Staff]
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.SelfDeliveringQuery	false	"Staff orders query"
@@ -441,7 +445,7 @@ type CensorOrderRequest struct {
 //
 //	@Summary		Censor an order (confirm or cancel)
 //	@Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
-//	@Tags			Orders
+//	@Tags			Orders.[Staff].States
 //	@Accept			json
 //	@Produce		json
 //	@Param			orderID	path		string				true	"Order ID"
@@ -571,7 +575,7 @@ func (h *OrderHandler) MarkAsReceived(c *gin.Context) {
 //
 //	@Summary	Mark order as ready to picked up
 //	@Description
-//	@Tags		Orders
+//	@Tags		Orders[Staff].States
 //	@Accept		json
 //	@Produce	json
 //	@Param		orderID	path		string					true	"Order ID (UUID)"
@@ -604,7 +608,7 @@ func (h *OrderHandler) MarkAsReadyToPickedUp(c *gin.Context) {
 //
 //	@Summary		Mark order as received after self pick-up
 //	@Description	Upload proof image and mark the order as received (only for orders awaiting pick-up)
-//	@Tags			Orders
+//	@Tags			Orders[Staff].States
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			orderID	path		string					true	"Order ID (UUID)"
@@ -690,7 +694,7 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 //
 //	@Summary		Mark self-delivering limited order as In Transit
 //	@Description	Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = CONFIRMED.
-//	@Tags			Orders
+//	@Tags			Orders[Staff].Limited.States
 //	@Accept			json
 //	@Produce		json
 //	@Param			orderID	path		string					true	"Order ID (UUID)"
@@ -723,7 +727,7 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsInTransit(c *gin.Context) {
 //
 //	@Summary		Mark self-delivering limited order as Delivered
 //	@Description	Upload proof image and mark the order as delivered. Only for LIMITED orders with self-delivery (not self pick-up). Requires current status = IN_TRANSIT.
-//	@Tags			Orders
+//	@Tags			Orders[Staff].Limited.States
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			orderID	path		string					true	"Order ID (UUID)"

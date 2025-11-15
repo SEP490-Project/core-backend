@@ -13,13 +13,10 @@ func (s DraftState) Name() enum.ProductStatus {
 
 func (s DraftState) Next(ctx *ProductContext, next ProductState) error {
 	if _, ok := s.AllowedTransitions()[next.Name()]; ok {
-		if next.Name() == enum.ProductStatusActived && ctx.IsActivable(next) {
-			ctx.State = next
-		} else if ctx.Product.Type == enum.ProductTypeStandard && next.Name() != enum.ProductStatusActived {
-			fmt.Errorf("invalid transition for STANDARD product: %s -> %s", s.Name(), next.Name())
-		} else {
-			ctx.State = next
+		if err := s.statePrerequisite(ctx, next); err != nil {
+			return err
 		}
+		ctx.State = next
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", s.Name(), next.Name())
@@ -33,4 +30,28 @@ func (s DraftState) AllowedTransitions() map[enum.ProductStatus]struct{} {
 		//only STANDARD products can be activated
 		enum.ProductStatusActived: {},
 	}
+}
+
+func (s DraftState) statePrerequisite(ctx *ProductContext, nextState ProductState) error {
+	prd := ctx.Product
+	if prd.Type == enum.ProductTypeStandard && nextState.Name() != enum.ProductStatusActived {
+		return fmt.Errorf("STANDARD products must transition to ACTIVED state from SUBMITTED")
+	} else if prd.Type != enum.ProductTypeStandard && nextState.Name() == enum.ProductStatusActived {
+		return fmt.Errorf("only STANDARD products can transition to ACTIVED state from SUBMITTED")
+	}
+
+	switch nextState.Name() {
+	case enum.ProductStatusActived:
+		if prd.Type != enum.ProductTypeStandard {
+			return fmt.Errorf("only STANDARD products can transition to ACTIVED state from SUBMITTED")
+		}
+		if prd.Variants == nil || len(prd.Variants) == 0 {
+			return fmt.Errorf("cannot activate product without variants")
+		}
+	case enum.ProductStatusSubmitted:
+		if prd.Variants == nil || len(prd.Variants) == 0 {
+			return fmt.Errorf("cannot submit product without variants")
+		}
+	}
+	return nil
 }

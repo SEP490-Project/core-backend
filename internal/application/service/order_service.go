@@ -70,7 +70,7 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 		return errors.New("only limited product orders with self-delivering can be marked as delivered")
 	}
 	order.Status = enum.OrderStatusDelivered
-	order.SelfPickedUpImage = &imageURL
+	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to delivered", zap.Error(err))
@@ -90,7 +90,7 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID 
 		return errors.New("only orders awaiting pick-up can be marked as received")
 	}
 	order.Status = enum.OrderStatusReceived
-	order.SelfPickedUpImage = &imageURL
+	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -143,72 +143,71 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) er
 	return nil
 }
 
-func (o *orderService) GetOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string) ([]model.Order, int, error) {
+func (o *orderService) GetOrdersByUserIDWithPagination(
+	userID uuid.UUID, limit, page int, search, status, createdFrom, createdTo string,
+) ([]model.Order, int, error) {
 	ctx := context.Background()
 
-	pageNum := page
-	pageSize := limit
-	if pageNum < 1 {
-		pageNum = 1
+	if page < 1 {
+		page = 1
 	}
-	if pageSize <= 0 {
-		pageSize = 10
+	if limit <= 0 {
+		limit = 10
 	}
-	offset := (pageNum - 1) * pageSize
+	offset := (page - 1) * limit
 
-	filter := func(db *gorm.DB) *gorm.DB {
+	filterScope := func(db *gorm.DB) *gorm.DB {
 		db = db.Where("orders.user_id = ?", userID)
-		if search != "" {
-			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
+
+		if status != "" {
+			s := enum.OrderStatus(status)
+			if s.IsValid() {
+				db = db.Where("orders.status = ?", s)
+			}
 		}
-		return db.Order("orders.created_at DESC").Order("orders.id")
-	}
 
-	includes := []string{"OrderItems"}
-
-	var orderIDs []uuid.UUID
-	err := o.orderRepository.DB().
-		WithContext(ctx).
-		Model(&model.Order{}).
-		Scopes(filter).
-		Select("orders.id").
-		Limit(pageSize).
-		Offset(offset).
-		Pluck("orders.id", &orderIDs).Error
-	if err != nil {
-		zap.L().Error("Failed to fetch order IDs", zap.Error(err))
-		return nil, 0, err
-	}
-
-	if len(orderIDs) == 0 {
-		return []model.Order{}, 0, nil
-	}
-
-	countScope := func(db *gorm.DB) *gorm.DB {
-		db = db.Where("orders.user_id = ?", userID)
-		if search != "" {
-			db = db.Where("orders.order_no ILIKE ?", "%"+search+"%")
+		if createdFrom != "" {
+			if t, err := time.Parse("2006-01-02", createdFrom); err == nil {
+				db = db.Where("orders.created_at >= ?", t)
+			}
 		}
+		if createdTo != "" {
+			if t, err := time.Parse("2006-01-02", createdTo); err == nil {
+				db = db.Where("orders.created_at < ?", t.Add(24*time.Hour))
+			}
+		}
+
+		if search != "" {
+			if id, err := uuid.Parse(search); err == nil {
+				// exact match on UUID or GHN code, or cast UUID to text for partial match
+				db = db.Where("(orders.id = ? OR orders.ghn_order_code = ? OR orders.id::text ILIKE ?)", id, search, "%"+search+"%")
+			} else {
+				like := "%" + search + "%"
+				// search GHN code or cast UUID to text for ILIKE
+				db = db.Where("(orders.ghn_order_code ILIKE ? OR orders.id::text ILIKE ?)", like, like)
+			}
+		}
+
 		return db
 	}
+
 	var total int64
-	if err = o.orderRepository.DB().
-		WithContext(ctx).
-		Model(&model.Order{}).
-		Scopes(countScope).
+	if err := o.orderRepository.DB().WithContext(ctx).Model(&model.Order{}).
+		Scopes(filterScope).
 		Count(&total).Error; err != nil {
 		zap.L().Error("Failed to count orders", zap.Error(err))
 		return nil, 0, err
 	}
 
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("orders.id IN ?", orderIDs).
-			Order("orders.created_at DESC")
-	}
-
-	orders, _, err := o.orderRepository.GetAll(ctx, finalFilter, includes, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to fetch orders with includes", zap.Error(err))
+	var orders []model.Order
+	if err := o.orderRepository.DB().WithContext(ctx).
+		Scopes(filterScope).
+		Preload("OrderItems").
+		Order("orders.created_at DESC, orders.id ASC").
+		Limit(limit).
+		Offset(offset).
+		Find(&orders).Error; err != nil {
+		zap.L().Error("Failed to fetch orders", zap.Error(err))
 		return nil, 0, err
 	}
 

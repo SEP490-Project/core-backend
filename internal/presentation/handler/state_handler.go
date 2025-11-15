@@ -128,8 +128,8 @@ type UpdateProductStateRequest struct {
 // UpdateProductState godoc
 //
 //	@Summary		Update Product State
-//	@Description	Move a product to a target state (DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-//	@Tags			State Transfer
+//	@Description	Move a product to a target state (DRAFT, SUBMITTED, REVISION, ACTIVED, INACTIVED)
+//	@Tags			Products.State
 //	@Accept			json
 //	@Produce		json
 //	@Param			id		path		string					true	"Product ID (UUID)"
@@ -145,78 +145,75 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		resp := responses.ErrorResponse("invalid product id: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, resp)
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid product id: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	var req UpdateProductStateRequest
-	if err = c.ShouldBindJSON(&req); err != nil {
-		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, resp)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err = h.Struct(&req); err != nil {
-		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, resp)
+	if err := h.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
 	target := enum.ProductStatus(req.State)
 	if !target.IsValid() {
-		resp := responses.ErrorResponse("invalid target state", http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, resp)
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid target state", http.StatusBadRequest))
 		return
 	}
 
-	// Authorization rule with Admin bypass
+	// Lấy role từ context
 	roleVal, ok := c.Get("roles")
 	if !ok || roleVal == nil {
-		resp := responses.ErrorResponse("missing role in context", http.StatusForbidden)
-		c.JSON(http.StatusForbidden, resp)
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
 		return
 	}
 	roleStr, _ := roleVal.(string)
 
-	if roleStr == string(enum.UserRoleAdmin) {
-		goto SkipAdminRoleCheck
-	}
-
-	if target == enum.ProductStatusRevision || target == enum.ProductStatusApproved {
-		if roleStr != string(enum.UserRoleBrandPartner) {
-			fmtMsg := fmt.Sprintf("insufficient permission to move product to this state: %s", target.String())
-			resp := responses.ErrorResponse(fmtMsg, http.StatusForbidden)
-			c.JSON(http.StatusForbidden, resp)
+	// Quy tắc role
+	switch roleStr {
+	case string(enum.UserRoleAdmin):
+		// ADMIN có thể làm tất cả, không cần kiểm tra
+	case string(enum.UserRoleBrandPartner):
+		if target != enum.ProductStatusRevision && target != enum.ProductStatusActived {
+			c.JSON(http.StatusForbidden, responses.ErrorResponse(
+				fmt.Sprintf("BRAND_PARTNER cannot move product to state %s", target.String()),
+				http.StatusForbidden,
+			))
 			return
 		}
-	} else if roleStr == string(enum.UserRoleBrandPartner) {
-		resp := responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusBadRequest)
-		c.JSON(http.StatusForbidden, resp)
+	case string(enum.UserRoleSalesStaff):
+		if target == enum.ProductStatusRevision || target == enum.ProductStatusActived {
+			c.JSON(http.StatusForbidden, responses.ErrorResponse(
+				fmt.Sprintf("STAFF cannot move product to state %s", target.String()),
+				http.StatusForbidden,
+			))
+			return
+		}
+	default:
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("unknown role", http.StatusForbidden))
 		return
 	}
 
-SkipAdminRoleCheck:
-
 	userID, err := extractUserIDFromContext(c)
 	if err != nil {
-		resp := responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusUnauthorized)
-		c.JSON(http.StatusBadRequest, resp)
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
 	if err := h.MoveProductToState(c.Request.Context(), id, target, userID); err != nil {
-		resp := responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict)
-		c.JSON(http.StatusConflict, resp)
+		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move product: "+err.Error(), http.StatusConflict))
 		return
 	}
 
-	resp := responses.SuccessResponse("Product state updated", nil, map[string]any{
+	c.JSON(http.StatusOK, responses.SuccessResponse("Product state updated", nil, map[string]any{
 		"id":    id.String(),
 		"state": target,
-	})
-
-	c.JSON(http.StatusOK, resp)
+	}))
 }
 
 // UpdateMilestoneStateRequest defines the request body for updating a milestone state

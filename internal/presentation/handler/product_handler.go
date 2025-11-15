@@ -166,6 +166,7 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Param			category_id	query		string																		false	"Filter category of products"
 //	@Param			type		query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
 //	@Param			status		query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			filterPreOrder		query		boolean																		false	"Filter status of products"	false "Find All PreOrder Products Only"
 //	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
 //	@Failure		500			{object}	object{error=string}														"Internal server error"
@@ -191,6 +192,8 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	category := c.DefaultQuery("category_id", "")
 	prdType := c.DefaultQuery("type", "")
 	prdStatus := c.DefaultQuery("status", "")
+	filterPreOrder := c.DefaultQuery("filterPreOrder", "false")
+	isPreOrderOnly := strings.ToLower(filterPreOrder) == "true"
 
 	//if type != nil, we have to validate it
 	if prdType != "" {
@@ -211,7 +214,6 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 			string(enum.ProductStatusDraft):     true,
 			string(enum.ProductStatusSubmitted): true,
 			string(enum.ProductStatusRevision):  true,
-			string(enum.ProductStatusApproved):  true,
 			string(enum.ProductStatusActived):   true,
 			string(enum.ProductStatusInactived): true,
 		}
@@ -231,11 +233,11 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus, isPreOrderOnly)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial
-		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType)
+		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType, isPreOrderOnly)
 		products = res
 	}
 
@@ -364,7 +366,7 @@ func (h *ProductHandler) GetProductsByTask(c *gin.Context) {
 //
 //	@Summary		Create Product
 //	@Description	Create a new product (initial state DRAFT)
-//	@Tags			Products
+//	@Tags			Products.Standard
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateStandardProductRequest	true	"Product to create"
@@ -409,7 +411,7 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //
 //	@Summary		Create a limited product
 //	@Description	Create a limited product with stock/availability constraints. Requires authenticated user (creatorID lấy từ context).
-//	@Tags			Products
+//	@Tags			Products.Limited
 //	@Security		BearerAuth
 //	@Accept			json
 //	@Produce		json
@@ -435,6 +437,12 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 		return
 	}
 
+	if err := h.createLimitedProductValidation(req); err != nil {
+		response := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
 	creatorID, err := extractUserID(c)
 	if err != nil {
 		resp := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
@@ -453,11 +461,85 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 	c.JSON(http.StatusCreated, resp)
 }
 
+func (h *ProductHandler) createLimitedProductValidation(req requests.CreateLimitedProductRequest) error {
+	// Validate limited product date fields against now and relative ordering
+	var (
+		preOrderQuantity         = req.LimitedAttribute.PreOrderLimit
+		maxQuantity              = req.LimitedAttribute.MaxStock
+		premiereDateStr          = req.LimitedAttribute.PremiereDate
+		availabilityStartDateStr = req.LimitedAttribute.AvailabilityStartDate
+		availabilityEndDateStr   = req.LimitedAttribute.AvailabilityEndDate
+	)
+
+	if preOrderQuantity > maxQuantity {
+		return fmt.Errorf("preorder_limit must not exceed max_stock")
+	}
+
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05-07:00",
+		"2006-01-02T15:04-07:00",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04Z07:00",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+		"2006-01-02",
+	}
+
+	parse := func(s *string) (time.Time, error) {
+		if s == nil || strings.TrimSpace(*s) == "" {
+			return time.Time{}, nil
+		}
+		for _, layout := range layouts {
+			if t, err := time.Parse(layout, *s); err == nil {
+				return t, nil
+			}
+		}
+		return time.Time{}, fmt.Errorf("invalid datetime format: %s", *s)
+	}
+
+	now := time.Now()
+
+	premiereDate, err := parse(premiereDateStr)
+	if err != nil {
+		return err
+	}
+	if (premiereDate != time.Time{}) && premiereDate.Before(now) {
+		return fmt.Errorf("premiere_date must not be in the past")
+	}
+
+	availabilityStart, err := parse(availabilityStartDateStr)
+	if err != nil {
+		return err
+	}
+	if (availabilityStart != time.Time{}) && availabilityStart.Before(now) {
+		return fmt.Errorf("availability_start_date must not be in the past")
+	}
+
+	availabilityEnd, err := parse(availabilityEndDateStr)
+	if err != nil {
+		return err
+	}
+	if (availabilityEnd != time.Time{}) && availabilityEnd.Before(now) {
+		return fmt.Errorf("availability_end_date must not be in the past")
+	}
+
+	// Ordering validations
+	if !premiereDate.IsZero() && !availabilityStart.IsZero() && availabilityStart.Before(premiereDate) {
+		return fmt.Errorf("availability_start_date must be equal or after premiere_date")
+	}
+	if !availabilityStart.IsZero() && !availabilityEnd.IsZero() && availabilityEnd.Before(availabilityStart) {
+		return fmt.Errorf("availability_end_date must be equal or after availability_start_date")
+	}
+
+	return nil
+}
+
 // CreateProductVariant godoc
 //
 //	@Summary		Create Product Variant
 //	@Description	Create a new product variant with story and attributes
-//	@Tags			Products
+//	@Tags			Products.Variants
 //	@Accept			json
 //	@Produce		json
 //	@Param			productId	path		string						true	"Product ID (UUID)"
@@ -571,7 +653,7 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 //
 //	@Summary		Create Variant Image
 //	@Description	Upload and create a new image for a product variant
-//	@Tags			Products
+//	@Tags			Products.Variants
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			variantId	path		string	true	"Variant ID (UUID)"
@@ -697,7 +779,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 //
 //	@Summary		Create Variant Attribute
 //	@Description	Create a new variant attribute
-//	@Tags			Variant-Attributes
+//	@Tags			Products.Variants.Attributes
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.CreateVariantAttributeRequest	true	"Attribute data"
@@ -786,7 +868,7 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 //
 //	@Summary		Add Concept to Limited Product
 //	@Description	Associate an existing concept to a limited product
-//	@Tags			Products
+//	@Tags			Products.Limited
 //	@Accept			json
 //	@Produce		json
 //	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
@@ -845,7 +927,7 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 //
 //	@Summary		List Variant Attributes (Public)
 //	@Description	Get paginated list of variant attributes (public view). Returns lightweight attribute responses suitable for front-end listing.
-//	@Tags			Variant-Attributes
+//	@Tags			Products.Variants.Attributes
 //	@Accept			json
 //	@Produce		json
 //	@Param			page	query		int		false	"Page number"		default(1)
