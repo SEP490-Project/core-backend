@@ -160,18 +160,18 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit		query		int																			false	"Number of items per page"	default(10)
-//	@Param			page		query		int																			false	"Number of items to skip"	default(1)
-//	@Param			search		query		string																		false	"Search term for product name"
-//	@Param			category_id	query		string																		false	"Filter category of products"
-//	@Param			brand_id	query		string																		false	"Filter products by brand"
-//	@Param			user_id	query		string																		false	"Filter products by brand user"
-//	@Param			type		query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
-//	@Param			status		query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-//	@Param			filterPreOrder		query		boolean																		false	"Filter status of products"	false "Find All PreOrder Products Only"
-//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
+//	@Param			limit			query		int																			false	"Number of items per page"	default(10)
+//	@Param			page			query		int																			false	"Number of items to skip"	default(1)
+//	@Param			search			query		string																		false	"Search term for product name"
+//	@Param			category_id		query		string																		false	"Filter category of products"
+//	@Param			brand_id		query		string																		false	"Filter products by brand"
+//	@Param			user_id			query		string																		false	"Filter products by brand user"
+//	@Param			type			query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
+//	@Param			status			query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			filterPreOrder	query		boolean																		false	"Filter status of products"	false	"Find All PreOrder Products Only"
+//	@Success		200				{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
-//	@Failure		500			{object}	object{error=string}														"Internal server error"
+//	@Failure		500				{object}	object{error=string}														"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/v2 [get]
 func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {

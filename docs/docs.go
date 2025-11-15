@@ -1448,10 +1448,10 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "302": {
-                        "description": "Redirect to Facebook OAuth URL",
+                    "200": {
+                        "description": "Redirect URL to Facebook OAuth",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
@@ -2054,10 +2054,10 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "302": {
-                        "description": "Redirect to TikTok OAuth URL",
+                    "200": {
+                        "description": "TikTok OAuth URL generated successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "500": {
@@ -3840,6 +3840,11 @@ const docTemplate = `{
         },
         "/api/v1/channels": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Retrieve a list of all channels",
                 "consumes": [
                     "application/json"
