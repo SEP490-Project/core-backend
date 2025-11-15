@@ -53,7 +53,7 @@ func NewProductHandler(
 		var s string
 		fv := fl.Field()
 		switch fv.Kind() {
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if fv.IsNil() {
 				return true // let 'required' handle emptiness
 			}
@@ -65,8 +65,8 @@ func NewProductHandler(
 			return true
 		}
 		// support multiple layouts separated by '|'
-		layouts := strings.Split(param, "|")
-		for _, layout := range layouts {
+		layouts := strings.SplitSeq(param, "|")
+		for layout := range layouts {
 			layout = strings.TrimSpace(layout)
 			if layout == "" {
 				continue
@@ -225,7 +225,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	}
 
 	var (
-		products interface{}
+		products any
 		total    int
 		svcErr   error
 	)
@@ -268,7 +268,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
 			return
 		}
-		resp := responses.NewPaginationResponse[responses.ProductResponseV2](
+		resp := responses.NewPaginationResponse(
 			"Products retrieved successfully",
 			http.StatusOK,
 			data,
@@ -282,7 +282,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
 			return
 		}
-		resp := responses.NewPaginationResponse[responses.ProductResponseV2Partial](
+		resp := responses.NewPaginationResponse(
 			"Products retrieved successfully",
 			http.StatusOK,
 			dataPartial,
@@ -564,12 +564,12 @@ func (h *ProductHandler) CreateProductVariant(c *gin.Context) {
 	}
 
 	var req requests.BulkVariantRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.validator.Struct(&req); err != nil {
+	if err = h.validator.Struct(&req); err != nil {
 		response := processValidationError(err)
 		c.JSON(http.StatusBadRequest, response)
 		return
@@ -696,7 +696,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 
 	// 🔹 Create per-user tmp directory
 	userTmpDir := fmt.Sprintf("./tmp/%s", userID)
-	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+	if err = os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create user tmp directory", http.StatusInternalServerError))
 		return
 	}
@@ -708,7 +708,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	predictedImgURL := h.productService.BuildFileURL(key)
 
 	// 🔹 Save uploaded file (with cleanup on error)
-	if err := c.SaveUploadedFile(file, finalPath); err != nil {
+	if err = c.SaveUploadedFile(file, finalPath); err != nil {
 		_ = os.Remove(finalPath) // cleanup if save failed
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to save uploaded file", http.StatusInternalServerError))
 		return
@@ -797,12 +797,12 @@ func (h *ProductHandler) CreateVariantAttribute(c *gin.Context) {
 	}
 
 	var req requests.CreateVariantAttributeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.validator.Struct(&req); err != nil {
+	if err = h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -1004,7 +1004,7 @@ func (h *ProductHandler) GetVariantAttributePagination(c *gin.Context) {
 	}
 
 	// --- Response  ---
-	resp := responses.NewPaginationResponse[any](
+	resp := responses.NewPaginationResponse(
 		"Variant attributes retrieved successfully",
 		http.StatusOK,
 		data,

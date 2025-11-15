@@ -441,7 +441,7 @@ type CensorOrderRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-// OrderCensorship:
+// OrderCensorship godoc
 //
 //	@Summary		Censor an order (confirm or cancel)
 //	@Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
@@ -455,7 +455,6 @@ type CensorOrderRequest struct {
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//
 //	@Router			/api/v1/orders/staff/{orderID}/censorship [POST]
 func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 

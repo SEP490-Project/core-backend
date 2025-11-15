@@ -206,7 +206,7 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 			return fmt.Errorf("product variant with ID %s not found", variantID)
 		}
 
-		if image.IsPrimary == true {
+		if image.IsPrimary {
 			result := uow.VariantImage().
 				DB().
 				WithContext(ctx).
@@ -223,7 +223,7 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 		//Create VariantImage
 		variantImage = image.ToModel()
 
-		if err := uow.(irepository.UnitOfWork).VariantImage().Add(ctx, variantImage); err != nil {
+		if err := uow.VariantImage().Add(ctx, variantImage); err != nil {
 			zap.L().Error("failed to persist variant image", zap.Error(err))
 			return err
 		}
@@ -1112,7 +1112,7 @@ func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5N
 	stdProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
 	limitedProductResp := make([]responses.ProductResponseV2Partial, 0, 5)
 	prdMapper := &responses.ProductResponseV2Partial{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if i < len(stdProducts) {
 			stdItem := prdMapper.ToProductResponseV2(&stdProducts[i])
 			stdProductResp = append(stdProductResp, *stdItem)
