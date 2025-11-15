@@ -147,7 +147,7 @@ func (h *ContractHandler) CreateContractAsync(c *gin.Context) {
 	}
 
 	var contractResponse *responses.ContractResponse
-	if err = h.contractService.ValidateBrandAndContractNumber(c.Request.Context(), brandID, ""); err != nil {
+	if err = h.contractService.ValidateBrandAndContractNumber(c.Request.Context(), brandID, req.GetContractNumber()); err != nil {
 		statusCode := http.StatusInternalServerError
 		errorStr := err.Error()
 		if errorStr == "brand not found" {
