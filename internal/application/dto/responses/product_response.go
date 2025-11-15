@@ -107,8 +107,6 @@ type LimitedProductResponse struct {
 
 func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
 	return &LimitedProductResponse{
-		MaxStock:              m.MaxStock,
-		PreOrderLimit:         m.PreOrderLimit,
 		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
 		AvailabilityStartDate: utils.FormatLocalTime(&m.AvailabilityStartDate, ""),
 		AvailabilityEndDate:   utils.FormatLocalTime(&m.AvailabilityEndDate, ""),
@@ -199,7 +197,10 @@ type ProductVariantResponse struct {
 	Description     *string                     `json:"description,omitempty"`
 	Price           float64                     `json:"price,omitempty"`
 	Type            enum.ProductType            `json:"type,omitempty"`
+	MaxStock        *int                        `json:"max_stock,omitempty"`
 	CurrentStock    *int                        `json:"current_stock,omitempty"`
+	PreOrderLimit   *int                        `json:"pre_order_limit,omitempty"`
+	PreOrderCount   *int                        `json:"pre_order_count,omitempty"`
 	Capacity        float64                     `json:"capacity,omitempty"`
 	CapacityUnit    enum.CapacityUnit           `json:"capacity_unit,omitempty"`
 	ContainerType   enum.ContainerType          `json:"container_type,omitempty"`
@@ -238,7 +239,10 @@ func (pvr ProductVariantResponse) ToProductVariantResponse(variant *model.Produc
 		Description:     nil,
 		Price:           variant.Price,
 		Type:            "",
+		MaxStock:        variant.MaxStock,
 		CurrentStock:    variant.CurrentStock,
+		PreOrderLimit:   variant.PreOrderLimit,
+		PreOrderCount:   variant.PreOrderCount,
 		Capacity:        variant.Capacity,
 		CapacityUnit:    variant.CapacityUnit,
 		ContainerType:   variant.ContainerType,
@@ -305,7 +309,10 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 	resp := ProductVariantResponse{
 		ID:              variant.ID,
 		Price:           variant.Price,
+		MaxStock:        variant.MaxStock,
 		CurrentStock:    variant.CurrentStock,
+		PreOrderLimit:   variant.PreOrderLimit,
+		PreOrderCount:   variant.PreOrderCount,
 		Capacity:        variant.Capacity,
 		CapacityUnit:    variant.CapacityUnit,
 		ContainerType:   variant.ContainerType,

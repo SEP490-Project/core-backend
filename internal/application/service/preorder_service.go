@@ -45,11 +45,27 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		//1. validate variant and stocks/products
-		variant, err := uow.ProductVariant().GetByID(ctx, request.VariantID, []string{"Product"})
+		includes := []string{"Product", "Product.Limited"}
+		variant, err := uow.ProductVariant().GetByID(ctx, request.VariantID, includes)
 		if err != nil {
 			return fmt.Errorf("variant %w not found", err)
 		} else if err = validateVariantForPreOrder(*variant); err != nil {
 			return err
+		}
+
+		// Check if this preorderable?
+		if variant.Product.Limited != nil {
+			premiereDate := variant.Product.Limited.PremiereDate
+			startDate := variant.Product.Limited.AvailabilityStartDate
+			endDate := variant.Product.Limited.AvailabilityEndDate
+			isPreOrderable := now.After(premiereDate) && now.After(startDate) && now.Before(endDate)
+			if !isPreOrderable {
+				return fmt.Errorf("product is not available for pre-order at this time")
+			}
+
+			if variant.PreOrderLimit == variant.PreOrderCount {
+				return fmt.Errorf("pre-order limit reached for this variant")
+			}
 		}
 
 		//1.1 validate shipping address
@@ -66,6 +82,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 			return fmt.Errorf("variant stock is nil")
 		}
 		variant.CurrentStock = ptr.Int(*variant.CurrentStock - 1)
+		variant.PreOrderCount = ptr.Int(*variant.PreOrderCount + 1)
 		err = uow.ProductVariant().Update(ctx, variant)
 		if err != nil {
 			return fmt.Errorf("failed to update variant stock: %w", err)

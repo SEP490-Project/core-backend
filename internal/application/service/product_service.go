@@ -253,14 +253,6 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if productID == uuid.Nil {
 			return errors.New("invalid product id")
 		}
-		exists, err := uow.Products().ExistsByID(ctx, productID)
-		if err != nil {
-			return fmt.Errorf("failed to check product existence: %w", err)
-		}
-		if !exists {
-			return fmt.Errorf("product with ID %s not found", productID)
-		}
-
 		//Limited variants of a product maximum is 5
 		//Count variants
 		variantCount, err := uow.ProductVariant().Count(ctx, func(db *gorm.DB) *gorm.DB {
@@ -286,10 +278,21 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			if err != nil {
 				return err
 			}
+
+			var (
+				preOrderLimit = variant.PreOrderLimit
+				inputStock    = variant.InputedStock
+			)
+
+			if preOrderLimit == nil || inputStock == nil {
+				return fmt.Errorf("preorderLimit or inputStock cannot be empty if product was LIMITED")
+			} else if *preOrderLimit > *inputStock {
+				return fmt.Errorf("preorder_limit must not exceed input_stock")
+			}
 		}
 
 		//Create ProductVariant
-		productVariant = variant.ToModel(productID, userID)
+		productVariant = variant.ToModel(productID, userID, productOfVariant.Type)
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
 			zap.L().Info("failed to persist product variant", zap.Error(err))
 			return err

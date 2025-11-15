@@ -464,16 +464,10 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 func (h *ProductHandler) createLimitedProductValidation(req requests.CreateLimitedProductRequest) error {
 	// Validate limited product date fields against now and relative ordering
 	var (
-		preOrderQuantity         = req.LimitedAttribute.PreOrderLimit
-		maxQuantity              = req.LimitedAttribute.MaxStock
 		premiereDateStr          = req.LimitedAttribute.PremiereDate
 		availabilityStartDateStr = req.LimitedAttribute.AvailabilityStartDate
 		availabilityEndDateStr   = req.LimitedAttribute.AvailabilityEndDate
 	)
-
-	if preOrderQuantity > maxQuantity {
-		return fmt.Errorf("preorder_limit must not exceed max_stock")
-	}
 
 	layouts := []string{
 		time.RFC3339,

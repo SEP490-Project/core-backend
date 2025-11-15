@@ -277,13 +277,25 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		var prevItemCategory *int = nil
 		for _, item := range request.Items {
 			//check variantID:
-			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product"}
+			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product", "Product.Limited"}
 			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
 			if err != nil {
 				zap.L().Error("ProductVariant().GetByID", zap.Error(err))
 				return errors.New("product Variant not found")
 			} else if variant == nil {
 				return errors.New("product Variant not found")
+			}
+
+			if variant.Product != nil && variant.Product.Type == enum.ProductTypeLimited {
+				limitedInfo := variant.Product.Limited
+				if limitedInfo == nil {
+					return fmt.Errorf("limited product info not found for product: %s (id = %s)", variant.Product.Name, variant.Product.ID.String())
+				}
+				if now.Before(limitedInfo.AvailabilityStartDate) {
+					return fmt.Errorf("product %s (id = %s) is not yet available for order", variant.Product.Name, variant.Product.ID.String())
+				} else if now.After(limitedInfo.AvailabilityEndDate) {
+					return fmt.Errorf("product %s (id = %s) is no longer available for order", variant.Product.Name, variant.Product.ID.String())
+				}
 			}
 
 			//Categorize variant
