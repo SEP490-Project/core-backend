@@ -39,4 +39,6 @@ type StateTransferService interface {
 	// Rules: I current state was perfomed by Customer. Staff can only allow to perform an action after 5 minutes.
 	// Move status depends on the FSM ->
 	MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedBy uuid.UUID, note *string) error
+
+	MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID) error
 }
