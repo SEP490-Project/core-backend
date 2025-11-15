@@ -76,7 +76,6 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 	}
 
 	return nil
-})
 }
 
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
