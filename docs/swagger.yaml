@@ -6154,10 +6154,10 @@ paths:
       produces:
       - application/json
       responses:
-        "302":
-          description: Redirect to Facebook OAuth URL
+        "200":
+          description: Redirect URL to Facebook OAuth
           schema:
-            type: string
+            $ref: '#/definitions/responses.APIResponse'
         "500":
           description: Internal server error
           schema:
@@ -6526,10 +6526,10 @@ paths:
       produces:
       - application/json
       responses:
-        "302":
-          description: Redirect to TikTok OAuth URL
+        "200":
+          description: TikTok OAuth URL generated successfully
           schema:
-            type: string
+            $ref: '#/definitions/responses.APIResponse'
         "500":
           description: Internal server error
           schema:
@@ -7677,6 +7677,8 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
       summary: Get all channels
       tags:
       - Channels
@@ -12400,6 +12402,14 @@ paths:
       - description: Filter category of products
         in: query
         name: category_id
+        type: string
+      - description: Filter products by brand
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter products by brand user
+        in: query
+        name: user_id
         type: string
       - description: Filter type of products
         enum:
