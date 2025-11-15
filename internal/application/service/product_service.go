@@ -264,17 +264,6 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			return errors.New("reach maximum variants for a product (5)")
 		}
 
-		//Limited variants of a product maximum is 5
-		//Count variants
-		variantCount, err := uow.ProductVariant().Count(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("product_id = ?", productID)
-		})
-		if err != nil {
-			return fmt.Errorf("failed to count product variants: %w", err)
-		} else if variantCount >= 5 {
-			return errors.New("reach maximum variants for a product (5)")
-		}
-
 		// Load product now (check and propagate any error) so we can use it for response
 		productOfVariant, err = uow.Products().GetByID(ctx, productID, nil)
 		if err != nil {
@@ -608,14 +597,12 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, brandID, userID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
 		zap.String("search", search),
 		zap.String("category_id", categoryID),
-		zap.String("brand_id", brandID),
-		zap.String("user_id", userID),
 		zap.String("product_type", productType),
 	)
 
@@ -649,30 +636,12 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 			}
 		}
 
-		if brandID != "" {
-			bid, err := uuid.Parse(brandID)
-			if err == nil {
-				db = db.Where(`brand_id = ?`, bid)
-			} else {
-				db = db.Where(`brand_id = ?`, uuid.Nil)
-			}
-		}
-
-		if userID != "" {
-			uid, err := uuid.Parse(userID)
-			if err == nil {
-				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uid)
-			} else {
-				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uuid.Nil)
-			}
-		}
-
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
 
 		if productStatus != "" {
-			db = db.Where("products.status = ?", productStatus)
+			db = db.Where(`status = ?`, productStatus)
 		}
 
 		return db.Order("products.created_at DESC").Order("products.id")
@@ -745,7 +714,7 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * limit
 
@@ -772,15 +741,6 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search s
 				db = db.Where(`category_id = ?`, cid)
 			} else {
 				db = db.Where(`category_id = ?`, uuid.Nil)
-			}
-		}
-
-		if brandID != "" {
-			bid, err := uuid.Parse(brandID)
-			if err == nil {
-				db = db.Where(`brand_id = ?`, bid)
-			} else {
-				db = db.Where(`brand_id = ?`, uuid.Nil)
 			}
 		}
 
