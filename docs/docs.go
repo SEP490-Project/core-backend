@@ -10855,6 +10855,12 @@ const docTemplate = `{
                         "description": "Filter status of products",
                         "name": "status",
                         "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter status of products",
+                        "name": "filterPreOrder",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -15331,22 +15337,24 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "PENDING",
+                "PAID",
                 "PRE_ORDERED",
-                "AWAITING_RELEASE",
-                "AWAITING_PICKUP",
-                "CONFIRMED",
                 "CANCELLED",
+                "STOCK_READY",
+                "STOCK_PREPARING",
+                "AWAITING_PICKUP",
                 "IN_TRANSIT",
                 "DELIVERED",
                 "RECEIVED"
             ],
             "x-enum-varnames": [
                 "PreOrderStatusPending",
+                "PreOrderStatusPaid",
                 "PreOrderStatusPreOrdered",
-                "PreOrderStatusAwaitingRelease",
-                "PreOrderStatusAwaitingPickup",
-                "PreOrderStatusConfirmed",
                 "PreOrderStatusCancelled",
+                "PreOrderStatusStockReady",
+                "PreOrderStatusStockPreparing",
+                "PreOrderStatusAwaitingPickup",
                 "PreOrderStatusInTransit",
                 "PreOrderStatusDelivered",
                 "PreOrderStatusReceived"
@@ -16978,9 +16986,9 @@ const docTemplate = `{
             "required": [
                 "availability_end_date",
                 "availability_start_date",
-                "bought_limit",
                 "max_stock",
-                "premiere_date"
+                "premiere_date",
+                "preorder_limit"
             ],
             "properties": {
                 "availability_end_date": {
@@ -16991,18 +16999,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2023-10-01T10:00"
                 },
-                "bought_limit": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "example": 1
-                },
                 "concept_id": {
                     "type": "string",
                     "example": "770e8400-e29b-41d4-a716-446655440000"
-                },
-                "is_free_shipping": {
-                    "type": "boolean",
-                    "example": false
                 },
                 "max_stock": {
                     "type": "integer",
@@ -17012,6 +17011,11 @@ const docTemplate = `{
                 "premiere_date": {
                     "type": "string",
                     "example": "2023-10-01T10:00:00"
+                },
+                "preorder_limit": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 1
                 }
             }
         },

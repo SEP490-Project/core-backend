@@ -1150,22 +1150,24 @@ definitions:
   enum.PreOrderStatus:
     enum:
     - PENDING
+    - PAID
     - PRE_ORDERED
-    - AWAITING_RELEASE
-    - AWAITING_PICKUP
-    - CONFIRMED
     - CANCELLED
+    - STOCK_READY
+    - STOCK_PREPARING
+    - AWAITING_PICKUP
     - IN_TRANSIT
     - DELIVERED
     - RECEIVED
     type: string
     x-enum-varnames:
     - PreOrderStatusPending
+    - PreOrderStatusPaid
     - PreOrderStatusPreOrdered
-    - PreOrderStatusAwaitingRelease
-    - PreOrderStatusAwaitingPickup
-    - PreOrderStatusConfirmed
     - PreOrderStatusCancelled
+    - PreOrderStatusStockReady
+    - PreOrderStatusStockPreparing
+    - PreOrderStatusAwaitingPickup
     - PreOrderStatusInTransit
     - PreOrderStatusDelivered
     - PreOrderStatusReceived
@@ -2357,16 +2359,9 @@ definitions:
       availability_start_date:
         example: 2023-10-01T10:00
         type: string
-      bought_limit:
-        example: 1
-        minimum: 1
-        type: integer
       concept_id:
         example: 770e8400-e29b-41d4-a716-446655440000
         type: string
-      is_free_shipping:
-        example: false
-        type: boolean
       max_stock:
         example: 100
         minimum: 0
@@ -2374,12 +2369,16 @@ definitions:
       premiere_date:
         example: 2023-10-01T10:00:00
         type: string
+      preorder_limit:
+        example: 1
+        minimum: 0
+        type: integer
     required:
     - availability_end_date
     - availability_start_date
-    - bought_limit
     - max_stock
     - premiere_date
+    - preorder_limit
     type: object
   requests.LoginRequest:
     properties:
@@ -12392,6 +12391,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Filter status of products
+        in: query
+        name: filterPreOrder
+        type: boolean
       produces:
       - application/json
       responses:

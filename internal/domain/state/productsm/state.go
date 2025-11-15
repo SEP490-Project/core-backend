@@ -34,23 +34,3 @@ func NewProductState(status enum.ProductStatus) ProductState {
 		return nil
 	}
 }
-
-// IsActivable checks if the product can transition into ACTIVED state.
-// For STANDARD products we allow activation from DRAFT or APPROVED states.
-func (c *ProductContext) IsActivable(state ProductState) bool {
-	if state.Name() != enum.ProductStatusActived {
-		return false
-	}
-
-	if c.Product.Type != enum.ProductTypeStandard {
-		return false
-	}
-
-	current := c.State.Name()
-	// allow activation from Draft or Approved for STANDARD products
-	if current == enum.ProductStatusDraft || current == enum.ProductStatusApproved {
-		return true
-	}
-
-	return false
-}

@@ -99,7 +99,7 @@ type ProductDetailResponse struct {
 type LimitedProductResponse struct {
 	MaxStock              int    `json:"max_stock"`
 	IsFreeShipping        bool   `json:"is_free_shipping"`
-	BoughtLimit           int    `json:"bought_limit"`
+	PreOrderLimit         int    `json:"bought_limit"`
 	PremiereDate          string `json:"premiere_date"`
 	AvailabilityStartDate string `json:"availability_start_date"`
 	AvailabilityEndDate   string `json:"availability_end_date"`
@@ -108,8 +108,7 @@ type LimitedProductResponse struct {
 func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
 	return &LimitedProductResponse{
 		MaxStock:              m.MaxStock,
-		IsFreeShipping:        m.IsFreeShipping,
-		BoughtLimit:           m.BoughtLimit,
+		PreOrderLimit:         m.PreOrderLimit,
 		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
 		AvailabilityStartDate: utils.FormatLocalTime(&m.AvailabilityStartDate, ""),
 		AvailabilityEndDate:   utils.FormatLocalTime(&m.AvailabilityEndDate, ""),

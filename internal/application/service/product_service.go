@@ -269,6 +269,13 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			return fmt.Errorf("product with ID %s not found after load", productID)
 		}
 
+		if productOfVariant.Type == enum.ProductTypeLimited {
+			err := p.checkLimitedStockIntegrity(ctx, productID)
+			if err != nil {
+				return err
+			}
+		}
+
 		//Create ProductVariant
 		productVariant = variant.ToModel(productID, userID)
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
@@ -276,7 +283,6 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			return err
 		}
 
-		// no need to re-query product here; productOfVariant is already loaded above
 		return nil
 	})
 
@@ -287,6 +293,24 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 	//findProduct to buildResponse:
 	productVariant.Product = productOfVariant
 	return productVariant, nil
+}
+
+func (p productService) checkLimitedStockIntegrity(ctx context.Context, prdId uuid.UUID) error {
+	//find variants by productID
+	_, _, err := p.variantRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("product_id = ?", prdId)
+	}, nil, 0, 0)
+
+	if err != nil {
+		return err
+	}
+
+	//totalStock := 0
+	//for _, v := range variantList {
+	//
+	//}
+
+	return nil
 }
 
 func (p productService) variantDimensionValidation(dto requests.CreateProductVariantRequest) error {
@@ -547,7 +571,7 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
@@ -561,19 +585,31 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 
 	// --- Tạo filter chính ---
 	filter := func(db *gorm.DB) *gorm.DB {
+
+		// Nếu filterPreOrder = TRUE → Bỏ hết status, type filter
+		if isPreOrderOnly {
+			return db.
+				Joins("JOIN limited_products lp ON lp.id = products.id").
+				Where("products.type = ?", enum.ProductTypeLimited).
+				Where("lp.availability_start_date > NOW()").
+				Order("products.created_at DESC").Order("products.id")
+		}
+
+		// ---- Normal filters ----
+
 		if search != "" {
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
+
 		if categoryID != "" {
 			cid, err := uuid.Parse(categoryID)
 			if err == nil {
 				db = db.Where(`category_id = ?`, cid)
 			} else {
-				cid = uuid.Nil
-				zap.L().Debug("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
-				db = db.Where(`category_id = ?`, cid)
+				db = db.Where(`category_id = ?`, uuid.Nil)
 			}
 		}
+
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
@@ -652,30 +688,43 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string) ([]responses.ProductResponseV2Partial, int, error) {
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * limit
 
 	// --- Tạo filter chính ---
 	filter := func(db *gorm.DB) *gorm.DB {
+
+		if isPreOrderOnly {
+			return db.
+				Joins("JOIN limited_products lp ON lp.id = products.id").
+				Where("products.type = ?", enum.ProductTypeLimited).
+				Where("lp.availability_start_date > NOW()").
+				Where("products.status = ?", enum.ProductStatusActived).
+				Where("products.is_active = ?", true).
+				Order("products.created_at DESC").Order("products.id")
+		}
+
 		if search != "" {
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
+
 		if categoryID != "" {
 			cid, err := uuid.Parse(categoryID)
 			if err == nil {
 				db = db.Where(`category_id = ?`, cid)
 			} else {
-				cid = uuid.Nil
-				zap.L().Debug("invalid category id filter provided, ignoring", zap.String("category_id", categoryID))
-				db = db.Where(`category_id = ?`, cid)
+				db = db.Where(`category_id = ?`, uuid.Nil)
 			}
 		}
+
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
 
-		db = db.Where("products.status = ? AND products.is_active = ?", enum.ProductStatusActived, true)
+		db = db.Where("products.status = ?", enum.ProductStatusActived).
+			Where("products.is_active = ?", true)
+
 		return db.Order("products.created_at DESC").Order("products.id")
 	}
 
