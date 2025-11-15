@@ -975,6 +975,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 				variant.CurrentStock = &v
 			} else {
 				*variant.CurrentStock += preorder.Quantity
+				*variant.PreOrderCount -= preorder.Quantity
 			}
 			if err := variantRepo.Update(ctx, variant); err != nil {
 				zap.L().Error("Failed to restore variant stock after preorder payment failure",
