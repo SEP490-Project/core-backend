@@ -124,7 +124,10 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	// 	""+stateToken[:4]+"****")
 
 	zap.L().Debug("Redirecting to TikTok OAuth URL", zap.String("url", authorizationURL))
-	c.Redirect(http.StatusFound, authorizationURL)
+	// c.Redirect(http.StatusFound, authorizationURL)
+	c.JSON(http.StatusOK, responses.SuccessResponse("TikTok OAuth URL generated successfully", utils.PtrOrNil(http.StatusOK), map[string]string{
+		"url": authorizationURL,
+	}))
 }
 
 // HandleCallback godoc
