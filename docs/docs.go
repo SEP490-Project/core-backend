@@ -15674,6 +15674,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "confirmation_image": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -15725,9 +15728,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "province_name": {
-                    "type": "string"
-                },
-                "self_picked_up_image": {
                     "type": "string"
                 },
                 "shipping_fee": {
@@ -16121,6 +16121,14 @@ const docTemplate = `{
                 "manufacturing_date": {
                     "type": "string",
                     "example": "2023-10-01T00:00:00Z"
+                },
+                "pre_order_count": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "pre_order_limit": {
+                    "type": "integer",
+                    "example": 0
                 },
                 "price": {
                     "type": "number",
@@ -17007,9 +17015,7 @@ const docTemplate = `{
             "required": [
                 "availability_end_date",
                 "availability_start_date",
-                "max_stock",
-                "premiere_date",
-                "preorder_limit"
+                "premiere_date"
             ],
             "properties": {
                 "availability_end_date": {
@@ -17024,19 +17030,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "770e8400-e29b-41d4-a716-446655440000"
                 },
-                "max_stock": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 100
-                },
                 "premiere_date": {
                     "type": "string",
                     "example": "2023-10-01T10:00:00"
-                },
-                "preorder_limit": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "example": 1
                 }
             }
         },
@@ -20112,6 +20108,12 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "pre_order_count": {
+                    "type": "integer"
+                },
+                "pre_order_limit": {
+                    "type": "integer"
                 },
                 "price": {
                     "type": "number"
