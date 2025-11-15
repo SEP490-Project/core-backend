@@ -93,10 +93,10 @@ func (c *channelService) GetAllChannels(ctx context.Context, isReturnTokenInfo b
 	var channelResponses []responses.ChannelResponse
 	for _, model := range channels {
 		tempResp := (responses.ChannelResponse{}.ToResponse(&model))
-		if !isReturnTokenInfo {
+		if isReturnTokenInfo {
 			tempResp.TokenInfo = &responses.ChannelTokenInfo{
-				ExternalID:            *model.ExternalID,
-				AccountName:           *model.AccountName,
+				ExternalID:            utils.DerefPtr(model.ExternalID, ""),
+				AccountName:           utils.DerefPtr(model.AccountName, ""),
 				AccessTokenExpiresAt:  utils.FormatLocalTime(model.AccessTokenExpiresAt, ""),
 				RefreshTokenExpiresAt: utils.PtrOrNil(utils.FormatLocalTime(model.RefreshTokenExpiresAt, "")),
 				LastSyncedAt:          utils.FormatLocalTime(model.LastSyncedAt, ""),

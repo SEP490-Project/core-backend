@@ -491,13 +491,9 @@ func (s *ContractService) ValidateBrandAndContractNumber(ctx context.Context, br
 
 	// Check if contract with same brand ID and contract number exists
 	exists, err := s.contractRepository.Exists(ctx, func(db *gorm.DB) *gorm.DB {
-		if brandID != uuid.Nil {
-			db = db.Where("brand_id = ?", brandID)
-		}
-		if contractNumber != "" {
-			db = db.Where("contract_number = ?", contractNumber)
-		}
-		return db
+		return db.
+			Where("brand_id = ?", brandID).
+			Where("contract_number = ?", contractNumber)
 	})
 	if err != nil {
 		zap.L().Error("Failed to check contract existence", zap.Error(err))
