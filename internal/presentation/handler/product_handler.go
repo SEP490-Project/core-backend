@@ -164,6 +164,8 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Param			page		query		int																			false	"Number of items to skip"	default(1)
 //	@Param			search		query		string																		false	"Search term for product name"
 //	@Param			category_id	query		string																		false	"Filter category of products"
+//	@Param			brand_id	query		string																		false	"Filter products by brand"
+//	@Param			user_id	query		string																		false	"Filter products by brand user"
 //	@Param			type		query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
 //	@Param			status		query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
 //	@Param			filterPreOrder		query		boolean																		false	"Filter status of products"	false "Find All PreOrder Products Only"
@@ -190,6 +192,8 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 	category := c.DefaultQuery("category_id", "")
+	brand := c.DefaultQuery("brand_id", "")
+	user := c.DefaultQuery("user_id", "")
 	prdType := c.DefaultQuery("type", "")
 	prdStatus := c.DefaultQuery("status", "")
 	filterPreOrder := c.DefaultQuery("filterPreOrder", "false")
@@ -230,14 +234,14 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 		svcErr   error
 	)
 
-	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff, enum.UserRoleBrandPartner}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, brand, user, prdType, prdStatus, isPreOrderOnly)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial
-		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, brand, category, prdType, isPreOrderOnly)
 		products = res
 	}
 

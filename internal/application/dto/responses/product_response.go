@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -398,6 +399,8 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 
 		CreatedAt: utils.FormatLocalTime(&m.CreatedAt, ""),
 		UpdatedAt: utils.FormatLocalTime(&m.UpdatedAt, ""),
+
+		Status: m.Status,
 
 		// Category
 		Category: utils.IfNotNil(m.Category, func(c *model.ProductCategory) ProductCategoryResponse {

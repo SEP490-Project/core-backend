@@ -10833,6 +10833,18 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Filter products by brand",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter products by brand user",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
                         "enum": [
                             "STANDARD",
                             "LIMITED"
