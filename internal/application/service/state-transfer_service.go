@@ -15,6 +15,7 @@ import (
 	"core-backend/internal/domain/state/milestonesm"
 	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/domain/state/paymenttransactionsm"
+	"core-backend/internal/domain/state/preordersm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -39,6 +40,42 @@ type stateTransferService struct {
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
+}
+
+func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID) error {
+	preOrderRepo := t.uow.PreOrder()
+	// 1) Load PreOrder
+	preOrder, err := preOrderRepo.GetByID(ctx, preOrderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to load PreOrder", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("failed to load PreOrder: " + err.Error())
+	}
+	//preOrder.UpdatedByID = &updatedBy
+
+	// 2) Validate state transition using state machine
+	currentState, err := preordersm.NewPreOrderState(preOrder.Status)
+	if err != nil {
+		return err
+	}
+	ctxState := &preordersm.PreOrderContext{State: currentState}
+	nextState, err := preordersm.NewPreOrderState(targetState)
+	if err != nil {
+		return err
+	}
+	// Validate transition
+	if err = ctxState.State.Next(ctxState, nextState); err != nil {
+		zap.L().Error("PreOrder state transition validation failed", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("state transition not allowed: " + err.Error())
+	}
+
+	// 3) Persist new state to database
+	preOrder.Status = targetState
+	if err := preOrderRepo.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("failed to update PreOrder state: " + err.Error())
+	}
+
+	return nil
 }
 
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
@@ -910,15 +947,15 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		// mark preorder as pre-ordered (payment succeeded)
-		preorder.Status = enum.PreOrderStatusPreOrdered
+		preorder.Status = enum.PreOrderStatusPaid
 		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())
 		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
-			zap.L().Error("Failed to update preorder status to PRE_ORDERED",
+			zap.L().Error("Failed to update preorder status to PAID",
 				zap.String("preorder_id", preorder.ID.String()),
 				zap.Error(err))
 			return errors.New("failed to update preorder status: " + err.Error())
 		}
-		zap.L().Info("Preorder marked as PRE_ORDERED", zap.String("preorder_id", preorder.ID.String()))
+		zap.L().Info("Preorder marked as PAID", zap.String("preorder_id", preorder.ID.String()))
 		return nil
 
 	case enum.PaymentTransactionStatusFailed, enum.PaymentTransactionStatusCancelled, enum.PaymentTransactionStatusExpired:
