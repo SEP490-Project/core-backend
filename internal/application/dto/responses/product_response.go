@@ -4,7 +4,6 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -100,7 +99,7 @@ type ProductDetailResponse struct {
 type LimitedProductResponse struct {
 	MaxStock              int    `json:"max_stock"`
 	IsFreeShipping        bool   `json:"is_free_shipping"`
-	BoughtLimit           int    `json:"bought_limit"`
+	PreOrderLimit         int    `json:"bought_limit"`
 	PremiereDate          string `json:"premiere_date"`
 	AvailabilityStartDate string `json:"availability_start_date"`
 	AvailabilityEndDate   string `json:"availability_end_date"`
@@ -109,8 +108,7 @@ type LimitedProductResponse struct {
 func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
 	return &LimitedProductResponse{
 		MaxStock:              m.MaxStock,
-		IsFreeShipping:        m.IsFreeShipping,
-		BoughtLimit:           m.BoughtLimit,
+		PreOrderLimit:         m.PreOrderLimit,
 		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
 		AvailabilityStartDate: utils.FormatLocalTime(&m.AvailabilityStartDate, ""),
 		AvailabilityEndDate:   utils.FormatLocalTime(&m.AvailabilityEndDate, ""),
@@ -363,79 +361,79 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 // TODO:====================================== VERSION 2======================================================
 
 type ProductResponseV2 struct {
-	ID           uuid.UUID                 `json:"id"`
-	BrandID      uuid.UUID                 `json:"brand_id"`
-	BrandLogoURL *string                   `json:"brand_logo_url,omitempty"`
-	BrandName    string                    `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string                 `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                      `json:"is_active"`
-	CreatedAt    string                    `json:"created_at"` // FE parse về Date
-	UpdatedAt    string                    `json:"updated_at"`
-	Status       enum.ProductStatus        `json:"status"`
-	Description  string                    `json:"description"`
-	Name         string                    `json:"name"`
-	Price        float64                   `json:"price"`
-	Type         enum.ProductType          `json:"type"`
-	Category     ProductCategoryResponse   `json:"category"`
-	Variants     []*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedBy    *UserListResponse         `json:"created_by"`
-	UpdatedBy    *UserListResponse         `json:"updated_by"`
+	ID           uuid.UUID          `json:"id"`
+	BrandID      uuid.UUID          `json:"brand_id"`
+	BrandLogoURL *string            `json:"brand_logo_url,omitempty"`
+	BrandName    string             `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string          `json:"thumbnail_url,omitempty"` // optional
+	IsActive     bool               `json:"is_active"`
+	CreatedAt    string             `json:"created_at"` // FE parse về Date
+	UpdatedAt    string             `json:"updated_at"`
+	Status       enum.ProductStatus `json:"status"`
+	Description  string             `json:"description"`
+	Name         string             `json:"name"`
+	//Price        float64                   `json:"price"`
+	Type      enum.ProductType          `json:"type"`
+	Category  ProductCategoryResponse   `json:"category"`
+	Variants  []*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedBy *UserListResponse         `json:"created_by"`
+	UpdatedBy *UserListResponse         `json:"updated_by"`
 }
 
 // ToProductResponseV2 converts a Product model to a ProductResponse DTO.
 func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductResponseV2 {
-	if pr == nil {
-		pr = &ProductResponseV2{}
+	return &ProductResponseV2{
+		ID:      m.ID,
+		BrandID: m.BrandID,
+
+		// Brand
+		BrandName:    utils.IfNotNil(m.Brand, func(b *model.Brand) string { return b.Name }),
+		BrandLogoURL: utils.IfNotNil(m.Brand, func(b *model.Brand) *string { return b.LogoURL }),
+
+		// Basic
+		Name:        m.Name,
+		Description: utils.IfNotNil(m.Description, func(s *string) string { return *s }),
+		Type:        m.Type,
+		IsActive:    m.IsActive,
+
+		CreatedAt: utils.FormatLocalTime(&m.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(&m.UpdatedAt, ""),
+
+		// Category
+		Category: utils.IfNotNil(m.Category, func(c *model.ProductCategory) ProductCategoryResponse {
+			resp := ProductCategoryResponse{}
+			return *resp.ToModelResponse(c)
+		}),
+
+		// Thumbnail
+		ThumbnailURL: primaryProductImageURL(m),
+
+		// CreatedBy
+		CreatedBy: utils.IfNotNil(m.CreatedBy,
+			func(u *model.User) *UserListResponse {
+				return UserListResponse{}.ToSingleUserListResponse(*u)
+			},
+		),
+
+		// UpdatedBy
+		UpdatedBy: utils.IfNotNil(m.UpdatedBy,
+			func(u *model.User) *UserListResponse {
+				return UserListResponse{}.ToSingleUserListResponse(*u)
+			},
+		),
+
+		// Variants
+		Variants: func() []*ProductVariantResponse {
+			if len(m.Variants) == 0 {
+				return nil
+			}
+			v := make([]*ProductVariantResponse, len(m.Variants))
+			for i := range m.Variants {
+				v[i] = ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i])
+			}
+			return v
+		}(),
 	}
-
-	// IDs & Brand
-	pr.ID = m.ID
-	pr.BrandID = m.BrandID
-	if m.Brand != nil {
-		pr.BrandName = m.Brand.Name
-		pr.BrandLogoURL = m.Brand.LogoURL // *string
-	}
-
-	// Basic
-	pr.Name = m.Name
-	if m.Description != nil {
-		pr.Description = *m.Description
-	}
-	pr.Type = m.Type
-
-	// Category
-	if m.Category != nil {
-		response := ProductCategoryResponse{}
-		catPtr := response.ToModelResponse(m.Category)
-		if catPtr != nil {
-			pr.Category = *catPtr
-		}
-	}
-
-	// Status & time
-	pr.IsActive = m.IsActive
-	pr.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
-
-	// Thumbnail
-	pr.ThumbnailURL = primaryProductImageURL(m)
-
-	if m.CreatedBy != nil {
-		pr.CreatedBy = UserListResponse{}.ToSingleUserListResponse(*m.CreatedBy)
-	}
-	if m.UpdatedBy != nil {
-		pr.UpdatedBy = UserListResponse{}.ToSingleUserListResponse(*m.UpdatedBy)
-	}
-
-	// Variants
-	if len(m.Variants) > 0 {
-		variants := make([]*ProductVariantResponse, 0, len(m.Variants))
-		for i := range m.Variants {
-			variants = append(variants, ProductVariantResponse{}.ToProductVariantResponse(&m.Variants[i]))
-		}
-		pr.Variants = variants
-	}
-
-	return pr
 }
 
 // ProductResponseV2Partial represents a partial response structure for a product.

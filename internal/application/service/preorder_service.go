@@ -181,6 +181,21 @@ func (p preOrderService) GetPreOrdersByUserIDWithPagination(userID uuid.UUID, li
 		return nil, 0, err
 	}
 
+	// Attach transient payment fields (payment_id, payment_bin) similar to orders implementation
+	for i := range preorders {
+		var pt struct {
+			PaymentID  *uuid.UUID
+			PaymentBin *string
+		}
+		if err := p.preOrderRepository.DB().WithContext(ctx).Raw(
+			"SELECT id AS payment_id, payos_metadata->>'bin' AS payment_bin FROM payment_transactions WHERE reference_id = ? AND reference_type = 'PREORDER' LIMIT 1",
+			preorders[i].ID,
+		).Scan(&pt).Error; err == nil {
+			preorders[i].PaymentID = pt.PaymentID
+			preorders[i].PaymentBin = pt.PaymentBin
+		}
+	}
+
 	return preorders, int(total), nil
 }
 

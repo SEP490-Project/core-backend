@@ -8,20 +8,22 @@ import (
 type PreOrderStatus string
 
 const (
-	PreOrderStatusPending         PreOrderStatus = "PENDING"
-	PreOrderStatusPreOrdered      PreOrderStatus = "PRE_ORDERED"
-	PreOrderStatusAwaitingRelease PreOrderStatus = "AWAITING_RELEASE"
-	PreOrderStatusAwaitingPickup  PreOrderStatus = "AWAITING_PICKUP"
-	PreOrderStatusConfirmed       PreOrderStatus = "CONFIRMED"
-	PreOrderStatusCancelled       PreOrderStatus = "CANCELLED"
-	PreOrderStatusInTransit       PreOrderStatus = "IN_TRANSIT"
-	PreOrderStatusDelivered       PreOrderStatus = "DELIVERED"
-	PreOrderStatusReceived        PreOrderStatus = "RECEIVED"
+	PreOrderStatusPending        PreOrderStatus = "PENDING"
+	PreOrderStatusPaid           PreOrderStatus = "PAID"
+	PreOrderStatusPreOrdered     PreOrderStatus = "PRE_ORDERED"
+	PreOrderStatusCancelled      PreOrderStatus = "CANCELLED"
+	PreOrderStatusStockReady     PreOrderStatus = "STOCK_READY"
+	PreOrderStatusStockPreparing PreOrderStatus = "STOCK_PREPARING"
+
+	PreOrderStatusAwaitingPickup PreOrderStatus = "AWAITING_PICKUP"
+	PreOrderStatusInTransit      PreOrderStatus = "IN_TRANSIT"
+	PreOrderStatusDelivered      PreOrderStatus = "DELIVERED"
+	PreOrderStatusReceived       PreOrderStatus = "RECEIVED"
 )
 
 func (pos PreOrderStatus) IsValid() bool {
 	switch pos {
-	case PreOrderStatusPending, PreOrderStatusPreOrdered, PreOrderStatusAwaitingRelease, PreOrderStatusAwaitingPickup, PreOrderStatusConfirmed, PreOrderStatusCancelled, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived:
+	case PreOrderStatusPending, PreOrderStatusPaid, PreOrderStatusPreOrdered, PreOrderStatusCancelled, PreOrderStatusStockReady, PreOrderStatusStockPreparing, PreOrderStatusAwaitingPickup, PreOrderStatusInTransit, PreOrderStatusDelivered, PreOrderStatusReceived:
 		return true
 	}
 	return false

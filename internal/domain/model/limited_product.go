@@ -9,10 +9,11 @@ import (
 )
 
 type LimitedProduct struct {
-	Id                    uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;not null"`
-	MaxStock              int       `json:"max_stock" gorm:"column:max_stock;not null"`
-	IsFreeShipping        bool      `json:"is_free_shipping" gorm:"column:is_free_shipping;not null;default:false"`
-	BoughtLimit           int       `json:"bought_limit" gorm:"column:bought_limit;not null;default:1"`
+	Id       uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;not null"`
+	MaxStock int       `json:"max_stock" gorm:"column:max_stock;not null"`
+	//IsFreeShipping        bool      `json:"is_free_shipping" gorm:"column:is_free_shipping;not null;default:false"`
+	PreOrderLimit         int       `json:"pre_order_limit" gorm:"column:pre_order_limit;not null;default:1"`
+	PreOrderCount         int       `json:"pre_order_count" gorm:"column:pre_order_count;not null;default:0"`
 	PremiereDate          time.Time `json:"premiere_date" gorm:"column:premiere_date;not null"`
 	AvailabilityStartDate time.Time `json:"availability_start_date" gorm:"column:availability_start_date;not null"`
 	AvailabilityEndDate   time.Time `json:"availability_end_date" gorm:"column:availability_end_date;not null"`
@@ -32,9 +33,9 @@ func (lp *LimitedProduct) BeforeCreate(db *gorm.DB) (err error) {
 		zap.L().Warn("LimitedProduct MaxStock is less than 0, setting to 0")
 		lp.MaxStock = 0
 	}
-	if lp.BoughtLimit < 1 {
-		zap.L().Warn("LimitedProduct BoughtLimit is less than 1, setting to 1")
-		lp.BoughtLimit = 1
+	if lp.PreOrderLimit < 0 {
+		zap.L().Warn("LimitedProduct PreOrderLimit is less than 1, setting to 1")
+		lp.PreOrderLimit = 0
 	}
 
 	return nil
