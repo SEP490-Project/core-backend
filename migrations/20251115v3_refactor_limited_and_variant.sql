@@ -38,6 +38,7 @@ ALTER TABLE limited_products
     ALTER COLUMN availability_end_date SET DATA TYPE TIMESTAMPTZ USING availability_end_date::timestamptz;
 
 ALTER TABLE pre_orders
-    ADD COLUMN is_self_picked_up  BOOLEAN DEFAULT false NOT NULL,
-    ADD COLUMN confirmation_image TEXT
-    ADD COLUMN user_note TEXT;
+    ADD COLUMN IF NOT EXISTS is_self_picked_up BOOLEAN DEFAULT false NOT NULL,
+    ADD COLUMN IF NOT EXISTS confirmation_image TEXT,
+    ADD COLUMN IF NOT EXISTS user_note TEXT,
+    ADD COLUMN IF NOT EXISTS action_notes JSONB;

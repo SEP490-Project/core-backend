@@ -5,6 +5,8 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,11 +14,13 @@ import (
 	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type PreOrderHandler struct {
-	preOrderService iservice.PreOrderService
-	unitOfWork      irepository.UnitOfWork
+	preOrderService      iservice.PreOrderService
+	unitOfWork           irepository.UnitOfWork
+	stateTransferService iservice.StateTransferService
 }
 
 // GetAllPreorders godoc
@@ -243,9 +247,124 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 	c.JSON(http.StatusOK, resp)
 }
 
-func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork) *PreOrderHandler {
+// PreOrderCensorship godoc
+//
+//	@Summary		Censor an PREORDER (confirm or cancel)
+//	@Description	Change preOrder state to PRE_ORDERED or CANCELLED. Use query param `action=PRE_ORDERED` or `action=CANCELLED`. If cancelling, provide optional `reason` query param.
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string				true	"Order ID"
+//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
+//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{orderID}/censorship [POST]
+func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
+	preOrderIDStr := c.Param("orderID")
+	if preOrderIDStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order_id is required", http.StatusBadRequest))
+		return
+	}
+
+	action := strings.ToUpper(strings.TrimSpace(c.DefaultQuery("action", "")))
+	if action == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("action query param is required", http.StatusBadRequest))
+		return
+	}
+
+	var targetStatus enum.PreOrderStatus
+	switch action {
+	case "CONFIRM":
+		targetStatus = enum.PreOrderStatusPreOrdered
+	case "CANCEL":
+		targetStatus = enum.PreOrderStatusCancelled
+	default:
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid action, allowed: CONFIRM, CANCEL", http.StatusBadRequest))
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// If cancelling, require a JSON body with reason
+	var reasonPtr *string
+	if targetStatus == enum.PreOrderStatusCancelled {
+		var req CensorOrderRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when action=CANCEL: "+err.Error(), http.StatusBadRequest))
+			return
+		}
+		trimmed := strings.TrimSpace(req.Reason)
+		if trimmed == "" {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason cannot be empty", http.StatusBadRequest))
+			return
+		}
+		reasonPtr = &trimmed
+	}
+
+	ctx := c.Request.Context()
+	// uow := p.unitOfWork.Begin(ctx)
+	// defer func() {
+	// 	if uow.InTransaction() {
+	// 		_ = uow.Rollback()
+	// 	}
+	// }()
+
+	// Perform state transfer using stateTransferService
+	preOrderID, err := uuid.Parse(preOrderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid order_id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Perform state transfer using stateTransferService (non-transactional here)
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update preorder: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// Begin a UnitOfWork transaction only for appending the action note
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// Append action note
+	preOrder, err := uow.PreOrder().GetByID(ctx, preOrderID, nil)
+	if err == nil && preOrder != nil {
+		note := model.PreOrderActionNote{
+			UserID:     updatedBy,
+			UserName:   "", // optional: populate if available in context
+			UserEmail:  "",
+			ActionType: targetStatus,
+			Reason:     "",
+		}
+		if reasonPtr != nil {
+			note.Reason = *reasonPtr
+		}
+		preOrder.AddActionNote(note)
+		_ = uow.PreOrder().Update(ctx, preOrder)
+	}
+
+	_ = uow.Commit()
+
+	resp := responses.SuccessResponse("Preorder censored successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService) *PreOrderHandler {
 	return &PreOrderHandler{
-		preOrderService: preOrderService,
-		unitOfWork:      uow,
+		preOrderService:      preOrderService,
+		unitOfWork:           uow,
+		stateTransferService: stateSvc,
 	}
 }
