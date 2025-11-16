@@ -16073,10 +16073,6 @@ const docTemplate = `{
                     ],
                     "example": "BOTTLE"
                 },
-                "current_stock": {
-                    "type": "integer",
-                    "example": 100
-                },
                 "dispenser_type": {
                     "enum": [
                         "PUMP",
@@ -16103,6 +16099,10 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 0,
                     "example": 15
+                },
+                "input_stock": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "instructions": {
                     "type": "string",
@@ -20105,6 +20105,9 @@ const docTemplate = `{
                 },
                 "manufacturing_date": {
                     "type": "string"
+                },
+                "max_stock": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"

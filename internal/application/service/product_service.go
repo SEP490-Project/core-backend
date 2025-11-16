@@ -285,7 +285,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			)
 
 			if preOrderLimit == nil || inputStock == nil {
-				return fmt.Errorf("preorderLimit or inputStock cannot be empty if product was LIMITED")
+				return fmt.Errorf("preorder_limit or input_stock cannot be empty if product was LIMITED")
 			} else if *preOrderLimit > *inputStock {
 				return fmt.Errorf("preorder_limit must not exceed input_stock")
 			}
