@@ -227,7 +227,7 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 
 // UpdatePreOrderState
 //
-//	@Tags			State Transfer
+//	@Tags			Preorders
 //
 // @Accept multipart/form-data
 // @Produce json
