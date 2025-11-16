@@ -48,7 +48,7 @@ func NewTikTokSocialHandler(config *config.AppConfig, tiktokSocialService iservi
 //	@Param			redirect_url	query		string					false	"URL to redirect after successful login"
 //	@Param			cancel_url		query		string					false	"URL to redirect if the user cancels the login"
 //	@Param			is_internal		query		bool					false	"Whether to use internal scopes for admin users"
-//	@Success		302				{string}	string					"Redirect to TikTok OAuth URL"
+//	@Success		200				{object}	responses.APIResponse	"TikTok OAuth URL generated successfully"
 //	@Failure		500				{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/auth/tiktok/login [get]
@@ -93,7 +93,7 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	}
 	encodedRedirectURL := url.QueryEscape(tiktokConfig.RedirectURL)
 	stateData := map[string]string{
-		"redirect_uri": encodedRedirectURL,
+		"redirect_uri": tiktokConfig.RedirectURL,
 		"is_internal":  strconv.FormatBool(req.IsInternal),
 		"redirect_url": req.RedirectURL,
 		"cancel_url":   req.CancelURL,
@@ -217,17 +217,17 @@ func (h *TikTokSocialHandler) handleSuccess(c *gin.Context) {
 		return
 	}
 	stateData := stateToken.Data
-	if redirectURI, ok := stateData["redirect_uri"]; ok {
+	if redirectURI, ok := stateData["redirect_uri"]; ok && redirectURI != "" {
 		req.BackendCallbackURL = redirectURI
 	}
-	if isInternal, ok := stateData["is_internal"]; ok {
+	if isInternal, ok := stateData["is_internal"]; ok && isInternal != "" {
 		req.IsInternal, _ = strconv.ParseBool(isInternal)
 	}
-	if redirectURLStr, ok := stateData["redirect_url"]; ok {
+	if redirectURLStr, ok := stateData["redirect_url"]; ok && redirectURLStr != "" {
 		redirectURL = redirectURLStr
 		req.RedirectURL = redirectURLStr
 	}
-	if cancelURLStr, ok := stateData["cancel_url"]; ok {
+	if cancelURLStr, ok := stateData["cancel_url"]; ok && cancelURLStr != "" {
 		cancelURL = cancelURLStr
 		req.CancelURL = cancelURLStr
 	}

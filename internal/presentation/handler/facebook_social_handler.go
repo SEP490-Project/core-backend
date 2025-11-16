@@ -46,7 +46,7 @@ func NewFacebookSocialHandler(config *config.AppConfig, facebookSocialService is
 //	@Param			redirect_url	query		string					false	"URL to redirect after successful login"
 //	@Param			cancel_url		query		string					false	"URL to redirect if the user cancels the login"
 //	@Param			is_internal		query		bool					false	"Whether to use internal scopes for admin users"
-//	@Success		302				{string}	string					"Redirect to Facebook OAuth URL"
+//	@Success		200				{object}	responses.APIResponse	"Redirect URL to Facebook OAuth"
 //	@Failure		500				{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/auth/facebook/login [get]
@@ -71,16 +71,21 @@ func (h *FacebookSocialHandler) HandleLogin(c *gin.Context) {
 		return
 	}
 
-	redirectURL, err := h.buildBackendCallbackURL(req.IsInternal, req.RedirectURL, req.CancelURL)
-	if err != nil {
-		zap.L().Error("Failed to build backend callback URL", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to construct OAuth URL", http.StatusInternalServerError))
-		return
-	}
-	encodedRedirectURL := url.QueryEscape(redirectURL)
 	facebookConfig := h.config.Social.Facebook
 	scopeStr := strings.Join(facebookConfig.Scopes, ",")
-	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, map[string]string{"redirect_uri": encodedRedirectURL})
+	encodedRedirectURL := url.QueryEscape(facebookConfig.RedirectURL)
+	if req.RedirectURL == "" {
+		req.RedirectURL = facebookConfig.FrontendRedirectURL
+	}
+	if req.CancelURL == "" {
+		req.CancelURL = facebookConfig.FrontendCancelURL
+	}
+	stateToken, err := crypto.GenerateStateToken(h.config.GetPrivateKey(), nil, map[string]string{
+		"redirect_uri": facebookConfig.RedirectURL,
+		"is_internal":  strconv.FormatBool(req.IsInternal),
+		"redirect_url": req.RedirectURL,
+		"cancel_url":   req.CancelURL,
+	})
 	if err != nil {
 		zap.L().Debug("Failed to generate state token for Facebook OAuth", zap.Error(err))
 		c.JSON(http.StatusInternalServerError,
@@ -167,17 +172,12 @@ func (h *FacebookSocialHandler) handleSuccessCallback(c *gin.Context) {
 	var (
 		req                 requests.FacebookOAuthSuccessRequest
 		err                 error
-		redirectURL         = c.Query("redirect_url")
-		cancelURL           = c.Query("cancel_url")
+		redirectURL         = h.config.Social.Facebook.FrontendRedirectURL
+		cancelURL           = h.config.Social.Facebook.FrontendCancelURL
 		backendCallbackURL  string
 		redirectQueryParams map[string]string
+		stateToken          *crypto.StatePayload
 	)
-	if redirectURL == "" {
-		redirectURL = h.config.Social.Facebook.FrontendRedirectURL
-	}
-	if cancelURL == "" {
-		cancelURL = h.config.Social.Facebook.FrontendCancelURL
-	}
 	if err = c.ShouldBindQuery(&req); err != nil {
 		zap.L().Error("Failed to bind Facebook OAuth success query parameters", zap.Error(err))
 		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
@@ -188,8 +188,14 @@ func (h *FacebookSocialHandler) handleSuccessCallback(c *gin.Context) {
 		c.Redirect(http.StatusFound, cancelURL)
 		return
 	}
+	if req.RedirectURL != "" {
+		redirectURL = req.RedirectURL
+	}
+	if req.CancelURL != "" {
+		cancelURL = req.CancelURL
+	}
 
-	if _, err = crypto.VerifyStateToken(h.config.GetPublicKey(), req.State); err != nil {
+	if stateToken, err = crypto.VerifyStateToken(h.config.GetPublicKey(), req.State); err != nil {
 		zap.L().Error("Failed to verify state token,", zap.Error(err))
 		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
 			"error_reason":      "invalid_state",
@@ -199,18 +205,21 @@ func (h *FacebookSocialHandler) handleSuccessCallback(c *gin.Context) {
 		c.Redirect(http.StatusFound, cancelURL)
 		return
 	}
-	backendCallbackURL, err = h.buildBackendCallbackURL(req.IsInternal, redirectURL, cancelURL)
-	if err != nil {
-		zap.L().Error("Failed to reconstruct original backend callback URL", zap.Error(err))
-		cancelURL, _ = utils.AddQueryParams(cancelURL, map[string]string{
-			"error_reason":      "internal_error",
-			"error":             "url_construction_failed",
-			"error_description": "Could not reconstruct the callback URL for token exchange.",
-		})
-		c.Redirect(http.StatusFound, cancelURL)
-		return
+	stateData := stateToken.Data
+	if redirectURI, ok := stateData["redirect_uri"]; ok && redirectURI != "" {
+		req.BackendCallbackURL = redirectURI
 	}
-	req.BackendCallbackURL = backendCallbackURL
+	if isInternal, ok := stateData["is_internal"]; ok && isInternal != "" {
+		req.IsInternal, _ = strconv.ParseBool(isInternal)
+	}
+	if redirectURLStr, ok := stateData["redirect_url"]; ok && redirectURLStr != "" {
+		redirectURL = redirectURLStr
+		req.RedirectURL = redirectURLStr
+	}
+	if cancelURLStr, ok := stateData["cancel_url"]; ok && cancelURLStr != "" {
+		cancelURL = cancelURLStr
+		req.CancelURL = cancelURLStr
+	}
 
 	withTransaction(c, h.unitOfWork, func(uow irepository.UnitOfWork) error {
 		if req.IsInternal {
@@ -264,17 +273,6 @@ func (h *FacebookSocialHandler) handleSuccessCallback(c *gin.Context) {
 	redirectURL, _ = utils.AddQueryParams(redirectURL, redirectQueryParams)
 	zap.L().Debug("Facebook OAuth login successful, redirecting to frontend", zap.String("redirect_url", redirectURL))
 	c.Redirect(http.StatusFound, redirectURL)
-}
-
-func (h *FacebookSocialHandler) buildBackendCallbackURL(isInternal bool, finalRedirectURL, finalCancelURL string) (string, error) {
-	callbackParams := map[string]string{
-		"is_internal":  strconv.FormatBool(isInternal),
-		"redirect_url": finalRedirectURL,
-		"cancel_url":   finalCancelURL,
-	}
-
-	// Use the base callback URL from the config and add the required parameters.
-	return utils.AddQueryParams(h.config.Social.Facebook.RedirectURL, callbackParams)
 }
 
 // endregion

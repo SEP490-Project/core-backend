@@ -55,9 +55,9 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy,
 //	@Param			status		query		string	false	"Filter by order status"
 //	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
 //	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
+//	@Success		200			{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Failure		401			{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/orders [get]
 func (h *OrderHandler) GetOrdersByUserIDWithPagination(c *gin.Context) {

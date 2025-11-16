@@ -60,8 +60,6 @@ type CreateLimitedProductRequest struct {
 }
 
 type LimitedProductAttributes struct {
-	MaxStock              int        `json:"max_stock" validate:"required,min=0" example:"100"`
-	PreOrderLimit         int        `json:"preorder_limit" validate:"required,min=0" example:"1"`
 	PremiereDate          *string    `json:"premiere_date" validate:"required" example:"2023-10-01T10:00:00"`
 	AvailabilityStartDate *string    `json:"availability_start_date" validate:"required" example:"2023-10-01T10:00"`
 	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"required" example:"2023-10-31T10:00"`
@@ -73,8 +71,6 @@ func (l *LimitedProductAttributes) ToLimitedProductModel() *model.LimitedProduct
 		return nil
 	}
 	return &model.LimitedProduct{
-		MaxStock:              l.MaxStock,
-		PreOrderLimit:         l.PreOrderLimit,
 		PremiereDate:          parseTime(l.PremiereDate),
 		AvailabilityStartDate: parseTime(l.AvailabilityStartDate),
 		AvailabilityEndDate:   parseTime(l.AvailabilityEndDate),

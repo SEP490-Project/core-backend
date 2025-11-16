@@ -79,70 +79,73 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 }
 
 func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
-	//1. Load current task from DB
-	// Preload nested product -> task to have back-reference available ("Products.Task")
-	task, err := t.taskRepository.GetByID(ctx, taskID, []string{"Product", "Contents"})
-	if err != nil {
-		zap.L().Error("Failed to load task from DB",
-			zap.String("task ID", taskID.String()),
-			zap.Error(err))
-		return errors.New("Unable to find task: " + err.Error())
-	}
-	// Set updatedBy AFTER successful fetch
-	task.UpdatedByID = &updatedBy
+	return helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Use transactional repositories
+		taskRepo := uow.Tasks()
+		productRepo := uow.Products()
 
-	//2. Load task context
-	taskCtx := &tasksm.TaskContext{
-		State:    tasksm.NewTaskState(task.Status),
-		Products: task.Product,
-	}
+		//1. Load current task from DB
+		// Preload nested product -> task to have back-reference available ("Products.Task")
+		task, err := taskRepo.GetByID(ctx, taskID, []string{"Product", "Product.Task", "Contents", "Contents.Task"})
+		if err != nil {
+			zap.L().Error("Failed to load task from DB",
+				zap.String("task ID", taskID.String()),
+				zap.Error(err))
+			return errors.New("Unable to find task: " + err.Error())
+		}
+		// Set updatedBy AFTER successful fetch
+		task.UpdatedByID = &updatedBy
 
-	//3. Init target State
-	nextState := tasksm.NewTaskState(targetState)
-	if nextState == nil {
-		zap.L().Error("Invalid target state",
-			zap.String("user_id", taskID.String()),
-			zap.String("target_state", targetState.String()))
-		return errors.New("invalid target state")
-	}
+		//2. Load task context
+		taskCtx := &tasksm.TaskContext{
+			State:    tasksm.NewTaskState(task.Status),
+			Products: task.Product,
+		}
 
-	//4. Forward state
-	if err := taskCtx.State.Next(taskCtx, nextState); err != nil {
-		zap.L().Error("State transition failed",
-			zap.String("user_id", taskID.String()),
-			zap.String("from", taskCtx.State.Name().String()),
-			zap.String("to", targetState.String()),
-			zap.Error(err))
-		return errors.New("State transition failed: " + err.Error())
-	}
+		//3. Init target State
+		nextState := tasksm.NewTaskState(targetState)
+		if nextState == nil {
+			zap.L().Error("Invalid target state",
+				zap.String("user_id", taskID.String()),
+				zap.String("target_state", targetState.String()))
+			return errors.New("invalid target state")
+		}
 
-	//5. Persist task new state
-	task.Status = targetState
-	if err := t.taskRepository.Update(ctx, task); err != nil {
-		zap.L().Error("Failed to update task state in DB",
-			zap.String("user_id", taskID.String()),
-			zap.String("new_state", targetState.String()),
-			zap.Error(err))
-		return errors.New("Failed to update task state in DB: " + err.Error())
-	}
+		//4. Forward state
+		if err := taskCtx.State.Next(taskCtx, nextState); err != nil {
+			zap.L().Error("State transition failed",
+				zap.String("user_id", taskID.String()),
+				zap.String("from", taskCtx.State.Name().String()),
+				zap.String("to", targetState.String()),
+				zap.Error(err))
+			return errors.New("State transition failed: " + err.Error())
+		}
 
-	//6. Cascade UpdatedByID (and any status changes applied by state machine) to products, if any
-	//for _, p := range taskCtx.Products {
-	//	if p == nil {
-	//		continue
-	//	}
-	// Ensure task back-reference present (if not, assign for safety)
-	if taskCtx.Products.Task == nil {
-		taskCtx.Products.Task = task
-	}
-	taskCtx.Products.UpdatedByID = &updatedBy
-	if err := t.productRepository.Update(ctx, taskCtx.Products); err != nil {
-		// Log and continue; do not fail whole operation after task updated
-		zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", taskCtx.Products.ID.String()), zap.Error(err))
-	}
-	//}
+		//5. Persist task new state
+		task.Status = targetState
+		if err := taskRepo.Update(ctx, task); err != nil {
+			zap.L().Error("Failed to update task state in DB",
+				zap.String("user_id", taskID.String()),
+				zap.String("new_state", targetState.String()),
+				zap.Error(err))
+			return errors.New("Failed to update task state in DB: " + err.Error())
+		}
 
-	return nil
+		//6. Cascade UpdatedByID (and any status changes applied by state machine) to product, if any
+		// Ensure task back-reference present (if not, assign for safety)
+		if taskCtx.Products != nil {
+			if taskCtx.Products.Task == nil {
+				taskCtx.Products.Task = task
+			}
+			taskCtx.Products.UpdatedByID = &updatedBy
+			if err := productRepo.Update(ctx, taskCtx.Products); err != nil {
+				// Log and continue; do not fail whole operation after task updated
+				zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", taskCtx.Products.ID.String()), zap.Error(err))
+			}
+		}
+
+		return nil
+	})
 }
 
 func (t stateTransferService) MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {
@@ -972,6 +975,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 				variant.CurrentStock = &v
 			} else {
 				*variant.CurrentStock += preorder.Quantity
+				*variant.PreOrderCount -= preorder.Quantity
 			}
 			if err := variantRepo.Update(ctx, variant); err != nil {
 				zap.L().Error("Failed to restore variant stock after preorder payment failure",
