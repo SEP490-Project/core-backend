@@ -232,7 +232,7 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 // @Accept multipart/form-data
 // @Produce json
 // @Param id    path      string true  "Pre-Order ID (UUID)"
-// @Param state formData  string true  "Target state"
+// @Param state formData  string true  "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
 // @Param files formData  file   false "Proof images (multiple)"
 //
 //	@Security		BearerAuth

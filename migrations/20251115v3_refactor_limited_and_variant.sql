@@ -39,4 +39,5 @@ ALTER TABLE limited_products
 
 ALTER TABLE pre_orders
     ADD COLUMN is_self_picked_up  BOOLEAN DEFAULT false NOT NULL,
-ADD COLUMN confirmation_image TEXT;
+    ADD COLUMN confirmation_image TEXT
+    ADD COLUMN user_note TEXT;
