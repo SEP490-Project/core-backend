@@ -757,7 +757,13 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the first payment date must be on or after the contract start_date")}
 					}
 					if lastPaymentDate.After(contractEndDate) {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						// errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						for !lastPaymentDate.Before(contractEndDate) {
+							lastPaymentDate = lastPaymentDate.AddDate(0, -1, 0)
+						}
+						if !firstPaymentDate.Equal(lastPaymentDate) && lastPaymentDate.Before(contractStartDate) {
+							errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						}
 					}
 
 				case enum.PaymentCycleQuarterly:
@@ -819,7 +825,11 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the first payment date must be on or after the contract start_date")}
 					}
 					if lastPaymentDate.After(contractEndDate) {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						// errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.profit_distribbution_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						lastPaymentDate = lastPaymentDate.AddDate(-1, 0, 0)
+						if !firstPaymentDate.Equal(lastPaymentDate) && lastPaymentDate.Before(contractStartDate) {
+							errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.profit_distribbution_date: the last payment date must be on or before the contract end_date")}
+						}
 					}
 				}
 			}
@@ -902,12 +912,26 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the first payment date must be on or after the contract start_date")}
 					}
 					if lastPaymentDate.After(contractEndDate) {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract end_date")}
+						// errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract end_date")}
+						for !lastPaymentDate.Before(contractEndDate) {
+							lastPaymentDate = lastPaymentDate.AddDate(0, -1, 0)
+						}
+						if !firstPaymentDate.Equal(lastPaymentDate) && lastPaymentDate.Before(contractStartDate) {
+							errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract end_date")}
+						}
 					}
 				case enum.PaymentCycleQuarterly:
-					paymentDateQuarterly, ok := financialTerms.PaymentDate.([]dtos.PaymentDate)
-					if !ok {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: for QUARTERLY payment_cycle, payment_date must be an array of PaymentDate objects")}
+					// paymentDateQuarterly, ok := financialTerms.PaymentDate.([]dtos.PaymentDate)
+					// if !ok {
+					// 	errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: for QUARTERLY payment_cycle, payment_date must be an array of PaymentDate objects")}
+					// }
+					rawPaymentDateQuarterly, err := json.Marshal(financialTerms.PaymentDate)
+					if err != nil {
+						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: failed to marshal payment_date")}
+					}
+					var paymentDateQuarterly []dtos.PaymentDate
+					if err = json.Unmarshal(rawPaymentDateQuarterly, &paymentDateQuarterly); err != nil {
+						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: failed to unmarshal to array of PaymentDate objects")}
 					}
 
 					// Convert PaymentDate to time.Time slices with sorting by date
@@ -952,7 +976,11 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the first payment date must be on or after the contract start_date")}
 					}
 					if lastPaymentDate.After(contractEndDate) {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract end_date")}
+						// errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract end_date")}
+						lastPaymentDate = lastPaymentDate.AddDate(-1, 0, 0)
+						if !firstPaymentDate.Equal(lastPaymentDate) && lastPaymentDate.Before(contractStartDate) {
+							errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the last payment date must be on or before the contract start_date")}
+						}
 					}
 				}
 			}
