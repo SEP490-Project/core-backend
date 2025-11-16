@@ -20,6 +20,7 @@ type PreOrderRequest struct {
 	CancelURL    string    `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
 	SuccessURL   string    `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
 	IsSelfPickup bool      `json:"is_self_pickup" validate:"bool" example:"false"`
+	UserNote     *string   `json:"user_note,omitempty" validate:"omitempty" example:"Please deliver between 9 AM and 5 PM."`
 }
 
 func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {
@@ -83,6 +84,7 @@ func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.Pr
 		CreatedAt:             now,
 		UpdatedAt:             now,
 		IsSelfPickedUp:        p.IsSelfPickup,
+		UserNote:              p.UserNote,
 		//User:                  nil,
 		//ProductVariant:        nil,
 	}
