@@ -9,23 +9,25 @@ import (
 
 // OrderResponse is a sanitized DTO for returning orders to API clients
 type OrderResponse struct {
-	ID             uuid.UUID                   `json:"id"`
-	UserID         uuid.UUID                   `json:"user_id"`
-	Status         string                      `json:"status"`
-	TotalAmount    float64                     `json:"total_amount"`
-	FullName       string                      `json:"full_name"`
-	PhoneNumber    string                      `json:"phone_number"`
-	Email          string                      `json:"email"`
-	Street         string                      `json:"street"`
-	City           string                      `json:"city"`
-	ShippingFee    int                         `json:"shipping_fee"`
-	CreatedAt      time.Time                   `json:"created_at"`
-	UpdatedAt      time.Time                   `json:"updated_at"`
-	IsSelfPickedUp bool                        `json:"is_self_picked_up"`
-	OrderType      string                      `json:"order_type"`
-	GHNOrderCode   *string                     `json:"ghn_order_code,omitempty"`
-	Payment        *PaymentTransactionResponse `json:"payment_transaction,omitempty"`
-	OrderItems     []model.OrderItem           `json:"order_items,omitempty"`
+	ID                uuid.UUID                   `json:"id"`
+	UserID            uuid.UUID                   `json:"user_id"`
+	Status            string                      `json:"status"`
+	TotalAmount       float64                     `json:"total_amount"`
+	FullName          string                      `json:"full_name"`
+	PhoneNumber       string                      `json:"phone_number"`
+	Email             string                      `json:"email"`
+	Street            string                      `json:"street"`
+	City              string                      `json:"city"`
+	ShippingFee       int                         `json:"shipping_fee"`
+	CreatedAt         time.Time                   `json:"created_at"`
+	UpdatedAt         time.Time                   `json:"updated_at"`
+	IsSelfPickedUp    bool                        `json:"is_self_picked_up"`
+	ConfirmationImage *string                     `json:"confirmation_image"`
+	OrderType         string                      `json:"order_type"`
+	GHNOrderCode      *string                     `json:"ghn_order_code,omitempty"`
+	ActionNotes       *model.OrderActionNotes     `json:"action_notes,omitempty"`
+	Payment           *PaymentTransactionResponse `json:"payment_transaction,omitempty"`
+	OrderItems        []model.OrderItem           `json:"order_items,omitempty"`
 }
 
 func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *OrderResponse {
@@ -33,22 +35,24 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		return nil
 	}
 	resp := &OrderResponse{
-		ID:             o.ID,
-		UserID:         o.UserID,
-		Status:         string(o.Status),
-		TotalAmount:    o.TotalAmount,
-		FullName:       o.FullName,
-		PhoneNumber:    o.PhoneNumber,
-		Email:          o.Email,
-		Street:         o.Street,
-		City:           o.City,
-		ShippingFee:    o.ShippingFee,
-		CreatedAt:      o.CreatedAt,
-		UpdatedAt:      o.UpdatedAt,
-		IsSelfPickedUp: o.IsSelfPickedUp,
-		OrderType:      o.OrderType,
-		GHNOrderCode:   o.GHNOrderCode,
-		OrderItems:     o.OrderItems,
+		ID:                o.ID,
+		UserID:            o.UserID,
+		Status:            string(o.Status),
+		TotalAmount:       o.TotalAmount,
+		FullName:          o.FullName,
+		PhoneNumber:       o.PhoneNumber,
+		Email:             o.Email,
+		Street:            o.Street,
+		City:              o.City,
+		ShippingFee:       o.ShippingFee,
+		CreatedAt:         o.CreatedAt,
+		UpdatedAt:         o.UpdatedAt,
+		IsSelfPickedUp:    o.IsSelfPickedUp,
+		ConfirmationImage: o.ConfirmationImage,
+		ActionNotes:       o.ActionNotes,
+		OrderType:         o.OrderType,
+		GHNOrderCode:      o.GHNOrderCode,
+		OrderItems:        o.OrderItems,
 	}
 	if pt != nil {
 		resp.Payment = PaymentTransactionResponse{}.ToResponse(pt)

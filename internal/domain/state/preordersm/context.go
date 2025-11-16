@@ -7,5 +7,6 @@ import (
 // PreOrderContext holds the current state and related data for FSM
 type PreOrderContext struct {
 	State          PreOrderState
+	PreOrder       *model.PreOrder
 	LimitedProduct *model.LimitedProduct
 }

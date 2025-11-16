@@ -11,7 +11,7 @@ const (
 	ProductStatusDraft     ProductStatus = "DRAFT"
 	ProductStatusSubmitted ProductStatus = "SUBMITTED"
 	ProductStatusRevision  ProductStatus = "REVISION"
-	ProductStatusApproved  ProductStatus = "APPROVED"
+	//ProductStatusApproved  ProductStatus = "APPROVED"
 	ProductStatusActived   ProductStatus = "ACTIVED"
 	ProductStatusInactived ProductStatus = "INACTIVED"
 )
@@ -21,7 +21,7 @@ func (pt ProductStatus) IsValid() bool {
 	case ProductStatusDraft,
 		ProductStatusSubmitted,
 		ProductStatusRevision,
-		ProductStatusApproved,
+		//ProductStatusApproved,
 		ProductStatusActived,
 		ProductStatusInactived:
 		return true
