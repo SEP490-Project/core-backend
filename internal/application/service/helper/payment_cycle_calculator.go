@@ -230,9 +230,13 @@ func CalculatePaymentDatesForCycle(
 		)
 
 	case enum.PaymentCycleQuarterly:
-		quarterDates, ok := paymentDateData.([]dtos.PaymentDate)
-		if !ok {
-			return nil, fmt.Errorf("invalid payment date data type for quarterly cycle: %T", paymentDateData)
+		quarterDatesRaw, err := json.Marshal(paymentDateData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal quarterly payment dates: %w", err)
+		}
+		var quarterDates []dtos.PaymentDate
+		if err = json.Unmarshal(quarterDatesRaw, &quarterDates); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal quarterly payment dates: %w", err)
 		}
 
 		return CalculateQuarterlyPaymentDates(
