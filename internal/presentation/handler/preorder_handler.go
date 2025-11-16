@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/aws/smithy-go/ptr"
 
@@ -28,7 +29,7 @@ type PreOrderHandler struct {
 //	@Param			page	query		int		false	"Page number (default: 1)"
 //	@Param			limit	query		int		false	"Items per page (default: 10, max: 100)"
 //	@Param			search	query		string	false	"Search by product name or receiver full name"
-//	@Param			status	query		string	false	"Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
+//	@Param			status	query		string	false	"Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
@@ -58,9 +59,21 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 	}
 
 	search := c.DefaultQuery("search", "")
-	status := c.DefaultQuery("status", "")
+	statusParam := c.DefaultQuery("status", "")
 
-	items, total, err := p.preOrderService.GetPreOrdersByUserIDWithPagination(userID, limit, page, search, status)
+	// parse comma-separated statuses into slice
+	var statuses []string
+	if strings.TrimSpace(statusParam) != "" {
+		parts := strings.Split(statusParam, ",")
+		for _, s := range parts {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statuses = append(statuses, s)
+			}
+		}
+	}
+
+	items, total, err := p.preOrderService.GetPreOrdersByUserIDWithPagination(userID, limit, page, search, statuses)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch preorders: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -191,7 +204,13 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 	districtID := q.DistrictID
 	wardCode := q.WardCode
 
-	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode)
+	// normalize staff status to []string for service
+	var statuses []string
+	if strings.TrimSpace(string(status)) != "" {
+		statuses = append(statuses, string(status))
+	}
+
+	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, statuses)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch staff preorders: "+err.Error(), http.StatusInternalServerError))
 		return

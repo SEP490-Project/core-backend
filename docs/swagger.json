@@ -16066,10 +16066,6 @@
                     ],
                     "example": "BOTTLE"
                 },
-                "current_stock": {
-                    "type": "integer",
-                    "example": 100
-                },
                 "dispenser_type": {
                     "enum": [
                         "PUMP",
@@ -16096,6 +16092,10 @@
                     "type": "integer",
                     "minimum": 0,
                     "example": 15
+                },
+                "input_stock": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "instructions": {
                     "type": "string",
@@ -20098,6 +20098,9 @@
                 },
                 "manufacturing_date": {
                     "type": "string"
+                },
+                "max_stock": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"

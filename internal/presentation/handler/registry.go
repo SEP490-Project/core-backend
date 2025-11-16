@@ -57,7 +57,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		FileHandler:                   NewS3Handler(applicationReg.FileService),
 		PayOsHandler:                  NewPayOsHandler(appConfig, applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
 		PaymentTransactionsHandler:    NewPaymentTransactionsHandler(applicationReg.PaymentTransactionService),
-		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New()),
+		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New(), applicationReg.FileService),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		CampaignHandler:               NewCampaignHandler(applicationReg.CampaignService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		CategoryHandler:               NewCategoryHandler(applicationReg.ProductCategoryService, applicationReg.InfrastructureRegistry.UnitOfWork),
