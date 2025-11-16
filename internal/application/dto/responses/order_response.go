@@ -17,7 +17,14 @@ type OrderResponse struct {
 	PhoneNumber       string                      `json:"phone_number"`
 	Email             string                      `json:"email"`
 	Street            string                      `json:"street"`
+	AddressLine2      string                      `json:"address_line2"`
 	City              string                      `json:"city"`
+	GhnProvinceID     int                         `json:"ghn_province_id" gorm:"column:ghn_province_id"`
+	GhnDistrictID     int                         `json:"ghn_district_id" gorm:"column:ghn_district_id"`
+	GhnWardCode       string                      `json:"ghn_ward_code" gorm:"column:ghn_ward_code"`
+	ProvinceName      string                      `json:"province_name" gorm:"column:province_name"`
+	DistrictName      string                      `json:"district_name" gorm:"column:district_name"`
+	WardName          string                      `json:"ward_name" gorm:"column:ward_name"`
 	ShippingFee       int                         `json:"shipping_fee"`
 	CreatedAt         time.Time                   `json:"created_at"`
 	UpdatedAt         time.Time                   `json:"updated_at"`
@@ -43,7 +50,14 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		PhoneNumber:       o.PhoneNumber,
 		Email:             o.Email,
 		Street:            o.Street,
+		AddressLine2:      o.AddressLine2,
 		City:              o.City,
+		GhnProvinceID:     o.GhnProvinceID,
+		GhnDistrictID:     o.GhnDistrictID,
+		GhnWardCode:       o.GhnWardCode,
+		ProvinceName:      o.ProvinceName,
+		DistrictName:      o.DistrictName,
+		WardName:          o.WardName,
 		ShippingFee:       o.ShippingFee,
 		CreatedAt:         o.CreatedAt,
 		UpdatedAt:         o.UpdatedAt,
