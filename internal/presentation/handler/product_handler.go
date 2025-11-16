@@ -193,7 +193,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	search := c.DefaultQuery("search", "")
 	category := c.DefaultQuery("category_id", "")
 	prdType := c.DefaultQuery("type", "")
-	prdStatus := c.DefaultQuery("status", "")
+	prdStatusesParam := c.DefaultQuery("status", "")
 	filterPreOrder := c.DefaultQuery("filterPreOrder", "false")
 	isPreOrderOnly := strings.ToLower(filterPreOrder) == "true"
 
@@ -211,7 +211,20 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	}
 
 	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
-	if prdStatus != "" && IsAllowRole(c, allowFullViewRoles) {
+
+	// parse status list (comma separated)
+	var prdStatuses []string
+	if strings.TrimSpace(prdStatusesParam) != "" {
+		parts := strings.Split(prdStatusesParam, ",")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				prdStatuses = append(prdStatuses, p)
+			}
+		}
+	}
+
+	if len(prdStatuses) > 0 && IsAllowRole(c, allowFullViewRoles) {
 		validStatuses := map[string]bool{
 			string(enum.ProductStatusDraft):     true,
 			string(enum.ProductStatusSubmitted): true,
@@ -219,10 +232,12 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 			string(enum.ProductStatusActived):   true,
 			string(enum.ProductStatusInactived): true,
 		}
-		if !validStatuses[prdStatus] {
-			resp := responses.ErrorResponse("invalid product status filter", http.StatusBadRequest)
-			c.JSON(http.StatusBadRequest, resp)
-			return
+		for _, s := range prdStatuses {
+			if !validStatuses[s] {
+				resp := responses.ErrorResponse("invalid product status filter", http.StatusBadRequest)
+				c.JSON(http.StatusBadRequest, resp)
+				return
+			}
 		}
 	}
 
@@ -235,7 +250,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatuses, isPreOrderOnly)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial

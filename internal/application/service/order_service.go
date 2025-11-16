@@ -298,7 +298,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				}
 			}
 
-			//Categorize variant
+			//Categorize variant to  check if order item not being mixed between STANDARD and LIMITED
 			currentItemCategory := categorizeVariant(*variant)
 			if isOrderLimited && currentItemCategory != -1 {
 				return fmt.Errorf("STANDARD product found: %s (id = %s)", variant.Product.Name, variant.ID.String())

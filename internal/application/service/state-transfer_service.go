@@ -36,16 +36,17 @@ type stateTransferService struct {
 	taskRepository          irepository.GenericRepository[model.Task]
 	productRepository       irepository.GenericRepository[model.Product]
 	orderRepository         irepository.GenericRepository[model.Order]
+	preOrderRepository      irepository.PreOrderRepository
+	variantRepository       irepository.GenericRepository[model.ProductVariant]
 	affiliateLinkRepository irepository.AffiliateLinkRepository
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
 }
 
-func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID) error {
-	preOrderRepo := t.uow.PreOrder()
+func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, fileURL *string) error {
 	// 1) Load PreOrder
-	preOrder, err := preOrderRepo.GetByID(ctx, preOrderID, nil)
+	preOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to load PreOrder", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return errors.New("failed to load PreOrder: " + err.Error())
@@ -57,7 +58,23 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 	if err != nil {
 		return err
 	}
-	ctxState := &preordersm.PreOrderContext{State: currentState}
+
+	pOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, []string{})
+	if err != nil {
+		return err
+	}
+
+	variantIncludes := []string{"Product", "Product.Limited"}
+	variant, err := t.variantRepository.GetByID(ctx, pOrder.VariantID, variantIncludes)
+	if err != nil {
+		return err
+	}
+
+	ctxState := &preordersm.PreOrderContext{
+		State:          currentState,
+		PreOrder:       pOrder,
+		LimitedProduct: variant.Product.Limited,
+	}
 	nextState, err := preordersm.NewPreOrderState(targetState)
 	if err != nil {
 		return err
@@ -68,9 +85,21 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		return errors.New("state transition not allowed: " + err.Error())
 	}
 
+	isSelfPick := preOrder.IsSelfPickedUp
+	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
+	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
+	if (isSelfPick && isStatusReceived) || (!isSelfPick && isStatusDelivered) {
+		if fileURL == nil || *fileURL == "" {
+			errMsg := fmt.Sprintf("proof of delivery file is required when transitioning to %s", targetState.String())
+			zap.L().Error(errMsg, zap.String("preorder_id", preOrderID.String()))
+			return errors.New(errMsg)
+		}
+		preOrder.ConfirmationImage = fileURL
+	}
+
 	// 3) Persist new state to database
 	preOrder.Status = targetState
-	if err := preOrderRepo.Update(ctx, preOrder); err != nil {
+	if err := t.preOrderRepository.Update(ctx, preOrder); err != nil {
 		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return errors.New("failed to update PreOrder state: " + err.Error())
 	}
@@ -1102,6 +1131,8 @@ func NewStateTransferService(
 		taskRepository:          dbReg.TaskRepository,
 		productRepository:       dbReg.ProductRepository,
 		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
+		preOrderRepository:      dbReg.PreOrderRepository,
+		variantRepository:       dbReg.ProductVariantRepository,
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,

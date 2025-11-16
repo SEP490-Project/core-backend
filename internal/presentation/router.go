@@ -310,6 +310,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			preOrderGroup.POST("", preOrderHandler.CreatePreOrderAndPay)
 			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
+			preOrderGroup.PATCH(":id/state", stateHandler.UpdatePreOrderState)
 		}
 
 		// Staffs
