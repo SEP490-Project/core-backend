@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
