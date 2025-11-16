@@ -93,7 +93,7 @@ func (h *TikTokSocialHandler) HandleLogin(c *gin.Context) {
 	}
 	encodedRedirectURL := url.QueryEscape(tiktokConfig.RedirectURL)
 	stateData := map[string]string{
-		"redirect_uri": encodedRedirectURL,
+		"redirect_uri": tiktokConfig.RedirectURL,
 		"is_internal":  strconv.FormatBool(req.IsInternal),
 		"redirect_url": req.RedirectURL,
 		"cancel_url":   req.CancelURL,
