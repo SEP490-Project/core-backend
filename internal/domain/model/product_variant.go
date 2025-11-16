@@ -35,6 +35,10 @@ type ProductVariant struct {
 	Length int `json:"length" gorm:"column:length"` // in centimeters
 	Width  int `json:"width" gorm:"column:width"`   // in centimeters
 
+	//Only for limited products
+	MaxStock      *int `json:"max_stock" gorm:"column:max_stock"`
+	PreOrderLimit *int `json:"pre_order_limit" gorm:"column:pre_order_limit"`
+	PreOrderCount *int `json:"pre_order_count" gorm:"column:pre_order_count"`
 	//Relationship ExistsByID
 	Product         *Product                `json:"-" gorm:"foreignKey:ProductID"`
 	Story           *ProductStory           `json:"story" gorm:"foreignKey:VariantID"`
@@ -57,10 +61,13 @@ func (pv *ProductVariant) BeforeCreate(tx *gorm.DB) (err error) {
 		zap.L().Warn("Capacity is less than 0, setting to 0")
 		pv.Capacity = 0
 	}
-	if pv.CurrentStock != nil && *pv.CurrentStock < 0 {
-		zap.L().Warn("CurrentStock is less than 0, setting to 0")
-		*pv.CurrentStock = 0
-	}
-
+	//if pv.CurrentStock != nil && *pv.CurrentStock < 0 {
+	//	zap.L().Warn("CurrentStock is less than 0, setting to 0")
+	//	*pv.CurrentStock = 0
+	//}
+	//if pv.PreOrderLimit != nil && *pv.PreOrderLimit < 0 {
+	//	zap.L().Warn("LimitedProduct PreOrderLimit is less than 1, setting to 1")
+	//	*pv.PreOrderLimit = 0
+	//}
 	return nil
 }

@@ -38,6 +38,7 @@ func NewChannelHandler(service iservice.ChannelService, unitOfWork irepository.U
 //	@Produce		json
 //	@Success		200	{object}	responses.ChannelListResponse	"Channels retrieved successfully"
 //	@Failure		500	{object}	responses.APIResponse			"Internal server error"
+//	@Security		BearerAuth
 //	@Router			/api/v1/channels [get]
 func (h *ChannelHandler) GetAllChannels(c *gin.Context) {
 	isReturningTokenInfo := false

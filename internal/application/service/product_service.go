@@ -44,13 +44,14 @@ func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*res
 		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
 		return nil, err
 	}
-	product.IsActive = isActive
-
-	//update
-	if err := p.repository.Update(context.Background(), product); err != nil {
-		zap.L().Error("failed to update product", zap.String("product_id", productID.String()), zap.Error(err))
+	// Persist is_active explicitly to allow setting false (zero value)
+	if err := p.repository.UpdateByCondition(context.Background(), func(db *gorm.DB) *gorm.DB { return db.Where("id = ?", productID) }, map[string]any{"is_active": isActive}); err != nil {
+		zap.L().Error("failed to update product is_active", zap.String("product_id", productID.String()), zap.Error(err))
 		return nil, err
 	}
+	// update in-memory model for response
+	product.IsActive = isActive
+
 	resp := &responses.ProductResponseV2{}
 	return resp.ToProductResponseV2(product), nil
 }
@@ -252,12 +253,15 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if productID == uuid.Nil {
 			return errors.New("invalid product id")
 		}
-		exists, err := uow.Products().ExistsByID(ctx, productID)
+		//Limited variants of a product maximum is 5
+		//Count variants
+		variantCount, err := uow.ProductVariant().Count(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("product_id = ?", productID)
+		})
 		if err != nil {
-			return fmt.Errorf("failed to check product existence: %w", err)
-		}
-		if !exists {
-			return fmt.Errorf("product with ID %s not found", productID)
+			return fmt.Errorf("failed to count product variants: %w", err)
+		} else if variantCount >= 5 {
+			return errors.New("reach maximum variants for a product (5)")
 		}
 
 		// Load product now (check and propagate any error) so we can use it for response
@@ -274,10 +278,21 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			if err != nil {
 				return err
 			}
+
+			var (
+				preOrderLimit = variant.PreOrderLimit
+				inputStock    = variant.InputedStock
+			)
+
+			if preOrderLimit == nil || inputStock == nil {
+				return fmt.Errorf("preorderLimit or inputStock cannot be empty if product was LIMITED")
+			} else if *preOrderLimit > *inputStock {
+				return fmt.Errorf("preorder_limit must not exceed input_stock")
+			}
 		}
 
 		//Create ProductVariant
-		productVariant = variant.ToModel(productID, userID)
+		productVariant = variant.ToModel(productID, userID, productOfVariant.Type)
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
 			zap.L().Info("failed to persist product variant", zap.Error(err))
 			return err
@@ -449,6 +464,17 @@ func (p productService) limitedProductValidation(ctx context.Context, dto *reque
 		return errors.New("your task may expired or overdue")
 	}
 
+	// Check if task already has a limited product
+	existed, err := p.repository.Exists(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("task_id = ?", dto.TaskID)
+	})
+	if err != nil {
+		zap.L().Info("failed checking existing limited product for task", zap.Error(err), zap.String("task_id", dto.TaskID.String()))
+		return errors.New("could not verify existing limited product for task")
+	} else if existed {
+		return errors.New("a limited product for this task already exists")
+	}
+
 	// Validate brand existence
 	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
 		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
@@ -571,14 +597,12 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, brandID, userID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
 		zap.String("search", search),
 		zap.String("category_id", categoryID),
-		zap.String("brand_id", brandID),
-		zap.String("user_id", userID),
 		zap.String("product_type", productType),
 	)
 
@@ -612,30 +636,12 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 			}
 		}
 
-		if brandID != "" {
-			bid, err := uuid.Parse(brandID)
-			if err == nil {
-				db = db.Where(`brand_id = ?`, bid)
-			} else {
-				db = db.Where(`brand_id = ?`, uuid.Nil)
-			}
-		}
-
-		if userID != "" {
-			uid, err := uuid.Parse(userID)
-			if err == nil {
-				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uid)
-			} else {
-				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uuid.Nil)
-			}
-		}
-
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
 
 		if productStatus != "" {
-			db = db.Where("products.status = ?", productStatus)
+			db = db.Where(`status = ?`, productStatus)
 		}
 
 		return db.Order("products.created_at DESC").Order("products.id")
@@ -708,7 +714,7 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
 	ctx := context.Background()
 	offset := (page - 1) * limit
 
@@ -735,15 +741,6 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search s
 				db = db.Where(`category_id = ?`, cid)
 			} else {
 				db = db.Where(`category_id = ?`, uuid.Nil)
-			}
-		}
-
-		if brandID != "" {
-			bid, err := uuid.Parse(brandID)
-			if err == nil {
-				db = db.Where(`brand_id = ?`, bid)
-			} else {
-				db = db.Where(`brand_id = ?`, uuid.Nil)
 			}
 		}
 
@@ -1163,10 +1160,11 @@ func (p productService) GetTop5NewestProducts() (*responses.ProductResponseTop5N
 func (p productService) UpdateVariantImage(ctx context.Context, variantImageID uuid.UUID, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error) {
 	var variantImage *model.VariantImage
 
-	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+	if err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 
 		//Load existing variant image
-		variantImage, err := uow.VariantImage().GetByID(ctx, variantImageID, nil)
+		var err error
+		variantImage, err = uow.VariantImage().GetByID(ctx, variantImageID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to load variant image by id: %w", err)
 		}
@@ -1183,9 +1181,7 @@ func (p productService) UpdateVariantImage(ctx context.Context, variantImageID u
 		}
 
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 

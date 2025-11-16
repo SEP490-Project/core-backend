@@ -506,8 +506,12 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 	channelHandler := r.handlerRegistry.ChannelHandler
 	channelGroup := group.Group("/channels")
 	{
-		channelGroup.GET("", r.middlewareRegistry.Auth.OptionalAuth(), channelHandler.GetAllChannels)
-		channelGroup.GET("/:id", channelHandler.GetChannelByID)
+		optionalAuthGroup := channelGroup.Group("")
+		optionalAuthGroup.Use(r.middlewareRegistry.Auth.OptionalAuth())
+		{
+			optionalAuthGroup.GET("", channelHandler.GetAllChannels)
+			optionalAuthGroup.GET("/:id", channelHandler.GetChannelByID)
+		}
 
 		authenticatedGroup := channelGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales))
 		{

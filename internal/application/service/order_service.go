@@ -34,6 +34,11 @@ type orderService struct {
 	paymentTransactionService    iservice.PaymentTransactionService
 }
 
+func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
+	ctx := context.Background()
+	return o.orderRepository.GetSelfDeliveryOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
+}
+
 func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
@@ -145,7 +150,7 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) er
 
 func (o *orderService) GetOrdersByUserIDWithPagination(
 	userID uuid.UUID, limit, page int, search, status, createdFrom, createdTo string,
-) ([]model.Order, int, error) {
+) ([]responses.OrderResponse, int, error) {
 	ctx := context.Background()
 
 	if page < 1 {
@@ -211,7 +216,36 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 		return nil, 0, err
 	}
 
-	return orders, int(total), nil
+	// Collect order IDs to fetch related payment transactions
+	orderIDs := make([]uuid.UUID, 0, len(orders))
+	for _, oitem := range orders {
+		orderIDs = append(orderIDs, oitem.ID)
+	}
+
+	paymentsMap := map[uuid.UUID]model.PaymentTransaction{}
+	if len(orderIDs) > 0 {
+		var transactions []model.PaymentTransaction
+		if err := o.paymentTransactionRepository.DB().WithContext(ctx).
+			Model(&model.PaymentTransaction{}).
+			Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
+			Find(&transactions).Error; err != nil {
+			zap.L().Error("Failed to fetch payment transactions for orders", zap.Error(err))
+			// non-fatal: continue without payment info
+		} else {
+			// choose latest transaction per order by UpdatedAt
+			for _, tx := range transactions {
+				existing, ok := paymentsMap[tx.ReferenceID]
+				if !ok || tx.UpdatedAt.After(existing.UpdatedAt) {
+					paymentsMap[tx.ReferenceID] = tx
+				}
+			}
+		}
+	}
+
+	// Map to DTOs including payment transaction
+	orderResponses := responses.OrderResponse{}.ToResponseList(orders, paymentsMap)
+
+	return orderResponses, int(total), nil
 }
 
 // categorizeVariant will return int base on its product's type:
@@ -243,13 +277,25 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		var prevItemCategory *int = nil
 		for _, item := range request.Items {
 			//check variantID:
-			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product"}
+			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product", "Product.Limited"}
 			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
 			if err != nil {
 				zap.L().Error("ProductVariant().GetByID", zap.Error(err))
 				return errors.New("product Variant not found")
 			} else if variant == nil {
 				return errors.New("product Variant not found")
+			}
+
+			if variant.Product != nil && variant.Product.Type == enum.ProductTypeLimited {
+				limitedInfo := variant.Product.Limited
+				if limitedInfo == nil {
+					return fmt.Errorf("limited product info not found for product: %s (id = %s)", variant.Product.Name, variant.Product.ID.String())
+				}
+				if now.Before(limitedInfo.AvailabilityStartDate) {
+					return fmt.Errorf("product %s (id = %s) is not yet available for order", variant.Product.Name, variant.Product.ID.String())
+				} else if now.After(limitedInfo.AvailabilityEndDate) {
+					return fmt.Errorf("product %s (id = %s) is no longer available for order", variant.Product.Name, variant.Product.ID.String())
+				}
 			}
 
 			//Categorize variant
@@ -408,19 +454,68 @@ func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee in
 	return paymentItems, total
 }
 
-func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error) {
-	// Delegate to repository implementation
+func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]responses.OrderResponse, int, error) {
 	ctx := context.Background()
-	return o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode, orderType)
-}
+	orders, total, err := o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode, orderType)
+	if err != nil {
+		return nil, 0, err
+	}
 
-func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
-	ctx := context.Background()
-	return o.orderRepository.GetSelfDeliveryOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
+	// If no orders or no payment repository wired - return early
+	if len(orders) == 0 {
+		return []responses.OrderResponse{}, total, nil
+	}
+	if o.paymentTransactionRepository == nil || o.paymentTransactionRepository.DB() == nil {
+		zap.L().Warn("paymentTransactionRepository not available, returning orders without transaction enrichment")
+		// Convert to response without payment enrichment
+		return responses.OrderResponse{}.ToResponseList(orders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
+	}
+
+	// Collect order IDs
+	orderIDs := make([]uuid.UUID, 0, len(orders))
+	for _, oitem := range orders {
+		orderIDs = append(orderIDs, oitem.ID)
+	}
+
+	// Load payment transactions referencing these orders
+	var transactions []model.PaymentTransaction
+	if err := o.paymentTransactionRepository.DB().WithContext(ctx).
+		Model(&model.PaymentTransaction{}).
+		Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
+		Find(&transactions).Error; err != nil {
+		zap.L().Error("Failed to fetch payment transactions for staff orders", zap.Error(err))
+		// non-fatal: return orders without enrichment (convert to DTO)
+		return responses.OrderResponse{}.ToResponseList(orders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
+	}
+
+	// Choose latest transaction per order by UpdatedAt
+	paymentsMap := make(map[uuid.UUID]model.PaymentTransaction)
+	for _, tx := range transactions {
+		existing, ok := paymentsMap[tx.ReferenceID]
+		if !ok || tx.UpdatedAt.After(existing.UpdatedAt) {
+			paymentsMap[tx.ReferenceID] = tx
+		}
+	}
+
+	// Attach latest payment info back to orders (transient fields) - keep for compatibility but not required for DTO
+	for i := range orders {
+		if pt, ok := paymentsMap[orders[i].ID]; ok {
+			orders[i].PaymentID = &pt.ID
+			if pt.PayOSMetadata != nil {
+				orders[i].PaymentBin = &pt.PayOSMetadata.Bin
+			}
+		}
+	}
+
+	// Convert model orders to response DTOs using payment map
+	orderResponses := responses.OrderResponse{}.ToResponseList(orders, paymentsMap)
+
+	return orderResponses, total, nil
 }
 
 // ConfirmOrder transitions an order to CONFIRMED. For LIMITED products, decrements variant stock accordingly.
 func (o *orderService) ConfirmOrder(ctx context.Context, orderID uuid.UUID, updatedBy uuid.UUID, orderStatus enum.OrderStatus, unitOfWork irepository.UnitOfWork) error {
+	_ = updatedBy // currently unused but kept for API compatibility
 	return helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// 1) Load order with items and variants + product
 		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
@@ -470,8 +565,8 @@ func (o *orderService) ConfirmOrder(ctx context.Context, orderID uuid.UUID, upda
 			}
 		}
 
-		// 4) Persist order status change to CONFIRMED
-		order.Status = enum.OrderStatusConfirmed
+		// 4) Persist order status change to requested state
+		order.Status = orderStatus
 		if err := uow.Order().Update(ctx, order); err != nil {
 			zap.L().Error("Failed to update order status to confirmed", zap.Error(err))
 			return fmt.Errorf("failed to update order: %w", err)
@@ -483,6 +578,8 @@ func (o *orderService) ConfirmOrder(ctx context.Context, orderID uuid.UUID, upda
 }
 
 func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updatedBy uuid.UUID, reason string, unitOfWork irepository.UnitOfWork) error {
+	_ = updatedBy
+	_ = reason
 	return helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// Load order with items and variants + product
 		includes := []string{"OrderItems", "OrderItems.Variant", "OrderItems.Variant.Product"}
@@ -546,12 +643,13 @@ func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updat
 
 func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.OrderService {
 	return &orderService{
-		config:                    cfg,
-		orderRepository:           dbRegistry.OrderRepository,
-		orderItemRepository:       dbRegistry.OrderItemRepository,
-		shippingAddressRepository: dbRegistry.ShippingAddressRepository,
-		payOSProxy:                registry.ProxiesRegistry.PayOSProxy,
-		ghnProxy:                  registry.ProxiesRegistry.GHNProxy,
-		paymentTransactionService: paymentTransactionSvc,
+		config:                       cfg,
+		orderRepository:              dbRegistry.OrderRepository,
+		orderItemRepository:          dbRegistry.OrderItemRepository,
+		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
+		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
+		ghnProxy:                     registry.ProxiesRegistry.GHNProxy,
+		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
+		paymentTransactionService:    paymentTransactionSvc,
 	}
 }

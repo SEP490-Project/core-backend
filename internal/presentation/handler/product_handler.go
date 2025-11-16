@@ -160,18 +160,18 @@ func (h *ProductHandler) GetAllProducts(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit		query		int																			false	"Number of items per page"	default(10)
-//	@Param			page		query		int																			false	"Number of items to skip"	default(1)
-//	@Param			search		query		string																		false	"Search term for product name"
-//	@Param			category_id	query		string																		false	"Filter category of products"
-//	@Param			brand_id	query		string																		false	"Filter products by brand"
-//	@Param			user_id	query		string																		false	"Filter products by brand user"
-//	@Param			type		query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
-//	@Param			status		query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-//	@Param			filterPreOrder		query		boolean																		false	"Filter status of products"	false "Find All PreOrder Products Only"
-//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
+//	@Param			limit			query		int																			false	"Number of items per page"	default(10)
+//	@Param			page			query		int																			false	"Number of items to skip"	default(1)
+//	@Param			search			query		string																		false	"Search term for product name"
+//	@Param			category_id		query		string																		false	"Filter category of products"
+//	@Param			brand_id		query		string																		false	"Filter products by brand"
+//	@Param			user_id			query		string																		false	"Filter products by brand user"
+//	@Param			type			query		string																		false	"Filter type of products"	Enums(STANDARD, LIMITED)
+//	@Param			status			query		string																		false	"Filter status of products"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			filterPreOrder	query		boolean																		false	"Filter status of products"	false	"Find All PreOrder Products Only"
+//	@Success		200				{object}	object{data=[]responses.ProductResponseV2,total=int,limit=int,offset=int}	"Products view for Others"
 //
-//	@Failure		500			{object}	object{error=string}														"Internal server error"
+//	@Failure		500				{object}	object{error=string}														"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/v2 [get]
 func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
@@ -192,8 +192,6 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 	category := c.DefaultQuery("category_id", "")
-	brand := c.DefaultQuery("brand_id", "")
-	user := c.DefaultQuery("user_id", "")
 	prdType := c.DefaultQuery("type", "")
 	prdStatus := c.DefaultQuery("status", "")
 	filterPreOrder := c.DefaultQuery("filterPreOrder", "false")
@@ -234,14 +232,14 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 		svcErr   error
 	)
 
-	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff, enum.UserRoleBrandPartner}
+	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, brand, user, prdType, prdStatus, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatus, isPreOrderOnly)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial
-		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, brand, category, prdType, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType, isPreOrderOnly)
 		products = res
 	}
 
@@ -468,16 +466,10 @@ func (h *ProductHandler) CreateLimitedProduct(c *gin.Context) {
 func (h *ProductHandler) createLimitedProductValidation(req requests.CreateLimitedProductRequest) error {
 	// Validate limited product date fields against now and relative ordering
 	var (
-		preOrderQuantity         = req.LimitedAttribute.PreOrderLimit
-		maxQuantity              = req.LimitedAttribute.MaxStock
 		premiereDateStr          = req.LimitedAttribute.PremiereDate
 		availabilityStartDateStr = req.LimitedAttribute.AvailabilityStartDate
 		availabilityEndDateStr   = req.LimitedAttribute.AvailabilityEndDate
 	)
-
-	if preOrderQuantity > maxQuantity {
-		return fmt.Errorf("preorder_limit must not exceed max_stock")
-	}
 
 	layouts := []string{
 		time.RFC3339,
@@ -1049,16 +1041,17 @@ func (h *ProductHandler) PublishProduct(c *gin.Context) {
 		return
 	}
 
-	resp, svcErr := h.productService.PublishProduct(productID, isActive)
+	prd, svcErr := h.productService.PublishProduct(productID, isActive)
 	if svcErr != nil {
 		if errors.Is(svcErr, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
 			return
 		}
 		zap.L().Error("publish product failed", zap.String("product_id", productID.String()), zap.Error(svcErr))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update product state"})
+		resp := responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
-
+	resp := responses.SuccessResponse("Product publish status updated successfully", ptr.Int(http.StatusOK), prd)
 	c.JSON(http.StatusOK, resp)
 }

@@ -57,11 +57,11 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 
 		if isUUID {
 			// Nếu search là UUID thật → so sánh chính xác
-			whereClauses = append(whereClauses, "(orders.id = ? OR pt.id = ?)")
+			whereClauses = append(whereClauses, "(orders.id = ? OR pt_latest.id = ?)")
 			args = append(args, search, search)
 		} else {
 			// Nếu không phải UUID → dùng ILIKE như cũ
-			whereClauses = append(whereClauses, "(orders.id::text ILIKE ? OR pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)")
+			whereClauses = append(whereClauses, "(orders.id::text ILIKE ? OR pt_latest.id::text ILIKE ? OR pt_latest.payos_metadata->>'bin' ILIKE ?)")
 			like := "%" + search + "%"
 			args = append(args, like, like, like)
 		}
@@ -107,8 +107,18 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 		TotalCount int64      `gorm:"column:total_count"`
 	}
 
-	// Join payment_transactions (left join so orders without payments are included)
-	sql := fmt.Sprintf(`SELECT orders.*, pt.id AS payment_id, pt.payos_metadata->>'bin' AS bin, COUNT(*) OVER() AS total_count FROM orders LEFT JOIN payment_transactions pt ON pt.reference_id = orders.id AND pt.reference_type = 'ORDER' WHERE %s ORDER BY orders.created_at DESC LIMIT ? OFFSET ?`, whereSQL)
+	// Join only the latest payment transaction per order using window function
+	// We select latest by updated_at DESC and keep rn = 1
+	sql := fmt.Sprintf(`SELECT orders.*, pt_latest.id AS payment_id, pt_latest.payos_metadata->>'bin' AS bin, COUNT(*) OVER() AS total_count
+        FROM orders
+        LEFT JOIN (
+            SELECT id, reference_id, payos_metadata, updated_at, ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY updated_at DESC) AS rn
+            FROM payment_transactions
+            WHERE reference_type = 'ORDER'
+        ) pt_latest ON pt_latest.reference_id = orders.id AND pt_latest.rn = 1
+        WHERE %s
+        ORDER BY orders.created_at DESC
+        LIMIT ? OFFSET ?`, whereSQL)
 	args = append(args, pageSize, offset)
 
 	var rows []orderWithTotal
@@ -210,11 +220,11 @@ func (r *OrderRepository) GetSelfDeliveryOrdersWithPagination(ctx context.Contex
 
 		if isUUID {
 			// Nếu search là UUID thật → so sánh chính xác
-			whereClauses = append(whereClauses, "(orders.id = ? OR pt.id = ?)")
+			whereClauses = append(whereClauses, "(orders.id = ? OR pt_latest.id = ?)")
 			args = append(args, search, search)
 		} else {
 			// Nếu không phải UUID → dùng ILIKE như cũ
-			whereClauses = append(whereClauses, "(orders.id::text ILIKE ? OR pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)")
+			whereClauses = append(whereClauses, "(orders.id::text ILIKE ? OR pt_latest.id::text ILIKE ? OR pt_latest.payos_metadata->>'bin' ILIKE ?)")
 			like := "%" + search + "%"
 			args = append(args, like, like, like)
 		}
@@ -253,8 +263,17 @@ func (r *OrderRepository) GetSelfDeliveryOrdersWithPagination(ctx context.Contex
 		TotalCount int64      `gorm:"column:total_count"`
 	}
 
-	// Join payment_transactions (left join so orders without payments are included)
-	sql := fmt.Sprintf(`SELECT orders.*, pt.id AS payment_id, pt.payos_metadata->>'bin' AS bin, COUNT(*) OVER() AS total_count FROM orders LEFT JOIN payment_transactions pt ON pt.reference_id = orders.id AND pt.reference_type = 'ORDER' WHERE %s ORDER BY orders.created_at DESC LIMIT ? OFFSET ?`, whereSQL)
+	// Join only the latest payment transaction per order using window function
+	sql := fmt.Sprintf(`SELECT orders.*, pt_latest.id AS payment_id, pt_latest.payos_metadata->>'bin' AS bin, COUNT(*) OVER() AS total_count
+        FROM orders
+        LEFT JOIN (
+            SELECT id, reference_id, payos_metadata, updated_at, ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY updated_at DESC) AS rn
+            FROM payment_transactions
+            WHERE reference_type = 'ORDER'
+        ) pt_latest ON pt_latest.reference_id = orders.id AND pt_latest.rn = 1
+        WHERE %s
+        ORDER BY orders.created_at DESC
+        LIMIT ? OFFSET ?`, whereSQL)
 	args = append(args, pageSize, offset)
 
 	var rows []orderWithTotal
@@ -319,7 +338,6 @@ func (r *OrderRepository) GetOrdersWithFiltersWithPagination(
 	limit, page int,
 	search, status, createdFrom, createdTo, fullName, phone, provinceID, districtID, wardCode, orderType string,
 ) ([]model.Order, int, error) {
-
 	pageNum := page
 	pageSize := limit
 	if pageNum < 1 {
@@ -330,93 +348,155 @@ func (r *OrderRepository) GetOrdersWithFiltersWithPagination(
 	}
 	offset := (pageNum - 1) * pageSize
 
-	// Base query
-	query := r.db.WithContext(ctx).Model(&model.Order{}).
-		Preload("OrderItems").
-		Joins("LEFT JOIN payment_transactions pt ON pt.reference_id = orders.id AND pt.reference_type = 'ORDER'").
-		Where("orders.status <> ?", enum.OrderStatusPending)
-
-	// Filters
+	// Build WHERE clauses similar to other methods so we can reuse the raw SQL + window-join
+	var validStatus *enum.OrderStatus
 	if status != "" {
 		s := enum.OrderStatus(status)
-		if s.IsValid() && s != enum.OrderStatusPending {
-			query = query.Where("orders.status = ?", s)
+		if s.IsValid() {
+			validStatus = &s
 		}
 	}
-	if search != "" {
-		if id, err := uuid.Parse(search); err == nil {
-			query = query.Where("(orders.id = ? OR orders.ghn_order_code = ?)", id, search)
-		} else {
-			like := "%" + search + "%"
-			query = query.Where("(orders.ghn_order_code ILIKE ? OR orders.id::text ILIKE ?)", like, like)
-		}
+
+	whereClauses := make([]string, 0)
+	args := make([]any, 0)
+
+	// exclude PENDING
+	whereClauses = append(whereClauses, "orders.status <> ?")
+	args = append(args, enum.OrderStatusPending)
+
+	if validStatus != nil && *validStatus != enum.OrderStatusPending {
+		whereClauses = append(whereClauses, "orders.status = ?")
+		args = append(args, *validStatus)
 	}
+
 	if createdFrom != "" {
 		if t, err := time.Parse("2006-01-02", createdFrom); err == nil {
-			query = query.Where("orders.created_at >= ?", t)
+			whereClauses = append(whereClauses, "orders.created_at >= ?")
+			args = append(args, t)
 		}
 	}
 	if createdTo != "" {
 		if t, err := time.Parse("2006-01-02", createdTo); err == nil {
-			query = query.Where("orders.created_at < ?", t.Add(24*time.Hour))
+			whereClauses = append(whereClauses, "orders.created_at < ?")
+			args = append(args, t.Add(24*time.Hour))
 		}
 	}
+
+	if search != "" {
+		if id, err := uuid.Parse(search); err == nil {
+			whereClauses = append(whereClauses, "(orders.id = ? OR orders.ghn_order_code = ?)")
+			args = append(args, id, search)
+		} else {
+			like := "%" + search + "%"
+			whereClauses = append(whereClauses, "(orders.ghn_order_code ILIKE ? OR orders.id::text ILIKE ?)")
+			args = append(args, like, like)
+		}
+	}
+
 	if fullName != "" {
-		query = query.Where("orders.full_name ILIKE ?", "%"+fullName+"%")
+		whereClauses = append(whereClauses, "orders.full_name ILIKE ?")
+		args = append(args, "%"+fullName+"%")
 	}
 	if phone != "" {
-		query = query.Where("orders.phone_number ILIKE ?", "%"+phone+"%")
+		whereClauses = append(whereClauses, "orders.phone_number ILIKE ?")
+		args = append(args, "%"+phone+"%")
 	}
 	if provinceID != "" {
 		if pid, err := strconv.Atoi(provinceID); err == nil {
-			query = query.Where("orders.ghn_province_id = ?", pid)
+			whereClauses = append(whereClauses, "orders.ghn_province_id = ?")
+			args = append(args, pid)
 		}
 	}
 	if districtID != "" {
 		if did, err := strconv.Atoi(districtID); err == nil {
-			query = query.Where("orders.ghn_district_id = ?", did)
+			whereClauses = append(whereClauses, "orders.ghn_district_id = ?")
+			args = append(args, did)
 		}
 	}
 	if wardCode != "" {
-		query = query.Where("orders.ghn_ward_code = ?", wardCode)
+		whereClauses = append(whereClauses, "orders.ghn_ward_code = ?")
+		args = append(args, wardCode)
 	}
 	if orderType != "" {
 		ot := enum.ProductType(orderType)
 		if ot.IsValid() {
-			query = query.Where("orders.order_type = ?", ot)
+			whereClauses = append(whereClauses, "orders.order_type = ?")
+			args = append(args, ot)
 		}
 	}
 
-	// Count total records
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		zap.L().Error("failed to count orders", zap.Error(err))
+	whereSQL := strings.Join(whereClauses, " AND ")
+
+	type orderWithTotal struct {
+		model.Order
+		PaymentID  *uuid.UUID `gorm:"column:payment_id"`
+		PaymentBin *string    `gorm:"column:payment_bin"`
+		TotalCount int64      `gorm:"column:total_count"`
+	}
+
+	// Use same window-function subquery to pick latest payment transaction per order
+	sql := fmt.Sprintf(`SELECT orders.*, pt_latest.id AS payment_id, pt_latest.payos_metadata->>'bin' AS payment_bin, COUNT(*) OVER() AS total_count
+		FROM orders
+		LEFT JOIN (
+			SELECT id, reference_id, payos_metadata, updated_at, ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY updated_at DESC) AS rn
+			FROM payment_transactions
+			WHERE reference_type = 'ORDER'
+		) pt_latest ON pt_latest.reference_id = orders.id AND pt_latest.rn = 1
+		WHERE %s
+		ORDER BY orders.created_at DESC
+		LIMIT ? OFFSET ?`, whereSQL)
+	args = append(args, pageSize, offset)
+
+	var rows []orderWithTotal
+	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+		zap.L().Error("Failed to execute orders-with-filters raw query", zap.Error(err))
 		return nil, 0, err
 	}
 
-	// Pagination + ordering
-	var orders []model.Order
-	if err := query.Order("orders.created_at DESC").Limit(pageSize).Offset(offset).Find(&orders).Error; err != nil {
-		zap.L().Error("failed to fetch orders", zap.Error(err))
+	if len(rows) == 0 {
+		return []model.Order{}, 0, nil
+	}
+
+	total := int(rows[0].TotalCount)
+	orders := make([]model.Order, 0, len(rows))
+	orderIDs := make([]uuid.UUID, 0, len(rows))
+	paymentMap := make(map[uuid.UUID]*uuid.UUID)
+	binMap := make(map[uuid.UUID]*string)
+	for _, r2 := range rows {
+		orders = append(orders, r2.Order)
+		orderIDs = append(orderIDs, r2.ID)
+		if r2.PaymentID != nil {
+			paymentMap[r2.ID] = r2.PaymentID
+			binMap[r2.ID] = r2.PaymentBin
+		} else {
+			paymentMap[r2.ID] = nil
+			binMap[r2.ID] = nil
+		}
+	}
+
+	// load items in bulk
+	var items []model.OrderItem
+	if err := r.db.WithContext(ctx).Model(&model.OrderItem{}).Where("order_id IN ?", orderIDs).Find(&items).Error; err != nil {
+		zap.L().Error("Failed to load order items for orders", zap.Error(err))
 		return nil, 0, err
 	}
 
-	// Map payment info (optional)
+	itemMap := make(map[uuid.UUID][]model.OrderItem)
+	for _, it := range items {
+		itemMap[it.OrderID] = append(itemMap[it.OrderID], it)
+	}
+
 	for i := range orders {
-		var pt struct {
-			PaymentID  *uuid.UUID
-			PaymentBin *string
+		orders[i].OrderItems = itemMap[orders[i].ID]
+		if pid := paymentMap[orders[i].ID]; pid != nil {
+			orders[i].PaymentID = pid
 		}
-		if err := r.db.WithContext(ctx).Raw(
-			"SELECT id AS payment_id, payos_metadata->>'bin' AS payment_bin FROM payment_transactions WHERE reference_id = ? AND reference_type = 'ORDER' LIMIT 1",
-			orders[i].ID,
-		).Scan(&pt).Error; err == nil {
-			orders[i].PaymentID = pt.PaymentID
-			orders[i].PaymentBin = pt.PaymentBin
+		if b := binMap[orders[i].ID]; b != nil {
+			orders[i].PaymentBin = b
 		}
 	}
 
-	return orders, int(total), nil
+	return orders, total, nil
 }
 
 func NewOrderRepository(db *gorm.DB) irepository.OrderRepository {
