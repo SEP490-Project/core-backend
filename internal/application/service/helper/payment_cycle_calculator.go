@@ -204,11 +204,6 @@ func CalculateAnnualPaymentDates(
 		firstPaymentDate = time.Date(year, month, day, 0, 0, 0, 0, loc)
 	}
 
-	// Validate that firstPaymentDate is within 1 year from startDate
-	if firstPaymentDate.After(contractStartDate.AddDate(1, 0, 0)) {
-		return nil, fmt.Errorf("invalid first payment date: must be within 1 year from contract start date")
-	}
-
 	// Loop from firstPaymentDate
 	currentDate := firstPaymentDate
 	for !currentDate.After(contractEndDate) {
