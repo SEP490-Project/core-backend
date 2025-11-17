@@ -822,18 +822,41 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 						break
 					}
 
-					if distributionDate.Before(contractStartDate) {
+					firstPaymentDate := time.Date(
+						contractStartDate.Year(),
+						distributionDate.Month(),
+						distributionDate.Day(),
+						0, 0, 0, 0,
+						time.Local,
+					)
+
+					if firstPaymentDate.Before(contractStartDate) {
+						firstPaymentDate = firstPaymentDate.AddDate(1, 0, 0)
+					}
+
+					// Validate that firstPaymentDate is within 1 year from contract start date
+					if firstPaymentDate.After(contractStartDate.AddDate(1, 0, 0)) {
 						errorsChan <- ValidateError{
 							CurrentValue: contract.FinancialTerms,
 							JSONName:     "financial_terms.profit_distribution_date",
 							StructName:   "ProfitDistributionDate",
 							Tag:          "financialtermspaymentdate",
-							Error:        errors.New("invalid financial_terms.profit_distribution_date: the first payment date must be on or after the contract start_date"),
+							Error:        errors.New("invalid financial_terms.profit_distribution_date: first payment date must be within 1 year from contract start date"),
 						}
 						break
 					}
 
-					firstPaymentDate := distributionDate
+					if firstPaymentDate.After(contractEndDate) {
+						errorsChan <- ValidateError{
+							CurrentValue: contract.FinancialTerms,
+							JSONName:     "financial_terms.profit_distribution_date",
+							StructName:   "ProfitDistributionDate",
+							Tag:          "financialtermspaymentdate",
+							Error:        errors.New("invalid financial_terms.profit_distribbution_date: the first payment date must be on or before the contract end date"),
+						}
+						break
+					}
+
 					lastPaymentDate := time.Date(
 						contractEndDate.Year(),
 						distributionDate.Month(),
@@ -851,7 +874,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 							JSONName:     "financial_terms.profit_distribution_date",
 							StructName:   "ProfitDistributionDate",
 							Tag:          "financialtermspaymentdate",
-							Error:        errors.New("invalid financial_terms.profit_distribution_date: last payment date must not be before the first payment date"),
+							Error:        errors.New("invalid financial_terms.profit_distribution_date: last payment date must be on or after the first payment date"),
 						}
 					}
 				}
@@ -987,15 +1010,45 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 				case enum.PaymentCycleAnnually:
 					paymentDate, err := time.Parse("2006-01-02", fmt.Sprintf("%v", financialTerms.PaymentDate))
 					if err != nil {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: must be a string in 'YYYY-MM-DD' format")}
+						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: for ANNUALLY payment_cycle, payment_date must be a string in 'YYYY-MM-DD' format")}
 						break
 					}
 
-					firstPaymentDate := paymentDate
-					lastPaymentDate := time.Date(contractEndDate.Year(), paymentDate.Month(), paymentDate.Day(), 0, 0, 0, 0, time.Local)
+					firstPaymentDate := time.Date(
+						contractStartDate.Year(),
+						paymentDate.Month(),
+						paymentDate.Day(),
+						0, 0, 0, 0,
+						time.Local,
+					)
 					if firstPaymentDate.Before(contractStartDate) {
-						errorsChan <- ValidateError{CurrentValue: contract.FinancialTerms, JSONName: "financial_terms.payment_date", StructName: "PaymentDate", Tag: "financialtermspaymentdate", Param: "", Error: errors.New("invalid financial_terms.payment_date: the first payment date must be on or after the contract start_date")}
+						firstPaymentDate = firstPaymentDate.AddDate(1, 0, 0)
 					}
+
+					// Validate that firstPaymentDate is within 1 year from contract start date
+					if firstPaymentDate.After(contractStartDate.AddDate(1, 0, 0)) {
+						errorsChan <- ValidateError{
+							CurrentValue: contract.FinancialTerms,
+							JSONName:     "financial_terms.payment_date",
+							StructName:   "PaymentDate",
+							Tag:          "financialtermspaymentdate",
+							Error:        errors.New("invalid financial_terms.payment_date: first payment date must be within 1 year from contract start date"),
+						}
+						break
+					}
+
+					if firstPaymentDate.After(contractEndDate) {
+						errorsChan <- ValidateError{
+							CurrentValue: contract.FinancialTerms,
+							JSONName:     "financial_terms.payment_date",
+							StructName:   "PaymentDate",
+							Tag:          "financialtermspaymentdate",
+							Error:        errors.New("invalid financial_terms.payment_date: the first annual payment date must be on or before the contract end date"),
+						}
+						break
+					}
+
+					lastPaymentDate := time.Date(contractEndDate.Year(), paymentDate.Month(), paymentDate.Day(), 0, 0, 0, 0, time.Local)
 
 					if lastPaymentDate.After(contractEndDate) {
 						lastPaymentDate = lastPaymentDate.AddDate(-1, 0, 0)
@@ -1007,7 +1060,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 							JSONName:     "financial_terms.payment_date",
 							StructName:   "PaymentDate",
 							Tag:          "financialtermspaymentdate",
-							Error:        errors.New("last payment date must not be before the first payment date"),
+							Error:        errors.New("invalid financial_terms.payment_date: last payment date must be on or after the first payment date"),
 						}
 					}
 				}
