@@ -816,7 +816,7 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 //	@Failure		404			{object}	responses.APIResponse	"Content or channel not found"
 //	@Failure		500			{object}	responses.APIResponse	"Failed to queue publishing request"
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{id}/publish//channel/{channel_id} [post]
+//	@Router			/api/v1/contents/{id}/publish/channel/{channel_id} [post]
 func (h *ContentHandler) PublishToChannel(c *gin.Context) {
 	// Extract content ID from path
 	contentID, err := extractParamID(c, "id")

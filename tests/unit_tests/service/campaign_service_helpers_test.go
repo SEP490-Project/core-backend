@@ -503,7 +503,7 @@ func TestDistributeTasksEvenly(t *testing.T) {
 			for i := range tasks {
 				tasks[i] = responses.SuggestedTask{
 					Name: fmt.Sprintf("Task %d", i+1),
-					Type: string(enum.TaskTypeContent),
+					Type: enum.TaskTypeContent,
 				}
 			}
 
@@ -512,7 +512,7 @@ func TestDistributeTasksEvenly(t *testing.T) {
 			for i := range milestones {
 				milestones[i] = responses.SuggestedMilestone{
 					Description: fmt.Sprintf("Milestone %d", i+1),
-					DueDate:     FormatDate(testhelpers.DateOnly(2025, 1, (i+1)*7)),
+					DueDate:     testhelpers.DateOnly(2025, 1, (i+1)*7),
 				}
 			}
 
@@ -539,21 +539,21 @@ func TestAssignTasksByDate(t *testing.T) {
 	tasks := []responses.SuggestedTask{
 		{
 			Name: "Event on Jan 15",
-			Type: string(enum.TaskTypeEvent),
+			Type: enum.TaskTypeEvent,
 			Description: map[string]any{
 				"event_date": "2025-01-15 10:00:00", // utils.TimeFormat
 			},
 		},
 		{
 			Name: "Event on Feb 20",
-			Type: string(enum.TaskTypeEvent),
+			Type: enum.TaskTypeEvent,
 			Description: map[string]any{
 				"event_date": "2025-02-20 10:00:00", // utils.TimeFormat
 			},
 		},
 		{
 			Name: "Event on Mar 25",
-			Type: string(enum.TaskTypeEvent),
+			Type: enum.TaskTypeEvent,
 			Description: map[string]any{
 				"event_date": "2025-03-25 10:00:00", // utils.TimeFormat
 			},
@@ -564,15 +564,15 @@ func TestAssignTasksByDate(t *testing.T) {
 	milestones := []responses.SuggestedMilestone{
 		{
 			Description: "Milestone 1",
-			DueDate:     FormatDate(testhelpers.DateOnly(2025, 1, 31)), // Closest to Jan 15
+			DueDate:     testhelpers.DateOnly(2025, 1, 31), // Closest to Jan 15
 		},
 		{
 			Description: "Milestone 2",
-			DueDate:     FormatDate(testhelpers.DateOnly(2025, 2, 28)), // Closest to Feb 20
+			DueDate:     testhelpers.DateOnly(2025, 2, 28), // Closest to Feb 20
 		},
 		{
 			Description: "Milestone 3",
-			DueDate:     FormatDate(testhelpers.DateOnly(2025, 3, 31)), // Closest to Mar 25
+			DueDate:     testhelpers.DateOnly(2025, 3, 31), // Closest to Mar 25
 		},
 	}
 
@@ -592,16 +592,16 @@ func TestAssignTasksByDate(t *testing.T) {
 func TestAssignAffiliateTasksToMilestones(t *testing.T) {
 	// Create content tasks
 	contentTasks := []responses.SuggestedTask{
-		{Name: "Content Task 1", Type: string(enum.TaskTypeContent)},
-		{Name: "Content Task 2", Type: string(enum.TaskTypeContent)},
-		{Name: "Content Task 3", Type: string(enum.TaskTypeContent)},
+		{Name: "Content Task 1", Type: enum.TaskTypeContent},
+		{Name: "Content Task 2", Type: enum.TaskTypeContent},
+		{Name: "Content Task 3", Type: enum.TaskTypeContent},
 	}
 
 	// Create milestones
 	milestones := []responses.SuggestedMilestone{
-		{Description: "Milestone 1", DueDate: FormatDate(testhelpers.DateOnly(2025, 1, 31))},
-		{Description: "Milestone 2", DueDate: FormatDate(testhelpers.DateOnly(2025, 2, 28))},
-		{Description: "Milestone 3", DueDate: FormatDate(testhelpers.DateOnly(2025, 3, 31))},
+		{Description: "Milestone 1", DueDate: testhelpers.DateOnly(2025, 1, 31)},
+		{Description: "Milestone 2", DueDate: testhelpers.DateOnly(2025, 2, 28)},
+		{Description: "Milestone 3", DueDate: testhelpers.DateOnly(2025, 3, 31)},
 	}
 
 	trackingLink := "https://affiliate.example.com/track?ref=12345"
@@ -623,17 +623,17 @@ func TestAssignAffiliateTasksToMilestones(t *testing.T) {
 func TestAssignCoProducingTasksToMilestones(t *testing.T) {
 	// Create development tasks (product + concept)
 	developmentTasks := []responses.SuggestedTask{
-		{Name: "Create Product A", Type: string(enum.TaskTypeProduct)},
-		{Name: "Concept A1", Type: string(enum.TaskTypeContent)},
-		{Name: "Create Product B", Type: string(enum.TaskTypeProduct)},
-		{Name: "Concept B1", Type: string(enum.TaskTypeContent)},
+		{Name: "Create Product A", Type: enum.TaskTypeProduct},
+		{Name: "Concept A1", Type: enum.TaskTypeContent},
+		{Name: "Create Product B", Type: enum.TaskTypeProduct},
+		{Name: "Concept B1", Type: enum.TaskTypeContent},
 	}
 
 	// Create milestones
 	milestones := []responses.SuggestedMilestone{
-		{Description: "Milestone 1", DueDate: FormatDate(testhelpers.DateOnly(2025, 1, 31))},
-		{Description: "Milestone 2", DueDate: FormatDate(testhelpers.DateOnly(2025, 2, 28))},
-		{Description: "Milestone 3", DueDate: FormatDate(testhelpers.DateOnly(2025, 3, 31))},
+		{Description: "Milestone 1", DueDate: testhelpers.DateOnly(2025, 1, 31)},
+		{Description: "Milestone 2", DueDate: testhelpers.DateOnly(2025, 2, 28)},
+		{Description: "Milestone 3", DueDate: testhelpers.DateOnly(2025, 3, 31)},
 	}
 
 	productNames := []string{"Product A", "Product B"}
@@ -657,7 +657,7 @@ func TestAssignCoProducingTasksToMilestones(t *testing.T) {
 func TestGeneratePerformanceTrackingTask_Affiliate(t *testing.T) {
 	milestone := responses.SuggestedMilestone{
 		Description: "January 2024 Payment Period",
-		DueDate:     FormatDate(testhelpers.DateOnly(2024, 2, 15)),
+		DueDate:     testhelpers.DateOnly(2024, 2, 15),
 	}
 
 	trackingLink := "https://affiliate.example.com/track?ref=12345"
@@ -678,7 +678,7 @@ func TestGeneratePerformanceTrackingTask_Affiliate(t *testing.T) {
 func TestGeneratePerformanceTrackingTask_CoProducing(t *testing.T) {
 	milestone := responses.SuggestedMilestone{
 		Description: "Q1 2024 Revenue Period",
-		DueDate:     FormatDate(testhelpers.DateOnly(2024, 3, 31)),
+		DueDate:     testhelpers.DateOnly(2024, 3, 31),
 	}
 
 	productNames := "Smartwatch Pro, Fitness Band"
@@ -784,9 +784,9 @@ func TestExtractProductNames(t *testing.T) {
 
 func TestFindClosestMilestoneIndex(t *testing.T) {
 	milestones := []responses.SuggestedMilestone{
-		{Description: "M1", DueDate: FormatDate(testhelpers.DateOnly(2025, 1, 31))},
-		{Description: "M2", DueDate: FormatDate(testhelpers.DateOnly(2025, 2, 28))},
-		{Description: "M3", DueDate: FormatDate(testhelpers.DateOnly(2025, 3, 31))},
+		{Description: "M1", DueDate: testhelpers.DateOnly(2025, 1, 31)},
+		{Description: "M2", DueDate: testhelpers.DateOnly(2025, 2, 28)},
+		{Description: "M3", DueDate: testhelpers.DateOnly(2025, 3, 31)},
 	}
 
 	tests := []struct {

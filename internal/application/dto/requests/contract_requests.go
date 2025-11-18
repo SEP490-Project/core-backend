@@ -810,7 +810,8 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 					}
 
 				case enum.PaymentCycleAnnually:
-					distributionDate, err := time.Parse("2006-01-02", fmt.Sprintf("%v", financialTerms.ProfitDistributionDate))
+					var distributionDate time.Time
+					distributionDate, err = time.Parse("2006-01-02", fmt.Sprintf("%v", financialTerms.ProfitDistributionDate))
 					if err != nil {
 						errorsChan <- ValidateError{
 							CurrentValue: contract.FinancialTerms,

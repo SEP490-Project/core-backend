@@ -66,8 +66,9 @@ func (h *CampaignHandler) CreateCampaignFromContract(c *gin.Context) {
 		return
 	}
 	if err = h.validartor.Struct(request); err != nil {
-		responses := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, responses)
+		// responses := responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest)
+		// c.JSON(http.StatusBadRequest, responses)
+		c.JSON(http.StatusBadRequest, processValidationError(err))
 		return
 	}
 	if request.ContractID == "" {
