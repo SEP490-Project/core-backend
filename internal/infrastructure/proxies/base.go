@@ -5,9 +5,11 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iproxies"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,11 +60,38 @@ func (p *BaseProxy) doRequest(
 		switch v := body.(type) {
 		case io.Reader:
 			bodyReader = v
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+		case []byte:
+			bodyReader = bytes.NewReader(v)
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
 		case url.Values:
 			bodyReader = strings.NewReader(v.Encode())
 			if contentType == "" {
 				contentType = "application/x-www-form-urlencoded"
 			}
+		case utils.MultipartFormBuilder:
+			var buf bytes.Buffer
+			writer := multipart.NewWriter(&buf)
+
+			// Call the builder function to populate the form
+			if err = v(writer); err != nil {
+				return nil, fmt.Errorf("failed to build multipart form: %w", err)
+			}
+
+			if err = writer.Close(); err != nil {
+				return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+			}
+
+			bodyReader = &buf
+			contentType = writer.FormDataContentType()
+			zap.L().Debug("Raw multipart request details",
+				zap.String("Content-Type-Header", contentType),
+				zap.String("Request-Body", buf.String()),
+			)
 		default:
 			var data []byte
 			data, err = json.Marshal(v)
@@ -165,6 +194,28 @@ func GetGeneric[T any](p iproxies.BaseProxy, ctx context.Context, path string, h
 	}
 
 	zap.L().Debug("GET request successful", zap.String("path", path), zap.Any("response", response))
+
+	return nil
+}
+
+// PostGeneric makes a POST request and decodes the response into the provided type
+func PostGeneric[T any](p iproxies.BaseProxy, ctx context.Context, path string, headers map[string]string, body any, response *T) error {
+	resp, err := p.Post(ctx, path, headers, body)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if err := p.HandleNon2xxHTTPResponse(resp); err != nil {
+		return err
+	}
+
+	// Parse response
+	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	zap.L().Debug("POST request successful", zap.String("path", path), zap.Any("response", response))
 
 	return nil
 }
