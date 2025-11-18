@@ -3626,6 +3626,8 @@ definitions:
     type: object
   responses.ContentChannelBrief:
     properties:
+      affiliate_link:
+        type: string
       auto_post_status:
         type: string
       channel_id:
@@ -3656,8 +3658,6 @@ definitions:
     type: object
   responses.ContentResponse:
     properties:
-      affiliate_link:
-        type: string
       ai_generated_text:
         type: string
       blog:
