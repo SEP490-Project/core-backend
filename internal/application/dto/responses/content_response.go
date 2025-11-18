@@ -18,13 +18,13 @@ type ContentResponse struct {
 	Type              enum.ContentType      `json:"type"`
 	Status            enum.ContentStatus    `json:"status"`
 	PublishDate       *time.Time            `json:"publish_date,omitempty"`
-	AffiliateLink     *string               `json:"affiliate_link,omitempty"`
 	AIGeneratedText   *string               `json:"ai_generated_text,omitempty"`
 	RejectionFeedback *string               `json:"rejection_feedback,omitempty"`
 	CreatedAt         string                `json:"created_at"`
 	UpdatedAt         string                `json:"updated_at"`
 	Blog              *BlogResponse         `json:"blog,omitempty"`
 	ContentChannels   []ContentChannelBrief `json:"content_channels,omitempty"`
+	// AffiliateLink     *string               `json:"affiliate_link,omitempty"`
 }
 
 // ContentChannelBrief for nested content channel info
@@ -34,6 +34,7 @@ type ContentChannelBrief struct {
 	ChannelName    string     `json:"channel_name"`
 	PostDate       *time.Time `json:"post_date,omitempty"`
 	AutoPostStatus string     `json:"auto_post_status"`
+	AffiliateLink  *string    `json:"affiliate_link,omitempty"`
 }
 
 // ContentPaginationResponse for paginated content responses
