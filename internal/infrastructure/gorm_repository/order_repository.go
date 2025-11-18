@@ -19,7 +19,7 @@ type OrderRepository struct {
 	*genericRepository[model.Order]
 }
 
-func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error) {
+func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode, orderType string, statuses []string) ([]model.Order, int, error) {
 	pageNum := page
 	pageSize := limit
 	if pageNum < 1 {
@@ -30,25 +30,32 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 	}
 	offset := (pageNum - 1) * pageSize
 
-	var validStatus *enum.OrderStatus
-	if status != "" {
-		s := enum.OrderStatus(status)
-		if s.IsValid() {
-			validStatus = &s
+	var validStatuses []string
+	for _, s := range statuses {
+		s = strings.TrimSpace(s)
+		if s == "" || s == string(enum.OrderStatusPending) {
+			continue
+		}
+		st := enum.OrderStatus(s)
+		if st.IsValid() {
+			validStatuses = append(validStatuses, string(st))
 		}
 	}
 
 	whereClauses := make([]string, 0)
 	args := make([]any, 0)
 
+	if len(validStatuses) > 0 {
+		whereClauses = append(whereClauses, fmt.Sprintf("orders.status IN (%s)", strings.Repeat("?,", len(validStatuses)-1)+"?"))
+		for _, v := range validStatuses {
+			args = append(args, v)
+		}
+	}
+
 	// exclude PENDING
 	whereClauses = append(whereClauses, "orders.status <> ?")
 	args = append(args, enum.OrderStatusPending)
 
-	if validStatus != nil && *validStatus != enum.OrderStatusPending {
-		whereClauses = append(whereClauses, "orders.status = ?")
-		args = append(args, *validStatus)
-	}
 	if search != "" {
 		isUUID := false
 		if _, err := uuid.Parse(search); err == nil {

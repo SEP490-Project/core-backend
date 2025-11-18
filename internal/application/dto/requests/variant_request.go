@@ -3,8 +3,9 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"github.com/aws/smithy-go/ptr"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -37,7 +38,7 @@ type CreateProductVariantRequest struct {
 	Width           int                `json:"width" form:"width" validate:"min=0" example:"5"`     //
 	IsDefault       bool               `json:"is_default" form:"is_default" example:"true"`
 	PreOrderLimit   *int               `json:"pre_order_limit" form:"pre_order_limit" validate:"omitempty" example:"0"`
-	PreOrderCount   *int               `json:"pre_order_count" form:"pre_order_count" validate:"omitempty" example:"0"`
+	//PreOrderCount   *int               `json:"pre_order_count" form:"pre_order_count" validate:"omitempty" example:"0"`
 }
 
 func (e *CreateProductVariantRequest) ToModel(productID uuid.UUID, createdBy uuid.UUID, productType enum.ProductType) *model.ProductVariant {
