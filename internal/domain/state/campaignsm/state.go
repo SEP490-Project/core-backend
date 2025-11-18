@@ -21,6 +21,8 @@ type CampaignState interface {
 
 func NewCampaignState(status enum.CampaignStatus) CampaignState {
 	switch status {
+	case enum.CampaignDraft:
+		return &DraftState{}
 	case enum.CampaignRunning:
 		return &RunningState{}
 	case enum.CampaignCompleted:
