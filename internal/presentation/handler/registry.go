@@ -67,7 +67,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		ConceptHandler:                NewConceptHandler(applicationReg.ConceptService),
 		OrderHandler:                  NewOrderHandler(applicationReg.OrderService, applicationReg.InfrastructureRegistry.ProxiesRegistry.GHNProxy, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.StateTransferService, applicationReg.FileService),
 		ChannelHandler:                NewChannelHandler(applicationReg.ChannelService, applicationReg.InfrastructureRegistry.UnitOfWork),
-		ContentHandler:                NewContentHandler(applicationReg.ContentService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork),
+		ContentHandler:                NewContentHandler(applicationReg.ContentService, applicationReg.ContentPublishingService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
 		BlogHandler:                   NewBlogHandler(applicationReg.BlogService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		TaskHandler:                   NewTaskHandler(applicationReg.TaskService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		DeviceTokenHandler:            NewDeviceTokenHandler(applicationReg.DeviceTokenService),

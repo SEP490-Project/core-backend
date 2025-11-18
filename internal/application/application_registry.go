@@ -33,6 +33,7 @@ type ApplicationRegistry struct {
 	OrderService                  iservice.OrderService
 	ChannelService                iservice.ChannelService
 	ContentService                iservice.ContentService
+	ContentPublishingService      iservice.ContentPublishingService
 	BlogService                   iservice.BlogService
 	TaskService                   iservice.TaskService
 	DeviceTokenService            iservice.DeviceTokenService
@@ -58,6 +59,8 @@ func NewApplicationRegistry(
 	infrastructureRegistry *infrastructure.InfrastructureRegistry,
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService(configs)
+
+	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -113,6 +116,14 @@ func NewApplicationRegistry(
 		databaseRegistry.LoggedSessionRepository,
 	)
 
+	contentPublishingService := service.NewContentPublishingService(
+		infrastructureRegistry,
+		databaseRegistry,
+		channelService,
+		stateTransferService,
+		configs,
+	)
+
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -124,7 +135,7 @@ func NewApplicationRegistry(
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
 		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
-		StateTransferService:          service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy),
+		StateTransferService:          stateTransferService,
 		ContractService:               service.NewContractService(databaseRegistry),
 		CampaignService:               service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
@@ -135,6 +146,7 @@ func NewApplicationRegistry(
 		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
 		ChannelService:                channelService,
 		ContentService:                contentService,
+		ContentPublishingService:      contentPublishingService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
 		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
 		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository),
