@@ -22,4 +22,20 @@ type TikTokProxy interface {
 	// The included fields are: open_id, union_id, avatar_url, display_name, bio_description, follower_count,
 	// 							following_count, heart_count, video_count
 	GetSystemUserProfile(ctx context.Context, accessToken string) (*dtos.TikTokUserProfileResponse, error)
+
+	// region: ======== Content Posting Methods ========
+
+	// GetCreatorInfo retrieves creator information including allowed privacy levels
+	GetCreatorInfo(ctx context.Context, accessToken string) (*dtos.TikTokCreatorInfoResponse, error)
+
+	// InitVideoPost initializes a video post upload session
+	InitVideoPost(ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest) (*dtos.TikTokVideoInitResponse, error)
+
+	// UploadVideoChunk uploads a chunk of video data to TikTok
+	UploadVideoChunk(ctx context.Context, uploadURL string, videoData []byte, chunkIndex int, totalChunks int, fileSize int64) error
+
+	// CheckPostStatus checks the status of a video post upload
+	CheckPostStatus(ctx context.Context, publishID string, accessToken string) (*dtos.TikTokPostStatusResponse, error)
+
+	// endregion
 }
