@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -21,6 +22,7 @@ import (
 )
 
 type ContentService struct {
+	config               *config.AppConfig
 	contentRepo          irepository.GenericRepository[model.Content]
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
@@ -31,11 +33,13 @@ type ContentService struct {
 }
 
 func NewContentService(
+	config *config.AppConfig,
 	databaseReg *gormrepository.DatabaseRegistry,
 	uow irepository.UnitOfWork,
 	affiliateLinkService iservice.AffiliateLinkService,
 ) iservice.ContentService {
 	return &ContentService{
+		config:               config,
 		contentRepo:          databaseReg.ContentRepository,
 		blogRepo:             databaseReg.BlogRepository,
 		contentChannelRepo:   databaseReg.ContentChannelRepository,
@@ -77,14 +81,14 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 
 	// Create content entity
 	content := &model.Content{
-		ID:              uuid.New(),
-		TaskID:          req.TaskID,
-		Title:           req.Title,
-		Description:     req.Description,
-		Body:            rawBody,
-		Type:            enum.ContentType(req.Type),
-		Status:          enum.ContentStatusDraft,
-		AffiliateLink:   req.AffiliateLink,
+		ID:          uuid.New(),
+		TaskID:      req.TaskID,
+		Title:       req.Title,
+		Description: req.Description,
+		Body:        rawBody,
+		Type:        enum.ContentType(req.Type),
+		Status:      enum.ContentStatusDraft,
+		// AffiliateLink:   req.AffiliateLink,
 		AIGeneratedText: req.AIGeneratedText,
 	}
 
@@ -100,8 +104,9 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		case enum.ContentTypePost.String():
 			var parsedTipTap *utils.TiptapParseResult
 			parsedTipTap, err = utils.ParseTiptapJSON(rawBody)
+			minText := min(100, len(parsedTipTap.PlainText))
 			if err == nil {
-				content.Description = utils.PtrOrNil(parsedTipTap.PlainText[0:100])
+				content.Description = utils.PtrOrNil(parsedTipTap.PlainText[:minText])
 			} else {
 				zap.L().Warn("Failed to parse TipTap JSON for description", zap.Error(err))
 			}
@@ -153,6 +158,11 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		}
 	}
 
+	if err = uow.Commit(); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		return nil, errors.New("failed to commit transaction")
+	}
+
 	// Automatically create affiliate links for content channels if contract has tracking link
 	// This is a best-effort operation - failures are logged but don't fail content creation
 	if err := s.createAffiliateLinkIfNeeded(ctx, content, req.Channels); err != nil {
@@ -168,7 +178,7 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 
 // GetByID retrieves content by ID with relationships
 func (s *ContentService) GetByID(ctx context.Context, id uuid.UUID) (*responses.ContentResponse, error) {
-	content, err := s.contentRepo.GetByID(ctx, id, []string{"Blog", "Blog.Author", "ContentChannels", "ContentChannels.Channel", "Blog.Tags"})
+	content, err := s.contentRepo.GetByID(ctx, id, []string{"Blog", "Blog.Author", "ContentChannels.AffiliateLink", "ContentChannels.Channel", "Blog.Tags"})
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -563,11 +573,11 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 		Type:              content.Type,
 		Status:            content.Status,
 		PublishDate:       content.PublishDate,
-		AffiliateLink:     content.AffiliateLink,
 		AIGeneratedText:   content.AIGeneratedText,
 		RejectionFeedback: content.RejectionFeedback,
 		CreatedAt:         utils.FormatLocalTime(content.CreatedAt, ""),
 		UpdatedAt:         utils.FormatLocalTime(content.UpdatedAt, ""),
+		// AffiliateLink:     content.AffiliateLink,
 	}
 
 	if content.Blog != nil {
@@ -602,14 +612,19 @@ func (s *ContentService) mapToContentResponse(content *model.Content) *responses
 			if cc.Channel != nil {
 				channelName = cc.Channel.Name
 			}
-
-			resp.ContentChannels = append(resp.ContentChannels, responses.ContentChannelBrief{
+			ccResp := responses.ContentChannelBrief{
 				ID:             cc.ID,
 				ChannelID:      cc.ChannelID,
 				ChannelName:    channelName,
 				PostDate:       cc.PostDate,
 				AutoPostStatus: string(cc.AutoPostStatus),
-			})
+			}
+			if cc.AffiliateLink != nil {
+				// ccResp.AffiliateLink = &cc.AffiliateLink.AffiliateURL
+				ccResp.AffiliateLink = utils.PtrOrNil(s.config.Server.BaseURL + "/r/" + cc.AffiliateLink.Hash)
+			}
+
+			resp.ContentChannels = append(resp.ContentChannels, ccResp)
 		}
 	}
 
@@ -651,7 +666,7 @@ func (s *ContentService) validateAffiliateLink(ctx context.Context, content *mod
 	}
 
 	// Get task with contract information
-	task, err := s.taskRepo.GetByID(ctx, *content.TaskID, nil)
+	_, err := s.taskRepo.GetByID(ctx, *content.TaskID, nil)
 	if err != nil {
 		zap.L().Warn("Failed to retrieve task for affiliate link validation",
 			zap.String("task_id", content.TaskID.String()),
@@ -659,20 +674,22 @@ func (s *ContentService) validateAffiliateLink(ctx context.Context, content *mod
 		return nil // Don't fail submission if task not found
 	}
 
+	// TODO: Implement actual contract type check when contract info is available
+
 	// Parse task description to get contract info
-	if task.Description != nil {
-		var descMap map[string]any
-		if err := json.Unmarshal(task.Description, &descMap); err == nil {
-			if contractType, ok := descMap["contract_type"].(string); ok {
-				if contractType == "AFFILIATE" {
-					// For AFFILIATE contracts, affiliate_link is required
-					if content.AffiliateLink == nil || *content.AffiliateLink == "" {
-						return errors.New("affiliate link is required for AFFILIATE contract content")
-					}
-				}
-			}
-		}
-	}
+	// if task.Description != nil {
+	// 	var descMap map[string]any
+	// 	if err := json.Unmarshal(task.Description, &descMap); err == nil {
+	// 		if contractType, ok := descMap["contract_type"].(string); ok {
+	// 			if contractType == "AFFILIATE" {
+	// 				// For AFFILIATE contracts, affiliate_link is required
+	// 				if content.AffiliateLink == nil || *content.AffiliateLink == "" {
+	// 					return errors.New("affiliate link is required for AFFILIATE contract content")
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	return nil
 }

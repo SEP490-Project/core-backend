@@ -67,6 +67,7 @@ func NewApplicationRegistry(
 		databaseRegistry.ContractRepository,
 		databaseRegistry.ContentRepository,
 		databaseRegistry.ChannelRepository,
+		infrastructureRegistry.UnitOfWork,
 		configs.Server.BaseURL,
 	)
 	clickTrackingService := service.NewClickTrackingService(
@@ -82,6 +83,7 @@ func NewApplicationRegistry(
 		databaseRegistry.ContractRepository,
 	)
 	contentService := service.NewContentService(
+		configs,
 		databaseRegistry,
 		infrastructureRegistry.UnitOfWork,
 		affiliateLinkService,
