@@ -8,10 +8,12 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"fmt"
-	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -155,12 +157,12 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	}
 
 	var req UpdateProductStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -227,17 +229,14 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 
 // UpdatePreOrderState
 //
-//	@Tags			Preorders
-//
-// @Accept multipart/form-data
-// @Produce json
-// @Param id    path      string true  "Pre-Order ID (UUID)"
-// @Param state formData  string true  "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
-// @Param files formData  file   false "Proof images (multiple)"
-//
-//	@Security		BearerAuth
-//
-// @Router /api/v1/preorders/{id}/state [patch]
+//	@Tags		Preorders
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		id		path		string	true	"Pre-Order ID (UUID)"
+//	@Param		state	formData	string	true	"Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
+//	@Param		files	formData	file	false	"Proof images (multiple)"
+//	@Security	BearerAuth
+//	@Router		/api/v1/preorders/{id}/state [patch]
 func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	// 1.Parse path param
 	idParam := c.Param("id")
@@ -254,13 +253,17 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 		return
 	}
 
-	// 3.Parse state
+	// 3. Parse state
 	stateValues := form.Value["state"]
 	if len(stateValues) == 0 {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("missing state", http.StatusBadRequest))
 		return
 	}
 	targetState := enum.PreOrderStatus(stateValues[0])
+	if !targetState.IsValid() {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid state: "+stateValues[0], http.StatusBadRequest))
+		return
+	}
 
 	// Validate enum
 	if !targetState.IsValid() {
@@ -290,90 +293,80 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 
 	// 6. Process files (optional)
 	files := form.File["files"]
-	var fileURLs []string
+	fileURLs := make([]string, 0, len(files))
 
 	isImageOptional := true
-	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
-	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
+	isStatusDelivered := targetState == enum.PreOrderStatusDelivered
+	isStatusReceived := targetState == enum.PreOrderStatusReceived
+
 	if isStatusDelivered || isStatusReceived {
 		uow := h.UnitOfWork.Begin(c.Request.Context())
 		preOrder, err := uow.PreOrder().GetByID(c.Request.Context(), preOrderID, nil)
 		if err != nil {
-			resp := responses.ErrorResponse("failed to fetch pre-order: "+err.Error(), http.StatusBadRequest)
-			c.JSON(http.StatusBadRequest, resp)
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch pre-order: "+err.Error(), http.StatusBadRequest))
 			return
 		}
-		if !preOrder.IsSelfPickedUp && isStatusDelivered {
-			isImageOptional = false
-		} else if preOrder.IsSelfPickedUp && isStatusReceived {
+		if (!preOrder.IsSelfPickedUp && isStatusDelivered) || (preOrder.IsSelfPickedUp && isStatusReceived) {
 			isImageOptional = false
 		}
 	}
 
-	if !isImageOptional {
-		if len(files) == 0 {
-			resp := fmt.Errorf("at least one proof image is required for this state transition")
-			c.JSON(http.StatusBadRequest, resp)
-			return
-		}
+	// Validate at least one file if required
+	if !isImageOptional && len(files) == 0 {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("at least one proof image is required for this state transition", http.StatusBadRequest))
+		return
+	}
+
+	// Process uploaded files if any
+	if !isImageOptional && len(files) > 0 {
 		tmpDir := "/tmp/preorder_uploads"
 		if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to create tmp dir", http.StatusBadRequest))
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp dir", http.StatusInternalServerError))
 			return
 		}
 
 		for _, fileHeader := range files {
 			timestamp := time.Now().Format("20060102_150405")
 			newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-			localPath := tmpDir + "/" + newFileName
+			localPath := filepath.Join(tmpDir, newFileName)
 
-			// Save tmp
 			if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
-				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file", http.StatusInternalServerError))
+				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+fileHeader.Filename, http.StatusInternalServerError))
 				return
 			}
 
-			// =======================================
-			defer func(path string) { _ = os.Remove(path) }(localPath)
-
-			// Upload to remote storage (e.g., S3, GCS)
-			userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
+			userID := c.GetString("userID")
 			url, err := h.fileService.UploadFile(userID, localPath, newFileName)
 			if err != nil {
 				_ = os.Remove(localPath)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+fileHeader.Filename, http.StatusInternalServerError))
 				return
 			}
 
-			// Cleanup tmp file after upload
-			_ = os.Remove(localPath)
-			// =======================================
-
 			fileURLs = append(fileURLs, url)
-
-			// cleanup local
 			_ = os.Remove(localPath)
 		}
 	}
 
-	// ----------------------------------
-	// 7. Move state
-	// ----------------------------------
+	// 7. Move state safely
+	var fileURLPtr *string
+	if len(fileURLs) > 0 {
+		fileURLPtr = ptr.String(fileURLs[0]) // only first file is passed
+	}
 
 	ctx := c.Request.Context()
-	if err := h.MovePreOrderToState(ctx, preOrderID, targetState, userID, ptr.String(fileURLs[0])); err != nil {
+	if err := h.MovePreOrderToState(ctx, preOrderID, targetState, userID, fileURLPtr); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move pre-order: "+err.Error(), http.StatusConflict))
 		return
 	}
 
-	// ----------------------------------
 	// 8. Response
-	// ----------------------------------
 	c.JSON(http.StatusOK, responses.SuccessResponse("Pre-order state updated", nil, map[string]any{
 		"id":    preOrderID,
 		"state": targetState,
 		"files": fileURLs,
 	}))
+
 }
 
 // UpdateMilestoneStateRequest defines the request body for updating a milestone state

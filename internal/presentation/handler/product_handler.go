@@ -192,6 +192,8 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 	category := c.DefaultQuery("category_id", "")
+	brand := c.DefaultQuery("brand_id", "")
+	user := c.DefaultQuery("user_id", "")
 	prdType := c.DefaultQuery("type", "")
 	prdStatusesParam := c.DefaultQuery("status", "")
 	filterPreOrder := c.DefaultQuery("filterPreOrder", "false")
@@ -210,7 +212,7 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 		}
 	}
 
-	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleBrandPartner, enum.UserRoleSalesStaff}
 
 	// parse status list (comma separated)
 	var prdStatuses []string
@@ -247,14 +249,14 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 		svcErr   error
 	)
 
-	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleSalesStaff}
+	allowFullViewRoles = []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleBrandPartner, enum.UserRoleSalesStaff}
 	if IsAllowRole(c, allowFullViewRoles) {
 		var res []responses.ProductResponseV2
-		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, prdType, prdStatuses, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2(page, limit, search, category, brand, user, prdType, prdStatuses, isPreOrderOnly)
 		products = res
 	} else {
 		var res []responses.ProductResponseV2Partial
-		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, prdType, isPreOrderOnly)
+		res, total, svcErr = h.productService.GetProductsPaginationV2Partial(page, limit, search, category, brand, prdType, isPreOrderOnly)
 		products = res
 	}
 

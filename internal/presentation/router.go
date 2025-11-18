@@ -450,7 +450,7 @@ func (r *Router) setupCampaignRoutes(group *gin.RouterGroup) {
 	}
 
 	brandGroup := campaigns.Group("")
-	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand))
+	brandGroup.Use(r.middlewareRegistry.Auth.RequireRole(brand, admin))
 	{
 		brandGroup.GET("/brand/profile", campaignHandler.GetCampaignsByBrandProfile)
 		brandGroup.PATCH("/id/:id/approve", campaignHandler.ApproveCampaign)
@@ -542,20 +542,30 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 			viewGroup.GET("/:id", contentHandler.GetByID)
 		}
 
-		editGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content))
+		editGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content, admin))
 		{
 			editGroup.POST("", contentHandler.Create)
 			editGroup.PUT("/:id", contentHandler.Update)
 			editGroup.DELETE("/:id", contentHandler.Delete)
 			editGroup.PATCH("/:id/submit", contentHandler.Submit)
-			editGroup.PATCH("/:id/publish", contentHandler.Publish)
 			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
+			editGroup.POST("/:id/publish/channel/:channel_id", contentHandler.PublishToChannel)
+			editGroup.POST("/:id/publish", contentHandler.PublishToAllChannels)
 		}
 
 		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))
 		{
 			reviewGroup.PATCH("/:id/approve", contentHandler.Approve)
 			reviewGroup.PATCH("/:id/reject", contentHandler.Reject)
+		}
+	}
+
+	// Content channel status route (view publishing status)
+	contentChannelGroup := group.Group("/content-channels")
+	{
+		statusGroup := contentChannelGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(content, admin, brand, marketing))
+		{
+			statusGroup.GET("/:content_channel_id/status", contentHandler.GetPublishingStatus)
 		}
 	}
 }

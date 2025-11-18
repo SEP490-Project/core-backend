@@ -3250,6 +3250,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/campaigns/id/{id}/approve": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve a campaign by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Approve Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign approved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/campaigns/id/{id}/details": {
             "get": {
                 "security": [
@@ -3305,6 +3367,68 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/id/{id}/reject": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reject a campaign by providing a reason.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Reject Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason for rejecting the campaign",
+                        "name": "reason",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign rejected successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3380,130 +3504,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/campaigns/{id}/approve": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Approve a campaign by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Campaigns"
-                ],
-                "summary": "Approve Campaign",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Campaign ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Campaign approved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid campaign ID",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/campaigns/{id}/reject": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Reject a campaign by providing a reason.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Campaigns"
-                ],
-                "summary": "Reject Campaign",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Campaign ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Reason for rejecting the campaign",
-                        "name": "reason",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Campaign rejected successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid campaign ID",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -4353,6 +4353,73 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-channels/{content_channel_id}/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the publishing status, metrics, and error details for a content-channel pair",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content"
+                ],
+                "summary": "Get publishing status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content Channel ID (UUID)",
+                        "name": "content_channel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PublishingStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid content channel ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Content channel not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve status",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -5222,13 +5289,13 @@ const docTemplate = `{
             }
         },
         "/api/v1/contents/{id}/publish": {
-            "patch": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Transitions content from APPROVED to POSTED with optional publish date",
+                "description": "Publishes approved content to all channels where auto_post is enabled asynchronously",
                 "consumes": [
                     "application/json"
                 ],
@@ -5238,58 +5305,99 @@ const docTemplate = `{
                 "tags": [
                     "Content"
                 ],
-                "summary": "Publish content",
+                "summary": "Publish content to all channels",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Content ID",
+                        "description": "Content ID (UUID)",
                         "name": "id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Optional publish date",
-                        "name": "body",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/requests.PublishContentRequest"
-                        }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Publishing request accepted",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "additionalProperties": true
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid request or content not approved",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Content not found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "500": {
+                        "description": "Failed to queue publishing request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contents/{id}/publish//channel/{channel_id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Publishes approved content to a specific social media channel (Facebook or TikTok) asynchronously",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content"
+                ],
+                "summary": "Publish content to channel",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Channel ID (UUID)",
+                        "name": "channel_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Publishing request accepted",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or content not approved",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Content or channel not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to queue publishing request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -8822,31 +8930,25 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "PENDING",
-                            "PAID",
-                            "REFUNDED",
-                            "CONFIRMED",
-                            "CANCELLED",
-                            "SHIPPED",
-                            "IN_TRANSIT",
-                            "DELIVERED",
-                            "RECEIVED",
-                            "AWAITING_PICKUP"
-                        ],
-                        "type": "string",
-                        "example": "PAID",
-                        "x-enum-varnames": [
-                            "OrderStatusPending",
-                            "OrderStatusPaid",
-                            "OrderStatusRefunded",
-                            "OrderStatusConfirmed",
-                            "OrderStatusCancelled",
-                            "OrderStatusShipped",
-                            "OrderStatusInTransit",
-                            "OrderStatusDelivered",
-                            "OrderStatusReceived",
-                            "OrderStatusAwaitingPickUp"
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "REFUNDED",
+                                "CONFIRMED",
+                                "CANCELLED",
+                                "SHIPPED",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "RECEIVED",
+                                "AWAITING_PICKUP"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "example": [
+                            "PAID"
                         ],
                         "description": "Order status filter\nin: query\nexample: \"PAID\"",
                         "name": "status",
@@ -10320,33 +10422,27 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "PENDING",
-                            "PAID",
-                            "REFUNDED",
-                            "CONFIRMED",
-                            "CANCELLED",
-                            "SHIPPED",
-                            "IN_TRANSIT",
-                            "DELIVERED",
-                            "RECEIVED",
-                            "AWAITING_PICKUP"
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "PRE_ORDERED",
+                                "CANCELLED",
+                                "STOCK_READY",
+                                "STOCK_PREPARING",
+                                "AWAITING_PICKUP",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "RECEIVED"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "example": [
+                            "PAID"
                         ],
-                        "type": "string",
-                        "example": "PAID",
-                        "x-enum-varnames": [
-                            "OrderStatusPending",
-                            "OrderStatusPaid",
-                            "OrderStatusRefunded",
-                            "OrderStatusConfirmed",
-                            "OrderStatusCancelled",
-                            "OrderStatusShipped",
-                            "OrderStatusInTransit",
-                            "OrderStatusDelivered",
-                            "OrderStatusReceived",
-                            "OrderStatusAwaitingPickUp"
-                        ],
-                        "description": "Order status filter\nin: query\nexample: \"PAID\"",
+                        "description": "Order status filter\nin: query\nexample: \"PENDING PAID REFUNDED CONFIRMED CANCELLED SHIPPED IN_TRANSIT DELIVERED RECEIVED AWAITING_PICKUP\"",
                         "name": "status",
                         "in": "query"
                     },
@@ -10506,7 +10602,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'",
+                        "description": "Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'",
                         "name": "state",
                         "in": "formData",
                         "required": true
@@ -15271,6 +15367,21 @@ const docTemplate = `{
                 "AttributeUnitNone"
             ]
         },
+        "enum.AutoPostStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "POSTED",
+                "FAILED",
+                "SKIPPED"
+            ],
+            "x-enum-varnames": [
+                "AutoPostStatusPending",
+                "AutoPostStatusPosted",
+                "AutoPostStatusFailed",
+                "AutoPostStatusSkipped"
+            ]
+        },
         "enum.CapacityUnit": {
             "type": "string",
             "enum": [
@@ -16282,10 +16393,6 @@ const docTemplate = `{
                 "manufacturing_date": {
                     "type": "string",
                     "example": "2023-10-01T00:00:00Z"
-                },
-                "pre_order_count": {
-                    "type": "integer",
-                    "example": 0
                 },
                 "pre_order_limit": {
                     "type": "integer",
@@ -17411,14 +17518,6 @@ const docTemplate = `{
                 "variant_id": {
                     "type": "string",
                     "example": "69700831-4112-44fd-bf7f-07b015f56218"
-                }
-            }
-        },
-        "requests.PublishContentRequest": {
-            "type": "object",
-            "properties": {
-                "publish_date": {
-                    "type": "string"
                 }
             }
         },
@@ -20360,6 +20459,51 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "UpdatedSource": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.PublishingStatusResponse": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_channel_id": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "external_post_id": {
+                    "type": "string"
+                },
+                "external_post_url": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "post_url": {
+                    "type": "string"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.AutoPostStatus"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
