@@ -178,7 +178,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 //	@Tags			Preorders
 //	@Accept			json
 //	@Produce		json
-//	@Param			query	query		requests.StaffPreOrdersQuery false	"Staff preorders query"
+//	@Param			query	query		requests.StaffPreOrdersQuery	false	"Staff preorders query"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
