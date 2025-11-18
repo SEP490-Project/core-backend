@@ -542,7 +542,7 @@ func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
 //	@Failure		403	{object}	responses.APIResponse	"Forbidden"
 //	@Failure		500	{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/campaigns/{id}/approve [patch]
+//	@Router			/api/v1/campaigns/id/{id}/approve [patch]
 func (h *CampaignHandler) ApproveCampaign(c *gin.Context) {
 	campaignID, err := extractParamID(c, "id")
 	if err != nil {
@@ -610,7 +610,7 @@ func (h *CampaignHandler) ApproveCampaign(c *gin.Context) {
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse	"Internal server error"
 //	@Security		BearerAuth
-//	@Router			/api/v1/campaigns/{id}/reject [patch]
+//	@Router			/api/v1/campaigns/id/{id}/reject [patch]
 func (h *CampaignHandler) RejectCampaign(c *gin.Context) {
 	campaignID, err := extractParamID(c, "id")
 	if err != nil {
