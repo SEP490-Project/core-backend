@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"crypto/sha256"
@@ -26,6 +27,7 @@ type affiliateLinkService struct {
 	contractRepo      irepository.GenericRepository[model.Contract]
 	contentRepo       irepository.GenericRepository[model.Content]
 	channelRepo       irepository.GenericRepository[model.Channel]
+	unitOfWork        irepository.UnitOfWork
 	baseURL           string // Base URL for short links (e.g., "https://domain.com")
 }
 
@@ -34,6 +36,7 @@ func NewAffiliateLinkService(
 	contractRepo irepository.GenericRepository[model.Contract],
 	contentRepo irepository.GenericRepository[model.Content],
 	channelRepo irepository.GenericRepository[model.Channel],
+	unitOfWork irepository.UnitOfWork,
 	baseURL string,
 ) iservice.AffiliateLinkService {
 	return &affiliateLinkService{
@@ -41,6 +44,7 @@ func NewAffiliateLinkService(
 		contractRepo:      contractRepo,
 		contentRepo:       contentRepo,
 		channelRepo:       channelRepo,
+		unitOfWork:        unitOfWork,
 		baseURL:           strings.TrimSuffix(baseURL, "/"),
 	}
 }
@@ -100,20 +104,41 @@ func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.Cr
 
 	// Create new affiliate link
 	link := &model.AffiliateLink{
-		Hash:        hash,
-		ContractID:  req.ContractID,
-		ContentID:   req.ContentID,
-		ChannelID:   req.ChannelID,
-		TrackingURL: req.TrackingURL,
-		Status:      enum.AffiliateLinkStatusActive,
+		Hash:         hash,
+		ContractID:   req.ContractID,
+		ContentID:    req.ContentID,
+		ChannelID:    req.ChannelID,
+		TrackingURL:  req.TrackingURL,
+		AffiliateURL: fmt.Sprintf("%s/r/%s", s.baseURL, hash),
+		Status:       enum.AffiliateLinkStatusActive,
 	}
 
-	if err := s.affiliateLinkRepo.Add(ctx, link); err != nil {
-		zap.L().Error("Failed to create affiliate link",
-			zap.Error(err),
-			zap.String("hash", hash),
-			zap.String("tracking_url", req.TrackingURL))
-		return nil, fmt.Errorf("failed to create affiliate link: %w", err)
+	uow := s.unitOfWork.Begin(ctx)
+	err = helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.AffiliateLinks().Add(ctx, link); err != nil {
+			zap.L().Error("Failed to create affiliate link",
+				zap.Error(err),
+				zap.String("hash", hash),
+				zap.String("tracking_url", req.TrackingURL))
+			return fmt.Errorf("failed to create affiliate link: %w", err)
+		}
+
+		if err = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("content_id = ? AND channel_id = ?", req.ContentID, req.ChannelID)
+		}, map[string]any{"affiliate_link_id": link.ID}); err != nil {
+			zap.L().Error("Failed to update content channel after affiliate link creation",
+				zap.String("content_id", req.ContentID.String()),
+				zap.String("channel_id", req.ChannelID.String()),
+				zap.Error(err))
+			return fmt.Errorf("failed to update content channel: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		zap.L().Error("Transaction failed during affiliate link creation",
+			zap.Error(err))
+		return nil, err
 	}
 
 	duration := time.Since(startTime)
