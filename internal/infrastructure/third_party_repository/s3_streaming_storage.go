@@ -96,6 +96,25 @@ func (s *s3StreamingStorage) BuildUrl(key string) string {
 	return fmt.Sprintf("https://cdn.com/%s", s.bucketName, s.region, key)
 }
 
+// Get retrieves an object from S3 and returns a reader and the content length
+func (s *s3StreamingStorage) Get(ctx context.Context, key string) (io.ReadCloser, int64, error) {
+	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get object %s: %w", key, err)
+	}
+
+	// Get content length from metadata
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+	}
+
+	return output.Body, contentLength, nil
+}
+
 func NewS3StreamingStorage(s3StreamBucket *persistence.S3StreamingBucket) irepository_third_party.S3StreamingStorage {
 	return &s3StreamingStorage{
 		client:           s3StreamBucket.Client,

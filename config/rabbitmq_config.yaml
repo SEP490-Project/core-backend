@@ -113,6 +113,35 @@ topology:
             exponentialMultiply: 2
           dlq:
             enabled: true
+    - name: exchange.content_publishing
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.content.publish
+          routingKey: content.publish
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 5000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+        - name: queue.content.publish_all
+          routingKey: content.publish_all
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 5000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -177,6 +206,26 @@ producers:
       maxAttempts: 3
       backoffMs: 1000
       exponentialMultiply: 2.0
+  - name: content-publish-producer
+    exchange: exchange.content_publishing
+    routingKey: content.publish
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: content-publish-all-producer
+    exchange: exchange.content_publishing
+    routingKey: content.publish_all
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
 
 consumers:
   - name: notification-email-consumer
@@ -229,3 +278,17 @@ consumers:
     autoAck: false
     requeueOnError: false
     backoffMs: 2000
+  - name: content-publish-consumer
+    queue: queue.content.publish
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: content-publish-all-consumer
+    queue: queue.content.publish_all
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
