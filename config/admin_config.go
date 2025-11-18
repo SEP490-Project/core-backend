@@ -40,8 +40,16 @@ type AdminConfig struct {
 
 	// Social Media Integration
 	// This is used to determine when to send notifications for expiring OAuth tokens
-	FacebookExpiryThresholdNotifications int `mapstructure:"facebook_expiry_threshold_notifications"` // in days
-	TikTokExpiryThresholdNotifications   int `mapstructure:"tiktok_expiry_threshold_notifications"`   // in days
+
+	// ========= Facebook =========
+	FacebookExpiryThresholdNotifications int    `mapstructure:"facebook_expiry_threshold_notifications"` // in days
+	FacebookVideoUploadChunkSizeInMB     int    `mapstructure:"facebook_video_upload_chunk_size_in_mb"`
+	FacebookVideoUploadMaxRetries        int    `mapstructure:"facebook_video_upload_max_retries"`
+	FacebookWebhookSecret                string `mapstructure:"facebook_webhook_secret"`
+
+	// ========= TikTok =========
+	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
+	TikTokWebhookSecret                string `mapstructure:"tiktok_webhook_secret"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -96,6 +104,9 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
 
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
+	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)
+	adminViper.SetDefault("facebook_video_upload_max_retries", 3)
+
 	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
 }
 
