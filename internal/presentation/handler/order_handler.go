@@ -334,7 +334,21 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 	wardCode := q.WardCode
 	orderType := q.OrderType
 
-	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, status.String(), fullName, phone, provinceID, districtID, wardCode, orderType.String())
+	statuses := []string{}
+	for _, s := range status {
+		if s == "" {
+			continue
+		}
+		parts := strings.Split(s.String(), ",")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				statuses = append(statuses, p)
+			}
+		}
+	}
+
+	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, orderType.String(), statuses)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusBadRequest))
 		return
