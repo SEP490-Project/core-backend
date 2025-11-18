@@ -15,10 +15,12 @@ import (
 // ===========================PREORDER==============================//
 
 type PreOrderRequest struct {
-	AddressID  uuid.UUID `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
-	VariantID  uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
-	CancelURL  string    `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
-	SuccessURL string    `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
+	AddressID    uuid.UUID `json:"address_id" validate:"required,uuid4" example:"3fa85f64-5717-4562-b3fc-2c963f66afa6"`
+	VariantID    uuid.UUID `json:"variant_id" validate:"required,uuid4" example:"69700831-4112-44fd-bf7f-07b015f56218"`
+	CancelURL    string    `json:"cancel_url" validate:"omitempty,url" example:"https://example.com/cancel"`
+	SuccessURL   string    `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
+	IsSelfPickup bool      `json:"is_self_pickup" validate:"bool" example:"false"`
+	UserNote     *string   `json:"user_note,omitempty" validate:"omitempty" example:"Please deliver between 9 AM and 5 PM."`
 }
 
 func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {
@@ -81,6 +83,8 @@ func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.Pr
 		Status:                enum.PreOrderStatusPending,
 		CreatedAt:             now,
 		UpdatedAt:             now,
+		IsSelfPickedUp:        p.IsSelfPickup,
+		UserNote:              p.UserNote,
 		//User:                  nil,
 		//ProductVariant:        nil,
 	}

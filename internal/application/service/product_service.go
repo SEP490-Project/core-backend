@@ -285,7 +285,7 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 			)
 
 			if preOrderLimit == nil || inputStock == nil {
-				return fmt.Errorf("preorderLimit or inputStock cannot be empty if product was LIMITED")
+				return fmt.Errorf("preorder_limit or input_stock cannot be empty if product was LIMITED")
 			} else if *preOrderLimit > *inputStock {
 				return fmt.Errorf("preorder_limit must not exceed input_stock")
 			}
@@ -597,7 +597,7 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatus string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatuses []string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
@@ -640,8 +640,9 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 			db = db.Where(`type = ?`, productType)
 		}
 
-		if productStatus != "" {
-			db = db.Where(`status = ?`, productStatus)
+		// Support filtering by multiple statuses when provided
+		if len(productStatuses) > 0 {
+			db = db.Where("status IN ?", productStatuses)
 		}
 
 		return db.Order("products.created_at DESC").Order("products.id")
@@ -714,13 +715,22 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
+	zap.L().Debug("Fetching products with pagination",
+		zap.Int("page", page),
+		zap.Int("limit", limit),
+		zap.String("search", search),
+		zap.String("category_id", categoryID),
+		zap.String("product_type", productType),
+	)
+
 	ctx := context.Background()
 	offset := (page - 1) * limit
 
 	// --- Tạo filter chính ---
 	filter := func(db *gorm.DB) *gorm.DB {
 
+		// Nếu filterPreOrder = TRUE → Bỏ hết status, type filter
 		if isPreOrderOnly {
 			return db.
 				Joins("JOIN limited_products lp ON lp.id = products.id").
@@ -730,6 +740,8 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search s
 				Where("products.is_active = ?", true).
 				Order("products.created_at DESC").Order("products.id")
 		}
+
+		// ---- Normal filters ----
 
 		if search != "" {
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")

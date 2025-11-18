@@ -1176,7 +1176,6 @@ definitions:
     - DRAFT
     - SUBMITTED
     - REVISION
-    - APPROVED
     - ACTIVED
     - INACTIVED
     type: string
@@ -1184,7 +1183,6 @@ definitions:
     - ProductStatusDraft
     - ProductStatusSubmitted
     - ProductStatusRevision
-    - ProductStatusApproved
     - ProductStatusActived
     - ProductStatusInactived
   enum.ProductType:
@@ -1508,6 +1506,11 @@ definitions:
     type: object
   model.PreOrder:
     properties:
+      action_notes:
+        description: Action notes for pre-order (JSONB)
+        items:
+          $ref: '#/definitions/model.PreOrderActionNote'
+        type: array
       address_line2:
         type: string
       capacity:
@@ -1516,6 +1519,8 @@ definitions:
       capacity_unit:
         type: string
       city:
+        type: string
+      confirmation_image:
         type: string
       container_type:
         $ref: '#/definitions/enum.ContainerType'
@@ -1545,6 +1550,8 @@ definitions:
         type: string
       instructions:
         type: string
+      is_self_picked_up:
+        type: boolean
       length:
         description: in centimeters
         type: integer
@@ -1573,6 +1580,9 @@ definitions:
         type: string
       user_id:
         type: string
+      user_note:
+        description: DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
+        type: string
       uses:
         type: string
       variant_id:
@@ -1585,6 +1595,21 @@ definitions:
       width:
         description: in centimeters
         type: integer
+    type: object
+  model.PreOrderActionNote:
+    properties:
+      action_type:
+        $ref: '#/definitions/enum.PreOrderStatus'
+      created_at:
+        type: string
+      reason:
+        type: string
+      user_email:
+        type: string
+      user_id:
+        type: string
+      user_name:
+        type: string
     type: object
   model.VariantAttribute:
     properties:
@@ -1655,9 +1680,6 @@ definitions:
         - VIAL
         - ROLLER_BOTTLE
         example: BOTTLE
-      current_stock:
-        example: 100
-        type: integer
       dispenser_type:
         allOf:
         - $ref: '#/definitions/enum.DispenserType'
@@ -1677,6 +1699,9 @@ definitions:
         description: in centimeters
         example: 15
         minimum: 0
+        type: integer
+      input_stock:
+        example: 100
         type: integer
       instructions:
         example: Shake well before use
@@ -2513,8 +2538,14 @@ definitions:
       cancel_url:
         example: https://example.com/cancel
         type: string
+      is_self_pickup:
+        example: false
+        type: boolean
       success_url:
         example: https://example.com/success
+        type: string
+      user_note:
+        example: Please deliver between 9 AM and 5 PM.
         type: string
       variant_id:
         example: 69700831-4112-44fd-bf7f-07b015f56218
@@ -4526,6 +4557,8 @@ definitions:
         type: integer
       manufacturing_date:
         type: string
+      max_stock:
+        type: integer
       name:
         type: string
       pre_order_count:
@@ -11772,8 +11805,8 @@ paths:
         in: query
         name: search
         type: string
-      - description: Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP,
-          CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)
+      - description: Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING,
+          AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)
         in: query
         name: status
         type: string
@@ -11840,6 +11873,34 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a PreOrder (reserve stock)
+      tags:
+      - Preorders
+  /api/v1/preorders/{id}/state:
+    patch:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Pre-Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Target state: ''PENDING'', ''PRE_ORDERED'', ''AWAITING_RELEASE'',
+          ''AWAITING_PICKUP'', ''CONFIRMED'', ''CANCELLED'', ''IN_TRANSIT'', ''DELIVERED'',
+          ''RECEIVED'''
+        in: formData
+        name: state
+        required: true
+        type: string
+      - description: Proof images (multiple)
+        in: formData
+        name: files
+        type: file
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - BearerAuth: []
       tags:
       - Preorders
   /api/v1/preorders/staff:
@@ -11986,6 +12047,58 @@ paths:
       summary: Get staff-available preorders with pagination
       tags:
       - Preorders
+  /api/v1/preorders/staff/{orderID}/censorship:
+    post:
+      consumes:
+      - application/json
+      description: Change preOrder state to PRE_ORDERED or CANCELLED. Use query param
+        `action=PRE_ORDERED` or `action=CANCELLED`. If cancelling, provide optional
+        `reason` query param.
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Action (CONFIRM|CANCEL)
+        in: query
+        name: action
+        required: true
+        type: string
+      - description: Cancel reason (required when action=CANCEL)
+        in: body
+        name: reason
+        schema:
+          $ref: '#/definitions/handler.CensorOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Censor an PREORDER (confirm or cancel)
+      tags:
+      - Preorders.States
   /api/v1/products:
     get:
       consumes:
