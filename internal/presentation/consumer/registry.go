@@ -18,6 +18,8 @@ type ConsumerRegistry struct {
 	NotificationPushConsumer      *NotificationPushConsumer
 	VideoUploadConsumer           *VideoUploadConsumer
 	ClickEventConsumer            *ClickEventConsumer
+	ContentPublishConsumer        *ContentPublishConsumer
+	ContentPublishAllConsumer     *ContentPublishAllConsumer
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
@@ -36,6 +38,8 @@ func NewConsumerRegistry(
 		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry.FCMService, dbRegistry.DeviceTokenRepository, dbRegistry.NotificationRepository, appRegistry.UserService, infraRegistry.HealthMonitor),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
+		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
+		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry.ContentPublishingService),
 	}
 
 	zap.L().Info("Consumer registry initialized successfully")

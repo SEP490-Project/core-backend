@@ -3,11 +3,14 @@ package handler
 import (
 	"net/http"
 
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -16,22 +19,28 @@ import (
 )
 
 type ContentHandler struct {
-	contentService       iservice.ContentService
-	stateTransferService iservice.StateTransferService
-	unitOfWork           irepository.UnitOfWork
-	validator            *validator.Validate
+	contentService           iservice.ContentService
+	contentPublishingService iservice.ContentPublishingService
+	stateTransferService     iservice.StateTransferService
+	unitOfWork               irepository.UnitOfWork
+	rabbitmq                 *rabbitmq.RabbitMQ
+	validator                *validator.Validate
 }
 
 func NewContentHandler(
 	contentService iservice.ContentService,
+	contentPublishingService iservice.ContentPublishingService,
 	stateTransferService iservice.StateTransferService,
 	unitOfWork irepository.UnitOfWork,
+	rabbitmq *rabbitmq.RabbitMQ,
 ) *ContentHandler {
 	return &ContentHandler{
-		contentService:       contentService,
-		stateTransferService: stateTransferService,
-		unitOfWork:           unitOfWork,
-		validator:            validator.New(),
+		contentService:           contentService,
+		contentPublishingService: contentPublishingService,
+		stateTransferService:     stateTransferService,
+		unitOfWork:               unitOfWork,
+		rabbitmq:                 rabbitmq,
+		validator:                validator.New(),
 	}
 }
 
@@ -63,6 +72,13 @@ func (h *ContentHandler) Create(c *gin.Context) {
 	}
 
 	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			c.AbortWithStatusJSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to create content", http.StatusInternalServerError))
+		}
+	}()
+
 	content, err := h.contentService.Create(c.Request.Context(), uow, &req)
 	if err != nil {
 		uow.Rollback()
@@ -86,9 +102,13 @@ func (h *ContentHandler) Create(c *gin.Context) {
 		return
 	}
 
-	uow.Commit()
-	statusCode := http.StatusCreated
-	response := responses.SuccessResponse("Content created successfully", &statusCode, content)
+	// Commit transaction
+	if err := uow.Commit(); err != nil {
+		zap.L().Error("Failed to commit transaction for content creation", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to commit transaction", http.StatusInternalServerError))
+		return
+	}
+	response := responses.SuccessResponse("Content created successfully", utils.PtrOrNil(http.StatusCreated), content)
 	c.JSON(http.StatusCreated, response)
 }
 
@@ -498,23 +518,22 @@ func (h *ContentHandler) Reject(c *gin.Context) {
 	}))
 }
 
-// Publish godoc
+// PublishToAllChannels publishes content to all configured channels
 //
-//	@Summary		Publish content
-//	@Description	Transitions content from APPROVED to POSTED with optional publish date
+//	@Summary		Publish content to all channels
+//	@Description	Publishes approved content to all channels where auto_post is enabled asynchronously
 //	@Tags			Content
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string							true	"Content ID"
-//	@Param			body	body		requests.PublishContentRequest	false	"Optional publish date"	example({"publish_date":"2025-12-25T10:00:00Z"})
-//	@Success		200		{object}	responses.APIResponse{data=map[string]any}
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		404		{object}	responses.APIResponse
-//	@Failure		409		{object}	responses.APIResponse
+//	@Param			id	path		string					true	"Content ID (UUID)"
+//	@Success		202	{object}	responses.APIResponse	"Publishing request accepted"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid request or content not approved"
+//	@Failure		404	{object}	responses.APIResponse	"Content not found"
+//	@Failure		500	{object}	responses.APIResponse	"Failed to queue publishing request"
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{id}/publish [patch]
-func (h *ContentHandler) Publish(c *gin.Context) {
-	// Parse content ID from path
+//	@Router			/api/v1/contents/{id}/publish [post]
+func (h *ContentHandler) PublishToAllChannels(c *gin.Context) {
+	// Extract content ID from path
 	contentID, err := extractParamID(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID format", http.StatusBadRequest))
@@ -522,71 +541,48 @@ func (h *ContentHandler) Publish(c *gin.Context) {
 	}
 
 	// Extract user ID from context
-	var userID uuid.UUID
-	userID, err = extractUserID(c)
+	userID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(err.Error(), http.StatusUnauthorized))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("User not authenticated", http.StatusUnauthorized))
 		return
 	}
 
-	// Parse request body for optional publish_date
-	// Allow empty body - publish_date will be nil
-	var req requests.PublishContentRequest
-	_ = c.ShouldBindJSON(&req)
-
-	// Validate content exists and current status
-	content, err := h.contentService.GetByID(c.Request.Context(), contentID)
+	// Get RabbitMQ producer
+	producer, err := h.rabbitmq.GetProducer("content-publish-all-producer")
 	if err != nil {
-		c.JSON(http.StatusNotFound, responses.ErrorResponse("content not found", http.StatusNotFound))
+		zap.L().Error("Failed to get content publish-all producer", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to queue publishing request", http.StatusInternalServerError))
 		return
 	}
 
-	if content.Status != enum.ContentStatusApproved {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("only approved content can be published", http.StatusBadRequest))
+	// Create publish all message
+	publishAllMessage := &consumers.PublishAllChannelsMessage{
+		ContentID: contentID,
+		UserID:    userID,
+		RequestID: extractRequestID(c),
+	}
+
+	// Publish to RabbitMQ
+	err = producer.PublishJSON(c.Request.Context(), publishAllMessage)
+	if err != nil {
+		zap.L().Error("Failed to publish content publish-all message",
+			zap.Error(err),
+			zap.String("content_id", contentID.String()))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to queue publishing request", http.StatusInternalServerError))
 		return
 	}
 
-	// Begin transaction
-	uow := h.unitOfWork.Begin(c.Request.Context())
-	defer func() {
-		if r := recover(); r != nil {
-			uow.Rollback()
-			panic(r)
-		}
-	}()
-
-	// 1. Transition state through FSM with UnitOfWork
-	if err := h.stateTransferService.MoveContentToState(c.Request.Context(), uow, contentID, enum.ContentStatusPosted, userID); err != nil {
-		uow.Rollback()
-		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to publish content: "+err.Error(), http.StatusConflict))
-		return
-	}
-
-	// 2. Set publish date using UnitOfWork
-	if err := h.contentService.SetPublishDate(c.Request.Context(), uow, contentID, req.PublishDate); err != nil {
-		uow.Rollback()
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
-		return
-	}
-
-	// Commit transaction
-	if err := uow.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to commit transaction", http.StatusInternalServerError))
-		return
-	}
-
-	// Get updated content for response
-	updatedContent, _ := h.contentService.GetByID(c.Request.Context(), contentID)
-
-	zap.L().Info("Content published successfully",
+	zap.L().Info("Content publish-all request queued",
 		zap.String("content_id", contentID.String()),
-		zap.String("publisher_id", userID.String()))
+		zap.String("request_id", publishAllMessage.RequestID))
 
-	c.JSON(http.StatusOK, responses.SuccessResponse("Content published successfully", nil, map[string]any{
-		"id":           contentID.String(),
-		"status":       "POSTED",
-		"publish_date": updatedContent.PublishDate,
-	}))
+	// Return 202 Accepted with tracking information
+	statusCode := http.StatusAccepted
+	response := responses.SuccessResponse("Content publishing request accepted and queued for processing", &statusCode, map[string]string{
+		"request_id": publishAllMessage.RequestID,
+		"message":    "Check publishing status for each channel via GET /api/v1/content-channels/{content_channel_id}/status",
+	})
+	c.JSON(http.StatusAccepted, response)
 }
 
 // List retrieves paginated content with filters
@@ -804,4 +800,122 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Public content retrieved successfully", nil, content))
+}
+
+// PublishToChannel publishes content to a specific social media channel
+//
+//	@Summary		Publish content to channel
+//	@Description	Publishes approved content to a specific social media channel (Facebook or TikTok) asynchronously
+//	@Tags			Content
+//	@Accept			json
+//	@Produce		json
+//	@Param			id			path		string					true	"Content ID (UUID)"
+//	@Param			channel_id	path		string					true	"Channel ID (UUID)"
+//	@Success		202			{object}	responses.APIResponse	"Publishing request accepted"
+//	@Failure		400			{object}	responses.APIResponse	"Invalid request or content not approved"
+//	@Failure		404			{object}	responses.APIResponse	"Content or channel not found"
+//	@Failure		500			{object}	responses.APIResponse	"Failed to queue publishing request"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contents/{id}/publish//channel/{channel_id} [post]
+func (h *ContentHandler) PublishToChannel(c *gin.Context) {
+	// Extract content ID from path
+	contentID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID format", http.StatusBadRequest))
+		return
+	}
+	// Extract channel ID from query
+	channelID, err := extractParamID(c, "channel_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid or missing channel_id", http.StatusBadRequest))
+		return
+	}
+
+	// Extract user ID from context (set by auth middleware)
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("User not authenticated", http.StatusUnauthorized))
+		return
+	}
+
+	// Get RabbitMQ producer
+	producer, err := h.rabbitmq.GetProducer("content-publish-producer")
+	if err != nil {
+		zap.L().Error("Failed to get content publish producer", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to queue publishing request", http.StatusInternalServerError))
+		return
+	}
+
+	// Create publish message
+	publishMessage := &consumers.PublishContentMessage{
+		ContentID: contentID,
+		ChannelID: channelID,
+		UserID:    userID,
+		RequestID: uuid.New().String(), // Generate request ID for tracking
+	}
+
+	// Publish to RabbitMQ
+	err = producer.PublishJSON(c.Request.Context(), publishMessage)
+	if err != nil {
+		zap.L().Error("Failed to publish content publishing message",
+			zap.Error(err),
+			zap.String("content_id", contentID.String()),
+			zap.String("channel_id", channelID.String()))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to queue publishing request", http.StatusInternalServerError))
+		return
+	}
+
+	zap.L().Info("Content publishing request queued",
+		zap.String("content_id", contentID.String()),
+		zap.String("channel_id", channelID.String()),
+		zap.String("request_id", publishMessage.RequestID))
+
+	// Return 202 Accepted with tracking information
+	statusCode := http.StatusAccepted
+	response := responses.SuccessResponse("Content publishing request accepted and queued for processing", &statusCode, map[string]string{
+		"request_id": publishMessage.RequestID,
+		"message":    "Check publishing status via GET /api/v1/content-channels/{content_channel_id}/status",
+	})
+	c.JSON(http.StatusAccepted, response)
+}
+
+// GetPublishingStatus retrieves the publishing status of content on a channel
+//
+//	@Summary		Get publishing status
+//	@Description	Retrieves the publishing status, metrics, and error details for a content-channel pair
+//	@Tags			Content
+//	@Accept			json
+//	@Produce		json
+//	@Param			content_channel_id	path		string	true	"Content Channel ID (UUID)"
+//	@Success		200					{object}	responses.APIResponse{data=responses.PublishingStatusResponse}
+//	@Failure		400					{object}	responses.APIResponse	"Invalid content channel ID"
+//	@Failure		404					{object}	responses.APIResponse	"Content channel not found"
+//	@Failure		500					{object}	responses.APIResponse	"Failed to retrieve status"
+//	@Security		BearerAuth
+//	@Router			/api/v1/content-channels/{content_channel_id}/status [get]
+func (h *ContentHandler) GetPublishingStatus(c *gin.Context) {
+	// Extract content channel ID from path
+	contentChannelID, err := extractParamID(c, "content_channel_id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content channel ID format", http.StatusBadRequest))
+		return
+	}
+
+	// Get publishing status
+	status, err := h.contentPublishingService.GetPublishingStatus(c.Request.Context(), contentChannelID)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		message := "Failed to retrieve publishing status"
+
+		if err.Error() == "content channel not found" {
+			statusCode = http.StatusNotFound
+			message = err.Error()
+		}
+
+		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
+		return
+	}
+
+	response := responses.SuccessResponse("Publishing status retrieved successfully", nil, status)
+	c.JSON(http.StatusOK, response)
 }
