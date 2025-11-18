@@ -8,11 +8,12 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"fmt"
-	"github.com/aws/smithy-go/ptr"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -156,12 +157,12 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	}
 
 	var req UpdateProductStateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	if err := h.Struct(&req); err != nil {
+	if err = h.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
 		return
 	}
@@ -228,7 +229,7 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 
 // UpdatePreOrderState
 //
-//	@Tags			Preorders
+//	@Tags		Preorders
 //
 // @Accept multipart/form-data
 // @Produce json
@@ -236,9 +237,9 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 // @Param state formData  string true  "Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
 // @Param files formData  file   false "Proof images (multiple)"
 //
-//	@Security		BearerAuth
+//	@Security	BearerAuth
 //
-// @Router /api/v1/preorders/{id}/state [patch]
+//	@Router		/api/v1/preorders/{id}/state [patch]
 func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	// 1.Parse path param
 	idParam := c.Param("id")

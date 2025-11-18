@@ -258,6 +258,8 @@ func (c *channelService) UpdateChannelToken(ctx context.Context, uow irepository
 
 // GetDecryptedToken retrieves and decrypts the access token for a channel
 func (c *channelService) GetDecryptedToken(ctx context.Context, channelName string) (string, error) {
+	zap.L().Info("ChannelService - GetDecryptedToken called",
+		zap.String("channel_name", channelName))
 	channel, err := c.getChannelByName(ctx, channelName)
 	if err != nil {
 		return "", err
@@ -271,6 +273,8 @@ func (c *channelService) GetDecryptedToken(ctx context.Context, channelName stri
 	if c.config.UseVault && c.vaultService != nil {
 		// HashedAccessToken contains vault path, not encrypted token
 		vaultPath := *channel.HashedAccessToken
+		zap.L().Debug("ChannelService - GetDecryptedToken - Using Vault backend",
+			zap.String("vault_path", vaultPath))
 
 		var secret map[string]any
 		secret, err = c.vaultService.GetSecret(ctx, vaultPath)
@@ -285,6 +289,8 @@ func (c *channelService) GetDecryptedToken(ctx context.Context, channelName stri
 		if !ok {
 			return "", errors.New("invalid token format in Vault")
 		}
+		zap.L().Info("ChannelService - GetDecryptedToken - Token retrieved from Vault",
+			zap.Int("access_token_length", len(accessToken)))
 
 		return accessToken, nil
 	}
