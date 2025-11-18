@@ -49,10 +49,8 @@ func CalculateScheduleBasedPaymentDates(
 // CalculateMonthlyPaymentDates calculates monthly payment dates within contract period
 // Used by AFFILIATE and CO_PRODUCING contract types with MONTHLY cycle
 func CalculateMonthlyPaymentDates(
-	startDate time.Time,
-	endDate time.Time,
-	paymentDay int,
-	minimumDayBeforeDueDate int,
+	startDate, endDate time.Time,
+	paymentDay, minimumDayBeforeDueDate int,
 	skipFirstMonthIfNotEnoughLeadTime bool,
 ) ([]PaymentDateResult, error) {
 	if paymentDay < 1 || paymentDay > 31 {
@@ -60,45 +58,58 @@ func CalculateMonthlyPaymentDates(
 	}
 
 	var results []PaymentDateResult
-	isFirstPayment := true
+	loc := startDate.Location()
 
-	for currentDate := startDate; currentDate.Before(endDate) || currentDate.Equal(endDate); currentDate = currentDate.AddDate(0, 1, 0) {
-		// Skip first month if not enough lead time
-		if skipFirstMonthIfNotEnoughLeadTime && isFirstPayment && ((currentDate.Day() + minimumDayBeforeDueDate) > paymentDay) {
-			isFirstPayment = false
-			zap.L().Debug("Skipping first month payment - not enough lead time",
-				zap.Int("current_day", currentDate.Day()),
-				zap.Int("payment_day", paymentDay),
-				zap.Int("minimum_lead_days", minimumDayBeforeDueDate))
-			continue
+	// Start from the 1st of the month instead of using startDate directly
+	current := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, loc)
+
+	calcDueDate := func(base time.Time) time.Time {
+		// Compute last day of month to avoid invalid dates like 31 Feb
+		lastDay := time.Date(base.Year(), base.Month()+1, 0, 0, 0, 0, 0, loc).Day()
+		day := paymentDay
+		if day > lastDay {
+			//Clamp payment day to last day of month
+			day = lastDay
 		}
-
-		// Create due date for this month
-		dueDate := time.Date(currentDate.Year(), currentDate.Month(), paymentDay, 0, 0, 0, 0, currentDate.Location())
-
-		// Only include if due date is within contract period
-		if dueDate.After(endDate) {
-			break
-		}
-
-		note := fmt.Sprintf("Monthly payment for period: %s", currentDate.Format(utils.DateFormat))
-		results = append(results, PaymentDateResult{
-			DueDate: dueDate,
-			Note:    note,
-		})
-
-		isFirstPayment = false
+		return time.Date(base.Year(), base.Month(), day, 0, 0, 0, 0, loc)
 	}
 
-	// Add final payment if last payment date is before contract end
+	due := calcDueDate(current)
+
+	// Lead time uses due.Day() instead of startDate.Day()
+	if skipFirstMonthIfNotEnoughLeadTime {
+		effectivePaymentDay := due.Day()
+		if startDate.Day()+minimumDayBeforeDueDate > effectivePaymentDay {
+			current = current.AddDate(0, 1, 0)
+			due = calcDueDate(current)
+		}
+	}
+
+	// Ensure due date is never before startDate
+	for due.Before(startDate) {
+		current = current.AddDate(0, 1, 0)
+		due = calcDueDate(current)
+	}
+
+	for !due.After(endDate) {
+		results = append(results, PaymentDateResult{
+			DueDate: due,
+			Note:    fmt.Sprintf("Monthly payment for period: %s", due.Format("02/01/2006")),
+		})
+
+		current = current.AddDate(0, 1, 0)
+		due = calcDueDate(current)
+	}
+
 	if len(results) > 0 {
-		lastPaymentDate := results[len(results)-1].DueDate
-		if lastPaymentDate.Before(endDate) && !lastPaymentDate.Equal(endDate) {
-			note := fmt.Sprintf("Final payment for contract end: %s", endDate.Format(utils.DateFormat))
-			results = append(results, PaymentDateResult{
-				DueDate: endDate,
-				Note:    note,
-			})
+		lastDue := results[len(results)-1].DueDate
+		if lastDue.Before(endDate) {
+			if results[len(results)-1].DueDate.Format("2006-01-02") != endDate.Format("2006-01-02") {
+				results = append(results, PaymentDateResult{
+					DueDate: endDate,
+					Note:    fmt.Sprintf("Final payment for contract end: %s", endDate.Format("02/01/2006")),
+				})
+			}
 		}
 	}
 
@@ -166,30 +177,57 @@ func CalculateAnnualPaymentDates(
 	paymentDate time.Time, // The month/day to pay each year
 ) ([]PaymentDateResult, error) {
 	var results []PaymentDateResult
+	loc := contractStartDate.Location()
 
-	for currentDate := contractStartDate; currentDate.Before(contractEndDate) || currentDate.Equal(contractEndDate); currentDate = currentDate.AddDate(1, 0, 0) {
-		dueDate := time.Date(currentDate.Year(), paymentDate.Month(), paymentDate.Day(), 0, 0, 0, 0, currentDate.Location())
+	// Determine firstPaymentDate explicitly instead of looping from contractStartDate
+	year := contractStartDate.Year()
+	month := paymentDate.Month()
+	day := paymentDate.Day()
 
-		// Only include if due date is within contract period
-		if dueDate.After(contractEndDate) {
-			break
-		}
-
-		note := fmt.Sprintf("Annual payment for year: %d", currentDate.Year())
-		results = append(results, PaymentDateResult{
-			DueDate: dueDate,
-			Note:    note,
-		})
+	// Clamp day to last day of month to avoid invalid dates (31 Feb, 30 Feb, etc.)
+	maxDay := time.Date(year, month+1, 0, 0, 0, 0, 0, loc).Day()
+	if day > maxDay {
+		day = maxDay
 	}
 
-	// Add final payment if last annual date is before contract end
+	firstPaymentDate := time.Date(year, month, day, 0, 0, 0, 0, loc)
+
+	// Shift +1 year if firstPaymentDate is before contractStartDate
+	if firstPaymentDate.Before(contractStartDate) {
+		year++
+		maxDay = time.Date(year, month+1, 0, 0, 0, 0, 0, loc).Day()
+		if paymentDate.Day() > maxDay {
+			day = maxDay
+		} else {
+			day = paymentDate.Day()
+		}
+		firstPaymentDate = time.Date(year, month, day, 0, 0, 0, 0, loc)
+	}
+
+	// Loop from firstPaymentDate
+	currentDate := firstPaymentDate
+	for !currentDate.After(contractEndDate) {
+		results = append(results, PaymentDateResult{
+			DueDate: currentDate,
+			Note:    fmt.Sprintf("Annual payment for year: %d", currentDate.Year()),
+		})
+
+		// Clamp next year’s day to last day of month
+		nextYear := currentDate.Year() + 1
+		maxDayNext := time.Date(nextYear, month+1, 0, 0, 0, 0, 0, loc).Day()
+		nextDay := paymentDate.Day()
+		if nextDay > maxDayNext {
+			nextDay = maxDayNext
+		}
+		currentDate = time.Date(nextYear, month, nextDay, 0, 0, 0, 0, loc)
+	}
+
 	if len(results) > 0 {
 		lastPaymentDate := results[len(results)-1].DueDate
 		if lastPaymentDate.Before(contractEndDate) && !lastPaymentDate.Equal(contractEndDate) {
-			note := fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat))
 			results = append(results, PaymentDateResult{
 				DueDate: contractEndDate,
-				Note:    note,
+				Note:    fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format("2006-01-02")),
 			})
 		}
 	}
