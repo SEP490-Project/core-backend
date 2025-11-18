@@ -664,10 +664,11 @@ func (c *CampaignService) extractAdvertisingTasks(
 
 	return &responses.SuggestedCampaign{
 		Name:        campaignName,
-		Description: fmt.Sprintf("Campaign for contract %s with %d advertised items", *contract.ContractNumber, len(deliverables.AdvertisedItems)),
-		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
-		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
-		Type:        contract.Type.String(),
+		Description: utils.PtrOrNil(fmt.Sprintf("Campaign for contract %s with %d advertised items", *contract.ContractNumber, len(deliverables.AdvertisedItems))),
+		StartDate:   contract.StartDate,
+		EndDate:     contract.EndDate,
+		Type:        contract.Type,
+		ContractID:  contract.ID,
 		Milestones:  assignedMilestones,
 	}, nil
 }
@@ -755,7 +756,7 @@ func (c *CampaignService) extractAdvertisingMilestonesAsync(
 				i+1,
 				dueDate.Format(utils.DateFormat),
 				basePayment),
-			DueDate: dueDate.Format(utils.DateFormat),
+			DueDate: dueDate,
 			Tasks:   []responses.SuggestedTask{}, // Will be assigned later
 		}
 	}
@@ -822,7 +823,7 @@ func (c *CampaignService) extractAffiliateTasks(
 			Description: fmt.Sprintf("Payment Period (Due: %s) - Base: %.0f VND + CTR Performance",
 				dueDate.Format(utils.DateFormat),
 				basePayment),
-			DueDate: dueDate.Format(utils.DateFormat),
+			DueDate: dueDate,
 			Tasks:   []responses.SuggestedTask{},
 		}
 	}
@@ -855,10 +856,11 @@ func (c *CampaignService) extractAffiliateTasks(
 
 	return &responses.SuggestedCampaign{
 		Name:        campaignName,
-		Description: fmt.Sprintf("Affiliate campaign with %d content pieces and %d payment periods", len(contentTasks), len(assignedMilestones)),
-		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
-		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
-		Type:        contract.Type.String(),
+		Description: utils.PtrOrNil(fmt.Sprintf("Affiliate campaign with %d content pieces and %d payment periods", len(contentTasks), len(assignedMilestones))),
+		StartDate:   contract.StartDate,
+		EndDate:     contract.EndDate,
+		Type:        contract.Type,
+		ContractID:  contract.ID,
 		Milestones:  assignedMilestones,
 	}, nil
 }
@@ -919,7 +921,7 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 				i+1,
 				dueDate.Format(utils.DateFormat),
 				basePayment),
-			DueDate: dueDate.Format(utils.DateFormat),
+			DueDate: dueDate,
 			Tasks:   []responses.SuggestedTask{},
 		}
 	}
@@ -946,10 +948,11 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 
 	return &responses.SuggestedCampaign{
 		Name:        campaignName,
-		Description: fmt.Sprintf("Brand ambassador campaign with %d events", len(eventTasks)),
-		StartDate:   utils.FormatLocalTime(&contract.StartDate, ""),
-		EndDate:     utils.FormatLocalTime(&contract.EndDate, ""),
-		Type:        contract.Type.String(),
+		Description: utils.PtrOrNil(fmt.Sprintf("Brand ambassador campaign with %d events", len(eventTasks))),
+		StartDate:   contract.StartDate,
+		EndDate:     contract.EndDate,
+		Type:        contract.Type,
+		ContractID:  contract.ID,
 		Milestones:  assignedMilestones,
 	}, nil
 }
@@ -991,7 +994,7 @@ func (c *CampaignService) extractCoProducingStructure(
 	for i, dueDate := range milestoneDueDates {
 		milestones[i] = responses.SuggestedMilestone{
 			Description: fmt.Sprintf("Co-Production Milestone %d", i+1),
-			DueDate:     dueDate.Format(utils.DateFormat),
+			DueDate:     dueDate,
 			Tasks:       []responses.SuggestedTask{},
 		}
 	}
@@ -1024,10 +1027,13 @@ func (c *CampaignService) extractCoProducingStructure(
 	}
 
 	return &responses.SuggestedCampaign{
-		Name:       campaignName,
-		Type:       string(contract.Type),
-		StartDate:  contract.StartDate.Format(utils.DateFormat),
-		EndDate:    contract.EndDate.Format(utils.DateFormat),
+		Name: campaignName,
+		Description: utils.PtrOrNil(fmt.Sprintf("Co-Production Campaign for contract %s with %d products and %d concepts adveritsement",
+			*contract.ContractNumber, len(deliverables.Products), len(deliverables.Concepts))),
+		Type:       contract.Type,
+		StartDate:  contract.StartDate,
+		EndDate:    contract.EndDate,
+		ContractID: contract.ID,
 		Milestones: milestones,
 	}, nil
 }
