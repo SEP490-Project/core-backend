@@ -61,6 +61,7 @@ func NewApplicationRegistry(
 	jwtService := service.NewJwtService(configs)
 
 	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy)
+
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
 		databaseRegistry.ContractRepository,

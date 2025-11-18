@@ -3,8 +3,9 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"github.com/aws/smithy-go/ptr"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
