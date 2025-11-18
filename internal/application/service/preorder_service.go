@@ -172,7 +172,7 @@ func (p preOrderService) GetPreOrdersByUserIDWithPagination(userID uuid.UUID, li
 		WithContext(ctx).
 		Model(&model.PreOrder{}).
 		Scopes(filter).
-		Select("pre_orders.id, pre_orders.created_at").
+		Select("pre_orders.id").
 		Limit(pageSize).
 		Offset(offset).
 		Pluck("pre_orders.id", &ids).Error; err != nil {
