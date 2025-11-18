@@ -178,14 +178,14 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 //	@Tags			Preorders
 //	@Accept			json
 //	@Produce		json
-//	@Param			query	query		requests.StaffOrdersQuery	false	"Staff preorders query"
+//	@Param			query	query		requests.StaffPreOrdersQuery	false	"Staff preorders query"
 //	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/staff [get]
 func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Context) {
-	var q requests.StaffOrdersQuery
+	var q requests.StaffPreOrdersQuery
 	_ = c.ShouldBindQuery(&q)
 
 	page := q.Page
@@ -210,8 +210,18 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 
 	// normalize staff status to []string for service
 	var statuses []string
-	if strings.TrimSpace(string(status)) != "" {
-		statuses = append(statuses, string(status))
+	for _, s := range status {
+		if s == "" {
+			continue
+		}
+		// Tách comma-separated
+		parts := strings.Split(s.String(), ",")
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				statuses = append(statuses, p)
+			}
+		}
 	}
 
 	preorders, total, err := p.preOrderService.GetStaffAvailablePreOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, statuses)

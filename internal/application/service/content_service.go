@@ -98,7 +98,13 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 				}
 			}
 		case enum.ContentTypePost.String():
-			// TODO: implement the uses of TipTap parser utility later
+			var parsedTipTap *utils.TiptapParseResult
+			parsedTipTap, err = utils.ParseTiptapJSON(rawBody)
+			if err == nil {
+				content.Description = utils.PtrOrNil(parsedTipTap.PlainText[0:100])
+			} else {
+				zap.L().Warn("Failed to parse TipTap JSON for description", zap.Error(err))
+			}
 		}
 	}
 
@@ -154,12 +160,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			zap.String("content_id", content.ID.String()),
 			zap.Error(err))
 		// Don't fail content creation if affiliate link creation fails
-	}
-
-	// Commit transaction
-	if err := uow.Commit(); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		return nil, errors.New("failed to create content")
 	}
 
 	zap.L().Info("Content created successfully", zap.String("content_id", content.ID.String()))
@@ -422,11 +422,11 @@ func (s *ContentService) SetPublishDate(ctx context.Context, uow irepository.Uni
 
 	// Set publish date
 	if publishDate != nil && *publishDate != "" {
-		parsedDate, err := time.Parse(time.RFC3339, *publishDate)
-		if err != nil {
-			return errors.New("invalid publish_date format, use ISO8601 format")
+		// parsedDate, err := time.Parse(time.RFC3339, *publishDate)
+		parsedDate := utils.ParseLocalTimeWithFallback(*publishDate, utils.TimeFormat)
+		if parsedDate == nil {
+			content.PublishDate = parsedDate
 		}
-		content.PublishDate = &parsedDate
 	} else {
 		now := time.Now()
 		content.PublishDate = &now

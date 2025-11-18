@@ -981,6 +981,18 @@ definitions:
     - AttributeUnitIU
     - AttributeUnitPPM
     - AttributeUnitNone
+  enum.AutoPostStatus:
+    enum:
+    - PENDING
+    - POSTED
+    - FAILED
+    - SKIPPED
+    type: string
+    x-enum-varnames:
+    - AutoPostStatusPending
+    - AutoPostStatusPosted
+    - AutoPostStatusFailed
+    - AutoPostStatusSkipped
   enum.CapacityUnit:
     enum:
     - ML
@@ -1717,9 +1729,6 @@ definitions:
       manufacturing_date:
         example: "2023-10-01T00:00:00Z"
         type: string
-      pre_order_count:
-        example: 0
-        type: integer
       pre_order_limit:
         example: 0
         type: integer
@@ -2553,11 +2562,6 @@ definitions:
     required:
     - address_id
     - variant_id
-    type: object
-  requests.PublishContentRequest:
-    properties:
-      publish_date:
-        type: string
     type: object
   requests.RefreshTokenRequest:
     properties:
@@ -4614,6 +4618,36 @@ definitions:
       UpdatedEmployee:
         type: integer
       UpdatedSource:
+        type: string
+    type: object
+  responses.PublishingStatusResponse:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      content_channel_id:
+        type: string
+      content_id:
+        type: string
+      created_at:
+        type: string
+      external_post_id:
+        type: string
+      external_post_url:
+        type: string
+      last_error:
+        type: string
+      metrics:
+        additionalProperties: {}
+        type: object
+      post_url:
+        type: string
+      published_at:
+        type: string
+      status:
+        $ref: '#/definitions/enum.AutoPostStatus'
+      updated_at:
         type: string
     type: object
   responses.RecentActivityItem:
@@ -7010,86 +7044,6 @@ paths:
       summary: Create Campaign from Contract
       tags:
       - Campaigns
-  /api/v1/campaigns/{id}/approve:
-    patch:
-      consumes:
-      - application/json
-      description: Approve a campaign by ID
-      parameters:
-      - description: Campaign ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign approved successfully
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid campaign ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Approve Campaign
-      tags:
-      - Campaigns
-  /api/v1/campaigns/{id}/reject:
-    patch:
-      consumes:
-      - application/json
-      description: Reject a campaign by providing a reason.
-      parameters:
-      - description: Campaign ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reason for rejecting the campaign
-        in: query
-        name: reason
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign rejected successfully
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid campaign ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Reject Campaign
-      tags:
-      - Campaigns
   /api/v1/campaigns/{id}/suggest:
     get:
       consumes:
@@ -7452,6 +7406,46 @@ paths:
       summary: Update Campaign
       tags:
       - Campaigns
+  /api/v1/campaigns/id/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Approve a campaign by ID
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign approved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve Campaign
+      tags:
+      - Campaigns
   /api/v1/campaigns/id/{id}/details:
     get:
       consumes:
@@ -7492,6 +7486,46 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Campaign Details by ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/id/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Reject a campaign by providing a reason.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for rejecting the campaign
+        in: query
+        name: reason
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign rejected successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reject Campaign
       tags:
       - Campaigns
   /api/v1/campaigns/internal:
@@ -8021,6 +8055,47 @@ paths:
       summary: Get representative config values
       tags:
       - Admin Config
+  /api/v1/content-channels/{content_channel_id}/status:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the publishing status, metrics, and error details for
+        a content-channel pair
+      parameters:
+      - description: Content Channel ID (UUID)
+        in: path
+        name: content_channel_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PublishingStatusResponse'
+              type: object
+        "400":
+          description: Invalid content channel ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to retrieve status
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get publishing status
+      tags:
+      - Content
   /api/v1/contents:
     get:
       consumes:
@@ -8377,50 +8452,80 @@ paths:
       tags:
       - Content/Blog
   /api/v1/contents/{id}/publish:
-    patch:
+    post:
       consumes:
       - application/json
-      description: Transitions content from APPROVED to POSTED with optional publish
-        date
+      description: Publishes approved content to all channels where auto_post is enabled
+        asynchronously
       parameters:
-      - description: Content ID
+      - description: Content ID (UUID)
         in: path
         name: id
         required: true
         type: string
-      - description: Optional publish date
-        in: body
-        name: body
-        schema:
-          $ref: '#/definitions/requests.PublishContentRequest'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "202":
+          description: Publishing request accepted
           schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  additionalProperties: true
-                  type: object
-              type: object
+            $ref: '#/definitions/responses.APIResponse'
         "400":
-          description: Bad Request
+          description: Invalid request or content not approved
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "404":
-          description: Not Found
+          description: Content not found
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Conflict
+        "500":
+          description: Failed to queue publishing request
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Publish content
+      summary: Publish content to all channels
+      tags:
+      - Content
+  /api/v1/contents/{id}/publish//channel/{channel_id}:
+    post:
+      consumes:
+      - application/json
+      description: Publishes approved content to a specific social media channel (Facebook
+        or TikTok) asynchronously
+      parameters:
+      - description: Content ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Channel ID (UUID)
+        in: path
+        name: channel_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Publishing request accepted
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request or content not approved
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Content or channel not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Failed to queue publishing request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish content to channel
       tags:
       - Content
   /api/v1/contents/{id}/reject:
@@ -10921,36 +11026,29 @@ paths:
         in: query
         name: search
         type: string
-      - description: |-
+      - collectionFormat: csv
+        description: |-
           Order status filter
           in: query
           example: "PAID"
-        enum:
-        - PENDING
+        example:
         - PAID
-        - REFUNDED
-        - CONFIRMED
-        - CANCELLED
-        - SHIPPED
-        - IN_TRANSIT
-        - DELIVERED
-        - RECEIVED
-        - AWAITING_PICKUP
-        example: PAID
         in: query
+        items:
+          enum:
+          - PENDING
+          - PAID
+          - REFUNDED
+          - CONFIRMED
+          - CANCELLED
+          - SHIPPED
+          - IN_TRANSIT
+          - DELIVERED
+          - RECEIVED
+          - AWAITING_PICKUP
+          type: string
         name: status
-        type: string
-        x-enum-varnames:
-        - OrderStatusPending
-        - OrderStatusPaid
-        - OrderStatusRefunded
-        - OrderStatusConfirmed
-        - OrderStatusCancelled
-        - OrderStatusShipped
-        - OrderStatusInTransit
-        - OrderStatusDelivered
-        - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
+        type: array
       - description: |-
           GHN ward code
           in: query
@@ -11885,8 +11983,8 @@ paths:
         name: id
         required: true
         type: string
-      - description: 'Target state: ''PENDING'', ''PRE_ORDERED'', ''AWAITING_RELEASE'',
-          ''AWAITING_PICKUP'', ''CONFIRMED'', ''CANCELLED'', ''IN_TRANSIT'', ''DELIVERED'',
+      - description: 'Target state: ''PENDING'', ''PAID'', ''PRE_ORDERED'', ''STOCK_READY'',
+          ''STOCK_PREPARING'', ''AWAITING_PICKUP'', ''IN_TRANSIT'', ''DELIVERED'',
           ''RECEIVED'''
         in: formData
         name: state
@@ -11980,36 +12078,29 @@ paths:
         in: query
         name: search
         type: string
-      - description: |-
+      - collectionFormat: csv
+        description: |-
           Order status filter
           in: query
-          example: "PAID"
-        enum:
-        - PENDING
+          example: "PENDING PAID REFUNDED CONFIRMED CANCELLED SHIPPED IN_TRANSIT DELIVERED RECEIVED AWAITING_PICKUP"
+        example:
         - PAID
-        - REFUNDED
-        - CONFIRMED
-        - CANCELLED
-        - SHIPPED
-        - IN_TRANSIT
-        - DELIVERED
-        - RECEIVED
-        - AWAITING_PICKUP
-        example: PAID
         in: query
+        items:
+          enum:
+          - PENDING
+          - PAID
+          - PRE_ORDERED
+          - CANCELLED
+          - STOCK_READY
+          - STOCK_PREPARING
+          - AWAITING_PICKUP
+          - IN_TRANSIT
+          - DELIVERED
+          - RECEIVED
+          type: string
         name: status
-        type: string
-        x-enum-varnames:
-        - OrderStatusPending
-        - OrderStatusPaid
-        - OrderStatusRefunded
-        - OrderStatusConfirmed
-        - OrderStatusCancelled
-        - OrderStatusShipped
-        - OrderStatusInTransit
-        - OrderStatusDelivered
-        - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
+        type: array
       - description: |-
           GHN ward code
           in: query
