@@ -10136,7 +10136,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by status (PENDING, PRE_ORDERED, AWAITING_RELEASE, AWAITING_PICKUP, CONFIRMED, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)",
+                        "description": "Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)",
                         "name": "status",
                         "in": "query"
                     }
@@ -10396,6 +10396,129 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/preorders/staff/{orderID}/censorship": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change preOrder state to PRE_ORDERED or CANCELLED. Use query param ` + "`" + `action=PRE_ORDERED` + "`" + ` or ` + "`" + `action=CANCELLED` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Censor an PREORDER (confirm or cancel)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action (CONFIRM|CANCEL)",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel reason (required when action=CANCEL)",
+                        "name": "reason",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CensorOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Order"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/{id}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders"
+                ],
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pre-Order ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'",
+                        "name": "state",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Proof images (multiple)",
+                        "name": "files",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {}
             }
         },
         "/api/v1/products": {
@@ -15383,7 +15506,6 @@ const docTemplate = `{
                 "DRAFT",
                 "SUBMITTED",
                 "REVISION",
-                "APPROVED",
                 "ACTIVED",
                 "INACTIVED"
             ],
@@ -15391,7 +15513,6 @@ const docTemplate = `{
                 "ProductStatusDraft",
                 "ProductStatusSubmitted",
                 "ProductStatusRevision",
-                "ProductStatusApproved",
                 "ProductStatusActived",
                 "ProductStatusInactived"
             ]
@@ -15852,6 +15973,13 @@ const docTemplate = `{
         "model.PreOrder": {
             "type": "object",
             "properties": {
+                "action_notes": {
+                    "description": "Action notes for pre-order (JSONB)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.PreOrderActionNote"
+                    }
+                },
                 "address_line2": {
                     "type": "string"
                 },
@@ -15863,6 +15991,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
                     "type": "string"
                 },
                 "container_type": {
@@ -15906,6 +16037,9 @@ const docTemplate = `{
                 "instructions": {
                     "type": "string"
                 },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
                 "length": {
                     "description": "in centimeters",
                     "type": "integer"
@@ -15947,6 +16081,10 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string"
                 },
+                "user_note": {
+                    "description": "DeletedAt gorm.DeletedAt      ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at\"swaggerignore:\"true\"` + "`" + `",
+                    "type": "string"
+                },
                 "uses": {
                     "type": "string"
                 },
@@ -15963,6 +16101,29 @@ const docTemplate = `{
                 "width": {
                     "description": "in centimeters",
                     "type": "integer"
+                }
+            }
+        },
+        "model.PreOrderActionNote": {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "$ref": "#/definitions/enum.PreOrderStatus"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string"
                 }
             }
         },
@@ -16073,10 +16234,6 @@ const docTemplate = `{
                     ],
                     "example": "BOTTLE"
                 },
-                "current_stock": {
-                    "type": "integer",
-                    "example": 100
-                },
                 "dispenser_type": {
                     "enum": [
                         "PUMP",
@@ -16103,6 +16260,10 @@ const docTemplate = `{
                     "type": "integer",
                     "minimum": 0,
                     "example": 15
+                },
+                "input_stock": {
+                    "type": "integer",
+                    "example": 100
                 },
                 "instructions": {
                     "type": "string",
@@ -17235,9 +17396,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/cancel"
                 },
+                "is_self_pickup": {
+                    "type": "boolean",
+                    "example": false
+                },
                 "success_url": {
                     "type": "string",
                     "example": "https://example.com/success"
+                },
+                "user_note": {
+                    "type": "string",
+                    "example": "Please deliver between 9 AM and 5 PM."
                 },
                 "variant_id": {
                     "type": "string",
@@ -20105,6 +20274,9 @@ const docTemplate = `{
                 },
                 "manufacturing_date": {
                     "type": "string"
+                },
+                "max_stock": {
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"

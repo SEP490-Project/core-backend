@@ -2,6 +2,8 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 
 	"gorm.io/datatypes"
@@ -10,6 +12,41 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+// PreOrderActionNote mirrors OrderActionNote for pre-orders
+type PreOrderActionNote struct {
+	UserID     uuid.UUID           `json:"user_id"`
+	UserName   string              `json:"user_name"`
+	UserEmail  string              `json:"user_email"`
+	ActionType enum.PreOrderStatus `json:"action_type"`
+	Reason     string              `json:"reason"`
+	CreatedAt  time.Time           `json:"created_at"`
+}
+
+// PreOrderActionNotes wrapper type for JSONB handling
+type PreOrderActionNotes []PreOrderActionNote
+
+// Value implements driver.Valuer interface for JSONB storage
+func (notes PreOrderActionNotes) Value() (driver.Value, error) {
+	if notes == nil {
+		return nil, nil
+	}
+	return json.Marshal(notes)
+}
+
+// Scan implements sql.Scanner interface for JSONB retrieval
+func (notes *PreOrderActionNotes) Scan(value any) error {
+	if value == nil {
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+
+	return json.Unmarshal(bytes, notes)
+}
 
 type PreOrder struct {
 	ID          uuid.UUID `json:"id" gorm:"type:uuid;column:id;primaryKey;default:gen_random_uuid()"`
@@ -48,10 +85,17 @@ type PreOrder struct {
 	Length                int                 `json:"length" gorm:"column:length"` // in centimeters
 	Width                 int                 `json:"width" gorm:"column:width"`   // in centimeters
 
+	IsSelfPickedUp    bool    `json:"is_self_picked_up" gorm:"column:is_self_picked_up;not null;default:false"`
+	ConfirmationImage *string `json:"confirmation_image,omitempty" gorm:"column:confirmation_image;type:text"`
+
 	Status    enum.PreOrderStatus `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
 	CreatedAt time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	//DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
+	UserNote *string `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
+
+	// Action notes for pre-order (JSONB)
+	ActionNotes *PreOrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`
 
 	// Relationships
 	User           *User           `json:"-" gorm:"foreignKey:UserID"`
@@ -65,6 +109,7 @@ type PreOrder struct {
 func (PreOrder) TableName() string { return "pre_orders" }
 
 func (po *PreOrder) BeforeCreate(tx *gorm.DB) (err error) {
+	_ = tx
 	if po.ID == uuid.Nil {
 		po.ID = uuid.New()
 	}
@@ -82,4 +127,18 @@ func (po *PreOrder) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 
 	return nil
+}
+
+// AddActionNote appends a PreOrderActionNote to the PreOrder's ActionNotes
+func (po *PreOrder) AddActionNote(note PreOrderActionNote) {
+	if po.ActionNotes == nil {
+		notes := make(PreOrderActionNotes, 0)
+		po.ActionNotes = &notes
+	}
+
+	if note.CreatedAt.IsZero() {
+		note.CreatedAt = time.Now()
+	}
+
+	*po.ActionNotes = append(*po.ActionNotes, note)
 }

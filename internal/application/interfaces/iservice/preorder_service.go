@@ -12,9 +12,9 @@ import (
 
 type PreOrderService interface {
 	PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*model.PreOrder, error)
-	GetPreOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string, status string) ([]model.PreOrder, int, error)
+	GetPreOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string, status []string) ([]responses.PreOrderResponse, int, error)
 	PayForPreservationSlot(ctx context.Context, preOrderID uuid.UUID, returnURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error)
 
 	// Staff-facing listing similar to staff orders
-	GetStaffAvailablePreOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.PreOrder, int, error)
+	GetStaffAvailablePreOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, status []string) ([]responses.PreOrderResponse, int, error)
 }

@@ -8,7 +8,10 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"fmt"
+	"github.com/aws/smithy-go/ptr"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -20,11 +23,13 @@ type StateHandler struct {
 	iservice.StateTransferService
 	irepository.UnitOfWork
 	*validator.Validate
+	fileService iservice.FileService
 }
 
-func NewStateHandler(StateTransferService iservice.StateTransferService, unitOfWork irepository.UnitOfWork, validate *validator.Validate) *StateHandler {
+func NewStateHandler(StateTransferService iservice.StateTransferService, unitOfWork irepository.UnitOfWork, validate *validator.Validate, fileService iservice.FileService) *StateHandler {
 	return &StateHandler{
 		StateTransferService: StateTransferService,
+		fileService:          fileService,
 		UnitOfWork:           unitOfWork,
 		Validate:             validate,
 	}
@@ -173,7 +178,11 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 		return
 	}
 	roleStr, _ := roleVal.(string)
-
+	if err := roleChecker("PRODUCT", roleStr, target); err != nil {
+		resp := responses.ErrorResponse(err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, resp)
+		return
+	}
 	// Quy tắc role
 	switch roleStr {
 	case string(enum.UserRoleAdmin):
@@ -213,6 +222,157 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Product state updated", nil, map[string]any{
 		"id":    id.String(),
 		"state": target,
+	}))
+}
+
+// UpdatePreOrderState
+//
+//	@Tags			Preorders
+//
+// @Accept multipart/form-data
+// @Produce json
+// @Param id    path      string true  "Pre-Order ID (UUID)"
+// @Param state formData  string true  "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
+// @Param files formData  file   false "Proof images (multiple)"
+//
+//	@Security		BearerAuth
+//
+// @Router /api/v1/preorders/{id}/state [patch]
+func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
+	// 1.Parse path param
+	idParam := c.Param("id")
+	preOrderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid pre-order id", http.StatusBadRequest))
+		return
+	}
+
+	// 2.Parse multipart form
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to parse multipart form: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// 3.Parse state
+	stateValues := form.Value["state"]
+	if len(stateValues) == 0 {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("missing state", http.StatusBadRequest))
+		return
+	}
+	targetState := enum.PreOrderStatus(stateValues[0])
+
+	// Validate enum
+	if !targetState.IsValid() {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid target state", http.StatusBadRequest))
+		return
+	}
+
+	// 4.Validate user role
+	roleVal, ok := c.Get("roles")
+	if !ok {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context", http.StatusForbidden))
+		return
+	}
+	roleStr := roleVal.(string)
+
+	if err := roleChecker("PREORDER", roleStr, targetState); err != nil {
+		c.JSON(http.StatusForbidden, responses.ErrorResponse(err.Error(), http.StatusForbidden))
+		return
+	}
+
+	// 5.Parse userID in context
+	userID, err := extractUserIDFromContext(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid user_id in context: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// 6. Process files (optional)
+	files := form.File["files"]
+	var fileURLs []string
+
+	isImageOptional := true
+	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
+	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
+	if isStatusDelivered || isStatusReceived {
+		uow := h.UnitOfWork.Begin(c.Request.Context())
+		preOrder, err := uow.PreOrder().GetByID(c.Request.Context(), preOrderID, nil)
+		if err != nil {
+			resp := responses.ErrorResponse("failed to fetch pre-order: "+err.Error(), http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+		if !preOrder.IsSelfPickedUp && isStatusDelivered {
+			isImageOptional = false
+		} else if preOrder.IsSelfPickedUp && isStatusReceived {
+			isImageOptional = false
+		}
+	}
+
+	if !isImageOptional {
+		if len(files) == 0 {
+			resp := fmt.Errorf("at least one proof image is required for this state transition")
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+		tmpDir := "/tmp/preorder_uploads"
+		if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to create tmp dir", http.StatusBadRequest))
+			return
+		}
+
+		for _, fileHeader := range files {
+			timestamp := time.Now().Format("20060102_150405")
+			newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+			localPath := tmpDir + "/" + newFileName
+
+			// Save tmp
+			if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
+				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file", http.StatusInternalServerError))
+				return
+			}
+
+			// =======================================
+			defer func(path string) { _ = os.Remove(path) }(localPath)
+
+			// Upload to remote storage (e.g., S3, GCS)
+			userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
+			url, err := h.fileService.UploadFile(userID, localPath, newFileName)
+			if err != nil {
+				_ = os.Remove(localPath)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+				return
+			}
+
+			// Cleanup tmp file after upload
+			_ = os.Remove(localPath)
+			// =======================================
+
+			fileURLs = append(fileURLs, url)
+
+			// cleanup local
+			_ = os.Remove(localPath)
+		}
+	}
+
+	// ----------------------------------
+	// 7. Move state
+	// ----------------------------------
+
+	ctx := c.Request.Context()
+	if err := h.MovePreOrderToState(ctx, preOrderID, targetState, userID, ptr.String(fileURLs[0])); err != nil {
+		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move pre-order: "+err.Error(), http.StatusConflict))
+		return
+	}
+
+	// ----------------------------------
+	// 8. Response
+	// ----------------------------------
+	c.JSON(http.StatusOK, responses.SuccessResponse("Pre-order state updated", nil, map[string]any{
+		"id":    preOrderID,
+		"state": targetState,
+		"files": fileURLs,
 	}))
 }
 
@@ -405,4 +565,68 @@ func extractUserIDFromContext(c *gin.Context) (uuid.UUID, error) {
 	}
 	userIDStr, _ := userIDVal.(string)
 	return uuid.Parse(userIDStr)
+}
+
+func roleChecker(t, roleStr string, target any) error {
+	switch t {
+	case "PREORDER":
+		zap.L().Info("This is an preorder")
+		parsedTarget := target.(enum.PreOrderStatus)
+		forbiddenStates := make(map[enum.PreOrderStatus]bool)
+
+		switch roleStr {
+		case string(enum.UserRoleAdmin):
+			// ADMIN có thể làm tất cả, không cần kiểm tra
+		case string(enum.UserRoleBrandPartner):
+			forbiddenStates = map[enum.PreOrderStatus]bool{
+				enum.PreOrderStatusPaid:           true,
+				enum.PreOrderStatusPreOrdered:     true,
+				enum.PreOrderStatusStockReady:     true,
+				enum.PreOrderStatusStockPreparing: true,
+				enum.PreOrderStatusAwaitingPickup: true,
+				enum.PreOrderStatusInTransit:      true,
+				enum.PreOrderStatusDelivered:      true,
+			}
+		case string(enum.UserRoleSalesStaff):
+			forbiddenStates = map[enum.PreOrderStatus]bool{
+				enum.PreOrderStatusPaid: true,
+			}
+		default:
+			return fmt.Errorf("unknown role: %s", roleStr)
+		}
+
+		if forbiddenStates[parsedTarget] {
+			return fmt.Errorf("%s cannot move preorder to state %s", enum.UserRoleBrandPartner.String(), parsedTarget.String())
+		}
+
+	case "PRODUCT":
+		parsedTarget := target.(enum.ProductStatus)
+		forbiddenStates := make(map[enum.ProductStatus]bool)
+
+		switch roleStr {
+		case string(enum.UserRoleAdmin):
+			// ADMIN có thể làm tất cả, không cần kiểm tra
+		case string(enum.UserRoleBrandPartner):
+			forbiddenStates = map[enum.ProductStatus]bool{
+				enum.ProductStatusDraft:     true,
+				enum.ProductStatusSubmitted: true,
+			}
+		case string(enum.UserRoleSalesStaff):
+			forbiddenStates = map[enum.ProductStatus]bool{
+				enum.ProductStatusRevision: true,
+				enum.ProductStatusActived:  true,
+			}
+		default:
+			return fmt.Errorf("unknown role: %s", roleStr)
+		}
+
+		if forbiddenStates[parsedTarget] {
+			return fmt.Errorf("%s cannot move product to state %s", enum.UserRoleBrandPartner.String(), parsedTarget.String())
+		}
+
+	default:
+		zap.L().Info("Type not found for: " + t)
+		return fmt.Errorf("Type not found for role Checker: %s ", t)
+	}
+	return nil
 }
