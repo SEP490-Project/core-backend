@@ -597,12 +597,14 @@ func (p productService) GetProductsPagination(page, limit int, search, categoryI
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, productType string, productStatuses []string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
+func (p productService) GetProductsPaginationV2(page, limit int, search, categoryID, brandID, userID, productType string, productStatuses []string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
 		zap.String("search", search),
 		zap.String("category_id", categoryID),
+		zap.String("brand_id", brandID),
+		zap.String("user_id", userID),
 		zap.String("product_type", productType),
 	)
 
@@ -636,13 +638,31 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 			}
 		}
 
+		if brandID != "" {
+			bid, err := uuid.Parse(brandID)
+			if err == nil {
+				db = db.Where(`brand_id = ?`, bid)
+			} else {
+				db = db.Where(`brand_id = ?`, uuid.Nil)
+			}
+		}
+
+		if userID != "" {
+			uid, err := uuid.Parse(userID)
+			if err == nil {
+				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uid)
+			} else {
+				db = db.Joins("JOIN brands b ON b.id = products.brand_id").Where("b.user_id = ?", uuid.Nil)
+			}
+		}
+
 		if productType != "" {
 			db = db.Where(`type = ?`, productType)
 		}
 
 		// Support filtering by multiple statuses when provided
 		if len(productStatuses) > 0 {
-			db = db.Where("status IN ?", productStatuses)
+			db = db.Where("products.status IN ?", productStatuses)
 		}
 
 		return db.Order("products.created_at DESC").Order("products.id")
@@ -715,7 +735,7 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	return productResponses, int(total), nil
 }
 
-func (p productService) GetProductsPaginationV2Partial(page, limit int, search, categoryID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
+func (p productService) GetProductsPaginationV2Partial(page, limit int, search, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error) {
 	zap.L().Debug("Fetching products with pagination",
 		zap.Int("page", page),
 		zap.Int("limit", limit),
@@ -753,6 +773,15 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 				db = db.Where(`category_id = ?`, cid)
 			} else {
 				db = db.Where(`category_id = ?`, uuid.Nil)
+			}
+		}
+
+		if brandID != "" {
+			bid, err := uuid.Parse(brandID)
+			if err == nil {
+				db = db.Where(`brand_id = ?`, bid)
+			} else {
+				db = db.Where(`brand_id = ?`, uuid.Nil)
 			}
 		}
 
