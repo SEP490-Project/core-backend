@@ -10,4 +10,5 @@ type S3StreamingStorage interface {
 	Put(ctx context.Context, key string, body io.Reader, contentType string) error
 	Delete(ctx context.Context, key string) error
 	BuildUrl(key string) string
+	Get(ctx context.Context, key string) (io.ReadCloser, int64, error)
 }
