@@ -46,6 +46,7 @@ type ServerConfig struct {
 	PayOSLinkExpiry int    `mapstructure:"payos_link_expiry"` // in seconds
 	Timezone        string `mapstructure:"timezone"`
 	BaseURL         string `mapstructure:"base_url"`
+	BaseFrontendURL string `mapstructure:"base_frontend_url"`
 }
 
 type DatabaseConfig struct {
@@ -345,6 +346,7 @@ func setDefaultValues() {
 	viper.SetDefault("server.environment", "development") // Options: development, production
 	viper.SetDefault("server.timezone", "UTC")
 	viper.SetDefault("server.base_url", "http://localhost:8080")
+	viper.SetDefault("server.base_frontend_url", "https://bshowsell.site")
 
 	viper.SetDefault("database.host", "postgres.trangiangkhanh.online")
 	viper.SetDefault("database.port", 5432)
@@ -526,7 +528,7 @@ func (jc *JWTConfig) UpdateRSAKeys(privateKeyPEM, publicKeyPEM string) error {
 	return nil
 }
 
-func (c *AppConfig) IsDevelopmentDebugging() bool {
-	return strings.ToLower(c.Server.Environment) == "development" &&
-		strings.ToLower(c.Log.Level) == "debug"
+func (config *AppConfig) IsDevelopmentDebugging() bool {
+	return strings.ToLower(config.Server.Environment) == "development" &&
+		strings.ToLower(config.Log.Level) == "debug"
 }
