@@ -3250,6 +3250,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/campaigns/id/{id}/approve": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve a campaign by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Approve Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign approved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/campaigns/id/{id}/details": {
             "get": {
                 "security": [
@@ -3305,6 +3367,68 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Campaign not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/campaigns/id/{id}/reject": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Reject a campaign by providing a reason.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Reject Campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason for rejecting the campaign",
+                        "name": "reason",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Campaign rejected successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid campaign ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3380,130 +3504,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/campaigns/{id}/approve": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Approve a campaign by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Campaigns"
-                ],
-                "summary": "Approve Campaign",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Campaign ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Campaign approved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid campaign ID",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/campaigns/{id}/reject": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Reject a campaign by providing a reason.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Campaigns"
-                ],
-                "summary": "Reject Campaign",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Campaign ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Reason for rejecting the campaign",
-                        "name": "reason",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Campaign rejected successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid campaign ID",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -8930,31 +8930,25 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "PENDING",
-                            "PAID",
-                            "REFUNDED",
-                            "CONFIRMED",
-                            "CANCELLED",
-                            "SHIPPED",
-                            "IN_TRANSIT",
-                            "DELIVERED",
-                            "RECEIVED",
-                            "AWAITING_PICKUP"
-                        ],
-                        "type": "string",
-                        "example": "PAID",
-                        "x-enum-varnames": [
-                            "OrderStatusPending",
-                            "OrderStatusPaid",
-                            "OrderStatusRefunded",
-                            "OrderStatusConfirmed",
-                            "OrderStatusCancelled",
-                            "OrderStatusShipped",
-                            "OrderStatusInTransit",
-                            "OrderStatusDelivered",
-                            "OrderStatusReceived",
-                            "OrderStatusAwaitingPickUp"
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "REFUNDED",
+                                "CONFIRMED",
+                                "CANCELLED",
+                                "SHIPPED",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "RECEIVED",
+                                "AWAITING_PICKUP"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "example": [
+                            "PAID"
                         ],
                         "description": "Order status filter\nin: query\nexample: \"PAID\"",
                         "name": "status",
@@ -10428,33 +10422,27 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "PENDING",
-                            "PAID",
-                            "REFUNDED",
-                            "CONFIRMED",
-                            "CANCELLED",
-                            "SHIPPED",
-                            "IN_TRANSIT",
-                            "DELIVERED",
-                            "RECEIVED",
-                            "AWAITING_PICKUP"
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "PRE_ORDERED",
+                                "CANCELLED",
+                                "STOCK_READY",
+                                "STOCK_PREPARING",
+                                "AWAITING_PICKUP",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "RECEIVED"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "example": [
+                            "PAID"
                         ],
-                        "type": "string",
-                        "example": "PAID",
-                        "x-enum-varnames": [
-                            "OrderStatusPending",
-                            "OrderStatusPaid",
-                            "OrderStatusRefunded",
-                            "OrderStatusConfirmed",
-                            "OrderStatusCancelled",
-                            "OrderStatusShipped",
-                            "OrderStatusInTransit",
-                            "OrderStatusDelivered",
-                            "OrderStatusReceived",
-                            "OrderStatusAwaitingPickUp"
-                        ],
-                        "description": "Order status filter\nin: query\nexample: \"PAID\"",
+                        "description": "Order status filter\nin: query\nexample: \"PENDING PAID REFUNDED CONFIRMED CANCELLED SHIPPED IN_TRANSIT DELIVERED RECEIVED AWAITING_PICKUP\"",
                         "name": "status",
                         "in": "query"
                     },
@@ -10614,7 +10602,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Target state: 'PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'",
+                        "description": "Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'",
                         "name": "state",
                         "in": "formData",
                         "required": true
@@ -13827,176 +13815,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/webhooks/events": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieves webhook events with optional filtering by platform and processed status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Webhooks"
-                ],
-                "summary": "List webhook events",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Filter by platform (FACEBOOK, TIKTOK)",
-                        "name": "platform",
-                        "in": "query"
-                    },
-                    {
-                        "type": "boolean",
-                        "description": "Filter by processed status",
-                        "name": "processed",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of records to return (default 50)",
-                        "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Number of records to skip (default 0)",
-                        "name": "page",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/model.WebhookEvent"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/webhooks/facebook": {
-            "post": {
-                "description": "Receives webhook events from Facebook (feed updates, page events, mentions)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Webhooks"
-                ],
-                "summary": "Facebook webhook endpoint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Facebook webhook signature",
-                        "name": "X-Hub-Signature-256",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/webhooks/tiktok": {
-            "post": {
-                "description": "Receives webhook events from TikTok (video publish, video delete, comments)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Webhooks"
-                ],
-                "summary": "TikTok webhook endpoint",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "TikTok webhook signature",
-                        "name": "X-TikTok-Signature",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "TikTok webhook timestamp",
-                        "name": "X-TikTok-Timestamp",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/health": {
             "get": {
                 "description": "Returns the health status of the application and its dependencies",
@@ -16047,10 +15865,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.JSONBPayload": {
-            "type": "object",
-            "additionalProperties": true
-        },
         "model.JSONBPlatformConfig": {
             "type": "object",
             "properties": {
@@ -16453,41 +16267,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.WebhookEvent": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "errorMessage": {
-                    "type": "string"
-                },
-                "eventType": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "payload": {
-                    "$ref": "#/definitions/model.JSONBPayload"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "processed": {
-                    "type": "boolean"
-                },
-                "processedAt": {
-                    "type": "string"
-                },
-                "retryCount": {
-                    "type": "integer"
-                },
-                "signature": {
-                    "type": "string"
-                }
-            }
-        },
         "requests.BlogFieldsDTO": {
             "type": "object",
             "required": [
@@ -16614,10 +16393,6 @@ const docTemplate = `{
                 "manufacturing_date": {
                     "type": "string",
                     "example": "2023-10-01T00:00:00Z"
-                },
-                "pre_order_count": {
-                    "type": "integer",
-                    "example": 0
                 },
                 "pre_order_limit": {
                     "type": "integer",

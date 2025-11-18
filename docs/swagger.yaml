@@ -1370,9 +1370,6 @@ definitions:
       last_attempt_at:
         type: string
     type: object
-  model.JSONBPayload:
-    additionalProperties: true
-    type: object
   model.JSONBPlatformConfig:
     properties:
       android_config:
@@ -1645,29 +1642,6 @@ definitions:
       updated_by:
         type: string
     type: object
-  model.WebhookEvent:
-    properties:
-      createdAt:
-        type: string
-      errorMessage:
-        type: string
-      eventType:
-        type: string
-      id:
-        type: string
-      payload:
-        $ref: '#/definitions/model.JSONBPayload'
-      platform:
-        type: string
-      processed:
-        type: boolean
-      processedAt:
-        type: string
-      retryCount:
-        type: integer
-      signature:
-        type: string
-    type: object
   requests.BlogFieldsDTO:
     properties:
       author_id:
@@ -1755,9 +1729,6 @@ definitions:
       manufacturing_date:
         example: "2023-10-01T00:00:00Z"
         type: string
-      pre_order_count:
-        example: 0
-        type: integer
       pre_order_limit:
         example: 0
         type: integer
@@ -7073,86 +7044,6 @@ paths:
       summary: Create Campaign from Contract
       tags:
       - Campaigns
-  /api/v1/campaigns/{id}/approve:
-    patch:
-      consumes:
-      - application/json
-      description: Approve a campaign by ID
-      parameters:
-      - description: Campaign ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign approved successfully
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid campaign ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Approve Campaign
-      tags:
-      - Campaigns
-  /api/v1/campaigns/{id}/reject:
-    patch:
-      consumes:
-      - application/json
-      description: Reject a campaign by providing a reason.
-      parameters:
-      - description: Campaign ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reason for rejecting the campaign
-        in: query
-        name: reason
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Campaign rejected successfully
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid campaign ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Reject Campaign
-      tags:
-      - Campaigns
   /api/v1/campaigns/{id}/suggest:
     get:
       consumes:
@@ -7515,6 +7406,46 @@ paths:
       summary: Update Campaign
       tags:
       - Campaigns
+  /api/v1/campaigns/id/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Approve a campaign by ID
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign approved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve Campaign
+      tags:
+      - Campaigns
   /api/v1/campaigns/id/{id}/details:
     get:
       consumes:
@@ -7555,6 +7486,46 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Campaign Details by ID
+      tags:
+      - Campaigns
+  /api/v1/campaigns/id/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Reject a campaign by providing a reason.
+      parameters:
+      - description: Campaign ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for rejecting the campaign
+        in: query
+        name: reason
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaign rejected successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid campaign ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reject Campaign
       tags:
       - Campaigns
   /api/v1/campaigns/internal:
@@ -11055,36 +11026,29 @@ paths:
         in: query
         name: search
         type: string
-      - description: |-
+      - collectionFormat: csv
+        description: |-
           Order status filter
           in: query
           example: "PAID"
-        enum:
-        - PENDING
+        example:
         - PAID
-        - REFUNDED
-        - CONFIRMED
-        - CANCELLED
-        - SHIPPED
-        - IN_TRANSIT
-        - DELIVERED
-        - RECEIVED
-        - AWAITING_PICKUP
-        example: PAID
         in: query
+        items:
+          enum:
+          - PENDING
+          - PAID
+          - REFUNDED
+          - CONFIRMED
+          - CANCELLED
+          - SHIPPED
+          - IN_TRANSIT
+          - DELIVERED
+          - RECEIVED
+          - AWAITING_PICKUP
+          type: string
         name: status
-        type: string
-        x-enum-varnames:
-        - OrderStatusPending
-        - OrderStatusPaid
-        - OrderStatusRefunded
-        - OrderStatusConfirmed
-        - OrderStatusCancelled
-        - OrderStatusShipped
-        - OrderStatusInTransit
-        - OrderStatusDelivered
-        - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
+        type: array
       - description: |-
           GHN ward code
           in: query
@@ -12019,8 +11983,8 @@ paths:
         name: id
         required: true
         type: string
-      - description: 'Target state: ''PENDING'', ''PRE_ORDERED'', ''AWAITING_RELEASE'',
-          ''AWAITING_PICKUP'', ''CONFIRMED'', ''CANCELLED'', ''IN_TRANSIT'', ''DELIVERED'',
+      - description: 'Target state: ''PENDING'', ''PAID'', ''PRE_ORDERED'', ''STOCK_READY'',
+          ''STOCK_PREPARING'', ''AWAITING_PICKUP'', ''IN_TRANSIT'', ''DELIVERED'',
           ''RECEIVED'''
         in: formData
         name: state
@@ -12114,36 +12078,29 @@ paths:
         in: query
         name: search
         type: string
-      - description: |-
+      - collectionFormat: csv
+        description: |-
           Order status filter
           in: query
-          example: "PAID"
-        enum:
-        - PENDING
+          example: "PENDING PAID REFUNDED CONFIRMED CANCELLED SHIPPED IN_TRANSIT DELIVERED RECEIVED AWAITING_PICKUP"
+        example:
         - PAID
-        - REFUNDED
-        - CONFIRMED
-        - CANCELLED
-        - SHIPPED
-        - IN_TRANSIT
-        - DELIVERED
-        - RECEIVED
-        - AWAITING_PICKUP
-        example: PAID
         in: query
+        items:
+          enum:
+          - PENDING
+          - PAID
+          - PRE_ORDERED
+          - CANCELLED
+          - STOCK_READY
+          - STOCK_PREPARING
+          - AWAITING_PICKUP
+          - IN_TRANSIT
+          - DELIVERED
+          - RECEIVED
+          type: string
         name: status
-        type: string
-        x-enum-varnames:
-        - OrderStatusPending
-        - OrderStatusPaid
-        - OrderStatusRefunded
-        - OrderStatusConfirmed
-        - OrderStatusCancelled
-        - OrderStatusShipped
-        - OrderStatusInTransit
-        - OrderStatusDelivered
-        - OrderStatusReceived
-        - OrderStatusAwaitingPickUp
+        type: array
       - description: |-
           GHN ward code
           in: query
@@ -14293,117 +14250,6 @@ paths:
       summary: Create Variant Attribute
       tags:
       - Products.Variants.Attributes
-  /api/v1/webhooks/events:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves webhook events with optional filtering by platform and
-        processed status
-      parameters:
-      - description: Filter by platform (FACEBOOK, TIKTOK)
-        in: query
-        name: platform
-        type: string
-      - description: Filter by processed status
-        in: query
-        name: processed
-        type: boolean
-      - description: Number of records to return (default 50)
-        in: query
-        name: limit
-        type: integer
-      - description: Number of records to skip (default 0)
-        in: query
-        name: page
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/model.WebhookEvent'
-                  type: array
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List webhook events
-      tags:
-      - Webhooks
-  /api/v1/webhooks/facebook:
-    post:
-      consumes:
-      - application/json
-      description: Receives webhook events from Facebook (feed updates, page events,
-        mentions)
-      parameters:
-      - description: Facebook webhook signature
-        in: header
-        name: X-Hub-Signature-256
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      summary: Facebook webhook endpoint
-      tags:
-      - Webhooks
-  /api/v1/webhooks/tiktok:
-    post:
-      consumes:
-      - application/json
-      description: Receives webhook events from TikTok (video publish, video delete,
-        comments)
-      parameters:
-      - description: TikTok webhook signature
-        in: header
-        name: X-TikTok-Signature
-        required: true
-        type: string
-      - description: TikTok webhook timestamp
-        in: header
-        name: X-TikTok-Timestamp
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      summary: TikTok webhook endpoint
-      tags:
-      - Webhooks
   /health:
     get:
       consumes:
