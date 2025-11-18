@@ -529,11 +529,17 @@ func (s *contentPublishingService) publishVideoPostToFacebook(ctx context.Contex
 		zap.String("s3_key", videoS3Key),
 		zap.String("title", title))
 
+	var encodedURL string
+	if encodedURL, err = utils.EncodeIndividualPathSegments(videoS3URLStr); err != nil {
+		zap.L().Error("Failed to encode video S3 URL",
+			zap.Error(err))
+		return "", "", fmt.Errorf("failed to encode video S3 URL: %w", err)
+	}
 	videoPublishRequest := &dtos.FacebookVideoPostPublishRequest{
 		PageID:                 pageID,
 		Title:                  title,
 		Description:            description,
-		FileURL:                videoS3URLStr,
+		FileURL:                encodedURL,
 		Published:              true,
 		ScheduledPublishTime:   0,
 		UnpublishedContentType: nil,
