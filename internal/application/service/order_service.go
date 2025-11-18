@@ -454,9 +454,9 @@ func toPaymentItemRequestsWithTotalPrice(items []model.OrderItem, shippingFee in
 	return paymentItems, total
 }
 
-func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search string, status string, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]responses.OrderResponse, int, error) {
+func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode, orderType string, statuses []string) ([]responses.OrderResponse, int, error) {
 	ctx := context.Background()
-	orders, total, err := o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode, orderType)
+	orders, total, err := o.orderRepository.GetStaffAvailableOrdersWithPagination(ctx, limit, page, search, fullName, phone, provinceID, districtID, wardCode, orderType, statuses)
 	if err != nil {
 		return nil, 0, err
 	}
