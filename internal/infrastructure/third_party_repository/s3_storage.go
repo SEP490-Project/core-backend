@@ -44,6 +44,25 @@ func (r *s3Storage) Put(ctx context.Context, key string, body io.Reader, content
 	return nil
 }
 
+// Get retrieves an object from S3 and returns a reader and the content length
+func (r *s3Storage) Get(ctx context.Context, key string) (io.ReadCloser, int64, error) {
+	output, err := r.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(r.bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get object %s: %w", key, err)
+	}
+
+	// Get content length from metadata
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+	}
+
+	return output.Body, contentLength, nil
+}
+
 func (r *s3Storage) Delete(ctx context.Context, key string) error {
 	_, err := r.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(r.bucketName),

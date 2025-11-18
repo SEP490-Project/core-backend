@@ -335,16 +335,16 @@ func (c *CampaignService) CreateCampaignFromContract(
 ) (*responses.CampaignDetailsResponse, error) {
 	zap.L().Info("Creating campaign from contract", zap.Any("request", request))
 
-	contractRepo := uow.Contracts()
 	campaignRepo := uow.Campaigns()
 	milstoneRepo := uow.Milestones()
 	taskRepo := uow.Tasks()
 
+	contractID, _ := uuid.Parse(request.ContractID)
 	existCampaignFunc := func(ctx context.Context) error {
 		existFilterQuery := func(db *gorm.DB) *gorm.DB {
-			return db.Where("contract_id = ?", request.ContractID)
+			return db.Where("contract_id = ?", contractID)
 		}
-		if exists, err := campaignRepo.Exists(ctx, existFilterQuery); err != nil {
+		if exists, err := c.campaignRepo.Exists(ctx, existFilterQuery); err != nil {
 			zap.L().Error("Failed to check if campaign exists for contract", zap.Error(err))
 			return err
 		} else if exists {
@@ -355,7 +355,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 		return nil
 	}
 	contractStatusFunc := func(ctx context.Context) error {
-		contract, err := contractRepo.GetByID(ctx, request.ContractID, nil)
+		contract, err := c.contractRepo.GetByID(ctx, contractID, nil)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				zap.L().Warn("Contract not found", zap.String("contract_id", request.ContractID))

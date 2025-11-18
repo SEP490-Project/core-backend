@@ -161,3 +161,146 @@ func (t *TikTokProxy) getUserProfile(ctx context.Context, accessToken string, fi
 }
 
 // endregion
+
+// region: ========= Content Posting Methods =========
+
+// GetCreatorInfo implements iproxies.TikTokProxy.
+func (t *TikTokProxy) GetCreatorInfo(ctx context.Context, accessToken string) (*dtos.TikTokCreatorInfoResponse, error) {
+	zap.L().Info("TikTokProxy - GetCreatorInfo called",
+		zap.Int("access_token_length", len(accessToken)))
+
+	path := "post/publish/creator_info/query/"
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+		"Content-Type":  "application/json; charset=UTF-8",
+	}
+
+	var creatorInfo dtos.TikTokCreatorInfoResponse
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, map[string]interface{}{}, &creatorInfo); err != nil {
+		zap.L().Error("Failed to get TikTok creator info", zap.Error(err))
+		return nil, fmt.Errorf("failed to get creator info: %w", err)
+	}
+
+	if creatorInfo.Error.Code != "" && creatorInfo.Error.Code != "ok" {
+		zap.L().Error("TikTok API returned error on getting creator info",
+			zap.Any("error", creatorInfo.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", creatorInfo.Error.Code, creatorInfo.Error.Message)
+	}
+
+	return &creatorInfo, nil
+}
+
+// InitVideoPost implements iproxies.TikTokProxy.
+func (t *TikTokProxy) InitVideoPost(ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest) (*dtos.TikTokVideoInitResponse, error) {
+	zap.L().Info("TikTokProxy - InitVideoPost called",
+		zap.String("title", req.PostInfo.Title),
+		zap.String("privacy_level", req.PostInfo.PrivacyLevel),
+		zap.Int64("video_size", req.SourceInfo.VideoSize))
+
+	path := "post/publish/video/init/"
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+		"Content-Type":  "application/json; charset=UTF-8",
+	}
+
+	var initResp dtos.TikTokVideoInitResponse
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, req, &initResp); err != nil {
+		zap.L().Error("Failed to initialize TikTok video post", zap.Error(err))
+		return nil, fmt.Errorf("failed to init video post: %w", err)
+	}
+
+	if initResp.Error.Code != "" && initResp.Error.Code != "ok" {
+		zap.L().Error("TikTok API returned error on video init",
+			zap.Any("error", initResp.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", initResp.Error.Code, initResp.Error.Message)
+	}
+
+	zap.L().Info("TikTok video init successful",
+		zap.String("publish_id", initResp.Data.PublishID))
+
+	return &initResp, nil
+}
+
+// UploadVideoChunk implements iproxies.TikTokProxy.
+func (t *TikTokProxy) UploadVideoChunk(ctx context.Context, uploadURL string, videoData []byte, chunkIndex int, totalChunks int, fileSize int64) error {
+	zap.L().Info("TikTokProxy - UploadVideoChunk called",
+		zap.Int("chunk_index", chunkIndex),
+		zap.Int("total_chunks", totalChunks),
+		zap.Int("chunk_size", len(videoData)))
+
+	// Calculate byte range for this chunk
+	chunkSize := int64(len(videoData))
+	startByte := int64(chunkIndex) * chunkSize
+	endByte := startByte + chunkSize - 1
+	if endByte >= fileSize {
+		endByte = fileSize - 1
+	}
+
+	headers := map[string]string{
+		"Content-Type":   "video/mp4",
+		"Content-Range":  fmt.Sprintf("bytes %d-%d/%d", startByte, endByte, fileSize),
+		"Content-Length": fmt.Sprintf("%d", chunkSize),
+	}
+
+	// Create a temporary BaseProxy with the upload URL
+	uploadProxy := NewBaseProxy(t.httpClient, uploadURL, t.BaseProxy.config)
+
+	resp, err := uploadProxy.Put(ctx, "", headers, videoData)
+	if err != nil {
+		zap.L().Error("Failed to upload video chunk", zap.Error(err))
+		return fmt.Errorf("failed to upload chunk: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		zap.L().Error("TikTok video chunk upload failed",
+			zap.Int("status_code", resp.StatusCode),
+			zap.Int("chunk_index", chunkIndex))
+		return fmt.Errorf("video chunk upload failed with status: %d", resp.StatusCode)
+	}
+
+	zap.L().Info("TikTok video chunk uploaded successfully",
+		zap.Int("chunk_index", chunkIndex),
+		zap.Int("total_chunks", totalChunks))
+
+	return nil
+}
+
+// CheckPostStatus implements iproxies.TikTokProxy.
+func (t *TikTokProxy) CheckPostStatus(ctx context.Context, publishID string, accessToken string) (*dtos.TikTokPostStatusResponse, error) {
+	zap.L().Info("TikTokProxy - CheckPostStatus called",
+		zap.String("publish_id", publishID))
+
+	path := "post/publish/status/fetch/"
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+		"Content-Type":  "application/json; charset=UTF-8",
+	}
+
+	body := map[string]interface{}{
+		"publish_id": publishID,
+	}
+
+	var statusResp dtos.TikTokPostStatusResponse
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, body, &statusResp); err != nil {
+		zap.L().Error("Failed to check TikTok post status", zap.Error(err))
+		return nil, fmt.Errorf("failed to check post status: %w", err)
+	}
+
+	if statusResp.Error.Code != "" && statusResp.Error.Code != "ok" {
+		zap.L().Error("TikTok API returned error on status check",
+			zap.Any("error", statusResp.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", statusResp.Error.Code, statusResp.Error.Message)
+	}
+
+	zap.L().Info("TikTok post status fetched",
+		zap.String("status", statusResp.Data.Status),
+		zap.String("publish_id", publishID))
+
+	return &statusResp, nil
+}
+
+// endregion

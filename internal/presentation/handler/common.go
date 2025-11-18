@@ -36,6 +36,19 @@ func extractUserID(c *gin.Context) (userID uuid.UUID, err error) {
 	return
 }
 
+// extractRequestID utility extracts the request ID from the Gin context.
+func extractRequestID(c *gin.Context) string {
+	requestIDData, exists := c.Get("request_id")
+	if !exists {
+		return uuid.New().String()
+	}
+	requestID, ok := requestIDData.(string)
+	if !ok {
+		return uuid.New().String()
+	}
+	return requestID
+}
+
 // extractUserReoles utility extracts and validate the user roles from the Gin context.
 func extractUserRoles(c *gin.Context) (*string, error) {
 	rolesData, exists := c.Get("roles")
