@@ -5,6 +5,9 @@ import (
 	"io"
 	"mime/multipart"
 	"net/url"
+	"strings"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // AddQueryParam appends a single query parameter to the given URL.
@@ -64,4 +67,20 @@ func NewMultipartFormWithFiles(fields map[string]string, files map[string]io.Rea
 		}
 		return nil
 	}
+}
+
+// EncodeIndividualPathSegments encodes each segment of the URL path using NFC normalization.
+func EncodeIndividualPathSegments(urlStr string) (string, error) {
+	url, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
+	}
+
+	pathSegments := strings.Split(strings.Trim(url.Path, "/"), "/")
+	for i, segment := range pathSegments {
+		pathSegments[i] = norm.NFC.String(segment)
+	}
+	url.Path = "/" + strings.Join(pathSegments, "/")
+
+	return url.String(), nil
 }
