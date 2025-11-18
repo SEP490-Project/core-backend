@@ -230,15 +230,12 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 // UpdatePreOrderState
 //
 //	@Tags		Preorders
-//
-// @Accept multipart/form-data
-// @Produce json
-// @Param id    path      string true  "Pre-Order ID (UUID)"
-// @Param state formData  string true  "Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
-// @Param files formData  file   false "Proof images (multiple)"
-//
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		id		path		string	true	"Pre-Order ID (UUID)"
+//	@Param		state	formData	string	true	"Target state: 'PENDING', 'PAID', 'PRE_ORDERED', 'STOCK_READY', 'STOCK_PREPARING', 'AWAITING_PICKUP', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED'"
+//	@Param		files	formData	file	false	"Proof images (multiple)"
 //	@Security	BearerAuth
-//
 //	@Router		/api/v1/preorders/{id}/state [patch]
 func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	// 1.Parse path param
