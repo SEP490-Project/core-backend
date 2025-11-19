@@ -2,6 +2,7 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 )
 
@@ -10,6 +11,6 @@ type FileService interface {
 	DeleteFile(ctx context.Context, userID string, fileName string) error
 
 	//Streaming
-	UploadVideoStream(ctx context.Context, userID string, fileName string, data *[]byte, isLastChunk bool, action *string) (*responses.PathResponse, error)
+	UploadVideoStream(ctx context.Context, req *requests.UploadVideoChunkRequest, data *[]byte) (*responses.PathResponse, error)
 	DeleteVideoStream(ctx context.Context, userID string, fileName string) error
 }
