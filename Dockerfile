@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ===============================================================
 # Stage 1: Build
 FROM golang:1.24-alpine AS builder
@@ -10,7 +11,9 @@ ENV GO111MODULE=on \
     PATH=$PATH:/go/bin \
     APP_NAME=${APP_NAME}
 
-RUN apk add --no-cache busybox-static ca-certificates tzdata \
+# Install dependencies and swaggo
+# usage of apk cache and go cache
+RUN apk add --no-cache busybox-static ca-certificates tzdata git \
     && mkdir -p /bin \
     && cp /bin/busybox.static /bin/busybox \
     && /bin/busybox --install -s /bin
@@ -18,12 +21,20 @@ RUN apk add --no-cache busybox-static ca-certificates tzdata \
 WORKDIR /build
 
 COPY go.mod go.sum ./
-RUN go mod download && go install github.com/swaggo/swag/cmd/swag@latest
+
+# Mount caches for GOCACHE and GOMODCACHE to speed up download and build
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download && \
+    go install github.com/swaggo/swag/cmd/swag@latest
 
 COPY . .
 
-RUN swag init -g ./cmd/server/main.go --output ./docs --parseInternal
-RUN go build -ldflags='-w -s -extldflags "-static"' -a -o main ./cmd/server/main.go
+# Generate swagger and build in one step with caching
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    swag init -g ./cmd/server/main.go --output ./docs --parseInternal && \
+    go build -ldflags='-w -s -extldflags "-static"' -a -o main ./cmd/server/main.go
 
 # ===============================================================
 # Stage 2: Final (scratch + minimal utilities)
@@ -39,6 +50,10 @@ COPY --from=builder /etc/group /etc/group
 COPY --from=builder /bin /bin
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+
+# Copy static ffmpeg binaries
+COPY --from=mwader/static-ffmpeg:6.0 /ffmpeg /usr/bin/ffmpeg
+COPY --from=mwader/static-ffmpeg:6.0 /ffprobe /usr/bin/ffprobe
 
 WORKDIR /app
 
