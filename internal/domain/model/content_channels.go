@@ -10,11 +10,12 @@ import (
 )
 
 type ContentChannel struct {
-	ID             uuid.UUID           `json:"id" gorm:"type:uuid;column:id;primaryKey"`
-	ContentID      uuid.UUID           `json:"content_id" gorm:"type:uuid;column:content_id;not null;index"`
-	ChannelID      uuid.UUID           `json:"channel_id" gorm:"type:uuid;column:channel_id;not null;index"`
-	PostDate       *time.Time          `json:"post_date" gorm:"column:post_date"`
-	AutoPostStatus enum.AutoPostStatus `json:"auto_post_status" gorm:"column:auto_post_status;not null;type:varchar(35)"`
+	ID              uuid.UUID           `json:"id" gorm:"type:uuid;column:id;primaryKey"`
+	ContentID       uuid.UUID           `json:"content_id" gorm:"type:uuid;column:content_id;not null;index"`
+	ChannelID       uuid.UUID           `json:"channel_id" gorm:"type:uuid;column:channel_id;not null;index"`
+	AffiliateLinkID *uuid.UUID          `json:"affiliate_link_id" gorm:"type:uuid;column:affiliate_link_id;index"`
+	PostDate        *time.Time          `json:"post_date" gorm:"column:post_date"`
+	AutoPostStatus  enum.AutoPostStatus `json:"auto_post_status" gorm:"column:auto_post_status;not null;type:varchar(35)"`
 
 	// Publishing fields
 	ExternalPostID  *string        `json:"external_post_id" gorm:"type:varchar(255);column:external_post_id"`
@@ -27,8 +28,9 @@ type ContentChannel struct {
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 
 	// Relationships
-	Content *Content `json:"-" gorm:"foreignKey:ContentID"`
-	Channel *Channel `json:"-" gorm:"foreignKey:ChannelID"`
+	Content       *Content       `json:"-" gorm:"foreignKey:ContentID"`
+	Channel       *Channel       `json:"-" gorm:"foreignKey:ChannelID"`
+	AffiliateLink *AffiliateLink `json:"-" gorm:"foreignKey:ContentID;references:ContentID"`
 }
 
 func (ContentChannel) TableName() string { return "content_channels" }
