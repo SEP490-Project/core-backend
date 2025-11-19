@@ -336,7 +336,7 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 			}
 
 			userID := c.GetString("userID")
-			url, err := h.fileService.UploadFile(userID, localPath, newFileName)
+			url, err := h.fileService.UploadFile(c.Request.Context(), userID, localPath, newFileName)
 			if err != nil {
 				_ = os.Remove(localPath)
 				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+fileHeader.Filename, http.StatusInternalServerError))
