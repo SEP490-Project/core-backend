@@ -76,10 +76,10 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 
 		defer func(path string) { _ = os.Remove(path) }(finalPath)
 
-		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
+		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
 		if err != nil {
 			_ = os.Remove(finalPath)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "FileRepositoryfailed to upload file: " + fileHeader.Filename + ", " + err.Error()})
 			return
 		}
 
@@ -108,7 +108,7 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userId and filename are required"})
 		return
 	}
-	err := h.fileService.DeleteFile(userID, filename)
+	err := h.fileService.DeleteFile(c.Request.Context(), userID, filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -116,7 +116,7 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "file deleted"})
 }
 
-// Videos
+// region: ============== UploadVideoChunk ==============
 
 // UploadVideoChunk godoc
 //
@@ -206,3 +206,5 @@ func (h *S3Handler) DeleteVideo(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
+
+// endregion

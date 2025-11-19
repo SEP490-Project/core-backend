@@ -6,8 +6,8 @@ import (
 )
 
 type FileService interface {
-	UploadFile(userID string, filePath string, destination string) (string, error)
-	DeleteFile(userID string, fileName string) error
+	UploadFile(ctx context.Context, userID string, filePath string, destination string) (string, error)
+	DeleteFile(ctx context.Context, userID string, fileName string) error
 
 	//Streaming
 	UploadVideoStream(ctx context.Context, userID string, fileName string, data *[]byte, isLastChunk bool, action *string) (*responses.PathResponse, error)
