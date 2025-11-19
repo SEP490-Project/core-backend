@@ -151,7 +151,7 @@ func NewApplicationRegistry(
 		ContentPublishingService:      contentPublishingService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
 		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
-		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository),
+		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository, databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
 		LocationService:               service.NewLocationService(databaseRegistry),
 		TagService:                    service.NewTagService(databaseRegistry.TagRepository),
 		AffiliateLinkService:          affiliateLinkService,

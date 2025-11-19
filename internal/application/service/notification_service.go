@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/rabbitmq"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,15 +17,28 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	emailProducerName = "notification-email-producer"
+	pushProducerName  = "notification-push-producer"
+)
+
 // NotificationService implements notification monitoring operations
 type NotificationService struct {
 	notificationRepo irepository.NotificationRepository
+	userRepo         irepository.GenericRepository[model.User]
+	rabbitmq         *rabbitmq.RabbitMQ
 }
 
 // NewNotificationService creates a new notification service instance
-func NewNotificationService(notificationRepo irepository.NotificationRepository) *NotificationService {
+func NewNotificationService(
+	notificationRepo irepository.NotificationRepository,
+	userRepo irepository.GenericRepository[model.User],
+	rabbitmq *rabbitmq.RabbitMQ,
+) *NotificationService {
 	return &NotificationService{
 		notificationRepo: notificationRepo,
+		userRepo:         userRepo,
+		rabbitmq:         rabbitmq,
 	}
 }
 
@@ -279,3 +296,414 @@ func (s *NotificationService) GetByFilters(
 
 	return notificationPtrs, total, nil
 }
+
+// CreateAndPublishNotification creates notification records and publishes them to specified channels
+func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) ([]uuid.UUID, error) {
+	zap.L().Info("Creating and publishing notification to multiple channels",
+		zap.String("user_id", req.UserID.String()),
+		zap.Strings("channels", req.Channels))
+
+	// Verify user exists
+	user, err := s.validateUserExists(ctx, req.UserID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process each channel
+	notificationIDs := make([]uuid.UUID, 0, len(req.Channels))
+	for _, channel := range req.Channels {
+		notificationType := enum.NotificationType(channel)
+		if !notificationType.IsValid() {
+			zap.L().Warn("Invalid notification channel", zap.String("channel", channel))
+			continue
+		}
+
+		switch notificationType {
+		case enum.NotificationTypeEmail:
+			emailReq := req.ToEmailRequest()
+			emailReq.To = user.Email
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishEmail(ctx, emailReq)
+			if err != nil {
+				zap.L().Error("Failed to publish email notification", zap.Error(err))
+				continue
+			}
+			notificationIDs = append(notificationIDs, notificationID)
+
+		case enum.NotificationTypePush:
+			pushReq := req.ToPushRequest()
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishPush(ctx, pushReq)
+			if err != nil {
+				zap.L().Error("Failed to publish push notification", zap.Error(err))
+				continue
+			}
+			notificationIDs = append(notificationIDs, notificationID)
+
+		default:
+			zap.L().Warn("Unsupported notification channel, skipping requests",
+				zap.String("channel", channel),
+				zap.Any("request", req))
+			continue
+		}
+	}
+
+	if len(notificationIDs) == 0 {
+		return nil, errors.New("failed to publish notifications to any channel")
+	}
+
+	zap.L().Info("Successfully published notifications",
+		zap.Int("count", len(notificationIDs)))
+
+	return notificationIDs, nil
+}
+
+// CreateAndPublishEmail creates an email notification record and publishes it
+func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *requests.PublishEmailRequest) (uuid.UUID, error) {
+	zap.L().Info("Creating and publishing email notification",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("to", req.To))
+
+	// Verify user exists
+	if _, err := s.validateUserExists(ctx, req.UserID, &req.To); err != nil {
+		return uuid.Nil, err
+	}
+
+	// Validate that either template or body is provided
+	if req.TemplateName == nil && req.HTMLBody == nil {
+		return uuid.Nil, errors.New("either template_name or html_body must be provided")
+	}
+
+	// Create persisting notification record and consumer message
+	notificationID := uuid.New()
+	notification := &model.Notification{
+		ID:            notificationID,
+		UserID:        req.UserID,
+		Type:          enum.NotificationTypeEmail,
+		Status:        enum.NotificationStatusPending,
+		RecipientInfo: model.JSONBRecipientInfo{Email: req.To},
+		ContentData:   model.JSONBContentData{Subject: req.Subject},
+	}
+
+	emailMsg := &consumers.EmailNotificationMessage{
+		NotificationID: notificationID,
+		UserID:         req.UserID,
+		To:             req.To,
+		Subject:        req.Subject,
+		Priority:       req.Priority,
+		Metadata:       req.Metadata,
+	}
+
+	if req.TemplateName != nil {
+		notification.ContentData.TemplateName = *req.TemplateName
+		if req.TemplateData != nil {
+			// Store template data as JSON
+			notification.ContentData.TemplateData = req.TemplateData
+		}
+		emailMsg.TemplateName = *req.TemplateName
+		emailMsg.TemplateData = req.TemplateData
+	} else if req.HTMLBody != nil {
+		notification.ContentData.Body = *req.HTMLBody
+		emailMsg.HTMLBody = *req.HTMLBody
+	}
+
+	if err := s.notificationRepo.Add(ctx, notification); err != nil {
+		zap.L().Error("Failed to create email notification record", zap.Error(err))
+		return uuid.Nil, errors.New("failed to create notification record")
+	}
+
+	if err := s.sendEmailNotification(ctx, emailMsg); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to publish notification: %s", err.Error())
+	}
+
+	zap.L().Info("Successfully published email notification",
+		zap.String("notification_id", notificationID.String()))
+
+	return notificationID, nil
+}
+
+// CreateAndPublishPush creates a push notification record and publishes it
+func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *requests.PublishPushRequest) (uuid.UUID, error) {
+	zap.L().Info("Creating and publishing push notification",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("title", req.Title))
+
+	// Verify user exists
+	if _, err := s.validateUserExists(ctx, req.UserID, nil); err != nil {
+		return uuid.Nil, err
+	}
+
+	// Create notification record and consumer message
+	notificationID := uuid.New()
+	notification := &model.Notification{
+		ID:     notificationID,
+		UserID: req.UserID,
+		Type:   enum.NotificationTypePush,
+		Status: enum.NotificationStatusPending,
+		RecipientInfo: model.JSONBRecipientInfo{
+			Tokens: []string{}, // Will be populated when sending
+		},
+		ContentData: model.JSONBContentData{
+			Title: req.Title,
+			Body:  req.Body,
+		},
+	}
+	pushMsg := &consumers.PushNotificationMessage{
+		NotificationID: notificationID,
+		UserID:         req.UserID,
+		Title:          req.Title,
+		Body:           req.Body,
+		Data:           req.Data,
+	}
+
+	// Add platform-specific configurations if provided
+	if req.IOSBadge != nil || req.IOSSound != nil || req.AndroidPriority != nil || req.AndroidNotificationTag != nil {
+		platformConfig := &model.PlatformConfig{}
+		consumerPlatformConfig := &consumers.PlatformConfig{}
+
+		if req.IOSBadge != nil || req.IOSSound != nil {
+			platformConfig.IOSConfig = &model.IOSConfig{Badge: req.IOSBadge}
+			consumerPlatformConfig.IOS = &consumers.IOSConfig{Badge: req.IOSBadge}
+			if req.IOSSound != nil {
+				platformConfig.IOSConfig.Sound = *req.IOSSound
+				consumerPlatformConfig.IOS.Sound = *req.IOSSound
+			}
+		}
+
+		if req.AndroidPriority != nil || req.AndroidNotificationTag != nil {
+			platformConfig.AndroidConfig = &model.AndroidConfig{}
+			consumerPlatformConfig.Android = &consumers.AndroidConfig{}
+			if req.AndroidPriority != nil {
+				platformConfig.AndroidConfig.Priority = *req.AndroidPriority
+				consumerPlatformConfig.Android.Priority = *req.AndroidPriority
+			}
+			if req.AndroidNotificationTag != nil {
+				platformConfig.AndroidConfig.Color = *req.AndroidNotificationTag // Using Color field as tag
+				consumerPlatformConfig.Android.Tag = *req.AndroidNotificationTag
+			}
+		}
+
+		notification.PlatformConfig = model.JSONBPlatformConfig(*platformConfig)
+		pushMsg.PlatformConfig = consumerPlatformConfig
+	}
+
+	if err := s.notificationRepo.Add(ctx, notification); err != nil {
+		zap.L().Error("Failed to create push notification record", zap.Error(err))
+		return uuid.Nil, errors.New("failed to create notification record")
+	}
+
+	// Publish to RabbitMQ
+	if err := s.sendPushNotification(ctx, pushMsg); err != nil {
+		return uuid.Nil, fmt.Errorf("failed to publish notification: %s", err.Error())
+	}
+
+	zap.L().Info("Successfully published push notification",
+		zap.String("notification_id", notificationID.String()))
+
+	return notificationID, nil
+}
+
+// RepublishFailedNotifications republishes failed notifications based on filter criteria
+func (s *NotificationService) RepublishFailedNotifications(ctx context.Context, req *requests.RepublishFailedNotificationRequest) (int, error) {
+	zap.L().Info("Republishing failed notifications",
+		zap.Int("notification_ids_count", len(req.NotificationIDs)))
+
+	var notifications []*model.Notification
+	var err error
+
+	// Fetch notifications based on criteria
+	if len(req.NotificationIDs) > 0 {
+		// Fetch specific notifications by IDs
+		for _, id := range req.NotificationIDs {
+			var notification *model.Notification
+			notification, err = s.notificationRepo.GetByID(ctx, id, nil)
+			if err != nil {
+				zap.L().Warn("Failed to fetch notification", zap.String("id", id.String()), zap.Error(err))
+				continue
+			}
+			notifications = append(notifications, notification)
+		}
+	} else {
+		// Fetch failed notifications with filters
+		minRetries := 1
+		if req.MinRetries != nil {
+			minRetries = *req.MinRetries
+		}
+
+		notifications, err = s.notificationRepo.FindFailedWithRetries(ctx, minRetries)
+		if err != nil {
+			zap.L().Error("Failed to fetch failed notifications", zap.Error(err))
+			return 0, errors.New("failed to fetch failed notifications")
+		}
+
+		// Filter by type if specified
+		if req.Type != nil {
+			notificationType := enum.NotificationType(*req.Type)
+			if !notificationType.IsValid() {
+				return 0, errors.New("invalid notification type")
+			}
+
+			filtered := make([]*model.Notification, 0)
+			for _, n := range notifications {
+				if n.Type == notificationType {
+					filtered = append(filtered, n)
+				}
+			}
+			notifications = filtered
+		}
+	}
+
+	if len(notifications) == 0 {
+		return 0, errors.New("no failed notifications found matching criteria")
+	}
+
+	successCount := 0
+
+	// Republish each notification
+	for _, notification := range notifications {
+		var producer *rabbitmq.Producer
+		var err error
+
+		switch notification.Type {
+		case enum.NotificationTypeEmail:
+			producer, err = s.rabbitmq.GetProducer("notification-email-producer")
+			if err != nil {
+				zap.L().Error("Failed to get email producer", zap.Error(err))
+				continue
+			}
+
+			// Reconstruct email message from notification record
+			emailMsg := &consumers.EmailNotificationMessage{
+				NotificationID: notification.ID,
+				UserID:         notification.UserID,
+				To:             notification.RecipientInfo.Email,
+				Subject:        notification.ContentData.Subject,
+				Body:           notification.ContentData.Body,
+			}
+
+			if notification.ContentData.TemplateName != "" {
+				emailMsg.TemplateName = notification.ContentData.TemplateName
+				emailMsg.TemplateData = notification.ContentData.TemplateData
+			} else if notification.ContentData.Body != "" {
+				emailMsg.HTMLBody = notification.ContentData.Body
+			}
+
+			if err = producer.PublishJSON(ctx, emailMsg); err != nil {
+				zap.L().Error("Failed to republish email notification",
+					zap.String("notification_id", notification.ID.String()),
+					zap.Error(err))
+				continue
+			}
+
+		case enum.NotificationTypePush:
+			producer, err = s.rabbitmq.GetProducer("notification-push-producer")
+			if err != nil {
+				zap.L().Error("Failed to get push producer", zap.Error(err))
+				continue
+			}
+
+			// Reconstruct push message from notification record
+			pushMsg := &consumers.PushNotificationMessage{
+				NotificationID: notification.ID,
+				UserID:         notification.UserID,
+				Title:          notification.ContentData.Title,
+				Body:           notification.ContentData.Body,
+				Data:           make(map[string]string), // Data is not stored in ContentData
+			}
+
+			// Note: PlatformConfig needs manual conversion if needed
+			// For simplicity, we'll send without platform config on republish
+
+			if err := producer.PublishJSON(ctx, pushMsg); err != nil {
+				zap.L().Error("Failed to republish push notification",
+					zap.String("notification_id", notification.ID.String()),
+					zap.Error(err))
+				continue
+			}
+
+		default:
+			zap.L().Warn("Unknown notification type",
+				zap.String("notification_id", notification.ID.String()),
+				zap.String("type", string(notification.Type)))
+			continue
+		}
+
+		// Update status to RETRYING
+		notification.Status = enum.NotificationStatusRetrying
+		if err := s.notificationRepo.Update(ctx, notification); err != nil {
+			zap.L().Warn("Failed to update notification status",
+				zap.String("notification_id", notification.ID.String()),
+				zap.Error(err))
+		}
+
+		successCount++
+	}
+
+	zap.L().Info("Republished failed notifications",
+		zap.Int("success_count", successCount),
+		zap.Int("total_attempted", len(notifications)))
+
+	return successCount, nil
+}
+
+// region: ============ Helper Methods =============
+
+func (s *NotificationService) validateUserExists(ctx context.Context, userID uuid.UUID, email *string) (*model.User, error) {
+	user, err := s.userRepo.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		if userID != uuid.Nil {
+			return db.Where("id = ?", userID)
+		}
+		if email != nil {
+			return db.Where("email = ?", *email)
+		}
+		return db
+	}, nil)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			zap.L().Warn("User not found", zap.String("user_id", userID.String()))
+			return nil, errors.New("user not found")
+		}
+		zap.L().Error("Failed to fetch user", zap.String("user_id", userID.String()), zap.Error(err))
+		return nil, errors.New("failed to fetch user")
+	}
+	return user, nil
+}
+
+func (s *NotificationService) sendEmailNotification(ctx context.Context, emailMessage *consumers.EmailNotificationMessage) error {
+	emailProducer, err := s.rabbitmq.GetProducer(emailProducerName)
+	if err != nil {
+		zap.L().Error("Failed to get email producer",
+			zap.String("producer_name", emailProducerName),
+			zap.Error(err))
+		return errors.New("failed to get email producer")
+	}
+
+	if err = emailProducer.PublishJSON(ctx, emailMessage); err != nil {
+		zap.L().Error("Failed to publish email notification",
+			zap.String("notification_id", emailMessage.NotificationID.String()),
+			zap.Error(err))
+		return fmt.Errorf("failed to publish email notification: %w", err)
+	}
+	return nil
+}
+
+func (s *NotificationService) sendPushNotification(ctx context.Context, pushMessage *consumers.PushNotificationMessage) error {
+	pushProducer, err := s.rabbitmq.GetProducer(pushProducerName)
+	if err != nil {
+		zap.L().Error("Failed to get push producer",
+			zap.String("producer_name", pushProducerName),
+			zap.Error(err))
+		return err
+	}
+
+	if err = pushProducer.PublishJSON(ctx, pushMessage); err != nil {
+		zap.L().Error("Failed to publish push notification",
+			zap.String("notification_id", pushMessage.NotificationID.String()),
+			zap.Error(err))
+		return fmt.Errorf("failed to publish push notification: %w", err)
+	}
+
+	return nil
+}
+
+// endregion

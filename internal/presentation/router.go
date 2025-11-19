@@ -625,9 +625,16 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 	notificationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole("ADMIN"))
 	{
+		// Read-only endpoints
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
+
+		// Testing/Publishing endpoints (Admin only)
+		notificationGroup.POST("/publish", notificationHandler.PublishNotification)
+		notificationGroup.POST("/publish/email", notificationHandler.PublishEmail)
+		notificationGroup.POST("/publish/push", notificationHandler.PublishPush)
+		notificationGroup.POST("/republish-failed", notificationHandler.RepublishFailed)
 	}
 }
 

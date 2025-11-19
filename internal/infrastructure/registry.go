@@ -31,6 +31,7 @@ type InfrastructureRegistry struct {
 	VaultService      iservicethirdparty.VaultService
 	EmailService      iservicethirdparty.EmailService
 	FCMService        iservicethirdparty.FCMService
+	ExpoPushService   iservicethirdparty.ExpoPushService
 	HealthMonitor     iservicethirdparty.HealthMonitor
 	ProxiesRegistry   *proxies.ProxiesRegistry
 
@@ -115,6 +116,12 @@ func NewInfrastructureRegistry(
 		registry.FCMService = fcmService
 		zap.L().Info("FCMService initialized successfully")
 	}
+
+	//Initialize ExpoPushService
+	zap.L().Debug("Initializing ExpoPushService...")
+	expoPushService := service.NewExpoPushService(config)
+	registry.ExpoPushService = expoPushService
+	zap.L().Info("ExpoPushService initialized successfully")
 
 	//External Services
 	zap.L().Debug("Initializing GHN Service...")
