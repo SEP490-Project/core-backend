@@ -41,6 +41,8 @@ def buildDockerfile(appName, sha) {
     sh """
         docker build \\
             --build-arg APP_NAME=${appName} \\
+            --build-arg BUILDKIT_INLINE_CACHE=1 \\
+            --cache-from type=registry,ref=${imageName}:latest \\
             --label "org.opencontainers.image.source=https://github.com/SEP490-Project/core-backend" \\
             -t ${imageName}:${tag} .
     """
