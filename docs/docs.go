@@ -19002,6 +19002,9 @@ const docTemplate = `{
         "responses.ContentChannelBrief": {
             "type": "object",
             "properties": {
+                "affiliate_link": {
+                    "type": "string"
+                },
                 "auto_post_status": {
                     "type": "string"
                 },
@@ -19048,9 +19051,6 @@ const docTemplate = `{
         "responses.ContentResponse": {
             "type": "object",
             "properties": {
-                "affiliate_link": {
-                    "type": "string"
-                },
                 "ai_generated_text": {
                     "type": "string"
                 },

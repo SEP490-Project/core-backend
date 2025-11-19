@@ -10,16 +10,17 @@ import (
 
 // AffiliateLink represents a unique trackable affiliate link for content+channel combinations
 type AffiliateLink struct {
-	ID          uuid.UUID                `json:"id" gorm:"type:uuid;primaryKey"`
-	Hash        string                   `json:"hash" gorm:"type:varchar(16);uniqueIndex;not null"`                  // Base62 SHA-256 truncated (16 chars)
-	ContractID  uuid.UUID                `json:"contract_id" gorm:"type:uuid;not null;index:idx_affiliate_contract"` // Reference to contract
-	ContentID   uuid.UUID                `json:"content_id" gorm:"type:uuid;not null;index:idx_affiliate_content"`   // Reference to content
-	ChannelID   uuid.UUID                `json:"channel_id" gorm:"type:uuid;not null;index:idx_affiliate_channel"`   // Reference to channel
-	TrackingURL string                   `json:"tracking_url" gorm:"type:text;not null"`                             // Original URL from contract
-	Status      enum.AffiliateLinkStatus `json:"status" gorm:"type:varchar(20);not null;default:'active'"`           // active, inactive, expired
-	CreatedAt   *time.Time               `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt   *time.Time               `json:"updated_at" gorm:"autoUpdateTime"`
-	DeletedAt   gorm.DeletedAt           `json:"deleted_at,omitempty" gorm:"index"`
+	ID           uuid.UUID                `json:"id" gorm:"type:uuid;primaryKey"`
+	Hash         string                   `json:"hash" gorm:"type:varchar(16);uniqueIndex;not null"`                  // Base62 SHA-256 truncated (16 chars)
+	ContractID   uuid.UUID                `json:"contract_id" gorm:"type:uuid;not null;index:idx_affiliate_contract"` // Reference to contract
+	ContentID    uuid.UUID                `json:"content_id" gorm:"type:uuid;not null;index:idx_affiliate_content"`   // Reference to content
+	ChannelID    uuid.UUID                `json:"channel_id" gorm:"type:uuid;not null;index:idx_affiliate_channel"`   // Reference to channel
+	TrackingURL  string                   `json:"tracking_url" gorm:"type:text;not null"`                             // Original URL from contract
+	AffiliateURL string                   `json:"affiliate_url" gorm:"type:text;not null"`                            // Generated affiliate link URL
+	Status       enum.AffiliateLinkStatus `json:"status" gorm:"type:varchar(20);not null;default:'active'"`           // active, inactive, expired
+	CreatedAt    *time.Time               `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt    *time.Time               `json:"updated_at" gorm:"autoUpdateTime"`
+	DeletedAt    gorm.DeletedAt           `json:"deleted_at" gorm:"index"`
 
 	// Relationships (use pointers to avoid circular dependencies)
 	Contract *Contract `json:"contract,omitempty" gorm:"foreignKey:ContractID"`
