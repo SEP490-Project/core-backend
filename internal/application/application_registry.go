@@ -90,8 +90,10 @@ func NewApplicationRegistry(
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
+		stateTransferService,
 		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
+		infrastructureRegistry.DB,
 	)
 
 	channelService := service.NewChannelService(
