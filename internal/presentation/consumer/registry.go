@@ -35,7 +35,7 @@ func NewConsumerRegistry(
 		ContractCreatePaymentConsumer: NewContractCreatePaymentConsumer(appRegistry),
 		ExcelImportProductsConsumer:   NewExcelImportProductsConsumer(appRegistry),
 		NotificationEmailConsumer:     NewNotificationEmailConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
-		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry.FCMService, dbRegistry.DeviceTokenRepository, dbRegistry.NotificationRepository, appRegistry.UserService, infraRegistry.HealthMonitor),
+		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
