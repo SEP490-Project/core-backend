@@ -42,7 +42,8 @@ FROM scratch AS final
 
 ARG APP_PORT=8080
 ENV APP_PORT=${APP_PORT} \
-    TZ=Asia/Ho_Chi_Minh
+    TZ=Asia/Ho_Chi_Minh \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Copy passwd/group (so container can exec as non-root if needed)
 COPY --from=builder /etc/passwd /etc/passwd

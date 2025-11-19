@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/irepository_third_party"
@@ -17,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,19 +34,17 @@ type fileService struct {
 }
 
 // Video stream upload and delete
-func (s *fileService) UploadVideoStream(ctx context.Context, userID string, fileName string, data *[]byte, isLastChunk bool, action *string) (*responses.PathResponse, error) {
+func (s *fileService) UploadVideoStream(ctx context.Context, req *requests.UploadVideoChunkRequest, data *[]byte) (*responses.PathResponse, error) {
 	zap.L().Info("Received video chunk",
-		zap.String("userID", userID),
-		zap.String("fileName", fileName),
-	)
+		zap.Any("request", req))
 
-	userUUID, err := uuid.Parse(userID)
+	userUUID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid userID: %w", err)
 	}
 
 	// Create or update file record
-	fileRecord, err := s.getOrCreateFileRecord(ctx, userUUID, fileName, "video")
+	fileRecord, err := s.getOrCreateFileRecord(ctx, userUUID, req.FileName, "video")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file record: %w", err)
 	}
@@ -57,13 +57,13 @@ func (s *fileService) UploadVideoStream(ctx context.Context, userID string, file
 		}
 	}
 
-	tmpDir := s.getTempDir(userID)
+	tmpDir := s.getTempDir(req.UserID)
 	if err = os.MkdirAll(tmpDir, 0o755); err != nil {
 		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to create temp dir: %v", err))
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 
-	partPath := s.getTempFilePath(userID, fileName)
+	partPath := s.getTempFilePath(req.UserID, req.FileName)
 
 	// append next chunk
 	if err = s.appendChunkToFile(partPath, data); err != nil {
@@ -72,11 +72,11 @@ func (s *fileService) UploadVideoStream(ctx context.Context, userID string, file
 	}
 
 	zap.L().Info("Chunk appended successfully",
-		zap.String("userID", userID),
-		zap.String("fileName", fileName),
+		zap.String("userID", req.UserID),
+		zap.String("fileName", req.FileName),
 	)
 
-	if !isLastChunk {
+	if !req.IsLastChunk {
 		return nil, nil
 	}
 
@@ -85,14 +85,13 @@ func (s *fileService) UploadVideoStream(ctx context.Context, userID string, file
 		zap.String("filePath", partPath),
 	)
 
-	src, err := os.Open(partPath)
-	if err != nil {
-		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to open assembled file: %v", err))
-		return nil, fmt.Errorf("failed to open assembled file: %w", err)
+	finalPath := strings.TrimSuffix(partPath, ".part")
+	if err = os.Rename(partPath, finalPath); err != nil {
+		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to rename assembled file: %v", err))
+		return nil, fmt.Errorf("failed to finalize file (rename): %w", err)
 	}
-	defer src.Close()
 
-	pathResp, err := s.enqueueVideoUploadTask(ctx, userID, fileName, action, fileRecord.ID)
+	pathResp, err := s.enqueueVideoUploadTask(ctx, req, finalPath, fileRecord.ID)
 	if err != nil {
 		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to enqueue video upload task: %v", err))
 		return nil, fmt.Errorf("failed to enqueue video upload task: %w", err)
@@ -235,11 +234,9 @@ func (s *fileService) appendChunkToFile(path string, data *[]byte) error {
 	return nil
 }
 
-func (s *fileService) enqueueVideoUploadTask(ctx context.Context, userID, fileName string, action *string, fileID uuid.UUID) (responses.PathResponse, error) {
+func (s *fileService) enqueueVideoUploadTask(ctx context.Context, req *requests.UploadVideoChunkRequest, finalPath string, fileID uuid.UUID) (responses.PathResponse, error) {
 	// RabbitMQ handle this step
-	tempPath := s.getTempFilePath(userID, fileName)
-	key := fmt.Sprintf("%s/%s", userID, filepath.Base(fileName))
-
+	key := fmt.Sprintf("%s/%s", req.UserID, filepath.Base(req.FileName))
 	url := s.videoStorage.BuildUrl(key)
 
 	pathResp := responses.PathResponse{
@@ -248,11 +245,14 @@ func (s *fileService) enqueueVideoUploadTask(ctx context.Context, userID, fileNa
 	}
 
 	videoMessage := &consumers.VideoUploadMessage{
-		UserID:   userID,
-		FilePath: tempPath,
-		Key:      key,
-		Action:   action,
-		FileID:   fileID.String(),
+		UserID:          req.UserID,
+		FilePath:        finalPath,
+		Key:             key,
+		Action:          nil,
+		FileID:          fileID.String(),
+		IsHLS:           req.IsHLS,
+		Resolutions:     req.GetResolutions(),
+		SegmentDuration: req.SegmentDuration,
 	}
 	// build payload
 	payload, err := json.Marshal(videoMessage)
@@ -275,9 +275,9 @@ func (s *fileService) enqueueVideoUploadTask(ctx context.Context, userID, fileNa
 	}
 
 	zap.L().Info("✅ Video upload task enqueued",
-		zap.String("userID", userID),
-		zap.String("fileName", fileName),
-		zap.String("tempPath", tempPath),
+		zap.String("userID", req.UserID),
+		zap.String("fileName", req.FileName),
+		zap.String("finalPath", finalPath),
 		zap.String("s3Key", key),
 		zap.String("fileID", fileID.String()),
 	)

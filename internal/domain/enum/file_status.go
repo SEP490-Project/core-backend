@@ -14,32 +14,32 @@ const (
 	FileStatusFailed    FileStatus = "FAILED"    // Upload failed
 )
 
-func (s FileStatus) IsValid() bool {
-	switch s {
+func (fs FileStatus) IsValid() bool {
+	switch fs {
 	case FileStatusPending, FileStatusUploading, FileStatusUploaded, FileStatusFailed:
 		return true
 	}
 	return false
 }
 
-func (s FileStatus) Value() (driver.Value, error) {
-	if !s.IsValid() {
-		return nil, fmt.Errorf("invalid file status: %s", s)
-	}
-	return string(s), nil
-}
-
-func (s *FileStatus) Scan(value any) error {
-	if value == nil {
-		*s = FileStatusPending
-		return nil
-	}
-	strVal, ok := value.([]byte)
+func (fs *FileStatus) Scan(value any) error {
+	s, ok := value.([]byte)
 	if !ok {
-		return fmt.Errorf("failed to scan FileStatus")
+		// It might also be a string
+		str, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("failed to scan FileStatus: invalid type %T", value)
+		}
+		s = []byte(str)
 	}
-	*s = FileStatus(strVal)
+
+	// Convert the byte slice to our type.
+	*fs = FileStatus(s)
 	return nil
 }
 
-func (s FileStatus) String() string { return string(s) }
+func (fs FileStatus) Value() (driver.Value, error) {
+	return string(fs), nil
+}
+
+func (fs FileStatus) String() string { return string(fs) }
