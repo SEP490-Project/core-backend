@@ -155,16 +155,17 @@ func CalculateQuarterlyPaymentDates(
 	}
 
 	// Add final payment if last quarterly date is before contract end
-	if len(results) > 0 {
-		lastPaymentDate := results[len(results)-1].DueDate
-		if lastPaymentDate.Before(contractEndDate) && !lastPaymentDate.Equal(contractEndDate) {
-			note := fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat))
-			results = append(results, PaymentDateResult{
-				DueDate: contractEndDate,
-				Note:    note,
-			})
-		}
-	}
+	// Frontend already handles this and returns contract end date similar to this function
+	// if len(results) > 0 {
+	// 	lastPaymentDate := results[len(results)-1].DueDate
+	// 	if lastPaymentDate.Before(contractEndDate) && !lastPaymentDate.Equal(contractEndDate) {
+	// 		note := fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat))
+	// 		results = append(results, PaymentDateResult{
+	// 			DueDate: contractEndDate,
+	// 			Note:    note,
+	// 		})
+	// 	}
+	// }
 
 	return results, nil
 }
@@ -180,7 +181,7 @@ func CalculateAnnualPaymentDates(
 	loc := contractStartDate.Location()
 
 	// Determine firstPaymentDate explicitly instead of looping from contractStartDate
-	year := contractStartDate.Year()
+	year := paymentDate.Year() // Change to paymentDate's year to respect user's input and generate correct first payment date
 	month := paymentDate.Month()
 	day := paymentDate.Day()
 
