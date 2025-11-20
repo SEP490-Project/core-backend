@@ -162,8 +162,8 @@ func TransformAdvertisedItemToTask(
 	return responses.SuggestedTask{
 		Name:        fmt.Sprintf("Create content: %s on %s", item.Name, item.Platform),
 		Description: description,
-		Type:        string(enum.TaskTypeContent),
-		Deadline:    utils.FormatLocalTime(&deadline, ""),
+		Type:        enum.TaskTypeContent,
+		Deadline:    deadline,
 	}
 }
 
@@ -176,8 +176,8 @@ func TransformEventToTask(event dtos.BrandAmbassadorEvent) responses.SuggestedTa
 	return responses.SuggestedTask{
 		Name:        fmt.Sprintf("Event: %s", event.Name),
 		Description: description,
-		Type:        string(enum.TaskTypeEvent),
-		Deadline:    utils.FormatLocalTime(&eventDate, ""),
+		Type:        enum.TaskTypeEvent,
+		Deadline:    eventDate,
 	}
 }
 
@@ -193,8 +193,8 @@ func TransformConceptToTask(
 	return responses.SuggestedTask{
 		Name:        fmt.Sprintf("Marketing Concept: %s for %s", concept.Name, productName),
 		Description: description,
-		Type:        string(enum.TaskTypeContent),
-		Deadline:    utils.FormatLocalTime(&deadline, ""),
+		Type:        enum.TaskTypeContent,
+		Deadline:    deadline,
 	}
 }
 
@@ -208,8 +208,8 @@ func TransformProductToCreationTask(
 	return responses.SuggestedTask{
 		Name:        fmt.Sprintf("Create Product: %s", product.Name),
 		Description: description,
-		Type:        string(enum.TaskTypeProduct),
-		Deadline:    utils.FormatLocalTime(&deadline, ""),
+		Type:        enum.TaskTypeProduct,
+		Deadline:    deadline,
 	}
 }
 
@@ -384,7 +384,7 @@ func GeneratePerformanceTrackingTask(
 	contractType string,
 	metadata string,
 ) responses.SuggestedTask {
-	dueDate, _ := time.Parse(utils.DateFormat, milestone.DueDate)
+	dueDate := milestone.DueDate
 
 	var taskName string
 	var description map[string]any
@@ -414,8 +414,8 @@ func GeneratePerformanceTrackingTask(
 	return responses.SuggestedTask{
 		Name:        taskName,
 		Description: description,
-		Type:        string(enum.TaskTypeContent),
-		Deadline:    utils.FormatLocalTime(&dueDate, ""),
+		Type:        enum.TaskTypeContent,
+		Deadline:    dueDate,
 	}
 }
 
@@ -455,8 +455,8 @@ func ValidateContractForSuggestion(contract *model.Contract) error {
 		return errors.New("contract total cost must be greater than zero")
 	}
 
-	if contract.DepositPercent == nil {
-		return errors.New("contract deposit percent is required")
+	if contract.DepositAmount == nil && contract.DepositPercent == nil {
+		return errors.New("contract deposit amount or percent is required")
 	}
 
 	return nil
@@ -473,16 +473,11 @@ func ValidateMilestonePaymentAlignment(
 	}
 
 	for i, milestone := range milestones {
-		milestoneDate, err := time.Parse(utils.DateFormat, milestone.DueDate)
-		if err != nil {
-			return fmt.Errorf("failed to parse milestone date at index %d: %w", i, err)
-		}
-
 		paymentDate := contractPayments[i].DueDate
 
-		if !milestoneDate.Equal(paymentDate) {
+		if !milestone.DueDate.Equal(paymentDate) {
 			return fmt.Errorf("milestone %d due date (%s) does not match payment due date (%s)",
-				i, milestoneDate.Format(utils.DateFormat), paymentDate.Format(utils.DateFormat))
+				i, milestone.DueDate.Format(utils.DateFormat), paymentDate.Format(utils.DateFormat))
 		}
 	}
 
@@ -584,12 +579,7 @@ func FindClosestMilestoneIndex(targetDate time.Time, milestones []responses.Sugg
 	minDiff := time.Hour * 24 * 365 * 100 // 100 years
 
 	for i, milestone := range milestones {
-		milestoneDate, err := time.Parse(utils.DateFormat, milestone.DueDate)
-		if err != nil {
-			continue
-		}
-
-		diff := targetDate.Sub(milestoneDate)
+		diff := targetDate.Sub(milestone.DueDate)
 		if diff < 0 {
 			diff = -diff
 		}

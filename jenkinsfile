@@ -15,6 +15,7 @@ pipeline {
 
     environment {
         //get from app.yaml
+        DOCKER_BUILDKIT = '1' 
         APP_NAME = sh( script: "awk '/^server:/ {found=1} found && /service_name:/ {print \$2; exit}' ./config/config.yaml", returnStdout: true).trim()
         GIT_CREDENTIALS_ID = "ssh-github-key"
         GIT_URL = "git@github.com:SEP490-Project/core-backend.git"
@@ -37,6 +38,7 @@ pipeline {
 
                     //Assign SHA
                     savedCommitSHA = "${commitSHA}"
+                    gvFile.setupBuildx()
                 }
                 sshagent (credentials: ["${GIT_CREDENTIALS_ID}"]) {
                     sh 'ssh -o StrictHostKeyChecking=no -T git@github.com || true'
@@ -54,21 +56,19 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            steps {
-                script {
-                    gvFile.buildDockerfile(env.APP_NAME, savedCommitSHA)
+        stage('Build & Verify') {
+            parallel {
+                stage('Unit Tests') {
+                    when { expression { params.RUN_TESTS } }
+                    steps {
+                        script { gvFile.runTests() }
+                    }
                 }
-            }
-        }
 
-        stage('Test') {
-            when {
-                expression { params.RUN_TESTS }
-            }
-            steps {
-                script {
-                    gvFile.runTests()
+                stage('Docker Build') {
+                    steps {
+                        script { gvFile.buildDockerfile(env.APP_NAME, savedCommitSHA) }
+                    }
                 }
             }
         }
