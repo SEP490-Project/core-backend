@@ -489,6 +489,25 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 			db = db.Where("type = ?", *req.Type)
 		}
 
+		if req.BrandID != nil {
+			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
+				Joins("JOIN milestones ON milestones.id = tasks.milestone_id").
+				Joins("JOIN campaigns ON campaigns.id = milestones.campaign_id").
+				Joins("JOIN contracts ON contracts.id = campaigns.contract_id").
+				Where("contracts.brand_id = ?", *req.BrandID).
+				Distinct()
+		}
+
+		if req.UserID != nil {
+			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
+				Joins("JOIN milestones ON milestones.id = tasks.milestone_id").
+				Joins("JOIN campaigns ON campaigns.id = milestones.campaign_id").
+				Joins("JOIN contracts ON contracts.id = campaigns.contract_id").
+				Joins("JOIN brands ON brands.id = contracts.brand_id").
+				Where("brands.user_id = ?", *req.UserID).
+				Distinct()
+		}
+
 		// Filter by task_id
 		if req.TaskID != nil {
 			db = db.Where("task_id = ?", *req.TaskID)
@@ -496,7 +515,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 
 		if req.AssignedTo != nil {
 			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
-				Where("tasks.assigned_to = ?", req.AssignedTo.String()).
+				Where("tasks.assigned_to = ?", req.AssignedTo).
 				Distinct()
 		}
 

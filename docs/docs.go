@@ -4506,6 +4506,18 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "description": "Filter by brand ID (UUID)",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by user ID (UUID)",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "description": "Filter by task ID (UUID)",
                         "name": "task_id",
                         "in": "query"
