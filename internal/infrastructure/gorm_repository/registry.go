@@ -58,6 +58,8 @@ type DatabaseRegistry struct {
 
 	//Marketing Analytics
 	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
+
+	FileRepository irepository.GenericRepository[model.File]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -97,5 +99,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		KPIMetricsRepository:         NewGenericRepository[model.KPIMetrics](db),
 		PreOrderRepository:           NewPreOrderRepository(db),
 		MarketingAnalyticsRepository: NewMarketingAnalyticsRepository(db),
+		FileRepository:               NewGenericRepository[model.File](db),
 	}
 }

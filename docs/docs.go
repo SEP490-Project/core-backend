@@ -5355,7 +5355,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/contents/{id}/publish//channel/{channel_id}": {
+        "/api/v1/contents/{id}/publish/channel/{channel_id}": {
             "post": {
                 "security": [
                     {
@@ -7383,6 +7383,24 @@ const docTemplate = `{
                         "name": "chunk",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Convert to HLS",
+                        "name": "isHls",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated list of resolutions for HLS (options: 144p,240p,360p,480p,720p,1080p,1440p)",
+                        "name": "resolutions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "HLS segment duration in seconds (default 10)",
+                        "name": "segmentDuration",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -8477,6 +8495,270 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/responses.NotificationListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/publish": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create and publish a notification to one or many channels (EMAIL, PUSH). Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Publish notification to multiple channels",
+                "parameters": [
+                    {
+                        "description": "Notification data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PublishNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Returns array of notification IDs",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/publish/email": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create and publish an email notification. Supports template or HTML body. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Publish email notification",
+                "parameters": [
+                    {
+                        "description": "Email notification data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PublishEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Returns notification_id",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/publish/push": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create and publish a push notification to user's registered devices. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Publish push notification",
+                "parameters": [
+                    {
+                        "description": "Push notification data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PublishPushRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Returns notification_id",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/republish-failed": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retry sending failed notifications based on filter criteria. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Republish failed notifications",
+                "parameters": [
+                    {
+                        "description": "Filter criteria for failed notifications",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RepublishFailedNotificationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Returns success_count",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "integer"
+                                            }
                                         }
                                     }
                                 }
@@ -15468,6 +15750,21 @@ const docTemplate = `{
                 "ContentTypeVideo"
             ]
         },
+        "enum.ContractType": {
+            "type": "string",
+            "enum": [
+                "ADVERTISING",
+                "AFFILIATE",
+                "BRAND_AMBASSADOR",
+                "CO_PRODUCING"
+            ],
+            "x-enum-varnames": [
+                "ContractTypeAdvertising",
+                "ContractTypeAffiliate",
+                "ContractTypeAmbassador",
+                "ContractTypeCoProduce"
+            ]
+        },
         "enum.DispenserType": {
             "type": "string",
             "enum": [
@@ -15649,6 +15946,21 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ProductTypeStandard",
                 "ProductTypeLimited"
+            ]
+        },
+        "enum.TaskType": {
+            "type": "string",
+            "enum": [
+                "PRODUCT",
+                "CONTENT",
+                "EVENT",
+                "OTHER"
+            ],
+            "x-enum-varnames": [
+                "TaskTypeProduct",
+                "TaskTypeContent",
+                "TaskTypeEvent",
+                "TaskTypeOther"
             ]
         },
         "enum.UserRole": {
@@ -17533,6 +17845,181 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.PublishEmailRequest": {
+            "type": "object",
+            "required": [
+                "subject",
+                "to",
+                "user_id"
+            ],
+            "properties": {
+                "html_body": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "normal",
+                        "high"
+                    ],
+                    "example": "normal"
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Test Email Subject"
+                },
+                "template_data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "template_name": {
+                    "description": "Either use template or provide body directly",
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "task_assigned"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                }
+            }
+        },
+        "requests.PublishNotificationRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "channels",
+                "title",
+                "user_id"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "This is a test notification message"
+                },
+                "channels": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "EMAIL",
+                        "PUSH"
+                    ]
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "example": {
+                        "key1": "value1",
+                        "key2": "value2"
+                    }
+                },
+                "email_html_body": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "email_subject": {
+                    "description": "Email-specific fields (used when EMAIL channel is included)",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Test Email Subject"
+                },
+                "email_template_data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "email_template_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "task_assigned"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Test Notification"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                }
+            }
+        },
+        "requests.PublishPushRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title",
+                "user_id"
+            ],
+            "properties": {
+                "android_notification_tag": {
+                    "type": "string",
+                    "example": "group1"
+                },
+                "android_priority": {
+                    "type": "string",
+                    "enum": [
+                        "min",
+                        "low",
+                        "default",
+                        "high",
+                        "max"
+                    ],
+                    "example": "high"
+                },
+                "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "This is a test push notification"
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "ios_badge": {
+                    "description": "Platform-specific configurations (optional)",
+                    "type": "integer",
+                    "example": 1
+                },
+                "ios_sound": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Test Push Notification"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                }
+            }
+        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -17578,6 +18065,37 @@ const docTemplate = `{
                 "feedback": {
                     "type": "string",
                     "maxLength": 1000
+                }
+            }
+        },
+        "requests.RepublishFailedNotificationRequest": {
+            "type": "object",
+            "required": [
+                "notification_ids"
+            ],
+            "properties": {
+                "min_retries": {
+                    "type": "integer",
+                    "maximum": 10,
+                    "minimum": 1,
+                    "example": 3
+                },
+                "notification_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "123e4567-e89b-12d3-a456-426614174000"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "EMAIL",
+                        "PUSH"
+                    ],
+                    "example": "EMAIL"
                 }
             }
         },
@@ -20691,6 +21209,9 @@ const docTemplate = `{
         "responses.SuggestedCampaign": {
             "type": "object",
             "properties": {
+                "contract_id": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string",
                     "example": "Campaign for launching the new product line."
@@ -20714,7 +21235,11 @@ const docTemplate = `{
                     "example": "2024-11-01T00:00:00Z"
                 },
                 "type": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ContractType"
+                        }
+                    ],
                     "example": "ADVERTISING"
                 }
             }
@@ -20754,7 +21279,11 @@ const docTemplate = `{
                     "example": "Create social media post"
                 },
                 "type": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.TaskType"
+                        }
+                    ],
                     "example": "CONTENT"
                 }
             }

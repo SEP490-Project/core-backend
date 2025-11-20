@@ -31,6 +31,7 @@ type InfrastructureRegistry struct {
 	VaultService      iservicethirdparty.VaultService
 	EmailService      iservicethirdparty.EmailService
 	FCMService        iservicethirdparty.FCMService
+	ExpoPushService   iservicethirdparty.ExpoPushService
 	HealthMonitor     iservicethirdparty.HealthMonitor
 	ProxiesRegistry   *proxies.ProxiesRegistry
 
@@ -77,8 +78,7 @@ func NewInfrastructureRegistry(
 	//Initialize Third Party Storage Registry
 	zap.L().Debug("Initializing Third Party Storage Registry...")
 	registry.ThirdPartyStorage = third_party_repository.NewThirdPartyStorageRegistry(
-		s3Bucket,
-		s3StreamBucket,
+		config, s3Bucket, s3StreamBucket,
 	)
 
 	//========================EXTERNAL SERVICES========================//
@@ -115,6 +115,12 @@ func NewInfrastructureRegistry(
 		registry.FCMService = fcmService
 		zap.L().Info("FCMService initialized successfully")
 	}
+
+	//Initialize ExpoPushService
+	zap.L().Debug("Initializing ExpoPushService...")
+	expoPushService := service.NewExpoPushService(config)
+	registry.ExpoPushService = expoPushService
+	zap.L().Info("ExpoPushService initialized successfully")
 
 	//External Services
 	zap.L().Debug("Initializing GHN Service...")

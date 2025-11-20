@@ -1,15 +1,16 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/smithy-go/ptr"
+	"github.com/go-playground/validator/v10"
 
 	"core-backend/internal/application/interfaces/iservice"
 
@@ -18,10 +19,16 @@ import (
 
 type S3Handler struct {
 	fileService iservice.FileService
+	validator   *validator.Validate
 }
 
 func NewS3Handler(fileService iservice.FileService) *S3Handler {
-	return &S3Handler{fileService: fileService}
+	v := validator.New()
+	_ = v.RegisterValidation("resolutions", requests.ValidateResolutions)
+	return &S3Handler{
+		fileService: fileService,
+		validator:   v,
+	}
 }
 
 // UploadFile godoc
@@ -76,10 +83,10 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 
 		defer func(path string) { _ = os.Remove(path) }(finalPath)
 
-		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
+		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
 		if err != nil {
 			_ = os.Remove(finalPath)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "FileRepositoryfailed to upload file: " + fileHeader.Filename + ", " + err.Error()})
 			return
 		}
 
@@ -108,7 +115,7 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "userId and filename are required"})
 		return
 	}
-	err := h.fileService.DeleteFile(userID, filename)
+	err := h.fileService.DeleteFile(c.Request.Context(), userID, filename)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -116,7 +123,7 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "file deleted"})
 }
 
-// Videos
+// region: ============== UploadVideoChunk ==============
 
 // UploadVideoChunk godoc
 //
@@ -124,37 +131,30 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 //	@Tags		files
 //	@Accept		multipart/form-data
 //	@Produce	json
-//	@Param		userId		formData	string	true	"User ID"
-//	@Param		fileName	formData	string	true	"Final file name (eg myvideo.mp4)"
-//	@Param		isLastChunk	formData	boolean	true	"Whether this is the final chunk"
-//	@Param		chunk		formData	file	true	"Chunk file"
-//	@Success	200			{object}	map[string]string
-//	@Failure	400			{object}	map[string]string
-//	@Failure	500			{object}	map[string]string
+//	@Param		userId			formData	string	true	"User ID"
+//	@Param		fileName		formData	string	true	"Final file name (eg myvideo.mp4)"
+//	@Param		isLastChunk		formData	boolean	true	"Whether this is the final chunk"
+//	@Param		chunk			formData	file	true	"Chunk file"
+//	@Param		isHls			formData	boolean	false	"Convert to HLS"
+//	@Param		resolutions		formData	string	false	"Comma-separated list of resolutions for HLS (options: 144p,240p,360p,480p,720p,1080p,1440p)"
+//	@Param		segmentDuration	formData	int		false	"HLS segment duration in seconds (default 10)"
+//	@Success	200				{object}	map[string]string
+//	@Failure	400				{object}	map[string]string
+//	@Failure	500				{object}	map[string]string
 //	@Router		/api/v1/files/videos/upload-chunk [post]
 func (h *S3Handler) UploadVideoChunk(c *gin.Context) {
-	userID := c.PostForm("userId")
-	fileName := c.PostForm("fileName")
-	isLastStr := c.PostForm("isLastChunk")
-
-	if userID == "" || fileName == "" || isLastStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "userId, fileName and isLastChunk are required"})
+	var req requests.UploadVideoChunkRequest
+	if err := c.ShouldBind(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	isLast, err := strconv.ParseBool(isLastStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "isLastChunk must be boolean"})
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
 		return
 	}
 
-	fileHeader, err := c.FormFile("chunk")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "chunk file is required"})
-		return
-	}
-
-	fh, err := fileHeader.Open()
+	fh, err := req.Chunk.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open chunk"})
 		return
@@ -167,14 +167,14 @@ func (h *S3Handler) UploadVideoChunk(c *gin.Context) {
 		return
 	}
 
-	paths, err := h.fileService.UploadVideoStream(c.Request.Context(), userID, fileName, &data, isLast, nil)
+	paths, err := h.fileService.UploadVideoStream(c.Request.Context(), &req, &data)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if isLast {
+	if req.IsLastChunk {
 		resp := responses.SuccessResponse("Video receives", ptr.Int(http.StatusOK), paths)
 		c.JSON(http.StatusOK, resp)
 	} else {
@@ -206,3 +206,5 @@ func (h *S3Handler) DeleteVideo(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
+
+// endregion
