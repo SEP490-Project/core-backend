@@ -2,12 +2,16 @@ package third_party_repository
 
 import (
 	"context"
+	"core-backend/config"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
+	"core-backend/pkg/utils"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -17,6 +21,7 @@ import (
 )
 
 type s3StreamingStorage struct {
+	config           *config.AppConfig
 	client           *s3.Client
 	bucketName       string
 	region           string
@@ -77,6 +82,45 @@ func (s *s3StreamingStorage) Put(ctx context.Context, key string, body io.Reader
 	return nil
 }
 
+func (s *s3StreamingStorage) BatchPut(ctx context.Context, items []dtos.BatchUploadItem) error {
+	// 1. Convert items into a slice of functions
+	tasks := make([]func(context.Context) error, len(items))
+
+	for i, item := range items {
+		// Capture the loop variable to avoid closure issues
+		currentItem := item
+
+		tasks[i] = func(ctx context.Context) error {
+			file, err := os.Open(currentItem.LocalPath)
+			if err != nil {
+				return fmt.Errorf("failed to open file %s: %w", currentItem.LocalPath, err)
+			}
+			defer file.Close()
+
+			return s.Put(ctx, currentItem.S3Key, file, currentItem.ContentType)
+		}
+	}
+
+	// 2. Configure Retry Options
+	// For 10MB chunks, 60s is usually safe.
+	opts := utils.RetryOptions{
+		MaxAttempts:       3,
+		BaseBackoff:       500 * time.Millisecond,
+		BackoffMultiplier: 1.5,
+		AttemptTimeout:    60 * time.Second,
+	}
+
+	// 3. Execute
+	// Limit concurrency to 5 to avoid exhausting sockets/file descriptors
+	err := utils.RunParallelWithRetry(ctx, 5, opts, tasks...)
+
+	if err != nil {
+		return fmt.Errorf("batch upload process failed: %w", err)
+	}
+
+	return nil
+}
+
 func (s *s3StreamingStorage) Delete(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucketName),
@@ -89,11 +133,13 @@ func (s *s3StreamingStorage) Delete(ctx context.Context, key string) error {
 }
 
 func (s *s3StreamingStorage) BuildUrl(key string) string {
-	if s.cloudfrontDomain != "" {
+	if s.config.S3StreamingBucket.Endpoint != "" && strings.Contains(s.config.S3StreamingBucket.Endpoint, "localhost") {
+		return strings.TrimRight(s.config.S3StreamingBucket.Endpoint, "/") + "/" + strings.TrimLeft(key, "/")
+	} else if s.cloudfrontDomain != "" {
 		return strings.TrimRight(s.cloudfrontDomain, "/") + "/" + strings.TrimLeft(key, "/")
 	}
 	// fallback URL
-	return fmt.Sprintf("https://cdn.com/%s", s.bucketName, s.region, key)
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.bucketName, s.region, key)
 }
 
 // Get retrieves an object from S3 and returns a reader and the content length
@@ -115,8 +161,9 @@ func (s *s3StreamingStorage) Get(ctx context.Context, key string) (io.ReadCloser
 	return output.Body, contentLength, nil
 }
 
-func NewS3StreamingStorage(s3StreamBucket *persistence.S3StreamingBucket) irepository_third_party.S3StreamingStorage {
+func NewS3StreamingStorage(config *config.AppConfig, s3StreamBucket *persistence.S3StreamingBucket) irepository_third_party.S3StreamingStorage {
 	return &s3StreamingStorage{
+		config:           config,
 		client:           s3StreamBucket.Client,
 		bucketName:       s3StreamBucket.BucketName,
 		region:           s3StreamBucket.Region,

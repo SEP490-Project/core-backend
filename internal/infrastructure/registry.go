@@ -78,8 +78,7 @@ func NewInfrastructureRegistry(
 	//Initialize Third Party Storage Registry
 	zap.L().Debug("Initializing Third Party Storage Registry...")
 	registry.ThirdPartyStorage = third_party_repository.NewThirdPartyStorageRegistry(
-		s3Bucket,
-		s3StreamBucket,
+		config, s3Bucket, s3StreamBucket,
 	)
 
 	//========================EXTERNAL SERVICES========================//
