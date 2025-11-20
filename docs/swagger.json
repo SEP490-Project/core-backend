@@ -7364,6 +7364,24 @@
                         "name": "chunk",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Convert to HLS",
+                        "name": "isHls",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated list of resolutions for HLS (options: 144p,240p,360p,480p,720p,1080p,1440p)",
+                        "name": "resolutions",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "HLS segment duration in seconds (default 10)",
+                        "name": "segmentDuration",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
