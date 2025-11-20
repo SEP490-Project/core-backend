@@ -2,10 +2,12 @@ package third_party_repository
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -13,13 +15,15 @@ import (
 )
 
 type s3Storage struct {
+	config     *config.AppConfig
 	client     *s3.Client
 	bucketName string
 	region     string
 }
 
-func NewS3Storage(bucket *persistence.S3Bucket) irepository_third_party.S3Storage {
+func NewS3Storage(config *config.AppConfig, bucket *persistence.S3Bucket) irepository_third_party.S3Storage {
 	return &s3Storage{
+		config:     config,
 		client:     bucket.Client,
 		bucketName: bucket.BucketName,
 		region:     bucket.Region,
@@ -78,5 +82,8 @@ func (r *s3Storage) Delete(ctx context.Context, key string) error {
 //
 //	@key:	should have the format "<user_id>/<timestamp>_filename.ext"
 func (r *s3Storage) BuildUrl(key string) string {
+	if r.config.S3Bucket.Endpoint != "" && strings.Contains(r.config.S3Bucket.Endpoint, "localhost") {
+		return fmt.Sprintf("%s/%s/%s", r.config.S3Bucket.Endpoint, r.bucketName, key)
+	}
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", r.bucketName, r.region, key)
 }
