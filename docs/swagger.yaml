@@ -10212,6 +10212,18 @@ paths:
         name: chunk
         required: true
         type: file
+      - description: Convert to HLS
+        in: formData
+        name: isHls
+        type: boolean
+      - description: 'Comma-separated list of resolutions for HLS (options: 144p,240p,360p,480p,720p,1080p,1440p)'
+        in: formData
+        name: resolutions
+        type: string
+      - description: HLS segment duration in seconds (default 10)
+        in: formData
+        name: segmentDuration
+        type: integer
       produces:
       - application/json
       responses:
