@@ -8145,6 +8145,14 @@ paths:
         in: query
         name: type
         type: string
+      - description: Filter by brand ID (UUID)
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by user ID (UUID)
+        in: query
+        name: user_id
+        type: string
       - description: Filter by task ID (UUID)
         in: query
         name: task_id
