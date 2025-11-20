@@ -179,6 +179,13 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
 			&r.configs.AdminConfig,
 		)
+		preOrderOpeningCheckJob = jobs.NewPreOrderOpeningCheckJob(
+			r.StateTransferService,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			r.InfrastructureRegistry.CronJobsRegistry.PreOrderOpeningCheckIntervalMinutes,
+			r.InfrastructureRegistry.CronJobsRegistry.PreOrderOpeningCheckEnabled,
+		)
+
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("payos_expiry_check_job", payosExpiryJob)
 		r.InfrastructureRegistry.CronJobsRegistry.PayOSExpiryCheckJob = payosExpiryJob
 	}

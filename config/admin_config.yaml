@@ -63,7 +63,7 @@ ctr_aggregation_interval_minutes: 5 # Interval in minutes for CTR aggregation cr
 expired_contract_cleanup_enabled: false
 expired_contract_cleanup_cron_expr: "0 0 * * *" # Daily at midnight
 payos_expiry_check_enabled: false # Enable/disable PayOS expired payment link cancellation
-payos_expiry_check_interval_minutes: 30 # Interval in minutes for PayOS expiry check cron job
+payos_expiry_check_interval_minutes: 1 # Interval in minutes for PayOS expiry check cron job
 
 # Social Media config integrations
 # Facebook
