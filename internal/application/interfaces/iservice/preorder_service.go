@@ -17,4 +17,7 @@ type PreOrderService interface {
 
 	// Staff-facing listing similar to staff orders
 	GetStaffAvailablePreOrdersWithPagination(limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, status []string) ([]responses.PreOrderResponse, int, error)
+
+	//Job to check and expire pre-orders (total count, failed count, upcomming)
+	PreOrderOpeningChecker(ctx context.Context) (int, int, int)
 }
