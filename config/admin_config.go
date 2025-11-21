@@ -31,12 +31,17 @@ type AdminConfig struct {
 	BotSignatures              []string `mapstructure:"bot_signatures"`
 
 	// Cron Jobs Configuration
-	CTRAggregationEnabled           bool   `mapstructure:"ctr_aggregation_enabled"`
-	CTRAggregationIntervalMinutes   int    `mapstructure:"ctr_aggregation_interval_minutes"`
-	ExpiredContractCleanupEnabled   bool   `mapstructure:"expired_contract_cleanup_enabled"`
-	ExpiredContractCleanupCronExpr  string `mapstructure:"expired_contract_cleanup_cron_expr"`
-	PayOSExpiryCheckEnabled         bool   `mapstructure:"payos_expiry_check_enabled"`
-	PayOSExpiryCheckIntervalMinutes int    `mapstructure:"payos_expiry_check_interval_minutes"`
+	CTRAggregationEnabled               bool   `mapstructure:"ctr_aggregation_enabled"`
+	CTRAggregationIntervalMinutes       int    `mapstructure:"ctr_aggregation_interval_minutes"`
+	ExpiredContractCleanupEnabled       bool   `mapstructure:"expired_contract_cleanup_enabled"`
+	ExpiredContractCleanupCronExpr      string `mapstructure:"expired_contract_cleanup_cron_expr"`
+	PayOSExpiryCheckEnabled             bool   `mapstructure:"payos_expiry_check_enabled"`
+	PayOSExpiryCheckIntervalMinutes     int    `mapstructure:"payos_expiry_check_interval_minutes"`
+	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
+	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
+
+	// Order - PreOrder
+	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
 
 	// Social Media Integration
 	// This is used to determine when to send notifications for expiring OAuth tokens

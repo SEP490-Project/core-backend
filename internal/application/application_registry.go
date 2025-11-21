@@ -60,7 +60,7 @@ func NewApplicationRegistry(
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService(configs)
 
-	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy)
+	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -90,8 +90,10 @@ func NewApplicationRegistry(
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
+		stateTransferService,
 		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
+		infrastructureRegistry.DB,
 	)
 
 	channelService := service.NewChannelService(
@@ -158,7 +160,7 @@ func NewApplicationRegistry(
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
 		PaymentTransactionService:     paymentTransactionService,
-		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
+		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, stateTransferService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
@@ -177,7 +179,16 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
 			&r.configs.AdminConfig,
 		)
+		preOrderOpeningCheckJob := jobs.NewPreOrderOpeningCheckJob(
+			r.PreOrderService,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("payos_expiry_check_job", payosExpiryJob)
 		r.InfrastructureRegistry.CronJobsRegistry.PayOSExpiryCheckJob = payosExpiryJob
+
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("pre_order_opening_check_job", preOrderOpeningCheckJob)
+		r.InfrastructureRegistry.CronJobsRegistry.PreOrderOpeningCheckJob = preOrderOpeningCheckJob
 	}
 }

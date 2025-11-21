@@ -574,8 +574,6 @@ func roleChecker(t, roleStr string, target any) error {
 			forbiddenStates = map[enum.PreOrderStatus]bool{
 				enum.PreOrderStatusPaid:           true,
 				enum.PreOrderStatusPreOrdered:     true,
-				enum.PreOrderStatusStockReady:     true,
-				enum.PreOrderStatusStockPreparing: true,
 				enum.PreOrderStatusAwaitingPickup: true,
 				enum.PreOrderStatusInTransit:      true,
 				enum.PreOrderStatusDelivered:      true,
