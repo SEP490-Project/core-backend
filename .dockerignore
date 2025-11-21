@@ -2,6 +2,7 @@
 .github
 .dockerignore
 .gitignore
+.idea/
 build
 migrations/
 migrations
@@ -27,3 +28,4 @@ tests/
 test-reports
 tests
 sep490-ddl-creation.sql
+bin/

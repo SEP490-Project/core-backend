@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MinIO Universal Inspector Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary: #c33c54;
+        --secondary: #4fa3d1;
+        --bg: #121212;
+        --surface: #1e1e1e;
+        --panel: #252525;
+        --text: #e0e0e0;
+        --text-dim: #888;
+        --border: #333;
+      }
+      body {
+        font-family: "Segoe UI", Roboto, monospace;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .container {
+        width: 100%;
+        max-width: 1000px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      /* Input */
+      .input-group {
+        display: flex;
+        gap: 10px;
+      }
+      input[type="text"] {
+        flex-grow: 1;
+        padding: 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: white;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+
+      /* Stage */
+      .media-stage {
+        position: relative;
+        width: 100%;
+        background: #000; /* Default Dark */
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+        height: 60vh; /* Fixed height for consistency */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        transition: background 0.3s;
+      }
+
+      /* Background patterns for transparent images */
+      .bg-light {
+        background: #ffffff !important;
+      }
+      .bg-check {
+        background-color: #1e1e1e;
+        background-image:
+          linear-gradient(45deg, #252525 25%, transparent 25%),
+          linear-gradient(-45deg, #252525 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #252525 75%),
+          linear-gradient(-45deg, transparent 75%, #252525 75%);
+        background-size: 20px 20px;
+        background-position:
+          0 0,
+          0 10px,
+          10px -10px,
+          -10px 0px;
+      }
+
+      /* Media Handling */
+      video,
+      audio {
+        width: 100%;
+        max-height: 100%;
+        outline: none;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      /* Image Transformations */
+      img {
+        max-width: 100%;
+        max-height: 100%;
+        transition: transform 0.2s ease;
+        transform-origin: center;
+      }
+
+      /* Controls Toolbar */
+      .toolbar {
+        background: var(--surface);
+        padding: 10px 15px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        display: none; /* Hidden by default */
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .toolbar.active {
+        display: flex;
+      }
+
+      .tool-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-right: 1px solid #333;
+        padding-right: 15px;
+      }
+      .tool-group:last-child {
+        border-right: none;
+      }
+
+      .tool-label {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-right: 5px;
+      }
+
+      /* Inputs in Toolbar */
+      select {
+        background: #222;
+        color: white;
+        border: 1px solid #444;
+        padding: 5px;
+        border-radius: 3px;
+      }
+      button.tool-btn {
+        background: #333;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      button.tool-btn:hover {
+        background: #444;
+      }
+      button.tool-btn.active {
+        background: var(--secondary);
+        color: black;
+      }
+
+      input[type="range"] {
+        width: 100px;
+        accent-color: var(--secondary);
+      }
+
+      /* Metadata & Logs */
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        background: var(--surface);
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        display: none;
+      }
+      .meta-item {
+        font-size: 13px;
+        color: #bbb;
+      }
+      .meta-item b {
+        color: var(--secondary);
+        display: inline-block;
+        width: 90px;
+      }
+
+      .logger {
+        background: #0a0a0a;
+        border: 1px solid var(--border);
+        height: 120px;
+        overflow-y: auto;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 12px;
+        border-radius: 4px;
+      }
+      .log-entry {
+        margin-bottom: 2px;
+        border-bottom: 1px solid #222;
+      }
+      .log-time {
+        color: #666;
+        margin-right: 8px;
+      }
+      .log-info {
+        color: var(--secondary);
+      }
+      .log-error {
+        color: #f44336;
+      }
+
+      /* HLS Overlay */
+      .debug-overlay {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #0f0;
+        pointer-events: none;
+        display: none;
+        font-family: monospace;
+        z-index: 10;
+      }
+      .show-debug .debug-overlay {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h2>Universal Inspector</h2>
+        <div style="font-size: 12px; color: #666">
+          Supports: HLS, MP4, Audio, Images, PDF
+        </div>
+      </div>
+
+      <div class="input-group">
+        <input type="text" id="streamUrl" placeholder="Paste URL here..." />
+        <button onclick="processUrl()">LOAD</button>
+      </div>
+
+      <!-- STAGE -->
+      <div class="media-stage" id="stage">
+        <div style="color: #555">No media loaded</div>
+      </div>
+
+      <!-- CONTEXT AWARE TOOLBAR -->
+      <div class="toolbar" id="toolbar">
+        <!-- 1. HLS Specific -->
+        <div class="tool-group" id="ctrl-hls" style="display: none">
+          <span class="tool-label">Stream</span>
+          <select id="qualitySelect" onchange="changeQuality()">
+            <option value="-1">Auto</option>
+          </select>
+          <button class="tool-btn" onclick="toggleDebugOverlay()">
+            <i class="fa-solid fa-bug"></i> Stats
+          </button>
+        </div>
+
+        <!-- 2. Video/Audio General -->
+        <div class="tool-group" id="ctrl-av" style="display: none">
+          <span class="tool-label">Playback</span>
+          <select id="speedSelect" onchange="changeSpeed()">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2.0x</option>
+          </select>
+          <button class="tool-btn" id="btnLoop" onclick="toggleLoop()">
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+          <button class="tool-btn" id="btnPip" onclick="togglePip()">
+            <i class="fa-solid fa-expand"></i> PiP
+          </button>
+        </div>
+
+        <!-- 3. Image Specific -->
+        <div class="tool-group" id="ctrl-img" style="display: none">
+          <span class="tool-label">View</span>
+          <button class="tool-btn" onclick="rotateImg(-90)">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+          <button class="tool-btn" onclick="rotateImg(90)">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+
+          <span class="tool-label" style="margin-left: 10px">Zoom</span>
+          <input
+            type="range"
+            id="zoomRange"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value="1"
+            oninput="zoomImg(this.value)"
+          />
+
+          <span class="tool-label" style="margin-left: 10px">BG</span>
+          <button class="tool-btn" onclick="setStageBg('black')">⚫</button>
+          <button class="tool-btn" onclick="setStageBg('white')">⚪</button>
+          <button class="tool-btn" onclick="setStageBg('check')">🏁</button>
+        </div>
+
+        <!-- 4. Global Actions -->
+        <div class="tool-group" style="border: none; margin-left: auto">
+          <button
+            class="tool-btn"
+            onclick="window.open(document.getElementById('streamUrl').value, '_blank')"
+          >
+            <i class="fa-solid fa-external-link"></i> Open New Tab
+          </button>
+        </div>
+      </div>
+
+      <!-- METADATA -->
+      <div class="meta-grid" id="metaGrid">
+        <div class="meta-item"><b>Type:</b> <span id="m-type">-</span></div>
+        <div class="meta-item"><b>Size:</b> <span id="m-size">-</span></div>
+        <div class="meta-item">
+          <b>Resolution:</b> <span id="m-res">-</span>
+        </div>
+        <div class="meta-item"><b>Duration:</b> <span id="m-dur">-</span></div>
+        <div class="meta-item">
+          <b>Codec/Mime:</b> <span id="m-codec">-</span>
+        </div>
+        <div class="meta-item"><b>Last Mod:</b> <span id="m-date">-</span></div>
+      </div>
+
+      <div class="logger" id="logger"></div>
+    </div>
+
+    <script>
+      const stage = document.getElementById("stage");
+      const metaGrid = document.getElementById("metaGrid");
+      const toolbar = document.getElementById("toolbar");
+
+      let hls = null;
+      let currentMedia = null; // Stores reference to video/audio/img element
+      let currentRot = 0;
+
+      function processUrl() {
+        const url = document.getElementById("streamUrl").value.trim();
+        if (!url) return log("URL missing", "error");
+
+        resetUI();
+        log(`Loading: ${url}`, "info");
+        fetchHeaders(url); // Fetch server metadata
+
+        const ext = url.split(".").pop().toLowerCase().split("?")[0];
+
+        // Routing
+        if (["m3u8"].includes(ext)) loadHLS(url);
+        else if (["mp4", "webm", "mov", "mkv"].includes(ext)) loadVideo(url);
+        else if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
+          loadImage(url);
+        else if (["mp3", "wav", "m4a", "aac", "ogg"].includes(ext))
+          loadAudio(url);
+        else if (["pdf"].includes(ext)) loadPDF(url);
+        else loadFallback(url, ext);
+      }
+
+      function resetUI() {
+        if (hlsInterval) clearInterval(hlsInterval);
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+        stage.innerHTML = "";
+        stage.className = "media-stage"; // Reset bg
+        toolbar.classList.remove("active");
+        metaGrid.style.display = "none";
+
+        // Hide all specific controls
+        ["ctrl-hls", "ctrl-av", "ctrl-img"].forEach(
+          (id) => (document.getElementById(id).style.display = "none"),
+        );
+
+        // Reset vars
+        currentMedia = null;
+        currentRot = 0;
+        document.getElementById("zoomRange").value = 1;
+        document.getElementById("btnLoop").classList.remove("active");
+
+        // Clear Meta
+        ["type", "size", "res", "dur", "codec", "date"].forEach(
+          (k) => (document.getElementById(`m-${k}`).innerText = "-"),
+        );
+      }
+
+      // --- LOADERS ---
+
+      function loadHLS(url) {
+        setupStage("ctrl-hls", "ctrl-av");
+        const vid = createMedia("video");
+        createDebugOverlay(); // Creates the HTML structure
+
+        if (Hls.isSupported()) {
+          hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(vid);
+          hls.on(Hls.Events.MANIFEST_PARSED, (e, d) => {
+            log(`HLS: ${d.levels.length} levels`, "info");
+            updateQualitySelect(d.levels);
+            document.getElementById("m-codec").innerText = "HLS / MPEG-TS";
+
+            startHlsMonitoring(vid);
+          });
+          hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+            const duration = data.details.totalduration;
+            const isLive = data.details.live;
+
+            if (isLive) {
+              document.getElementById("m-dur").innerText = "LIVE";
+              document.getElementById("m-size").innerText = "Unknown (Stream)";
+            } else {
+              // --- UPDATED: Use the formatTime helper ---
+              document.getElementById("m-dur").innerText = formatTime(duration);
+
+              // Calculate Estimated Size
+              const levelIndex = data.level;
+              const level = hls.levels[levelIndex];
+              if (level && level.bitrate) {
+                const totalBits = level.bitrate * duration;
+                const totalBytes = totalBits / 8;
+                // Assuming you added the formatBytes helper from the previous answer
+                // If not, just use: (totalBytes / 1024 / 1024).toFixed(2) + " MB";
+                document.getElementById("m-size").innerText =
+                  formatBytes(totalBytes) + " (Est)";
+              }
+            }
+          });
+          hls.on(Hls.Events.LEVEL_SWITCHED, (e, d) => {
+            const l = hls.levels[d.level];
+            document.getElementById("m-res").innerText =
+              `${l.width}x${l.height}`;
+          });
+        } else if (vid.canPlayType("application/vnd.apple.mpegurl")) {
+          vid.src = url;
+          vid.onloadedmetadata = () => {
+            document.getElementById("m-dur").innerText =
+              vid.duration.toFixed(2) + "s";
+            document.getElementById("m-res").innerText =
+              `${vid.videoWidth}x${vid.videoHeight}`;
+            document.getElementById("m-size").innerText = "N/A (Safari Native)";
+          };
+          log("Native HLS", "info");
+        }
+      }
+
+      function loadVideo(url) {
+        setupStage("ctrl-av");
+        const vid = createMedia("video");
+        vid.src = url;
+        vid.onloadedmetadata = () => {
+          document.getElementById("m-res").innerText =
+            `${vid.videoWidth}x${vid.videoHeight}`;
+          document.getElementById("m-dur").innerText =
+            vid.duration.toFixed(2) + "s";
+          log("Video Loaded", "info");
+        };
+        vid.onerror = () => {
+          log("Browser cannot decode video", "error");
+          stage.innerHTML =
+            "<div style='text-align:center'><h3>Format Not Supported</h3><p>Try VLC or Download</p></div>";
+        };
+      }
+
+      function loadAudio(url) {
+        setupStage("ctrl-av");
+        const aud = createMedia("audio");
+        aud.src = url;
+        document.getElementById("btnPip").style.display = "none"; // No Pip for audio
+        aud.onloadedmetadata = () => {
+          document.getElementById("m-dur").innerText =
+            aud.duration.toFixed(2) + "s";
+          document.getElementById("m-res").innerText = "Audio Only";
+          log("Audio Loaded", "info");
+        };
+      }
+
+      function loadImage(url) {
+        setupStage("ctrl-img");
+        const img = createMedia("img");
+        img.src = url;
+        img.onload = () => {
+          document.getElementById("m-res").innerText =
+            `${img.naturalWidth}x${img.naturalHeight}`;
+          document.getElementById("m-codec").innerText = "Image";
+          log("Image Loaded", "info");
+        };
+      }
+
+      function loadPDF(url) {
+        setupStage(); // No specific controls
+        stage.innerHTML = `<iframe src="${url}"></iframe>`;
+        document.getElementById("m-codec").innerText = "PDF Document";
+      }
+
+      function loadFallback(url, ext) {
+        setupStage();
+        stage.innerHTML = `<div style="text-align:center"><i class="fa-solid fa-file fa-3x" style="color:#4fa3d1"></i><br><br>Preview not available for .${ext}</div>`;
+        log("Unsupported preview format", "warn");
+      }
+
+      // --- ACTIONS ---
+
+      // HLS
+      function updateQualitySelect(levels) {
+        const s = document.getElementById("qualitySelect");
+        s.innerHTML = '<option value="-1">Auto</option>';
+        levels.forEach((l, i) => {
+          const o = document.createElement("option");
+          o.value = i;
+          o.text = `${l.height}p`;
+          s.appendChild(o);
+        });
+      }
+      function changeQuality() {
+        if (hls)
+          hls.currentLevel = parseInt(
+            document.getElementById("qualitySelect").value,
+          );
+      }
+      function toggleDebugOverlay() {
+        stage.classList.toggle("show-debug");
+      }
+
+      // A/V
+      function changeSpeed() {
+        if (currentMedia)
+          currentMedia.playbackRate = parseFloat(
+            document.getElementById("speedSelect").value,
+          );
+      }
+      function toggleLoop() {
+        if (!currentMedia) return;
+        currentMedia.loop = !currentMedia.loop;
+        document
+          .getElementById("btnLoop")
+          .classList.toggle("active", currentMedia.loop);
+        log(`Loop ${currentMedia.loop ? "Enabled" : "Disabled"}`);
+      }
+      function togglePip() {
+        if (currentMedia && document.pictureInPictureElement)
+          document.exitPictureInPicture();
+        else if (currentMedia && currentMedia.requestPictureInPicture)
+          currentMedia.requestPictureInPicture();
+      }
+
+      // Image
+      function zoomImg(val) {
+        if (currentMedia)
+          currentMedia.style.transform = `rotate(${currentRot}deg) scale(${val})`;
+      }
+      function rotateImg(deg) {
+        if (!currentMedia) return;
+        currentRot += deg;
+        const scale = document.getElementById("zoomRange").value;
+        currentMedia.style.transform = `rotate(${currentRot}deg) scale(${scale})`;
+      }
+      function setStageBg(type) {
+        stage.className = "media-stage"; // reset
+        if (type === "white") stage.classList.add("bg-light");
+        if (type === "check") stage.classList.add("bg-check");
+      }
+
+      // --- HELPERS ---
+
+      let hlsInterval = null; // Global variable for the timer
+
+      function startHlsMonitoring(videoEl) {
+        if (hlsInterval) clearInterval(hlsInterval);
+
+        hlsInterval = setInterval(() => {
+          if (!hls || !videoEl) return;
+
+          // 1. RESOLUTION
+          document.getElementById("d-res").innerText =
+            `${videoEl.videoWidth}x${videoEl.videoHeight}`;
+
+          // 2. BUFFER
+          let bufferLen = 0;
+          const ct = videoEl.currentTime;
+          if (videoEl.buffered && videoEl.buffered.length) {
+            for (let i = 0; i < videoEl.buffered.length; i++) {
+              if (
+                ct >= videoEl.buffered.start(i) &&
+                ct <= videoEl.buffered.end(i)
+              ) {
+                bufferLen = videoEl.buffered.end(i) - ct;
+                break;
+              }
+            }
+          }
+          document.getElementById("d-buf").innerText =
+            bufferLen.toFixed(2) + " s";
+
+          // 3. BANDWIDTH (Network Capacity)
+          // Convert bits to Mbps
+          const mbps = hls.bandwidthEstimate
+            ? (hls.bandwidthEstimate / 1e6).toFixed(2)
+            : "0";
+          document.getElementById("d-bw").innerText = mbps + " Mbps";
+
+          // 4. CURRENT BITRATE (What we are actually playing)
+          // hls.currentLevel gives the index (-1 if auto).
+          // We check hls.loadLevel (what is being downloaded) or hls.nextLoadLevel
+          let currentBitrate = 0;
+          // If auto, look at what's actually loaded
+          const levelIdx =
+            hls.currentLevel === -1 ? hls.loadLevel : hls.currentLevel;
+
+          if (levelIdx !== -1 && hls.levels[levelIdx]) {
+            // Convert bits to Kbps
+            currentBitrate = Math.round(hls.levels[levelIdx].bitrate / 1000);
+            document.getElementById("d-bit").innerText =
+              `${currentBitrate} Kbps`;
+          } else {
+            document.getElementById("d-bit").innerText = "Auto";
+          }
+
+          // 5. DROPPED FRAMES (Performance)
+          let dropped = 0;
+          if (videoEl.getVideoPlaybackQuality) {
+            dropped = videoEl.getVideoPlaybackQuality().droppedVideoFrames;
+          } else if (videoEl.webkitDroppedFrameCount) {
+            // Fallback for older WebKit
+            dropped = videoEl.webkitDroppedFrameCount;
+          }
+          document.getElementById("d-drop").innerText = dropped;
+        }, 500);
+      }
+
+      function setupStage(...ctrlIds) {
+        toolbar.classList.add("active");
+        metaGrid.style.display = "grid";
+        ctrlIds.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = "flex";
+        });
+      }
+
+      function createMedia(tag) {
+        const el = document.createElement(tag);
+        el.controls = tag !== "img";
+        if (tag !== "img") el.autoplay = true;
+        stage.appendChild(el);
+        currentMedia = el;
+        return el;
+      }
+
+      function createDebugOverlay() {
+        const d = document.createElement("div");
+        d.className = "debug-overlay";
+        d.style.minWidth = "180px"; // Make it slightly wider
+        d.innerHTML = `
+              <div style="border-bottom:1px solid #444; padding-bottom:4px; margin-bottom:4px; font-weight:bold; color:#ccc">STATS</div>
+
+              <!-- Row 1 -->
+              <div style="display:flex; justify-content:space-between;">
+                  <span>Res:</span> <b id="d-res" style="color:#fff">-</b>
+              </div>
+
+              <!-- Row 2 -->
+              <div style="display:flex; justify-content:space-between;">
+                  <span>Bitrate:</span> <b id="d-bit" style="color:#4fa3d1">-</b>
+              </div>
+
+              <!-- Row 3 -->
+              <div style="display:flex; justify-content:space-between;">
+                  <span>Buffer:</span> <b id="d-buf" style="color:#fff">-</b>
+              </div>
+
+              <!-- Row 4 -->
+              <div style="display:flex; justify-content:space-between;">
+                  <span>Bandwidth:</span> <b id="d-bw" style="color:#fff">-</b>
+              </div>
+
+              <!-- Row 5 -->
+              <div style="display:flex; justify-content:space-between; margin-top:4px; border-top:1px solid #444; padding-top:2px">
+                  <span style="color:#f44336">Dropped:</span> <b id="d-drop" style="color:#f44336">0</b>
+              </div>
+          `;
+        stage.appendChild(d);
+      }
+
+      function fetchHeaders(url) {
+        fetch(url, { method: "HEAD" })
+          .then((r) => {
+            if (r.ok) {
+              document.getElementById("m-type").innerText =
+                r.headers.get("content-type") || "-";
+              const len = r.headers.get("content-length");
+              document.getElementById("m-size").innerText = len
+                ? (len / 1024 / 1024).toFixed(2) + " MB"
+                : "-";
+              document.getElementById("m-date").innerText =
+                r.headers.get("last-modified") || "-";
+            }
+          })
+          .catch(() => log("CORS blocked headers", "warn"));
+      }
+
+      function log(msg, type = "info") {
+        const d = document.createElement("div");
+        d.className = "log-entry";
+        d.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span> <span class="log-${type}">${msg}</span>`;
+        document.getElementById("logger").prepend(d);
+      }
+
+      function formatBytes(bytes, decimals = 2) {
+        if (!+bytes) return "0 Bytes";
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+      }
+
+      function formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) return "00:00";
+
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+
+        const mm = m.toString().padStart(2, "0");
+        const ss = s.toString().padStart(2, "0");
+
+        if (h > 0) {
+          const hh = h.toString().padStart(2, "0");
+          return `${hh}:${mm}:${ss}`;
+        }
+        return `${mm}:${ss}`;
+      }
+    </script>
+  </body>
+</html>

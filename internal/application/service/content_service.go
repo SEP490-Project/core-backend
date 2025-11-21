@@ -489,6 +489,35 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 			db = db.Where("type = ?", *req.Type)
 		}
 
+		if req.BrandID != nil {
+			db = db.Where(`
+        EXISTS (
+            SELECT 1
+            FROM tasks t
+            JOIN milestones m ON m.id = t.milestone_id
+            JOIN campaigns c ON c.id = m.campaign_id
+            JOIN contracts ct ON ct.id = c.contract_id
+            WHERE t.id = contents.task_id
+              AND ct.brand_id = ?
+        )
+    `, *req.BrandID)
+		}
+
+		if req.UserID != nil {
+			db = db.Where(`
+        EXISTS (
+            SELECT 1
+            FROM tasks t
+            JOIN milestones m ON m.id = t.milestone_id
+            JOIN campaigns c ON c.id = m.campaign_id
+            JOIN contracts ct ON ct.id = c.contract_id
+            JOIN brands b ON b.id = ct.brand_id
+            WHERE t.id = contents.task_id
+              AND b.user_id = ?
+        )
+    `, *req.UserID)
+		}
+
 		// Filter by task_id
 		if req.TaskID != nil {
 			db = db.Where("task_id = ?", *req.TaskID)
@@ -496,7 +525,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 
 		if req.AssignedTo != nil {
 			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
-				Where("tasks.assigned_to = ?", req.AssignedTo.String()).
+				Where("tasks.assigned_to = ?", req.AssignedTo).
 				Distinct()
 		}
 

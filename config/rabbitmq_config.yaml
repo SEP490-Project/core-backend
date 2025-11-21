@@ -155,6 +155,17 @@ producers:
       maxAttempts: 3
       backoffMs: 1000
       exponentialMultiply: 2.0
+  - name: notification-push-producer
+    exchange: exchange.notification
+    routingKey: notification.push
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
   - name: excel-import-producer
     exchange: exchange.excel_import
     routingKey: excel_import.products

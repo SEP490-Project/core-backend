@@ -598,6 +598,8 @@ func (h *ContentHandler) PublishToAllChannels(c *gin.Context) {
 //	@Param			sort_order	query		string	false	"Sort order"		Enums(asc, desc)
 //	@Param			status		query		string	false	"Filter by status"	Enums(DRAFT, AWAIT_STAFF, AWAIT_BRAND, REJECTED, APPROVED, POSTED)
 //	@Param			type		query		string	false	"Filter by type"	Enums(POST, VIDEO)
+//	@Param			brand_id	query		string	false	"Filter by brand ID (UUID)"
+//	@Param			user_id		query		string	false	"Filter by user ID (UUID)"
 //	@Param			task_id		query		string	false	"Filter by task ID (UUID)"
 //	@Param			assigned_to	query		string	false	"Filter by assigned user ID (UUID)"
 //	@Param			channel_id	query		string	false	"Filter by channel ID (UUID)"
@@ -678,7 +680,8 @@ func (h *ContentHandler) ListByAssignedUser(c *gin.Context) {
 			responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-	req.AssignedTo = &assignedToID
+	assignedToStr := assignedToID.String()
+	req.AssignedTo = &assignedToStr
 	if err = h.validator.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, processValidationError(err))
 		return
@@ -816,7 +819,7 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 //	@Failure		404			{object}	responses.APIResponse	"Content or channel not found"
 //	@Failure		500			{object}	responses.APIResponse	"Failed to queue publishing request"
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{id}/publish//channel/{channel_id} [post]
+//	@Router			/api/v1/contents/{id}/publish/channel/{channel_id} [post]
 func (h *ContentHandler) PublishToChannel(c *gin.Context) {
 	// Extract content ID from path
 	contentID, err := extractParamID(c, "id")

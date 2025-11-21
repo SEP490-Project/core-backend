@@ -8,6 +8,8 @@ import (
 	"core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"encoding/json"
 	"errors"
 	"time"
@@ -20,6 +22,7 @@ import (
 // NotificationPushConsumer handles push notification messages from RabbitMQ
 type NotificationPushConsumer struct {
 	fcmService             iservice_third_party.FCMService
+	expoPushService        iservice_third_party.ExpoPushService
 	deviceTokenRepository  irepository.DeviceTokenRepository
 	notificationRepository irepository.NotificationRepository
 	userService            iservice.UserService
@@ -28,18 +31,17 @@ type NotificationPushConsumer struct {
 
 // NewNotificationPushConsumer creates a new push notification consumer
 func NewNotificationPushConsumer(
-	fcmService iservice_third_party.FCMService,
-	deviceTokenRepository irepository.DeviceTokenRepository,
-	notificationRepository irepository.NotificationRepository,
+	infraReg *infrastructure.InfrastructureRegistry,
+	dbRegistry *gormrepository.DatabaseRegistry,
 	userService iservice.UserService,
-	healthMonitor iservice_third_party.HealthMonitor,
 ) *NotificationPushConsumer {
 	return &NotificationPushConsumer{
-		fcmService:             fcmService,
-		deviceTokenRepository:  deviceTokenRepository,
-		notificationRepository: notificationRepository,
+		fcmService:             infraReg.FCMService,
+		expoPushService:        infraReg.ExpoPushService,
+		deviceTokenRepository:  dbRegistry.DeviceTokenRepository,
+		notificationRepository: dbRegistry.NotificationRepository,
 		userService:            userService,
-		healthMonitor:          healthMonitor,
+		healthMonitor:          infraReg.HealthMonitor,
 	}
 }
 
@@ -114,14 +116,113 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 		return nil
 	}
 
-	// Extract token strings
-	tokenStrings := make([]string, 0, len(tokens))
+	// Separate tokens by type (Expo vs FCM)
+	expoTokens := make([]string, 0)
+	fcmTokens := make([]string, 0)
+
 	for _, token := range tokens {
-		tokenStrings = append(tokenStrings, token.Token)
+		if c.expoPushService != nil && c.expoPushService.IsExpoToken(token.Token) {
+			expoTokens = append(expoTokens, token.Token)
+		} else {
+			fcmTokens = append(fcmTokens, token.Token)
+		}
 	}
 
-	zap.L().Info("Sending push notification to devices",
-		zap.Int("device_count", len(tokenStrings)))
+	zap.L().Info("Categorized device tokens by type",
+		zap.Int("expo_tokens", len(expoTokens)),
+		zap.Int("fcm_tokens", len(fcmTokens)))
+
+	totalSuccess := 0
+	totalFailure := 0
+	var lastError error
+
+	// Send to Expo tokens if any
+	if len(expoTokens) > 0 && c.expoPushService != nil {
+		successCount, failureCount, invalidTokens, err := c.sendViaExpo(ctx, msg, expoTokens)
+		totalSuccess += successCount
+		totalFailure += failureCount
+
+		if err != nil {
+			zap.L().Error("Failed to send Expo notifications",
+				zap.String("notification_id", msg.NotificationID.String()),
+				zap.Error(err))
+			lastError = err
+		}
+
+		// Mark invalid Expo tokens
+		for _, token := range invalidTokens {
+			if err := c.deviceTokenRepository.MarkInvalid(ctx, token); err != nil {
+				zap.L().Error("Failed to mark Expo token as invalid",
+					zap.String("token", token),
+					zap.Error(err))
+			}
+		}
+	}
+
+	// Send to FCM tokens if any
+	if len(fcmTokens) > 0 && c.fcmService != nil {
+		successCount, failureCount, err := c.sendViaFCM(ctx, msg, fcmTokens)
+		totalSuccess += successCount
+		totalFailure += failureCount
+
+		if err != nil {
+			zap.L().Error("Failed to send FCM notifications",
+				zap.String("notification_id", msg.NotificationID.String()),
+				zap.Error(err))
+			lastError = err
+		}
+	}
+
+	// Log combined delivery attempt
+	errorMsg := ""
+	if lastError != nil {
+		errorMsg = lastError.Error()
+	}
+	c.logDeliveryAttempt(ctx, msg.NotificationID, totalSuccess, totalFailure, errorMsg)
+
+	zap.L().Info("Push notification processing completed",
+		zap.String("notification_id", msg.NotificationID.String()),
+		zap.Int("total_success", totalSuccess),
+		zap.Int("total_failure", totalFailure))
+
+	// If all deliveries failed, return error to trigger retry
+	if totalSuccess == 0 && totalFailure > 0 {
+		return errors.New("all push notifications failed to deliver")
+	}
+
+	return nil
+}
+
+// sendViaExpo sends notifications via Expo push service
+func (c *NotificationPushConsumer) sendViaExpo(
+	ctx context.Context,
+	msg consumers.PushNotificationMessage,
+	tokens []string,
+) (successCount, failureCount int, invalidTokens []string, err error) {
+	zap.L().Info("Sending via Expo push service",
+		zap.Int("token_count", len(tokens)))
+
+	// Expo doesn't support complex platform configs like FCM,
+	// so we use simple title/body/data sending
+	successCount, failureCount, invalidTokens, err = c.expoPushService.SendMulticast(
+		ctx,
+		tokens,
+		msg.Title,
+		msg.Body,
+		msg.Data,
+	)
+
+	return successCount, failureCount, invalidTokens, err
+}
+
+// sendViaFCM sends notifications via Firebase Cloud Messaging
+func (c *NotificationPushConsumer) sendViaFCM(
+	ctx context.Context,
+	msg consumers.PushNotificationMessage,
+	tokens []string,
+) (successCount, failureCount int, err error) {
+	zap.L().Info("Sending via FCM service",
+		zap.Int("token_count", len(tokens)))
 
 	// Send via FCM with platform config
 	var batchResp *messaging.BatchResponse
@@ -130,7 +231,7 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 		androidConfig := c.buildAndroidConfig(msg.PlatformConfig.Android)
 		batchResp, err = c.fcmService.SendMulticastWithPlatformConfig(
 			ctx,
-			tokenStrings,
+			tokens,
 			msg.Title,
 			msg.Body,
 			msg.Data,
@@ -140,7 +241,7 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 	} else {
 		batchResp, err = c.fcmService.SendMulticast(
 			ctx,
-			tokenStrings,
+			tokens,
 			msg.Title,
 			msg.Body,
 			msg.Data,
@@ -148,30 +249,13 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 	}
 
 	if err != nil {
-		zap.L().Error("Failed to send FCM multicast",
-			zap.String("notification_id", msg.NotificationID.String()),
-			zap.Error(err))
-		c.logDeliveryAttempt(ctx, msg.NotificationID, 0, len(tokenStrings), err.Error())
-		return err // FCM service errors should retry
+		return 0, len(tokens), err
 	}
 
-	// Handle batch response and mark invalid tokens
-	c.processBatchResponse(ctx, batchResp, tokenStrings)
+	// Handle batch response and mark invalid FCM tokens
+	c.processBatchResponse(ctx, batchResp, tokens)
 
-	// Log delivery attempt
-	c.logDeliveryAttempt(ctx, msg.NotificationID, batchResp.SuccessCount, batchResp.FailureCount, "")
-
-	zap.L().Info("Push notification processing completed",
-		zap.String("notification_id", msg.NotificationID.String()),
-		zap.Int("success_count", batchResp.SuccessCount),
-		zap.Int("failure_count", batchResp.FailureCount))
-
-	// If all deliveries failed, return error to trigger retry
-	if batchResp.SuccessCount == 0 && batchResp.FailureCount > 0 {
-		return errors.New("all push notifications failed to deliver")
-	}
-
-	return nil
+	return batchResp.SuccessCount, batchResp.FailureCount, nil
 }
 
 // processBatchResponse handles the FCM batch response and marks invalid tokens

@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"core-backend/config"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -38,7 +39,12 @@ func InitS3() *S3Bucket {
 		zap.L().Panic("Failed to initialize AWS SDK", zap.Error(err))
 	}
 
-	client := s3.NewFromConfig(awsCfg)
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		if s3Cfg.Endpoint != "" && strings.Contains(s3Cfg.Endpoint, "localhost") {
+			o.BaseEndpoint = &s3Cfg.Endpoint
+			o.UsePathStyle = true
+		}
+	})
 
 	// verify bucket
 	_, err = client.HeadBucket(context.TODO(), &s3.HeadBucketInput{
