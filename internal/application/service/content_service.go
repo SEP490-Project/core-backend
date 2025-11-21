@@ -490,22 +490,32 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 		}
 
 		if req.BrandID != nil {
-			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
-				Joins("JOIN milestones ON milestones.id = tasks.milestone_id").
-				Joins("JOIN campaigns ON campaigns.id = milestones.campaign_id").
-				Joins("JOIN contracts ON contracts.id = campaigns.contract_id").
-				Where("contracts.brand_id = ?", *req.BrandID).
-				Distinct()
+			db = db.Where(`
+        EXISTS (
+            SELECT 1
+            FROM tasks t
+            JOIN milestones m ON m.id = t.milestone_id
+            JOIN campaigns c ON c.id = m.campaign_id
+            JOIN contracts ct ON ct.id = c.contract_id
+            WHERE t.id = contents.task_id
+              AND ct.brand_id = ?
+        )
+    `, *req.BrandID)
 		}
 
 		if req.UserID != nil {
-			db = db.Joins("JOIN tasks ON tasks.id = contents.task_id").
-				Joins("JOIN milestones ON milestones.id = tasks.milestone_id").
-				Joins("JOIN campaigns ON campaigns.id = milestones.campaign_id").
-				Joins("JOIN contracts ON contracts.id = campaigns.contract_id").
-				Joins("JOIN brands ON brands.id = contracts.brand_id").
-				Where("brands.user_id = ?", *req.UserID).
-				Distinct()
+			db = db.Where(`
+        EXISTS (
+            SELECT 1
+            FROM tasks t
+            JOIN milestones m ON m.id = t.milestone_id
+            JOIN campaigns c ON c.id = m.campaign_id
+            JOIN contracts ct ON ct.id = c.contract_id
+            JOIN brands b ON b.id = ct.brand_id
+            WHERE t.id = contents.task_id
+              AND b.user_id = ?
+        )
+    `, *req.UserID)
 		}
 
 		// Filter by task_id
