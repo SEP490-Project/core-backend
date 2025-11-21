@@ -180,7 +180,7 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 		return
 	}
 	roleStr, _ := roleVal.(string)
-	if err := roleChecker("PRODUCT", roleStr, target); err != nil {
+	if err = roleChecker("PRODUCT", roleStr, target); err != nil {
 		resp := responses.ErrorResponse(err.Error(), http.StatusForbidden)
 		c.JSON(http.StatusForbidden, resp)
 		return
@@ -227,7 +227,7 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	}))
 }
 
-// UpdatePreOrderState
+// UpdatePreOrderState godoc
 //
 //	@Tags		Preorders
 //	@Accept		multipart/form-data
@@ -279,7 +279,7 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	}
 	roleStr := roleVal.(string)
 
-	if err := roleChecker("PREORDER", roleStr, targetState); err != nil {
+	if err = roleChecker("PREORDER", roleStr, targetState); err != nil {
 		c.JSON(http.StatusForbidden, responses.ErrorResponse(err.Error(), http.StatusForbidden))
 		return
 	}
@@ -300,7 +300,7 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	isStatusReceived := targetState == enum.PreOrderStatusReceived
 
 	if isStatusDelivered || isStatusReceived {
-		uow := h.UnitOfWork.Begin(c.Request.Context())
+		uow := h.Begin(c.Request.Context())
 		preOrder, err := uow.PreOrder().GetByID(c.Request.Context(), preOrderID, nil)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch pre-order: "+err.Error(), http.StatusBadRequest))
@@ -336,7 +336,7 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 			}
 
 			userID := c.GetString("userID")
-			url, err := h.fileService.UploadFile(userID, localPath, newFileName)
+			url, err := h.fileService.UploadFile(c.Request.Context(), userID, localPath, newFileName)
 			if err != nil {
 				_ = os.Remove(localPath)
 				c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+fileHeader.Filename, http.StatusInternalServerError))
@@ -617,7 +617,7 @@ func roleChecker(t, roleStr string, target any) error {
 
 	default:
 		zap.L().Info("Type not found for: " + t)
-		return fmt.Errorf("Type not found for role Checker: %s ", t)
+		return fmt.Errorf("type not found for role Checker: %s ", t)
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package third_party_repository
 
 import (
+	"core-backend/config"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/infrastructure/persistence"
 )
@@ -11,9 +12,12 @@ type ThirdPartyStorageRegistry struct {
 }
 
 func NewThirdPartyStorageRegistry(
-	s3Bucket *persistence.S3Bucket, s3StreamBucket *persistence.S3StreamingBucket) *ThirdPartyStorageRegistry {
+	config *config.AppConfig,
+	s3Bucket *persistence.S3Bucket,
+	s3StreamBucket *persistence.S3StreamingBucket,
+) *ThirdPartyStorageRegistry {
 	return &ThirdPartyStorageRegistry{
-		S3Storage:       NewS3Storage(s3Bucket),
-		S3StreamStorage: NewS3StreamingStorage(s3StreamBucket),
+		S3Storage:       NewS3Storage(config, s3Bucket),
+		S3StreamStorage: NewS3StreamingStorage(config, s3StreamBucket),
 	}
 }

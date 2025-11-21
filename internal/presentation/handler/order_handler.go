@@ -676,7 +676,7 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 
 		// Upload to remote storage (e.g., S3, GCS)
 		userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
-		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
+		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
 		if err != nil {
 			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
@@ -795,7 +795,7 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 
 		// Upload to remote storage (e.g., S3, GCS)
 		userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
-		url, err := h.fileService.UploadFile(userID, finalPath, newFileName)
+		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
 		if err != nil {
 			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})

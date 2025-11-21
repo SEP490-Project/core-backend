@@ -2,6 +2,7 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 
@@ -24,4 +25,16 @@ type NotificationService interface {
 
 	// GetByFilters retrieves notifications with multiple filter criteria
 	GetByFilters(ctx context.Context, userID *uuid.UUID, notificationType *enum.NotificationType, status *enum.NotificationStatus, startDate, endDate *string, page, limit int) ([]*model.Notification, int64, error)
+
+	// CreateAndPublishNotification creates a notification record and publishes it to specified channels
+	CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) ([]uuid.UUID, error)
+
+	// CreateAndPublishEmail creates an email notification record and publishes it
+	CreateAndPublishEmail(ctx context.Context, req *requests.PublishEmailRequest) (uuid.UUID, error)
+
+	// CreateAndPublishPush creates a push notification record and publishes it
+	CreateAndPublishPush(ctx context.Context, req *requests.PublishPushRequest) (uuid.UUID, error)
+
+	// RepublishFailedNotifications republishes failed notifications based on filter criteria
+	RepublishFailedNotifications(ctx context.Context, req *requests.RepublishFailedNotificationRequest) (int, error)
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
@@ -191,5 +192,159 @@ func (h *NotificationHandler) GetFailedNotifications(c *gin.Context) {
 
 	listResponse := responses.ToNotificationListResponse(notifications, page, limit, total)
 	response := responses.SuccessResponse("Failed notifications retrieved successfully", nil, listResponse)
+	c.JSON(http.StatusOK, response)
+}
+
+// PublishNotification godoc
+//
+//	@Summary		Publish notification to multiple channels
+//	@Description	Create and publish a notification to one or many channels (EMAIL, PUSH). Admin only.
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.PublishNotificationRequest		true	"Notification data"
+//	@Success		201		{object}	responses.APIResponse{data=[]string}	"Returns array of notification IDs"
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/publish [post]
+func (h *NotificationHandler) PublishNotification(c *gin.Context) {
+	var req requests.PublishNotificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Warn("Invalid request body for publish notification", zap.Error(err))
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	notificationIDs, err := h.notificationService.CreateAndPublishNotification(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to publish notification", zap.Error(err))
+		response := responses.ErrorResponse(err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Convert UUIDs to strings for response
+	idStrings := make([]string, len(notificationIDs))
+	for i, id := range notificationIDs {
+		idStrings[i] = id.String()
+	}
+
+	statusCode := http.StatusCreated
+	response := responses.SuccessResponse("Notifications published successfully", &statusCode, map[string]any{
+		"notification_ids": idStrings,
+		"count":            len(idStrings),
+	})
+	c.JSON(http.StatusCreated, response)
+}
+
+// PublishEmail godoc
+//
+//	@Summary		Publish email notification
+//	@Description	Create and publish an email notification. Supports template or HTML body. Admin only.
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.PublishEmailRequest					true	"Email notification data"
+//	@Success		201		{object}	responses.APIResponse{data=map[string]string}	"Returns notification_id"
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/publish/email [post]
+func (h *NotificationHandler) PublishEmail(c *gin.Context) {
+	var req requests.PublishEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Warn("Invalid request body for publish email", zap.Error(err))
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	notificationID, err := h.notificationService.CreateAndPublishEmail(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to publish email notification", zap.Error(err))
+		response := responses.ErrorResponse(err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusCreated
+	response := responses.SuccessResponse("Email notification published successfully", &statusCode, map[string]any{
+		"notification_id": notificationID.String(),
+	})
+	c.JSON(http.StatusCreated, response)
+}
+
+// PublishPush godoc
+//
+//	@Summary		Publish push notification
+//	@Description	Create and publish a push notification to user's registered devices. Admin only.
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.PublishPushRequest						true	"Push notification data"
+//	@Success		201		{object}	responses.APIResponse{data=map[string]string}	"Returns notification_id"
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/publish/push [post]
+func (h *NotificationHandler) PublishPush(c *gin.Context) {
+	var req requests.PublishPushRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Warn("Invalid request body for publish push", zap.Error(err))
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	notificationID, err := h.notificationService.CreateAndPublishPush(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to publish push notification", zap.Error(err))
+		response := responses.ErrorResponse(err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusCreated
+	response := responses.SuccessResponse("Push notification published successfully", &statusCode, map[string]any{
+		"notification_id": notificationID.String(),
+	})
+	c.JSON(http.StatusCreated, response)
+}
+
+// RepublishFailed godoc
+//
+//	@Summary		Republish failed notifications
+//	@Description	Retry sending failed notifications based on filter criteria. Admin only.
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.RepublishFailedNotificationRequest	true	"Filter criteria for failed notifications"
+//	@Success		200		{object}	responses.APIResponse{data=map[string]int}	"Returns success_count"
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/republish-failed [post]
+func (h *NotificationHandler) RepublishFailed(c *gin.Context) {
+	var req requests.RepublishFailedNotificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		zap.L().Warn("Invalid request body for republish failed", zap.Error(err))
+		response := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	successCount, err := h.notificationService.RepublishFailedNotifications(c.Request.Context(), &req)
+	if err != nil {
+		zap.L().Error("Failed to republish notifications", zap.Error(err))
+		response := responses.ErrorResponse(err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Failed notifications republished successfully", nil, map[string]any{
+		"success_count": successCount,
+	})
 	c.JSON(http.StatusOK, response)
 }

@@ -1055,6 +1055,18 @@ definitions:
     x-enum-varnames:
     - ContentTypePost
     - ContentTypeVideo
+  enum.ContractType:
+    enum:
+    - ADVERTISING
+    - AFFILIATE
+    - BRAND_AMBASSADOR
+    - CO_PRODUCING
+    type: string
+    x-enum-varnames:
+    - ContractTypeAdvertising
+    - ContractTypeAffiliate
+    - ContractTypeAmbassador
+    - ContractTypeCoProduce
   enum.DispenserType:
     enum:
     - PUMP
@@ -1205,6 +1217,18 @@ definitions:
     x-enum-varnames:
     - ProductTypeStandard
     - ProductTypeLimited
+  enum.TaskType:
+    enum:
+    - PRODUCT
+    - CONTENT
+    - EVENT
+    - OTHER
+    type: string
+    x-enum-varnames:
+    - TaskTypeProduct
+    - TaskTypeContent
+    - TaskTypeEvent
+    - TaskTypeOther
   enum.UserRole:
     enum:
     - ADMIN
@@ -2563,6 +2587,139 @@ definitions:
     - address_id
     - variant_id
     type: object
+  requests.PublishEmailRequest:
+    properties:
+      html_body:
+        minLength: 1
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      priority:
+        enum:
+        - low
+        - normal
+        - high
+        example: normal
+        type: string
+      subject:
+        example: Test Email Subject
+        maxLength: 255
+        minLength: 1
+        type: string
+      template_data:
+        additionalProperties: {}
+        type: object
+      template_name:
+        description: Either use template or provide body directly
+        example: task_assigned
+        minLength: 1
+        type: string
+      to:
+        example: user@example.com
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - subject
+    - to
+    - user_id
+    type: object
+  requests.PublishNotificationRequest:
+    properties:
+      body:
+        example: This is a test notification message
+        minLength: 1
+        type: string
+      channels:
+        example:
+        - EMAIL
+        - PUSH
+        items:
+          type: string
+        minItems: 1
+        type: array
+      data:
+        additionalProperties:
+          type: string
+        example:
+          key1: value1
+          key2: value2
+        type: object
+      email_html_body:
+        minLength: 1
+        type: string
+      email_subject:
+        description: Email-specific fields (used when EMAIL channel is included)
+        example: Test Email Subject
+        maxLength: 255
+        minLength: 1
+        type: string
+      email_template_data:
+        additionalProperties: {}
+        type: object
+      email_template_name:
+        example: task_assigned
+        minLength: 1
+        type: string
+      title:
+        example: Test Notification
+        maxLength: 255
+        minLength: 1
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - body
+    - channels
+    - title
+    - user_id
+    type: object
+  requests.PublishPushRequest:
+    properties:
+      android_notification_tag:
+        example: group1
+        type: string
+      android_priority:
+        enum:
+        - min
+        - low
+        - default
+        - high
+        - max
+        example: high
+        type: string
+      body:
+        example: This is a test push notification
+        minLength: 1
+        type: string
+      data:
+        additionalProperties:
+          type: string
+        type: object
+      ios_badge:
+        description: Platform-specific configurations (optional)
+        example: 1
+        type: integer
+      ios_sound:
+        example: default
+        type: string
+      title:
+        example: Test Push Notification
+        maxLength: 255
+        minLength: 1
+        type: string
+      user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
+    required:
+    - body
+    - title
+    - user_id
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -2593,6 +2750,28 @@ definitions:
         type: string
     required:
     - feedback
+    type: object
+  requests.RepublishFailedNotificationRequest:
+    properties:
+      min_retries:
+        example: 3
+        maximum: 10
+        minimum: 1
+        type: integer
+      notification_ids:
+        example:
+        - 123e4567-e89b-12d3-a456-426614174000
+        items:
+          type: string
+        type: array
+      type:
+        enum:
+        - EMAIL
+        - PUSH
+        example: EMAIL
+        type: string
+    required:
+    - notification_ids
     type: object
   requests.ResetPasswordRequest:
     properties:
@@ -4771,6 +4950,8 @@ definitions:
     type: object
   responses.SuggestedCampaign:
     properties:
+      contract_id:
+        type: string
       description:
         example: Campaign for launching the new product line.
         type: string
@@ -4788,8 +4969,9 @@ definitions:
         example: "2024-11-01T00:00:00Z"
         type: string
       type:
+        allOf:
+        - $ref: '#/definitions/enum.ContractType'
         example: ADVERTISING
-        type: string
     type: object
   responses.SuggestedMilestone:
     properties:
@@ -4816,8 +4998,9 @@ definitions:
         example: Create social media post
         type: string
       type:
+        allOf:
+        - $ref: '#/definitions/enum.TaskType'
         example: CONTENT
-        type: string
     type: object
   responses.TagPaginationResponse:
     properties:
@@ -8145,6 +8328,14 @@ paths:
         in: query
         name: type
         type: string
+      - description: Filter by brand ID (UUID)
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by user ID (UUID)
+        in: query
+        name: user_id
+        type: string
       - description: Filter by task ID (UUID)
         in: query
         name: task_id
@@ -8487,7 +8678,7 @@ paths:
       summary: Publish content to all channels
       tags:
       - Content
-  /api/v1/contents/{id}/publish//channel/{channel_id}:
+  /api/v1/contents/{id}/publish/channel/{channel_id}:
     post:
       consumes:
       - application/json
@@ -10029,6 +10220,18 @@ paths:
         name: chunk
         required: true
         type: file
+      - description: Convert to HLS
+        in: formData
+        name: isHls
+        type: boolean
+      - description: 'Comma-separated list of resolutions for HLS (options: 144p,240p,360p,480p,720p,1080p,1440p)'
+        in: formData
+        name: resolutions
+        type: string
+      - description: HLS segment duration in seconds (default 10)
+        in: formData
+        name: segmentDuration
+        type: integer
       produces:
       - application/json
       responses:
@@ -10760,6 +10963,166 @@ paths:
       security:
       - BearerAuth: []
       summary: Get failed notifications with retries
+      tags:
+      - Notifications
+  /api/v1/notifications/publish:
+    post:
+      consumes:
+      - application/json
+      description: Create and publish a notification to one or many channels (EMAIL,
+        PUSH). Admin only.
+      parameters:
+      - description: Notification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PublishNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Returns array of notification IDs
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish notification to multiple channels
+      tags:
+      - Notifications
+  /api/v1/notifications/publish/email:
+    post:
+      consumes:
+      - application/json
+      description: Create and publish an email notification. Supports template or
+        HTML body. Admin only.
+      parameters:
+      - description: Email notification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PublishEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Returns notification_id
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish email notification
+      tags:
+      - Notifications
+  /api/v1/notifications/publish/push:
+    post:
+      consumes:
+      - application/json
+      description: Create and publish a push notification to user's registered devices.
+        Admin only.
+      parameters:
+      - description: Push notification data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PublishPushRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Returns notification_id
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish push notification
+      tags:
+      - Notifications
+  /api/v1/notifications/republish-failed:
+    post:
+      consumes:
+      - application/json
+      description: Retry sending failed notifications based on filter criteria. Admin
+        only.
+      parameters:
+      - description: Filter criteria for failed notifications
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RepublishFailedNotificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Returns success_count
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Republish failed notifications
       tags:
       - Notifications
   /api/v1/orders:

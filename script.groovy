@@ -7,6 +7,26 @@ def getParameters() {
 }
 
 //TODO: =========== Build functions ===========
+def setupBuildx() {
+    // 1. Create the directory where Docker looks for CLI plugins
+    // 2. Download buildx only if it doesn't exist (caching it for future builds)
+    // 3. Make it executable
+    sh """
+        mkdir -p ~/.docker/cli-plugins
+        if [ ! -f ~/.docker/cli-plugins/docker-buildx ]; then
+            echo "📥 Buildx plugin not found. Downloading..."
+            curl -SL https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+            echo "✅ Buildx installed successfully."
+        else
+            echo "✅ Buildx already installed."
+        fi
+        
+        # Verify version to ensure it works
+        docker buildx version
+    """
+}
+
 def checkoutSSH(url, branchRegex) {
     checkout([
         $class: 'GitSCM',
@@ -41,6 +61,8 @@ def buildDockerfile(appName, sha) {
     sh """
         docker build \\
             --build-arg APP_NAME=${appName} \\
+            --build-arg BUILDKIT_INLINE_CACHE=1 \\
+            --cache-from type=registry,ref=${imageName}:latest \\
             --label "org.opencontainers.image.source=https://github.com/SEP490-Project/core-backend" \\
             -t ${imageName}:${tag} .
     """

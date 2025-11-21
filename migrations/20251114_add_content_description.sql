@@ -1,3 +1,3 @@
 alter table contents
-add columns description text;
+    add column description text;
 
