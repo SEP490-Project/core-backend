@@ -11,8 +11,8 @@ type PreOrderedState struct{}
 func (s *PreOrderedState) Name() enum.PreOrderStatus { return enum.PreOrderStatusPreOrdered }
 func (s *PreOrderedState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 	return map[enum.PreOrderStatus]bool{
-		enum.PreOrderStatusStockPreparing: true,
-		enum.PreOrderStatusStockReady:     true,
+		enum.PreOrderStatusAwaitingPickup: true,
+		enum.PreOrderStatusInTransit:      true,
 		enum.PreOrderStatusCancelled:      true,
 	}
 }

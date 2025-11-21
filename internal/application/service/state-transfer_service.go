@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
@@ -42,6 +43,7 @@ type stateTransferService struct {
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
+	adminConfig             config.AdminConfig
 }
 
 func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, fileURL *string) error {
@@ -718,10 +720,11 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return errors.New("order not found")
 		}
 
-		// 1) check if staff's censor time pass 5min?
+		// 1) check if staff's censor time pass initialTime?
 		isCurrentStatePerfomedByCustomer := order.Status.String() == enum.OrderStatusPaid.String()
-		isPass5Mins := order.UpdatedAt.Add(5 * time.Minute).After(time.Now())
-		if isCurrentStatePerfomedByCustomer && isPass5Mins {
+		standByMinutes := t.adminConfig.CensorshipIntervalMinutes
+		isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
+		if isCurrentStatePerfomedByCustomer && isAllow {
 			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + time.Until(order.UpdatedAt.Add(5*time.Minute)).String())
 		}
 
@@ -1123,6 +1126,7 @@ func NewStateTransferService(
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,
+	configs *config.AppConfig,
 ) iservice.StateTransferService {
 	return &stateTransferService{
 		contractRepository:      dbReg.ContractRepository,
@@ -1136,5 +1140,6 @@ func NewStateTransferService(
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,
+		adminConfig:             configs.AdminConfig,
 	}
 }
