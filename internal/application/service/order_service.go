@@ -53,21 +53,10 @@ func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionB
 			}
 		}
 	}
-
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		ActionBy: user,
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusCompensateRequested, reason)
+	if err != nil {
+		return err
 	}
-
-	nextState := ordersm.NewOrderState(enum.OrderStatusCompensateRequested)
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
-	}
-
-	actionNote := ctxState.GenerateActionNote(user, reason)
-	order.Status = enum.OrderStatusCompensateRequested
-	order.AddActionNote(*actionNote)
 	order.UserResource = fileURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -87,21 +76,11 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 		return err
 	}
 
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		ActionBy: user,
-	}
-
 	if !isApproved {
-		nextState := ordersm.NewOrderState(enum.OrderStatusDelivered)
-		if err = ctxState.State.Next(ctxState, nextState); err != nil {
-			zap.L().Error("Order state transition validation failed", zap.Error(err))
-			return fmt.Errorf("state transition not allowed: %w", err)
+		err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusDelivered, reason)
+		if err != nil {
+			return err
 		}
-
-		actionNote := ctxState.GenerateActionNote(user, reason)
-		order.Status = enum.OrderStatusDelivered
-		order.AddActionNote(*actionNote)
 		if utils.NotEmptyOrNil(fileURL) {
 			order.StaffResource = fileURL
 		}
@@ -113,14 +92,10 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 		}
 		return nil
 	} else {
-		nextState := ordersm.NewOrderState(enum.OrderStatusCompensated)
-		if err = ctxState.State.Next(ctxState, nextState); err != nil {
-			zap.L().Error("Order state transition validation failed", zap.Error(err))
-			return fmt.Errorf("state transition not allowed: %w", err)
+		err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusCompensated, reason)
+		if err != nil {
+			return err
 		}
-		order.Status = enum.OrderStatusCompensated
-		actionNote := ctxState.GenerateActionNote(user, reason)
-		order.AddActionNote(*actionNote)
 		order.StaffResource = fileURL
 
 		err = o.orderRepository.Update(ctx, order)
@@ -142,20 +117,11 @@ func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy
 		return err
 	}
 
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		ActionBy: user,
-	}
-	nextState := ordersm.NewOrderState(enum.OrderStatusRefundRequested)
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefundRequested, nil)
+	if err != nil {
+		return err
 	}
 
-	actionNote := ctxState.GenerateActionNote(user, nil)
-
-	order.Status = enum.OrderStatusRefundRequested
-	order.AddActionNote(*actionNote)
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to refund requested", zap.Error(err))
@@ -174,20 +140,10 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	if err != nil {
 		return err
 	}
-
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		ActionBy: user,
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefunded, nil)
+	if err != nil {
+		return err
 	}
-	nextState := ordersm.NewOrderState(enum.OrderStatusRefunded)
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
-	}
-
-	actionNote := ctxState.GenerateActionNote(user, nil)
-	order.Status = enum.OrderStatusRefunded
-	order.AddActionNote(*actionNote)
 	order.StaffResource = &fileURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -203,10 +159,15 @@ func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, se
 	return o.orderRepository.GetSelfDeliveryOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
 }
 
-func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error {
+func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID, userID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as in transit", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -216,7 +177,12 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as in transit")
 	}
-	order.Status = enum.OrderStatusInTransit
+
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusInTransit, nil)
+	if err != nil {
+		return err
+	}
+
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to in transit", zap.Error(err))
@@ -225,10 +191,15 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	return nil
 }
 
-func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageURL string) error {
+func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID, userID uuid.UUID, imageURL string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as delivered", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -238,7 +209,10 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as delivered")
 	}
-	order.Status = enum.OrderStatusDelivered
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusDelivered, nil)
+	if err != nil {
+		return err
+	}
 	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -264,21 +238,10 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID,
 		return errors.New("only orders awaiting pick-up can be marked as received")
 	}
 	//Convert using FSM
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		Order:    order,
-		ActionBy: user,
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusReceived, nil)
+	if err != nil {
+		return err
 	}
-	nextState := ordersm.NewOrderState(enum.OrderStatusReceived)
-
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
-	}
-	order.AddActionNote(*ctxState.GenerateActionNote(user, nil))
-	order.Status = enum.OrderStatusReceived
-
-	order.Status = enum.OrderStatusReceived
 	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -307,18 +270,10 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userI
 		return errors.New("this product is not for self pick-up")
 	}
 
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		Order:    order,
-		ActionBy: user,
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusAwaitingPickUp, nil)
+	if err != nil {
+		return err
 	}
-	nextState := ordersm.NewOrderState(enum.OrderStatusAwaitingPickUp)
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
-	}
-	order.AddActionNote(*ctxState.GenerateActionNote(user, nil))
-	order.Status = enum.OrderStatusAwaitingPickUp
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -345,19 +300,11 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 		return errors.New("only delivered orders can be marked as received")
 	}
 
-	ctxState := &ordersm.OrderContext{
-		State:    ordersm.NewOrderState(order.Status),
-		Order:    order,
-		ActionBy: user,
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusReceived, nil)
+	if err != nil {
+		return err
 	}
-	nextState := ordersm.NewOrderState(enum.OrderStatusReceived)
 
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
-		return fmt.Errorf("state transition not allowed: %w", err)
-	}
-	order.AddActionNote(*ctxState.GenerateActionNote(user, nil))
-	order.Status = enum.OrderStatusReceived
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -378,6 +325,14 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 		limit = 10
 	}
 	offset := (page - 1) * limit
+
+	// Validate status early to avoid silently ignoring a bad value (which previously caused no filter)
+	if status != "" {
+		s := enum.OrderStatus(status)
+		if !s.IsValid() {
+			return nil, 0, fmt.Errorf("invalid order status: %s", status)
+		}
+	}
 
 	filterScope := func(db *gorm.DB) *gorm.DB {
 		db = db.Where("orders.user_id = ?", userID)
@@ -873,19 +828,17 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 	}
 }
 
-func moveOrderStateViaFSM(order model.Order, user model.User, newStatus enum.OrderStatus) (*model.Order, error) {
+func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum.OrderStatus, reason *string) error {
 	ctxState := &ordersm.OrderContext{
 		State:    ordersm.NewOrderState(order.Status),
 		Order:    order,
 		ActionBy: user,
 	}
 	nextState := ordersm.NewOrderState(newStatus)
-
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
+	if err := ctxState.State.Next(ctxState, nextState); err != nil {
 		zap.L().Error("Order state transition validation failed", zap.Error(err))
 		return fmt.Errorf("state transition not allowed: %w", err)
 	}
-	order.AddActionNote(*ctxState.GenerateActionNote(user, nil))
-	order.Status = enum.OrderStatusReceived
-
+	order.AddActionNote(*ctxState.GenerateActionNote(user, reason))
+	return nil
 }

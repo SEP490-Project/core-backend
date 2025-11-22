@@ -16583,9 +16583,6 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
-                "status": {
-                    "$ref": "#/definitions/enum.OrderStatus"
-                },
                 "subtotal": {
                     "type": "number"
                 },
@@ -16593,7 +16590,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "updated_at": {
-                    "description": "CreatedAt time.Time      ` + "`" + `json:\"created_at\" gorm:\"column:created_at;autoCreateTime\"` + "`" + `",
+                    "description": "ItemStatus            enum.OrderStatus    ` + "`" + `json:\"status\" gorm:\"column:item_status;not null;\"` + "`" + `\nCreatedAt time.Time      ` + "`" + `json:\"created_at\" gorm:\"column:created_at;autoCreateTime\"` + "`" + `",
                     "type": "string"
                 },
                 "uses": {

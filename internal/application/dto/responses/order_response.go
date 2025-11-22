@@ -30,6 +30,8 @@ type OrderResponse struct {
 	UpdatedAt         time.Time                   `json:"updated_at"`
 	IsSelfPickedUp    bool                        `json:"is_self_picked_up"`
 	ConfirmationImage *string                     `json:"confirmation_image"`
+	UserResource      *string                     `json:"user_resource,omitempty"`
+	StaffResource     *string                     `json:"staff_resource,omitempty"`
 	OrderType         string                      `json:"order_type"`
 	GHNOrderCode      *string                     `json:"ghn_order_code,omitempty"`
 	ActionNotes       *model.OrderActionNotes     `json:"action_notes,omitempty"`
@@ -64,6 +66,8 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		UpdatedAt:         o.UpdatedAt,
 		IsSelfPickedUp:    o.IsSelfPickedUp,
 		ConfirmationImage: o.ConfirmationImage,
+		UserResource:      o.UserResource,
+		StaffResource:     o.StaffResource,
 		ActionNotes:       o.ActionNotes,
 		UserNote:          o.UserNote,
 		OrderType:         o.OrderType,

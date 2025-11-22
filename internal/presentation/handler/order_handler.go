@@ -614,8 +614,15 @@ func (h *OrderHandler) MarkAsReadyToPickedUp(c *gin.Context) {
 		return
 	}
 
+	//2. Extract user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkAsReadyToPickedUp(ctx, orderID); err != nil {
+	if err := h.orderService.MarkAsReadyToPickedUp(ctx, orderID, userID); err != nil {
 		resp := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -645,6 +652,12 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 	orderID, err := uuid.Parse(idParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+	//2. Extract user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -699,7 +712,7 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 	imageURL := uploadedURLs[0]
 
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkAsReceivedAfterPickedUp(ctx, orderID, imageURL); err != nil {
+	if err := h.orderService.MarkAsReceivedAfterPickedUp(ctx, orderID, userID, imageURL); err != nil {
 		zap.L().Error("Failed to mark order as received after pickup", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -732,9 +745,15 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsInTransit(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
 		return
 	}
+	//2. Extract user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
 
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkSelfDeliveringOrderAsInTransit(ctx, orderID); err != nil {
+	if err := h.orderService.MarkSelfDeliveringOrderAsInTransit(ctx, orderID, userID); err != nil {
 		resp := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -764,6 +783,12 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 	orderID, err := uuid.Parse(idParam)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+	//2. Extract user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -817,7 +842,7 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 	imageURL := uploadedURLs[0]
 
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkSelfDeliveringOrderAsDelivered(ctx, orderID, imageURL); err != nil {
+	if err := h.orderService.MarkSelfDeliveringOrderAsDelivered(ctx, orderID, userID, imageURL); err != nil {
 		zap.L().Error("Failed to mark self-delivering order as delivered", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
