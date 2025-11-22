@@ -27,7 +27,7 @@ type OrderItem struct {
 	ExpiryDate            *time.Time          `json:"expiry_date" gorm:"column:expiry_date"`
 	Instructions          *string             `json:"instructions" gorm:"type:text;column:instructions"`
 	AttributesDescription *datatypes.JSON     `json:"attributes_description" gorm:"column:attributes_description;type:jsonb" swaggerignore:"true"`
-	ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;"`
+	//ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;"`
 	//CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	//DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`

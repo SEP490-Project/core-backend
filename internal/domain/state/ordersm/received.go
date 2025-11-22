@@ -8,7 +8,7 @@ import (
 type ReceivedState struct{}
 
 func (c ReceivedState) Name() enum.OrderStatus {
-	return enum.OrderStatusCancelled
+	return enum.OrderStatusReceived
 }
 
 func (c ReceivedState) Next(ctx *OrderContext, next OrderState) error {

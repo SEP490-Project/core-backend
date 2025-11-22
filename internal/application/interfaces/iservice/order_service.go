@@ -26,8 +26,8 @@ type OrderService interface {
 
 	//internal delivery service - type = limited & self-delivering = false
 	GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error)
-	MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error
-	MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageUrl string) error
+	MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID, userID uuid.UUID) error
+	MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID, userID uuid.UUID, imageUrl string) error
 
 	//Request Refund - By Customer
 	RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID) error

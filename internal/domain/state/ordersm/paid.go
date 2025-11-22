@@ -21,7 +21,7 @@ func (p PaidState) Next(ctx *OrderContext, next OrderState) error {
 		} else if !p.isRoleStaff(ctx.ActionBy.Role) && next.Name() == enum.OrderStatusRefunded {
 			return fmt.Errorf("user role %s not allowed to transition from %s to %s", ctx.ActionBy.Role, p.Name(), next.Name())
 		}
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", p.Name(), next.Name())
