@@ -14,6 +14,7 @@ import (
 	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
 	"time"
@@ -30,8 +31,127 @@ type orderService struct {
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
+	userRepository               irepository.GenericRepository[model.User]
 	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
+}
+
+func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return err
+	}
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		return err
+	}
+	//Check if compensation has already been requested
+	if order.ActionNotes != nil {
+		for _, note := range *order.ActionNotes {
+			if note.ActionType == enum.OrderStatusCompensateRequested {
+				return errors.New("you've already requested compensation for this order")
+			}
+		}
+	}
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusCompensateRequested, reason)
+	if err != nil {
+		return err
+	}
+	order.UserResource = fileURL
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error {
+	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return err
+	}
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		return err
+	}
+
+	if !isApproved {
+		err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusDelivered, reason)
+		if err != nil {
+			return err
+		}
+		if utils.NotEmptyOrNil(fileURL) {
+			order.StaffResource = fileURL
+		}
+
+		err = o.orderRepository.Update(ctx, order)
+		if err != nil {
+			zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
+			return err
+		}
+		return nil
+	} else {
+		err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusCompensated, reason)
+		if err != nil {
+			return err
+		}
+		order.StaffResource = fileURL
+
+		err = o.orderRepository.Update(ctx, order)
+		if err != nil {
+			zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
+			return err
+		}
+		return nil
+	}
+}
+
+func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID) error {
+	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return err
+	}
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		return err
+	}
+
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefundRequested, nil)
+	if err != nil {
+		return err
+	}
+
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to refund requested", zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, fileURL string) error {
+	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return err
+	}
+	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		return err
+	}
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefunded, nil)
+	if err != nil {
+		return err
+	}
+	order.StaffResource = &fileURL
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		zap.L().Error("Failed to update order status to refund", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
@@ -39,10 +159,15 @@ func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, se
 	return o.orderRepository.GetSelfDeliveryOrdersWithPagination(ctx, limit, page, search, status, fullName, phone, provinceID, districtID, wardCode)
 }
 
-func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID uuid.UUID) error {
+func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID, userID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as in transit", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -52,7 +177,12 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as in transit")
 	}
-	order.Status = enum.OrderStatusInTransit
+
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusInTransit, nil)
+	if err != nil {
+		return err
+	}
+
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to in transit", zap.Error(err))
@@ -61,10 +191,15 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 	return nil
 }
 
-func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID uuid.UUID, imageURL string) error {
+func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID, userID uuid.UUID, imageURL string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as delivered", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -74,7 +209,10 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 	if order.OrderType != enum.ProductTypeLimited.String() || order.IsSelfPickedUp {
 		return errors.New("only limited product orders with self-delivering can be marked as delivered")
 	}
-	order.Status = enum.OrderStatusDelivered
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusDelivered, nil)
+	if err != nil {
+		return err
+	}
 	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -84,8 +222,13 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 	return nil
 }
 
-func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID uuid.UUID, imageURL string) error {
+func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID, userID uuid.UUID, imageURL string) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
 		return err
@@ -94,7 +237,11 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID 
 	if order.Status != enum.OrderStatusAwaitingPickUp {
 		return errors.New("only orders awaiting pick-up can be marked as received")
 	}
-	order.Status = enum.OrderStatusReceived
+	//Convert using FSM
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusReceived, nil)
+	if err != nil {
+		return err
+	}
 	order.ConfirmationImage = &imageURL
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
@@ -104,8 +251,13 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID 
 	return nil
 }
 
-func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID uuid.UUID) error {
+func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as pickedup", zap.Error(err))
+		return err
+	}
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as pickedup", zap.Error(err))
 		return err
@@ -118,7 +270,10 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID uuid.U
 		return errors.New("this product is not for self pick-up")
 	}
 
-	order.Status = enum.OrderStatusAwaitingPickUp
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusAwaitingPickUp, nil)
+	if err != nil {
+		return err
+	}
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -127,8 +282,14 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID uuid.U
 	return nil
 }
 
-func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) error {
+func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.UUID) error {
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	if err != nil {
+		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
+		return err
+	}
+
+	user, err := o.userRepository.GetByID(ctx, userID, nil)
 	if err != nil {
 		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
 		return err
@@ -139,7 +300,11 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID uuid.UUID) er
 		return errors.New("only delivered orders can be marked as received")
 	}
 
-	order.Status = enum.OrderStatusReceived
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusReceived, nil)
+	if err != nil {
+		return err
+	}
+
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		zap.L().Error("Failed to update order status to completed", zap.Error(err))
@@ -160,6 +325,14 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 		limit = 10
 	}
 	offset := (page - 1) * limit
+
+	// Validate status early to avoid silently ignoring a bad value (which previously caused no filter)
+	if status != "" {
+		s := enum.OrderStatus(status)
+		if !s.IsValid() {
+			return nil, 0, fmt.Errorf("invalid order status: %s", status)
+		}
+	}
 
 	filterScope := func(db *gorm.DB) *gorm.DB {
 		db = db.Where("orders.user_id = ?", userID)
@@ -647,9 +820,25 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		orderRepository:              dbRegistry.OrderRepository,
 		orderItemRepository:          dbRegistry.OrderItemRepository,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
+		userRepository:               dbRegistry.UserRepository,
 		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
 		ghnProxy:                     registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		paymentTransactionService:    paymentTransactionSvc,
 	}
+}
+
+func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum.OrderStatus, reason *string) error {
+	ctxState := &ordersm.OrderContext{
+		State:    ordersm.NewOrderState(order.Status),
+		Order:    order,
+		ActionBy: user,
+	}
+	nextState := ordersm.NewOrderState(newStatus)
+	if err := ctxState.State.Next(ctxState, nextState); err != nil {
+		zap.L().Error("Order state transition validation failed", zap.Error(err))
+		return fmt.Errorf("state transition not allowed: %w", err)
+	}
+	order.AddActionNote(*ctxState.GenerateActionNote(user, reason))
+	return nil
 }

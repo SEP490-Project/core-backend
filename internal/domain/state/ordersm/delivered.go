@@ -8,12 +8,12 @@ import (
 type DeliveredState struct{}
 
 func (d DeliveredState) Name() enum.OrderStatus {
-	return enum.OrderStatusInTransit
+	return enum.OrderStatusDelivered
 }
 
 func (d DeliveredState) Next(ctx *OrderContext, next OrderState) error {
 	if _, ok := d.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", d.Name(), next.Name())
@@ -21,6 +21,7 @@ func (d DeliveredState) Next(ctx *OrderContext, next OrderState) error {
 
 func (d DeliveredState) AllowedTransitions() map[enum.OrderStatus]struct{} {
 	return map[enum.OrderStatus]struct{}{
-		enum.OrderStatusReceived: {},
+		enum.OrderStatusCompensateRequested: {},
+		enum.OrderStatusReceived:            {},
 	}
 }

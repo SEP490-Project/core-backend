@@ -13,7 +13,7 @@ func (i AwaitingPickUpState) Name() enum.OrderStatus {
 
 func (i AwaitingPickUpState) Next(ctx *OrderContext, next OrderState) error {
 	if _, ok := i.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", i.Name(), next.Name())

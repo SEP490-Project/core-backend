@@ -55,6 +55,10 @@ type AdminConfig struct {
 	// ========= TikTok =========
 	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
 	TikTokWebhookSecret                string `mapstructure:"tiktok_webhook_secret"`
+
+	// ======== General ========
+	SystemEmail string `mapstructure:"system_email"`
+	SystemName  string `mapstructure:"system_name"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables

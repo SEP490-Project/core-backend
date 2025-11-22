@@ -886,16 +886,16 @@ func (t stateTransferService) handleOrderSideEffect(
 	case enum.PaymentTransactionStatusCompleted:
 		//Update Order to Confirm and handle the
 		newStatus = enum.OrderStatusPaid
-		zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
-		orderItemRepo := uow.OrderItem()
-		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("order_id = ?", order.ID)
-		}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
-			zap.L().Error("Failed to paid order items",
-				zap.String("order_id", order.ID.String()),
-				zap.Error(err))
-			return errors.New("failed to paid order items: " + err.Error())
-		}
+		//zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
+		//orderItemRepo := uow.OrderItem()
+		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		//	return db.Where("order_id = ?", order.ID)
+		//}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
+		//	zap.L().Error("Failed to paid order items",
+		//		zap.String("order_id", order.ID.String()),
+		//		zap.Error(err))
+		//	return errors.New("failed to paid order items: " + err.Error())
+		//}
 
 		zap.L().Info("Updating order to OrderStatusPaid (payment completed)",
 			zap.String("order_id", order.ID.String()))
@@ -905,15 +905,15 @@ func (t stateTransferService) handleOrderSideEffect(
 		enum.PaymentTransactionStatusExpired:
 
 		newStatus = enum.OrderStatusCancelled
-		orderItemRepo := uow.OrderItem()
-		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
-		}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
-			zap.L().Error("Failed to cancel order items",
-				zap.String("order_id", order.ID.String()),
-				zap.Error(err))
-			return errors.New("failed to cancel order items: " + err.Error())
-		}
+		//orderItemRepo := uow.OrderItem()
+		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		//	return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
+		//}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
+		//	zap.L().Error("Failed to cancel order items",
+		//		zap.String("order_id", order.ID.String()),
+		//		zap.Error(err))
+		//	return errors.New("failed to cancel order items: " + err.Error())
+		//}
 		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
@@ -951,9 +951,23 @@ func (t stateTransferService) handleOrderSideEffect(
 			zap.String("transaction_status", string(transactionStatus)))
 		return nil
 	}
-
+	// Build SystemUser
+	user := &model.User{
+		ID:       uuid.UUID{},
+		FullName: t.adminConfig.SystemName,
+		Email:    t.adminConfig.SystemEmail,
+	}
 	// Update order status
-	order.Status = newStatus
+	err := MoveOrderStateUsingFSM(order, user, newStatus, nil)
+	if err != nil {
+		zap.L().Error("Order state transition validation failed",
+			zap.String("order_id", order.ID.String()),
+			zap.String("from", string(order.Status)),
+			zap.String("to", string(newStatus)),
+			zap.Error(err))
+		return err
+	}
+	//order.Status = newStatus
 	if err := orderRepo.Update(ctx, order); err != nil {
 		zap.L().Error("Failed to update order status",
 			zap.String("order_id", order.ID.String()),

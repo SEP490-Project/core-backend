@@ -78,3 +78,7 @@ facebook_video_upload_max_retries: 5
 
 # TikTok
 tiktok_expiry_threshold_notifications: 7
+
+# General
+system_email: "bshowsell@gmail.com"
+system_name: "BShowSell_System"
