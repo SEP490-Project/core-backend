@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -30,7 +31,7 @@ type OrderService interface {
 	MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID, userID uuid.UUID, imageUrl string) error
 
 	//Request Refund - By Customer
-	RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID) error
+	RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, requestTime time.Time) error
 	//Process Refund - By Staff & Cancelled
 	ApproveEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, fileURL string) error
 

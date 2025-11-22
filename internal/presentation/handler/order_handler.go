@@ -854,7 +854,23 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// RequestRefund handles early refund requests for a specific order.
+//
+// @Summary     Request early refund
+// @Description Allows a user to request an early refund for an existing order.
+// @Tags        Orders.States
+// @Accept      json
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Success     200       {object}  responses.APIResponse "Refund request accepted"
+// @Failure     400       {object}  responses.APIResponse "Invalid order ID or business rule violation"
+// @Failure     401       {object}  responses.APIResponse "Unauthorized"
+// @Failure     422       {object}  responses.APIResponse "Refund period expired"
+// @Failure     500       {object}  responses.APIResponse "Internal server error"
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/refund [post]
 func (h *OrderHandler) RequestRefund(c *gin.Context) {
+	now := time.Now()
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
 	if err != nil {
@@ -870,7 +886,7 @@ func (h *OrderHandler) RequestRefund(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if err := h.orderService.RequestEarlyRefund(ctx, orderID, actionBy); err != nil {
+	if err := h.orderService.RequestEarlyRefund(ctx, orderID, actionBy, now); err != nil {
 		zap.L().Error("failed to request early refund", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to request refund: "+err.Error(), http.StatusBadRequest))
 		return
