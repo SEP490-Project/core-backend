@@ -459,7 +459,7 @@ type CensorOrderRequest struct {
 //
 //	@Summary		Censor an order (confirm or cancel)
 //	@Description	Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM` or `action=CANCEL`. If cancelling, provide optional `reason` query param.
-//	@Tags			Orders.[Staff].States
+//	@Tags			Orders[Staff].States
 //	@Accept			json
 //	@Produce		json
 //	@Param			orderID	path		string				true	"Order ID"
@@ -556,7 +556,7 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 //
 //	@Summary		Mark order as received
 //	@Description	Đánh dấu đơn hàng là "đã nhận" (Received) sau khi giao thành công
-//	@Tags			Orders
+//	@Tags			Orders.States
 //	@Accept			json
 //	@Produce		json
 //	@Param			orderID	path		string					true	"Order ID (UUID)"
@@ -574,8 +574,15 @@ func (h *OrderHandler) MarkAsReceived(c *gin.Context) {
 		return
 	}
 
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkAsReceived(ctx, orderID); err != nil {
+	if err := h.orderService.MarkAsReceived(ctx, orderID, updatedBy); err != nil {
 		resp := responses.ErrorResponse("order not found", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -820,4 +827,271 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 		"image_url": imageURL,
 	})
 	c.JSON(http.StatusOK, resp)
+}
+
+func (h *OrderHandler) RequestRefund(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	// Extract acting user
+	actionBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.RequestEarlyRefund(ctx, orderID, actionBy); err != nil {
+		zap.L().Error("failed to request early refund", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to request refund: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Refund requested successfully", ptr.Int(http.StatusOK), nil))
+}
+
+// ApproveRefund godoc
+//
+//	@Summary     Approve early refund (staff)
+//	@Description Approve refund request and optionally attach confirmation image
+//	@Tags        Orders[Staff].States
+//	@Accept      multipart/form-data
+//	@Produce     json
+//	@Param       orderID  path      string true  "Order ID (UUID)"
+//	@Param       file     formData  file   false "Confirmation image"
+//	@Success     200      {object}  responses.APIResponse
+//	@Failure     400      {object}  responses.APIResponse
+//	@Failure     401      {object}  responses.APIResponse
+//	@Failure     500      {object}  responses.APIResponse
+//	@Security    BearerAuth
+//	@Router      /api/v1/orders/staff/{orderID}/refund/approve [post]
+func (h *OrderHandler) ApproveRefund(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// Expect at least one file uploaded as confirmation image
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("confirmation file is required: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	userTmpDir := "/tmp/uploads"
+	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
+		return
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+	if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+		_ = os.Remove(finalPath)
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+	// Upload to remote storage
+	fileURL, err := h.fileService.UploadFile(c.Request.Context(), updatedBy.String(), finalPath, newFileName)
+	if err != nil {
+		_ = os.Remove(finalPath)
+		zap.L().Error("failed to upload confirmation file", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload confirmation file: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.ApproveEarlyRefund(ctx, orderID, updatedBy, fileURL); err != nil {
+		zap.L().Error("failed to approve early refund", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to approve refund: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Refund approved successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL})
+	c.JSON(http.StatusOK, resp)
+}
+
+// RequestCompensation godoc
+// @Summary     Request compensation for an order
+// @Description Submit a compensation request for an order with reason and optional supporting file.
+// @Tags        Orders.States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       reason    formData  string true  "Reason for compensation"
+// @Param       file      formData  file   true  "File as evidence"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/compensation [post]
+func (h *OrderHandler) RequestCompensation(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	// Extract acting user
+	actionBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// Expect reason in form field
+	reason := strings.TrimSpace(c.PostForm("reason"))
+	if reason == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required", http.StatusBadRequest))
+		return
+	}
+
+	// Require file upload
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader == nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
+		return
+	}
+
+	userTmpDir := "/tmp/uploads"
+	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
+		return
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+	if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+		_ = os.Remove(finalPath)
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+	// Upload to remote storage
+	fileURL, err := h.fileService.UploadFile(c.Request.Context(), actionBy.String(), finalPath, newFileName)
+	if err != nil {
+		_ = os.Remove(finalPath)
+		zap.L().Error("failed to upload compensation file", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.RequestCompensation(ctx, orderID, actionBy, &reason, &fileURL); err != nil {
+		zap.L().Error("failed to request compensation", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to request compensation: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation requested successfully", ptr.Int(http.StatusOK), nil))
+}
+
+// ProcessCompensation godoc
+//
+// @Summary     Process compensation (staff)
+// @Description Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
+// @Tags        Orders[Staff].States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       isApproved formData  string true  "true|false"
+// @Param       reason    formData  string false "Reason (optional)"
+// @Param       file      formData  file   false "Confirmation / Evidence file (such as transaction bill)"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Failure     401       {object}  responses.APIResponse
+// @Failure     500       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/staff/{orderID}/compensation [post]
+func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
+	idParam := c.Param("orderID")
+	orderID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid order ID"})
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	isApprovedStr := strings.TrimSpace(c.PostForm("isApproved"))
+	if isApprovedStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("isApproved form field is required", http.StatusBadRequest))
+		return
+	}
+	isApproved := strings.EqualFold(isApprovedStr, "true") || isApprovedStr == "1"
+	reason := strings.TrimSpace(c.PostForm("reason"))
+
+	if !isApproved && reason == "" {
+		resp := responses.ErrorResponse("reason cannot left empty when reject", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+	}
+
+	var fileURL string
+	// Require file if isApprove == true
+	// File particularly optional if isApprove == false
+	fileHeader, err := c.FormFile("file")
+	if (err != nil || fileHeader == nil) && isApproved {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
+		return
+	} else {
+		userTmpDir := "/tmp/uploads"
+		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
+			return
+		}
+
+		timestamp := time.Now().Format("20060102_150405")
+		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+			_ = os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+		defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+		// Upload to remote storage
+		fileURL, err = h.fileService.UploadFile(c.Request.Context(), updatedBy.String(), finalPath, newFileName)
+		if err != nil {
+			_ = os.Remove(finalPath)
+			zap.L().Error("failed to upload compensation file", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+	}
+
+	ctx := c.Request.Context()
+	if err := h.orderService.ProcessCompensation(ctx, orderID, updatedBy, isApproved, &reason, &fileURL); err != nil {
+		zap.L().Error("failed to process compensation", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to process compensation: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation processed successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL}))
 }
