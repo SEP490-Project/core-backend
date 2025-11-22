@@ -107,7 +107,7 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 	}
 }
 
-func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID) error {
+func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, requestTime time.Time) error {
 	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
 	if err != nil {
 		return err
@@ -115,6 +115,11 @@ func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy
 	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
 	if err != nil {
 		return err
+	}
+
+	standByTime := o.config.AdminConfig.CensorshipIntervalMinutes
+	if order.UpdatedAt.Add(time.Duration(standByTime) * time.Minute).Before(requestTime) {
+		return errors.New("refund request time has expired")
 	}
 
 	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefundRequested, nil)
