@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"core-backend/pkg/logging"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -13,9 +15,12 @@ func NewRequestIDMiddleware() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
-
-		c.Set("request_id", requestID)
+		c.Set(RequestIDKey, requestID)
 		c.Writer.Header().Set(RequestIDKey, requestID)
+
+		logging.SetRequestID(requestID)
+		defer logging.CleanupRequestID()
+
 		c.Next()
 	}
 }
