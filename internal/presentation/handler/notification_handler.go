@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"context"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -76,8 +78,9 @@ func (h *NotificationHandler) GetByID(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			user_id		query		string	false	"Filter by user ID (UUID)"
-//	@Param			type		query		string	false	"Filter by notification type (EMAIL, PUSH)"
+//	@Param			type		query		string	false	"Filter by notification type (EMAIL, PUSH, IN_APP)"
 //	@Param			status		query		string	false	"Filter by status (PENDING, SENT, FAILED, RETRYING)"
+//	@Param			is_read		query		bool	false	"Filter by read status"
 //	@Param			start_date	query		string	false	"Filter by start date (RFC3339 or YYYY-MM-DD)"
 //	@Param			end_date	query		string	false	"Filter by end date (RFC3339 or YYYY-MM-DD)"
 //	@Param			page		query		int		false	"Page number (default: 1)"
@@ -89,61 +92,66 @@ func (h *NotificationHandler) GetByID(c *gin.Context) {
 //	@Router			/api/v1/notifications [get]
 func (h *NotificationHandler) List(c *gin.Context) {
 	// Parse query parameters
+	userIDStr := c.Query("user_id")
+	typeStr := c.Query("type")
+	statusStr := c.Query("status")
+	isReadStr := c.Query("is_read")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
 	var userID *uuid.UUID
-	if userIDStr := c.Query("user_id"); userIDStr != "" {
-		parsedID, err := uuid.Parse(userIDStr)
+	if userIDStr != "" {
+		id, err := uuid.Parse(userIDStr)
 		if err != nil {
-			response := responses.ErrorResponse("Invalid user_id format", http.StatusBadRequest)
-			c.JSON(http.StatusBadRequest, response)
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid user ID format", http.StatusBadRequest))
 			return
 		}
-		userID = &parsedID
+		userID = &id
 	}
 
 	var notificationType *enum.NotificationType
-	if typeStr := c.Query("type"); typeStr != "" {
-		nType := enum.NotificationType(typeStr)
-		if !nType.IsValid() {
-			response := responses.ErrorResponse("Invalid notification type", http.StatusBadRequest)
-			c.JSON(http.StatusBadRequest, response)
-			return
-		}
-		notificationType = &nType
+	if typeStr != "" {
+		nt := enum.NotificationType(typeStr)
+		notificationType = &nt
 	}
 
 	var status *enum.NotificationStatus
-	if statusStr := c.Query("status"); statusStr != "" {
-		nStatus := enum.NotificationStatus(statusStr)
-		if !nStatus.IsValid() {
-			response := responses.ErrorResponse("Invalid notification status", http.StatusBadRequest)
-			c.JSON(http.StatusBadRequest, response)
+	if statusStr != "" {
+		s := enum.NotificationStatus(statusStr)
+		status = &s
+	}
+
+	var isRead *bool
+	if isReadStr != "" {
+		val, err := strconv.ParseBool(isReadStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid is_read format", http.StatusBadRequest))
 			return
 		}
-		status = &nStatus
+		isRead = &val
 	}
 
-	var startDate, endDate *string
-	if startDateStr := c.Query("start_date"); startDateStr != "" {
-		startDate = &startDateStr
+	var startDatePtr, endDatePtr *string
+	if startDate != "" {
+		startDatePtr = &startDate
 	}
-	if endDateStr := c.Query("end_date"); endDateStr != "" {
-		endDate = &endDateStr
+	if endDate != "" {
+		endDatePtr = &endDate
 	}
-
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
 	notifications, total, err := h.notificationService.GetByFilters(
 		c.Request.Context(),
 		userID,
 		notificationType,
 		status,
-		startDate,
-		endDate,
+		isRead,
+		startDatePtr,
+		endDatePtr,
 		page,
 		limit,
 	)
-
 	if err != nil {
 		zap.L().Error("Failed to fetch notifications", zap.Error(err))
 		response := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
@@ -347,4 +355,176 @@ func (h *NotificationHandler) RepublishFailed(c *gin.Context) {
 		"success_count": successCount,
 	})
 	c.JSON(http.StatusOK, response)
+}
+
+// SubscribeSSE godoc
+//
+//	@Summary		Subscribe to real-time notifications (SSE)
+//	@Description	Establishes a Server-Sent Events connection to receive real-time updates (e.g., unread count)
+//	@Tags			Notifications
+//	@Produce		text/event-stream
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/sse [get]
+func (h *NotificationHandler) SubscribeSSE(c *gin.Context) {
+	userIDStr := c.GetString("user_id")
+	if userIDStr == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	// Set headers for SSE
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Transfer-Encoding", "chunked")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+
+	clientChan, unsubscribe := h.notificationService.SubscribeSSE(userID)
+	defer unsubscribe()
+
+	// Send initial connection message
+	c.SSEvent("connected", "Connected to notification stream")
+	c.Writer.Flush()
+
+	// Create a ticker for heartbeats (keep-alive)
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	// Listen for messages
+	ctx := c.Request.Context()
+	for {
+		select {
+		case msg := <-clientChan:
+			c.SSEvent(msg.Event, msg.Data)
+			c.Writer.Flush()
+		case <-ticker.C:
+			c.SSEvent("heartbeat", "ping")
+			c.Writer.Flush()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// MarkAsRead godoc
+//
+//	@Summary		Mark notification as read
+//	@Description	Marks a specific notification as read
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Notification ID (UUID)"
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		404	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/{id}/read [put]
+func (h *NotificationHandler) MarkAsRead(c *gin.Context) {
+	idParam := c.Param("id")
+	notificationID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid notification ID", http.StatusBadRequest))
+		return
+	}
+
+	userIDStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(userIDStr)
+
+	if err := h.notificationService.MarkAsRead(c.Request.Context(), notificationID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Notification marked as read", nil, nil))
+}
+
+// MarkAllAsRead godoc
+//
+//	@Summary		Mark all notifications as read
+//	@Description	Marks all notifications for the current user as read
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/read-all [put]
+func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
+	userIDStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(userIDStr)
+
+	if err := h.notificationService.MarkAllAsRead(c.Request.Context(), userID); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("All notifications marked as read", nil, nil))
+}
+
+// BroadcastToUser godoc
+//
+//	@Summary		Broadcast notification to a specific user
+//	@Description	Sends a unified notification to a specific user across specified channels
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.BroadcastToUserRequest	true	"Broadcast Request"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/broadcast/user [post]
+func (h *NotificationHandler) BroadcastToUser(c *gin.Context) {
+	var req requests.BroadcastToUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.notificationService.BroadcastToUser(c.Request.Context(), req.UserID, req.Title, req.Body, req.Data, req.Channels); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Notification broadcasted to user", nil, nil))
+}
+
+// BroadcastToAll godoc
+//
+//	@Summary		Broadcast notification to all users
+//	@Description	Sends a unified notification to all users (optionally filtered by role)
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.BroadcastToAllRequest	true	"Broadcast Request"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/broadcast/all [post]
+func (h *NotificationHandler) BroadcastToAll(c *gin.Context) {
+	var req requests.BroadcastToAllRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	// This operation can be long-running, so we should probably run it asynchronously
+	// and return 202 Accepted.
+	go func() {
+		// Create a background context since the request context will be cancelled
+		ctx := context.Background()
+		if err := h.notificationService.BroadcastToAll(ctx, req.Title, req.Body, req.Data, req.Role); err != nil {
+			zap.L().Error("Failed to broadcast to all users", zap.Error(err))
+		}
+	}()
+
+	c.JSON(http.StatusAccepted, responses.SuccessResponse("Broadcast started", nil, nil))
 }

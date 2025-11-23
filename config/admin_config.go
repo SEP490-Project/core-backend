@@ -39,6 +39,8 @@ type AdminConfig struct {
 	PayOSExpiryCheckIntervalMinutes     int    `mapstructure:"payos_expiry_check_interval_minutes"`
 	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
 	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
+	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled"`
+	TikTokStatusPollerIntervalSeconds   int    `mapstructure:"tiktok_status_poller_interval_seconds"`
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
@@ -112,11 +114,18 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("tracking_link_trusted_domains", []string{"example.com", "trustedpartner.com"})
 	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
 
+	adminViper.SetDefault("tiktok_status_poller_enabled", true)
+	adminViper.SetDefault("tiktok_status_poller_interval_seconds", 30)
+
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
 	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)
 	adminViper.SetDefault("facebook_video_upload_max_retries", 3)
 
 	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
+
+	// Webhook secrets (should be set via environment variables for security)
+	adminViper.SetDefault("facebook_webhook_secret", "")
+	adminViper.SetDefault("tiktok_webhook_secret", "")
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database

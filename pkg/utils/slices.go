@@ -1,6 +1,9 @@
 package utils
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // MapSlice applies a mapping function to each element of the input slice
 // and returns a new slice with the mapped values.
@@ -75,4 +78,15 @@ func UniqueSliceMapper[T any, R comparable](input []T, mapper func(T) R) []R {
 // ContainsSlice checks if a slice contains a specific item.
 func ContainsSlice[T comparable](slice []T, item T) bool {
 	return slices.Contains(slice, item)
+}
+
+func JoinSliceFunc[T any](slice []T, separator string, mapper func(T) string) string {
+	var result strings.Builder
+	for i, item := range slice {
+		if i > 0 {
+			result.WriteString(separator)
+		}
+		result.WriteString(mapper(item))
+	}
+	return result.String()
 }
