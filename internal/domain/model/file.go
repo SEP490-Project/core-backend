@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -16,6 +17,7 @@ type File struct {
 	StorageKey  string          `json:"storage_key" gorm:"type:text;column:storage_key;not null"` // S3 key
 	MimeType    string          `json:"mime_type" gorm:"type:varchar(100);column:mime_type;not null"`
 	Size        int64           `json:"size" gorm:"type:bigint;column:size;default:0"`
+	Metadata    datatypes.JSON  `json:"metadata" gorm:"type:jsonb;column:metadata"`
 	Status      enum.FileStatus `json:"status" gorm:"type:varchar(50);column:status;default:'PENDING';not null"`
 	ErrorReason *string         `json:"error_reason,omitempty" gorm:"type:text;column:error_reason"`
 	UploadedAt  *time.Time      `json:"uploaded_at" gorm:"column:uploaded_at"`

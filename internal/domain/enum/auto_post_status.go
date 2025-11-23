@@ -8,15 +8,20 @@ import (
 type AutoPostStatus string
 
 const (
-	AutoPostStatusPending AutoPostStatus = "PENDING"
-	AutoPostStatusPosted  AutoPostStatus = "POSTED"
-	AutoPostStatusFailed  AutoPostStatus = "FAILED"
-	AutoPostStatusSkipped AutoPostStatus = "SKIPPED"
+	AutoPostStatusPending    AutoPostStatus = "PENDING"
+	AutoPostStatusInProgress AutoPostStatus = "IN_PROGRESS"
+	AutoPostStatusPosted     AutoPostStatus = "POSTED"
+	AutoPostStatusFailed     AutoPostStatus = "FAILED"
+	AutoPostStatusSkipped    AutoPostStatus = "SKIPPED"
 )
 
 func (aps AutoPostStatus) IsValid() bool {
 	switch aps {
-	case AutoPostStatusPending, AutoPostStatusPosted, AutoPostStatusFailed, AutoPostStatusSkipped:
+	case AutoPostStatusPending,
+		AutoPostStatusInProgress,
+		AutoPostStatusPosted,
+		AutoPostStatusFailed,
+		AutoPostStatusSkipped:
 		return true
 	}
 	return false
