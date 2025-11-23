@@ -37,6 +37,58 @@ type preOrderService struct {
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	ghnService                   iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
+	stateTransferService         iservice.StateTransferService
+}
+
+func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, int) {
+	var totalProcessed, failed, upCommingItems = 0, 0, 0
+	// 0. Count all PAID items
+	countFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Joins("JOIN product_variants pv ON pv.id = pre_orders.variant_id").
+			Joins("JOIN products p ON p.id = pv.product_id").
+			Joins("JOIN limited_products lp ON lp.id = p.id").
+			Where("pre_orders.status = ?", enum.PreOrderStatusPreOrdered).
+			Where("lp.availability_start_date > ?", time.Now())
+	}
+	countItem, err := p.preOrderRepository.Count(ctx, countFilter)
+	if err != nil {
+		zap.L().Error("Failed to count upcomming pre-orders", zap.Error(err))
+		return 0, 0, 0
+	}
+	upCommingItems = int(countItem)
+
+	// 1. Get all pre-orders PRE_ORDERED where current time is after AvailabilityStartDate
+	now := time.Now()
+	filter := func(db *gorm.DB) *gorm.DB {
+		return db.Joins("JOIN product_variants pv ON pv.id = pre_orders.variant_id").
+			Joins("JOIN products p ON p.id = pv.product_id").
+			Joins("JOIN limited_products lp ON lp.id = p.id").
+			Where("pre_orders.status = ?", enum.PreOrderStatusPreOrdered).
+			Where("lp.availability_start_date <= ?", now)
+	}
+
+	preOrders, total, err := p.preOrderRepository.GetAll(ctx, filter, []string{}, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch pre-orders for opening checker", zap.Error(err))
+		return 0, 0, 0
+	}
+	totalProcessed = int(total)
+	_ = preOrders
+	for _, preOrder := range preOrders {
+		var err error
+		if !preOrder.IsSelfPickedUp {
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil)
+		} else {
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil)
+		}
+		if err != nil {
+			msg := fmt.Sprintf("Failed to update pre-order status with ID: %s , Detail: %s", preOrder.ID.String(), err.Error())
+			zap.L().Error(msg)
+			failed++
+		}
+	}
+
+	return totalProcessed, failed, upCommingItems
 }
 
 func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*model.PreOrder, error) {
@@ -312,7 +364,7 @@ func (p preOrderService) PayForPreservationSlot(ctx context.Context, preOrderID 
 	return paymentTransaction, nil
 }
 
-func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.PreOrderService {
+func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, stateTransferService iservice.StateTransferService) iservice.PreOrderService {
 	return &preOrderService{
 		config:                       cfg,
 		preOrderRepository:           dbRegistry.PreOrderRepository,
@@ -321,6 +373,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
 		ghnService:                   registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionService:    paymentTransactionSvc,
+		stateTransferService:         stateTransferService,
 	}
 }
 

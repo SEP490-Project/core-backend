@@ -13,6 +13,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/persistence"
 	"core-backend/pkg/utils"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -28,6 +29,7 @@ import (
 )
 
 type paymentTransactionService struct {
+	stateTransferService   iservice.StateTransferService
 	paymentTransactionRepo irepository.GenericRepository[model.PaymentTransaction]
 	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
 	orderRepo              irepository.GenericRepository[model.Order]
@@ -35,6 +37,7 @@ type paymentTransactionService struct {
 	userRepo               irepository.GenericRepository[model.User]
 	payosProxy             iproxies.PayOSProxy
 	config                 *config.AppConfig
+	db                     *gorm.DB
 }
 
 // GetPaymentTransactionByFilter implements iservice.PaymentTransactionService.
@@ -304,8 +307,14 @@ func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow i
 		return nil // PayOS link cancelled but no local record found
 	}
 
-	// 3. Update status and metadata
-	transaction.Status = enum.PaymentTransactionStatusCancelled
+	// 3. Update status via State Transfer Service to handle Side Effect
+	err = s.stateTransferService.MovePaymentTransactionToState(ctx, uow, transaction.ID, enum.PaymentTransactionStatusCancelled, uuid.UUID{})
+	if err != nil {
+		zap.L().Error("Failed to update payment transaction status via state transfer", zap.Error(err))
+		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	// 4. Update status and metadata
 	if transaction.PayOSMetadata != nil {
 		now := time.Now()
 		transaction.PayOSMetadata.CancelledAt = &now
@@ -439,17 +448,28 @@ func (s *paymentTransactionService) CancelExpiredLinks(ctx context.Context) (int
 
 	cancelledCount := 0
 	for _, transaction := range expiredTransactions {
+		//Create rollback point
+		uow := persistence.NewUnitOfWork(s.db).Begin(ctx)
+
 		if transaction.PayOSMetadata == nil {
 			continue
 		}
-
 		orderCode := strconv.FormatInt(transaction.PayOSMetadata.OrderCode, 10)
 
-		// Try to cancel via PayOS API (without UnitOfWork since this is a batch job)
-		if err := s.CancelPaymentLink(ctx, nil, orderCode, "Expired payment link"); err != nil {
+		if err := s.CancelPaymentLink(ctx, uow, orderCode, "Expired payment link"); err != nil {
 			zap.L().Warn("Failed to cancel expired payment link",
 				zap.String("order_code", orderCode),
 				zap.Error(err))
+			_ = uow.Rollback()
+			continue
+		}
+
+		err = uow.Commit()
+		if err != nil {
+			zap.L().Warn("Failed to commit transaction for expired payment link cancellation",
+				zap.String("transaction_id", transaction.ID.String()),
+				zap.Error(err))
+			_ = uow.Rollback()
 			continue
 		}
 
@@ -643,10 +663,13 @@ func (s *paymentTransactionService) validateReferenceIDAndPayerID(ctx context.Co
 
 // NewPaymentTransactionService creates a new PaymentTransactionService instance
 func NewPaymentTransactionService(
+	stateTransferService iservice.StateTransferService,
 	databaseRegistry *gormrepository.DatabaseRegistry,
 	payosProxy iproxies.PayOSProxy,
+	db *gorm.DB,
 ) iservice.PaymentTransactionService {
 	return &paymentTransactionService{
+		stateTransferService:   stateTransferService,
 		paymentTransactionRepo: databaseRegistry.PaymentTransactionRepository,
 		contractPaymentRepo:    databaseRegistry.ContractPaymentRepository,
 		orderRepo:              databaseRegistry.OrderRepository,
@@ -654,5 +677,6 @@ func NewPaymentTransactionService(
 		userRepo:               databaseRegistry.UserRepository,
 		payosProxy:             payosProxy,
 		config:                 config.GetAppConfig(),
+		db:                     db,
 	}
 }

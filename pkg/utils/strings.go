@@ -85,3 +85,12 @@ func AbbreviateString(input string, maxLength int) string {
 
 	return abbreviatedString
 }
+
+func NotEmptyOrNil(input *string) bool {
+	if input == nil {
+		return false
+	} else if *input == "" {
+		return false
+	}
+	return true
+}

@@ -31,14 +31,19 @@ type AdminConfig struct {
 	BotSignatures              []string `mapstructure:"bot_signatures"`
 
 	// Cron Jobs Configuration
-	CTRAggregationEnabled             bool   `mapstructure:"ctr_aggregation_enabled"`
-	CTRAggregationIntervalMinutes     int    `mapstructure:"ctr_aggregation_interval_minutes"`
-	ExpiredContractCleanupEnabled     bool   `mapstructure:"expired_contract_cleanup_enabled"`
-	ExpiredContractCleanupCronExpr    string `mapstructure:"expired_contract_cleanup_cron_expr"`
-	PayOSExpiryCheckEnabled           bool   `mapstructure:"payos_expiry_check_enabled"`
-	PayOSExpiryCheckIntervalMinutes   int    `mapstructure:"payos_expiry_check_interval_minutes"`
-	TikTokStatusPollerEnabled         bool   `mapstructure:"tiktok_status_poller_enabled"`
-	TikTokStatusPollerIntervalSeconds int    `mapstructure:"tiktok_status_poller_interval_seconds"`
+	CTRAggregationEnabled               bool   `mapstructure:"ctr_aggregation_enabled"`
+	CTRAggregationIntervalMinutes       int    `mapstructure:"ctr_aggregation_interval_minutes"`
+	ExpiredContractCleanupEnabled       bool   `mapstructure:"expired_contract_cleanup_enabled"`
+	ExpiredContractCleanupCronExpr      string `mapstructure:"expired_contract_cleanup_cron_expr"`
+	PayOSExpiryCheckEnabled             bool   `mapstructure:"payos_expiry_check_enabled"`
+	PayOSExpiryCheckIntervalMinutes     int    `mapstructure:"payos_expiry_check_interval_minutes"`
+	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
+	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
+	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled"`
+	TikTokStatusPollerIntervalSeconds   int    `mapstructure:"tiktok_status_poller_interval_seconds"`
+
+	// Order - PreOrder
+	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
 
 	// Social Media Integration
 	// This is used to determine when to send notifications for expiring OAuth tokens
@@ -52,6 +57,10 @@ type AdminConfig struct {
 	// ========= TikTok =========
 	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
 	TikTokWebhookSecret                string `mapstructure:"tiktok_webhook_secret"`
+
+	// ======== General ========
+	SystemEmail string `mapstructure:"system_email"`
+	SystemName  string `mapstructure:"system_name"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
