@@ -22,13 +22,14 @@ type RabbitMQExchangeConfig struct {
 
 // RabbitMQQueueConfig defines a queue with retry and DLQ settings
 type RabbitMQQueueConfig struct {
-	Name       string              `mapstructure:"name" json:"name" yaml:"name"`
-	RoutingKey string              `mapstructure:"routingKey" json:"routingKey" yaml:"routingKey"`
-	Durable    bool                `mapstructure:"durable" json:"durable" yaml:"durable"`
-	AutoDelete bool                `mapstructure:"autoDelete" json:"autoDelete" yaml:"autoDelete"`
-	Prefetch   int                 `mapstructure:"prefetch" json:"prefetch" yaml:"prefetch"`
-	Retry      RabbitMQRetryConfig `mapstructure:"retry" json:"retry" yaml:"retry"`
-	DLQ        RabbitMQDLQConfig   `mapstructure:"dlq" json:"dlq" yaml:"dlq"`
+	Name               string              `mapstructure:"name" json:"name" yaml:"name"`
+	RoutingKey         string              `mapstructure:"routingKey" json:"routingKey" yaml:"routingKey"`
+	AdditionalBindings []string            `mapstructure:"additionalBindings" json:"additionalBindings" yaml:"additionalBindings"`
+	Durable            bool                `mapstructure:"durable" json:"durable" yaml:"durable"`
+	AutoDelete         bool                `mapstructure:"autoDelete" json:"autoDelete" yaml:"autoDelete"`
+	Prefetch           int                 `mapstructure:"prefetch" json:"prefetch" yaml:"prefetch"`
+	Retry              RabbitMQRetryConfig `mapstructure:"retry" json:"retry" yaml:"retry"`
+	DLQ                RabbitMQDLQConfig   `mapstructure:"dlq" json:"dlq" yaml:"dlq"`
 }
 
 // RabbitMQRetryConfig defines retry queue settings
