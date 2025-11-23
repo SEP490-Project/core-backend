@@ -35,6 +35,15 @@ type NotificationRepository interface {
 	// FindByUserID retrieves notifications for a specific user with pagination
 	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.Notification, int64, error)
 
+	// CountUnread counts unread notifications for a specific user
+	CountUnread(ctx context.Context, userID uuid.UUID) (int64, error)
+
+	// MarkAsRead marks a notification as read
+	MarkAsRead(ctx context.Context, id uuid.UUID) error
+
+	// MarkAllAsRead marks all notifications as read for a user
+	MarkAllAsRead(ctx context.Context, userID uuid.UUID) error
+
 	// CleanupOldNotifications deletes notifications older than the specified date
 	CleanupOldNotifications(ctx context.Context, olderThan time.Time) (int64, error)
 }

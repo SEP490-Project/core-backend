@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	"core-backend/config"
 	"core-backend/docs"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/presentation/handler"
@@ -22,15 +23,18 @@ const (
 )
 
 type Router struct {
+	config             *config.AppConfig
 	handlerRegistry    *handler.HandlerRegistry
 	middlewareRegistry *middleware.MiddlewareRegistry
 }
 
 func NewRouter(
+	config *config.AppConfig,
 	handlerRegistry *handler.HandlerRegistry,
 	middlewareRegistry *middleware.MiddlewareRegistry,
 ) *Router {
 	return &Router{
+		config:             config,
 		handlerRegistry:    handlerRegistry,
 		middlewareRegistry: middlewareRegistry,
 	}
@@ -613,12 +617,21 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
+		notificationGroup.GET("/sse", notificationHandler.SubscribeSSE)
+
+		// Write endpoints
+		notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
+		notificationGroup.PUT("/read-all", notificationHandler.MarkAllAsRead)
 
 		// Testing/Publishing endpoints (Admin only)
 		notificationGroup.POST("/publish", notificationHandler.PublishNotification)
 		notificationGroup.POST("/publish/email", notificationHandler.PublishEmail)
 		notificationGroup.POST("/publish/push", notificationHandler.PublishPush)
 		notificationGroup.POST("/republish-failed", notificationHandler.RepublishFailed)
+
+		// Broadcast endpoints (Admin only)
+		notificationGroup.POST("/broadcast/user", notificationHandler.BroadcastToUser)
+		notificationGroup.POST("/broadcast/all", notificationHandler.BroadcastToAll)
 	}
 }
 
