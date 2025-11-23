@@ -634,7 +634,7 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 	notificationHandler := r.handlerRegistry.NotificationHandler
 	notificationGroup := group.Group("/notifications")
 	notificationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole("ADMIN"))
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, content, marketing, sales, brand, customer))
 	{
 		// Read-only endpoints
 		notificationGroup.GET("", notificationHandler.List)
