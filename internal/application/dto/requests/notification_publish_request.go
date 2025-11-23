@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 // PublishNotificationRequest represents a request to publish a notification to one or many channels
 type PublishNotificationRequest struct {
 	UserID   uuid.UUID         `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Channels []string          `json:"channels" validate:"required,min=1,dive,oneof=EMAIL PUSH" example:"EMAIL,PUSH"`
+	Channels []string          `json:"channels" validate:"required,min=1,dive,oneof=EMAIL PUSH IN_APP" example:"EMAIL,PUSH,IN_APP"`
 	Title    string            `json:"title" validate:"required,min=1,max=255" example:"Test Notification"`
 	Body     string            `json:"body" validate:"required,min=1" example:"This is a test notification message"`
 	Data     map[string]string `json:"data,omitempty" example:"key1:value1,key2:value2"`
@@ -51,6 +51,20 @@ func (r *PublishNotificationRequest) ToPushRequest() *PublishPushRequest {
 	return resp
 }
 
+func (r *PublishNotificationRequest) ToInAppRequest() *PublishInAppRequest {
+	resp := &PublishInAppRequest{UserID: r.UserID}
+	if r.Title != "" {
+		resp.Title = r.Title
+	}
+	if r.Body != "" {
+		resp.Body = r.Body
+	}
+	if r.Data != nil {
+		resp.Data = r.Data
+	}
+	return resp
+}
+
 // PublishEmailRequest represents a request to publish an email notification
 type PublishEmailRequest struct {
 	UserID  uuid.UUID `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
@@ -78,6 +92,14 @@ type PublishPushRequest struct {
 	IOSSound               *string `json:"ios_sound,omitempty" example:"default"`
 	AndroidPriority        *string `json:"android_priority,omitempty" validate:"omitempty,oneof=min low default high max" example:"high"`
 	AndroidNotificationTag *string `json:"android_notification_tag,omitempty" example:"group1"`
+}
+
+// PublishInAppRequest represents a request to publish an in-app notification
+type PublishInAppRequest struct {
+	UserID uuid.UUID         `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Title  string            `json:"title" validate:"required,min=1,max=255" example:"Test In-App Notification"`
+	Body   string            `json:"body" validate:"required,min=1" example:"This is a test in-app notification"`
+	Data   map[string]string `json:"data,omitempty"`
 }
 
 // RepublishFailedNotificationRequest represents a request to republish failed notifications

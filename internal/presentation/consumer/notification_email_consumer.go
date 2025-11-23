@@ -51,10 +51,31 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 	// Parse message
 	var msg consumers.EmailNotificationMessage
 	if err := json.Unmarshal(body, &msg); err != nil {
-		zap.L().Error("Failed to unmarshal email notification message",
-			zap.Error(err),
-			zap.ByteString("raw_message", body))
-		return fmt.Errorf("failed to unmarshal message: %w", err)
+		// Try to unmarshal as UnifiedNotificationMessage
+		var unifiedMsg consumers.UnifiedNotificationMessage
+		if errUnified := json.Unmarshal(body, &unifiedMsg); errUnified == nil && unifiedMsg.UserID != uuid.Nil {
+			// Convert Unified to Email message
+			// Note: Unified message might not have 'To' address, so we might need to fetch user
+			user, errUser := c.userService.GetUserByID(ctx, unifiedMsg.UserID)
+			if errUser != nil {
+				zap.L().Error("Failed to fetch user for unified message", zap.Error(errUser))
+				return fmt.Errorf("failed to fetch user: %w", errUser)
+			}
+
+			msg = consumers.EmailNotificationMessage{
+				NotificationID: unifiedMsg.NotificationID,
+				UserID:         unifiedMsg.UserID,
+				To:             user.Email,
+				Subject:        unifiedMsg.Title,
+				HTMLBody:       unifiedMsg.Body,
+				// TemplateData could be mapped from Data if needed, but HTMLBody is preferred here
+			}
+		} else {
+			zap.L().Error("Failed to unmarshal email notification message",
+				zap.Error(err),
+				zap.ByteString("raw_message", body))
+			return fmt.Errorf("failed to unmarshal message: %w", err)
+		}
 	}
 
 	// Validate message

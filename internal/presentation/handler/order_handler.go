@@ -856,19 +856,19 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 
 // RequestRefund handles early refund requests for a specific order.
 //
-// @Summary     Request early refund
-// @Description Allows a user to request an early refund for an existing order.
-// @Tags        Orders.States
-// @Accept      json
-// @Produce     json
-// @Param       orderID   path      string true  "Order ID (UUID)"
-// @Success     200       {object}  responses.APIResponse "Refund request accepted"
-// @Failure     400       {object}  responses.APIResponse "Invalid order ID or business rule violation"
-// @Failure     401       {object}  responses.APIResponse "Unauthorized"
-// @Failure     422       {object}  responses.APIResponse "Refund period expired"
-// @Failure     500       {object}  responses.APIResponse "Internal server error"
-// @Security    BearerAuth
-// @Router      /api/v1/orders/{orderID}/refund [post]
+//	@Summary		Request early refund
+//	@Description	Allows a user to request an early refund for an existing order.
+//	@Tags			Orders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string					true	"Order ID (UUID)"
+//	@Success		200		{object}	responses.APIResponse	"Refund request accepted"
+//	@Failure		400		{object}	responses.APIResponse	"Invalid order ID or business rule violation"
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		422		{object}	responses.APIResponse	"Refund period expired"
+//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/{orderID}/refund [post]
 func (h *OrderHandler) RequestRefund(c *gin.Context) {
 	now := time.Now()
 	idParam := c.Param("orderID")
@@ -897,19 +897,19 @@ func (h *OrderHandler) RequestRefund(c *gin.Context) {
 
 // ApproveRefund godoc
 //
-//	@Summary     Approve early refund (staff)
-//	@Description Approve refund request and optionally attach confirmation image
-//	@Tags        Orders[Staff].States
-//	@Accept      multipart/form-data
-//	@Produce     json
-//	@Param       orderID  path      string true  "Order ID (UUID)"
-//	@Param       file     formData  file   false "Confirmation image"
-//	@Success     200      {object}  responses.APIResponse
-//	@Failure     400      {object}  responses.APIResponse
-//	@Failure     401      {object}  responses.APIResponse
-//	@Failure     500      {object}  responses.APIResponse
-//	@Security    BearerAuth
-//	@Router      /api/v1/orders/staff/{orderID}/refund/approve [post]
+//	@Summary		Approve early refund (staff)
+//	@Description	Approve refund request and optionally attach confirmation image
+//	@Tags			Orders[Staff].States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID	path		string	true	"Order ID (UUID)"
+//	@Param			file	formData	file	false	"Confirmation image"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/{orderID}/refund/approve [post]
 func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -970,18 +970,19 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 }
 
 // RequestCompensation godoc
-// @Summary     Request compensation for an order
-// @Description Submit a compensation request for an order with reason and optional supporting file.
-// @Tags        Orders.States
-// @Accept      multipart/form-data
-// @Produce     json
-// @Param       orderID   path      string true  "Order ID (UUID)"
-// @Param       reason    formData  string true  "Reason for compensation"
-// @Param       file      formData  file   true  "File as evidence"
-// @Success     200       {object}  responses.APIResponse
-// @Failure     400       {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/orders/{orderID}/compensation [post]
+//
+//	@Summary		Request compensation for an order
+//	@Description	Submit a compensation request for an order with reason and optional supporting file.
+//	@Tags			Orders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID	path		string	true	"Order ID (UUID)"
+//	@Param			reason	formData	string	true	"Reason for compensation"
+//	@Param			file	formData	file	true	"File as evidence"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/{orderID}/compensation [post]
 func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -1049,21 +1050,21 @@ func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 
 // ProcessCompensation godoc
 //
-// @Summary     Process compensation (staff)
-// @Description Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
-// @Tags        Orders[Staff].States
-// @Accept      multipart/form-data
-// @Produce     json
-// @Param       orderID   path      string true  "Order ID (UUID)"
-// @Param       isApproved formData  string true  "true|false"
-// @Param       reason    formData  string false "Reason (optional)"
-// @Param       file      formData  file   false "Confirmation / Evidence file (such as transaction bill)"
-// @Success     200       {object}  responses.APIResponse
-// @Failure     400       {object}  responses.APIResponse
-// @Failure     401       {object}  responses.APIResponse
-// @Failure     500       {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/orders/staff/{orderID}/compensation [post]
+//	@Summary		Process compensation (staff)
+//	@Description	Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
+//	@Tags			Orders[Staff].States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID		path		string	true	"Order ID (UUID)"
+//	@Param			isApproved	formData	string	true	"true|false"
+//	@Param			reason		formData	string	false	"Reason (optional)"
+//	@Param			file		formData	file	false	"Confirmation / Evidence file (such as transaction bill)"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/{orderID}/compensation [post]
 func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)

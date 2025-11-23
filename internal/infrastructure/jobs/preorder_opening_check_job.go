@@ -5,9 +5,10 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iservice"
 	"fmt"
+	"time"
+
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"time"
 )
 
 type preOrderOpeningCheckJob struct {

@@ -7,9 +7,13 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/pkg/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -101,6 +105,8 @@ func (t *TikTokProxy) RefreshAccessToken(ctx context.Context, refreshToken strin
 
 // endregion
 
+// region: ========= User Profile Methods =========
+
 // GetUserProfile implements iproxies.TikTokProxy.
 func (t *TikTokProxy) GetUserProfile(ctx context.Context, accessToken string, openID string) (*dtos.TikTokUserProfileResponse, error) {
 	scopes := "open_id,union_id,avatar_url,display_name"
@@ -121,45 +127,6 @@ func (t *TikTokProxy) GetSystemUserProfile(ctx context.Context, accessToken stri
 	return t.getUserProfile(ctx, accessToken, scopes)
 }
 
-func NewTikTokProxy(httpClient *http.Client, config *config.AppConfig) iproxies.TikTokProxy {
-	tiktokConfig := config.Social.TikTok
-	baseURL := fmt.Sprintf("%s/v%s/", tiktokConfig.BaseURL, tiktokConfig.APIVersion)
-	return &TikTokProxy{
-		BaseProxy: NewBaseProxy(httpClient, baseURL, config),
-		config:    &tiktokConfig,
-	}
-}
-
-// region: ========= Helper Methods =========
-
-func (t *TikTokProxy) getUserProfile(ctx context.Context, accessToken string, fields string) (*dtos.TikTokUserProfileResponse, error) {
-	url, err := utils.AddQueryParams("user/info/", map[string]string{
-		"fields": fields,
-	})
-	if err != nil {
-		zap.L().Error("Failed to construct URL for getting TikTok user profile", zap.Error(err))
-		return nil, fmt.Errorf("failed to construct URL: %w", err)
-	}
-
-	headers := map[string]string{
-		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
-	}
-
-	var userProfile dtos.TikTokUserProfileResponse
-	if err := GetGeneric(t.BaseProxy, ctx, url, headers, &userProfile); err != nil {
-		zap.L().Error("Failed to get TikTok user profile", zap.Error(err))
-		return nil, fmt.Errorf("failed to get user profile: %w", err)
-	}
-
-	if !userProfile.Error.Code.IsSuccess() {
-		zap.L().Error("TikTok API returned error",
-			zap.Any("error", userProfile.Error))
-		return nil, fmt.Errorf("TikTok API error: %s - %s", userProfile.Error.Code, userProfile.Error.Message)
-	}
-
-	return &userProfile, nil
-}
-
 // endregion
 
 // region: ========= Content Posting Methods =========
@@ -177,7 +144,7 @@ func (t *TikTokProxy) GetCreatorInfo(ctx context.Context, accessToken string) (*
 	}
 
 	var creatorInfo dtos.TikTokCreatorInfoResponse
-	if err := PostGeneric(t.BaseProxy, ctx, path, headers, map[string]interface{}{}, &creatorInfo); err != nil {
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, map[string]any{}, &creatorInfo); err != nil {
 		zap.L().Error("Failed to get TikTok creator info", zap.Error(err))
 		return nil, fmt.Errorf("failed to get creator info: %w", err)
 	}
@@ -191,12 +158,12 @@ func (t *TikTokProxy) GetCreatorInfo(ctx context.Context, accessToken string) (*
 	return &creatorInfo, nil
 }
 
+// region: ========= Content Publishing API methods (Direct Post) =========
+
 // InitVideoPost implements iproxies.TikTokProxy.
 func (t *TikTokProxy) InitVideoPost(ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest) (*dtos.TikTokVideoInitResponse, error) {
 	zap.L().Info("TikTokProxy - InitVideoPost called",
-		zap.String("title", req.PostInfo.Title),
-		zap.String("privacy_level", req.PostInfo.PrivacyLevel),
-		zap.Int64("video_size", req.SourceInfo.VideoSize))
+		zap.Any("request", req))
 
 	path := "post/publish/video/init/"
 
@@ -268,6 +235,8 @@ func (t *TikTokProxy) UploadVideoChunk(ctx context.Context, uploadURL string, vi
 	return nil
 }
 
+// endregion
+
 // CheckPostStatus implements iproxies.TikTokProxy.
 func (t *TikTokProxy) CheckPostStatus(ctx context.Context, publishID string, accessToken string) (*dtos.TikTokPostStatusResponse, error) {
 	zap.L().Info("TikTokProxy - CheckPostStatus called",
@@ -280,7 +249,7 @@ func (t *TikTokProxy) CheckPostStatus(ctx context.Context, publishID string, acc
 		"Content-Type":  "application/json; charset=UTF-8",
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"publish_id": publishID,
 	}
 
@@ -297,10 +266,123 @@ func (t *TikTokProxy) CheckPostStatus(ctx context.Context, publishID string, acc
 	}
 
 	zap.L().Info("TikTok post status fetched",
-		zap.String("status", statusResp.Data.Status),
+		zap.String("status", string(statusResp.Data.Status)),
 		zap.String("publish_id", publishID))
 
 	return &statusResp, nil
+}
+
+// endregion
+
+func NewTikTokProxy(httpClient *http.Client, config *config.AppConfig) iproxies.TikTokProxy {
+	tiktokConfig := config.Social.TikTok
+	baseURL := fmt.Sprintf("%s/v%s/", tiktokConfig.BaseURL, tiktokConfig.APIVersion)
+	return &TikTokProxy{
+		BaseProxy: NewBaseProxy(httpClient, baseURL, config),
+		config:    &tiktokConfig,
+	}
+}
+
+// region: ========= Helper Methods =========
+
+func (t *TikTokProxy) ValidateContentRequest(
+	ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest, creatorInfo *dtos.TikTokCreatorInfo,
+) []error {
+	errorsSlice := make([]error, 0)
+
+	// Validate Privacy Level
+	if !slices.Contains(creatorInfo.PrivacyLevelOptions, req.PostInfo.PrivacyLevel) {
+		errorsSlice = append(errorsSlice, fmt.Errorf("invalid privacy level: %s. Should be one of %s",
+			req.PostInfo.PrivacyLevel,
+			utils.JoinSliceFunc(creatorInfo.PrivacyLevelOptions, ", ", func(p dtos.TikTokPrivacyLevelOption) string {
+				return fmt.Sprintf("'%s'", p)
+			})))
+	}
+
+	// Validate Title
+	if req.PostInfo.Title != "" {
+		if utils.UTF16RuneCount(req.PostInfo.Title) > 2200 {
+			errorsSlice = append(errorsSlice, errors.New("title is too long. Max length is 2200 UTF-16 rune count"))
+		}
+	}
+
+	// Validate Source Info
+	switch req.SourceInfo.Source {
+	case dtos.TikTokSourceFileUpload:
+		if req.SourceInfo.VideoSize == nil || *req.SourceInfo.VideoSize <= 0 {
+			errorsSlice = append(errorsSlice, errors.New("video size is required for FILE_UPLOAD source"))
+		}
+		if req.SourceInfo.TotalChunkCount == nil || *req.SourceInfo.TotalChunkCount <= 0 {
+			errorsSlice = append(errorsSlice, errors.New("total chunk count is required for FILE_UPLOAD source"))
+		} else if *req.SourceInfo.TotalChunkCount <= 1 || *req.SourceInfo.TotalChunkCount > 1000 {
+			errorsSlice = append(errorsSlice, errors.New("total chunk count must be between 1 and 1000"))
+		}
+		if req.SourceInfo.ChunkSize == nil || *req.SourceInfo.ChunkSize <= 0 {
+			errorsSlice = append(errorsSlice, errors.New("chunk size is required for FILE_UPLOAD source"))
+		}
+
+		if *req.SourceInfo.ChunkSize < 5*1024*1024 || *req.SourceInfo.ChunkSize > 64*1024*1024 {
+			errorsSlice = append(errorsSlice, errors.New("chunk size must be between 5MB and 64MB"))
+		}
+
+	case dtos.TikTokSourcePullFromURL:
+		if req.SourceInfo.VideoURL == nil || *req.SourceInfo.VideoURL == "" {
+			errorsSlice = append(errorsSlice, errors.New("video URL is required for PULL_FROM_URL source"))
+		}
+
+	default:
+		errorsSlice = append(errorsSlice, fmt.Errorf("invalid source option: %s", req.SourceInfo.Source))
+	}
+
+	if len(req.FileInfoMetadata) > 0 {
+		allowedExtensions := []string{".mp4", ".mov", ".webm"}
+		if !utils.ContainsSlice(allowedExtensions, req.FileInfoMetadata["extension"]) {
+			errorsSlice = append(errorsSlice, fmt.Errorf("invalid video file extension: %s. Allowed extensions are: %s",
+				req.FileInfoMetadata["extension"], utils.JoinSliceFunc(allowedExtensions, ", ", func(s string) string { return "'" + s + "'" })))
+		}
+
+		allowedCodecs := []string{"h264", "h265", "vp8", "vp9"}
+		if !utils.ContainsSlice(allowedCodecs, strings.ToLower(req.FileInfoMetadata["codec"])) {
+			errorsSlice = append(errorsSlice, fmt.Errorf("invalid video codec: %s. Allowed codecs are: %s",
+				req.FileInfoMetadata["video_codec"], utils.JoinSliceFunc(allowedCodecs, ", ", func(s string) string { return "'" + s + "'" })))
+		}
+
+		duration, err := strconv.Atoi(req.FileInfoMetadata["duration_seconds"])
+		if err != nil && duration > creatorInfo.MaxVideoPostDuration {
+			errorsSlice = append(errorsSlice, fmt.Errorf("video duration is too long. Max duration is %d seconds. Current duration is %d seconds",
+				creatorInfo.MaxVideoPostDuration, duration))
+		}
+	}
+
+	return errorsSlice
+}
+
+func (t *TikTokProxy) getUserProfile(ctx context.Context, accessToken string, fields string) (*dtos.TikTokUserProfileResponse, error) {
+	url, err := utils.AddQueryParams("user/info/", map[string]string{
+		"fields": fields,
+	})
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting TikTok user profile", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+	}
+
+	var userProfile dtos.TikTokUserProfileResponse
+	if err := GetGeneric(t.BaseProxy, ctx, url, headers, &userProfile); err != nil {
+		zap.L().Error("Failed to get TikTok user profile", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user profile: %w", err)
+	}
+
+	if !userProfile.Error.Code.IsSuccess() {
+		zap.L().Error("TikTok API returned error",
+			zap.Any("error", userProfile.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", userProfile.Error.Code, userProfile.Error.Message)
+	}
+
+	return &userProfile, nil
 }
 
 // endregion

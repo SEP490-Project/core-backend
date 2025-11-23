@@ -7,6 +7,8 @@ topology:
       queues:
         - name: queue.notification.email
           routingKey: notification.email
+          additionalBindings:
+            - notification.all
           durable: true
           autoDelete: false
           prefetch: 10
@@ -23,6 +25,22 @@ topology:
             exchange: exchange.notification
         - name: queue.notification.push
           routingKey: notification.push
+          additionalBindings:
+            - notification.all
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 2000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
+        - name: queue.notification.in_app
+          routingKey: notification.in_app
+          additionalBindings:
+            - notification.all
           durable: true
           autoDelete: false
           prefetch: 50
@@ -176,6 +194,26 @@ producers:
       maxAttempts: 5
       backoffMs: 2000
       exponentialMultiply: 2.0
+  - name: notification-in-app-producer
+    exchange: exchange.notification
+    routingKey: notification.in_app
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: notification-all-producer
+    exchange: exchange.notification
+    routingKey: notification.all
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
   - name: contract-create-producer
     exchange: exchange.contract
     routingKey: contract.create
@@ -249,6 +287,13 @@ consumers:
     exponentialMultiply: 1.5
   - name: notification-push-consumer
     queue: queue.notification.push
+    prefetch: 1
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
+  - name: notification-in-app-consumer
+    queue: queue.notification.in_app
     prefetch: 1
     concurrency: 3
     autoAck: false

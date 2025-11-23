@@ -139,6 +139,25 @@ func (tm *TopologyManager) setupQueue(channel *amqp.Channel, exchangeName string
 		return fmt.Errorf("failed to bind queue %s to exchange %s: %w", queueConfig.Name, exchangeName, err)
 	}
 
+	// 5. Bind Additional Bindings
+	for _, binding := range queueConfig.AdditionalBindings {
+		zap.L().Debug("Binding queue to exchange (additional)",
+			zap.String("queue", queueConfig.Name),
+			zap.String("exchange", exchangeName),
+			zap.String("routing_key", binding))
+
+		err := channel.QueueBind(
+			queueConfig.Name, // queue name
+			binding,          // routing key
+			exchangeName,     // exchange
+			false,            // no-wait
+			nil,              // arguments
+		)
+		if err != nil {
+			return fmt.Errorf("failed to bind queue %s to exchange %s with key %s: %w", queueConfig.Name, exchangeName, binding, err)
+		}
+	}
+
 	zap.L().Info("Queue setup completed",
 		zap.String("queue", queueConfig.Name),
 		zap.String("exchange", exchangeName),

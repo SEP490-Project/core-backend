@@ -18,11 +18,12 @@ type ContentChannel struct {
 	AutoPostStatus  enum.AutoPostStatus `json:"auto_post_status" gorm:"column:auto_post_status;not null;type:varchar(35)"`
 
 	// Publishing fields
-	ExternalPostID  *string        `json:"external_post_id" gorm:"type:varchar(255);column:external_post_id"`
-	ExternalPostURL *string        `json:"external_post_url" gorm:"type:text;column:external_post_url"`
-	PublishedAt     *time.Time     `json:"published_at" gorm:"column:published_at"`
-	LastError       *string        `json:"last_error" gorm:"type:text;column:last_error"`
-	Metrics         datatypes.JSON `json:"metrics" gorm:"type:jsonb;column:metrics"`
+	ExternalPostID   *string               `json:"external_post_id" gorm:"type:varchar(255);column:external_post_id"`
+	ExternalPostURL  *string               `json:"external_post_url" gorm:"type:text;column:external_post_url"`
+	ExternalPostType enum.ExternalPostType `json:"external_post_type" gorm:"column:external_post_type;type:varchar(50)"`
+	PublishedAt      *time.Time            `json:"published_at" gorm:"column:published_at"`
+	LastError        *string               `json:"last_error" gorm:"type:text;column:last_error"`
+	Metrics          datatypes.JSON        `json:"metrics" gorm:"type:jsonb;column:metrics"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`

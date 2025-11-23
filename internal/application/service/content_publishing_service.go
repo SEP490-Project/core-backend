@@ -13,6 +13,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/logging"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,8 @@ type contentPublishingService struct {
 	tiktokProxy          iproxies.TikTokProxy
 	channelService       iservice.ChannelService
 	stateTransferService iservice.StateTransferService
+	fileService          iservice.FileService
+	notificationService  iservice.NotificationService
 	s3Storage            irepository_third_party.S3Storage
 	s3StreamingStorage   irepository_third_party.S3StreamingStorage
 	uow                  irepository.UnitOfWork
@@ -93,9 +96,9 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 
 	switch channel.Code {
 	case "FACEBOOK":
-		externalPostID, postURL, err = s.publishToFacebook(ctx, content, channel, accessToken)
+		externalPostID, postURL, err = s.publishToFacebook(ctx, content, channel, contentChannel, accessToken)
 	case "TIKTOK":
-		externalPostID, postURL, err = s.publishToTikTok(ctx, content, channel, accessToken)
+		externalPostID, postURL, err = s.publishToTikTok(ctx, content, channel, contentChannel, accessToken)
 	case "WEBSITE":
 		externalPostID, postURL, err = s.publishToWebiste(ctx, content, channel)
 	default:
@@ -306,7 +309,7 @@ func (s *contentPublishingService) RetryPublish(ctx context.Context, contentChan
 	return err
 }
 
-// region: ============ Helper methods ===========
+// region: 1. ============ Helper methods ===========
 
 func (s *contentPublishingService) findOrCreateContentChannel(ctx context.Context, contentID uuid.UUID, channelID uuid.UUID) (*model.ContentChannel, error) {
 	// Try to find existing content channel
@@ -363,11 +366,16 @@ func (s *contentPublishingService) checkAllChannelsPosted(ctx context.Context, u
 	return true, nil
 }
 
-// region: =========== Platform-specific publishing ===========
+// region: 2. =========== Platform-specific publishing ===========
 
-// region: =========== Facebook Publishing ===========
+// region: 3. =========== Facebook Publishing ===========
 
-func (s *contentPublishingService) publishToFacebook(ctx context.Context, content *model.Content, channel *model.Channel, accessToken string) (string, string, error) {
+func (s *contentPublishingService) publishToFacebook(ctx context.Context, content *model.Content, channel *model.Channel, contentChannel *model.ContentChannel, accessToken string) (string, string, error) {
+	zap.L().Info("contentPublishingService - publishToFacebook called",
+		zap.String("content_id", content.ID.String()),
+		zap.String("channel_code", channel.Code),
+		zap.String("channel_name", channel.Name))
+
 	if channel.ExternalID == nil {
 		return "", "", errors.New("facebook page ID not set for channel")
 	}
@@ -384,35 +392,41 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	case enum.ContentTypePost:
 		imageLen := len(parseResult.ImageURLs)
 		if imageLen == 1 {
-			return s.publishSinglePhotoPostToFacebook(ctx, accessToken, pageID, parseResult)
+			return s.publishSinglePhotoPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, parseResult)
 		} else if imageLen > 1 {
-			return s.publishMultiPhotoPostToFacebook(ctx, accessToken, pageID, parseResult)
+			return s.publishMultiPhotoPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, parseResult)
 		} else {
-			return s.publishTextPostToFacebook(ctx, accessToken, pageID, parseResult.PlainText)
+			return s.publishTextPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, parseResult.PlainText)
 		}
 
 	case enum.ContentTypeVideo:
-		return s.publishVideoPostToFacebook(ctx, accessToken, pageID, content, parseResult)
+		return s.publishVideoPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, content, parseResult)
 	default:
 		return "", "", fmt.Errorf("unsupported content type for Facebook: %s", content.Type)
 	}
 }
 
-// region: ======== Facebook Publishing Content of Post Types ========
+// region: 4. ======== Facebook Publishing Content of Post Types ========
 
 // publishTextPostToFacebook creates a simple text post on Facebook
-func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context, accessToken, pageID, message string) (string, string, error) {
+func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID, message string) (string, string, error) {
+	zap.L().Info("contentPublishingService - publishTextPostToFacebook called",
+		zap.String("page_id", pageID))
+
 	resp, err := s.facebookProxy.CreateTextPost(ctx, pageID, message, true, accessToken)
 	if err != nil {
 		return "", "", fmt.Errorf("facebook text post failed: %w", err)
 	}
-
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
+
+	// Save external post ID asynchronously
+	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeText)
+
 	return resp.ID, postURL, nil
 }
 
 // publishSinglePhotoPostToFacebook creates a photo post with a single image on Facebook
-func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, error) {
+func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, error) {
 	// Photo post with caption using first image
 	publishingRequest := &dtos.FacebookPhotoPostPublishRequest{
 		PageID:                 pageID,
@@ -426,11 +440,19 @@ func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.
 		return "", "", fmt.Errorf("facebook photo post failed: %w", err)
 	}
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
+
+	// Save external post ID asynchronously
+	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeSingleImage)
 	return resp.ID, postURL, nil
 }
 
 // publishMultiPhotoPostToFacebook creates a multi-photo post on Facebook
-func (s *contentPublishingService) publishMultiPhotoPostToFacebook(ctx context.Context, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, error) {
+func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
+	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult,
+) (string, string, error) {
+	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
+	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
+
 	// Step 1: Upload each image to get media_fbid
 	attachedMedia := make([]string, len(parseResult.ImageURLs))
 	var funcs []func(ctx context.Context) error
@@ -486,67 +508,43 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(ctx context.C
 	return resp.ID, postURL, nil
 }
 
-// endregion
+// endregion 4.
 
-// region: ======== Facebook Publishing Content of Video Types ========
+// region: 4. ======== Facebook Publishing Content of Video Types ========
 
-func (s *contentPublishingService) publishVideoPostToFacebook(ctx context.Context, accessToken, pageID string, content *model.Content, parseResult *utils.TiptapParseResult) (string, string, error) {
-	// For video content, parse as JSON to extract video_s3_key and metadata
-	var videoBody map[string]any
-	if err := json.Unmarshal(content.Body, &videoBody); err != nil {
-		return "", "", fmt.Errorf("failed to parse video content body: %w", err)
-	}
+func (s *contentPublishingService) publishVideoPostToFacebook(
+	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *utils.TiptapParseResult,
+) (string, string, error) {
+	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
+	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
 
-	// Extract video S3 key
-	videoS3URLStr, ok := videoBody["video_url"].(string)
-	if !ok || videoS3URLStr == "" {
-		return "", "", errors.New("content body must contain 'video_s3_key' field for VIDEO type")
-	}
-	videoURL, err := url.Parse(videoS3URLStr)
+	// Step 1: Extract video info from content body
+	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
 	if err != nil {
-		zap.L().Error("Failed to parse video URL",
-			zap.String("video_url", videoS3URLStr),
-			zap.Error(err))
-		return "", "", fmt.Errorf("failed to parse video URL: %w", err)
+		zap.L().Error("Failed to extract video info from content body", zap.Error(err))
+		return "", "", fmt.Errorf("failed to extract video info from content body: %w", err)
 	}
-	videoS3Key := strings.Trim(videoURL.Path, "/")
-
-	// Use title from content model
-	title := content.Title
-	if title == "" {
-		title, _ = videoBody["title"].(string)
-	}
-
-	// Extract description - try Tiptap format first, then fallback to plain text
-	description := parseResult.PlainText
-	if description == "" {
-		// Fallback to description field in video body
-		description, _ = videoBody["description"].(string)
+	if parseResult != nil && parseResult.PlainText != "" {
+		videoInfo.Description = parseResult.PlainText
 	}
 
 	zap.L().Info("Initiating Facebook video upload",
 		zap.String("content_id", content.ID.String()),
-		zap.String("s3_key", videoS3Key),
-		zap.String("title", title))
+		zap.String("video_url", videoInfo.VideoURL),
+		zap.String("title", videoInfo.Title))
 
-	var encodedURL string
-	if encodedURL, err = utils.EncodeIndividualPathSegments(videoS3URLStr); err != nil {
-		zap.L().Error("Failed to encode video S3 URL",
-			zap.Error(err))
-		return "", "", fmt.Errorf("failed to encode video S3 URL: %w", err)
-	}
+	// Step 2: Upload video to Facebook via URL
 	videoPublishRequest := &dtos.FacebookVideoPostPublishRequest{
 		PageID:                 pageID,
-		Title:                  title,
-		Description:            description,
-		FileURL:                encodedURL,
+		Title:                  videoInfo.Title,
+		Description:            videoInfo.Description,
+		FileURL:                videoInfo.VideoURL,
 		Published:              true,
 		ScheduledPublishTime:   0,
 		UnpublishedContentType: nil,
 		SocialActions:          true,
 		Secret:                 false,
 	}
-
 	videoID, err := s.facebookProxy.CreateVideoPostFromURL(ctx, accessToken, videoPublishRequest)
 	if err != nil {
 		zap.L().Error("Failed to create Facebook video post from URL",
@@ -554,8 +552,7 @@ func (s *contentPublishingService) publishVideoPostToFacebook(ctx context.Contex
 		return "", "", fmt.Errorf("failed to create Facebook video post from URL: %w", err)
 	}
 
-	postURL := fmt.Sprintf("https://www.facebook.com/%s/videos/%s", pageID, videoID)
-	return videoID, postURL, nil
+	return videoID, fmt.Sprintf("https://www.facebook.com/%s/videos/%s", pageID, videoID), nil
 }
 
 /* Deprecated Video publishing logic via resumable upload
@@ -712,18 +709,21 @@ func (s *contentPublishingService) uploadVideoToFacebookResumable(ctx context.Co
 }
 */
 
-// endregion
+// endregion 4.
 
-// endregion
+// endregion 3.
 
-// region: =========== TikTok Publishing ===========
+// region: 3. =========== TikTok Publishing ===========
 
 // TODO: Refactor publishToTikTok according to docs
-func (s *contentPublishingService) publishToTikTok(ctx context.Context, content *model.Content, _ *model.Channel, accessToken string) (string, string, error) {
+func (s *contentPublishingService) publishToTikTok(ctx context.Context, content *model.Content, _ *model.Channel, contentChannel *model.ContentChannel, accessToken string) (string, string, error) {
 	// TikTok only supports video
 	if content.Type != enum.ContentTypeVideo {
 		return "", "", errors.New("TikTok only supports video content")
 	}
+
+	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
+	s.saveExternalPostIDAsync(ctx, contentChannel.ID, "", "", enum.ExternalPostTypeVideo)
 
 	// 1. Get creator info (required - validates token and gets allowed privacy levels)
 	creatorInfo, err := s.tiktokProxy.GetCreatorInfo(ctx, accessToken)
@@ -733,56 +733,77 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 
 	zap.L().Info("TikTok creator info retrieved",
 		zap.String("username", creatorInfo.Data.CreatorUsername),
-		zap.Strings("privacy_options", creatorInfo.Data.PrivacyLevelOptions))
+		zap.Any("privacy_options", creatorInfo.Data.PrivacyLevelOptions))
 
 	// 2. Parse content body for video metadata
-	var body map[string]any
-	if err = json.Unmarshal(content.Body, &body); err != nil {
-		return "", "", fmt.Errorf("failed to parse content body: %w", err)
+	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
+	if err != nil {
+		zap.L().Error("Failed to extract video info from content body", zap.Error(err))
+		return "", "", fmt.Errorf("failed to extract video info from content body: %w", err)
 	}
 
-	title, ok := body["title"].(string)
-	if !ok || title == "" {
-		return "", "", errors.New("content body must contain 'title' field for TikTok video")
-	}
-
-	videoURL, ok := body["video_url"].(string)
-	if !ok || videoURL == "" {
-		return "", "", errors.New("content body must contain 'video_url' field for TikTok video")
-	}
-
-	// For Phase 1, we'll use PULL_FROM_URL method (simpler than FILE_UPLOAD)
-	// In Phase 2, we'll add FILE_UPLOAD with chunked upload from S3
-
+	// 3. Init video post
+	// Note: This logic use the PULL_FROM_URL method to let TikTok fetch the video from a public URL
+	// This will only required one step.
 	initReq := &dtos.TikTokVideoInitRequest{
 		PostInfo: dtos.TikTokPostInfo{
-			Title:              title,
-			PrivacyLevel:       "SELF_ONLY", // Force private for unaudited apps
-			DisableComment:     false,
-			DisableStitch:      false,
-			DisableDuet:        false,
+			PrivacyLevel:       dtos.TikTokPrivacyLevelSelfOnly,
+			Title:              videoInfo.Title,
+			DisableDuet:        creatorInfo.Data.DuetDisabled,
+			DisableStitch:      creatorInfo.Data.StitchDisabled,
+			DisableComment:     creatorInfo.Data.CommentDisabled,
 			BrandContentToggle: false,
+			BrandOrganicToggle: false,
+			IsAIGC:             false,
 		},
 		SourceInfo: dtos.TikTokSourceInfo{
-			Source:   "PULL_FROM_URL",
-			VideoURL: videoURL, // Must be publicly accessible
+			Source:   dtos.TikTokSourcePullFromURL,
+			VideoURL: &videoInfo.VideoURL, // Must be publicly accessible
 		},
 	}
+	if content.AIGeneratedText != nil {
+		initReq.PostInfo.IsAIGC = true
+	}
+	// NOTE: Currently, the logic for specifying brandContent info only based on if the content is from a task
+	// Later if there is a need, implement the logic to check if the content is based on contract or not
+	if content.Task != nil {
+		initReq.PostInfo.BrandContentToggle = true
+		initReq.PostInfo.BrandOrganicToggle = false
+	} else {
+		initReq.PostInfo.BrandContentToggle = false
+		initReq.PostInfo.BrandOrganicToggle = true
+	}
 
+	// initReq.FileInfo
+	if videoInfo.S3Key != nil {
+		var fileInfoResp *responses.FileDetailResponse
+		fileInfoResp, err = s.fileService.GetFileByS3Key(ctx, *videoInfo.S3Key)
+		if err == nil {
+			initReq.FileInfoMetadata = fileInfoResp.Metadata
+		}
+	}
+	// 4. Validate init Content request before sending to TikTok
+	if errList := s.tiktokProxy.ValidateContentRequest(ctx, accessToken, initReq, &creatorInfo.Data); len(errList) > 0 {
+		zap.L().Error("TikTok content request validation failed",
+			zap.Strings("errors", utils.MapSlice(errList, func(e error) string { return e.Error() })))
+		return "", "", fmt.Errorf("tiktok content request validation failed: %v", errList)
+	}
+
+	// 5. Send init request to TikTok
 	initResp, err := s.tiktokProxy.InitVideoPost(ctx, accessToken, initReq)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to init TikTok video post: %w", err)
 	}
 
-	// TikTok processes asynchronously - return publish_id for status tracking
-	// The PostStatusCheckConsumer (Phase 2) will poll for completion
 	zap.L().Info("TikTok video post initiated",
 		zap.String("publish_id", initResp.Data.PublishID))
 
-	return initResp.Data.PublishID, "", nil // URL will be updated when status is PUBLISH_COMPLETE
+	// TikTok will send webhook to notify the status of the video post
+	// For now, persist publishID to check status
+	return initResp.Data.PublishID, "", nil
 }
 
-// endregion
+// endregion 3.
 
 // publishToWebiste publish the content to the website channel,
 // This only return the content id, and the created URL on the website
@@ -793,9 +814,108 @@ func (s *contentPublishingService) publishToWebiste(_ context.Context, content *
 	return content.ID.String(), fmt.Sprintf("%s/blog/%s", s.config.Server.BaseFrontendURL, content.ID.String()), nil
 }
 
-// endregion
+// endregion 2.
 
-// endregion
+// saveExternalPostIDAsync saves the external post ID and URL asynchronously with retries
+func (s *contentPublishingService) saveExternalPostIDAsync(
+	ctx context.Context, contentChannelID uuid.UUID, externalPostID, externalPostURL string, externalPostType enum.ExternalPostType,
+) {
+	zap.L().Info("ContentPublishingService - saveExternalPostIDAsync called",
+		zap.String("content_channel_id", contentChannelID.String()),
+		zap.String("external_post_id", externalPostID),
+		zap.String("external_post_url", externalPostURL))
+
+	requestID := logging.GetRequestID()
+	saveFunc := func(ctx context.Context) error {
+		logging.SetRequestID(requestID)
+		if err := s.contentChannelRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", contentChannelID)
+		}, map[string]any{
+			"external_post_id":   externalPostID,
+			"external_post_url":  externalPostURL,
+			"auto_post_status":   enum.AutoPostStatusInProgress,
+			"external_post_type": externalPostType,
+		}); err != nil {
+			zap.L().Error("Failed to save external post ID asynchronously", zap.Error(err))
+			return fmt.Errorf("failed to save external post ID: %w", err)
+		}
+		return nil
+	}
+	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, saveFunc); err != nil {
+		zap.L().Error("Failed to save external post ID asynchronously", zap.Error(err))
+		return
+	}
+
+	zap.L().Info("Successfully saved external post ID asynchronously",
+		// zap.String("content_id", contentID.String()),
+		// zap.String("channel_id", channelID.String()),
+		zap.String("content_channel_id", contentChannelID.String()),
+		zap.String("external_post_id", externalPostID),
+		zap.String("external_post_url", externalPostURL))
+}
+
+// extractVideoInfoFromContentBody extracts video metadata from the content body JSON
+func (s *contentPublishingService) extractVideoInfoFromContentBody(
+	_ context.Context, content *model.Content,
+) (*struct {
+	Title       string
+	Description string
+	VideoURL    string
+	S3Key       *string
+}, error) {
+	var videoBody map[string]any
+	if err := json.Unmarshal(content.Body, &videoBody); err != nil {
+		return nil, fmt.Errorf("failed to parse video content body: %w", err)
+	}
+
+	// Extract video S3 key
+	videoS3URLStr, ok := videoBody["video_url"].(string)
+	if !ok || videoS3URLStr == "" {
+		return nil, errors.New("content body must contain 'video_s3_key' field for VIDEO type")
+	}
+	videoURL, err := url.Parse(videoS3URLStr)
+	if err != nil {
+		zap.L().Error("Failed to parse video URL",
+			zap.String("video_url", videoS3URLStr),
+			zap.Error(err))
+		return nil, fmt.Errorf("failed to parse video URL: %w", err)
+	}
+	videoS3Key := strings.Trim(videoURL.Path, "/")
+	var encodedURL string
+	if encodedURL, err = utils.EncodeIndividualPathSegments(videoURL.String()); err != nil {
+		zap.L().Error("Failed to encode video S3 URL",
+			zap.Error(err))
+		return nil, fmt.Errorf("failed to encode video S3 URL: %w", err)
+	}
+
+	// Use title from content model
+	title := content.Title
+	if title == "" {
+		title, ok = videoBody["title"].(string)
+		if !ok || title == "" {
+			title = "Untitled Video"
+		}
+	}
+
+	description, ok := videoBody["description"].(string)
+	if !ok {
+		description = ""
+	}
+	result := &struct {
+		Title       string
+		Description string
+		VideoURL    string
+		S3Key       *string
+	}{
+		Title:       title,
+		Description: description,
+		VideoURL:    encodedURL,
+		S3Key:       &videoS3Key,
+	}
+	return result, nil
+}
+
+// endregion 1.
 
 // NewContentPublishingService creates a new instance of ContentPublishingService
 func NewContentPublishingService(
@@ -803,6 +923,8 @@ func NewContentPublishingService(
 	databaseReg *gormrepository.DatabaseRegistry,
 	channelService iservice.ChannelService,
 	stateTransferService iservice.StateTransferService,
+	fileService iservice.FileService,
+	notificationService iservice.NotificationService,
 	config *config.AppConfig,
 ) iservice.ContentPublishingService {
 	return &contentPublishingService{
@@ -813,6 +935,8 @@ func NewContentPublishingService(
 		tiktokProxy:          infraReg.ProxiesRegistry.TikTokProxy,
 		channelService:       channelService,
 		stateTransferService: stateTransferService,
+		fileService:          fileService,
+		notificationService:  notificationService,
 		s3Storage:            infraReg.ThirdPartyStorage.S3Storage,
 		s3StreamingStorage:   infraReg.ThirdPartyStorage.S3StreamStorage,
 		uow:                  infraReg.UnitOfWork,
