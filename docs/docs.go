@@ -7237,6 +7237,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/files": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Get file info by filter",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID of the user who uploaded the file",
+                        "name": "uploaded_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Storage key of the file",
+                        "name": "storage_key",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Keyword to search in file names",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MIME type of the file",
+                        "name": "mime_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Minimum file size in bytes",
+                        "name": "min_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "Maximum file size in bytes",
+                        "name": "max_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date for upload date range (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date for upload date range (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Status of the file (PENDING, UPLOADING, UPLOADED, FAILED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page for pagination",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.FilePaginationResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/files/upload": {
             "post": {
                 "consumes": [
@@ -7246,7 +7348,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "files"
+                    "Files"
                 ],
                 "summary": "Upload files to S3",
                 "parameters": [
@@ -7293,7 +7395,7 @@ const docTemplate = `{
         "/api/v1/files/videos": {
             "delete": {
                 "tags": [
-                    "files"
+                    "Files"
                 ],
                 "summary": "Delete uploaded video",
                 "parameters": [
@@ -7352,7 +7454,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "files"
+                    "Files"
                 ],
                 "summary": "Upload a video chunk (streaming upload)",
                 "parameters": [
@@ -7437,7 +7539,7 @@ const docTemplate = `{
         "/api/v1/files/{filename}": {
             "delete": {
                 "tags": [
-                    "files"
+                    "Files"
                 ],
                 "summary": "Delete a file from S3",
                 "parameters": [
@@ -7468,6 +7570,52 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/files/{key}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Get file detail by S3 key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "S3 storage key of the file",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.FileDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -8375,7 +8523,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by notification type (EMAIL, PUSH)",
+                        "description": "Filter by notification type (EMAIL, PUSH, IN_APP)",
                         "name": "type",
                         "in": "query"
                     },
@@ -8383,6 +8531,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Filter by status (PENDING, SENT, FAILED, RETRYING)",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by read status",
+                        "name": "is_read",
                         "in": "query"
                     },
                     {
@@ -8427,6 +8581,108 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/broadcast/all": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sends a unified notification to all users (optionally filtered by role)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Broadcast notification to all users",
+                "parameters": [
+                    {
+                        "description": "Broadcast Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.BroadcastToAllRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/broadcast/user": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sends a unified notification to a specific user across specified channels",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Broadcast notification to a specific user",
+                "parameters": [
+                    {
+                        "description": "Broadcast Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.BroadcastToUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
@@ -8714,6 +8970,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/notifications/read-all": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks all notifications for the current user as read",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/notifications/republish-failed": {
             "post": {
                 "security": [
@@ -8780,6 +9070,24 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/notifications/sse": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Establishes a Server-Sent Events connection to receive real-time updates (e.g., unread count)",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Subscribe to real-time notifications (SSE)",
+                "responses": {}
+            }
+        },
         "/api/v1/notifications/{id}": {
             "get": {
                 "security": [
@@ -8824,6 +9132,61 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/{id}/read": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a specific notification as read",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark notification as read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Notification ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "400": {
@@ -11740,6 +12103,122 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/social/tiktok/creator-info": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves information about the TikTok creator associated with the stored access token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social/TikTok"
+                ],
+                "summary": "Get TikTok Creator Information",
+                "responses": {
+                    "200": {
+                        "description": "TikTok creator info retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.TikTokCreatorInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "TikTok refresh token expired",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No TikTok token found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/social/tiktok/system-user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok system user profile associated with the stored access token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Social/TikTok"
+                ],
+                "summary": "Get TikTok System User Profile",
+                "responses": {
+                    "200": {
+                        "description": "TikTok system user profile retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/dtos.TikTokUserProfileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "TikTok refresh token expired",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No TikTok token found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/tags": {
             "get": {
                 "security": [
@@ -13160,6 +13639,47 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Successfully exchanged code for token",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/tiktok/get-creator-info": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the TikTok creator info using the provided access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Get TikTok creator info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access token used to retrieve the creator info",
+                        "name": "access_token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved creator info",
                         "schema": {}
                     },
                     "400": {
@@ -15597,6 +16117,170 @@ const docTemplate = `{
                 }
             }
         },
+        "dtos.TikTokCreatorInfo": {
+            "type": "object",
+            "properties": {
+                "comment_disabled": {
+                    "type": "boolean"
+                },
+                "creator_avatar_url": {
+                    "type": "string"
+                },
+                "creator_nickname": {
+                    "type": "string"
+                },
+                "creator_username": {
+                    "type": "string"
+                },
+                "duet_disabled": {
+                    "type": "boolean"
+                },
+                "max_video_post_duration_sec": {
+                    "type": "integer"
+                },
+                "privacy_level_options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.TikTokPrivacyLevelOption"
+                    }
+                },
+                "stitch_disabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dtos.TikTokCreatorInfoResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dtos.TikTokCreatorInfo"
+                },
+                "error": {
+                    "$ref": "#/definitions/dtos.TikTokErrorResponse"
+                }
+            }
+        },
+        "dtos.TikTokErrorCode": {
+            "type": "string",
+            "enum": [
+                "ok",
+                "access_token_invalid",
+                "internal_error",
+                "invalid_file_upload",
+                "invalid_params",
+                "rate_limit_exceeded",
+                "scope_not_authorized",
+                "scope_permission_missed"
+            ],
+            "x-enum-varnames": [
+                "TikTokOK",
+                "TikTokAccessTokenInvalid",
+                "TikTokInternalError",
+                "TikTokInvalidFileUpload",
+                "TikTokInvalidParams",
+                "TikTokRateLimitExceeded",
+                "TikTokScopeNotAuthorized",
+                "TikTokScopePermissionMissed"
+            ]
+        },
+        "dtos.TikTokErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "$ref": "#/definitions/dtos.TikTokErrorCode"
+                },
+                "log_id": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "dtos.TikTokPrivacyLevelOption": {
+            "type": "string",
+            "enum": [
+                "PUBLIC_TO_EVERYONE",
+                "FOLLOWER_OF_CREATOR",
+                "MUTUAL_FOLLOW_FRIENDS",
+                "SELF_ONLY"
+            ],
+            "x-enum-varnames": [
+                "TikTokPrivacyLevelPublicToEveryone",
+                "TikTokPrivacyLevelFollowerOfCreator",
+                "TikTokPrivacyLevelMutualFollowFriends",
+                "TikTokPrivacyLevelSelfOnly"
+            ]
+        },
+        "dtos.TikTokUserProfile": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "avatar_url": {
+                            "description": "scope: user.info.basic",
+                            "type": "string"
+                        },
+                        "bio_description": {
+                            "description": "scope: user.info.profile",
+                            "type": "string"
+                        },
+                        "display_name": {
+                            "description": "scope: user.info.basic",
+                            "type": "string"
+                        },
+                        "follower_count": {
+                            "description": "scope: user.info.stats",
+                            "type": "integer"
+                        },
+                        "following_count": {
+                            "description": "scope: user.info.stats",
+                            "type": "integer"
+                        },
+                        "is_verified": {
+                            "description": "scope: user.info.profile",
+                            "type": "boolean"
+                        },
+                        "likes_count": {
+                            "description": "scope: user.info.stats",
+                            "type": "integer"
+                        },
+                        "open_id": {
+                            "description": "scope: user.info.basic",
+                            "type": "string"
+                        },
+                        "profile_deep_link": {
+                            "description": "scope: user.info.profile",
+                            "type": "string"
+                        },
+                        "union_id": {
+                            "description": "scope: user.info.basic",
+                            "type": "string"
+                        },
+                        "username": {
+                            "description": "scope: user.info.profile",
+                            "type": "string"
+                        },
+                        "video_count": {
+                            "description": "scope: user.info.stats",
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        },
+        "dtos.TikTokUserProfileResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dtos.TikTokUserProfile"
+                },
+                "error": {
+                    "$ref": "#/definitions/dtos.TikTokErrorResponse"
+                }
+            }
+        },
         "dtos.UpdateGHNDeliveryStatusResponse": {
             "type": "object",
             "properties": {
@@ -15665,12 +16349,14 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "PENDING",
+                "IN_PROGRESS",
                 "POSTED",
                 "FAILED",
                 "SKIPPED"
             ],
             "x-enum-varnames": [
                 "AutoPostStatusPending",
+                "AutoPostStatusInProgress",
                 "AutoPostStatusPosted",
                 "AutoPostStatusFailed",
                 "AutoPostStatusSkipped"
@@ -15786,6 +16472,33 @@ const docTemplate = `{
                 "DispenserTypeNone"
             ]
         },
+        "enum.FileStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "UPLOADING",
+                "UPLOADED",
+                "FAILED"
+            ],
+            "x-enum-comments": {
+                "FileStatusFailed": "Upload failed",
+                "FileStatusPending": "Upload initiated, not yet complete",
+                "FileStatusUploaded": "Successfully uploaded to storage",
+                "FileStatusUploading": "Chunks being uploaded"
+            },
+            "x-enum-descriptions": [
+                "Upload initiated, not yet complete",
+                "Chunks being uploaded",
+                "Successfully uploaded to storage",
+                "Upload failed"
+            ],
+            "x-enum-varnames": [
+                "FileStatusPending",
+                "FileStatusUploading",
+                "FileStatusUploaded",
+                "FileStatusFailed"
+            ]
+        },
         "enum.GHNDeliveryStatus": {
             "type": "string",
             "enum": [
@@ -15822,11 +16535,13 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "EMAIL",
-                "PUSH"
+                "PUSH",
+                "IN_APP"
             ],
             "x-enum-varnames": [
                 "NotificationTypeEmail",
-                "NotificationTypePush"
+                "NotificationTypePush",
+                "NotificationTypeInApp"
             ]
         },
         "enum.OrderStatus": {
@@ -16612,6 +17327,63 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "requests.BroadcastToAllRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "role": {
+                    "description": "Optional: Filter by role",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.BroadcastToUserRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "title",
+                "user_id"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "channels": {
+                    "description": "Optional: \"EMAIL\", \"PUSH\", \"IN_APP\"",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
                 }
             }
         },
@@ -17920,7 +18692,8 @@ const docTemplate = `{
                     },
                     "example": [
                         "EMAIL",
-                        "PUSH"
+                        "PUSH",
+                        "IN_APP"
                     ]
                 },
                 "data": {
@@ -20185,6 +20958,144 @@ const docTemplate = `{
                 },
                 "WhiteListClient": {},
                 "WhiteListDistrict": {}
+            }
+        },
+        "responses.FileDetailResponse": {
+            "type": "object",
+            "properties": {
+                "alt_text": {
+                    "type": "string",
+                    "example": "Alt text"
+                },
+                "error_reason": {
+                    "type": "string",
+                    "example": "Error details if any"
+                },
+                "file_name": {
+                    "type": "string",
+                    "example": "example.jpg"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "mime_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 204800
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.FileStatus"
+                        }
+                    ],
+                    "example": "COMPLETED"
+                },
+                "storage_key": {
+                    "type": "string",
+                    "example": "files/example.jpg"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-01 12:00:00"
+                },
+                "uploaded_at": {
+                    "type": "string",
+                    "example": "2023-10-01 12:00:00"
+                },
+                "uploaded_by": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/files/example.jpg"
+                }
+            }
+        },
+        "responses.FileListResponse": {
+            "type": "object",
+            "properties": {
+                "error_reason": {
+                    "type": "string",
+                    "example": "Error details if any"
+                },
+                "file_name": {
+                    "type": "string",
+                    "example": "example.jpg"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "mime_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 204800
+                },
+                "status": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.FileStatus"
+                        }
+                    ],
+                    "example": "COMPLETED"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-10-01 12:00:00"
+                },
+                "uploaded_at": {
+                    "type": "string",
+                    "example": "2023-10-01 12:00:00"
+                },
+                "uploaded_by": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://example.com/files/example.jpg"
+                }
+            }
+        },
+        "responses.FilePaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.FileListResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
             }
         },
         "responses.LoginResponse": {

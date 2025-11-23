@@ -323,11 +323,11 @@ func (t *TikTokSocialService) getTikTokAccessToken(ctx context.Context) (string,
 	accessToken, refreshToken, err := t.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
 	if err != nil {
 		switch err {
-		case TikTokRefreshExpiredErr:
+		case ErrTikTokRefreshExpired:
 			zap.L().Warn("TikTok refresh token expired, need to re-authenticate")
 			return "", errors.New("tiktok refresh token expired")
 
-		case TikTokAccessExpiredErr:
+		case ErrTikTokAccessExpired:
 			zap.L().Info("TikTok access token expired, refreshing using refresh token")
 			// Refresh the access token
 			uow := t.unitOfWork.Begin(ctx)

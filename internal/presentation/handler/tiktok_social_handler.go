@@ -206,9 +206,9 @@ func (h *TikTokSocialHandler) GetCreatorInfo(c *gin.Context) {
 	creatorInfo, err := h.tiktokSocialService.GetTikTokCreatorInfo(c.Request.Context())
 	if err != nil {
 		switch err {
-		case service.TikTokRefreshExpiredErr:
+		case service.ErrTikTokRefreshExpired:
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
-		case service.TikTokNoStoredTokenErr:
+		case service.ErrTikTokNoStoredToken:
 			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
 		default:
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok creator info: "+err.Error(), http.StatusInternalServerError))
@@ -237,9 +237,9 @@ func (h *TikTokSocialHandler) GetSystemUserProfile(c *gin.Context) {
 	systemUserProfile, err := h.tiktokSocialService.GetTikTokSystemUserProfile(c.Request.Context())
 	if err != nil {
 		switch err {
-		case service.TikTokRefreshExpiredErr:
+		case service.ErrTikTokRefreshExpired:
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
-		case service.TikTokNoStoredTokenErr:
+		case service.ErrTikTokNoStoredToken:
 			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
 		default:
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok system user profile: "+err.Error(), http.StatusInternalServerError))

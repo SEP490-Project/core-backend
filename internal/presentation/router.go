@@ -784,7 +784,6 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
 	}
 }
-}
 
 func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
 	authHandler := r.handlerRegistry.AuthHandler
