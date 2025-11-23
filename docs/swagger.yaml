@@ -932,6 +932,124 @@ definitions:
     required:
     - title
     type: object
+  dtos.TikTokCreatorInfo:
+    properties:
+      comment_disabled:
+        type: boolean
+      creator_avatar_url:
+        type: string
+      creator_nickname:
+        type: string
+      creator_username:
+        type: string
+      duet_disabled:
+        type: boolean
+      max_video_post_duration_sec:
+        type: integer
+      privacy_level_options:
+        items:
+          $ref: '#/definitions/dtos.TikTokPrivacyLevelOption'
+        type: array
+      stitch_disabled:
+        type: boolean
+    type: object
+  dtos.TikTokCreatorInfoResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dtos.TikTokCreatorInfo'
+      error:
+        $ref: '#/definitions/dtos.TikTokErrorResponse'
+    type: object
+  dtos.TikTokErrorCode:
+    enum:
+    - ok
+    - access_token_invalid
+    - internal_error
+    - invalid_file_upload
+    - invalid_params
+    - rate_limit_exceeded
+    - scope_not_authorized
+    - scope_permission_missed
+    type: string
+    x-enum-varnames:
+    - TikTokOK
+    - TikTokAccessTokenInvalid
+    - TikTokInternalError
+    - TikTokInvalidFileUpload
+    - TikTokInvalidParams
+    - TikTokRateLimitExceeded
+    - TikTokScopeNotAuthorized
+    - TikTokScopePermissionMissed
+  dtos.TikTokErrorResponse:
+    properties:
+      code:
+        $ref: '#/definitions/dtos.TikTokErrorCode'
+      log_id:
+        type: string
+      message:
+        type: string
+    type: object
+  dtos.TikTokPrivacyLevelOption:
+    enum:
+    - PUBLIC_TO_EVERYONE
+    - FOLLOWER_OF_CREATOR
+    - MUTUAL_FOLLOW_FRIENDS
+    - SELF_ONLY
+    type: string
+    x-enum-varnames:
+    - TikTokPrivacyLevelPublicToEveryone
+    - TikTokPrivacyLevelFollowerOfCreator
+    - TikTokPrivacyLevelMutualFollowFriends
+    - TikTokPrivacyLevelSelfOnly
+  dtos.TikTokUserProfile:
+    properties:
+      user:
+        properties:
+          avatar_url:
+            description: 'scope: user.info.basic'
+            type: string
+          bio_description:
+            description: 'scope: user.info.profile'
+            type: string
+          display_name:
+            description: 'scope: user.info.basic'
+            type: string
+          follower_count:
+            description: 'scope: user.info.stats'
+            type: integer
+          following_count:
+            description: 'scope: user.info.stats'
+            type: integer
+          is_verified:
+            description: 'scope: user.info.profile'
+            type: boolean
+          likes_count:
+            description: 'scope: user.info.stats'
+            type: integer
+          open_id:
+            description: 'scope: user.info.basic'
+            type: string
+          profile_deep_link:
+            description: 'scope: user.info.profile'
+            type: string
+          union_id:
+            description: 'scope: user.info.basic'
+            type: string
+          username:
+            description: 'scope: user.info.profile'
+            type: string
+          video_count:
+            description: 'scope: user.info.stats'
+            type: integer
+        type: object
+    type: object
+  dtos.TikTokUserProfileResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dtos.TikTokUserProfile'
+      error:
+        $ref: '#/definitions/dtos.TikTokErrorResponse'
+    type: object
   dtos.UpdateGHNDeliveryStatusResponse:
     properties:
       current_status:
@@ -984,12 +1102,14 @@ definitions:
   enum.AutoPostStatus:
     enum:
     - PENDING
+    - IN_PROGRESS
     - POSTED
     - FAILED
     - SKIPPED
     type: string
     x-enum-varnames:
     - AutoPostStatusPending
+    - AutoPostStatusInProgress
     - AutoPostStatusPosted
     - AutoPostStatusFailed
     - AutoPostStatusSkipped
@@ -1085,6 +1205,28 @@ definitions:
     - DispenserTypeTwistUp
     - DispenserTypeSqueeze
     - DispenserTypeNone
+  enum.FileStatus:
+    enum:
+    - PENDING
+    - UPLOADING
+    - UPLOADED
+    - FAILED
+    type: string
+    x-enum-comments:
+      FileStatusFailed: Upload failed
+      FileStatusPending: Upload initiated, not yet complete
+      FileStatusUploaded: Successfully uploaded to storage
+      FileStatusUploading: Chunks being uploaded
+    x-enum-descriptions:
+    - Upload initiated, not yet complete
+    - Chunks being uploaded
+    - Successfully uploaded to storage
+    - Upload failed
+    x-enum-varnames:
+    - FileStatusPending
+    - FileStatusUploading
+    - FileStatusUploaded
+    - FileStatusFailed
   enum.GHNDeliveryStatus:
     enum:
     - ready_to_pick
@@ -1115,10 +1257,12 @@ definitions:
     enum:
     - EMAIL
     - PUSH
+    - IN_APP
     type: string
     x-enum-varnames:
     - NotificationTypeEmail
     - NotificationTypePush
+    - NotificationTypeInApp
   enum.OrderStatus:
     enum:
     - PENDING
@@ -1681,6 +1825,45 @@ definitions:
         type: array
     required:
     - author_id
+    type: object
+  requests.BroadcastToAllRequest:
+    properties:
+      body:
+        type: string
+      data:
+        additionalProperties:
+          type: string
+        type: object
+      role:
+        description: 'Optional: Filter by role'
+        type: string
+      title:
+        type: string
+    required:
+    - body
+    - title
+    type: object
+  requests.BroadcastToUserRequest:
+    properties:
+      body:
+        type: string
+      channels:
+        description: 'Optional: "EMAIL", "PUSH", "IN_APP"'
+        items:
+          type: string
+        type: array
+      data:
+        additionalProperties:
+          type: string
+        type: object
+      title:
+        type: string
+      user_id:
+        type: string
+    required:
+    - body
+    - title
+    - user_id
     type: object
   requests.BulkVariantRequest:
     properties:
@@ -2637,6 +2820,7 @@ definitions:
         example:
         - EMAIL
         - PUSH
+        - IN_APP
         items:
           type: string
         minItems: 1
@@ -4258,6 +4442,101 @@ definitions:
         type: string
       WhiteListClient: {}
       WhiteListDistrict: {}
+    type: object
+  responses.FileDetailResponse:
+    properties:
+      alt_text:
+        example: Alt text
+        type: string
+      error_reason:
+        example: Error details if any
+        type: string
+      file_name:
+        example: example.jpg
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      metadata:
+        additionalProperties:
+          type: string
+        type: object
+      mime_type:
+        example: image/jpeg
+        type: string
+      size:
+        example: 204800
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/enum.FileStatus'
+        example: COMPLETED
+      storage_key:
+        example: files/example.jpg
+        type: string
+      updated_at:
+        example: "2023-10-01 12:00:00"
+        type: string
+      uploaded_at:
+        example: "2023-10-01 12:00:00"
+        type: string
+      uploaded_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      url:
+        example: https://example.com/files/example.jpg
+        type: string
+    type: object
+  responses.FileListResponse:
+    properties:
+      error_reason:
+        example: Error details if any
+        type: string
+      file_name:
+        example: example.jpg
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      mime_type:
+        example: image/jpeg
+        type: string
+      size:
+        example: 204800
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/enum.FileStatus'
+        example: COMPLETED
+      updated_at:
+        example: "2023-10-01 12:00:00"
+        type: string
+      uploaded_at:
+        example: "2023-10-01 12:00:00"
+        type: string
+      uploaded_by:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      url:
+        example: https://example.com/files/example.jpg
+        type: string
+    type: object
+  responses.FilePaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.FileListResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
     type: object
   responses.LoginResponse:
     properties:
@@ -10096,6 +10375,74 @@ paths:
       summary: Update a device token
       tags:
       - Device Tokens
+  /api/v1/files:
+    get:
+      parameters:
+      - description: UUID of the user who uploaded the file
+        in: query
+        name: uploaded_by
+        type: string
+      - description: Storage key of the file
+        in: query
+        name: storage_key
+        required: true
+        type: string
+      - description: Keyword to search in file names
+        in: query
+        name: keyword
+        type: string
+      - description: MIME type of the file
+        in: query
+        name: mime_type
+        type: string
+      - description: Minimum file size in bytes
+        format: int64
+        in: query
+        name: min_size
+        type: integer
+      - description: Maximum file size in bytes
+        format: int64
+        in: query
+        name: max_size
+        type: integer
+      - description: Start date for upload date range (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: End date for upload date range (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Status of the file (PENDING, UPLOADING, UPLOADED, FAILED)
+        in: query
+        name: status
+        type: string
+      - description: Page number for pagination
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page for pagination
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.FilePaginationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get file info by filter
+      tags:
+      - Files
   /api/v1/files/{filename}:
     delete:
       parameters:
@@ -10124,7 +10471,37 @@ paths:
             type: object
       summary: Delete a file from S3
       tags:
-      - files
+      - Files
+  /api/v1/files/{key}:
+    get:
+      parameters:
+      - description: S3 storage key of the file
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.FileDetailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get file detail by S3 key
+      tags:
+      - Files
   /api/v1/files/upload:
     post:
       consumes:
@@ -10159,7 +10536,7 @@ paths:
             type: object
       summary: Upload files to S3
       tags:
-      - files
+      - Files
   /api/v1/files/videos:
     delete:
       parameters:
@@ -10194,7 +10571,7 @@ paths:
             type: object
       summary: Delete uploaded video
       tags:
-      - files
+      - Files
   /api/v1/files/videos/upload-chunk:
     post:
       consumes:
@@ -10255,7 +10632,7 @@ paths:
             type: object
       summary: Upload a video chunk (streaming upload)
       tags:
-      - files
+      - Files
   /api/v1/ghn/{district-id}/shipping-services:
     get:
       consumes:
@@ -10832,7 +11209,7 @@ paths:
         in: query
         name: user_id
         type: string
-      - description: Filter by notification type (EMAIL, PUSH)
+      - description: Filter by notification type (EMAIL, PUSH, IN_APP)
         in: query
         name: type
         type: string
@@ -10840,6 +11217,10 @@ paths:
         in: query
         name: status
         type: string
+      - description: Filter by read status
+        in: query
+        name: is_read
+        type: boolean
       - description: Filter by start date (RFC3339 or YYYY-MM-DD)
         in: query
         name: start_date
@@ -10920,6 +11301,107 @@ paths:
       security:
       - BearerAuth: []
       summary: Get notification by ID
+      tags:
+      - Notifications
+  /api/v1/notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Marks a specific notification as read
+      parameters:
+      - description: Notification ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - Notifications
+  /api/v1/notifications/broadcast/all:
+    post:
+      consumes:
+      - application/json
+      description: Sends a unified notification to all users (optionally filtered
+        by role)
+      parameters:
+      - description: Broadcast Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BroadcastToAllRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Broadcast notification to all users
+      tags:
+      - Notifications
+  /api/v1/notifications/broadcast/user:
+    post:
+      consumes:
+      - application/json
+      description: Sends a unified notification to a specific user across specified
+        channels
+      parameters:
+      - description: Broadcast Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BroadcastToUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Broadcast notification to a specific user
       tags:
       - Notifications
   /api/v1/notifications/failed:
@@ -11085,6 +11567,27 @@ paths:
       summary: Publish push notification
       tags:
       - Notifications
+  /api/v1/notifications/read-all:
+    put:
+      consumes:
+      - application/json
+      description: Marks all notifications for the current user as read
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
   /api/v1/notifications/republish-failed:
     post:
       consumes:
@@ -11123,6 +11626,18 @@ paths:
       security:
       - BearerAuth: []
       summary: Republish failed notifications
+      tags:
+      - Notifications
+  /api/v1/notifications/sse:
+    get:
+      description: Establishes a Server-Sent Events connection to receive real-time
+        updates (e.g., unread count)
+      produces:
+      - text/event-stream
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Subscribe to real-time notifications (SSE)
       tags:
       - Notifications
   /api/v1/orders:
@@ -13088,6 +13603,76 @@ paths:
       summary: Create Variant Image
       tags:
       - Products.Variants
+  /api/v1/social/tiktok/creator-info:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves information about the TikTok creator associated with
+        the stored access token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: TikTok creator info retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.TikTokCreatorInfoResponse'
+              type: object
+        "403":
+          description: TikTok refresh token expired
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: No TikTok token found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get TikTok Creator Information
+      tags:
+      - Social/TikTok
+  /api/v1/social/tiktok/system-user-profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the TikTok system user profile associated with the stored
+        access token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: TikTok system user profile retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.TikTokUserProfileResponse'
+              type: object
+        "403":
+          description: TikTok refresh token expired
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: No TikTok token found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get TikTok System User Profile
+      tags:
+      - Social/TikTok
   /api/v1/tags:
     get:
       consumes:
@@ -14022,6 +14607,32 @@ paths:
       security:
       - BearerAuth: []
       summary: Exchange TikTok OAuth code for access token
+      tags:
+      - Test
+  /api/v1/test/tiktok/get-creator-info:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the TikTok creator info using the provided access token.
+      parameters:
+      - description: Access token used to retrieve the creator info
+        in: query
+        name: access_token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved creator info
+          schema: {}
+        "400":
+          description: Bad request due to invalid parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get TikTok creator info
       tags:
       - Test
   /api/v1/test/tiktok/get-system-user-profile:

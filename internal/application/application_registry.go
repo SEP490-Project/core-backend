@@ -181,7 +181,7 @@ func NewApplicationRegistry(
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
-		SSEService: sseService,
+		SSEService:                    sseService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),

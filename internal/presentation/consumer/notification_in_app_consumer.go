@@ -7,7 +7,6 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"encoding/json"
 	"time"
@@ -18,19 +17,19 @@ import (
 
 // NotificationInAppConsumer handles in-app notification messages from RabbitMQ
 type NotificationInAppConsumer struct {
-	sseService             iservice.RealTimeNotifier
+	sseService             iservice.SSEService
 	notificationRepository irepository.NotificationRepository
 	userService            iservice.UserService
 }
 
 // NewNotificationInAppConsumer creates a new in-app notification consumer
 func NewNotificationInAppConsumer(
-	infraReg *infrastructure.InfrastructureRegistry,
+	sseService iservice.SSEService,
 	dbRegistry *gormrepository.DatabaseRegistry,
 	userService iservice.UserService,
 ) *NotificationInAppConsumer {
 	return &NotificationInAppConsumer{
-		sseService:             infraReg.SSEService,
+		sseService:             sseService,
 		notificationRepository: dbRegistry.NotificationRepository,
 		userService:            userService,
 	}
