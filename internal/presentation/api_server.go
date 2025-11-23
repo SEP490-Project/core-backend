@@ -214,6 +214,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"excel-import-products-consumer":   s.consumerRegistry.ExcelImportProductsConsumer.Handle,
 		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
 		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
+		"notification-in-app-consumer":     s.consumerRegistry.NotificationInAppConsumer.Handle,
 		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
 		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
 		"content-publish-consumer":         s.consumerRegistry.ContentPublishConsumer.Handle,
