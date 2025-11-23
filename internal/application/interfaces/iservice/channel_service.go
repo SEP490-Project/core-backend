@@ -36,4 +36,6 @@ type ChannelService interface {
 	IsTokenExpiringSoon(ctx context.Context, channelName string, threshold time.Duration) (bool, error)
 
 	ClearChannelToken(ctx context.Context, uow irepository.UnitOfWork, channelName string) error
+
+	GetDecryptedTokenPair(ctx context.Context, channelName string) (accesstoken, refreshToken string, err error)
 }

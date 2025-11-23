@@ -50,7 +50,6 @@ func NewAPIServer() *APIServer {
 		ctx := context.Background()
 		jwtConfig := &config.GetAppConfig().JWT
 		if err := infrastructureRegistry.VaultService.InitializeRSAKeys(ctx, jwtConfig); err == nil {
-			// zap.L().Error("Failed to initialize RSA keys in Vault", zap.Error(err))
 			zap.L().Info("RSA keys initialization in Vault completed successfully")
 		} else {
 			zap.L().Error("Failed to initialize RSA keys in Vault, fallback to local files", zap.Error(err))
@@ -93,7 +92,7 @@ func NewAPIServer() *APIServer {
 		middlewareRegistry:     middlewareRegistry,
 		consumerRegistry:       consumerRegistry,
 		wsServer:               wsServer,
-		router:                 NewRouter(handlerRegistry, middlewareRegistry),
+		router:                 NewRouter(config.GetAppConfig(), handlerRegistry, middlewareRegistry),
 		ctx:                    ctx,
 		cancel:                 cancel,
 	}
@@ -215,6 +214,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"excel-import-products-consumer":   s.consumerRegistry.ExcelImportProductsConsumer.Handle,
 		"notification-email-consumer":      s.consumerRegistry.NotificationEmailConsumer.Handle,
 		"notification-push-consumer":       s.consumerRegistry.NotificationPushConsumer.Handle,
+		"notification-in-app-consumer":     s.consumerRegistry.NotificationInAppConsumer.Handle,
 		"video-upload-consumer":            s.consumerRegistry.VideoUploadConsumer.Handle,
 		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
 		"content-publish-consumer":         s.consumerRegistry.ContentPublishConsumer.Handle,

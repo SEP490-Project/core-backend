@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	"core-backend/config"
 	"core-backend/docs"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/presentation/handler"
@@ -22,15 +23,18 @@ const (
 )
 
 type Router struct {
+	config             *config.AppConfig
 	handlerRegistry    *handler.HandlerRegistry
 	middlewareRegistry *middleware.MiddlewareRegistry
 }
 
 func NewRouter(
+	config *config.AppConfig,
 	handlerRegistry *handler.HandlerRegistry,
 	middlewareRegistry *middleware.MiddlewareRegistry,
 ) *Router {
 	return &Router{
+		config:             config,
 		handlerRegistry:    handlerRegistry,
 		middlewareRegistry: middlewareRegistry,
 	}
@@ -105,8 +109,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
-		r.setupTestRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
+		r.setupFileRoutes(v1)
+		if r.config.IsDevelopmentDebugging() {
+			r.setupTestRoutes(v1)
+		}
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -189,25 +196,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
 		{
 			milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
-		}
-
-		// ---------- FILES ----------
-		fileHandler := r.handlerRegistry.FileHandler
-		filesGroup := v1.Group("/files")
-		//filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-		{
-			filesGroup.POST("/upload", fileHandler.UploadFile)
-			filesGroup.DELETE(":filename", fileHandler.DeleteFile)
-
-			// ---------------- Videos ----------------
-			videosGroup := filesGroup.Group("/videos")
-			{
-				// Upload chunk video (stream)
-				videosGroup.POST("/upload-chunk", fileHandler.UploadVideoChunk)
-
-				// Xóa video
-				videosGroup.DELETE("", fileHandler.DeleteVideo)
-			}
 		}
 
 		// ---------- ORDERS ----------
@@ -640,12 +628,21 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
+		notificationGroup.GET("/sse", notificationHandler.SubscribeSSE)
+
+		// Write endpoints
+		notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
+		notificationGroup.PUT("/read-all", notificationHandler.MarkAllAsRead)
 
 		// Testing/Publishing endpoints (Admin only)
 		notificationGroup.POST("/publish", notificationHandler.PublishNotification)
 		notificationGroup.POST("/publish/email", notificationHandler.PublishEmail)
 		notificationGroup.POST("/publish/push", notificationHandler.PublishPush)
 		notificationGroup.POST("/republish-failed", notificationHandler.RepublishFailed)
+
+		// Broadcast endpoints (Admin only)
+		notificationGroup.POST("/broadcast/user", notificationHandler.BroadcastToUser)
+		notificationGroup.POST("/broadcast/all", notificationHandler.BroadcastToAll)
 	}
 }
 
@@ -790,6 +787,13 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 		authTikTokGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), tiktokHandler.HandleLogin)
 		authTikTokGroup.GET("/callback", tiktokHandler.HandleCallback)
 	}
+
+	tiktokInfoGroup := group.Group("/social/tiktok")
+	tiktokInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		tiktokInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
+		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+	}
 }
 
 func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {
@@ -825,5 +829,36 @@ func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
 		testGroup.GET("/tiktok/refresh-access-token", testHandler.TikTokRefreshAccessToken)
 		testGroup.GET("/tiktok/get-user-profile", testHandler.TikTokGetUserProfile)
 		testGroup.GET("/tiktok/get-system-user-profile", testHandler.TikTokGetSystemUserProfile)
+		testGroup.GET("/tiktok/get-creator-info", testHandler.TikTokGetCreatorInfo)
+	}
+}
+
+func (r *Router) setupFileRoutes(group *gin.RouterGroup) {
+	fileHandler := r.handlerRegistry.FileHandler
+
+	filesGroup := group.Group("/files")
+	{
+		uploadGroup := filesGroup.Group("")
+		{
+			uploadFilesGroup := uploadGroup.Group("")
+			{
+				uploadFilesGroup.POST("/upload", fileHandler.UploadFile)
+				uploadFilesGroup.DELETE(":filename", fileHandler.DeleteFile)
+			}
+
+			videosGroup := uploadGroup.Group("/videos")
+			{
+				// Upload chunk video (stream)
+				videosGroup.POST("/upload-chunk", fileHandler.UploadVideoChunk)
+				// Delete video
+				videosGroup.DELETE("", fileHandler.DeleteVideo)
+			}
+		}
+
+		getGroup := filesGroup.Group("")
+		{
+			getGroup.GET("/:key", fileHandler.GetFileDetailByS3Key)
+			getGroup.GET("", fileHandler.GetFileByFilter)
+		}
 	}
 }

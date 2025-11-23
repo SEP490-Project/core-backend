@@ -38,4 +38,8 @@ type TikTokProxy interface {
 	CheckPostStatus(ctx context.Context, publishID string, accessToken string) (*dtos.TikTokPostStatusResponse, error)
 
 	// endregion
+
+	ValidateContentRequest(
+		ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest, creatorInfo *dtos.TikTokCreatorInfo,
+	) []error
 }

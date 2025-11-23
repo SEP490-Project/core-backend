@@ -54,20 +54,14 @@ func (h *DeviceTokenHandler) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-
-	// Get user ID from context (set by auth middleware)
-	userIDInterface, exists := c.Get("user_id")
-	if !exists {
-		response := responses.ErrorResponse("User not authenticated", http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, response)
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
-	userID := userIDInterface.(uuid.UUID)
-
 	// Register device token
-	err := h.deviceTokenService.RegisterToken(c.Request.Context(), userID, req.Token, req.Platform)
-	if err != nil {
+	if err = h.deviceTokenService.RegisterToken(c.Request.Context(), userID, req.Token, req.Platform); err != nil {
 		zap.L().Error("Failed to register device token",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
@@ -177,14 +171,11 @@ func (h *DeviceTokenHandler) Update(c *gin.Context) {
 //	@Router			/api/v1/device-tokens [get]
 func (h *DeviceTokenHandler) List(c *gin.Context) {
 	// Get user ID from context
-	userIDInterface, exists := c.Get("user_id")
-	if !exists {
-		response := responses.ErrorResponse("User not authenticated", http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, response)
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
-
-	userID := userIDInterface.(uuid.UUID)
 
 	// Get user tokens
 	tokens, err := h.deviceTokenService.GetUserTokens(c.Request.Context(), userID)
@@ -259,18 +250,14 @@ func (h *DeviceTokenHandler) Delete(c *gin.Context) {
 //	@Router			/api/v1/device-tokens [delete]
 func (h *DeviceTokenHandler) DeleteAll(c *gin.Context) {
 	// Get user ID from context
-	userIDInterface, exists := c.Get("user_id")
-	if !exists {
-		response := responses.ErrorResponse("User not authenticated", http.StatusUnauthorized)
-		c.JSON(http.StatusUnauthorized, response)
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
-	userID := userIDInterface.(uuid.UUID)
-
 	// Delete all user tokens
-	err := h.deviceTokenService.DeleteAllTokens(c.Request.Context(), userID)
-	if err != nil {
+	if err = h.deviceTokenService.DeleteAllTokens(c.Request.Context(), userID); err != nil {
 		zap.L().Error("Failed to delete all device tokens",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
