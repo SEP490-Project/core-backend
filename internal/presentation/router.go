@@ -105,9 +105,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
-		r.setupTestRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
+		if r.config.IsDevelopmentDebugging() {
+			r.setupTestRoutes(v1)
+		}
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -804,6 +806,9 @@ func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
 		testGroup.GET("/tiktok/refresh-access-token", testHandler.TikTokRefreshAccessToken)
 		testGroup.GET("/tiktok/get-user-profile", testHandler.TikTokGetUserProfile)
 		testGroup.GET("/tiktok/get-system-user-profile", testHandler.TikTokGetSystemUserProfile)
+		testGroup.GET("/tiktok/get-creator-info", testHandler.TikTokGetCreatorInfo)
+	}
+}
 
 func (r *Router) setupFileRoutes(group *gin.RouterGroup) {
 	fileHandler := r.handlerRegistry.FileHandler

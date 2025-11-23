@@ -50,7 +50,6 @@ func NewAPIServer() *APIServer {
 		ctx := context.Background()
 		jwtConfig := &config.GetAppConfig().JWT
 		if err := infrastructureRegistry.VaultService.InitializeRSAKeys(ctx, jwtConfig); err == nil {
-			// zap.L().Error("Failed to initialize RSA keys in Vault", zap.Error(err))
 			zap.L().Info("RSA keys initialization in Vault completed successfully")
 		} else {
 			zap.L().Error("Failed to initialize RSA keys in Vault, fallback to local files", zap.Error(err))
@@ -93,7 +92,7 @@ func NewAPIServer() *APIServer {
 		middlewareRegistry:     middlewareRegistry,
 		consumerRegistry:       consumerRegistry,
 		wsServer:               wsServer,
-		router:                 NewRouter(handlerRegistry, middlewareRegistry),
+		router:                 NewRouter(config.GetAppConfig(), handlerRegistry, middlewareRegistry),
 		ctx:                    ctx,
 		cancel:                 cancel,
 	}
