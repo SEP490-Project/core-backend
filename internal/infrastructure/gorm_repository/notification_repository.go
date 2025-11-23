@@ -118,3 +118,31 @@ func (r *NotificationRepository) CleanupOldNotifications(ctx context.Context, ol
 		Delete(&model.Notification{})
 	return result.RowsAffected, result.Error
 }
+
+// CountUnread counts unread notifications for a specific user
+func (r *NotificationRepository) CountUnread(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Notification{}).
+		Where("user_id = ?", userID).
+		Where("is_read = ?", false).
+		Count(&count).Error
+	return count, err
+}
+
+// MarkAsRead marks a notification as read
+func (r *NotificationRepository) MarkAsRead(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Notification{}).
+		Where("id = ?", id).
+		Update("is_read", true).Error
+}
+
+// MarkAllAsRead marks all notifications as read for a user
+func (r *NotificationRepository) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Notification{}).
+		Where("user_id = ?", userID).
+		Where("is_read = ?", false).
+		Update("is_read", true).Error
+}
