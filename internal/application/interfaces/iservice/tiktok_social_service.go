@@ -2,6 +2,7 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -16,4 +17,8 @@ type TikTokSocialService interface {
 
 	// IsTikTokTokenNearExpiry checks if the stored TikTok token is expiring soon
 	IsTikTokTokenNearExpiry(ctx context.Context, accessToken string) (bool, error)
+
+	GetTikTokCreatorInfo(ctx context.Context) (*dtos.TikTokCreatorInfoResponse, error)
+
+	GetTikTokSystemUserProfile(ctx context.Context) (*dtos.TikTokUserProfileResponse, error)
 }

@@ -25,6 +25,7 @@ type S3Handler struct {
 func NewS3Handler(fileService iservice.FileService) *S3Handler {
 	v := validator.New()
 	_ = v.RegisterValidation("resolutions", requests.ValidateResolutions)
+	v.RegisterStructValidation(requests.ValidateFileFilterRequest, requests.FileFilterRequest{})
 	return &S3Handler{
 		fileService: fileService,
 		validator:   v,
@@ -34,7 +35,7 @@ func NewS3Handler(fileService iservice.FileService) *S3Handler {
 // UploadFile godoc
 //
 //	@Summary	Upload files to S3
-//	@Tags		files
+//	@Tags		Files
 //	@Accept		multipart/form-data
 //	@Produce	json
 //	@Param		files	formData	file	true	"Files to upload"
@@ -102,7 +103,7 @@ func (h *S3Handler) UploadFile(c *gin.Context) {
 // DeleteFile godoc
 //
 //	@Summary	Delete a file from S3
-//	@Tags		files
+//	@Tags		Files
 //	@Param		userId		query		string	true	"User ID"
 //	@Param		filename	path		string	true	"File name"
 //	@Success	200			{object}	map[string]string
@@ -128,7 +129,7 @@ func (h *S3Handler) DeleteFile(c *gin.Context) {
 // UploadVideoChunk godoc
 //
 //	@Summary	Upload a video chunk (streaming upload)
-//	@Tags		files
+//	@Tags		Files
 //	@Accept		multipart/form-data
 //	@Produce	json
 //	@Param		userId			formData	string	true	"User ID"
@@ -186,7 +187,7 @@ func (h *S3Handler) UploadVideoChunk(c *gin.Context) {
 // DeleteVideo godoc
 //
 //	@Summary	Delete uploaded video
-//	@Tags		files
+//	@Tags		Files
 //	@Param		userId		query		string	true	"User ID"
 //	@Param		fileName	query		string	true	"File name"
 //	@Success	200			{object}	map[string]string
@@ -205,6 +206,97 @@ func (h *S3Handler) DeleteVideo(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// endregion
+
+// region: ============== GET Methods ==============
+
+/* PaginationRequest
+UploadedBy *uuid.UUID       `form:"uploaded_by" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+StorageKey *string          `form:"storage_key" example:"files/example.jpg"`
+Keyword    *string          `form:"keyword" validate:"omitempty,min=1" example:"example"`
+MimeType   *string          `form:"mime_type" example:"image/jpeg"`
+MinSize    *int64           `form:"min_size" validate:"omitempty,min=0" example:"1048576"`
+MaxSize    *int64           `form:"max_size" validate:"omitempty,min=0,gtefield=MinSize" example:"1048576"`
+FromDate   *string          `form:"from_date" validate:"omitempty,datetime=2006-01-02" example:"2023-01-01"`
+ToDate     *string          `form:"to_date" validate:"omitempty,datetime=2006-01-02" example:"2023-12-31"`
+Status     *enum.FileStatus `form:"status" validate:"omitempty,oneof='PENDING' 'UPLOADING' 'UPLOADED' 'FAILED'" example:"UPLOADED"` */
+
+// GetFileByFilter godoc
+//
+//	@Summary	Get file info by filter
+//	@Tags		Files
+//	@Param		uploaded_by	query	string	false	"UUID of the user who uploaded the file"
+//	@Param		storage_key	query	string	true	"Storage key of the file"
+//	@Param		keyword		query	string	false	"Keyword to search in file names"
+//	@Param		mime_type	query	string	false	"MIME type of the file"
+//	@Param		min_size	query	int64	false	"Minimum file size in bytes"
+//	@Param		max_size	query	int64	false	"Maximum file size in bytes"
+//	@Param		from_date	query	string	false	"Start date for upload date range (YYYY-MM-DD)"
+//	@Param		to_date		query	string	false	"End date for upload date range (YYYY-MM-DD)"
+//	@Param		status		query	string	false	"Status of the file (PENDING, UPLOADING, UPLOADED, FAILED)"
+//	@Param		page		query	int		false	"Page number for pagination"
+//	@Param		limit		query	int		false	"Number of items per page for pagination"
+//	@Produce	json
+//	@Success	200	{object}	responses.FilePaginationResponse
+//	@Failure	400	{object}	responses.APIResponse
+//	@Failure	500	{object}	responses.APIResponse
+//	@Router		/api/v1/files [get]
+func (h *S3Handler) GetFileByFilter(c *gin.Context) {
+	var filterReq requests.FileFilterRequest
+	if err := c.ShouldBindQuery(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := h.validator.Struct(&filterReq); err != nil {
+		c.JSON(http.StatusBadRequest, processValidationError(err))
+		return
+	}
+
+	files, total, err := h.fileService.GetFileByFilter(c.Request.Context(), &filterReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Files retrieved successfully",
+		http.StatusOK,
+		files,
+		responses.Pagination{
+			Total: total,
+			Page:  filterReq.Page,
+			Limit: filterReq.Limit,
+		},
+	)
+	c.JSON(http.StatusOK, resp)
+}
+
+// GetFileDetailByS3Key godoc
+//
+//	@Summary	Get file detail by S3 key
+//	@Tags		Files
+//	@Param		key	path	string	true	"S3 storage key of the file"
+//	@Produce	json
+//	@Success	200	{object}	responses.FileDetailResponse
+//	@Failure	400	{object}	map[string]string
+//	@Failure	500	{object}	map[string]string
+//	@Router		/api/v1/files/{key} [get]
+func (h *S3Handler) GetFileDetailByS3Key(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "key is required"})
+		return
+	}
+
+	file, err := h.fileService.GetFileByS3Key(c.Request.Context(), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, file)
 }
 
 // endregion

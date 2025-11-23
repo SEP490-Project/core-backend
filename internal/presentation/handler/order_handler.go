@@ -970,6 +970,7 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 }
 
 // RequestCompensation godoc
+//
 // @Summary     Request compensation for an order
 // @Description Submit a compensation request for an order with reason and optional supporting file.
 // @Tags        Orders.States

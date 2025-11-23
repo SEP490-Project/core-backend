@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/rabbitmq"
@@ -20,6 +21,8 @@ import (
 const (
 	emailProducerName = "notification-email-producer"
 	pushProducerName  = "notification-push-producer"
+	inAppProducerName = "notification-in-app-producer"
+	allProducerName   = "notification-all-producer"
 )
 
 // NotificationService implements notification monitoring operations
@@ -27,6 +30,7 @@ type NotificationService struct {
 	notificationRepo irepository.NotificationRepository
 	userRepo         irepository.GenericRepository[model.User]
 	rabbitmq         *rabbitmq.RabbitMQ
+	realTimeNotifier iservice.SSEService
 }
 
 // NewNotificationService creates a new notification service instance
@@ -34,11 +38,13 @@ func NewNotificationService(
 	notificationRepo irepository.NotificationRepository,
 	userRepo irepository.GenericRepository[model.User],
 	rabbitmq *rabbitmq.RabbitMQ,
+	realTimeNotifier iservice.SSEService,
 ) *NotificationService {
 	return &NotificationService{
 		notificationRepo: notificationRepo,
 		userRepo:         userRepo,
 		rabbitmq:         rabbitmq,
+		realTimeNotifier: realTimeNotifier,
 	}
 }
 
@@ -206,6 +212,7 @@ func (s *NotificationService) GetByFilters(
 	userID *uuid.UUID,
 	notificationType *enum.NotificationType,
 	status *enum.NotificationStatus,
+	isRead *bool,
 	startDate, endDate *string,
 	page, limit int,
 ) ([]*model.Notification, int64, error) {
@@ -264,6 +271,9 @@ func (s *NotificationService) GetByFilters(
 			}
 			if status != nil {
 				query = query.Where("status = ?", *status)
+			}
+			if isRead != nil {
+				query = query.Where("is_read = ?", *isRead)
 			}
 			if startTime != nil {
 				query = query.Where("created_at >= ?", *startTime)
@@ -336,6 +346,16 @@ func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, 
 			notificationID, err = s.CreateAndPublishPush(ctx, pushReq)
 			if err != nil {
 				zap.L().Error("Failed to publish push notification", zap.Error(err))
+				continue
+			}
+			notificationIDs = append(notificationIDs, notificationID)
+
+		case enum.NotificationTypeInApp:
+			inAppReq := req.ToInAppRequest()
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishInApp(ctx, inAppReq)
+			if err != nil {
+				zap.L().Error("Failed to publish in-app notification", zap.Error(err))
 				continue
 			}
 			notificationIDs = append(notificationIDs, notificationID)
@@ -419,6 +439,9 @@ func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *re
 	zap.L().Info("Successfully published email notification",
 		zap.String("notification_id", notificationID.String()))
 
+	// Push unread count to user
+	go s.pushUnreadCount(context.Background(), req.UserID)
+
 	return notificationID, nil
 }
 
@@ -500,7 +523,211 @@ func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *req
 	zap.L().Info("Successfully published push notification",
 		zap.String("notification_id", notificationID.String()))
 
+	// Push unread count to user
+	go s.pushUnreadCount(context.Background(), req.UserID)
+
 	return notificationID, nil
+}
+
+// CreateAndPublishInApp creates an in-app notification record and publishes it
+func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *requests.PublishInAppRequest) (uuid.UUID, error) {
+	zap.L().Info("Creating and publishing in-app notification",
+		zap.String("user_id", req.UserID.String()),
+		zap.String("title", req.Title))
+
+	// Verify user exists
+	if _, err := s.validateUserExists(ctx, req.UserID, nil); err != nil {
+		return uuid.Nil, err
+	}
+
+	// Create notification record
+	notificationID := uuid.New()
+	notification := &model.Notification{
+		ID:            notificationID,
+		UserID:        req.UserID,
+		Type:          enum.NotificationTypeInApp,
+		Status:        enum.NotificationStatusSent, // In-app notifications are immediately "sent"
+		IsRead:        false,
+		RecipientInfo: model.JSONBRecipientInfo{
+			// No specific recipient info needed for in-app, but we can store user ID again or leave empty
+		},
+		ContentData: model.JSONBContentData{
+			Title: req.Title,
+			Body:  req.Body,
+		},
+	}
+
+	if err := s.notificationRepo.Add(ctx, notification); err != nil {
+		zap.L().Error("Failed to create in-app notification record", zap.Error(err))
+		return uuid.Nil, errors.New("failed to create notification record")
+	}
+
+	// Publish to RabbitMQ
+	producer, err := s.rabbitmq.GetProducer(inAppProducerName)
+	if err != nil {
+		zap.L().Error("Failed to get in-app notification producer", zap.Error(err))
+		// Don't fail the request, just log error (notification is saved in DB)
+	} else {
+		msg := consumers.InAppNotificationMessage{
+			NotificationID: notificationID,
+			UserID:         req.UserID,
+			Title:          req.Title,
+			Message:        req.Body,
+			Type:           "info", // Default type
+			Data:           req.Data,
+			CreatedAt:      time.Now().Format(time.RFC3339),
+		}
+
+		if err := producer.PublishJSON(ctx, msg); err != nil {
+			zap.L().Error("Failed to publish in-app notification message",
+				zap.String("notification_id", notificationID.String()),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Published in-app notification message",
+				zap.String("notification_id", notificationID.String()))
+		}
+	}
+
+	zap.L().Info("Successfully published in-app notification",
+		zap.String("notification_id", notificationID.String()))
+
+	// Push unread count to user (this is also done by consumer, but doing it here gives immediate feedback if connected)
+	go s.pushUnreadCount(context.Background(), req.UserID)
+
+	return notificationID, nil
+}
+
+// BroadcastToUser sends a unified notification to a specific user across specified channels
+func (s *NotificationService) BroadcastToUser(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string, channels []string) error {
+	zap.L().Info("Broadcasting notification to user",
+		zap.String("user_id", userID.String()),
+		zap.Strings("channels", channels))
+
+	// Verify user exists
+	if _, err := s.validateUserExists(ctx, userID, nil); err != nil {
+		return err
+	}
+
+	// Create notification record (generic type or primary type?)
+	// For broadcast, we might want to create one record per channel or one master record.
+	// Current system seems to be 1 record = 1 type.
+	// If we use "notification.all", we are sending to multiple queues.
+	// But we need a record in DB for history.
+	// Let's create an IN_APP record as the "master" record for history if InApp is included,
+	// or just create one record and let the consumers handle it?
+	// If we create one record, say Type=IN_APP, but send to Email queue, Email consumer might be confused if it expects Type=EMAIL.
+	// However, our consumers now handle UnifiedNotificationMessage.
+
+	// Strategy: Create one notification record of type "SYSTEM" or "BROADCAST" if we had it,
+	// but for now let's default to IN_APP as it's the most generic.
+	// OR, we iterate and create records like CreateAndPublishNotification does.
+	// BUT the user wants to use the "notification.all" routing key to broadcast.
+
+	// If we use "notification.all", the SAME message goes to all queues.
+	// That message needs a NotificationID.
+	// So we must create ONE notification record that represents this broadcast.
+	// Let's use Type=IN_APP as the primary type for the record, as it's most likely to be viewed in the app.
+
+	notificationID := uuid.New()
+	notification := &model.Notification{
+		ID:            notificationID,
+		UserID:        userID,
+		Type:          enum.NotificationTypeInApp, // Defaulting to InApp for broadcast records
+		Status:        enum.NotificationStatusSent,
+		IsRead:        false,
+		RecipientInfo: model.JSONBRecipientInfo{
+			// We could store target channels here if we extend the struct
+		},
+		ContentData: model.JSONBContentData{
+			Title: title,
+			Body:  body,
+		},
+	}
+
+	if err := s.notificationRepo.Add(ctx, notification); err != nil {
+		return fmt.Errorf("failed to create notification record: %w", err)
+	}
+
+	// Publish to "notification.all"
+	producer, err := s.rabbitmq.GetProducer(allProducerName)
+	if err != nil {
+		return fmt.Errorf("failed to get all-producer: %w", err)
+	}
+
+	msg := consumers.UnifiedNotificationMessage{
+		NotificationID: notificationID,
+		UserID:         userID,
+		Title:          title,
+		Body:           body,
+		Data:           data,
+		Type:           "info",
+		TargetChannels: channels,
+		CreatedAt:      time.Now().Format(time.RFC3339),
+	}
+
+	if err := producer.PublishJSON(ctx, msg); err != nil {
+		return fmt.Errorf("failed to publish broadcast message: %w", err)
+	}
+
+	return nil
+}
+
+// BroadcastToAll sends a unified notification to all users (optionally filtered by role)
+func (s *NotificationService) BroadcastToAll(ctx context.Context, title, body string, data map[string]string, role *string) error {
+	zap.L().Info("Broadcasting notification to all users",
+		zap.Stringp("role", role))
+
+	// Fetch users (with role filter if provided)
+	// This could be heavy if there are many users. For a real production system,
+	// we should use a batch job or a specific "Broadcast" queue that expands the list.
+	// For now, we'll iterate.
+
+	limit := 100
+	page := 1
+
+	for {
+		users, total, err := s.userRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+			if role != nil {
+				return db.Where("role = ?", *role)
+			}
+			return db
+		}, nil, limit, page)
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch users for broadcast: %w", err)
+		}
+
+		if len(users) == 0 {
+			break
+		}
+
+		// Process batch
+		for _, user := range users {
+			// We use "all" channels by default for broadcast to all
+			// Or we could check user preferences here?
+			// Let's send to all channels and let consumers/preferences handle it.
+			channels := []string{"EMAIL", "PUSH", "IN_APP"}
+
+			// Call BroadcastToUser for each user
+			// We do this asynchronously to not block the loop too much,
+			// but we need to be careful about overwhelming the DB/RabbitMQ.
+			// For safety in this implementation, we'll do it synchronously or with a worker pool.
+			// Synchronous for simplicity and reliability for now.
+			if err := s.BroadcastToUser(ctx, user.ID, title, body, data, channels); err != nil {
+				zap.L().Error("Failed to broadcast to user",
+					zap.String("user_id", user.ID.String()),
+					zap.Error(err))
+				// Continue to next user
+			}
+		}
+
+		if int64(page*limit) >= total {
+			break
+		}
+		page++
+	}
+
+	return nil
 }
 
 // RepublishFailedNotifications republishes failed notifications based on filter criteria
@@ -646,6 +873,44 @@ func (s *NotificationService) RepublishFailedNotifications(ctx context.Context, 
 	return successCount, nil
 }
 
+// MarkAsRead marks a notification as read
+func (s *NotificationService) MarkAsRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	// Verify notification belongs to user
+	notification, err := s.notificationRepo.GetByID(ctx, id, nil)
+	if err != nil {
+		return err
+	}
+	if notification.UserID != userID {
+		return errors.New("notification not found")
+	}
+
+	if err := s.notificationRepo.MarkAsRead(ctx, id); err != nil {
+		return err
+	}
+
+	// Push updated unread count
+	go s.pushUnreadCount(context.Background(), userID)
+
+	return nil
+}
+
+// MarkAllAsRead marks all notifications as read for a user
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
+	if err := s.notificationRepo.MarkAllAsRead(ctx, userID); err != nil {
+		return err
+	}
+
+	// Push updated unread count (should be 0)
+	go s.pushUnreadCount(context.Background(), userID)
+
+	return nil
+}
+
+// SubscribeSSE subscribes a user to real-time notification updates
+func (s *NotificationService) SubscribeSSE(userID uuid.UUID) (<-chan iservice.SSEMessage, func()) {
+	return s.realTimeNotifier.Subscribe(userID)
+}
+
 // region: ============ Helper Methods =============
 
 func (s *NotificationService) validateUserExists(ctx context.Context, userID uuid.UUID, email *string) (*model.User, error) {
@@ -704,6 +969,18 @@ func (s *NotificationService) sendPushNotification(ctx context.Context, pushMess
 	}
 
 	return nil
+}
+
+func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.UUID) {
+	count, err := s.notificationRepo.CountUnread(ctx, userID)
+	if err != nil {
+		zap.L().Error("Failed to count unread notifications", zap.Error(err), zap.String("user_id", userID.String()))
+		return
+	}
+
+	if err := s.realTimeNotifier.SendUnreadCount(userID, count); err != nil {
+		zap.L().Error("Failed to push unread count", zap.Error(err), zap.String("user_id", userID.String()))
+	}
 }
 
 // endregion

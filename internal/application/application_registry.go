@@ -48,6 +48,7 @@ type ApplicationRegistry struct {
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 	FacebookSocialService         iservice.FacebookSocialService
 	TikTokSocialService           iservice.TikTokSocialService
+	SSEService                    iservice.SSEService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -59,6 +60,8 @@ func NewApplicationRegistry(
 	infrastructureRegistry *infrastructure.InfrastructureRegistry,
 ) *ApplicationRegistry {
 	jwtService := service.NewJwtService(configs)
+
+	sseService := service.NewSSEService()
 
 	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, configs)
 
@@ -102,6 +105,19 @@ func NewApplicationRegistry(
 		infrastructureRegistry.VaultService,
 	)
 
+	fileService := infraService.NewFileService(
+		infrastructureRegistry.ThirdPartyStorage,
+		databaseRegistry.FileRepository,
+		infrastructureRegistry.RabbitMQ,
+	)
+
+	notificationService := service.NewNotificationService(
+		databaseRegistry.NotificationRepository,
+		databaseRegistry.UserRepository,
+		infrastructureRegistry.RabbitMQ,
+		sseService,
+	)
+
 	facebookSocialService := service.NewFacebookSocialService(
 		configs,
 		infrastructureRegistry.ProxiesRegistry.FacebookProxy,
@@ -118,6 +134,7 @@ func NewApplicationRegistry(
 		jwtService,
 		databaseRegistry.UserRepository,
 		databaseRegistry.LoggedSessionRepository,
+		infrastructureRegistry.UnitOfWork,
 	)
 
 	contentPublishingService := service.NewContentPublishingService(
@@ -125,6 +142,8 @@ func NewApplicationRegistry(
 		databaseRegistry,
 		channelService,
 		stateTransferService,
+		fileService,
+		notificationService,
 		configs,
 	)
 
@@ -133,7 +152,7 @@ func NewApplicationRegistry(
 		DatabaseRegistry:              databaseRegistry,
 		InfrastructureRegistry:        infrastructureRegistry,
 		JWTService:                    jwtService,
-		FileService:                   infraService.NewFileService(infrastructureRegistry.ThirdPartyStorage, databaseRegistry.FileRepository, infrastructureRegistry.RabbitMQ),
+		FileService:                   fileService,
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
@@ -153,7 +172,7 @@ func NewApplicationRegistry(
 		ContentPublishingService:      contentPublishingService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
 		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
-		NotificationService:           service.NewNotificationService(databaseRegistry.NotificationRepository, databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
+		NotificationService:           notificationService,
 		LocationService:               service.NewLocationService(databaseRegistry),
 		TagService:                    service.NewTagService(databaseRegistry.TagRepository),
 		AffiliateLinkService:          affiliateLinkService,
@@ -164,6 +183,7 @@ func NewApplicationRegistry(
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
+		SSEService:                    sseService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
@@ -190,5 +210,19 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterJob("pre_order_opening_check_job", preOrderOpeningCheckJob)
 		r.InfrastructureRegistry.CronJobsRegistry.PreOrderOpeningCheckJob = preOrderOpeningCheckJob
+
+		// Register TikTok Status Poller Job
+		tiktokPollerJob := jobs.NewTikTokStatusPollerJob(
+			r.DatabaseRegistry.ContentChannelRepository,
+			r.DatabaseRegistry.ContentRepository,
+			r.DatabaseRegistry.ChannelRepository,
+			r.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
+			r.ChannelService,
+			r.InfrastructureRegistry.UnitOfWork,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("tiktok_status_poller_job", tiktokPollerJob)
+		r.InfrastructureRegistry.CronJobsRegistry.TikTokStatusPollerJob = tiktokPollerJob
 	}
 }

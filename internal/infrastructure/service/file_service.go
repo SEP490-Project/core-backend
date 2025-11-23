@@ -9,12 +9,15 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/internal/infrastructure/third_party_repository"
+	"core-backend/pkg/file"
 	"core-backend/pkg/utils"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -78,6 +81,11 @@ func (s *fileService) UploadVideoStream(ctx context.Context, req *requests.Uploa
 
 	if !req.IsLastChunk {
 		return nil, nil
+	}
+
+	if err = s.extractAndSaveFileMetadataAsync(ctx, fileRecord, partPath); err != nil {
+		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to extract and save file metadata: %v", err))
+		return nil, fmt.Errorf("failed to extract and save file metadata: %w", err)
 	}
 
 	// Last chunk? assembled file -> upload
@@ -171,8 +179,9 @@ func (s *fileService) UploadFile(ctx context.Context, userID string, filePath st
 	fileRecord.URL = url
 	fileRecord.Status = enum.FileStatusUploaded
 	fileRecord.UploadedAt = utils.PtrOrNil(time.Now())
-	if err := s.fileRepo.Update(ctx, fileRecord); err != nil {
-		zap.L().Warn("Failed to update file record after upload", zap.Error(err))
+	if err = s.extractAndSaveFileMetadataAsync(ctx, fileRecord, filePath); err != nil {
+		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to extract and save file metadata: %v", err))
+		return "", fmt.Errorf("failed to extract and save file metadata: %w", err)
 	}
 
 	return url, nil
@@ -194,6 +203,69 @@ func (s *fileService) DeleteFile(ctx context.Context, userID string, fileName st
 	}
 
 	return nil
+}
+
+func (s *fileService) GetFileByS3Key(ctx context.Context, key string) (*responses.FileDetailResponse, error) {
+	zap.L().Info("fileService - GetFileByS3Key called", zap.String("key", key))
+
+	fileRecord, err := s.findFileByKey(ctx, key)
+	if err != nil {
+		zap.L().Error("Failed to find file by key", zap.String("key", key), zap.Error(err))
+		return nil, errors.New("file not found")
+	}
+	return responses.FileDetailResponse{}.ToResponse(fileRecord), nil
+}
+
+func (s *fileService) GetFileByFilter(ctx context.Context, filterRequest *requests.FileFilterRequest) ([]responses.FileListResponse, int64, error) {
+	zap.L().Info("fileService - GetFileByFilter called")
+
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		if filterRequest.UploadedBy != nil {
+			db = db.Where("uploaded_by = ?", *filterRequest.UploadedBy)
+		}
+		if filterRequest.StorageKey != nil {
+			db = db.Where("storage_key = ?", *filterRequest.StorageKey)
+		}
+		if filterRequest.Keyword != nil {
+			likePattern := fmt.Sprintf("%%%s%%", *filterRequest.Keyword)
+			db = db.Where("name ILIKE ? OR alt_text ILIKE ? OR storage_key ILIKE ?", likePattern, likePattern, likePattern)
+		}
+		if filterRequest.MimeType != nil {
+			db = db.Where("mime_type = ?", *filterRequest.MimeType)
+		}
+		if filterRequest.MinSize != nil {
+			db = db.Where("size >= ?", *filterRequest.MinSize)
+		}
+		if filterRequest.MaxSize != nil {
+			db = db.Where("size <= ?", *filterRequest.MaxSize)
+		}
+		if filterRequest.FromDate != nil {
+			fromTime := utils.ParseLocalTimeWithFallback(*filterRequest.FromDate, utils.DateFormat)
+			if fromTime != nil {
+				db = db.Where("created_at >= ?", *fromTime)
+			}
+		}
+		if filterRequest.ToDate != nil {
+			toTime := utils.ParseLocalTimeWithFallback(*filterRequest.ToDate, utils.DateFormat)
+			if toTime != nil {
+				db = db.Where("created_at <= ?", *toTime)
+			}
+		}
+		if filterRequest.Status != nil {
+			db = db.Where("status = ?", *filterRequest.Status)
+		}
+
+		db = db.Order(helper.ConvertToSortString(filterRequest.PaginationRequest))
+
+		return db
+	}
+
+	fileRecords, totalCount, err := s.fileRepo.GetAll(ctx, filterQuery, nil, filterRequest.Limit, filterRequest.Page)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return responses.FileListResponse{}.ToResponseList(fileRecords), totalCount, nil
 }
 
 func NewFileService(storage3rd *third_party_repository.ThirdPartyStorageRegistry, fileRepo irepository.GenericRepository[model.File], rabbitmq *rabbitmq.RabbitMQ) iservice.FileService {
@@ -327,6 +399,43 @@ func (s *fileService) getOrCreateFileRecord(ctx context.Context, userID uuid.UUI
 	}
 
 	return fileRecord, nil
+}
+
+func (s *fileService) extractAndSaveFileMetadataAsync(ctx context.Context, fileRecord *model.File, path string) error {
+	zap.L().Info("fileservice - extractAndSaveFileMetadataAsync called", zap.String("path", path))
+
+	fileMetadata := make(map[string]any)
+	asyncFunc := func(ctx context.Context) error {
+		var err error
+		fileMetadata, err = file.ExtractFileMetadata(path)
+		if err != nil {
+			zap.L().Error("Failed to extract file metadata", zap.Error(err))
+			return err
+		}
+
+		rawFileMetadata, err := json.Marshal(fileMetadata)
+		if err != nil {
+			zap.L().Error("Failed to marshal file metadata", zap.Error(err))
+			return err
+		}
+		fileRecord.Size = fileMetadata["size_bytes"].(int64)
+		fileRecord.MimeType = fileMetadata["mime_type"].(string)
+		fileRecord.Metadata = rawFileMetadata
+
+		if err = s.fileRepo.Update(ctx, fileRecord); err != nil {
+			zap.L().Error("Failed to update file record", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}
+
+	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, asyncFunc); err != nil {
+		zap.L().Error("Failed to extract and save file metadata", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (s *fileService) findFileByKey(ctx context.Context, key string) (*model.File, error) {
