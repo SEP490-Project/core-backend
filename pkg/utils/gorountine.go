@@ -92,13 +92,36 @@ type RetryOptions struct {
 	AttemptTimeout    time.Duration
 }
 
+// DefaultRetryOptions provides sensible defaults for retry behavior.
+//   - MaxAttempts: 3
+//   - BaseBackoff: 1 second
+//   - BackoffMultiplier: 1.5
+//   - AttemptTimeout: 20 seconds
+var DefaultRetryOptions = RetryOptions{
+	MaxAttempts:       3,
+	BaseBackoff:       1 * time.Second,
+	BackoffMultiplier: 1.5,
+	AttemptTimeout:    20 * time.Second,
+}
+
+// MinimalRetryOptions provides minimal retry settings.
+//   - MaxAttempts: 1
+//   - BaseBackoff: 1 second
+//   - BackoffMultiplier: 1.5
+//   - AttemptTimeout: 20 seconds
+var MinimalRetryOptions = RetryOptions{
+	MaxAttempts:       1,
+	BaseBackoff:       1 * time.Second,
+	BackoffMultiplier: 1.5,
+	AttemptTimeout:    20 * time.Second,
+}
+
 func RunParallelWithRetry(
 	ctx context.Context,
 	limit int,
 	opts RetryOptions,
 	funcs ...func(ctx context.Context) error,
 ) error {
-
 	if opts.MaxAttempts <= 0 {
 		opts.MaxAttempts = 1
 	}
@@ -200,6 +223,84 @@ func RunParallelWithRetry(
 
 	// Return first error, or nil if all succeeded
 	return <-errCh
+}
+
+// RunWithRetry executes a single function with retry logic, exponential backoff,
+// and context timeout.
+func RunWithRetry(
+	ctx context.Context,
+	opts RetryOptions,
+	fn func(ctx context.Context) error,
+) error {
+	// 1. Apply defaults
+	if opts.MaxAttempts <= 0 {
+		opts.MaxAttempts = 1
+	}
+	if opts.BaseBackoff <= 0 {
+		opts.BaseBackoff = time.Second
+	}
+	if opts.BackoffMultiplier <= 0 {
+		opts.BackoffMultiplier = 1.5
+	}
+	if opts.AttemptTimeout <= 0 {
+		opts.AttemptTimeout = 20 * time.Second
+	}
+
+	var lastErr error
+
+	for attempt := 1; attempt <= opts.MaxAttempts; attempt++ {
+
+		// 2. Execute the function with Panic Recovery and Timeout
+		// We wrap this in an anonymous function to handle defer/recover cleanly per attempt.
+		err := func() (execErr error) {
+			defer func() {
+				if r := recover(); r != nil {
+					execErr = fmt.Errorf("panic in retryable function: %v", r)
+				}
+			}()
+
+			attemptCtx, attemptCancel := context.WithTimeout(ctx, opts.AttemptTimeout)
+			defer attemptCancel()
+
+			return fn(attemptCtx)
+		}()
+
+		// Success
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// If panic occurred, we treat it as a fatal error.
+		if isPanicError(err) {
+			return err
+		}
+
+		if attempt == opts.MaxAttempts {
+			break
+		}
+
+		// 3. Compute exponential backoff
+		backoff := float64(opts.BaseBackoff) * pow(opts.BackoffMultiplier, float64(attempt-1))
+		sleepDuration := time.Duration(backoff)
+
+		// 4. Context-aware sleep
+		select {
+		case <-time.After(sleepDuration):
+			// Continue to next attempt
+		case <-ctx.Done():
+			// Parent context canceled, return the context error (or lastErr)
+			return ctx.Err()
+		}
+	}
+
+	return lastErr
+}
+
+// Helper to detect if the error came from panic recovery
+func isPanicError(err error) bool {
+	return err != nil && len(err.Error()) >= 5 && err.Error()[:5] == "panic"
 }
 
 func pow(x, y float64) float64 {
