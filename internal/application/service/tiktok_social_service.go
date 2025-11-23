@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
@@ -29,6 +30,7 @@ type TikTokSocialService struct {
 	jwtService              iservice.JWTService
 	userRepository          irepository.GenericRepository[model.User]
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession]
+	unitOfWork              irepository.UnitOfWork
 }
 
 func NewTikTokSocialService(
@@ -38,6 +40,7 @@ func NewTikTokSocialService(
 	jwtService iservice.JWTService,
 	userRepository irepository.GenericRepository[model.User],
 	loggedSessionRepository irepository.GenericRepository[model.LoggedSession],
+	unitOfWork irepository.UnitOfWork,
 ) iservice.TikTokSocialService {
 	return &TikTokSocialService{
 		config:                  config,
@@ -46,6 +49,7 @@ func NewTikTokSocialService(
 		jwtService:              jwtService,
 		userRepository:          userRepository,
 		loggedSessionRepository: loggedSessionRepository,
+		unitOfWork:              unitOfWork,
 	}
 }
 
@@ -220,6 +224,50 @@ func (t *TikTokSocialService) IsTikTokTokenNearExpiry(ctx context.Context, acces
 	return t.channelService.IsTokenExpiringSoon(ctx, "TIKTOK", threshold)
 }
 
+// region: ======= Creator Info & Sytem User Profile =======
+
+func (t *TikTokSocialService) GetTikTokCreatorInfo(ctx context.Context) (*dtos.TikTokCreatorInfoResponse, error) {
+	zap.L().Info("TikTokSocialService - GetTikTokCreatorInfo called")
+
+	// 1. Get TikTok Access Token from channel service
+	accessToken, err := t.getTikTokAccessToken(ctx)
+	if err != nil {
+		zap.L().Error("Failed to get TikTok access token", zap.Error(err))
+		return nil, err
+	}
+
+	// 2. Call TikTok Proxy to get creator info
+	var creatorInfo *dtos.TikTokCreatorInfoResponse
+	if creatorInfo, err = t.tiktokProxy.GetCreatorInfo(ctx, accessToken); err != nil {
+		zap.L().Error("Failed to get TikTok creator info", zap.Error(err))
+		return nil, err
+	}
+
+	return creatorInfo, nil
+}
+
+func (t *TikTokSocialService) GetTikTokSystemUserProfile(ctx context.Context) (*dtos.TikTokUserProfileResponse, error) {
+	zap.L().Info("TikTokSocialService - GetTikTokSystemUserProfile called")
+
+	// 1. Get TikTok Access Token from channel service
+	accessToken, err := t.getTikTokAccessToken(ctx)
+	if err != nil {
+		zap.L().Error("Failed to get TikTok access token", zap.Error(err))
+		return nil, err
+	}
+
+	// 2. Call TikTok Proxy to get system user profile
+	var userProfile *dtos.TikTokUserProfileResponse
+	if userProfile, err = t.tiktokProxy.GetSystemUserProfile(ctx, accessToken); err != nil {
+		zap.L().Error("Failed to get TikTok system user profile", zap.Error(err))
+		return nil, err
+	}
+
+	return userProfile, nil
+}
+
+// endregion
+
 // region: ======= Helper Function =======
 
 func (t *TikTokSocialService) refreshTikTokChannelRefreshToken(ctx context.Context, uow irepository.UnitOfWork, refreshToken string) error {
@@ -266,6 +314,41 @@ func (t *TikTokSocialService) generateTikTokChannelAccessToken(ctx context.Conte
 		return errors.New("failed to store TikTok credentials")
 	}
 	return nil
+}
+
+func (t *TikTokSocialService) getTikTokAccessToken(ctx context.Context) (string, error) {
+	zap.L().Info("TikTokSocialService - getTikTokAccessToken called")
+
+	// Get TikTok token Pair from channel service
+	accessToken, refreshToken, err := t.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
+	if err != nil {
+		switch err {
+		case TikTokRefreshExpiredErr:
+			zap.L().Warn("TikTok refresh token expired, need to re-authenticate")
+			return "", errors.New("tiktok refresh token expired")
+
+		case TikTokAccessExpiredErr:
+			zap.L().Info("TikTok access token expired, refreshing using refresh token")
+			// Refresh the access token
+			uow := t.unitOfWork.Begin(ctx)
+			if err = helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+				err = t.refreshTikTokChannelRefreshToken(ctx, uow, refreshToken)
+				if err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				zap.L().Error("Failed to refresh TikTok access token", zap.Error(err))
+				return "", errors.New("failed to refresh TikTok access token")
+			}
+
+		default:
+			zap.L().Error("Failed to get TikTok token pair", zap.Error(err))
+			return "", errors.New("failed to retrieve TikTok tokens")
+		}
+	}
+
+	return accessToken, nil
 }
 
 // endregion

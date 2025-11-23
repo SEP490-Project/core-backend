@@ -31,12 +31,14 @@ type AdminConfig struct {
 	BotSignatures              []string `mapstructure:"bot_signatures"`
 
 	// Cron Jobs Configuration
-	CTRAggregationEnabled           bool   `mapstructure:"ctr_aggregation_enabled"`
-	CTRAggregationIntervalMinutes   int    `mapstructure:"ctr_aggregation_interval_minutes"`
-	ExpiredContractCleanupEnabled   bool   `mapstructure:"expired_contract_cleanup_enabled"`
-	ExpiredContractCleanupCronExpr  string `mapstructure:"expired_contract_cleanup_cron_expr"`
-	PayOSExpiryCheckEnabled         bool   `mapstructure:"payos_expiry_check_enabled"`
-	PayOSExpiryCheckIntervalMinutes int    `mapstructure:"payos_expiry_check_interval_minutes"`
+	CTRAggregationEnabled             bool   `mapstructure:"ctr_aggregation_enabled"`
+	CTRAggregationIntervalMinutes     int    `mapstructure:"ctr_aggregation_interval_minutes"`
+	ExpiredContractCleanupEnabled     bool   `mapstructure:"expired_contract_cleanup_enabled"`
+	ExpiredContractCleanupCronExpr    string `mapstructure:"expired_contract_cleanup_cron_expr"`
+	PayOSExpiryCheckEnabled           bool   `mapstructure:"payos_expiry_check_enabled"`
+	PayOSExpiryCheckIntervalMinutes   int    `mapstructure:"payos_expiry_check_interval_minutes"`
+	TikTokStatusPollerEnabled         bool   `mapstructure:"tiktok_status_poller_enabled"`
+	TikTokStatusPollerIntervalSeconds int    `mapstructure:"tiktok_status_poller_interval_seconds"`
 
 	// Social Media Integration
 	// This is used to determine when to send notifications for expiring OAuth tokens
@@ -103,11 +105,18 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("tracking_link_trusted_domains", []string{"example.com", "trustedpartner.com"})
 	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
 
+	adminViper.SetDefault("tiktok_status_poller_enabled", true)
+	adminViper.SetDefault("tiktok_status_poller_interval_seconds", 30)
+
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
 	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)
 	adminViper.SetDefault("facebook_video_upload_max_retries", 3)
 
 	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
+
+	// Webhook secrets (should be set via environment variables for security)
+	adminViper.SetDefault("facebook_webhook_secret", "")
+	adminViper.SetDefault("tiktok_webhook_secret", "")
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database
