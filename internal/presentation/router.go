@@ -107,6 +107,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupTikTokSocialRoutes(v1)
 		r.setupTestRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
+		r.setupFileRoutes(v1)
 
 		// ---------- PRODUCTS & VARIANTS ----------
 		productHandler := r.handlerRegistry.ProductHandler
@@ -189,25 +190,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		milestoneGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, content, admin, brand))
 		{
 			milestoneGroup.PATCH("/:id/state", stateHandler.UpdateMilestoneState)
-		}
-
-		// ---------- FILES ----------
-		fileHandler := r.handlerRegistry.FileHandler
-		filesGroup := v1.Group("/files")
-		//filesGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-		{
-			filesGroup.POST("/upload", fileHandler.UploadFile)
-			filesGroup.DELETE(":filename", fileHandler.DeleteFile)
-
-			// ---------------- Videos ----------------
-			videosGroup := filesGroup.Group("/videos")
-			{
-				// Upload chunk video (stream)
-				videosGroup.POST("/upload-chunk", fileHandler.UploadVideoChunk)
-
-				// Xóa video
-				videosGroup.DELETE("", fileHandler.DeleteVideo)
-			}
 		}
 
 		// ---------- ORDERS ----------
@@ -822,5 +804,33 @@ func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
 		testGroup.GET("/tiktok/refresh-access-token", testHandler.TikTokRefreshAccessToken)
 		testGroup.GET("/tiktok/get-user-profile", testHandler.TikTokGetUserProfile)
 		testGroup.GET("/tiktok/get-system-user-profile", testHandler.TikTokGetSystemUserProfile)
+
+func (r *Router) setupFileRoutes(group *gin.RouterGroup) {
+	fileHandler := r.handlerRegistry.FileHandler
+
+	filesGroup := group.Group("/files")
+	{
+		uploadGroup := filesGroup.Group("")
+		{
+			uploadFilesGroup := uploadGroup.Group("")
+			{
+				uploadFilesGroup.POST("/upload", fileHandler.UploadFile)
+				uploadFilesGroup.DELETE(":filename", fileHandler.DeleteFile)
+			}
+
+			videosGroup := uploadGroup.Group("/videos")
+			{
+				// Upload chunk video (stream)
+				videosGroup.POST("/upload-chunk", fileHandler.UploadVideoChunk)
+				// Delete video
+				videosGroup.DELETE("", fileHandler.DeleteVideo)
+			}
+		}
+
+		getGroup := filesGroup.Group("")
+		{
+			getGroup.GET("/:key", fileHandler.GetFileDetailByS3Key)
+			getGroup.GET("", fileHandler.GetFileByFilter)
+		}
 	}
 }
