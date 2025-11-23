@@ -11,12 +11,13 @@ import (
 )
 
 type CronJobRegistry struct {
-	CTRAggregationJob     CronJob
-	ExpiredLinkCleanupJob CronJob
-	PayOSExpiryCheckJob   CronJob
-	TikTokStatusPollerJob CronJob // Added for application layer
-	CronScheduler         *cron.Cron
-	jobs                  map[string]CronJob
+	CTRAggregationJob       CronJob
+	ExpiredLinkCleanupJob   CronJob
+	PayOSExpiryCheckJob     CronJob
+	PreOrderOpeningCheckJob CronJob
+	TikTokStatusPollerJob   CronJob // Added for application layer
+	CronScheduler           *cron.Cron
+	jobs                    map[string]CronJob
 }
 
 func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adminConfig *config.AdminConfig) *CronJobRegistry {
@@ -40,7 +41,7 @@ func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adm
 
 	registry.jobs["ctr_aggregation_job"] = registry.CTRAggregationJob
 	registry.jobs["expired_link_cleanup_job"] = registry.ExpiredLinkCleanupJob
-
+	registry.jobs["pre_order_opening_check_job"] = registry.PreOrderOpeningCheckJob
 	return registry
 }
 

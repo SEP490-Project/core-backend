@@ -16,6 +16,10 @@ func NewOrderState(status enum.OrderStatus) OrderState {
 		return &PendingState{}
 	case enum.OrderStatusPaid:
 		return &PaidState{}
+	case enum.OrderStatusRefundRequested:
+		return &RefundRequestedState{}
+	case enum.OrderStatusRefunded:
+		return &RefundedState{}
 	case enum.OrderStatusConfirmed:
 		return &ConfirmedState{}
 	case enum.OrderStatusShipped:
@@ -24,12 +28,14 @@ func NewOrderState(status enum.OrderStatus) OrderState {
 		return &InTransitState{}
 	case enum.OrderStatusDelivered:
 		return &DeliveredState{}
+	case enum.OrderStatusCompensateRequested:
+		return &CompensateRequestStated{}
+	case enum.OrderStatusCompensated:
+		return &Compensated{}
 	case enum.OrderStatusReceived:
-		return nil
+		return &ReceivedState{}
 	case enum.OrderStatusCancelled:
 		return &CancelledState{}
-	case enum.OrderStatusRefunded:
-		return &RefundedState{}
 	default:
 		return nil
 	}

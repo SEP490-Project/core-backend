@@ -1267,6 +1267,7 @@ definitions:
     enum:
     - PENDING
     - PAID
+    - REFUND_REQUEST
     - REFUNDED
     - CONFIRMED
     - CANCELLED
@@ -1274,11 +1275,14 @@ definitions:
     - IN_TRANSIT
     - DELIVERED
     - RECEIVED
+    - COMPENSATE_REQUEST
+    - COMPENSATED
     - AWAITING_PICKUP
     type: string
     x-enum-varnames:
     - OrderStatusPending
     - OrderStatusPaid
+    - OrderStatusRefundRequested
     - OrderStatusRefunded
     - OrderStatusConfirmed
     - OrderStatusCancelled
@@ -1286,6 +1290,8 @@ definitions:
     - OrderStatusInTransit
     - OrderStatusDelivered
     - OrderStatusReceived
+    - OrderStatusCompensateRequested
+    - OrderStatusCompensated
     - OrderStatusAwaitingPickUp
   enum.PaymentCycle:
     enum:
@@ -1321,8 +1327,6 @@ definitions:
     - PAID
     - PRE_ORDERED
     - CANCELLED
-    - STOCK_READY
-    - STOCK_PREPARING
     - AWAITING_PICKUP
     - IN_TRANSIT
     - DELIVERED
@@ -1333,8 +1337,6 @@ definitions:
     - PreOrderStatusPaid
     - PreOrderStatusPreOrdered
     - PreOrderStatusCancelled
-    - PreOrderStatusStockReady
-    - PreOrderStatusStockPreparing
     - PreOrderStatusAwaitingPickup
     - PreOrderStatusInTransit
     - PreOrderStatusDelivered
@@ -1606,6 +1608,8 @@ definitions:
         type: string
       shipping_fee:
         type: integer
+      staff_resource:
+        type: string
       status:
         $ref: '#/definitions/enum.OrderStatus'
       street:
@@ -1617,6 +1621,8 @@ definitions:
       user_id:
         type: string
       user_note:
+        type: string
+      user_resource:
         type: string
       ward_name:
         type: string
@@ -1664,14 +1670,14 @@ definitions:
         type: string
       quantity:
         type: integer
-      status:
-        $ref: '#/definitions/enum.OrderStatus'
       subtotal:
         type: number
       unit_price:
         type: number
       updated_at:
-        description: CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+        description: |-
+          ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;"`
+          CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
         type: string
       uses:
         type: string
@@ -11742,6 +11748,83 @@ paths:
       summary: Place an order and initiate payment
       tags:
       - Orders
+  /api/v1/orders/{orderID}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Submit a compensation request for an order with reason and optional
+        supporting file.
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Reason for compensation
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: File as evidence
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Request compensation for an order
+      tags:
+      - Orders.States
+  /api/v1/orders/{orderID}/refund:
+    post:
+      consumes:
+      - application/json
+      description: Allows a user to request an early refund for an existing order.
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Refund request accepted
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid order ID or business rule violation
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "422":
+          description: Refund period expired
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Request early refund
+      tags:
+      - Orders.States
   /api/v1/orders/limited:
     post:
       consumes:
@@ -11826,7 +11909,7 @@ paths:
       - BearerAuth: []
       summary: Mark order as received
       tags:
-      - Orders
+      - Orders.States
   /api/v1/orders/staff:
     get:
       consumes:
@@ -11916,6 +11999,7 @@ paths:
           enum:
           - PENDING
           - PAID
+          - REFUND_REQUEST
           - REFUNDED
           - CONFIRMED
           - CANCELLED
@@ -11923,6 +12007,8 @@ paths:
           - IN_TRANSIT
           - DELIVERED
           - RECEIVED
+          - COMPENSATE_REQUEST
+          - COMPENSATED
           - AWAITING_PICKUP
           type: string
         name: status
@@ -12014,7 +12100,95 @@ paths:
       - BearerAuth: []
       summary: Censor an order (confirm or cancel)
       tags:
-      - Orders.[Staff].States
+      - Orders[Staff].States
+  /api/v1/orders/staff/{orderID}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Approve or reject a compensation request. Accepts optional reason
+        and optional confirmation file. Provide isApproved form field (true/false).
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: true|false
+        in: formData
+        name: isApproved
+        required: true
+        type: string
+      - description: Reason (optional)
+        in: formData
+        name: reason
+        type: string
+      - description: Confirmation / Evidence file (such as transaction bill)
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Process compensation (staff)
+      tags:
+      - Orders[Staff].States
+  /api/v1/orders/staff/{orderID}/refund/approve:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Approve refund request and optionally attach confirmation image
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Confirmation image
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Approve early refund (staff)
+      tags:
+      - Orders[Staff].States
   /api/v1/orders/staff/readyToPickedUp/{orderID}:
     patch:
       consumes:
@@ -12174,6 +12348,7 @@ paths:
         enum:
         - PENDING
         - PAID
+        - REFUND_REQUEST
         - REFUNDED
         - CONFIRMED
         - CANCELLED
@@ -12181,6 +12356,8 @@ paths:
         - IN_TRANSIT
         - DELIVERED
         - RECEIVED
+        - COMPENSATE_REQUEST
+        - COMPENSATED
         - AWAITING_PICKUP
         example: PAID
         in: query
@@ -12189,6 +12366,7 @@ paths:
         x-enum-varnames:
         - OrderStatusPending
         - OrderStatusPaid
+        - OrderStatusRefundRequested
         - OrderStatusRefunded
         - OrderStatusConfirmed
         - OrderStatusCancelled
@@ -12196,6 +12374,8 @@ paths:
         - OrderStatusInTransit
         - OrderStatusDelivered
         - OrderStatusReceived
+        - OrderStatusCompensateRequested
+        - OrderStatusCompensated
         - OrderStatusAwaitingPickUp
       - description: |-
           GHN ward code
@@ -12970,8 +13150,6 @@ paths:
           - PAID
           - PRE_ORDERED
           - CANCELLED
-          - STOCK_READY
-          - STOCK_PREPARING
           - AWAITING_PICKUP
           - IN_TRANSIT
           - DELIVERED

@@ -9453,7 +9453,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders"
+                    "Orders.States"
                 ],
                 "summary": "Mark order as received",
                 "parameters": [
@@ -9592,6 +9592,7 @@ const docTemplate = `{
                             "enum": [
                                 "PENDING",
                                 "PAID",
+                                "REFUND_REQUEST",
                                 "REFUNDED",
                                 "CONFIRMED",
                                 "CANCELLED",
@@ -9599,6 +9600,8 @@ const docTemplate = `{
                                 "IN_TRANSIT",
                                 "DELIVERED",
                                 "RECEIVED",
+                                "COMPENSATE_REQUEST",
+                                "COMPENSATED",
                                 "AWAITING_PICKUP"
                             ],
                             "type": "string"
@@ -9867,6 +9870,7 @@ const docTemplate = `{
                         "enum": [
                             "PENDING",
                             "PAID",
+                            "REFUND_REQUEST",
                             "REFUNDED",
                             "CONFIRMED",
                             "CANCELLED",
@@ -9874,6 +9878,8 @@ const docTemplate = `{
                             "IN_TRANSIT",
                             "DELIVERED",
                             "RECEIVED",
+                            "COMPENSATE_REQUEST",
+                            "COMPENSATED",
                             "AWAITING_PICKUP"
                         ],
                         "type": "string",
@@ -9881,6 +9887,7 @@ const docTemplate = `{
                         "x-enum-varnames": [
                             "OrderStatusPending",
                             "OrderStatusPaid",
+                            "OrderStatusRefundRequested",
                             "OrderStatusRefunded",
                             "OrderStatusConfirmed",
                             "OrderStatusCancelled",
@@ -9888,6 +9895,8 @@ const docTemplate = `{
                             "OrderStatusInTransit",
                             "OrderStatusDelivered",
                             "OrderStatusReceived",
+                            "OrderStatusCompensateRequested",
+                            "OrderStatusCompensated",
                             "OrderStatusAwaitingPickUp"
                         ],
                         "description": "Order status filter\nin: query\nexample: \"PAID\"",
@@ -10094,7 +10103,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Orders.[Staff].States"
+                    "Orders[Staff].States"
                 ],
                 "summary": "Censor an order (confirm or cancel)",
                 "parameters": [
@@ -10154,6 +10163,259 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/{orderID}/compensation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders[Staff].States"
+                ],
+                "summary": "Process compensation (staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "true|false",
+                        "name": "isApproved",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason (optional)",
+                        "name": "reason",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Confirmation / Evidence file (such as transaction bill)",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/{orderID}/refund/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve refund request and optionally attach confirmation image",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders[Staff].States"
+                ],
+                "summary": "Approve early refund (staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Confirmation image",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{orderID}/compensation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit a compensation request for an order with reason and optional supporting file.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders.States"
+                ],
+                "summary": "Request compensation for an order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason for compensation",
+                        "name": "reason",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File as evidence",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{orderID}/refund": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows a user to request an early refund for an existing order.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders.States"
+                ],
+                "summary": "Request early refund",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Refund request accepted",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid order ID or business rule violation",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Refund period expired",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -11086,8 +11348,6 @@ const docTemplate = `{
                                 "PAID",
                                 "PRE_ORDERED",
                                 "CANCELLED",
-                                "STOCK_READY",
-                                "STOCK_PREPARING",
                                 "AWAITING_PICKUP",
                                 "IN_TRANSIT",
                                 "DELIVERED",
@@ -16549,6 +16809,7 @@ const docTemplate = `{
             "enum": [
                 "PENDING",
                 "PAID",
+                "REFUND_REQUEST",
                 "REFUNDED",
                 "CONFIRMED",
                 "CANCELLED",
@@ -16556,11 +16817,14 @@ const docTemplate = `{
                 "IN_TRANSIT",
                 "DELIVERED",
                 "RECEIVED",
+                "COMPENSATE_REQUEST",
+                "COMPENSATED",
                 "AWAITING_PICKUP"
             ],
             "x-enum-varnames": [
                 "OrderStatusPending",
                 "OrderStatusPaid",
+                "OrderStatusRefundRequested",
                 "OrderStatusRefunded",
                 "OrderStatusConfirmed",
                 "OrderStatusCancelled",
@@ -16568,6 +16832,8 @@ const docTemplate = `{
                 "OrderStatusInTransit",
                 "OrderStatusDelivered",
                 "OrderStatusReceived",
+                "OrderStatusCompensateRequested",
+                "OrderStatusCompensated",
                 "OrderStatusAwaitingPickUp"
             ]
         },
@@ -16615,8 +16881,6 @@ const docTemplate = `{
                 "PAID",
                 "PRE_ORDERED",
                 "CANCELLED",
-                "STOCK_READY",
-                "STOCK_PREPARING",
                 "AWAITING_PICKUP",
                 "IN_TRANSIT",
                 "DELIVERED",
@@ -16627,8 +16891,6 @@ const docTemplate = `{
                 "PreOrderStatusPaid",
                 "PreOrderStatusPreOrdered",
                 "PreOrderStatusCancelled",
-                "PreOrderStatusStockReady",
-                "PreOrderStatusStockPreparing",
                 "PreOrderStatusAwaitingPickup",
                 "PreOrderStatusInTransit",
                 "PreOrderStatusDelivered",
@@ -17004,6 +17266,9 @@ const docTemplate = `{
                 "shipping_fee": {
                     "type": "integer"
                 },
+                "staff_resource": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.OrderStatus"
                 },
@@ -17020,6 +17285,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
                     "type": "string"
                 },
                 "ward_name": {
@@ -17091,9 +17359,6 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
-                "status": {
-                    "$ref": "#/definitions/enum.OrderStatus"
-                },
                 "subtotal": {
                     "type": "number"
                 },
@@ -17101,7 +17366,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "updated_at": {
-                    "description": "CreatedAt time.Time      ` + "`" + `json:\"created_at\" gorm:\"column:created_at;autoCreateTime\"` + "`" + `",
+                    "description": "ItemStatus            enum.OrderStatus    ` + "`" + `json:\"status\" gorm:\"column:item_status;not null;\"` + "`" + `\nCreatedAt time.Time      ` + "`" + `json:\"created_at\" gorm:\"column:created_at;autoCreateTime\"` + "`" + `",
                     "type": "string"
                 },
                 "uses": {

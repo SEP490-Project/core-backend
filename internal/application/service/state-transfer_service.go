@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
@@ -42,6 +43,7 @@ type stateTransferService struct {
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
+	adminConfig             config.AdminConfig
 }
 
 func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, fileURL *string) error {
@@ -718,10 +720,11 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return errors.New("order not found")
 		}
 
-		// 1) check if staff's censor time pass 5min?
+		// 1) check if staff's censor time pass initialTime?
 		isCurrentStatePerfomedByCustomer := order.Status.String() == enum.OrderStatusPaid.String()
-		isPass5Mins := order.UpdatedAt.Add(5 * time.Minute).After(time.Now())
-		if isCurrentStatePerfomedByCustomer && isPass5Mins {
+		standByMinutes := t.adminConfig.CensorshipIntervalMinutes
+		isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
+		if isCurrentStatePerfomedByCustomer && isAllow {
 			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + time.Until(order.UpdatedAt.Add(5*time.Minute)).String())
 		}
 
@@ -883,16 +886,16 @@ func (t stateTransferService) handleOrderSideEffect(
 	case enum.PaymentTransactionStatusCompleted:
 		//Update Order to Confirm and handle the
 		newStatus = enum.OrderStatusPaid
-		zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
-		orderItemRepo := uow.OrderItem()
-		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("order_id = ?", order.ID)
-		}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
-			zap.L().Error("Failed to paid order items",
-				zap.String("order_id", order.ID.String()),
-				zap.Error(err))
-			return errors.New("failed to paid order items: " + err.Error())
-		}
+		//zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
+		//orderItemRepo := uow.OrderItem()
+		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		//	return db.Where("order_id = ?", order.ID)
+		//}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
+		//	zap.L().Error("Failed to paid order items",
+		//		zap.String("order_id", order.ID.String()),
+		//		zap.Error(err))
+		//	return errors.New("failed to paid order items: " + err.Error())
+		//}
 
 		zap.L().Info("Updating order to OrderStatusPaid (payment completed)",
 			zap.String("order_id", order.ID.String()))
@@ -902,15 +905,15 @@ func (t stateTransferService) handleOrderSideEffect(
 		enum.PaymentTransactionStatusExpired:
 
 		newStatus = enum.OrderStatusCancelled
-		orderItemRepo := uow.OrderItem()
-		if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
-		}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
-			zap.L().Error("Failed to cancel order items",
-				zap.String("order_id", order.ID.String()),
-				zap.Error(err))
-			return errors.New("failed to cancel order items: " + err.Error())
-		}
+		//orderItemRepo := uow.OrderItem()
+		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		//	return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
+		//}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
+		//	zap.L().Error("Failed to cancel order items",
+		//		zap.String("order_id", order.ID.String()),
+		//		zap.Error(err))
+		//	return errors.New("failed to cancel order items: " + err.Error())
+		//}
 		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
@@ -948,9 +951,23 @@ func (t stateTransferService) handleOrderSideEffect(
 			zap.String("transaction_status", string(transactionStatus)))
 		return nil
 	}
-
+	// Build SystemUser
+	user := &model.User{
+		ID:       uuid.UUID{},
+		FullName: t.adminConfig.SystemName,
+		Email:    t.adminConfig.SystemEmail,
+	}
 	// Update order status
-	order.Status = newStatus
+	err := MoveOrderStateUsingFSM(order, user, newStatus, nil)
+	if err != nil {
+		zap.L().Error("Order state transition validation failed",
+			zap.String("order_id", order.ID.String()),
+			zap.String("from", string(order.Status)),
+			zap.String("to", string(newStatus)),
+			zap.Error(err))
+		return err
+	}
+	//order.Status = newStatus
 	if err := orderRepo.Update(ctx, order); err != nil {
 		zap.L().Error("Failed to update order status",
 			zap.String("order_id", order.ID.String()),
@@ -1123,6 +1140,7 @@ func NewStateTransferService(
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,
+	configs *config.AppConfig,
 ) iservice.StateTransferService {
 	return &stateTransferService{
 		contractRepository:      dbReg.ContractRepository,
@@ -1136,5 +1154,6 @@ func NewStateTransferService(
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,
+		adminConfig:             configs.AdminConfig,
 	}
 }

@@ -247,6 +247,15 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/payos/cancel [post]
 func (h *PayOsHandler) CancelExpiredLinks(c *gin.Context) {
+	uow := h.unitOfWork.Begin(c.Request.Context())
+	defer func() {
+		if r := recover(); r != nil {
+			err := uow.Rollback()
+			if err != nil {
+				return
+			}
+		}
+	}()
 	cancelledCount, err := h.paymentTransactionService.CancelExpiredLinks(c.Request.Context())
 	if err != nil {
 		zap.L().Error("Failed to cancel expired links", zap.Error(err))

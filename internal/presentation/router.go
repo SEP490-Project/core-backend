@@ -210,6 +210,11 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.POST("", orderHandler.CreateOrder)
 			ordersGroup.POST("/limited", orderHandler.CreateLimitedOrder)
 			ordersGroup.PATCH("/received/:orderID", orderHandler.MarkAsReceived)
+
+			// Customer: request early refund for an order
+			ordersGroup.POST("/:orderID/refund", orderHandler.RequestRefund)
+			// Customer: request compensation for an order
+			ordersGroup.POST("/:orderID/compensation", orderHandler.RequestCompensation)
 		}
 
 		// Staffs
@@ -224,6 +229,12 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			// Self-delivering flow (LIMITED, not self pick-up)
 			staffOrdersGroup.PATCH("/self-delivering/in-transit/:orderID", orderHandler.MarkSelfDeliveringOrderAsInTransit)
 			staffOrdersGroup.PATCH("/self-delivering/delivered/:orderID", orderHandler.MarkSelfDeliveringOrderAsDelivered)
+
+			// Staff: approve early refund and attach confirmation image
+			staffOrdersGroup.POST("/:orderID/refund/approve", orderHandler.ApproveRefund)
+
+			// Staff: process compensation requests (approve/reject)
+			staffOrdersGroup.POST("/:orderID/compensation", orderHandler.ProcessCompensation)
 		}
 
 		// ---------- CONCEPTS ----------
@@ -611,7 +622,7 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 	notificationHandler := r.handlerRegistry.NotificationHandler
 	notificationGroup := group.Group("/notifications")
 	notificationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole("ADMIN"))
+	notificationGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, content, marketing, sales, brand, customer))
 	{
 		// Read-only endpoints
 		notificationGroup.GET("", notificationHandler.List)
