@@ -137,3 +137,31 @@ func (h *TestHandler) TikTokGetSystemUserProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, userProfile)
 }
+
+// TikTokGetCreatorInfo godoc
+//
+//	@Summary		Get TikTok creator info
+//	@Description	Retrieves the TikTok creator info using the provided access token.
+//	@Tags			Test
+//	@Accept			json
+//	@Produce		json
+//	@Param			access_token	query		string					true	"Access token used to retrieve the creator info"
+//	@Success		200				{object}	any						"Successfully retrieved creator info"
+//	@Failure		400				{object}	responses.APIResponse	"Bad request due to invalid parameters"
+//	@Security		BearerAuth
+//	@Router			/api/v1/test/tiktok/get-creator-info [get]
+func (h *TestHandler) TikTokGetCreatorInfo(c *gin.Context) {
+	accessToken := c.Query("access_token")
+	if accessToken == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid TikTok OAuth request: missing access_token or open_id", http.StatusBadRequest))
+		return
+	}
+
+	creatorInfo, err := h.tiktokProxy.GetCreatorInfo(c.Request.Context(), accessToken)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to get creator info", http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, creatorInfo)
+}
