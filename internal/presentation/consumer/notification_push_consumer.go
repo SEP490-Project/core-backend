@@ -53,10 +53,23 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 	// Parse message
 	var msg consumers.PushNotificationMessage
 	if err := json.Unmarshal(body, &msg); err != nil {
-		zap.L().Error("Failed to unmarshal push notification message",
-			zap.Error(err),
-			zap.String("body", string(body)))
-		return err // Parsing errors should not retry
+		// Try to unmarshal as UnifiedNotificationMessage
+		var unifiedMsg consumers.UnifiedNotificationMessage
+		if errUnified := json.Unmarshal(body, &unifiedMsg); errUnified == nil && unifiedMsg.UserID != uuid.Nil {
+			// Convert Unified to Push message
+			msg = consumers.PushNotificationMessage{
+				NotificationID: unifiedMsg.NotificationID,
+				UserID:         unifiedMsg.UserID,
+				Title:          unifiedMsg.Title,
+				Body:           unifiedMsg.Body,
+				Data:           unifiedMsg.Data,
+			}
+		} else {
+			zap.L().Error("Failed to unmarshal push notification message",
+				zap.Error(err),
+				zap.String("body", string(body)))
+			return err // Parsing errors should not retry
+		}
 	}
 
 	zap.L().Info("Processing push notification",

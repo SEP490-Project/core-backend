@@ -16,6 +16,7 @@ type ConsumerRegistry struct {
 	ExcelImportProductsConsumer   *ExcelImportProductsConsumer
 	NotificationEmailConsumer     *NotificationEmailConsumer
 	NotificationPushConsumer      *NotificationPushConsumer
+	NotificationInAppConsumer     *NotificationInAppConsumer
 	VideoUploadConsumer           *VideoUploadConsumer
 	ClickEventConsumer            *ClickEventConsumer
 	ContentPublishConsumer        *ContentPublishConsumer
@@ -36,6 +37,7 @@ func NewConsumerRegistry(
 		ExcelImportProductsConsumer:   NewExcelImportProductsConsumer(appRegistry),
 		NotificationEmailConsumer:     NewNotificationEmailConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
 		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
+		NotificationInAppConsumer:     NewNotificationInAppConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
