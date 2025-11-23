@@ -18,6 +18,7 @@ type Notification struct {
 	UserID uuid.UUID               `gorm:"type:uuid;not null;index"`
 	Type   enum.NotificationType   `gorm:"type:varchar(50);not null;index"`
 	Status enum.NotificationStatus `gorm:"type:varchar(50);not null;index"`
+	IsRead bool                    `gorm:"default:false;not null;index"`
 
 	// JSONB columns for flexible metadata
 	DeliveryAttempts JSONBDeliveryAttempts `gorm:"type:jsonb;not null;default:'[]'"`
