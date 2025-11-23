@@ -40,9 +40,10 @@ func InitLogger() error {
 	}
 
 	teeCore := zapcore.NewTee(cores...)
+	contextAwareCore := NewContextAwareCore(teeCore)
 
 	logLeveler := zap.New(
-		teeCore,
+		contextAwareCore,
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
