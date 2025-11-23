@@ -779,6 +779,14 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 		authTikTokGroup.GET("/login", r.middlewareRegistry.Auth.OptionalAuth(), tiktokHandler.HandleLogin)
 		authTikTokGroup.GET("/callback", tiktokHandler.HandleCallback)
 	}
+
+	tiktokInfoGroup := group.Group("/social/tiktok")
+	tiktokInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		tiktokInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
+		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+	}
+}
 }
 
 func (r *Router) setupAuthRoutes(group *gin.RouterGroup) {

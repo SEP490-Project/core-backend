@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/crypto"
 	"core-backend/pkg/utils"
@@ -182,6 +183,71 @@ func (h *TikTokSocialHandler) HandleWebhook(c *gin.Context) {
 		zap.Any("headers", c.Request.Header),
 		zap.Any("query_params", c.Request.URL.Query()),
 		zap.Any("body", body))
+}
+
+// endregion
+
+// region: ============== TikTok Creator Info and User Profile Handlers ==============
+
+// GetCreatorInfo godoc
+//
+//	@Summary		Get TikTok Creator Information
+//	@Description	Retrieves information about the TikTok creator associated with the stored access token
+//	@Tags			Social/TikTok
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=dtos.TikTokCreatorInfoResponse}	"TikTok creator info retrieved successfully"
+//	@Failure		403	{object}	responses.APIResponse										"TikTok refresh token expired"
+//	@Failure		404	{object}	responses.APIResponse										"No TikTok token found"
+//	@Failure		500	{object}	responses.APIResponse										"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/social/tiktok/creator-info [get]
+func (h *TikTokSocialHandler) GetCreatorInfo(c *gin.Context) {
+	creatorInfo, err := h.tiktokSocialService.GetTikTokCreatorInfo(c.Request.Context())
+	if err != nil {
+		switch err {
+		case service.TikTokRefreshExpiredErr:
+			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
+		case service.TikTokNoStoredTokenErr:
+			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
+		default:
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok creator info: "+err.Error(), http.StatusInternalServerError))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse("TikTok creator info retrieved successfully", utils.PtrOrNil(http.StatusOK), creatorInfo))
+}
+
+// GetSystemUserProfile godoc
+//
+//	@Summary		Get TikTok System User Profile
+//	@Description	Retrieves the TikTok system user profile associated with the stored access token
+//	@Tags			Social/TikTok
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=dtos.TikTokUserProfileResponse}	"TikTok system user profile retrieved successfully"
+//	@Failure		403	{object}	responses.APIResponse										"TikTok refresh token expired"
+//	@Failure		404	{object}	responses.APIResponse										"No TikTok token found"
+//	@Failure		500	{object}	responses.APIResponse										"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/social/tiktok/system-user-profile [get]
+func (h *TikTokSocialHandler) GetSystemUserProfile(c *gin.Context) {
+	systemUserProfile, err := h.tiktokSocialService.GetTikTokSystemUserProfile(c.Request.Context())
+	if err != nil {
+		switch err {
+		case service.TikTokRefreshExpiredErr:
+			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
+		case service.TikTokNoStoredTokenErr:
+			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
+		default:
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok system user profile: "+err.Error(), http.StatusInternalServerError))
+		}
+		return
+	}
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse("TikTok system user profile retrieved successfully", utils.PtrOrNil(http.StatusOK), systemUserProfile))
 }
 
 // endregion

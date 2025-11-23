@@ -14,6 +14,7 @@ type CronJobRegistry struct {
 	CTRAggregationJob     CronJob
 	ExpiredLinkCleanupJob CronJob
 	PayOSExpiryCheckJob   CronJob
+	TikTokStatusPollerJob CronJob // Added for application layer
 	CronScheduler         *cron.Cron
 	jobs                  map[string]CronJob
 }
@@ -30,6 +31,7 @@ func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adm
 		dbReg.AffiliateLinkRepository,
 		registry.CronScheduler,
 		adminConfig)
+
 	registry.ExpiredLinkCleanupJob = NewExpiredLinkCleanupJob(
 		dbReg.AffiliateLinkRepository,
 		db,
@@ -40,6 +42,11 @@ func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adm
 	registry.jobs["expired_link_cleanup_job"] = registry.ExpiredLinkCleanupJob
 
 	return registry
+}
+
+// RegisterApplicationLayerJob registers a job that depends on application services
+func (r *CronJobRegistry) RegisterApplicationLayerJob(name string, job CronJob) {
+	r.jobs[name] = job
 }
 
 func (r *CronJobRegistry) GetJobByName(name string) (CronJob, bool) {
