@@ -153,6 +153,19 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			{
 				stateGroup.PATCH("/:id/state", stateHandler.UpdateProductState)
 			}
+
+			//Update Product (Sales, Admin)
+			staffGroup := productsGroup.Group("")
+			staffGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
+			{
+				staffGroup.PUT("/:id", productHandler.UpdateProduct)
+				// Update limited product (Sales, Admin)
+				staffGroup.PUT("/limited/:id", productHandler.UpdateLimitedProduct)
+				// Update variant (Sales, Admin)
+				staffGroup.PATCH("/variants/:variantId", productHandler.UpdateVariant)
+				// Update limited variant (Sales, Admin)
+				staffGroup.PATCH("/variants/limited/:variantId", productHandler.UpdateLimitedVariant)
+			}
 		}
 
 		variantAttributeGroup := v1.Group("/variant-attributes")
