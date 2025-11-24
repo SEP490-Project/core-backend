@@ -61,6 +61,9 @@ type AdminConfig struct {
 	// ======== General ========
 	SystemEmail string `mapstructure:"system_email"`
 	SystemName  string `mapstructure:"system_name"`
+
+	// AI Content Generation
+	ContentGenerationPromptTemplate string `mapstructure:"content_generation_prompt_template"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -126,6 +129,8 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	// Webhook secrets (should be set via environment variables for security)
 	adminViper.SetDefault("facebook_webhook_secret", "")
 	adminViper.SetDefault("tiktok_webhook_secret", "")
+
+	adminViper.SetDefault("content_generation_prompt_template", "Default prompt template")
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database

@@ -36,6 +36,7 @@ type AppConfig struct {
 	HTTPClient        HTTPClientConfig        `mapstructure:"http_client"`
 	Social            SocialConfig            `mapstructure:"social"`
 	TokenStorage      TokenStorageConfig      `mapstructure:"token_storage"`
+	AI                AIConfig                `mapstructure:"ai"`
 }
 
 type ServerConfig struct {
@@ -264,6 +265,23 @@ type TikTokSocialConfig struct {
 	UserScopes          []string `mapstructure:"user_scopes"`
 	Scopes              []string `mapstructure:"scopes"`
 	ResponseType        string   `mapstructure:"response_type"`
+}
+
+// AIConfig holds configuration for AI features
+type AIConfig struct {
+	Providers map[string]AIProviderConfig `mapstructure:"providers"`
+	Models    []AIModelConfig             `mapstructure:"models"`
+}
+
+type AIModelConfig struct {
+	ID       string `mapstructure:"id"`
+	Provider string `mapstructure:"provider"`
+}
+
+type AIProviderConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	BaseURL string `mapstructure:"base_url"`
+	Type    string `mapstructure:"type"` // "gemini", "openai" (covers openrouter, moonshot)
 }
 
 //End of Schedulers
