@@ -764,7 +764,7 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 
 		uow := h.unitOfWork.Begin(ctx)
 		defer cancel()
-		defer os.Remove(filePath)
+		defer func() { _ = os.Remove(filePath) }()
 
 		if _, err := h.productService.UpdateVariantImageAsync(ctx, userID, variantImageID, &filePath, requests.UpdateVariantImagesRequest{}, uow); err != nil {
 			zap.L().Error("async update variant image failed",
@@ -1070,5 +1070,221 @@ func (h *ProductHandler) PublishProduct(c *gin.Context) {
 		return
 	}
 	resp := responses.SuccessResponse("Product publish status updated successfully", ptr.Int(http.StatusOK), prd)
+	c.JSON(http.StatusOK, resp)
+}
+
+// UpdateProduct godoc
+//
+//	@Summary        Update a product
+//	@Description    Update product details (brand, category, name, description). Cannot change product type.
+//	@Tags           Products
+//	@Accept         json
+//	@Produce        json
+//	@Param          id      path      string                         true  "Product ID (UUID)"
+//	@Param          payload body      requests.UpdateProductRequest  true  "Product update payload"
+//	@Success        200     {object}  responses.ProductResponse       "Product updated successfully"
+//	@Failure        400     {object}  object{error=string}            "Bad Request"
+//	@Failure        404     {object}  object{error=string}            "Product not found"
+//	@Failure        500     {object}  object{error=string}            "Internal server error"
+//	@Security       BearerAuth
+//	@Router         /api/v1/products/{id} [put]
+func (h *ProductHandler) UpdateProduct(c *gin.Context) {
+	// --- Extract Product ID ---
+	idStr := c.Param("id")
+	productID, err := uuid.Parse(idStr)
+	if err != nil {
+		resp := responses.ErrorResponse("invalid product id", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// --- Bind JSON ---
+	var req requests.UpdateProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// --- Validate payload ---
+	if err := h.validator.Struct(&req); err != nil {
+		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// --- (Optional) Unit of Work Transaction ---
+	ctx := c.Request.Context()
+
+	updatedProduct, err := h.productService.UpdateProduct(ctx, productID, req)
+	if err != nil {
+		resp := responses.ErrorResponse(err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	response := responses.SuccessResponse(
+		"Product updated successfully",
+		ptr.Int(http.StatusOK),
+		updatedProduct,
+	)
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateLimitedProduct godoc
+//
+//	@Summary        Update a limited product
+//	@Description    Update limited product details (dates, concept, stock-related fields). Only applicable for products of type LIMITED and not actived.
+//	@Tags           Products.Limited
+//	@Accept         json
+//	@Produce        json
+//	@Param          id      path      string                                 true  "Limited Product ID (UUID)"
+//	@Param          payload body      requests.UpdateLimitedProductRequest  true  "Limited product update payload"
+//	@Success        200     {object}  responses.ProductResponse             "Limited product updated successfully"
+//	@Failure        400     {object}  object{error=string}                 "Bad Request"
+//	@Failure        404     {object}  object{error=string}                 "Product not found"
+//	@Failure        401     {object}  object{error=string}                 "Unauthorized"
+//	@Failure        500     {object}  object{error=string}                 "Internal server error"
+//	@Security       BearerAuth
+//	@Router         /api/v1/products/limited/{id} [put]
+func (h *ProductHandler) UpdateLimitedProduct(c *gin.Context) {
+	// Extract product id
+	idStr := c.Param("id")
+	productID, err := uuid.Parse(idStr)
+	if err != nil {
+		resp := responses.ErrorResponse("invalid product id: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// Bind JSON
+	var req requests.UpdateLimitedProductRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// Validate payload
+	if err := h.validator.Struct(&req); err != nil {
+		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	updatedProduct, err := h.productService.UpdateLimitedProduct(ctx, productID, req)
+	if err != nil {
+		// map common errors
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			c.JSON(http.StatusNotFound, responses.ErrorResponse(err.Error(), http.StatusNotFound))
+			return
+		}
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Limited product updated successfully", ptr.Int(http.StatusOK), updatedProduct)
+	c.JSON(http.StatusOK, resp)
+}
+
+// UpdateVariant godoc
+//
+//	@Summary		Update a product variant
+//	@Description	Update fields of an existing product variant
+//	@Tags		Products.Variants
+//	@Accept		json
+//	@Produce	json
+//	@Param		variantId	path		string	true	"Variant ID (UUID)"
+//	@Param		payload		body		requests.UpdateProductVariantRequest	true	"Variant update payload"
+//	@Success	200	{object}	responses.ProductVariantResponse
+//	@Failure	400	{object}	object{error=string}
+//	@Failure	404	{object}	object{error=string}
+//	@Failure	401	{object}	object{error=string}
+//	@Security	BearerAuth
+//	@Router		/api/v1/products/variants/{variantId} [patch]
+func (h *ProductHandler) UpdateVariant(c *gin.Context) {
+	variantIDStr := c.Param("variantId")
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid variant id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	var req requests.UpdateProductVariantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	updatedVariant, svcErr := h.productService.UpdateVariant(ctx, variantID, req)
+	if svcErr != nil {
+		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
+			c.JSON(http.StatusNotFound, responses.ErrorResponse(svcErr.Error(), http.StatusNotFound))
+			return
+		}
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Variant updated successfully", ptr.Int(http.StatusOK), updatedVariant)
+	c.JSON(http.StatusOK, resp)
+}
+
+// UpdateLimitedVariant godoc
+//
+//	@Summary		Update a limited product variant
+//	@Description	Update fields of an existing variant that belongs to a LIMITED product (stock/preorder related validations applied)
+//	@Tags		Products.Variants
+//	@Accept		json
+//	@Produce	json
+//	@Param		variantId	path		string	true	"Variant ID (UUID)"
+//	@Param		payload		body		requests.UpdateLimitedProductVariantRequest	true	"Limited variant update payload"
+//	@Success	200	{object}	responses.ProductVariantResponse
+//	@Failure	400	{object}	object{error=string}
+//	@Failure	404	{object}	object{error=string}
+//	@Failure	401	{object}	object{error=string}
+//	@Security	BearerAuth
+//	@Router		/api/v1/products/variants/limited/{variantId} [patch]
+func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
+	variantIDStr := c.Param("variantId")
+	variantID, err := uuid.Parse(variantIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid variant id: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	var req requests.UpdateLimitedProductVariantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	updatedVariant, svcErr := h.productService.UpdateLimitedVariant(ctx, variantID, req)
+	if svcErr != nil {
+		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
+			c.JSON(http.StatusNotFound, responses.ErrorResponse(svcErr.Error(), http.StatusNotFound))
+			return
+		}
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Limited variant updated successfully", ptr.Int(http.StatusOK), updatedVariant)
 	c.JSON(http.StatusOK, resp)
 }
