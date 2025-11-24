@@ -48,6 +48,7 @@ type ApplicationRegistry struct {
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 	FacebookSocialService         iservice.FacebookSocialService
 	TikTokSocialService           iservice.TikTokSocialService
+	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
 
 	//Manual Scheduler Trigger
@@ -183,6 +184,7 @@ func NewApplicationRegistry(
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
+		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
 
 		//Manual Scheduler Trigger

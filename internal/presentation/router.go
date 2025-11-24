@@ -87,6 +87,7 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 // SetupV1Routes sets up version 1 API routes
 func (r *Router) SetupV1Routes(engine *gin.Engine) {
 	v1 := engine.Group("/api/v1")
+	v1.Use(r.middlewareRegistry.Timeout)
 	{
 		// ---------- Routes Setups from functions ----------
 		r.setupAuthRoutes(v1)
@@ -111,6 +112,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupTikTokSocialRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
+		r.setupAIRoutes(v1)
 		if r.config.IsDevelopmentDebugging() {
 			r.setupTestRoutes(v1)
 		}
@@ -635,8 +637,8 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 		// Read-only endpoints
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
+		notificationGroup.GET("/unread-count", notificationHandler.GetUnreadCount)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
-		notificationGroup.GET("/sse", notificationHandler.SubscribeSSE)
 
 		// Write endpoints
 		notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
@@ -682,6 +684,21 @@ func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketSer
 		r.middlewareRegistry.Auth.RequireAuth(),
 		wsServer.HandleWebSocket,
 	)
+}
+
+func (r *Router) SetupSSERoutes(engine *gin.Engine) {
+	notificationHandler := r.handlerRegistry.NotificationHandler
+	sseGroup := engine.Group("").Use(
+		r.middlewareRegistry.Recovery,
+		r.middlewareRegistry.RequestID,
+		r.middlewareRegistry.Logging,
+		r.middlewareRegistry.CORS,
+		r.middlewareRegistry.Auth.RequireAuth(),
+	)
+	{
+		sseGroup.GET("/api/v1/notifications/sse",
+			notificationHandler.SubscribeSSE)
+	}
 }
 
 // SetupAffiliateLinkRoutes sets up routes for affiliate link management
@@ -868,5 +885,16 @@ func (r *Router) setupFileRoutes(group *gin.RouterGroup) {
 			getGroup.GET("/:key", fileHandler.GetFileDetailByS3Key)
 			getGroup.GET("", fileHandler.GetFileByFilter)
 		}
+	}
+}
+
+func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
+	aiHandler := r.handlerRegistry.AIHandler
+	aiGroup := group.Group("/ai")
+	aiGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		aiGroup.POST("/generate", aiHandler.Generate)
+		aiGroup.POST("/generate-content", r.middlewareRegistry.Auth.RequireRole(content, marketing, admin), aiHandler.GenerateContent)
+		aiGroup.GET("/models", aiHandler.GetSupportedModels)
 	}
 }

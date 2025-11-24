@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -39,23 +38,19 @@ func NewAffiliateLinkAnalyticsHandler(analyticsService iservice.AffiliateLinkAna
 //	@Security		BearerAuth
 //	@Router			/api/v1/analytics/affiliate-links/by-contract/{contract_id} [get]
 func (h *AffiliateLinkAnalyticsHandler) GetMetricsByContract(c *gin.Context) {
-	// Parse contract ID from path
-	contractIDStr := c.Param("contract_id")
-	contractID, err := uuid.Parse(contractIDStr)
+	contractID, err := extractParamID(c, "contract_id")
 	if err != nil {
 		response := responses.ErrorResponse("Invalid contract ID", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	// Get user ID from context for access validation
-	userIDVal, exists := c.Get("user_id")
-	if !exists {
+	userID, err := extractUserID(c)
+	if err != nil {
 		response := responses.ErrorResponse("User not authenticated", http.StatusUnauthorized)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
-	userID := userIDVal.(uuid.UUID)
 
 	// Validate contract access (for BRAND_PARTNER role)
 	if err = h.analyticsService.ValidateContractAccess(c.Request.Context(), userID, contractID); err != nil {
@@ -141,9 +136,7 @@ func (h *AffiliateLinkAnalyticsHandler) GetMetricsByChannel(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/analytics/affiliate-links/time-series/{affiliate_link_id} [get]
 func (h *AffiliateLinkAnalyticsHandler) GetTimeSeriesData(c *gin.Context) {
-	// Parse affiliate link ID from path
-	linkIDStr := c.Param("affiliate_link_id")
-	linkID, err := uuid.Parse(linkIDStr)
+	linkID, err := extractParamID(c, "affiliate_link_id")
 	if err != nil {
 		response := responses.ErrorResponse("Invalid affiliate link ID", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
