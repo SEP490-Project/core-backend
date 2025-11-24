@@ -2,7 +2,6 @@ package preordersm
 
 import (
 	"core-backend/internal/domain/enum"
-	"errors"
 )
 
 // PreOrderState interface defines behavior for pre-order states
@@ -13,25 +12,25 @@ type PreOrderState interface {
 }
 
 // NewPreOrderState factory method to create state instances
-func NewPreOrderState(status enum.PreOrderStatus) (PreOrderState, error) {
+func NewPreOrderState(status enum.PreOrderStatus) PreOrderState {
 	switch status {
 	case enum.PreOrderStatusPending:
-		return &PendingState{}, nil
+		return &PendingState{}
 	case enum.PreOrderStatusPaid:
-		return &PaidState{}, nil
+		return &PaidState{}
 	case enum.PreOrderStatusPreOrdered:
-		return &PreOrderedState{}, nil
+		return &PreOrderedState{}
 	case enum.PreOrderStatusCancelled:
-		return &CancelledState{}, nil
+		return &CancelledState{}
 	case enum.PreOrderStatusAwaitingPickup:
-		return &AwaitingPickupState{}, nil
+		return &AwaitingPickupState{}
 	case enum.PreOrderStatusInTransit:
-		return &InTransitState{}, nil
+		return &InTransitState{}
 	case enum.PreOrderStatusDelivered:
-		return &DeliveredState{}, nil
+		return &DeliveredState{}
 	case enum.PreOrderStatusReceived:
-		return &ReceivedState{}, nil
+		return &ReceivedState{}
 	default:
-		return nil, errors.New("invalid pre-order status: " + string(status))
+		return nil
 	}
 }

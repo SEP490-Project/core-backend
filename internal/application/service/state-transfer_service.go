@@ -47,20 +47,10 @@ type stateTransferService struct {
 }
 
 func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, fileURL *string) error {
-	// 1) Load PreOrder
-	preOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, nil)
-	if err != nil {
-		zap.L().Error("Failed to load PreOrder", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("failed to load PreOrder: " + err.Error())
-	}
-	//preOrder.UpdatedByID = &updatedBy
+	preOrder, limitedProduct, actionUser, err := lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, updatedBy)
 
 	// 2) Validate state transition using state machine
-	currentState, err := preordersm.NewPreOrderState(preOrder.Status)
-	if err != nil {
-		return err
-	}
-
+	currentState := preordersm.NewPreOrderState(preOrder.Status)
 	pOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, []string{})
 	if err != nil {
 		return err
@@ -725,7 +715,8 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		standByMinutes := t.adminConfig.CensorshipIntervalMinutes
 		isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
 		if isCurrentStatePerfomedByCustomer && isAllow {
-			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + time.Until(order.UpdatedAt.Add(5*time.Minute)).String())
+			msg := fmt.Sprintf("You can only allow to do this action after %d mins after user action, remaining time: %s", standByMinutes, time.Until(order.UpdatedAt.Add(time.Duration(standByMinutes)*time.Minute)).String())
+			return errors.New(msg)
 		}
 
 		updatedBy, err := uow.Users().GetByID(ctx, updatedUserID, []string{})
@@ -734,18 +725,13 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		}
 
 		// 2) Validate state transition using state machine
-		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
-		nextState := ordersm.NewOrderState(targetState)
-		if nextState == nil {
-			return errors.New("invalid target state")
-		}
-		if err = ctxState.State.Next(ctxState, nextState); err != nil {
-			zap.L().Error("Order state transition validation failed", zap.Error(err))
-			return fmt.Errorf("state transition not allowed: %w", err)
+		err = MoveOrderStateUsingFSM(order, updatedBy, targetState, note)
+		if err != nil {
+			return err
 		}
 
 		// 3) Handle order side effects
-		err = t.handleOrderStatusSideEffect(ctx, uow, ctxState, targetState, order, updatedBy, note)
+		err = t.handleOrderStatusSideEffect(ctx, uow, nil, targetState, order, updatedBy, note)
 		if err != nil {
 			return err
 		}
@@ -1065,7 +1051,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	}
 	orderRepo := uow.Order()
 
-	note := transactionCtx.GenerateActionNote(updatedBy, reason)
+	//note := transactionCtx.GenerateActionNote(updatedBy, reason)
 
 	switch nextStatus {
 	case enum.OrderStatusConfirmed:
@@ -1094,7 +1080,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		//Add action notes as log
 		zap.L().Info("Order cancelled, bending rejected email")
 		//Add Note
-		order.AddActionNote(*note)
+		//order.AddActionNote(*note)
 
 		// Regain stock for LIMITED orders and persist per-variant
 		if order.OrderType == enum.ProductTypeLimited.String() {
@@ -1127,7 +1113,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		//err = orderRepo.Update(ctx, order)
 	case enum.OrderStatusRefunded:
 		zap.L().Info("Order refunded, sending rejected email")
-		order.AddActionNote(*note)
+		//order.AddActionNote(*note)
 		err = orderRepo.Update(ctx, order)
 	}
 	return err
@@ -1156,4 +1142,25 @@ func NewStateTransferService(
 		ghnProxy:                ghnProxy,
 		adminConfig:             configs.AdminConfig,
 	}
+}
+
+func (t *stateTransferService) lookupPreOrderWithLimitedProductAndUser(ctx context.Context, preorderID, actionBy uuid.UUID) (*model.PreOrder, *model.LimitedProduct, *model.User, error) {
+	// 1) Load PreOrder
+	preOrder, err := t.preOrderRepository.GetByID(ctx, preorderID, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	variantIncludes := []string{"Product", "Product.Limited"}
+	variant, err := t.variantRepository.GetByID(ctx, preOrder.VariantID, variantIncludes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	user, err := t.uow.Users().GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return preOrder, variant.Product.Limited, user, nil
 }

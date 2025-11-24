@@ -12,6 +12,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/domain/state/preordersm"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
@@ -636,4 +637,20 @@ func (p preOrderService) GetStaffAvailablePreOrdersWithPagination(
 	}
 
 	return resList, int(total), nil
+}
+
+func MovePreOrderStateUsingFSM(preorder *model.PreOrder, user *model.User, newStatus enum.PreOrderStatus, reason *string) error {
+	ctxState := &preordersm.PreOrderContext{
+		State:    preordersm.NewPreOrderState(preorder.Status),
+		PreOrder: preorder,
+		ActionBy: user,
+	}
+	nextState := preordersm.NewPreOrderState(newStatus)
+
+	if err := ctxState.State.Next(ctxState, nextState); err != nil {
+		zap.L().Error("Order state transition validation failed", zap.Error(err))
+		return fmt.Errorf("state transition not allowed: %w", err)
+	}
+	preorder.AddActionNote(*ctxState.GenerateActionNote(user, reason))
+	return nil
 }
