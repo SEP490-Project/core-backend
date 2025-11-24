@@ -29,8 +29,12 @@ type CreateStandardProductRequest struct {
 
 // UpdateProductRequest represents update product request
 type UpdateProductRequest struct {
-	Name        string  `json:"name" validate:"omitempty,min=1,max=255" example:"Updated Product Name"`
+	Name        *string `json:"name" validate:"omitempty,min=1,max=255" example:"Updated Product Name"`
 	Description *string `json:"description" validate:"omitempty,max=1000" example:"Updated product description"`
+
+	BrandID    *uuid.UUID `json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CategoryID *uuid.UUID `json:"category_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	//Type       *enum.ProductType `json:"type" validate:"omitempty,oneof=STANDARD LIMITED" example:"STANDARD"`
 }
 
 func (d *CreateStandardProductRequest) ToStandardModel(createdBy uuid.UUID) *model.Product {
@@ -122,4 +126,17 @@ func parseTime(date *string) time.Time {
 
 	zap.L().Error("Error parsing time (all formats failed)", zap.String("date", *date), zap.Error(lastErr))
 	return time.Time{}
+}
+
+type UpdateLimitedProductRequest struct {
+	Name        *string `json:"name" validate:"omitempty,min=1,max=255" example:"Updated Product Name"`
+	Description *string `json:"description" validate:"omitempty,max=1000" example:"Updated product description"`
+
+	BrandID    *uuid.UUID `json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	CategoryID *uuid.UUID `json:"category_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+
+	ConceptID             *uuid.UUID `json:"concept_id" validate:"omitempty,uuid" example:"770e8400-e29b-41d4-a716-446655440000"`
+	PremiereDate          *string    `json:"premiere_date" validate:"omitempty" example:"2023-10-01T10:00:00"`
+	AvailabilityStartDate *string    `json:"availability_start_date" validate:"omitempty" example:"2023-10-01T10:00"`
+	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"omitempty" example:"2023-10-31T10:00"`
 }
