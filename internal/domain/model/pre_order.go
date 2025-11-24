@@ -92,7 +92,9 @@ type PreOrder struct {
 	CreatedAt time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
 	//DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
-	UserNote *string `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
+	UserNote      *string `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
+	UserResource  *string `json:"user_resource,omitempty" gorm:"column:user_resource;type:text"`
+	StaffResource *string `json:"staff_resource,omitempty" gorm:"column:staff_resource;type:text"`
 
 	// Action notes for pre-order (JSONB)
 	ActionNotes *PreOrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`

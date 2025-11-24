@@ -15,7 +15,7 @@ type VariantImage struct {
 	IsPrimary bool           `json:"is_primary" gorm:"column:is_primary;not null;default:false"`
 	CreatedAt time.Time      `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt time.Time      `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 }
 
 func (VariantImage) TableName() string { return "variant_images" }
