@@ -1330,6 +1330,8 @@ definitions:
     - AWAITING_PICKUP
     - IN_TRANSIT
     - DELIVERED
+    - COMPENSATE_REQUEST
+    - COMPENSATED
     - RECEIVED
     type: string
     x-enum-varnames:
@@ -1340,6 +1342,8 @@ definitions:
     - PreOrderStatusAwaitingPickup
     - PreOrderStatusInTransit
     - PreOrderStatusDelivered
+    - PreOrderStatusCompensateRequest
+    - PreOrderStatusCompensated
     - PreOrderStatusReceived
   enum.ProductStatus:
     enum:
@@ -1482,6 +1486,28 @@ definitions:
         description: S3 URL
         type: string
     type: object
+  model.Concept:
+    properties:
+      banner_url:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      limited_product:
+        allOf:
+        - $ref: '#/definitions/model.LimitedProduct'
+        description: 'Relationship: one-to-one with LimitedProduct. LimitedProduct
+          holds ConceptID foreign key.'
+      name:
+        type: string
+      updated_at:
+        type: string
+      video_thumbnail:
+        type: string
+    type: object
   model.DeliveryAttempt:
     properties:
       error:
@@ -1556,6 +1582,26 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  model.LimitedProduct:
+    properties:
+      availability_end_date:
+        type: string
+      availability_start_date:
+        type: string
+      concept:
+        $ref: '#/definitions/model.Concept'
+      concept_id:
+        description: Concept relation (nullable)
+        type: string
+      id:
+        type: string
+      premiere_date:
+        type: string
+      product:
+        allOf:
+        - $ref: '#/definitions/model.Product'
+        description: Relationships
     type: object
   model.Order:
     properties:
@@ -1668,6 +1714,10 @@ definitions:
         type: string
       order_id:
         type: string
+      product_variant:
+        allOf:
+        - $ref: '#/definitions/model.ProductVariant'
+        description: Relationships
       quantity:
         type: integer
       subtotal:
@@ -1797,6 +1847,141 @@ definitions:
       user_name:
         type: string
     type: object
+  model.Product:
+    properties:
+      brand_id:
+        type: string
+      category:
+        $ref: '#/definitions/model.ProductCategory'
+      category_id:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      limited:
+        $ref: '#/definitions/model.LimitedProduct'
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/enum.ProductStatus'
+      task_id:
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/enum.ProductType'
+        description: CurrentStock *int               `json:"current_stock" gorm:"column:current_stock"`
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  model.ProductCategory:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      parent_category_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.ProductStory:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+      variant:
+        allOf:
+        - $ref: '#/definitions/model.ProductVariant'
+        description: Relationships
+      variant_id:
+        type: string
+    type: object
+  model.ProductVariant:
+    properties:
+      attributes:
+        items:
+          $ref: '#/definitions/model.VariantAttributeValue'
+        type: array
+      capacity:
+        type: number
+      capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      created_at:
+        type: string
+      created_by:
+        type: string
+      current_stock:
+        type: integer
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      expiry_date:
+        type: string
+      height:
+        description: in centimeters
+        type: integer
+      id:
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/model.VariantImage'
+        type: array
+      instructions:
+        type: string
+      is_default:
+        type: boolean
+      length:
+        description: in centimeters
+        type: integer
+      manufacturing_date:
+        type: string
+      max_stock:
+        description: Only for limited products
+        type: integer
+      pre_order_count:
+        type: integer
+      pre_order_limit:
+        type: integer
+      price:
+        type: number
+      product:
+        allOf:
+        - $ref: '#/definitions/model.Product'
+        description: Relationship ExistsByID
+      product_id:
+        type: string
+      story:
+        $ref: '#/definitions/model.ProductStory'
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      uses:
+        type: string
+      weight:
+        description: in grams
+        type: integer
+      width:
+        description: in centimeters
+        type: integer
+    type: object
   model.VariantAttribute:
     properties:
       created_at:
@@ -1814,6 +1999,46 @@ definitions:
       updated_at:
         type: string
       updated_by:
+        type: string
+    type: object
+  model.VariantAttributeValue:
+    properties:
+      attribute:
+        $ref: '#/definitions/model.VariantAttribute'
+      attribute_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      unit:
+        $ref: '#/definitions/enum.AttributeUnit'
+      updated_at:
+        type: string
+      value:
+        type: number
+      variant:
+        allOf:
+        - $ref: '#/definitions/model.ProductVariant'
+        description: Relationships
+      variant_id:
+        type: string
+    type: object
+  model.VariantImage:
+    properties:
+      alt_text:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      is_primary:
+        type: boolean
+      updated_at:
+        type: string
+      variant_id:
         type: string
     type: object
   requests.BlogFieldsDTO:
@@ -13083,6 +13308,86 @@ paths:
       summary: Create a PreOrder (reserve stock)
       tags:
       - Preorders
+  /api/v1/preorders/{id}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Submit a compensation request with reason and supporting file
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for compensation
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Request compensation for a preorder (customer)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/{id}/received:
+    patch:
+      consumes:
+      - application/json
+      description: Mark a preorder as received by the customer
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark preorder as received (customer)
+      tags:
+      - Preorders.States
   /api/v1/preorders/{id}/state:
     patch:
       consumes:
@@ -13205,6 +13510,8 @@ paths:
           - AWAITING_PICKUP
           - IN_TRANSIT
           - DELIVERED
+          - COMPENSATE_REQUEST
+          - COMPENSATED
           - RECEIVED
           type: string
         name: status
@@ -13298,6 +13605,54 @@ paths:
       summary: Censor an PREORDER (confirm or cancel)
       tags:
       - Preorders.States
+  /api/v1/preorders/staff/{orderID}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Approve or reject a compensation request
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: true|false
+        in: formData
+        name: isApproved
+        required: true
+        type: string
+      - description: Reason (optional)
+        in: formData
+        name: reason
+        type: string
+      - description: Confirmation file
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Process compensation for a preorder (staff)
+      tags:
+      - Preorders[Staff].States
   /api/v1/products:
     get:
       consumes:

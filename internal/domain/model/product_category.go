@@ -14,7 +14,7 @@ type ProductCategory struct {
 	ParentCategoryID *uuid.UUID     `json:"parent_category_id" gorm:"type:uuid;column:parent_category_id"`
 	CreatedAt        time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt        time.Time      `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt        gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt        gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 
 	// Relationships
 	ParentCategory  *ProductCategory  `json:"-" gorm:"foreignKey:ParentCategoryID"`

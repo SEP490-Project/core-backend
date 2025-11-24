@@ -15,6 +15,6 @@ func (c Compensated) Next(ctx *PreOrderContext, next PreOrderState) error {
 	return fmt.Errorf("invalid transition: The state is final and cannot transition to another state")
 }
 
-func (c Compensated) AllowedTransitions() map[enum.PreOrderStatus]struct{} {
-	return map[enum.PreOrderStatus]struct{}{}
+func (c Compensated) AllowedTransitions() map[enum.PreOrderStatus]bool {
+	return map[enum.PreOrderStatus]bool{}
 }

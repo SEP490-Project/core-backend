@@ -17,7 +17,7 @@ func (s *AwaitingPickupState) AllowedTransitions() map[enum.PreOrderStatus]bool 
 }
 func (s *AwaitingPickupState) Next(ctx *PreOrderContext, next PreOrderState) error {
 	if _, ok := s.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition from AWAITING_PICKUP to %s", next.Name())

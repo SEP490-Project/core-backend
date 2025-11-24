@@ -11430,6 +11430,8 @@ const docTemplate = `{
                                 "AWAITING_PICKUP",
                                 "IN_TRANSIT",
                                 "DELIVERED",
+                                "COMPENSATE_REQUEST",
+                                "COMPENSATED",
                                 "RECEIVED"
                             ],
                             "type": "string"
@@ -11555,6 +11557,204 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/{orderID}/compensation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve or reject a compensation request",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders[Staff].States"
+                ],
+                "summary": "Process compensation for a preorder (staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "true|false",
+                        "name": "isApproved",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason (optional)",
+                        "name": "reason",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Confirmation file",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/{id}/compensation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit a compensation request with reason and supporting file",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Request compensation for a preorder (customer)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason for compensation",
+                        "name": "reason",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Evidence file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/{id}/received": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a preorder as received by the customer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Mark preorder as received (customer)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
@@ -16963,6 +17163,8 @@ const docTemplate = `{
                 "AWAITING_PICKUP",
                 "IN_TRANSIT",
                 "DELIVERED",
+                "COMPENSATE_REQUEST",
+                "COMPENSATED",
                 "RECEIVED"
             ],
             "x-enum-varnames": [
@@ -16973,6 +17175,8 @@ const docTemplate = `{
                 "PreOrderStatusAwaitingPickup",
                 "PreOrderStatusInTransit",
                 "PreOrderStatusDelivered",
+                "PreOrderStatusCompensateRequest",
+                "PreOrderStatusCompensated",
                 "PreOrderStatusReceived"
             ]
         },
@@ -17162,6 +17366,40 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Concept": {
+            "type": "object",
+            "properties": {
+                "banner_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "limited_product": {
+                    "description": "Relationship: one-to-one with LimitedProduct. LimitedProduct holds ConceptID foreign key.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.LimitedProduct"
+                        }
+                    ]
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "video_thumbnail": {
+                    "type": "string"
+                }
+            }
+        },
         "model.DeliveryAttempt": {
             "type": "object",
             "properties": {
@@ -17268,6 +17506,38 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "model.LimitedProduct": {
+            "type": "object",
+            "properties": {
+                "availability_end_date": {
+                    "type": "string"
+                },
+                "availability_start_date": {
+                    "type": "string"
+                },
+                "concept": {
+                    "$ref": "#/definitions/model.Concept"
+                },
+                "concept_id": {
+                    "description": "Concept relation (nullable)",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "premiere_date": {
+                    "type": "string"
+                },
+                "product": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Product"
+                        }
+                    ]
                 }
             }
         },
@@ -17434,6 +17704,14 @@ const docTemplate = `{
                 },
                 "order_id": {
                     "type": "string"
+                },
+                "product_variant": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ProductVariant"
+                        }
+                    ]
                 },
                 "quantity": {
                     "type": "integer"
@@ -17621,6 +17899,214 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Product": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/model.ProductCategory"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "limited": {
+                    "$ref": "#/definitions/model.LimitedProduct"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ProductStatus"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "CurrentStock *int               ` + "`" + `json:\"current_stock\" gorm:\"column:current_stock\"` + "`" + `",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ProductType"
+                        }
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductCategory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductStory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variant": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ProductVariant"
+                        }
+                    ]
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductVariant": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VariantAttributeValue"
+                    }
+                },
+                "capacity": {
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "current_stock": {
+                    "type": "integer"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VariantImage"
+                    }
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "max_stock": {
+                    "description": "Only for limited products",
+                    "type": "integer"
+                },
+                "pre_order_count": {
+                    "type": "integer"
+                },
+                "pre_order_limit": {
+                    "type": "integer"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "product": {
+                    "description": "Relationship ExistsByID",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Product"
+                        }
+                    ]
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "story": {
+                    "$ref": "#/definitions/model.ProductStory"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                }
+            }
+        },
         "model.VariantAttribute": {
             "type": "object",
             "properties": {
@@ -17646,6 +18132,69 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VariantAttributeValue": {
+            "type": "object",
+            "properties": {
+                "attribute": {
+                    "$ref": "#/definitions/model.VariantAttribute"
+                },
+                "attribute_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "unit": {
+                    "$ref": "#/definitions/enum.AttributeUnit"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                },
+                "variant": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ProductVariant"
+                        }
+                    ]
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VariantImage": {
+            "type": "object",
+            "properties": {
+                "alt_text": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_primary": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variant_id": {
                     "type": "string"
                 }
             }
