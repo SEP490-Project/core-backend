@@ -365,6 +365,178 @@
                 }
             }
         },
+        "/api/v1/ai/generate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates content based on a prompt",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI"
+                ],
+                "summary": "Generate AI content",
+                "parameters": [
+                    {
+                        "description": "Generation Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.GenerateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ChatResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/generate-content": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Generates structured content (TipTap JSON) based on context and requirements",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI"
+                ],
+                "summary": "Generate structured content",
+                "parameters": [
+                    {
+                        "description": "Content Generation Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.GenerateContentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ChatResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ai/models": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a list of supported AI models from all configured providers",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "AI"
+                ],
+                "summary": "Get supported AI models",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ModelProviderResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/affiliate-links/by-channel": {
             "get": {
                 "security": [
@@ -18567,6 +18739,62 @@
                 }
             }
         },
+        "requests.GenerateContentRequest": {
+            "type": "object",
+            "required": [
+                "context",
+                "model",
+                "platform",
+                "tone"
+            ],
+            "properties": {
+                "context": {
+                    "type": "string",
+                    "example": "Promote our new AI-powered product that enhances productivity."
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gemini-2.5-flash-lite"
+                },
+                "platform": {
+                    "type": "string",
+                    "example": "LinkedIn"
+                },
+                "stream": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "tone": {
+                    "type": "string",
+                    "example": "Professional and engaging"
+                }
+            }
+        },
+        "requests.GenerateRequest": {
+            "type": "object",
+            "required": [
+                "model",
+                "prompt"
+            ],
+            "properties": {
+                "json_mode": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "model": {
+                    "type": "string",
+                    "example": "gemini-2.5-flash-lite"
+                },
+                "prompt": {
+                    "type": "string",
+                    "example": "Create a social media post about the benefits of AI."
+                },
+                "stream": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
         "requests.InputAddressRequest": {
             "type": "object",
             "required": [
@@ -20560,6 +20788,19 @@
                 }
             }
         },
+        "responses.ChatResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "The generated response content",
+                    "type": "string",
+                    "example": "Hello! How can I assist you today?"
+                },
+                "usage": {
+                    "$ref": "#/definitions/responses.Usage"
+                }
+            }
+        },
         "responses.ContentChannelBrief": {
             "type": "object",
             "properties": {
@@ -20583,13 +20824,60 @@
                 }
             }
         },
+        "responses.ContentListResponse": {
+            "type": "object",
+            "properties": {
+                "blog": {
+                    "$ref": "#/definitions/responses.BlogResponse"
+                },
+                "content_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentChannelBrief"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "publish_date": {
+                    "type": "string"
+                },
+                "rejection_feedback": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ContentStatus"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ContentType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.ContentPaginationResponse": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.ContentResponse"
+                        "$ref": "#/definitions/responses.ContentListResponse"
                     }
                 },
                 "message": {
@@ -21456,6 +21744,33 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.ModelProviderResponse": {
+            "type": "object",
+            "properties": {
+                "base_url": {
+                    "description": "Base URL of the AI provider",
+                    "type": "string",
+                    "example": "https://api.openai.com/v1"
+                },
+                "enable": {
+                    "description": "Whether the provider based on the APIKey is provided",
+                    "type": "boolean",
+                    "example": true
+                },
+                "models": {
+                    "description": "List of model IDs provided by the provider",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "provider": {
+                    "description": "e.g., \"openai\", \"gemini\"",
+                    "type": "string",
+                    "example": "openai"
                 }
             }
         },
@@ -22786,6 +23101,23 @@
                 "name": {
                     "type": "string",
                     "example": "Summer Sale 2024"
+                }
+            }
+        },
+        "responses.Usage": {
+            "type": "object",
+            "properties": {
+                "completion_tokens": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "prompt_tokens": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "total_tokens": {
+                    "type": "integer",
+                    "example": 70
                 }
             }
         },

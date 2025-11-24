@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"core-backend/internal/application"
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -22,22 +23,22 @@ type ContentHandler struct {
 	contentService           iservice.ContentService
 	contentPublishingService iservice.ContentPublishingService
 	stateTransferService     iservice.StateTransferService
+	channelService           iservice.ChannelService
 	unitOfWork               irepository.UnitOfWork
 	rabbitmq                 *rabbitmq.RabbitMQ
 	validator                *validator.Validate
 }
 
 func NewContentHandler(
-	contentService iservice.ContentService,
-	contentPublishingService iservice.ContentPublishingService,
-	stateTransferService iservice.StateTransferService,
+	appReg *application.ApplicationRegistry,
 	unitOfWork irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 ) *ContentHandler {
 	return &ContentHandler{
-		contentService:           contentService,
-		contentPublishingService: contentPublishingService,
-		stateTransferService:     stateTransferService,
+		contentService:           appReg.ContentService,
+		contentPublishingService: appReg.ContentPublishingService,
+		stateTransferService:     appReg.StateTransferService,
+		channelService:           appReg.ChannelService,
 		unitOfWork:               unitOfWork,
 		rabbitmq:                 rabbitmq,
 		validator:                validator.New(),
@@ -735,9 +736,16 @@ func (h *ContentHandler) ListPublic(c *gin.Context) {
 		return
 	}
 
+	channel, err := h.channelService.GetChannelByName(c.Request.Context(), "WEBSITE")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to retrieve channel WEBSITE info", http.StatusInternalServerError))
+		return
+	}
+
 	// Force status = POSTED
 	status := "POSTED"
 	req.Status = &status
+	req.ChannelID = utils.PtrOrNil(channel.ID)
 
 	// Remove filters that are not needed for public
 	req.AssignedTo = nil
