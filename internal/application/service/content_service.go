@@ -474,7 +474,7 @@ func (s *ContentService) DetermineWorkflowRoute(ctx context.Context, contentID u
 }
 
 // List retrieves paginated content with filters, search, and sorting
-func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentResponse, int64, error) {
+func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentListResponse, int64, error) {
 	zap.L().Info("Listing contents with filters", zap.Any("filters", req))
 
 	// Build filter function
@@ -575,17 +575,11 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 		return nil, 0, errors.New("failed to retrieve content list")
 	}
 
-	// Convert to response DTOs
-	contentResponses := make([]*responses.ContentResponse, len(contents))
-	for i := range contents {
-		contentResponses[i] = s.mapToContentResponse(&contents[i])
-	}
-
 	zap.L().Info("Content list retrieved",
 		zap.Int("count", len(contents)),
 		zap.Int64("total", total))
 
-	return contentResponses, total, nil
+	return responses.ContentListResponse{}.ToResponseList(contents, s.config.Server.BaseURL), total, nil
 }
 
 // region: ======== Helper methods ========

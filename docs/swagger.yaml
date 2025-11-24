@@ -2787,6 +2787,47 @@ definitions:
     - email
     - frontend_url
     type: object
+  requests.GenerateContentRequest:
+    properties:
+      context:
+        example: Promote our new AI-powered product that enhances productivity.
+        type: string
+      model:
+        example: gemini-2.5-flash-lite
+        type: string
+      platform:
+        example: LinkedIn
+        type: string
+      stream:
+        example: false
+        type: boolean
+      tone:
+        example: Professional and engaging
+        type: string
+    required:
+    - context
+    - model
+    - platform
+    - tone
+    type: object
+  requests.GenerateRequest:
+    properties:
+      json_mode:
+        example: false
+        type: boolean
+      model:
+        example: gemini-2.5-flash-lite
+        type: string
+      prompt:
+        example: Create a social media post about the benefits of AI.
+        type: string
+      stream:
+        example: false
+        type: boolean
+    required:
+    - model
+    - prompt
+    type: object
   requests.InputAddressRequest:
     properties:
       address_line_2:
@@ -4218,6 +4259,15 @@ definitions:
         example: "2024-12-31 23:59:59"
         type: string
     type: object
+  responses.ChatResponse:
+    properties:
+      content:
+        description: The generated response content
+        example: Hello! How can I assist you today?
+        type: string
+      usage:
+        $ref: '#/definitions/responses.Usage'
+    type: object
   responses.ContentChannelBrief:
     properties:
       affiliate_link:
@@ -4233,11 +4283,42 @@ definitions:
       post_date:
         type: string
     type: object
+  responses.ContentListResponse:
+    properties:
+      blog:
+        $ref: '#/definitions/responses.BlogResponse'
+      content_channels:
+        items:
+          $ref: '#/definitions/responses.ContentChannelBrief'
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      publish_date:
+        type: string
+      rejection_feedback:
+        type: string
+      status:
+        $ref: '#/definitions/enum.ContentStatus'
+      task_id:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ContentType'
+      updated_at:
+        type: string
+    type: object
   responses.ContentPaginationResponse:
     properties:
       data:
         items:
-          $ref: '#/definitions/responses.ContentResponse'
+          $ref: '#/definitions/responses.ContentListResponse'
         type: array
       message:
         type: string
@@ -4838,6 +4919,26 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       status:
+        type: string
+    type: object
+  responses.ModelProviderResponse:
+    properties:
+      base_url:
+        description: Base URL of the AI provider
+        example: https://api.openai.com/v1
+        type: string
+      enable:
+        description: Whether the provider based on the APIKey is provided
+        example: true
+        type: boolean
+      models:
+        description: List of model IDs provided by the provider
+        items:
+          type: string
+        type: array
+      provider:
+        description: e.g., "openai", "gemini"
+        example: openai
         type: string
     type: object
   responses.NotificationListResponse:
@@ -5747,6 +5848,18 @@ definitions:
         example: Summer Sale 2024
         type: string
     type: object
+  responses.Usage:
+    properties:
+      completion_tokens:
+        example: 20
+        type: integer
+      prompt_tokens:
+        example: 50
+        type: integer
+      total_tokens:
+        example: 70
+        type: integer
+    type: object
   responses.UserBrief:
     properties:
       email:
@@ -6241,6 +6354,107 @@ paths:
       summary: Update Affiliate Link
       tags:
       - AffiliateLinks
+  /api/v1/ai/generate:
+    post:
+      consumes:
+      - application/json
+      description: Generates content based on a prompt
+      parameters:
+      - description: Generation Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.GenerateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChatResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate AI content
+      tags:
+      - AI
+  /api/v1/ai/generate-content:
+    post:
+      consumes:
+      - application/json
+      description: Generates structured content (TipTap JSON) based on context and
+        requirements
+      parameters:
+      - description: Content Generation Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.GenerateContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChatResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate structured content
+      tags:
+      - AI
+  /api/v1/ai/models:
+    get:
+      description: Retrieves a list of supported AI models from all configured providers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ModelProviderResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get supported AI models
+      tags:
+      - AI
   /api/v1/analytics/affiliate-links/by-channel:
     get:
       consumes:

@@ -234,3 +234,38 @@ token_storage:
   # For vault backend
   vault_path_prefix: "secret/data/social-tokens"
   use_vault: false  # Set to true to use Vault instead of database encryption
+
+# AI Configuration
+ai:
+  providers:
+    gemini:
+      type: "gemini"
+      base_url: "https://generativelanguage.googleapis.com/v1beta"
+      api_key: ""
+    openrouter:
+      type: "openai"
+      base_url: "https://openrouter.ai/api/v1"
+      api_key: ""
+    moonshot:
+      type: "openai"
+      base_url: "https://api.moonshot.cn/v1"
+      api_key: ""
+  models:
+    - id: "gemini-2.5-pro"
+      provider: "gemini"
+    - id: "gemini-flash-latest"
+      provider: "gemini"
+    - id: "gemini-2.5-flash"
+      provider: "gemini"
+    - id: "gemini-2.0-flash"
+      provider: "gemini"
+    - id: "gemini-flash-lite-latest"
+      provider: "gemini"
+    - id: "gemini-2.5-flash-lite"
+      provider: "gemini"
+    - id: "gemini-2.0-flash-lite"
+      provider: "gemini"
+    - id: "qwen/qwen-2.5-72b-instruct"
+      provider: "openrouter"
+    - id: "moonshot-v1-8k"
+      provider: "moonshot"
