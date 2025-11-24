@@ -112,6 +112,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupTikTokSocialRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
+		r.setupAIRoutes(v1)
 		if r.config.IsDevelopmentDebugging() {
 			r.setupTestRoutes(v1)
 		}
@@ -875,5 +876,16 @@ func (r *Router) setupFileRoutes(group *gin.RouterGroup) {
 			getGroup.GET("/:key", fileHandler.GetFileDetailByS3Key)
 			getGroup.GET("", fileHandler.GetFileByFilter)
 		}
+	}
+}
+
+func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
+	aiHandler := r.handlerRegistry.AIHandler
+	aiGroup := group.Group("/ai")
+	aiGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	{
+		aiGroup.POST("/generate", aiHandler.Generate)
+		aiGroup.POST("/generate-content", r.middlewareRegistry.Auth.RequireRole(content, marketing, admin), aiHandler.GenerateContent)
+		aiGroup.GET("/models", aiHandler.GetSupportedModels)
 	}
 }
