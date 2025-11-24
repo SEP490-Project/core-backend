@@ -40,53 +40,33 @@ type stateTransferService struct {
 	preOrderRepository      irepository.PreOrderRepository
 	variantRepository       irepository.GenericRepository[model.ProductVariant]
 	affiliateLinkRepository irepository.AffiliateLinkRepository
+	userRepository          irepository.GenericRepository[model.User]
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
 	adminConfig             config.AdminConfig
 }
 
-func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, fileURL *string) error {
-	// 1) Load PreOrder
-	preOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, nil)
-	if err != nil {
-		zap.L().Error("Failed to load PreOrder", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("failed to load PreOrder: " + err.Error())
-	}
-	//preOrder.UpdatedByID = &updatedBy
-
-	// 2) Validate state transition using state machine
-	currentState, err := preordersm.NewPreOrderState(preOrder.Status)
-	if err != nil {
-		return err
-	}
-
-	pOrder, err := t.preOrderRepository.GetByID(ctx, preOrderID, []string{})
-	if err != nil {
-		return err
-	}
-
-	variantIncludes := []string{"Product", "Product.Limited"}
-	variant, err := t.variantRepository.GetByID(ctx, pOrder.VariantID, variantIncludes)
+func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, reason, fileURL *string) error {
+	preOrder, limitedProduct, actionUser, err := t.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, updatedBy)
 	if err != nil {
 		return err
 	}
 
 	ctxState := &preordersm.PreOrderContext{
-		State:          currentState,
-		PreOrder:       pOrder,
-		LimitedProduct: variant.Product.Limited,
+		State:          preordersm.NewPreOrderState(preOrder.Status),
+		PreOrder:       preOrder,
+		LimitedProduct: limitedProduct,
+		ActionBy:       actionUser,
 	}
-	nextState, err := preordersm.NewPreOrderState(targetState)
-	if err != nil {
+	nextState := preordersm.NewPreOrderState(targetState)
+	if err := ctxState.State.Next(ctxState, nextState); err != nil {
+		zap.L().Error("PreOrder state transition validation failed", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return err
 	}
-	// Validate transition
-	if err = ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("PreOrder state transition validation failed", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("state transition not allowed: " + err.Error())
-	}
+	preOrder.AddActionNote(*ctxState.GenerateActionNote(actionUser, reason))
 
+	// Special case: proof of delivery file is required when moving to Delivered/Received
 	isSelfPick := preOrder.IsSelfPickedUp
 	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
 	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
@@ -98,14 +78,10 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		}
 		preOrder.ConfirmationImage = fileURL
 	}
-
-	// 3) Persist new state to database
-	preOrder.Status = targetState
 	if err := t.preOrderRepository.Update(ctx, preOrder); err != nil {
 		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return errors.New("failed to update PreOrder state: " + err.Error())
 	}
-
 	return nil
 }
 
@@ -725,7 +701,8 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		standByMinutes := t.adminConfig.CensorshipIntervalMinutes
 		isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
 		if isCurrentStatePerfomedByCustomer && isAllow {
-			return errors.New("You can only allow to do this action after 5 mins after user action, remaining time: " + time.Until(order.UpdatedAt.Add(5*time.Minute)).String())
+			msg := fmt.Sprintf("You can only allow to do this action after %d mins after user action, remaining time: %s", standByMinutes, time.Until(order.UpdatedAt.Add(time.Duration(standByMinutes)*time.Minute)).String())
+			return errors.New(msg)
 		}
 
 		updatedBy, err := uow.Users().GetByID(ctx, updatedUserID, []string{})
@@ -734,18 +711,13 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		}
 
 		// 2) Validate state transition using state machine
-		ctxState := &ordersm.OrderContext{State: ordersm.NewOrderState(order.Status)}
-		nextState := ordersm.NewOrderState(targetState)
-		if nextState == nil {
-			return errors.New("invalid target state")
-		}
-		if err = ctxState.State.Next(ctxState, nextState); err != nil {
-			zap.L().Error("Order state transition validation failed", zap.Error(err))
-			return fmt.Errorf("state transition not allowed: %w", err)
+		err = MoveOrderStateUsingFSM(order, updatedBy, targetState, note)
+		if err != nil {
+			return err
 		}
 
 		// 3) Handle order side effects
-		err = t.handleOrderStatusSideEffect(ctx, uow, ctxState, targetState, order, updatedBy, note)
+		err = t.handleOrderStatusSideEffect(ctx, uow, nil, targetState, order, updatedBy, note)
 		if err != nil {
 			return err
 		}
@@ -988,7 +960,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	uow irepository.UnitOfWork,
 	preorder *model.PreOrder,
 	transactionStatus enum.PaymentTransactionStatus,
-	_ uuid.UUID,
+	updatedBy uuid.UUID,
 ) error {
 	if preorder == nil {
 		return errors.New("pre-order is nil")
@@ -996,8 +968,13 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		// mark preorder as pre-ordered (payment succeeded)
-		preorder.Status = enum.PreOrderStatusPaid
+		//preorder.Status = enum.PreOrderStatusPaid
 		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())
+		err := t.MovePreOrderToState(ctx, preorder.ID, enum.PreOrderStatusPaid, updatedBy, nil, nil)
+		if err != nil {
+			return err
+		}
+
 		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to PAID",
 				zap.String("preorder_id", preorder.ID.String()),
@@ -1005,7 +982,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 			return errors.New("failed to update preorder status: " + err.Error())
 		}
 		zap.L().Info("Preorder marked as PAID", zap.String("preorder_id", preorder.ID.String()))
-		return nil
+		return err
 
 	case enum.PaymentTransactionStatusFailed, enum.PaymentTransactionStatusCancelled, enum.PaymentTransactionStatusExpired:
 		// revert stock (restore) and mark preorder cancelled
@@ -1031,7 +1008,10 @@ func (t stateTransferService) handlePreOrderSideEffect(
 			}
 		}
 
-		preorder.Status = enum.PreOrderStatusCancelled
+		err = t.MovePreOrderToState(ctx, preorder.ID, enum.PreOrderStatusCancelled, updatedBy, nil, nil)
+		if err != nil {
+			return err
+		}
 		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to CANCELLED",
 				zap.String("preorder_id", preorder.ID.String()), zap.Error(err))
@@ -1065,7 +1045,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	}
 	orderRepo := uow.Order()
 
-	note := transactionCtx.GenerateActionNote(updatedBy, reason)
+	//note := transactionCtx.GenerateActionNote(updatedBy, reason)
 
 	switch nextStatus {
 	case enum.OrderStatusConfirmed:
@@ -1094,7 +1074,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		//Add action notes as log
 		zap.L().Info("Order cancelled, bending rejected email")
 		//Add Note
-		order.AddActionNote(*note)
+		//order.AddActionNote(*note)
 
 		// Regain stock for LIMITED orders and persist per-variant
 		if order.OrderType == enum.ProductTypeLimited.String() {
@@ -1127,7 +1107,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		//err = orderRepo.Update(ctx, order)
 	case enum.OrderStatusRefunded:
 		zap.L().Info("Order refunded, sending rejected email")
-		order.AddActionNote(*note)
+		//order.AddActionNote(*note)
 		err = orderRepo.Update(ctx, order)
 	}
 	return err
@@ -1151,9 +1131,41 @@ func NewStateTransferService(
 		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
 		preOrderRepository:      dbReg.PreOrderRepository,
 		variantRepository:       dbReg.ProductVariantRepository,
+		userRepository:          dbReg.UserRepository,
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,
 		adminConfig:             configs.AdminConfig,
 	}
+}
+
+func (t *stateTransferService) lookupPreOrderWithLimitedProductAndUser(ctx context.Context, preorderID, actionBy uuid.UUID) (*model.PreOrder, *model.LimitedProduct, *model.User, error) {
+	// 1) Load PreOrder
+	preOrder, err := t.preOrderRepository.GetByID(ctx, preorderID, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	variantIncludes := []string{"Product", "Product.Limited"}
+	variant, err := t.variantRepository.GetByID(ctx, preOrder.VariantID, variantIncludes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// If actionBy is zero value, treat as System user
+	var user *model.User
+	if actionBy == uuid.Nil {
+		user = &model.User{
+			ID:       uuid.UUID{},
+			FullName: t.adminConfig.SystemName,
+			Email:    t.adminConfig.SystemEmail,
+		}
+	} else {
+		user, err = t.userRepository.GetByID(ctx, actionBy, nil)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	return preOrder, variant.Product.Limited, user, nil
 }

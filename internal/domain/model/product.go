@@ -19,18 +19,18 @@ type Product struct {
 	Type        enum.ProductType   `json:"type" gorm:"column:type;not null;check:type in ('STANDARD', 'LIMITED')"`
 	CreatedAt   time.Time          `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt   time.Time          `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt   gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt   gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 	Status      enum.ProductStatus `json:"status" gorm:"column:status;not null;check:status in ('DRAFT','SUBMITTED','REVISION','APPROVED','ACTIVED','INACTIVED')"`
 	CreatedByID uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
 	UpdatedByID *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
-	CreatedBy   *User              `json:"created_by_user" gorm:"foreignKey:CreatedByID"`
-	UpdatedBy   *User              `json:"updated_by_user" gorm:"foreignKey:UpdatedByID"`
+	CreatedBy   *User              `json:"created_by_user" gorm:"foreignKey:CreatedByID" swaggerignore:"true"`
+	UpdatedBy   *User              `json:"updated_by_user" gorm:"foreignKey:UpdatedByID" swaggerignore:"true"`
 	IsActive    bool               `json:"is_active" gorm:"column:is_active;default:false;not null"`
 	// Relationships
-	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID"`
+	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
 	Variants []ProductVariant `json:"-" gorm:"foreignKey:ProductID"`
-	Task     *Task            `json:"task" gorm:"foreignKey:TaskID"`
+	Task     *Task            `json:"task" gorm:"foreignKey:TaskID" swaggerignore:"true"`
 	Limited  *LimitedProduct  `json:"limited" gorm:"foreignKey:Id;references:ID"`
 }
 
