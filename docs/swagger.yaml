@@ -1804,6 +1804,8 @@ definitions:
         type: string
       quantity:
         type: integer
+      staff_resource:
+        type: string
       status:
         $ref: '#/definitions/enum.PreOrderStatus'
       street:
@@ -1818,6 +1820,8 @@ definitions:
         type: string
       user_note:
         description: DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
+        type: string
+      user_resource:
         type: string
       uses:
         type: string
@@ -3611,6 +3615,24 @@ definitions:
     required:
     - new_token
     - platform
+    type: object
+  requests.UpdateProductRequest:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Updated product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Updated Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
     type: object
   requests.UpdateProfileRequest:
     properties:
@@ -14001,6 +14023,56 @@ paths:
       security:
       - BearerAuth: []
       summary: Get Product Detail
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: Update product details (brand, category, name, description). Cannot
+        change product type.
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product updated successfully
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a product
       tags:
       - Products
   /api/v1/products/{id}/state:

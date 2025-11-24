@@ -12719,6 +12719,83 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update product details (brand, category, name, description). Cannot change product type.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Update a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Product update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/products/{id}/state": {
@@ -18063,6 +18140,9 @@ const docTemplate = `{
                 "quantity": {
                     "type": "integer"
                 },
+                "staff_resource": {
+                    "type": "string"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.PreOrderStatus"
                 },
@@ -18083,6 +18163,9 @@ const docTemplate = `{
                 },
                 "user_note": {
                     "description": "DeletedAt gorm.DeletedAt      ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at\"swaggerignore:\"true\"` + "`" + `",
+                    "type": "string"
+                },
+                "user_resource": {
                     "type": "string"
                 },
                 "uses": {
@@ -20550,6 +20633,30 @@ const docTemplate = `{
                             "$ref": "#/definitions/enum.PlatformType"
                         }
                     ]
+                }
+            }
+        },
+        "requests.UpdateProductRequest": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Updated product description"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Updated Product Name"
                 }
             }
         },
