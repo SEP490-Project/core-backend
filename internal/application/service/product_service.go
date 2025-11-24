@@ -18,11 +18,41 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+func parseTime(date *string) time.Time {
+	if date == nil {
+		return time.Time{}
+	}
+
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05-07:00",
+		"2006-01-02T15:04-07:00",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04Z07:00",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04",
+		"2006-01-02",
+	}
+
+	var lastErr error
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, *date); err == nil {
+			return t
+		} else {
+			lastErr = err
+		}
+	}
+
+	zap.L().Error("Error parsing time (all formats failed)", zap.String("date", *date), zap.Error(lastErr))
+	return time.Time{}
+}
 
 type productService struct {
 	repository           irepository.GenericRepository[model.Product]
@@ -36,6 +66,183 @@ type productService struct {
 
 	imageStorage irepository_third_party.S3Storage
 	rabbitmq     *rabbitmq.RabbitMQ
+}
+
+func (p *productService) UpdateProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateProductRequest) (*model.Product, error) {
+	// Load existing product
+	product, err := p.repository.GetByID(ctx, productID, []string{"Limited"})
+	if err != nil {
+		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+	if product.Status == enum.ProductStatusActived {
+		return nil, errors.New("cannot update an actived product")
+	}
+
+	// Validate and apply brand change
+	if update.BrandID != nil {
+		if exists, err := p.brandRepo.ExistsByID(ctx, *update.BrandID); err != nil {
+			zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", update.BrandID.String()))
+			return nil, errors.New("could not verify brand existence")
+		} else if !exists {
+			return nil, errors.New("brand not found")
+		}
+		product.BrandID = *update.BrandID
+	}
+
+	// Validate and apply category change
+	if update.CategoryID != nil {
+		if exists, err := p.categoryRepo.ExistsByID(ctx, *update.CategoryID); err != nil {
+			zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", update.CategoryID.String()))
+			return nil, errors.New("could not verify category existence")
+		} else if !exists {
+			return nil, errors.New("category not found")
+		}
+		product.CategoryID = *update.CategoryID
+	}
+
+	// Apply name and description updates
+	if update.Name != nil {
+		trimmed := strings.TrimSpace(*update.Name)
+		if trimmed == "" {
+			return nil, errors.New("name cannot be empty")
+		}
+		product.Name = trimmed
+	}
+
+	if update.Description != nil {
+		product.Description = update.Description
+	}
+
+	// Persist changes
+	if err := p.repository.Update(ctx, product); err != nil {
+		zap.L().Error("failed to update product", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	// Reload product with common relations for response
+	saved, err := p.repository.GetByID(ctx, productID, []string{"Brand", "Category", "Variants", "Limited"})
+	if err != nil {
+		zap.L().Warn("updated product but failed to reload with relations", zap.Error(err))
+		return product, nil
+	}
+
+	return saved, nil
+}
+
+func (p productService) UpdateLimitedProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateLimitedProductRequest) (*model.Product, error) {
+	// Load existing product with Limited relation
+	product, err := p.repository.GetByID(ctx, productID, []string{"Limited"})
+	if err != nil {
+		zap.L().Info("failed to get product by id", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+	if product == nil {
+		return nil, errors.New("product not found")
+	}
+
+	// Only limited products can be updated via this endpoint
+	if product.Type != enum.ProductTypeLimited {
+		return nil, errors.New("product is not of type LIMITED")
+	}
+
+	// Prevent updating an actived product
+	if product.Status == enum.ProductStatusActived {
+		return nil, errors.New("cannot update an actived product")
+	}
+
+	// Validate and apply brand change
+	if update.BrandID != nil {
+		if exists, err := p.brandRepo.ExistsByID(ctx, *update.BrandID); err != nil {
+			zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", update.BrandID.String()))
+			return nil, errors.New("could not verify brand existence")
+		} else if !exists {
+			return nil, errors.New("brand not found")
+		}
+		product.BrandID = *update.BrandID
+	}
+
+	// Validate and apply category change
+	if update.CategoryID != nil {
+		if exists, err := p.categoryRepo.ExistsByID(ctx, *update.CategoryID); err != nil {
+			zap.L().Info("failed verifying category existence", zap.Error(err), zap.String("category_id", update.CategoryID.String()))
+			return nil, errors.New("could not verify category existence")
+		} else if !exists {
+			return nil, errors.New("category not found")
+		}
+		product.CategoryID = *update.CategoryID
+	}
+
+	// Apply name and description updates
+	if update.Name != nil {
+		trimmed := strings.TrimSpace(*update.Name)
+		if trimmed == "" {
+			return nil, errors.New("name cannot be empty")
+		}
+		product.Name = trimmed
+	}
+
+	if update.Description != nil {
+		product.Description = update.Description
+	}
+
+	// Ensure Limited entity exists in memory (create placeholder if missing)
+	var limited *model.LimitedProduct
+	if product.Limited != nil {
+		limited = product.Limited
+	} else {
+		limited = &model.LimitedProduct{Id: product.ID}
+	}
+
+	// Concept validation and assignment
+	if update.ConceptID != nil {
+		if exists, err := p.conceptRepo.ExistsByID(ctx, *update.ConceptID); err != nil {
+			zap.L().Info("failed verifying concept existence", zap.Error(err), zap.String("concept_id", update.ConceptID.String()))
+			return nil, errors.New("could not verify concept existence")
+		} else if !exists {
+			return nil, errors.New("concept not found")
+		}
+		limited.ConceptID = update.ConceptID
+	}
+
+	// Date fields (parse using helper)
+	if update.PremiereDate != nil {
+		limited.PremiereDate = parseTime(update.PremiereDate)
+	}
+	if update.AvailabilityStartDate != nil {
+		limited.AvailabilityStartDate = parseTime(update.AvailabilityStartDate)
+	}
+	if update.AvailabilityEndDate != nil {
+		limited.AvailabilityEndDate = parseTime(update.AvailabilityEndDate)
+	}
+
+	// Persist limited entity first (upsert behaviour: attempt Update, otherwise Add)
+	if err := p.limitedProductRepo.Update(ctx, limited); err != nil {
+		// If update fails because record not found, try Add
+		zap.L().Debug("limited update failed, attempting add", zap.Error(err))
+		if addErr := p.limitedProductRepo.Add(ctx, limited); addErr != nil {
+			zap.L().Error("failed to persist limited product", zap.String("product_id", productID.String()), zap.Error(addErr))
+			return nil, addErr
+		}
+	}
+
+	// Persist product changes
+	if err := p.repository.Update(ctx, product); err != nil {
+		zap.L().Error("failed to update product", zap.String("product_id", productID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	// Reload product with relations for response
+	saved, err := p.repository.GetByID(ctx, productID, []string{"Brand", "Category", "Variants", "Limited"})
+	if err != nil {
+		zap.L().Warn("updated limited product but failed to reload with relations", zap.Error(err))
+		return product, nil
+	}
+
+	return saved, nil
 }
 
 func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*responses.ProductResponseV2, error) {
@@ -802,6 +1009,8 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 		"Category",
 		"Category.ParentCategory",
 		"Category.ChildCategories",
+		"CreatedBy",
+		"UpdatedBy",
 	}
 
 	// === Bước 1: Lấy danh sách ID của page này ===
@@ -847,7 +1056,7 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 	// === Bước 4: Map sang DTO ===
 	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
 	for i := range products {
-		resp := &responses.ProductResponseV2Partial{}
+		resp := responses.ProductResponseV2Partial{}
 		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
 	}
 
@@ -1239,7 +1448,7 @@ func (p productService) UpdateVariantImageAsync(ctx context.Context, userID, var
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			fileName := filepath.Base(*filePath)
 			key := fmt.Sprintf("%s/%s", userID.String(), fileName)
@@ -1305,4 +1514,229 @@ func NewProductService(
 		imageStorage:         storage3rd.S3Storage,
 		rabbitmq:             rabbitmq,
 	}
+}
+
+func (p productService) UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest) (*model.ProductVariant, error) {
+	// Load existing variant with product relation
+	variant, err := p.variantRepo.GetByID(ctx, variantID, []string{"Product"})
+	if err != nil {
+		zap.L().Info("failed to get product variant by id", zap.String("variant_id", variantID.String()), zap.Error(err))
+		return nil, err
+	}
+	if variant == nil {
+		return nil, errors.New("product variant not found")
+	}
+
+	// Parse optional dates
+	if update.ManufactureDate != nil {
+		if parsed, err := time.Parse(time.RFC3339, *update.ManufactureDate); err == nil {
+			variant.ManufactureDate = &parsed
+		} else {
+			zap.L().Warn("failed to parse manufacture date", zap.Error(err), zap.String("value", *update.ManufactureDate))
+		}
+	}
+	if update.ExpiryDate != nil {
+		if parsed, err := time.Parse(time.RFC3339, *update.ExpiryDate); err == nil {
+			variant.ExpiryDate = &parsed
+		} else {
+			zap.L().Warn("failed to parse expiry date", zap.Error(err), zap.String("value", *update.ExpiryDate))
+		}
+	}
+
+	// Apply scalar updates if provided
+	if update.Price != nil {
+		if *update.Price < 0 {
+			zap.L().Warn("price less than 0, setting to 0")
+			*update.Price = 0
+		}
+		variant.Price = *update.Price
+	}
+	if update.Capacity != nil {
+		variant.Capacity = *update.Capacity
+	}
+	if update.CapacityUnit != nil {
+		variant.CapacityUnit = *update.CapacityUnit
+	}
+	if update.ContainerType != nil {
+		variant.ContainerType = *update.ContainerType
+	}
+	if update.DispenserType != nil {
+		variant.DispenserType = *update.DispenserType
+	}
+	if update.Uses != nil {
+		variant.Uses = *update.Uses
+	}
+	if update.Instructions != nil {
+		variant.Instructions = *update.Instructions
+	}
+	if update.Weight != nil {
+		variant.Weight = *update.Weight
+	}
+	if update.Height != nil {
+		variant.Height = *update.Height
+	}
+	if update.Length != nil {
+		variant.Length = *update.Length
+	}
+	if update.Width != nil {
+		variant.Width = *update.Width
+	}
+
+	// Handle stock update for inputed stock (only set CurrentStock/MaxStock as appropriate)
+	if update.InputedStock != nil {
+		variant.CurrentStock = update.InputedStock
+		// if MaxStock exists, keep it; otherwise set MaxStock to inputed stock
+		if variant.MaxStock == nil {
+			variant.MaxStock = update.InputedStock
+		}
+	}
+
+	// Handle default flag: unset other variants' default if setting this one to true
+	if update.IsDefault != nil && *update.IsDefault {
+		result := p.variantRepo.DB().WithContext(ctx).
+			Model(&model.ProductVariant{}).
+			Where("product_id = ?", variant.ProductID).
+			Update("is_default", false)
+		if result.Error != nil {
+			zap.L().Warn("failed to unset other default variants", zap.Error(result.Error))
+		}
+		variant.IsDefault = *update.IsDefault
+	} else if update.IsDefault != nil {
+		variant.IsDefault = *update.IsDefault
+	}
+
+	variant.UpdatedAt = time.Now().UTC()
+
+	if err := p.variantRepo.Update(ctx, variant); err != nil {
+		zap.L().Error("failed to update product variant", zap.String("variant_id", variantID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	return variant, nil
+}
+
+func (p productService) UpdateLimitedVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateLimitedProductVariantRequest) (*model.ProductVariant, error) {
+	// Load existing variant with product relation
+	variant, err := p.variantRepo.GetByID(ctx, variantID, []string{"Product"})
+	if err != nil {
+		zap.L().Info("failed to get product variant by id", zap.String("variant_id", variantID.String()), zap.Error(err))
+		return nil, err
+	}
+	if variant == nil {
+		return nil, errors.New("product variant not found")
+	}
+
+	// Ensure parent product is LIMITED
+	if variant.Product == nil || variant.Product.Type != enum.ProductTypeLimited {
+		return nil, errors.New("variant does not belong to a LIMITED product")
+	}
+
+	// Parse optional dates
+	if update.ManufactureDate != nil {
+		if parsed, err := time.Parse(time.RFC3339, *update.ManufactureDate); err == nil {
+			variant.ManufactureDate = &parsed
+		} else {
+			zap.L().Warn("failed to parse manufacture date", zap.Error(err), zap.String("value", *update.ManufactureDate))
+		}
+	}
+	if update.ExpiryDate != nil {
+		if parsed, err := time.Parse(time.RFC3339, *update.ExpiryDate); err == nil {
+			variant.ExpiryDate = &parsed
+		} else {
+			zap.L().Warn("failed to parse expiry date", zap.Error(err), zap.String("value", *update.ExpiryDate))
+		}
+	}
+
+	// Apply common updates
+	if update.Price != nil {
+		if *update.Price < 0 {
+			zap.L().Warn("price less than 0, setting to 0")
+			*update.Price = 0
+		}
+		variant.Price = *update.Price
+	}
+	if update.Capacity != nil {
+		variant.Capacity = *update.Capacity
+	}
+	if update.CapacityUnit != nil {
+		variant.CapacityUnit = *update.CapacityUnit
+	}
+	if update.ContainerType != nil {
+		variant.ContainerType = *update.ContainerType
+	}
+	if update.DispenserType != nil {
+		variant.DispenserType = *update.DispenserType
+	}
+	if update.Uses != nil {
+		variant.Uses = *update.Uses
+	}
+	if update.Instructions != nil {
+		variant.Instructions = *update.Instructions
+	}
+	if update.Weight != nil {
+		variant.Weight = *update.Weight
+	}
+	if update.Height != nil {
+		variant.Height = *update.Height
+	}
+	if update.Length != nil {
+		variant.Length = *update.Length
+	}
+	if update.Width != nil {
+		variant.Width = *update.Width
+	}
+
+	// Handle stock related fields
+	if update.InputedStock != nil {
+		variant.CurrentStock = update.InputedStock
+		// If MaxStock is not set, set to inputed stock
+		if variant.MaxStock == nil {
+			variant.MaxStock = update.InputedStock
+		}
+	}
+
+	// MaxStock and PreOrderLimit updates with validation
+	if update.MaxStock != nil {
+		if *update.MaxStock < 0 {
+			return nil, errors.New("max_stock cannot be negative")
+		}
+		variant.MaxStock = update.MaxStock
+	}
+	if update.PreOrderLimit != nil {
+		if *update.PreOrderLimit < 0 {
+			return nil, errors.New("pre_order_limit cannot be negative")
+		}
+		// If MaxStock is set (either in payload or existing), ensure preorder_limit <= max_stock
+		if variant.MaxStock != nil && *update.PreOrderLimit > *variant.MaxStock {
+			return nil, errors.New("pre_order_limit must not exceed max_stock")
+		}
+		// Also ensure existing pre_order_count does not exceed new limit
+		if variant.PreOrderCount != nil && *variant.PreOrderCount > *update.PreOrderLimit {
+			return nil, errors.New("pre_order_limit cannot be less than current pre_order_count")
+		}
+		variant.PreOrderLimit = update.PreOrderLimit
+	}
+
+	// Handle default flag
+	if update.IsDefault != nil && *update.IsDefault {
+		result := p.variantRepo.DB().WithContext(ctx).
+			Model(&model.ProductVariant{}).
+			Where("product_id = ?", variant.ProductID).
+			Update("is_default", false)
+		if result.Error != nil {
+			zap.L().Warn("failed to unset other default variants", zap.Error(result.Error))
+		}
+		variant.IsDefault = *update.IsDefault
+	} else if update.IsDefault != nil {
+		variant.IsDefault = *update.IsDefault
+	}
+
+	variant.UpdatedAt = time.Now().UTC()
+
+	if err := p.variantRepo.Update(ctx, variant); err != nil {
+		zap.L().Error("failed to update limited product variant", zap.String("variant_id", variantID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	return variant, nil
 }

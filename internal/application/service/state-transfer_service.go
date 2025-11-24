@@ -194,6 +194,10 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 
 	//5. Save to DB
 	product.Status = targetState
+	if targetState == enum.ProductStatusActived {
+		product.IsActive = true
+	}
+	
 	if err := t.productRepository.Update(ctx, product); err != nil {
 		zap.L().Error("Failed to update product state in DB",
 			zap.String("user_id", productID.String()),

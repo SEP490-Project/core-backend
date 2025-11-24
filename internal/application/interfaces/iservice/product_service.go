@@ -24,21 +24,32 @@ type ProductService interface {
 
 	PublishProduct(productID uuid.UUID, isActive bool) (*responses.ProductResponseV2, error)
 
-	//Variants
+	// Update Product (standard)
+	UpdateProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateProductRequest) (*model.Product, error)
+
+	// Update Limited Product
+	UpdateLimitedProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateLimitedProductRequest) (*model.Product, error)
+
+	// Variants
 	CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error)
 	CreateProductStory(ctx context.Context, variantID uuid.UUID, story requests.CreateProductStoryRequest, uow irepository.UnitOfWork) (*model.ProductStory, error)
 	CreateVarianceImage(ctx context.Context, variantID uuid.UUID, image requests.CreateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
 	UpdateVariantImage(ctx context.Context, variantImageID uuid.UUID, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
 	UpdateVariantImageAsync(ctx context.Context, userID, variantImageID uuid.UUID, filePath *string, image requests.UpdateVariantImagesRequest, uow irepository.UnitOfWork) (*model.VariantImage, error)
-	//Attributes
+	// Attributes
 	AddVariantAttributeValue(ctx context.Context, variantID uuid.UUID, attributeID uuid.UUID, attributeValue requests.CreateVariantAttributeValueRequest, uow irepository.UnitOfWork) (*model.VariantAttributeValue, error)
 	CreateVariantAttribute(ctx context.Context, createdByID uuid.UUID, attribute requests.CreateVariantAttributeRequest, uow irepository.UnitOfWork) (*model.VariantAttribute, error)
 	GetVariantAttributePaginationPartial(limit, offset int, search string) ([]responses.VariantAttributeResponse, int, error)
 	GetVariantAttributePagination(limit, offset int, search string) ([]model.VariantAttribute, int, error)
 
-	//Concepts
+	// Update Variant
+	UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest) (*model.ProductVariant, error)
+
+	UpdateLimitedVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateLimitedProductVariantRequest) (*model.ProductVariant, error)
+
+	// Concepts
 	AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error)
 
-	//Helpers
+	// Helpers
 	BuildFileURL(fileName string) string
 }
