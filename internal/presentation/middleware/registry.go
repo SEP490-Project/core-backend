@@ -39,7 +39,7 @@ func (reg *MiddlewareRegistry) ApplyGlobalMiddlewares(r *gin.Engine) {
 	r.Use(reg.RequestID)
 	r.Use(reg.Logging)
 	r.Use(reg.CORS)
-	r.Use(reg.Timeout)
+	// r.Use(reg.Timeout)
 	if reg.config.Log.Level == "debug" && reg.config.Server.Environment != "production" {
 		r.Use(reg.ResponseLog)
 	}

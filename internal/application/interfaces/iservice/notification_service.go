@@ -55,4 +55,7 @@ type NotificationService interface {
 
 	// BroadcastToAll sends a unified notification to all users (optionally filtered by role)
 	BroadcastToAll(ctx context.Context, title, body string, data map[string]string, role *string) error
+
+	// GetUnreadCount retrieves the count of unread notifications for a user
+	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error)
 }
