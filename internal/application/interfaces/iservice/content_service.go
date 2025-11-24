@@ -25,7 +25,7 @@ type ContentService interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// List retrieves paginated content with filters and search
-	List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentResponse, int64, error)
+	List(ctx context.Context, req *requests.ContentFilterRequest) ([]*responses.ContentListResponse, int64, error)
 
 	// SetRejectionFeedback stores rejection feedback for a content item (transaction-aware)
 	SetRejectionFeedback(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, feedback string) error

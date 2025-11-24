@@ -34,7 +34,7 @@ func NewMiddlewareRegistry(applicationRegistry *application.ApplicationRegistry)
 	}
 }
 
-func (reg *MiddlewareRegistry) ApplyGlobalMiddlewares(r *gin.RouterGroup) {
+func (reg *MiddlewareRegistry) ApplyGlobalMiddlewares(r *gin.Engine) {
 	r.Use(reg.Recovery)
 	r.Use(reg.RequestID)
 	r.Use(reg.Logging)
