@@ -1,0 +1,30 @@
+Order Confirmation
+==================
+
+Hello {{.CustomerName}},
+
+Thank you for your order! We have successfully received your order and are currently processing it.
+
+Order Details:
+--------------
+Order Number: {{.OrderCode}}
+Order Date: {{.OrderDate}}
+Total Amount: {{.TotalAmount}}
+Shipping Address: {{.ShippingAddress}}
+
+Order Summary:
+--------------
+{{range .Items}}
+  {{.Quantity}} x {{.ProductName}} - {{.ItemTotal}}
+{{end}}
+Shipping Fee: {{.ShippingFee}}
+-----------------------
+GRAND TOTAL: {{.TotalAmount}}
+
+Please review the details and track your order here:
+
+View Order Status: {{.OrderLink}}
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.

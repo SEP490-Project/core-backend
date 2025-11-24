@@ -17,7 +17,7 @@ func (p *PendingState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 }
 func (p *PendingState) Next(ctx *PreOrderContext, next PreOrderState) error {
 	if _, ok := p.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition from PENDING to %s", next.Name())

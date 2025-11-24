@@ -26,7 +26,7 @@ type ProductVariant struct {
 	IsDefault       bool               `json:"is_default" gorm:"column:is_default;not null;default:false"`
 	CreatedAt       time.Time          `json:"created_at" gorm:"column:created_at"`
 	UpdatedAt       time.Time          `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt       gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt       gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 	CreatedByID     uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
 	UpdatedByID     *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
 
@@ -40,7 +40,7 @@ type ProductVariant struct {
 	PreOrderLimit *int `json:"pre_order_limit" gorm:"column:pre_order_limit"`
 	PreOrderCount *int `json:"pre_order_count" gorm:"column:pre_order_count"`
 	//Relationship ExistsByID
-	Product         *Product                `json:"-" gorm:"foreignKey:ProductID"`
+	Product         *Product                `json:"product" gorm:"foreignKey:ProductID"`
 	Story           *ProductStory           `json:"story" gorm:"foreignKey:VariantID"`
 	AttributeValues []VariantAttributeValue `json:"attributes" gorm:"foreignKey:VariantID"`
 	Images          []VariantImage          `json:"images" gorm:"foreignKey:VariantID"`

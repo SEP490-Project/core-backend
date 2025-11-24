@@ -856,19 +856,19 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 
 // RequestRefund handles early refund requests for a specific order.
 //
-//	@Summary		Request early refund
-//	@Description	Allows a user to request an early refund for an existing order.
-//	@Tags			Orders.States
-//	@Accept			json
-//	@Produce		json
-//	@Param			orderID	path		string					true	"Order ID (UUID)"
-//	@Success		200		{object}	responses.APIResponse	"Refund request accepted"
-//	@Failure		400		{object}	responses.APIResponse	"Invalid order ID or business rule violation"
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		422		{object}	responses.APIResponse	"Refund period expired"
-//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/{orderID}/refund [post]
+// @Summary     Request early refund
+// @Description Allows a user to request an early refund for an existing order.
+// @Tags        Orders.States
+// @Accept      json
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Success     200       {object}  responses.APIResponse "Refund request accepted"
+// @Failure     400       {object}  responses.APIResponse "Invalid order ID or business rule violation"
+// @Failure     401       {object}  responses.APIResponse "Unauthorized"
+// @Failure     422       {object}  responses.APIResponse "Refund period expired"
+// @Failure     500       {object}  responses.APIResponse "Internal server error"
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/refund [post]
 func (h *OrderHandler) RequestRefund(c *gin.Context) {
 	now := time.Now()
 	idParam := c.Param("orderID")
@@ -897,19 +897,19 @@ func (h *OrderHandler) RequestRefund(c *gin.Context) {
 
 // ApproveRefund godoc
 //
-//	@Summary		Approve early refund (staff)
-//	@Description	Approve refund request and optionally attach confirmation image
-//	@Tags			Orders[Staff].States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID	path		string	true	"Order ID (UUID)"
-//	@Param			file	formData	file	false	"Confirmation image"
-//	@Success		200		{object}	responses.APIResponse
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		401		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/refund/approve [post]
+//	@Summary     Approve early refund (staff)
+//	@Description Approve refund request and optionally attach confirmation image
+//	@Tags        Orders[Staff].States
+//	@Accept      multipart/form-data
+//	@Produce     json
+//	@Param       orderID  path      string true  "Order ID (UUID)"
+//	@Param       file     formData  file   false "Confirmation image"
+//	@Success     200      {object}  responses.APIResponse
+//	@Failure     400      {object}  responses.APIResponse
+//	@Failure     401      {object}  responses.APIResponse
+//	@Failure     500      {object}  responses.APIResponse
+//	@Security    BearerAuth
+//	@Router      /api/v1/orders/staff/{orderID}/refund/approve [post]
 func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -971,18 +971,18 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 
 // RequestCompensation godoc
 //
-//	@Summary		Request compensation for an order
-//	@Description	Submit a compensation request for an order with reason and optional supporting file.
-//	@Tags			Orders.States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID	path		string	true	"Order ID (UUID)"
-//	@Param			reason	formData	string	true	"Reason for compensation"
-//	@Param			file	formData	file	true	"File as evidence"
-//	@Success		200		{object}	responses.APIResponse
-//	@Failure		400		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/{orderID}/compensation [post]
+// @Summary     Request compensation for an order
+// @Description Submit a compensation request for an order with reason and optional supporting file.
+// @Tags        Orders.States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       reason    formData  string true  "Reason for compensation"
+// @Param       file      formData  file   true  "File as evidence"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/compensation [post]
 func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -1050,21 +1050,21 @@ func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 
 // ProcessCompensation godoc
 //
-//	@Summary		Process compensation (staff)
-//	@Description	Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
-//	@Tags			Orders[Staff].States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID		path		string	true	"Order ID (UUID)"
-//	@Param			isApproved	formData	string	true	"true|false"
-//	@Param			reason		formData	string	false	"Reason (optional)"
-//	@Param			file		formData	file	false	"Confirmation / Evidence file (such as transaction bill)"
-//	@Success		200			{object}	responses.APIResponse
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/compensation [post]
+// @Summary     Process compensation (staff)
+// @Description Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
+// @Tags        Orders[Staff].States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       isApproved formData  string true  "true|false"
+// @Param       reason    formData  string false "Reason (optional)"
+// @Param       file      formData  file   false "Confirmation / Evidence file (such as transaction bill)"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Failure     401       {object}  responses.APIResponse
+// @Failure     500       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/staff/{orderID}/compensation [post]
 func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -1136,4 +1136,92 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation processed successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL}))
+}
+
+// ObligateEarlyRefund godoc
+//
+//	@Summary		Force early refund, skip REFUND_REQUEST
+//	@Description	Upload proof image
+//	@Tags			Orders[Staff].States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID	path		string					true	"Order ID (UUID)"
+//	@Param          reason    formData  string true  "Reason for Refund"
+//	@Param			file	formData	file					true	"Proof image(s) of"
+//	@Success		200		{object}	map[string]interface{}	"Order marked as received successfully"
+//	@Failure		400		{object}	map[string]string		"Invalid order ID or status"
+//	@Failure		404		{object}	map[string]string		"Order not found"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/{orderID}/obligate-refund [post]
+func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
+	orderID, ok := parseParamUUID(c, "orderID", nil, nil)
+	if !ok {
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// Expect reason in form field
+	reason := strings.TrimSpace(c.PostForm("reason"))
+	if reason == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required", http.StatusBadRequest))
+		return
+	}
+
+	var fileURL string
+	// Require file if isApprove == true
+	// File particularly optional if isApprove == false
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader == nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
+		return
+	} else {
+		userTmpDir := "/tmp/uploads"
+		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
+			return
+		}
+
+		timestamp := time.Now().Format("20060102_150405")
+		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+			_ = os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+		defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+		// Upload to remote storage
+		fileURL, err = h.fileService.UploadFile(c.Request.Context(), updatedBy.String(), finalPath, newFileName)
+		if err != nil {
+			_ = os.Remove(finalPath)
+			zap.L().Error("failed to upload refund assets", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+	}
+
+	ctx := c.Request.Context()
+
+	err = h.orderService.ObligateEarlyRefund(ctx, orderID, updatedBy, &reason, &fileURL)
+	if err != nil {
+		msg := fmt.Sprintf("failed to force early refund %s", err.Error())
+		resp := responses.ErrorResponse(msg, http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	resp := responses.SuccessResponse("Order forced early refund successfully", ptr.Int(http.StatusOK), gin.H{
+		"file_url": fileURL,
+	})
+	c.JSON(http.StatusOK, resp)
+
 }
