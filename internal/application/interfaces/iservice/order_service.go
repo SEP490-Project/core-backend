@@ -34,6 +34,7 @@ type OrderService interface {
 	RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, requestTime time.Time) error
 	//Process Refund - By Staff & Cancelled
 	ApproveEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, fileURL string) error
+	ObligateEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error
 
 	//Request Compensation - By Customer
 	RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error

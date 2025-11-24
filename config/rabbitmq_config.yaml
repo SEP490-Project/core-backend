@@ -15,7 +15,7 @@ topology:
           retry:
             enabled: true
             suffix: retry
-            ttlMs: 2000
+            ttlMs: 60000
             maxAttempts: 3
             exponentialMultiply: 2
             exchange: exchange.notification
@@ -32,7 +32,7 @@ topology:
           prefetch: 50
           retry:
             enabled: true
-            ttlMs: 2000
+            ttlMs: 60000
             maxAttempts: 3
             exponentialMultiply: 2
           dlq:
@@ -46,7 +46,7 @@ topology:
           prefetch: 50
           retry:
             enabled: true
-            ttlMs: 2000
+            ttlMs: 60000
             maxAttempts: 3
             exponentialMultiply: 2
           dlq:
@@ -126,7 +126,7 @@ topology:
           prefetch: 50
           retry:
             enabled: true
-            ttlMs: 2000
+            ttlMs: 60000
             maxAttempts: 3
             exponentialMultiply: 2
           dlq:

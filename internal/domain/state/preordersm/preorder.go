@@ -18,7 +18,7 @@ func (s *PreOrderedState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 }
 func (s *PreOrderedState) Next(ctx *PreOrderContext, next PreOrderState) error {
 	if _, ok := s.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition from PRE_ORDERED to %s", next.Name())

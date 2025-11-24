@@ -34,14 +34,32 @@ type orderService struct {
 	userRepository               irepository.GenericRepository[model.User]
 	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
+	notificationService          iservice.NotificationService
 }
 
-func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
-	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
 	}
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	//If this after user action a stanbytime?
+	standByMinutes := o.config.AdminConfig.CensorshipIntervalMinutes
+	isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
+	if isAllow {
+		msg := fmt.Sprintf("You can only allow to do this action after %d mins after user action, remaining time: %s", standByMinutes, time.Until(order.UpdatedAt.Add(time.Duration(standByMinutes)*time.Minute)).String())
+		return errors.New(msg)
+	}
+
+	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefunded, reason)
+	if err != nil {
+		return err
+	}
+	order.StaffResource = fileURL
+	return o.orderRepository.Update(ctx, order)
+}
+
+func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
 	}
@@ -58,20 +76,11 @@ func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionB
 		return err
 	}
 	order.UserResource = fileURL
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
-		return err
-	}
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error {
-	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
-	if err != nil {
-		return err
-	}
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
 	}
@@ -85,12 +94,8 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 			order.StaffResource = fileURL
 		}
 
-		err = o.orderRepository.Update(ctx, order)
-		if err != nil {
-			zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
-			return err
-		}
-		return nil
+		return o.orderRepository.Update(ctx, order)
+
 	} else {
 		err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusCompensated, reason)
 		if err != nil {
@@ -98,21 +103,12 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 		}
 		order.StaffResource = fileURL
 
-		err = o.orderRepository.Update(ctx, order)
-		if err != nil {
-			zap.L().Error("Failed to update order status to compensate requested", zap.Error(err))
-			return err
-		}
-		return nil
+		return o.orderRepository.Update(ctx, order)
 	}
 }
 
 func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, requestTime time.Time) error {
-	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
-	if err != nil {
-		return err
-	}
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
 	}
@@ -127,21 +123,11 @@ func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy
 		return err
 	}
 
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to refund requested", zap.Error(err))
-		return err
-	}
-
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, fileURL string) error {
-	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
-	if err != nil {
-		return err
-	}
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
 	}
@@ -151,12 +137,14 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	}
 	order.StaffResource = &fileURL
 	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to refund", zap.Error(err))
+	if err == nil {
 		return err
 	}
+	//send noti if success
+	//o.notificationService.
 
 	return nil
+
 }
 
 func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
@@ -165,14 +153,8 @@ func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, se
 }
 
 func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, orderID, userID uuid.UUID) error {
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as in transit", zap.Error(err))
-		return err
-	}
-	user, err := o.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -188,23 +170,12 @@ func (o *orderService) MarkSelfDeliveringOrderAsInTransit(ctx context.Context, o
 		return err
 	}
 
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to in transit", zap.Error(err))
-		return err
-	}
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, orderID, userID uuid.UUID, imageURL string) error {
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as delivered", zap.Error(err))
-		return err
-	}
-	user, err := o.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch user for marking order as in transit", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -219,23 +190,12 @@ func (o *orderService) MarkSelfDeliveringOrderAsDelivered(ctx context.Context, o
 		return err
 	}
 	order.ConfirmationImage = &imageURL
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to delivered", zap.Error(err))
-		return err
-	}
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID, userID uuid.UUID, imageURL string) error {
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
-		return err
-	}
-	user, err := o.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
 		return err
 	}
 	//Some validate:
@@ -248,23 +208,12 @@ func (o *orderService) MarkAsReceivedAfterPickedUp(ctx context.Context, orderID,
 		return err
 	}
 	order.ConfirmationImage = &imageURL
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to completed", zap.Error(err))
-		return err
-	}
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userID uuid.UUID) error {
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as pickedup", zap.Error(err))
-		return err
-	}
-	user, err := o.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as pickedup", zap.Error(err))
 		return err
 	}
 
@@ -281,22 +230,17 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userI
 	}
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
-		zap.L().Error("Failed to update order status to completed", zap.Error(err))
 		return err
 	}
+
+	//o.sendNotification(order.Status, order, user)
+
 	return nil
 }
 
 func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.UUID) error {
-	order, err := o.orderRepository.GetByID(ctx, orderID, nil)
+	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
-		return err
-	}
-
-	user, err := o.userRepository.GetByID(ctx, userID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch order for marking as received", zap.Error(err))
 		return err
 	}
 
@@ -310,12 +254,7 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 		return err
 	}
 
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
-		zap.L().Error("Failed to update order status to completed", zap.Error(err))
-		return err
-	}
-	return nil
+	return o.orderRepository.Update(ctx, order)
 }
 
 func (o *orderService) GetOrdersByUserIDWithPagination(
@@ -385,7 +324,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 	var orders []model.Order
 	if err := o.orderRepository.DB().WithContext(ctx).
 		Scopes(filterScope).
-		Preload("OrderItems").
+		Preload("OrderItems").Preload("OrderItems.Variant").Preload("OrderItems.Variant.Product").Preload("OrderItems.Variant.Product.Limited").
 		Order("orders.created_at DESC, orders.id ASC").
 		Limit(limit).
 		Offset(offset).
@@ -546,13 +485,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		persistedOrder.OrderType = orderType.String()
 
 		//1.3.Persist
-		err = uow.Order().Add(ctx, persistedOrder)
-		if err != nil {
-			zap.L().Error("Order().Add", zap.Error(err))
-			return err
-		}
-
-		return nil
+		return uow.Order().Add(ctx, persistedOrder)
 	})
 
 	if err != nil {
@@ -819,7 +752,7 @@ func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updat
 	})
 }
 
-func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService) iservice.OrderService {
+func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, notificationService iservice.NotificationService) iservice.OrderService {
 	return &orderService{
 		config:                       cfg,
 		orderRepository:              dbRegistry.OrderRepository,
@@ -830,7 +763,21 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		ghnProxy:                     registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		paymentTransactionService:    paymentTransactionSvc,
+		notificationService:          notificationService,
 	}
+}
+
+// lookupOrderAndUser is a helper to fetch order and user by their IDs (actors that engage in order actions)
+func (o *orderService) lookupOrderAndUser(ctx context.Context, orderID, actionBy uuid.UUID) (*model.Order, *model.User, error) {
+	order, err := o.orderRepository.GetByID(ctx, orderID, []string{"User"})
+	if err != nil {
+		return nil, nil, err
+	}
+	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return order, user, nil
 }
 
 func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum.OrderStatus, reason *string) error {
@@ -846,4 +793,76 @@ func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum
 	}
 	order.AddActionNote(*ctxState.GenerateActionNote(user, reason))
 	return nil
+}
+
+func (o orderService) sendNotification(ctx context.Context, orderStatus enum.OrderStatus, order *model.Order, actionBy *model.User) error {
+	//TO DO: implement notification logic here
+	req := &requests.PublishNotificationRequest{}
+	switch orderStatus {
+	case enum.OrderStatusPending:
+		//o.notificationService.
+		return nil
+	case enum.OrderStatusPaid:
+		emailSubject := "Thanks you for choosing us"
+		selectedTemplate := "order_created"
+		emailPayload := EmailNotificationPayload{
+			EmailSubject:      &emailSubject,
+			EmailTemplateName: &selectedTemplate,
+			EmailTemplateData: nil,
+			EmailHTMLBody:     nil,
+		}
+		pushPayload := PushNotificationPayload{
+			Title: "Thanh toán đơn hàng thành công",
+			Body:  "Cảm ơn bạn đã thanh toán đơn hàng. Chúng tôi sẽ xử lý đơn hàng của bạn trong thời gian sớm nhất.",
+			Data:  nil,
+		}
+		buildNotificationRequest(order.UserID, []string{"EMAIL"}, emailPayload, pushPayload)
+	case enum.OrderStatusRefundRequested:
+	case enum.OrderStatusRefunded:
+	case enum.OrderStatusConfirmed:
+	case enum.OrderStatusCancelled:
+	case enum.OrderStatusShipped:
+	case enum.OrderStatusInTransit:
+	case enum.OrderStatusDelivered:
+	case enum.OrderStatusReceived:
+	case enum.OrderStatusCompensateRequested:
+	case enum.OrderStatusCompensated:
+	case enum.OrderStatusAwaitingPickUp:
+	}
+
+	_, err := o.notificationService.CreateAndPublishNotification(ctx, req)
+	if err != nil {
+		zap.L().Error("Failed to send notification", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+type EmailNotificationPayload struct {
+	EmailSubject      *string
+	EmailTemplateName *string
+	EmailTemplateData map[string]interface{}
+	EmailHTMLBody     *string
+}
+
+type PushNotificationPayload struct {
+	Title string
+	Body  string
+	Data  map[string]string
+}
+
+func buildNotificationRequest(userID uuid.UUID, channel []string, emailPayload EmailNotificationPayload, pushPayload PushNotificationPayload) requests.PublishNotificationRequest {
+	return requests.PublishNotificationRequest{
+		UserID:   userID,
+		Channels: channel,
+		//Push
+		Title: pushPayload.Title,
+		Body:  pushPayload.Body,
+		Data:  pushPayload.Data,
+		//Email
+		EmailSubject:      emailPayload.EmailSubject,
+		EmailTemplateName: emailPayload.EmailTemplateName,
+		EmailTemplateData: emailPayload.EmailTemplateData,
+		EmailHTMLBody:     emailPayload.EmailHTMLBody,
+	}
 }

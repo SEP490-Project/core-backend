@@ -16,7 +16,7 @@ func (s *InTransitState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 }
 func (s *InTransitState) Next(ctx *PreOrderContext, next PreOrderState) error {
 	if _, ok := s.AllowedTransitions()[next.Name()]; ok {
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition from IN_TRANSIT to %s", next.Name())

@@ -178,3 +178,24 @@ func buildDeviceFingerprint(c *gin.Context) string {
 	// Combine multiple factors for better device identification
 	return fmt.Sprintf("%s|%s|%s", userAgent, ip, acceptLanguage)
 }
+
+func parseParamUUID(c *gin.Context, paramName string, httpSttCode *int, msg *string) (uuid.UUID, bool) {
+	if httpSttCode == nil {
+		httpSttCode = new(int)
+		*httpSttCode = http.StatusBadRequest
+	} else if msg == nil {
+		defaultMsg := fmt.Sprintf("Invalid %s or not being found" + paramName)
+		msg = &defaultMsg
+	}
+
+	idParam := c.Param(paramName)
+	parsedID, err := uuid.Parse(idParam)
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("Invalid UUID for parameter %s: %s", paramName, idParam))
+		resp := responses.ErrorResponse(*msg, *httpSttCode)
+		c.JSON(*httpSttCode, resp)
+		c.Abort()
+		return uuid.Nil, false
+	}
+	return parsedID, true
+}
