@@ -355,7 +355,7 @@ func (h *StateHandler) UpdatePreOrderState(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if err := h.MovePreOrderToState(ctx, preOrderID, targetState, userID, fileURLPtr); err != nil {
+	if err := h.MovePreOrderToState(ctx, preOrderID, targetState, userID, nil, fileURLPtr); err != nil {
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move pre-order: "+err.Error(), http.StatusConflict))
 		return
 	}

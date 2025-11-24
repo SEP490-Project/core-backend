@@ -16,7 +16,7 @@ type PreOrderContext struct {
 	ActionBy       *model.User
 }
 
-func (p *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *model.PreOrderActionNote {
+func (s *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *model.PreOrderActionNote {
 	note := &model.PreOrderActionNote{
 		UserID:    user.ID,
 		UserName:  user.FullName,
@@ -24,7 +24,7 @@ func (p *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *
 		CreatedAt: time.Time{},
 	}
 
-	switch p.State.Name() {
+	switch s.State.Name() {
 	case enum.PreOrderStatusCancelled:
 		if !utils.NotEmptyOrNil(reason) {
 			reason = ptr.String("Pre-order being expired by System")

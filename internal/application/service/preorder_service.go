@@ -19,6 +19,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,11 +35,79 @@ type preOrderService struct {
 	config                       *config.AppConfig
 	preOrderRepository           irepository.GenericRepository[model.PreOrder]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
+	userRepository               irepository.GenericRepository[model.User]
+	variantRepository            irepository.GenericRepository[model.ProductVariant]
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	ghnService                   iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 	stateTransferService         iservice.StateTransferService
+}
+
+func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID, updatedBy uuid.UUID) error {
+	err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, enum.PreOrderStatusReceived, updatedBy, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	preOrder, _, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	if err != nil {
+		return err
+	}
+
+	//Check if compensation has already been requested
+	if preOrder.ActionNotes != nil {
+		for _, note := range *preOrder.ActionNotes {
+			if note.ActionType == enum.PreOrderStatusCompensateRequest {
+				return errors.New("you've already requested compensation for this preorder")
+			}
+		}
+	}
+
+	err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusCompensateRequest, reason)
+	if err != nil {
+		return err
+	}
+	preOrder.UserResource = fileURL
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("failed to update PreOrder state: " + err.Error())
+	}
+	return nil
+}
+
+func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error {
+	preOrder, _, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	if err != nil {
+		return err
+	}
+	if isApproved {
+		err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusCompensated, reason)
+		if err != nil {
+			return err
+		}
+		if fileURL == nil {
+			return errors.New("file can not be empty if the compensate request being approved")
+		}
+		preOrder.StaffResource = fileURL
+	} else {
+		err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusDelivered, reason)
+		if err != nil {
+			return err
+		}
+		if fileURL != nil {
+			preOrder.StaffResource = fileURL
+		}
+	}
+
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("failed to update PreOrder state: " + err.Error())
+	}
+	return nil
 }
 
 func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, int) {
@@ -78,9 +147,9 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	for _, preOrder := range preOrders {
 		var err error
 		if !preOrder.IsSelfPickedUp {
-			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil)
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
-			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil)
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
 		}
 		if err != nil {
 			msg := fmt.Sprintf("Failed to update pre-order status with ID: %s , Detail: %s", preOrder.ID.String(), err.Error())
@@ -370,6 +439,8 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		config:                       cfg,
 		preOrderRepository:           dbRegistry.PreOrderRepository,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
+		userRepository:               dbRegistry.UserRepository,
+		variantRepository:            dbRegistry.ProductVariantRepository,
 		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
 		ghnService:                   registry.ProxiesRegistry.GHNProxy,
@@ -653,4 +724,35 @@ func MovePreOrderStateUsingFSM(preorder *model.PreOrder, user *model.User, newSt
 	}
 	preorder.AddActionNote(*ctxState.GenerateActionNote(user, reason))
 	return nil
+}
+
+func (t *preOrderService) lookupPreOrderWithLimitedProductAndUser(ctx context.Context, preorderID, actionBy uuid.UUID) (*model.PreOrder, *model.LimitedProduct, *model.User, error) {
+	// 1) Load PreOrder
+	preOrder, err := t.preOrderRepository.GetByID(ctx, preorderID, nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	variantIncludes := []string{"Product", "Product.Limited"}
+	variant, err := t.variantRepository.GetByID(ctx, preOrder.VariantID, variantIncludes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// If actionBy is zero value, treat as System user
+	var user *model.User
+	if actionBy == uuid.Nil {
+		user = &model.User{
+			ID:       uuid.UUID{},
+			FullName: t.config.AdminConfig.SystemName,
+			Email:    t.config.AdminConfig.SystemEmail,
+		}
+	} else {
+		user, err = t.userRepository.GetByID(ctx, actionBy, nil)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	return preOrder, variant.Product.Limited, user, nil
 }

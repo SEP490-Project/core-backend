@@ -28,6 +28,10 @@ func NewPreOrderState(status enum.PreOrderStatus) PreOrderState {
 		return &InTransitState{}
 	case enum.PreOrderStatusDelivered:
 		return &DeliveredState{}
+	case enum.PreOrderStatusCompensateRequest:
+		return &CompensateRequestStated{}
+	case enum.PreOrderStatusCompensated:
+		return &Compensated{}
 	case enum.PreOrderStatusReceived:
 		return &ReceivedState{}
 	default:

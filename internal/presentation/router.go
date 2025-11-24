@@ -313,6 +313,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			preOrderGroup.POST("", preOrderHandler.CreatePreOrderAndPay)
 			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
 			preOrderGroup.PATCH(":id/state", stateHandler.UpdatePreOrderState)
+			// Customer actions
+			preOrderGroup.PATCH("/:id/received", preOrderHandler.MarkPreOrderAsReceived)
+			preOrderGroup.POST("/:id/compensation", preOrderHandler.RequestCompensation)
 		}
 
 		// Staffs
@@ -321,6 +324,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			staffPreOrderGroup.GET("", preOrderHandler.GetStaffAvailablePreOrdersWithPagination)
 			staffPreOrderGroup.POST("/:orderID/censorship", preOrderHandler.PreOrderCensorship)
+			// Staff: process compensation requests for preorders
+			staffPreOrderGroup.POST("/:orderID/compensation", preOrderHandler.ProcessCompensation)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
