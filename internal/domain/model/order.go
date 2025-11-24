@@ -112,3 +112,11 @@ func (o *Order) AddActionNote(note OrderActionNote) {
 
 	*o.ActionNotes = append(*o.ActionNotes, note)
 }
+
+func (o *Order) GetLatestActionNote() *OrderActionNote {
+	if o.ActionNotes == nil || len(*o.ActionNotes) == 0 {
+		return nil
+	}
+	notes := *o.ActionNotes
+	return &notes[len(notes)-1]
+}
