@@ -41,10 +41,11 @@ func NewRouter(
 }
 
 func (r *Router) SetupRoutes(engine *gin.Engine) {
-	r.middlewareRegistry.ApplyGlobalMiddlewares(engine)
+	httpGroup := engine.Group("")
+	r.middlewareRegistry.ApplyGlobalMiddlewares(httpGroup)
 
 	// Swagger docs
-	engine.GET("/swagger/*any", func(c *gin.Context) {
+	httpGroup.GET("/swagger/*any", func(c *gin.Context) {
 		handler := ginSwagger.WrapHandler(swaggerFiles.Handler)
 		host := c.Request.Host
 		docs.SwaggerInfo.Host = host
@@ -57,26 +58,26 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 	})
 
 	// Favicon
-	engine.GET("/favicon.ico", func(c *gin.Context) {
+	httpGroup.GET("/favicon.ico", func(c *gin.Context) {
 		c.Status(204)
 	})
 
 	// Health check
 	healthHandler := r.handlerRegistry.HealthHandler
-	engine.GET("/health", healthHandler.HealthCheck)
-	engine.GET("/health/ready", healthHandler.ReadinessCheck)
-	engine.GET("/health/live", healthHandler.LivenessCheck)
+	httpGroup.GET("/health", healthHandler.HealthCheck)
+	httpGroup.GET("/health/ready", healthHandler.ReadinessCheck)
+	httpGroup.GET("/health/live", healthHandler.LivenessCheck)
 
 	// Affiliate link redirect (PUBLIC endpoint - no authentication required)
 	redirectHandler := r.handlerRegistry.RedirectHandler
-	engine.GET("/r/:hash", redirectHandler.Redirect)
+	httpGroup.GET("/r/:hash", redirectHandler.Redirect)
 
 	// API v1
-	r.SetupV1Routes(engine)
+	r.SetupV1Routes(httpGroup)
 
 	//File test
-	engine.Static("/tmp", "./tmp")
-	engine.Static("/html", "./templates/public")
+	httpGroup.Static("/tmp", "./tmp")
+	httpGroup.Static("/html", "./templates/public")
 
 	// Fallback route for undefined paths
 	engine.NoRoute(func(c *gin.Context) {
@@ -85,8 +86,8 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 }
 
 // SetupV1Routes sets up version 1 API routes
-func (r *Router) SetupV1Routes(engine *gin.Engine) {
-	v1 := engine.Group("/api/v1")
+func (r *Router) SetupV1Routes(httpGroup *gin.RouterGroup) {
+	v1 := httpGroup.Group("/api/v1")
 	{
 		// ---------- Routes Setups from functions ----------
 		r.setupAuthRoutes(v1)
@@ -628,7 +629,6 @@ func (r *Router) SetupNotificationRoutes(group *gin.RouterGroup) {
 		notificationGroup.GET("", notificationHandler.List)
 		notificationGroup.GET("/failed", notificationHandler.GetFailedNotifications)
 		notificationGroup.GET("/:id", notificationHandler.GetByID)
-		notificationGroup.GET("/sse", notificationHandler.SubscribeSSE)
 
 		// Write endpoints
 		notificationGroup.PUT("/:id/read", notificationHandler.MarkAsRead)
@@ -674,6 +674,21 @@ func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketSer
 		r.middlewareRegistry.Auth.RequireAuth(),
 		wsServer.HandleWebSocket,
 	)
+}
+
+func (r *Router) SetupSSERoutes(engine *gin.Engine) {
+	notificationHandler := r.handlerRegistry.NotificationHandler
+	sseGroup := engine.Group("").Use(
+		r.middlewareRegistry.Recovery,
+		r.middlewareRegistry.RequestID,
+		r.middlewareRegistry.Logging,
+		r.middlewareRegistry.CORS,
+		r.middlewareRegistry.Auth.RequireAuth(),
+	)
+	{
+		sseGroup.GET("/api/v1/notifications/sse",
+			notificationHandler.SubscribeSSE)
+	}
 }
 
 // SetupAffiliateLinkRoutes sets up routes for affiliate link management
