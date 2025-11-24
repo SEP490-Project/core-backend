@@ -17,6 +17,9 @@ type ChannelService interface {
 	// GetChannelByID retrieves a channel by its ID
 	GetChannelByID(ctx context.Context, channelID uuid.UUID) (*responses.ChannelResponse, error)
 
+	// GetChannelByName retrieves a channel by its name
+	GetChannelByName(ctx context.Context, channelName string) (*responses.ChannelResponse, error)
+
 	// CreateChannel creates a new channel
 	CreateChannel(ctx context.Context, request *requests.CreateChannelRequest, uow irepository.UnitOfWork) (*responses.ChannelResponse, error)
 
