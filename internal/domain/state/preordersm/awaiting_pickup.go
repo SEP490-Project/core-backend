@@ -11,8 +11,8 @@ type AwaitingPickupState struct{}
 func (s *AwaitingPickupState) Name() enum.PreOrderStatus { return enum.PreOrderStatusAwaitingPickup }
 func (s *AwaitingPickupState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 	return map[enum.PreOrderStatus]bool{
-		enum.PreOrderStatusInTransit: true,
-		enum.PreOrderStatusCancelled: true,
+		enum.PreOrderStatusReceived: true,
+		//enum.PreOrderStatusCancelled: true,
 	}
 }
 func (s *AwaitingPickupState) Next(ctx *PreOrderContext, next PreOrderState) error {

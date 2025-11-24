@@ -1137,3 +1137,91 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation processed successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL}))
 }
+
+// ObligateEarlyRefund godoc
+//
+//	@Summary		Force early refund, skip REFUND_REQUEST
+//	@Description	Upload proof image
+//	@Tags			Orders[Staff].States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID	path		string					true	"Order ID (UUID)"
+//	@Param          reason    formData  string true  "Reason for Refund"
+//	@Param			file	formData	file					true	"Proof image(s) of"
+//	@Success		200		{object}	map[string]interface{}	"Order marked as received successfully"
+//	@Failure		400		{object}	map[string]string		"Invalid order ID or status"
+//	@Failure		404		{object}	map[string]string		"Order not found"
+//	@Failure		500		{object}	map[string]string		"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/staff/{orderID}/obligate-refund [post]
+func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
+	orderID, ok := parseParamUUID(c, "orderID", nil, nil)
+	if !ok {
+		return
+	}
+
+	// Extract acting user
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// Expect reason in form field
+	reason := strings.TrimSpace(c.PostForm("reason"))
+	if reason == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required", http.StatusBadRequest))
+		return
+	}
+
+	var fileURL string
+	// Require file if isApprove == true
+	// File particularly optional if isApprove == false
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader == nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
+		return
+	} else {
+		userTmpDir := "/tmp/uploads"
+		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
+			return
+		}
+
+		timestamp := time.Now().Format("20060102_150405")
+		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
+		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
+
+		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+			_ = os.Remove(finalPath)
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+		defer func(path string) { _ = os.Remove(path) }(finalPath)
+
+		// Upload to remote storage
+		fileURL, err = h.fileService.UploadFile(c.Request.Context(), updatedBy.String(), finalPath, newFileName)
+		if err != nil {
+			_ = os.Remove(finalPath)
+			zap.L().Error("failed to upload refund assets", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
+	}
+
+	ctx := c.Request.Context()
+
+	err = h.orderService.ObligateEarlyRefund(ctx, orderID, updatedBy, &reason, &fileURL)
+	if err != nil {
+		msg := fmt.Sprintf("failed to force early refund %s", err.Error())
+		resp := responses.ErrorResponse(msg, http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	resp := responses.SuccessResponse("Order forced early refund successfully", ptr.Int(http.StatusOK), gin.H{
+		"file_url": fileURL,
+	})
+	c.JSON(http.StatusOK, resp)
+
+}

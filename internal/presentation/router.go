@@ -235,6 +235,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			// Staff: process compensation requests (approve/reject)
 			staffOrdersGroup.POST("/:orderID/compensation", orderHandler.ProcessCompensation)
+
+			// Staff: obligate refund for an order
+			staffOrdersGroup.POST("/:orderID/obligate-refund", orderHandler.ObligateEarlyRefund)
 		}
 
 		// ---------- CONCEPTS ----------

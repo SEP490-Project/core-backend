@@ -166,7 +166,7 @@ func NewApplicationRegistry(
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
 		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, &configs.AdminConfig),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
-		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService),
+		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, notificationService),
 		ChannelService:                channelService,
 		ContentService:                contentService,
 		ContentPublishingService:      contentPublishingService,

@@ -12150,6 +12150,58 @@ paths:
       summary: Process compensation (staff)
       tags:
       - Orders[Staff].States
+  /api/v1/orders/staff/{orderID}/obligate-refund:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload proof image
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Reason for Refund
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Proof image(s) of
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order marked as received successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid order ID or status
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Order not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Force early refund, skip REFUND_REQUEST
+      tags:
+      - Orders[Staff].States
   /api/v1/orders/staff/{orderID}/refund/approve:
     post:
       consumes:
