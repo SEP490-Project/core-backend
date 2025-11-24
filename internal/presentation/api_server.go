@@ -127,6 +127,7 @@ func (s *APIServer) Start() error {
 
 	// Setup routes
 	s.router.SetupRoutes(engine)
+	s.router.SetupSSERoutes(engine)
 
 	// Setup WebSocket routes if enabled
 	if wsConfig.Enabled {
@@ -136,10 +137,11 @@ func (s *APIServer) Start() error {
 	// Create HTTP server
 	addr := fmt.Sprintf(":%d", serverConfig.Port)
 	s.server = &http.Server{
-		Addr:         addr,
-		Handler:      engine,
-		ReadTimeout:  time.Duration(serverConfig.Timeout) * time.Second,
-		WriteTimeout: time.Duration(serverConfig.Timeout) * time.Second,
+		Addr:        addr,
+		Handler:     engine,
+		ReadTimeout: time.Duration(serverConfig.Timeout) * time.Second,
+		// Disable write timeout to prevent timeouts on SSE and Websocket connections
+		WriteTimeout: 0,
 		IdleTimeout:  120 * time.Second,
 	}
 
