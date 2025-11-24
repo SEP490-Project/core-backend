@@ -528,3 +528,34 @@ func (h *NotificationHandler) BroadcastToAll(c *gin.Context) {
 
 	c.JSON(http.StatusAccepted, responses.SuccessResponse("Broadcast started", nil, nil))
 }
+
+// GetUnreadCount godoc
+//
+//	@Summary		Get unread notification count
+//	@Description	Retrieve the count of unread notifications for the current user
+//	@Tags			Notifications
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=map[string]int64}
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/notifications/unread-count [get]
+func (h *NotificationHandler) GetUnreadCount(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid user ID", http.StatusBadRequest))
+		return
+	}
+
+	unreadCount, err := h.notificationService.GetUnreadCount(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	response := responses.SuccessResponse("Unread count retrieved successfully", nil, map[string]any{
+		"unread_count": unreadCount,
+	})
+	c.JSON(http.StatusOK, response)
+}

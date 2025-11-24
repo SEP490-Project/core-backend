@@ -911,6 +911,13 @@ func (s *NotificationService) SubscribeSSE(userID uuid.UUID) (<-chan iservice.SS
 	return s.realTimeNotifier.Subscribe(userID)
 }
 
+func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error) {
+	zap.L().Info("NotificationService - GetUnreadCount called",
+		zap.String("user_id", userID.String()))
+
+	return s.notificationRepo.CountUnread(ctx, userID)
+}
+
 // region: ============ Helper Methods =============
 
 func (s *NotificationService) validateUserExists(ctx context.Context, userID uuid.UUID, email *string) (*model.User, error) {

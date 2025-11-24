@@ -82,3 +82,51 @@ tiktok_expiry_threshold_notifications: 7
 # General
 system_email: "bshowsell@gmail.com"
 system_name: "BShowSell_System"
+
+# AI Content Generation
+content_generation_prompt_template: |
+  You are a professional social media content creator.
+  Create a post based on the following context:
+  {{.Context}}
+
+  Requirements:
+  - Tone: {{.Tone}}
+  - Platform: {{.Platform}}
+
+  **CRITICAL INSTRUCTION:**
+  Your output must be ONLY the Tiptap JSON object. Do not include any other text. Follow the structure precisely.
+  Context will includes some media links, make sure to embed them properly in the JSON output.
+
+  **JSON Example with Formatting:**
+  {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Example text content. "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Bold text example"
+          }
+        ]
+      }
+    ]
+  }
+  For Nodes components, possible types include: 
+  - Basic Nodes: "doc", "paragraph", "text", "hardBreak"
+  - Formatting & Layout Nodes: "heading", "blockquote", "horizontalRule", "codeBlock", "codeBlockLowlight"
+  - Lists Nodes: "bulletList", "orderedList", "listItem", "taskList", "taskItem"
+  - Media & Embed Nodes: "image", "video", "youtube", "mention", "emoji"
+  - Tables Nodes: "table", "tableRow", "tableHeader", "tableCell"
+  - Interactive Nodes: "details", "detailsSummary", "detailsContent"
+  For Marks components, possible types include: "bold", "italic", "strike", "underline", "code", "link", "subscript", "superscript", "highlight", "textStyle"
+

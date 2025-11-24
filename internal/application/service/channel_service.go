@@ -128,6 +128,14 @@ func (c *channelService) GetChannelByID(ctx context.Context, channelID uuid.UUID
 	return responses.ChannelResponse{}.ToResponse(channel), nil
 }
 
+func (c *channelService) GetChannelByName(ctx context.Context, channelName string) (*responses.ChannelResponse, error) {
+	zap.L().Info("GetChannelByName called", zap.String("channel_name", channelName))
+
+	channel, err := c.getChannelByName(ctx, channelName)
+
+	return responses.ChannelResponse{}.ToResponse(channel), err
+}
+
 // UpdateChannel implements iservice.ChannelService.
 func (c *channelService) UpdateChannel(
 	ctx context.Context,
