@@ -29,7 +29,7 @@ type Product struct {
 	// Relationships
 	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
 	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
-	Variants []ProductVariant `json:"-" gorm:"foreignKey:ProductID"`
+	Variants []ProductVariant `json:"product_variants" gorm:"foreignKey:ProductID"`
 	Task     *Task            `json:"task" gorm:"foreignKey:TaskID" swaggerignore:"true"`
 	Limited  *LimitedProduct  `json:"limited" gorm:"foreignKey:Id;references:ID"`
 }
