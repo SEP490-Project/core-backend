@@ -1598,10 +1598,6 @@ definitions:
         type: string
       premiere_date:
         type: string
-      product:
-        allOf:
-        - $ref: '#/definitions/model.Product'
-        description: Relationships
     type: object
   model.Order:
     properties:
@@ -1873,6 +1869,10 @@ definitions:
         $ref: '#/definitions/model.LimitedProduct'
       name:
         type: string
+      product_variants:
+        items:
+          $ref: '#/definitions/model.ProductVariant'
+        type: array
       status:
         $ref: '#/definitions/enum.ProductStatus'
       task_id:
@@ -3616,25 +3616,7 @@ definitions:
     - new_token
     - platform
     type: object
-  requests.UpdateProductRequest:
-    properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      category_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      description:
-        example: Updated product description
-        maxLength: 1000
-        type: string
-      name:
-        example: Updated Product Name
-        maxLength: 255
-        minLength: 1
-        type: string
-    type: object
-  requests.UpdateProfileRequest:
+  requests.UpdateLimitedProductRequest:
     properties:
       availability_end_date:
         example: 2023-10-31T10:00
@@ -5206,6 +5188,8 @@ definitions:
         $ref: '#/definitions/model.JSONBErrorDetails'
       id:
         type: string
+      is_read:
+        type: boolean
       platform_config:
         $ref: '#/definitions/model.JSONBPlatformConfig'
       recipient_info:
@@ -13795,86 +13779,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a PreOrder (reserve stock)
-      tags:
-      - Preorders
-  /api/v1/preorders/{id}/compensation:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Submit a compensation request with reason and supporting file
-      parameters:
-      - description: PreOrder ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reason for compensation
-        in: formData
-        name: reason
-        required: true
-        type: string
-      - description: Evidence file
-        in: formData
-        name: file
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Request compensation for a preorder (customer)
-      tags:
-      - Preorders.States
-  /api/v1/preorders/{id}/received:
-    patch:
-      consumes:
-      - application/json
-      description: Mark a preorder as received by the customer
-      parameters:
-      - description: PreOrder ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Mark preorder as received (customer)
       tags:
       - Preorders
   /api/v1/preorders/{id}/compensation:

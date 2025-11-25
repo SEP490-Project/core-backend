@@ -197,7 +197,7 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	if targetState == enum.ProductStatusActived {
 		product.IsActive = true
 	}
-	
+
 	if err := t.productRepository.Update(ctx, product); err != nil {
 		zap.L().Error("Failed to update product state in DB",
 			zap.String("user_id", productID.String()),
@@ -714,14 +714,14 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return err
 		}
 
-		// 2) Validate state transition using state machine
-		err = MoveOrderStateUsingFSM(order, updatedBy, targetState, note)
+		// 2) Handle order side effects
+		err = t.handleOrderStatusSideEffect(ctx, uow, nil, targetState, order, updatedBy, note)
 		if err != nil {
 			return err
 		}
 
-		// 3) Handle order side effects
-		err = t.handleOrderStatusSideEffect(ctx, uow, nil, targetState, order, updatedBy, note)
+		// 3) Validate state transition using state machine
+		err = MoveOrderStateUsingFSM(order, updatedBy, targetState, note)
 		if err != nil {
 			return err
 		}
