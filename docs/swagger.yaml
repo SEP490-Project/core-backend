@@ -1598,10 +1598,6 @@ definitions:
         type: string
       premiere_date:
         type: string
-      product:
-        allOf:
-        - $ref: '#/definitions/model.Product'
-        description: Relationships
     type: object
   model.Order:
     properties:
@@ -1873,6 +1869,10 @@ definitions:
         $ref: '#/definitions/model.LimitedProduct'
       name:
         type: string
+      product_variants:
+        items:
+          $ref: '#/definitions/model.ProductVariant'
+        type: array
       status:
         $ref: '#/definitions/enum.ProductStatus'
       task_id:
@@ -3616,6 +3616,124 @@ definitions:
     - new_token
     - platform
     type: object
+  requests.UpdateLimitedProductRequest:
+    properties:
+      availability_end_date:
+        example: 2023-10-31T10:00
+        type: string
+      availability_start_date:
+        example: 2023-10-01T10:00
+        type: string
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      concept_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Updated product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Updated Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      premiere_date:
+        example: 2023-10-01T10:00:00
+        type: string
+    type: object
+  requests.UpdateLimitedProductVariantRequest:
+    properties:
+      capacity:
+        example: 500
+        minimum: 0
+        type: number
+      capacity_unit:
+        allOf:
+        - $ref: '#/definitions/enum.CapacityUnit'
+        enum:
+        - ML
+        - L
+        - G
+        - KG
+        - OZ
+      container_type:
+        allOf:
+        - $ref: '#/definitions/enum.ContainerType'
+        enum:
+        - BOTTLE
+        - TUBE
+        - JAR
+        - STICK
+        - PENCIL
+        - COMPACT
+        - PALLETE
+        - SACHET
+        - VIAL
+        - ROLLER_BOTTLE
+        example: BOTTLE
+      dispenser_type:
+        allOf:
+        - $ref: '#/definitions/enum.DispenserType'
+        enum:
+        - PUMP
+        - SPRAY
+        - DROPPER
+        - ROLL_ON
+        - TWIST_UP
+        - SQUEEZE
+        - NONE
+        example: SPRAY
+      expiry_date:
+        example: "2025-10-01T00:00:00Z"
+        type: string
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
+      input_stock:
+        example: 100
+        type: integer
+      instructions:
+        example: Shake well before use
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
+      manufacturing_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      max_stock:
+        type: integer
+      pre_order_limit:
+        type: integer
+      price:
+        example: 1000
+        minimum: 1000
+        type: number
+      uses:
+        example: For daily use
+        type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
+    type: object
   requests.UpdateProductRequest:
     properties:
       brand_id:
@@ -3633,6 +3751,90 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
+    type: object
+  requests.UpdateProductVariantRequest:
+    properties:
+      capacity:
+        example: 500
+        minimum: 0
+        type: number
+      capacity_unit:
+        allOf:
+        - $ref: '#/definitions/enum.CapacityUnit'
+        enum:
+        - ML
+        - L
+        - G
+        - KG
+        - OZ
+      container_type:
+        allOf:
+        - $ref: '#/definitions/enum.ContainerType'
+        enum:
+        - BOTTLE
+        - TUBE
+        - JAR
+        - STICK
+        - PENCIL
+        - COMPACT
+        - PALLETE
+        - SACHET
+        - VIAL
+        - ROLLER_BOTTLE
+        example: BOTTLE
+      dispenser_type:
+        allOf:
+        - $ref: '#/definitions/enum.DispenserType'
+        enum:
+        - PUMP
+        - SPRAY
+        - DROPPER
+        - ROLL_ON
+        - TWIST_UP
+        - SQUEEZE
+        - NONE
+        example: SPRAY
+      expiry_date:
+        example: "2025-10-01T00:00:00Z"
+        type: string
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
+      input_stock:
+        example: 100
+        type: integer
+      instructions:
+        example: Shake well before use
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
+      manufacturing_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      price:
+        example: 1000
+        minimum: 1000
+        type: number
+      uses:
+        example: For daily use
+        type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
     type: object
   requests.UpdateProfileRequest:
     properties:
@@ -14214,6 +14416,64 @@ paths:
       summary: Create a limited product
       tags:
       - Products.Limited
+  /api/v1/products/limited/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Update limited product details (dates, concept, stock-related fields).
+        Only applicable for products of type LIMITED and not actived.
+      parameters:
+      - description: Limited Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Limited product update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateLimitedProductRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Limited product updated successfully
+          schema:
+            $ref: '#/definitions/responses.ProductResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a limited product
+      tags:
+      - Products.Limited
   /api/v1/products/limited/{limited-id}/concept/{concept-id}:
     post:
       consumes:
@@ -14449,6 +14709,56 @@ paths:
       summary: Get All Products ONLY TO ADMIN/SALES_STAFF. Other will viewed as Partial
       tags:
       - Products
+  /api/v1/products/variants/{variantId}:
+    patch:
+      consumes:
+      - application/json
+      description: Update fields of an existing product variant
+      parameters:
+      - description: Variant ID (UUID)
+        in: path
+        name: variantId
+        required: true
+        type: string
+      - description: Variant update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProductVariantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductVariantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a product variant
+      tags:
+      - Products.Variants
   /api/v1/products/variants/{variantId}/images:
     post:
       consumes:
@@ -14505,6 +14815,57 @@ paths:
       security:
       - BearerAuth: []
       summary: Create Variant Image
+      tags:
+      - Products.Variants
+  /api/v1/products/variants/limited/{variantId}:
+    patch:
+      consumes:
+      - application/json
+      description: Update fields of an existing variant that belongs to a LIMITED
+        product (stock/preorder related validations applied)
+      parameters:
+      - description: Variant ID (UUID)
+        in: path
+        name: variantId
+        required: true
+        type: string
+      - description: Limited variant update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateLimitedProductVariantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.ProductVariantResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a limited product variant
       tags:
       - Products.Variants
   /api/v1/social/tiktok/creator-info:

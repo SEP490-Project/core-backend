@@ -286,7 +286,7 @@ func (p preOrderService) GetPreOrdersByUserIDWithPagination(userID uuid.UUID, li
 		return db.Order("pre_orders.created_at DESC").Order("pre_orders.id")
 	}
 
-	includes := []string{"ProductVariant", "ProductVariant.Product"}
+	includes := []string{"ProductVariant", "ProductVariant.Product", "ProductVariant.Product.Limited", "ProductVariant.Images"}
 
 	// 1) fetch paged IDs first
 	var ids []uuid.UUID

@@ -1,0 +1,22 @@
+Compensation Request Received
+=============================
+
+Hello {{.CustomerName}},
+
+We have received your compensation request for your order. Our support team will review the details you provided soon.
+
+Request Details:
+----------------
+Order Number: {{.OrderCode}}
+Reason: {{.Reason}}
+Attached Images: {{.ImageCount}} file(s)
+Requested Amount: {{.RequestedAmount}}
+
+Our staff will review your explanation along with the uploaded images to verify the issue.
+You will receive another update once the review is completed.
+
+Thank you for your patience.
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.
