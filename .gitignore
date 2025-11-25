@@ -1,6 +1,7 @@
 log/
 logs/
 build/
+crypto_cli
 bin/
 .github/
 .vscode/
