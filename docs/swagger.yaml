@@ -3838,6 +3838,226 @@ definitions:
     type: object
   requests.UpdateProfileRequest:
     properties:
+      availability_end_date:
+        example: 2023-10-31T10:00
+        type: string
+      availability_start_date:
+        example: 2023-10-01T10:00
+        type: string
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      concept_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Updated product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Updated Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+      premiere_date:
+        example: 2023-10-01T10:00:00
+        type: string
+    type: object
+  requests.UpdateLimitedProductVariantRequest:
+    properties:
+      capacity:
+        example: 500
+        minimum: 0
+        type: number
+      capacity_unit:
+        allOf:
+        - $ref: '#/definitions/enum.CapacityUnit'
+        enum:
+        - ML
+        - L
+        - G
+        - KG
+        - OZ
+      container_type:
+        allOf:
+        - $ref: '#/definitions/enum.ContainerType'
+        enum:
+        - BOTTLE
+        - TUBE
+        - JAR
+        - STICK
+        - PENCIL
+        - COMPACT
+        - PALLETE
+        - SACHET
+        - VIAL
+        - ROLLER_BOTTLE
+        example: BOTTLE
+      dispenser_type:
+        allOf:
+        - $ref: '#/definitions/enum.DispenserType'
+        enum:
+        - PUMP
+        - SPRAY
+        - DROPPER
+        - ROLL_ON
+        - TWIST_UP
+        - SQUEEZE
+        - NONE
+        example: SPRAY
+      expiry_date:
+        example: "2025-10-01T00:00:00Z"
+        type: string
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
+      input_stock:
+        example: 100
+        type: integer
+      instructions:
+        example: Shake well before use
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
+      manufacturing_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      max_stock:
+        type: integer
+      pre_order_limit:
+        type: integer
+      price:
+        example: 1000
+        minimum: 1000
+        type: number
+      uses:
+        example: For daily use
+        type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
+    type: object
+  requests.UpdateProductRequest:
+    properties:
+      brand_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      category_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      description:
+        example: Updated product description
+        maxLength: 1000
+        type: string
+      name:
+        example: Updated Product Name
+        maxLength: 255
+        minLength: 1
+        type: string
+    type: object
+  requests.UpdateProductVariantRequest:
+    properties:
+      capacity:
+        example: 500
+        minimum: 0
+        type: number
+      capacity_unit:
+        allOf:
+        - $ref: '#/definitions/enum.CapacityUnit'
+        enum:
+        - ML
+        - L
+        - G
+        - KG
+        - OZ
+      container_type:
+        allOf:
+        - $ref: '#/definitions/enum.ContainerType'
+        enum:
+        - BOTTLE
+        - TUBE
+        - JAR
+        - STICK
+        - PENCIL
+        - COMPACT
+        - PALLETE
+        - SACHET
+        - VIAL
+        - ROLLER_BOTTLE
+        example: BOTTLE
+      dispenser_type:
+        allOf:
+        - $ref: '#/definitions/enum.DispenserType'
+        enum:
+        - PUMP
+        - SPRAY
+        - DROPPER
+        - ROLL_ON
+        - TWIST_UP
+        - SQUEEZE
+        - NONE
+        example: SPRAY
+      expiry_date:
+        example: "2025-10-01T00:00:00Z"
+        type: string
+      height:
+        description: in centimeters
+        example: 15
+        minimum: 0
+        type: integer
+      input_stock:
+        example: 100
+        type: integer
+      instructions:
+        example: Shake well before use
+        type: string
+      is_default:
+        example: true
+        type: boolean
+      length:
+        description: in centimeters
+        example: 10
+        minimum: 0
+        type: integer
+      manufacturing_date:
+        example: "2023-10-01T00:00:00Z"
+        type: string
+      price:
+        example: 1000
+        minimum: 1000
+        type: number
+      uses:
+        example: For daily use
+        type: string
+      weight:
+        description: in grams
+        example: 250
+        minimum: 0
+        type: integer
+      width:
+        example: 5
+        minimum: 0
+        type: integer
+    type: object
+  requests.UpdateProfileRequest:
+    properties:
       avatar_url:
         example: https://example.com/avatar.jpg
         type: string
@@ -13779,6 +13999,86 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a PreOrder (reserve stock)
+      tags:
+      - Preorders
+  /api/v1/preorders/{id}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Submit a compensation request with reason and supporting file
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for compensation
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Request compensation for a preorder (customer)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/{id}/received:
+    patch:
+      consumes:
+      - application/json
+      description: Mark a preorder as received by the customer
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark preorder as received (customer)
       tags:
       - Preorders
   /api/v1/preorders/{id}/compensation:
