@@ -2,6 +2,7 @@ package gormrepository
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 	"time"
@@ -65,8 +66,8 @@ func (r *clickEventRepository) GetHourlyStats(
 	ctx context.Context,
 	affiliateLinkID uuid.UUID,
 	startTime, endTime time.Time,
-) ([]irepository.HourlyClickStats, error) {
-	var stats []irepository.HourlyClickStats
+) ([]dtos.HourlyClickStats, error) {
+	var stats []dtos.HourlyClickStats
 
 	// Use TimescaleDB's time_bucket function for efficient aggregation
 	err := r.db.WithContext(ctx).Raw(`
@@ -91,8 +92,8 @@ func (r *clickEventRepository) GetDailyStats(
 	ctx context.Context,
 	affiliateLinkID uuid.UUID,
 	startTime, endTime time.Time,
-) ([]irepository.DailyClickStats, error) {
-	var stats []irepository.DailyClickStats
+) ([]dtos.DailyClickStats, error) {
+	var stats []dtos.DailyClickStats
 
 	// Use TimescaleDB's time_bucket for daily aggregation
 	err := r.db.WithContext(ctx).Raw(`
@@ -199,8 +200,8 @@ func (r *clickEventRepository) GetTopPerformingLinks(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	limit int,
-) ([]irepository.AffiliateLinkPerformance, error) {
-	var performance []irepository.AffiliateLinkPerformance
+) ([]dtos.AffiliateLinkPerformance, error) {
+	var performance []dtos.AffiliateLinkPerformance
 
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT 
@@ -221,4 +222,100 @@ func (r *clickEventRepository) GetTopPerformingLinks(
 	`, startTime, endTime, limit).Scan(&performance).Error
 
 	return performance, err
+}
+
+// GetGlobalOverview retrieves global click statistics for the platform
+func (r *clickEventRepository) GetGlobalOverview(
+	ctx context.Context,
+	startTime, endTime time.Time,
+) (dtos.GlobalClickStats, error) {
+	var stats dtos.GlobalClickStats
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT 
+			COUNT(*) AS total_clicks,
+			COUNT(DISTINCT COALESCE(user_id::text, ip_address::text)) AS unique_users,
+			COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL) AS unique_sessions
+		FROM click_events
+		WHERE clicked_at >= ? AND clicked_at < ?
+	`, startTime, endTime).Scan(&stats).Error
+
+	return stats, err
+}
+
+// GetTopContracts retrieves top N contracts by click performance
+func (r *clickEventRepository) GetTopContracts(
+	ctx context.Context,
+	startTime, endTime time.Time,
+	limit int,
+) ([]dtos.ContractPerformance, error) {
+	var performance []dtos.ContractPerformance
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT 
+			al.contract_id,
+			COALESCE(c.contract_number, 'Unknown') AS contract_name,
+			COUNT(ce.id) AS total_clicks,
+			COUNT(DISTINCT COALESCE(ce.user_id::text, ce.ip_address::text)) AS unique_users
+		FROM click_events ce
+		INNER JOIN affiliate_links al ON ce.affiliate_link_id = al.id
+		LEFT JOIN contracts c ON al.contract_id = c.id
+		WHERE ce.clicked_at >= ? AND ce.clicked_at < ?
+			AND al.contract_id IS NOT NULL
+		GROUP BY al.contract_id, c.contract_number
+		ORDER BY total_clicks DESC
+		LIMIT ?
+	`, startTime, endTime, limit).Scan(&performance).Error
+
+	return performance, err
+}
+
+// GetTopChannels retrieves top N channels by click performance
+func (r *clickEventRepository) GetTopChannels(
+	ctx context.Context,
+	startTime, endTime time.Time,
+	limit int,
+) ([]dtos.ChannelPerformance, error) {
+	var performance []dtos.ChannelPerformance
+
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT 
+			al.channel_id,
+			COALESCE(ch.name, 'Unknown') AS channel_name,
+			COUNT(ce.id) AS total_clicks,
+			COUNT(DISTINCT COALESCE(ce.user_id::text, ce.ip_address::text)) AS unique_users
+		FROM click_events ce
+		INNER JOIN affiliate_links al ON ce.affiliate_link_id = al.id
+		LEFT JOIN channels ch ON al.channel_id = ch.id
+		WHERE ce.clicked_at >= ? AND ce.clicked_at < ?
+			AND al.channel_id IS NOT NULL
+		GROUP BY al.channel_id, ch.name
+		ORDER BY total_clicks DESC
+		LIMIT ?
+	`, startTime, endTime, limit).Scan(&performance).Error
+
+	return performance, err
+}
+
+// GetGlobalTrendData retrieves daily trend data for the dashboard
+func (r *clickEventRepository) GetGlobalTrendData(
+	ctx context.Context,
+	startTime, endTime time.Time,
+) ([]dtos.DailyClickStats, error) {
+	var stats []dtos.DailyClickStats
+
+	// Use TimescaleDB's time_bucket for daily aggregation
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT 
+			time_bucket('1 day', clicked_at) AS date,
+			COUNT(*) AS total_clicks,
+			COUNT(DISTINCT COALESCE(user_id::text, ip_address::text)) AS unique_users,
+			COUNT(DISTINCT session_id) FILTER (WHERE session_id IS NOT NULL) AS unique_sessions
+		FROM click_events
+		WHERE clicked_at >= ? AND clicked_at < ?
+		GROUP BY date
+		ORDER BY date ASC
+	`, startTime, endTime).Scan(&stats).Error
+
+	return stats, err
 }
