@@ -13,7 +13,7 @@ type LimitedProduct struct {
 	AvailabilityEndDate   time.Time `json:"availability_end_date" gorm:"column:availability_end_date;not null"`
 
 	// Relationships
-	Product Product `json:"product" gorm:"foreignKey:Id;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Product Product `json:"-" gorm:"foreignKey:Id;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 
 	// Concept relation (nullable)
 	ConceptID *uuid.UUID `json:"concept_id" gorm:"column:concept_id;type:uuid"`

@@ -55,7 +55,17 @@ func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionB
 		return err
 	}
 	order.StaffResource = fileURL
-	return o.orderRepository.Update(ctx, order)
+
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		return err
+	}
+
+	err = o.sendNotification(ctx, order.Status, order, user)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
@@ -148,6 +158,11 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	order.StaffResource = &fileURL
 	err = o.orderRepository.Update(ctx, order)
 	if err == nil {
+		return err
+	}
+
+	err = o.sendNotification(ctx, order.Status, order, user)
+	if err != nil {
 		return err
 	}
 
@@ -864,14 +879,14 @@ func (o orderService) sendNotification(ctx context.Context, orderStatus enum.Ord
 		//Also need to notify to all admin/staff
 	case enum.OrderStatusRefunded:
 		emailSubject := "💰 Your Refund Has Been Approved!"
-		selectedTemplate := "refund_processed"
+		selectedTemplate := "refund_request_received"
 		emailPayload := EmailNotificationPayload{
 			EmailSubject:      &emailSubject,
 			EmailTemplateName: &selectedTemplate,
 			EmailTemplateData: map[string]interface{}{
 				"CustomerName":  order.User.FullName,
 				"OrderCode":     order.ID.String(),
-				"RefundAmount":  fmt.Sprintf("%d VND", order.TotalAmount),
+				"RefundAmount":  fmt.Sprintf("%f", order.TotalAmount) + "VND",
 				"RefundDate":    order.UpdatedAt.Format("02 Jan 2006 15:04"),
 				"PaymentMethod": "PAYOS",
 				"OrderLink":     "https://yourdomain.com/user/orders/" + order.ID.String(),
@@ -926,7 +941,40 @@ func (o orderService) sendNotification(ctx context.Context, orderStatus enum.Ord
 		}
 		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
 	case enum.OrderStatusReceived:
+		pushPayload := PushNotificationPayload{
+			Title: "Thanks for using our service!",
+			Body:  "We hope to see you again soon.",
+			Data: map[string]string{
+				"data": "/(order)/order-detail/:id",
+			},
+		}
+		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
 	case enum.OrderStatusCompensateRequested:
+		emailSubject := "💰 Your Refund Has Been Approved!"
+		selectedTemplate := "refund_request_received"
+		emailPayload := EmailNotificationPayload{
+			EmailSubject:      &emailSubject,
+			EmailTemplateName: &selectedTemplate,
+			EmailTemplateData: map[string]interface{}{
+				"CustomerName":  order.User.FullName,
+				"OrderCode":     order.ID.String(),
+				"RefundAmount":  fmt.Sprintf("%f", order.TotalAmount) + "VND",
+				"RefundDate":    order.UpdatedAt.Format("02 Jan 2006 15:04"),
+				"PaymentMethod": "PAYOS",
+				"OrderLink":     "https://yourdomain.com/user/orders/" + order.ID.String(),
+				"Year":          time.Now().Year(),
+			},
+			EmailHTMLBody: nil,
+		}
+		pushPayload := PushNotificationPayload{
+			Title: "Ding Ding Ding 💰... Your Refund Has Been Approved!",
+			Body:  "",
+			Data: map[string]string{
+				"data": "/(order)/order-detail/:id",
+			},
+		}
+		req = buildNotificationRequest(order.UserID, []string{"EMAIL", "PUSH"}, emailPayload, pushPayload)
+
 	case enum.OrderStatusCompensated:
 	case enum.OrderStatusAwaitingPickUp:
 		pushPayload := PushNotificationPayload{

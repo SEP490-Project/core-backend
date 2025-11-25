@@ -12198,6 +12198,96 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/products/limited/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update limited product details (dates, concept, stock-related fields). Only applicable for products of type LIMITED and not actived.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Limited"
+                ],
+                "summary": "Update a limited product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Limited Product ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Limited product update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateLimitedProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Limited product updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products/limited/{limited-id}/concept/{concept-id}": {
             "post": {
                 "security": [
@@ -12549,6 +12639,164 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/variants/limited/{variantId}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update fields of an existing variant that belongs to a LIMITED product (stock/preorder related validations applied)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Variants"
+                ],
+                "summary": "Update a limited product variant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Variant ID (UUID)",
+                        "name": "variantId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Limited variant update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateLimitedProductVariantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductVariantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/variants/{variantId}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update fields of an existing product variant",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Variants"
+                ],
+                "summary": "Update a product variant",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Variant ID (UUID)",
+                        "name": "variantId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Variant update payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProductVariantRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductVariantResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -17835,14 +18083,6 @@ const docTemplate = `{
                 },
                 "premiere_date": {
                     "type": "string"
-                },
-                "product": {
-                    "description": "Relationships",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Product"
-                        }
-                    ]
                 }
             }
         },
@@ -18376,6 +18616,258 @@ const docTemplate = `{
                     "description": "Only for limited products",
                     "type": "integer"
                 },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.PreOrderStatus"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "pre_order_limit": {
+                    "type": "integer"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "product": {
+                    "description": "Relationship ExistsByID",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Product"
+                        }
+                    ]
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "story": {
+                    "$ref": "#/definitions/model.ProductStory"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                }
+            }
+        },
+        "model.VariantAttribute": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ingredient": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Product": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/model.ProductCategory"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "limited": {
+                    "$ref": "#/definitions/model.LimitedProduct"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "product_variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ProductVariant"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ProductStatus"
+                },
+                "task_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "CurrentStock *int               ` + "`" + `json:\"current_stock\" gorm:\"column:current_stock\"` + "`" + `",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ProductType"
+                        }
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductCategory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductStory": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "variant": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ProductVariant"
+                        }
+                    ]
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductVariant": {
+            "type": "object",
+            "properties": {
+                "attributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VariantAttributeValue"
+                    }
+                },
+                "capacity": {
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "current_stock": {
+                    "type": "integer"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.VariantImage"
+                    }
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "max_stock": {
+                    "description": "Only for limited products",
+                    "type": "integer"
+                },
                 "pre_order_count": {
                     "type": "integer"
                 },
@@ -18421,16 +18913,47 @@ const docTemplate = `{
         "model.VariantAttribute": {
             "type": "object",
             "properties": {
+                "attribute": {
+                    "$ref": "#/definitions/model.VariantAttribute"
+                },
+                "attribute_id": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
-                "created_by": {
+                "id": {
                     "type": "string"
                 },
-                "deleted_at": {
+                "unit": {
+                    "$ref": "#/definitions/enum.AttributeUnit"
+                },
+                "updated_at": {
                     "type": "string"
                 },
-                "description": {
+                "value": {
+                    "type": "number"
+                },
+                "variant": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ProductVariant"
+                        }
+                    ]
+                },
+                "variant_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.VariantImage": {
+            "type": "object",
+            "properties": {
+                "alt_text": {
+                    "type": "string"
+                },
+                "created_at": {
                     "type": "string"
                 },
                 "id": {
@@ -20633,6 +21156,302 @@ const docTemplate = `{
                             "$ref": "#/definitions/enum.PlatformType"
                         }
                     ]
+                }
+            }
+        },
+        "requests.UpdateLimitedProductRequest": {
+            "type": "object",
+            "properties": {
+                "availability_end_date": {
+                    "type": "string",
+                    "example": "2023-10-31T10:00"
+                },
+                "availability_start_date": {
+                    "type": "string",
+                    "example": "2023-10-01T10:00"
+                },
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "concept_id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Updated product description"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Updated Product Name"
+                },
+                "premiere_date": {
+                    "type": "string",
+                    "example": "2023-10-01T10:00:00"
+                }
+            }
+        },
+        "requests.UpdateLimitedProductVariantRequest": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 500
+                },
+                "capacity_unit": {
+                    "enum": [
+                        "ML",
+                        "L",
+                        "G",
+                        "KG",
+                        "OZ"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.CapacityUnit"
+                        }
+                    ]
+                },
+                "container_type": {
+                    "enum": [
+                        "BOTTLE",
+                        "TUBE",
+                        "JAR",
+                        "STICK",
+                        "PENCIL",
+                        "COMPACT",
+                        "PALLETE",
+                        "SACHET",
+                        "VIAL",
+                        "ROLLER_BOTTLE"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ContainerType"
+                        }
+                    ],
+                    "example": "BOTTLE"
+                },
+                "dispenser_type": {
+                    "enum": [
+                        "PUMP",
+                        "SPRAY",
+                        "DROPPER",
+                        "ROLL_ON",
+                        "TWIST_UP",
+                        "SQUEEZE",
+                        "NONE"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.DispenserType"
+                        }
+                    ],
+                    "example": "SPRAY"
+                },
+                "expiry_date": {
+                    "type": "string",
+                    "example": "2025-10-01T00:00:00Z"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15
+                },
+                "input_stock": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "instructions": {
+                    "type": "string",
+                    "example": "Shake well before use"
+                },
+                "is_default": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10
+                },
+                "manufacturing_date": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "max_stock": {
+                    "type": "integer"
+                },
+                "pre_order_limit": {
+                    "type": "integer"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 1000,
+                    "example": 1000
+                },
+                "uses": {
+                    "type": "string",
+                    "example": "For daily use"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 250
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 5
+                }
+            }
+        },
+        "requests.UpdateProductRequest": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "category_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Updated product description"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Updated Product Name"
+                }
+            }
+        },
+        "requests.UpdateProductVariantRequest": {
+            "type": "object",
+            "properties": {
+                "capacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "example": 500
+                },
+                "capacity_unit": {
+                    "enum": [
+                        "ML",
+                        "L",
+                        "G",
+                        "KG",
+                        "OZ"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.CapacityUnit"
+                        }
+                    ]
+                },
+                "container_type": {
+                    "enum": [
+                        "BOTTLE",
+                        "TUBE",
+                        "JAR",
+                        "STICK",
+                        "PENCIL",
+                        "COMPACT",
+                        "PALLETE",
+                        "SACHET",
+                        "VIAL",
+                        "ROLLER_BOTTLE"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ContainerType"
+                        }
+                    ],
+                    "example": "BOTTLE"
+                },
+                "dispenser_type": {
+                    "enum": [
+                        "PUMP",
+                        "SPRAY",
+                        "DROPPER",
+                        "ROLL_ON",
+                        "TWIST_UP",
+                        "SQUEEZE",
+                        "NONE"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.DispenserType"
+                        }
+                    ],
+                    "example": "SPRAY"
+                },
+                "expiry_date": {
+                    "type": "string",
+                    "example": "2025-10-01T00:00:00Z"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 15
+                },
+                "input_stock": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "instructions": {
+                    "type": "string",
+                    "example": "Shake well before use"
+                },
+                "is_default": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10
+                },
+                "manufacturing_date": {
+                    "type": "string",
+                    "example": "2023-10-01T00:00:00Z"
+                },
+                "price": {
+                    "type": "number",
+                    "minimum": 1000,
+                    "example": 1000
+                },
+                "uses": {
+                    "type": "string",
+                    "example": "For daily use"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 250
+                },
+                "width": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 5
                 }
             }
         },
