@@ -157,6 +157,11 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	}
 	order.StaffResource = &fileURL
 	err = o.orderRepository.Update(ctx, order)
+	if err == nil {
+		return err
+	}
+
+	err = o.sendNotification(ctx, order.Status, order, user)
 	if err != nil {
 		return err
 	}
@@ -165,6 +170,8 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	if err != nil {
 		return err
 	}
+	//send noti if success
+	//o.notificationService.
 
 	return nil
 
