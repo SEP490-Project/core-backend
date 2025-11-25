@@ -37,7 +37,7 @@ type OrderItem struct {
 	Width  int `json:"width" gorm:"column:width"`   // in centimeters
 
 	// Relationships
-	Variant ProductVariant `json:"-" gorm:"foreignKey:VariantID"`
+	Variant ProductVariant `json:"product_variant" gorm:"foreignKey:VariantID"`
 	Order   *Order         `json:"-" gorm:"foreignKey:OrderID"`
 }
 

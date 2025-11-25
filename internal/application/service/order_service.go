@@ -207,7 +207,8 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 	var orders []model.Order
 	if err := o.orderRepository.DB().WithContext(ctx).
 		Scopes(filterScope).
-		Preload("OrderItems").
+		Preload("OrderItems").Preload("OrderItems.Variant").Preload("OrderItems.Variant.Images").
+		Preload("OrderItems.Variant.Product").Preload("OrderItems.Variant.Product.Limited").
 		Order("orders.created_at DESC, orders.id ASC").
 		Limit(limit).
 		Offset(offset).
