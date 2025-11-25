@@ -18483,6 +18483,12 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "product_variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ProductVariant"
+                    }
+                },
                 "status": {
                     "$ref": "#/definitions/enum.ProductStatus"
                 },
@@ -21455,30 +21461,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.UpdateProductRequest": {
-            "type": "object",
-            "properties": {
-                "brand_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "category_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "description": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "example": "Updated product description"
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1,
-                    "example": "Updated Product Name"
-                }
-            }
-        },
         "requests.UpdateProfileRequest": {
             "type": "object",
             "properties": {
@@ -23425,6 +23407,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
                 },
                 "platform_config": {
                     "$ref": "#/definitions/model.JSONBPlatformConfig"
