@@ -64,7 +64,14 @@ func NewApplicationRegistry(
 
 	sseService := service.NewSSEService()
 
-	stateTransferService := service.NewStateTransferService(databaseRegistry, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, configs)
+	notificationService := service.NewNotificationService(
+		databaseRegistry.NotificationRepository,
+		databaseRegistry.UserRepository,
+		infrastructureRegistry.RabbitMQ,
+		sseService,
+	)
+
+	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -110,13 +117,6 @@ func NewApplicationRegistry(
 		infrastructureRegistry.ThirdPartyStorage,
 		databaseRegistry.FileRepository,
 		infrastructureRegistry.RabbitMQ,
-	)
-
-	notificationService := service.NewNotificationService(
-		databaseRegistry.NotificationRepository,
-		databaseRegistry.UserRepository,
-		infrastructureRegistry.RabbitMQ,
-		sseService,
 	)
 
 	facebookSocialService := service.NewFacebookSocialService(
