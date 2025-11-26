@@ -108,6 +108,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
 		r.SetupSalesStaffAnalyticsRoutes(v1)
+		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -794,6 +795,27 @@ func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/products", salesAnalyticsHandler.GetTopProducts)
 			protectedGroup.GET("/trend", salesAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/payments", salesAnalyticsHandler.GetPaymentStatus)
+		}
+	}
+}
+
+// SetupContentStaffAnalyticsRoutes sets up routes for content staff analytics dashboard
+func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	contentAnalyticsHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/content")
+	{
+		// Protected routes (Admin, Marketing and Content Staff can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			protectedGroup.GET("/dashboard", contentAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/status", contentAnalyticsHandler.GetContentStatusBreakdown)
+			protectedGroup.GET("/platforms", contentAnalyticsHandler.GetMetricsByPlatform)
+			protectedGroup.GET("/top", contentAnalyticsHandler.GetTopContent)
+			protectedGroup.GET("/channels", contentAnalyticsHandler.GetTopChannels)
+			protectedGroup.GET("/trend", contentAnalyticsHandler.GetEngagementTrend)
+			protectedGroup.GET("/campaigns", contentAnalyticsHandler.GetCampaignContentMetrics)
 		}
 	}
 }
