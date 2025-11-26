@@ -860,6 +860,17 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 			zap.String("contract_payment_id", contractPayment.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
 
+		// Unlock payment amount for AFFILIATE/CO_PRODUCING contracts
+		// This allows the amount to be recalculated on the next GET request
+		if contractPayment.LockedAmount != nil {
+			contractPayment.LockedAmount = nil
+			contractPayment.LockedAt = nil
+			contractPayment.LockedClicks = nil
+			contractPayment.LockedRevenue = nil
+			zap.L().Info("Unlocked payment amount after failure",
+				zap.String("contract_payment_id", contractPayment.ID.String()))
+		}
+
 	default:
 		// PENDING or other statuses - no change needed
 		zap.L().Debug("No contract payment status change needed",
