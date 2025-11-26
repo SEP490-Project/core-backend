@@ -70,10 +70,10 @@ type AdminRevenueBreakdown struct {
 type ContractsSummary struct {
 	TotalContracts  int64   `json:"total_contracts"`
 	Draft           int64   `json:"draft"`
-	Pending         int64   `json:"pending"`
+	Approved        int64   `json:"pending"`
 	Active          int64   `json:"active"`
 	Completed       int64   `json:"completed"`
-	Cancelled       int64   `json:"cancelled"`
+	Terminated      int64   `json:"cancelled"`
 	TotalValue      float64 `json:"total_value"`
 	CollectedAmount float64 `json:"collected_amount"` // Total paid amount
 	PendingAmount   float64 `json:"pending_amount"`   // Outstanding payment amount
@@ -83,10 +83,8 @@ type ContractsSummary struct {
 type AdminCampaignsSummary struct {
 	TotalCampaigns int64 `json:"total_campaigns"`
 	Draft          int64 `json:"draft"`
-	Active         int64 `json:"active"`
-	InProgress     int64 `json:"in_progress"`
-	Pending        int64 `json:"pending"`
-	Finished       int64 `json:"finished"`
+	Running        int64 `json:"running"`
+	Completed      int64 `json:"completed"`
 	Cancelled      int64 `json:"cancelled"`
 	ContentCreated int64 `json:"content_created"` // Total content pieces
 	ContentPosted  int64 `json:"content_posted"`  // Content with status POSTED

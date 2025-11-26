@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"time"
 
 	"gorm.io/gorm"
@@ -39,7 +40,7 @@ func (r *adminAnalyticsRepository) GetActiveUsersCount(ctx context.Context, acti
 	err := r.db.WithContext(ctx).
 		Table("users").
 		Where("deleted_at IS NULL").
-		Where("last_login_at >= ?", cutoff).
+		Where("last_login >= ?", cutoff).
 		Count(&count).Error
 	return count, err
 }
@@ -146,7 +147,7 @@ func (r *adminAnalyticsRepository) GetTotalContractValue(ctx context.Context) (f
 	err := r.db.WithContext(ctx).
 		Table("contracts").
 		Where("deleted_at IS NULL").
-		Select("COALESCE(SUM(total_value), 0)").
+		Select("COALESCE(SUM((financial_terms ->> 'total_cost')::integer), 0)").
 		Scan(&total).Error
 	return total, err
 }
@@ -235,7 +236,7 @@ func (r *adminAnalyticsRepository) GetTotalPlatformRevenue(ctx context.Context, 
 	orderQuery := r.db.WithContext(ctx).
 		Table("orders").
 		Where("deleted_at IS NULL").
-		Where("status IN ?", []string{"PAID", "PROCESSING", "SHIPPED", "DELIVERED"})
+		Where("status IN ?", []string{"PAID", "CONFIRMED", "SHIPPED", "IN_TRANSIT", "DELIVERED", "RECEIVED", "AWAITING_PICKUP"})
 
 	if startDate != nil {
 		orderQuery = orderQuery.Where("created_at >= ?", *startDate)
@@ -257,10 +258,10 @@ func (r *adminAnalyticsRepository) GetTotalPlatformRevenue(ctx context.Context, 
 		Where("cp.status = ?", "PAID")
 
 	if startDate != nil {
-		paymentQuery = paymentQuery.Where("cp.paid_at >= ?", *startDate)
+		paymentQuery = paymentQuery.Where("cp.created_at >= ? OR cp.updated_at >= ?", *startDate, *startDate)
 	}
 	if endDate != nil {
-		paymentQuery = paymentQuery.Where("cp.paid_at < ?", *endDate)
+		paymentQuery = paymentQuery.Where("cp.created_at < ? OR cp.updated_at < ?", *endDate, *endDate)
 	}
 
 	var paymentRevenue float64
@@ -284,10 +285,10 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueByContractType(ctx context.
 		Where("c.type = ?", contractType)
 
 	if startDate != nil {
-		query = query.Where("cp.paid_at >= ?", *startDate)
+		query = query.Where("cp.created_at >= ? OR cp.updated_at >= ?", *startDate, *startDate)
 	}
 	if endDate != nil {
-		query = query.Where("cp.paid_at < ?", *endDate)
+		query = query.Where("cp.created_at < ? OR cp.updated_at < ?", *endDate, *endDate)
 	}
 
 	err := query.Select("COALESCE(SUM(cp.amount), 0)").Scan(&total).Error
@@ -301,9 +302,10 @@ func (r *adminAnalyticsRepository) GetPlatformProductRevenue(ctx context.Context
 	query := r.db.WithContext(ctx).
 		Table("orders o").
 		Joins("INNER JOIN order_items oi ON oi.order_id = o.id").
-		Joins("INNER JOIN products p ON p.id = oi.product_id AND p.deleted_at IS NULL").
+		Joins("INNER JOIN product_variants pv ON pv.id = oi.variant_id AND pv.deleted_at IS NULL").
+		Joins("INNER JOIN products p on p.id = pv.product_id and p.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
-		Where("o.status IN ?", []string{"PAID", "PROCESSING", "SHIPPED", "DELIVERED"}).
+		Where("o.status IN ?", []string{"PAID", "CONFIRMED", "SHIPPED", "IN_TRANSIT", "DELIVERED", "RECEIVED", "AWAITING_PICKUP"}).
 		Where("p.type = ?", productType)
 
 	if startDate != nil {
@@ -314,6 +316,25 @@ func (r *adminAnalyticsRepository) GetPlatformProductRevenue(ctx context.Context
 	}
 
 	err := query.Select("COALESCE(SUM(oi.subtotal), 0)").Scan(&total).Error
+	if productType == enum.ProductTypeLimited.String() {
+		var revenue float64
+		query := r.db.WithContext(ctx).Table("pre_orders").
+			Select("COALESCE(SUM(total_amount), 0)").
+			Where("deleted_at IS NULL").
+			Where("status IN ?", []string{"PAID", "AWAITING_PICKUP", "IN_TRANSIT", "DELIVERED", "RECEIVED"})
+
+		if startDate != nil {
+			query = query.Where("created_at >= ?", *startDate)
+		}
+		if endDate != nil {
+			query = query.Where("created_at <= ?", *endDate)
+		}
+
+		if err = query.Scan(&revenue).Error; err != nil {
+			return 0, err
+		}
+		total += revenue
+	}
 	return total, err
 }
 
@@ -347,16 +368,16 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueTrend(ctx context.Context, 
 		params = append(params, *endDate)
 	}
 
-	// Build payment date filter (uses paid_at instead of created_at)
+	// Build payment date filter (uses updated_at instead of created_at)
 	var paymentDateConditions string
 	if startDate != nil && endDate != nil {
-		paymentDateConditions = "AND cp.paid_at >= ? AND cp.paid_at < ?"
+		paymentDateConditions = "AND cp.updated_at >= ? AND cp.updated_at < ?"
 		params = append(params, *startDate, *endDate)
 	} else if startDate != nil {
-		paymentDateConditions = "AND cp.paid_at >= ?"
+		paymentDateConditions = "AND cp.updated_at >= ?"
 		params = append(params, *startDate)
 	} else if endDate != nil {
-		paymentDateConditions = "AND cp.paid_at < ?"
+		paymentDateConditions = "AND cp.updated_at < ?"
 		params = append(params, *endDate)
 	}
 
@@ -367,19 +388,19 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueTrend(ctx context.Context, 
 			       COALESCE(SUM(total_amount), 0) AS revenue
 			FROM orders
 			WHERE deleted_at IS NULL
-				AND status IN ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
+				AND status IN ('PAID', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'AWAITING_PICKUP')
 				` + dateConditions + `
 			GROUP BY date_trunc('` + truncInterval + `', created_at)
 		),
 		payment_revenue AS (
-			SELECT date_trunc('` + truncInterval + `', cp.paid_at) AS date, 
+			SELECT date_trunc('` + truncInterval + `', cp.updated_at) AS date, 
 			       COALESCE(SUM(cp.amount), 0) AS revenue
 			FROM contract_payments cp
 			INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL
 			WHERE cp.deleted_at IS NULL
 				AND cp.status = 'PAID'
 				` + paymentDateConditions + `
-			GROUP BY date_trunc('` + truncInterval + `', cp.paid_at)
+			GROUP BY date_trunc('` + truncInterval + `', cp.updated_at)
 		)
 		SELECT 
 			COALESCE(o.date, p.date) AS date,
@@ -423,12 +444,14 @@ func (r *adminAnalyticsRepository) GetTotalOrdersCount(ctx context.Context, star
 func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.GrowthTrendResult, error) {
 	var results []dtos.GrowthTrendResult
 
-	dateFunc := getDateTruncFunc(granularity)
+	// Get date_trunc functions for different contexts
+	dateFuncCreatedAt := getDateTruncFunc(granularity)               // For tables with created_at column
+	dateFuncSeries := getDateTruncFuncForGenerateSeries(granularity) // For generate_series output
 
 	// Build the query using CTE
 	query := `
 		WITH dates AS (
-			SELECT DISTINCT ` + dateFunc + ` AS date
+			SELECT DISTINCT ` + dateFuncSeries + ` AS date
 			FROM generate_series(
 				$1::timestamp,
 				$2::timestamp,
@@ -436,26 +459,26 @@ func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granulari
 			) AS t(date)
 		),
 		user_counts AS (
-			SELECT ` + dateFunc + ` AS date, COUNT(*) AS new_users
+			SELECT ` + dateFuncCreatedAt + ` AS date, COUNT(*) AS new_users
 			FROM users
 			WHERE deleted_at IS NULL
 				AND created_at >= $1 AND created_at < $2
-			GROUP BY ` + dateFunc + `
+			GROUP BY ` + dateFuncCreatedAt + `
 		),
 		order_counts AS (
-			SELECT ` + dateFunc + ` AS date, COUNT(*) AS new_orders, COALESCE(SUM(total_amount), 0) AS revenue
+			SELECT ` + dateFuncCreatedAt + ` AS date, COUNT(*) AS new_orders, COALESCE(SUM(total_amount), 0) AS revenue
 			FROM orders
 			WHERE deleted_at IS NULL
-				AND status IN ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
+				AND status IN ('PAID', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'AWAITING_PICKUP') 
 				AND created_at >= $1 AND created_at < $2
-			GROUP BY ` + dateFunc + `
+			GROUP BY ` + dateFuncCreatedAt + `
 		),
 		contract_counts AS (
-			SELECT ` + dateFunc + ` AS date, COUNT(*) AS new_contracts
+			SELECT ` + dateFuncCreatedAt + ` AS date, COUNT(*) AS new_contracts
 			FROM contracts
 			WHERE deleted_at IS NULL
 				AND created_at >= $1 AND created_at < $2
-			GROUP BY ` + dateFunc + `
+			GROUP BY ` + dateFuncCreatedAt + `
 		)
 		SELECT 
 			d.date,
@@ -497,6 +520,7 @@ func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granulari
 }
 
 // getDateTruncFunc returns the appropriate date_trunc function based on granularity
+// This version uses 'created_at' column for tables
 func getDateTruncFunc(granularity string) string {
 	switch granularity {
 	case "DAY":
@@ -505,5 +529,18 @@ func getDateTruncFunc(granularity string) string {
 		return "date_trunc('week', created_at)"
 	default:
 		return "date_trunc('month', created_at)"
+	}
+}
+
+// getDateTruncFuncForGenerateSeries returns the appropriate date_trunc function for generate_series output
+// This version uses 'date' column from generate_series alias
+func getDateTruncFuncForGenerateSeries(granularity string) string {
+	switch granularity {
+	case "DAY":
+		return "date_trunc('day', date)"
+	case "WEEK":
+		return "date_trunc('week', date)"
+	default:
+		return "date_trunc('month', date)"
 	}
 }

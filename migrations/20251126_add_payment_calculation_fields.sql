@@ -1,11 +1,14 @@
 -- Migration: Add payment calculation fields for AFFILIATE and CO_PRODUCING contracts
 -- Created: November 26, 2025
 -- Purpose: Support auto-recalculation of payment amounts and payment locking mechanism
+ALTER TABLE orders
+ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE default NULL;
 
 -- =====================================================
 -- 1. Add period tracking fields
 -- =====================================================
--- These fields define the payment period boundaries for AFFILIATE/CO_PRODUCING contracts
+-- These fields define the payment period boundaries for AFFILIATE/CO_PRODUCING
+-- contracts
 ALTER TABLE contract_payments
 ADD COLUMN IF NOT EXISTS period_start TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS period_end TIMESTAMP WITH TIME ZONE;
@@ -57,52 +60,63 @@ WHERE locked_at IS NOT NULL AND deleted_at IS NULL;
 -- 5. Update existing AFFILIATE/CO_PRODUCING payments with period info
 -- =====================================================
 -- This CTE updates existing contract payments that don't have period info set
--- by calculating the period based on due_date and payment cycle from the contract's financial_terms
-
+-- by calculating the period based on due_date and payment cycle from the contract's
+-- financial_terms
 -- Note: This is a best-effort migration for existing data.
 -- Manual review may be needed for edge cases.
-
-WITH contract_cycles AS (
-    SELECT 
-        cp.id AS payment_id,
-        c.id AS contract_id,
-        c.type AS contract_type,
-        cp.due_date,
-        CASE 
-            WHEN c.type = 'AFFILIATE' THEN 
-                (c.financial_terms->>'payment_cycle')::text
-            WHEN c.type = 'CO_PRODUCING' THEN 
-                (c.financial_terms->>'profit_distribution_cycle')::text
-            ELSE NULL
-        END AS payment_cycle
-    FROM contract_payments cp
-    JOIN contracts c ON c.id = cp.contract_id
-    WHERE cp.period_start IS NULL
-      AND c.type IN ('AFFILIATE', 'CO_PRODUCING')
-      AND cp.deleted_at IS NULL
-),
-calculated_periods AS (
-    SELECT 
-        payment_id,
-        due_date,
-        CASE payment_cycle
-            WHEN 'MONTHLY' THEN date_trunc('month', due_date)
-            WHEN 'QUARTERLY' THEN date_trunc('quarter', due_date)
-            WHEN 'ANNUALLY' THEN date_trunc('year', due_date)
-            ELSE due_date
-        END AS period_start,
-        CASE payment_cycle
-            WHEN 'MONTHLY' THEN date_trunc('month', due_date) + INTERVAL '1 month'
-            WHEN 'QUARTERLY' THEN date_trunc('quarter', due_date) + INTERVAL '3 months'
-            WHEN 'ANNUALLY' THEN date_trunc('year', due_date) + INTERVAL '1 year'
-            ELSE due_date + INTERVAL '1 month'
-        END AS period_end
-    FROM contract_cycles
-    WHERE payment_cycle IS NOT NULL
-)
-UPDATE contract_payments cp
-SET 
+with
+    contract_cycles as (
+        select
+            cp.id as payment_id,
+            c.id as contract_id,
+            c.type as contract_type,
+            cp.due_date,
+            case
+                when c.type = 'AFFILIATE'
+                then (c.financial_terms ->> 'payment_cycle')::text
+                when c.type = 'CO_PRODUCING'
+                then (c.financial_terms ->> 'profit_distribution_cycle')::text
+                else null
+            end as payment_cycle
+        from contract_payments cp
+        join contracts c on c.id = cp.contract_id
+        where
+            cp.period_start is null
+            and c.type in ('AFFILIATE', 'CO_PRODUCING')
+            and cp.deleted_at is null
+    ),
+    calculated_periods as (
+        select
+            payment_id,
+            due_date,
+            case
+                payment_cycle
+                when 'MONTHLY'
+                then date_trunc('month', due_date)
+                when 'QUARTERLY'
+                then date_trunc('quarter', due_date)
+                when 'ANNUALLY'
+                then date_trunc('year', due_date)
+                else due_date
+            end as period_start,
+            case
+                payment_cycle
+                when 'MONTHLY'
+                then date_trunc('month', due_date) + interval '1 month'
+                when 'QUARTERLY'
+                then date_trunc('quarter', due_date) + interval '3 months'
+                when 'ANNUALLY'
+                then date_trunc('year', due_date) + interval '1 year'
+                else due_date + interval '1 month'
+            end as period_end
+        from contract_cycles
+        where payment_cycle is not null
+    )
+    update contract_payments cp
+    set
     period_start = calc.period_start,
     period_end = calc.period_end
-FROM calculated_periods calc
-WHERE cp.id = calc.payment_id;
+from calculated_periods calc
+where cp.id = calc.payment_id
+;
+
