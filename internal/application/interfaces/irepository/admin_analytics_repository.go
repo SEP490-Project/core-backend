@@ -43,4 +43,26 @@ type AdminAnalyticsRepository interface {
 
 	// Growth Trend
 	GetGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.GrowthTrendResult, error)
+
+	// ==========================================================================
+	// CONSOLIDATED DASHBOARD QUERIES (optimized batch methods)
+	// ==========================================================================
+
+	// GetDashboardUsersMetrics returns all user metrics in a single query
+	GetDashboardUsersMetrics(ctx context.Context, activeDays int, monthStart, monthEnd time.Time) (*dtos.DashboardUsersResult, error)
+
+	// GetDashboardContractsMetrics returns all contract metrics in a single query
+	GetDashboardContractsMetrics(ctx context.Context) (*dtos.DashboardContractsResult, error)
+
+	// GetDashboardCampaignsMetrics returns all campaign metrics in a single query
+	GetDashboardCampaignsMetrics(ctx context.Context) (*dtos.DashboardCampaignsResult, error)
+
+	// GetDashboardBrandsMetrics returns all brand metrics in a single query
+	GetDashboardBrandsMetrics(ctx context.Context) (*dtos.DashboardBrandsResult, error)
+
+	// GetDashboardOrdersMetrics returns all order metrics in a single query
+	GetDashboardOrdersMetrics(ctx context.Context, startDate, endDate *time.Time) (*dtos.DashboardOrdersResult, error)
+
+	// GetDashboardRevenueMetrics returns all revenue metrics in a single query
+	GetDashboardRevenueMetrics(ctx context.Context, startDate, endDate *time.Time) (*dtos.DashboardRevenueResult, error)
 }

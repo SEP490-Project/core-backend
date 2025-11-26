@@ -28,9 +28,14 @@ func NewAdminAnalyticsService(
 	}
 }
 
-// GetDashboard returns the complete Admin dashboard by aggregating individual endpoint data
+// GetDashboard returns the complete Admin dashboard using optimized batch queries
 func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.AdminDashboardRequest) (*responses.AdminDashboardResponse, error) {
 	startDate, endDate := req.GetDateRange()
+
+	// Calculate month boundaries for user metrics
+	now := time.Now()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	monthEnd := monthStart.AddDate(0, 1, 0)
 
 	var mu sync.Mutex
 	dashboard := &responses.AdminDashboardResponse{
@@ -40,88 +45,140 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 		},
 	}
 
-	// Execute queries in parallel - reusing public endpoint methods
-	err := utils.RunParallel(ctx, 6,
-		// Query 1: Users overview (extracts overview metrics + users breakdown)
+	// Execute 7 optimized batch queries in parallel (instead of 42+ individual queries)
+	err := utils.RunParallel(ctx, 7,
+		// Query 1: All user metrics in ONE query
 		func(ctx context.Context) error {
-			usersOverview, err := s.GetUsersOverview(ctx, &requests.UsersOverviewRequest{})
+			users, err := s.analyticsRepo.GetDashboardUsersMetrics(ctx, 30, monthStart, monthEnd)
 			if err != nil {
-				zap.L().Warn("Failed to get users overview", zap.Error(err))
+				zap.L().Warn("Failed to get users metrics", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.Overview.TotalUsers = usersOverview.TotalUsers
-			dashboard.Overview.ActiveUsers = usersOverview.ActiveUsers
-			dashboard.UsersBreakdown = usersOverview.RoleBreakdown
+			dashboard.Overview.TotalUsers = users.TotalUsers
+			dashboard.Overview.ActiveUsers = users.ActiveUsers
+			dashboard.UsersBreakdown = responses.UsersBreakdown{
+				Admin:          users.Admin,
+				MarketingStaff: users.MarketingStaff,
+				SalesStaff:     users.SalesStaff,
+				ContentStaff:   users.ContentStaff,
+				BrandPartner:   users.BrandPartner,
+				Customer:       users.Customer,
+				TotalActive:    users.ActiveUsers,
+				NewThisMonth:   users.NewThisMonth,
+			}
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 2: Platform revenue (extracts revenue breakdown)
+		// Query 2: All contract metrics in ONE query
 		func(ctx context.Context) error {
-			revenueResp, err := s.GetPlatformRevenue(ctx, &requests.PlatformRevenueRequest{
-				StartDate: &startDate,
-				EndDate:   &endDate,
-			})
+			contracts, err := s.analyticsRepo.GetDashboardContractsMetrics(ctx)
 			if err != nil {
-				zap.L().Warn("Failed to get platform revenue", zap.Error(err))
+				zap.L().Warn("Failed to get contracts metrics", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.Overview.TotalRevenue = revenueResp.TotalRevenue
-			dashboard.Overview.MonthlyRevenue = revenueResp.TotalRevenue // Same period
-			dashboard.RevenueBreakdown = revenueResp.RevenueBreakdown
+			dashboard.Overview.TotalContracts = contracts.TotalContracts
+			dashboard.Overview.ActiveContracts = contracts.Active
+			dashboard.ContractsSummary = responses.ContractsSummary{
+				TotalContracts:  contracts.TotalContracts,
+				Draft:           contracts.Draft,
+				Approved:        contracts.Approved,
+				Active:          contracts.Active,
+				Completed:       contracts.Completed,
+				Terminated:      contracts.Terminated,
+				TotalValue:      contracts.TotalValue,
+				CollectedAmount: contracts.CollectedAmount,
+				PendingAmount:   contracts.PendingAmount,
+			}
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 3: Contracts summary
+		// Query 3: All campaign metrics in ONE query
 		func(ctx context.Context) error {
-			summary, err := s.GetContractsSummary(ctx, &requests.DashboardRequest{})
+			campaigns, err := s.analyticsRepo.GetDashboardCampaignsMetrics(ctx)
 			if err != nil {
-				zap.L().Warn("Failed to get contracts summary", zap.Error(err))
+				zap.L().Warn("Failed to get campaigns metrics", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.Overview.TotalContracts = summary.TotalContracts
-			dashboard.Overview.ActiveContracts = summary.Active
-			dashboard.ContractsSummary = *summary
+			dashboard.Overview.TotalCampaigns = campaigns.TotalCampaigns
+			dashboard.Overview.ActiveCampaigns = campaigns.Running
+			dashboard.CampaignsSummary = responses.AdminCampaignsSummary{
+				TotalCampaigns: campaigns.TotalCampaigns,
+				Draft:          campaigns.Draft,
+				Running:        campaigns.Running,
+				Completed:      campaigns.Completed,
+				Cancelled:      campaigns.Cancelled,
+				ContentCreated: campaigns.ContentCreated,
+				ContentPosted:  campaigns.ContentPosted,
+			}
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 4: Campaigns summary
+		// Query 4: All brand metrics in ONE query
 		func(ctx context.Context) error {
-			summary, err := s.GetCampaignsSummary(ctx, &requests.DashboardRequest{})
+			brands, err := s.analyticsRepo.GetDashboardBrandsMetrics(ctx)
 			if err != nil {
-				zap.L().Warn("Failed to get campaigns summary", zap.Error(err))
+				zap.L().Warn("Failed to get brands metrics", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.Overview.TotalCampaigns = summary.TotalCampaigns
-			dashboard.Overview.ActiveCampaigns = summary.Running
-			dashboard.CampaignsSummary = *summary
+			dashboard.Overview.TotalBrands = brands.TotalBrands
+			dashboard.Overview.ActiveBrands = brands.ActiveBrands
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 5: Brands count
+		// Query 5: All order metrics in ONE query
 		func(ctx context.Context) error {
-			totalBrands, _ := s.analyticsRepo.GetTotalBrandsCount(ctx)
-			activeBrands, _ := s.analyticsRepo.GetActiveBrandsCount(ctx)
+			orders, err := s.analyticsRepo.GetDashboardOrdersMetrics(ctx, &startDate, &endDate)
+			if err != nil {
+				zap.L().Warn("Failed to get orders metrics", zap.Error(err))
+				return nil
+			}
 			mu.Lock()
-			dashboard.Overview.TotalBrands = totalBrands
-			dashboard.Overview.ActiveBrands = activeBrands
+			dashboard.Overview.TotalOrders = orders.TotalOrders
+			dashboard.Overview.MonthlyOrders = orders.MonthlyOrders
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 6: Orders count + Growth trend
+		// Query 6: All revenue metrics in ONE query
 		func(ctx context.Context) error {
-			totalOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, nil, nil)
-			monthlyOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, &startDate, &endDate)
-			trend, _ := s.analyticsRepo.GetGrowthTrend(ctx, "DAY", &startDate, &endDate)
+			revenue, err := s.analyticsRepo.GetDashboardRevenueMetrics(ctx, &startDate, &endDate)
+			if err != nil {
+				zap.L().Warn("Failed to get revenue metrics", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			dashboard.Overview.TotalRevenue = revenue.TotalRevenue
+			dashboard.Overview.MonthlyRevenue = revenue.MonthlyRevenue
+			dashboard.RevenueBreakdown = responses.AdminRevenueBreakdown{
+				AdvertisingRevenue:     revenue.AdvertisingRevenue,
+				AffiliateRevenue:       revenue.AffiliateRevenue,
+				AmbassadorRevenue:      revenue.AmbassadorRevenue,
+				CoProducingRevenue:     revenue.CoProducingRevenue,
+				StandardProductRevenue: revenue.StandardProductRevenue,
+				LimitedProductRevenue:  revenue.LimitedProductRevenue,
+				TotalContractRevenue:   revenue.AdvertisingRevenue + revenue.AffiliateRevenue + revenue.AmbassadorRevenue + revenue.CoProducingRevenue,
+				TotalProductRevenue:    revenue.StandardProductRevenue + revenue.LimitedProductRevenue,
+				TotalRevenue:           revenue.MonthlyRevenue,
+			}
+			mu.Unlock()
+			return nil
+		},
 
+		// Query 7: Growth trend (already optimized as single CTE query)
+		func(ctx context.Context) error {
+			trend, err := s.analyticsRepo.GetGrowthTrend(ctx, "DAY", &startDate, &endDate)
+			if err != nil {
+				zap.L().Warn("Failed to get growth trend", zap.Error(err))
+				return nil
+			}
 			trendPoints := make([]responses.GrowthTrendPoint, len(trend))
 			for i, t := range trend {
 				trendPoints[i] = responses.GrowthTrendPoint{
@@ -132,10 +189,7 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 					Revenue:      t.Revenue,
 				}
 			}
-
 			mu.Lock()
-			dashboard.Overview.TotalOrders = totalOrders
-			dashboard.Overview.MonthlyOrders = monthlyOrders
 			dashboard.GrowthTrend = trendPoints
 			mu.Unlock()
 			return nil
