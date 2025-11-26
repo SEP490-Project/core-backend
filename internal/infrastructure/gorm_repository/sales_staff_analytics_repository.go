@@ -49,7 +49,7 @@ func (r *salesStaffAnalyticsRepository) GetOrdersRevenueByType(ctx context.Conte
 	query := r.db.WithContext(ctx).Table("orders").
 		Select("COALESCE(SUM(total_amount), 0)").
 		Where("deleted_at IS NULL").
-		Where("status = ?", "RECEIVED") // Only completed orders
+		Where("status = ?", enum.OrderStatusReceived.String()) // Only completed orders
 
 	if orderType != "" {
 		query = query.Where("order_type = ?", orderType)
@@ -116,9 +116,9 @@ func (r *salesStaffAnalyticsRepository) GetPreOrdersCount(ctx context.Context, s
 func (r *salesStaffAnalyticsRepository) GetPreOrdersRevenue(ctx context.Context, startDate, endDate *time.Time) (float64, error) {
 	var revenue float64
 	query := r.db.WithContext(ctx).Table("pre_orders").
-		Select("COALESCE(SUM(total_price), 0)").
+		Select("COALESCE(SUM(total_amount), 0)").
 		Where("deleted_at IS NULL").
-		Where("status = ?", "RECEIVED")
+		Where("status = ?", enum.PreOrderStatusReceived.String())
 
 	if startDate != nil {
 		query = query.Where("created_at >= ?", *startDate)
@@ -163,16 +163,16 @@ func (r *salesStaffAnalyticsRepository) GetContractRevenueByType(ctx context.Con
 		Select("COALESCE(SUM(cp.amount), 0)").
 		Joins("JOIN contracts c ON c.id = cp.contract_id").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID")
+		Where("cp.status = ?", enum.ContractPaymentStatusPaid.String())
 
 	if contractType != "" {
 		query = query.Where("c.type = ?", contractType)
 	}
 	if startDate != nil {
-		query = query.Where("cp.paid_at >= ?", *startDate)
+		query = query.Where("cp.due_date >= ?", *startDate)
 	}
 	if endDate != nil {
-		query = query.Where("cp.paid_at <= ?", *endDate)
+		query = query.Where("cp.due_date <= ?", *endDate)
 	}
 
 	if err := query.Scan(&revenue).Error; err != nil {
@@ -199,12 +199,13 @@ func (r *salesStaffAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Contex
 		WITH order_revenue AS (
 			SELECT 
 				p.brand_id,
-				SUM(oi.total_price) as revenue,
+				SUM(oi.subtotal) as revenue,
 				COUNT(DISTINCT o.id) as order_count,
-				COUNT(DISTINCT oi.product_id) as product_count
+				COUNT(DISTINCT p.id) as product_count
 			FROM orders o
 			JOIN order_items oi ON oi.order_id = o.id
-			JOIN products p ON p.id = oi.product_id
+			JOIN product_variants pv ON pv.id = oi.variant_id
+			JOIN products p ON p.id = pv.product_id
 			WHERE o.deleted_at IS NULL 
 			AND o.status = ?
 			` + dateFilter + `
@@ -241,14 +242,15 @@ func (r *salesStaffAnalyticsRepository) GetTopProductsByRevenue(ctx context.Cont
 			p.name as product_name,
 			b.name as brand_name,
 			p.type as product_type,
-			SUM(oi.total_price) as total_revenue,
+			SUM(oi.subtotal) as total_revenue,
 			SUM(oi.quantity) as units_sold
 		`).
 		Joins("JOIN orders o ON o.id = oi.order_id").
-		Joins("JOIN products p ON p.id = oi.product_id").
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
 		Joins("JOIN brands b ON b.id = p.brand_id").
 		Where("o.deleted_at IS NULL").
-		Where("o.status = ?", "RECEIVED")
+		Where("o.status = ?", enum.OrderStatusReceived.String())
 
 	if productType != "" {
 		query = query.Where("p.type = ?", productType)
@@ -291,7 +293,7 @@ func (r *salesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, gra
 			AVG(o.total_amount) as average_order_value
 		`).
 		Where("o.deleted_at IS NULL").
-		Where("o.status = ?", "RECEIVED")
+		Where("o.status = ?", enum.OrderStatusReceived.String())
 
 	if startDate != nil {
 		query = query.Where("o.created_at >= ?", *startDate)
@@ -316,7 +318,6 @@ func (r *salesStaffAnalyticsRepository) GetRecentOrders(ctx context.Context, lim
 	query := r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			o.id as order_id,
-			o.order_number,
 			u.full_name as customer_name,
 			o.total_amount,
 			o.status,
@@ -340,6 +341,10 @@ func (r *salesStaffAnalyticsRepository) GetRecentOrders(ctx context.Context, lim
 func (r *salesStaffAnalyticsRepository) GetPaymentStatusCounts(ctx context.Context, contractID *uuid.UUID, startDate, endDate *time.Time) (*dtos.PaymentStatusResult, error) {
 	result := &dtos.PaymentStatusResult{}
 
+	paidStatus := enum.ContractPaymentStatusPaid.String()
+	pendingStatus := enum.ContractPaymentStatusPending.String()
+	now := time.Now()
+
 	baseQuery := r.db.WithContext(ctx).Table("contract_payments cp").
 		Where("cp.deleted_at IS NULL")
 
@@ -361,7 +366,7 @@ func (r *salesStaffAnalyticsRepository) GetPaymentStatusCounts(ctx context.Conte
 	// Paid
 	if err := r.db.WithContext(ctx).Table("contract_payments cp").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID").
+		Where("cp.status = ?", paidStatus).
 		Count(&result.PaidPayments).Error; err != nil {
 		return nil, err
 	}
@@ -369,8 +374,8 @@ func (r *salesStaffAnalyticsRepository) GetPaymentStatusCounts(ctx context.Conte
 	// Pending (due date in future)
 	if err := r.db.WithContext(ctx).Table("contract_payments cp").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PENDING").
-		Where("cp.due_date >= ?", time.Now()).
+		Where("cp.status = ?", pendingStatus).
+		Where("cp.due_date >= ?", now).
 		Count(&result.PendingPayments).Error; err != nil {
 		return nil, err
 	}
@@ -378,8 +383,8 @@ func (r *salesStaffAnalyticsRepository) GetPaymentStatusCounts(ctx context.Conte
 	// Overdue (pending but due date passed)
 	if err := r.db.WithContext(ctx).Table("contract_payments cp").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PENDING").
-		Where("cp.due_date < ?", time.Now()).
+		Where("cp.status = ?", pendingStatus).
+		Where("cp.due_date < ?", now).
 		Count(&result.OverduePayments).Error; err != nil {
 		return nil, err
 	}
@@ -393,21 +398,21 @@ func (r *salesStaffAnalyticsRepository) GetPaymentStatusCounts(ctx context.Conte
 	r.db.WithContext(ctx).Table("contract_payments cp").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID").
+		Where("cp.status = ?", paidStatus).
 		Scan(&result.PaidAmount)
 
 	r.db.WithContext(ctx).Table("contract_payments cp").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PENDING").
-		Where("cp.due_date >= ?", time.Now()).
+		Where("cp.status = ?", pendingStatus).
+		Where("cp.due_date >= ?", now).
 		Scan(&result.PendingAmount)
 
 	r.db.WithContext(ctx).Table("contract_payments cp").
 		Select("COALESCE(SUM(amount), 0)").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PENDING").
-		Where("cp.due_date < ?", time.Now()).
+		Where("cp.status = ?", pendingStatus).
+		Where("cp.due_date < ?", now).
 		Scan(&result.OverdueAmount)
 
 	return result, nil

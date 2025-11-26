@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"sync"
 	"time"
@@ -183,21 +184,23 @@ func (s *contentStaffAnalyticsService) getOverviewMetrics(ctx context.Context, s
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContentCountByStatus(ctx, "POSTED", startDate, endDate)
+			count, _ := s.analyticsRepo.GetContentCountByStatus(ctx, enum.ContentStatusPosted.String(), startDate, endDate)
 			mu.Lock()
 			overview.PostedContent = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContentCountByStatus(ctx, "PENDING", startDate, endDate)
+			// Note: "PENDING" doesn't map to a ContentStatus enum - may need to combine AWAIT_STAFF and AWAIT_BRAND
+			awaitStaffCount, _ := s.analyticsRepo.GetContentCountByStatus(ctx, enum.ContentStatusAwaitStaff.String(), startDate, endDate)
+			awaitBrandCount, _ := s.analyticsRepo.GetContentCountByStatus(ctx, enum.ContentStatusAwaitBrand.String(), startDate, endDate)
 			mu.Lock()
-			overview.PendingContent = count
+			overview.PendingContent = awaitStaffCount + awaitBrandCount
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContentCountByStatus(ctx, "DRAFT", startDate, endDate)
+			count, _ := s.analyticsRepo.GetContentCountByStatus(ctx, enum.ContentStatusDraft.String(), startDate, endDate)
 			mu.Lock()
 			overview.DraftContent = count
 			mu.Unlock()
@@ -244,15 +247,15 @@ func (s *contentStaffAnalyticsService) GetContentStatusBreakdown(ctx context.Con
 	breakdown := &responses.ContentStatusBreakdown{}
 	for _, r := range results {
 		switch r.Status {
-		case "DRAFT":
+		case enum.ContentStatusDraft.String():
 			breakdown.DraftCount = r.Count
-		case "PENDING":
-			breakdown.PendingCount = r.Count
-		case "POSTED":
+		case enum.ContentStatusAwaitStaff.String(), enum.ContentStatusAwaitBrand.String():
+			breakdown.PendingCount += r.Count
+		case enum.ContentStatusPosted.String():
 			breakdown.PostedCount = r.Count
-		case "APPROVED":
+		case enum.ContentStatusApproved.String():
 			breakdown.ApprovedCount = r.Count
-		case "REJECTED":
+		case enum.ContentStatusRejected.String():
 			breakdown.RejectedCount = r.Count
 		}
 		breakdown.TotalCount += r.Count

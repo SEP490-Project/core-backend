@@ -48,12 +48,12 @@ func (r *contentStaffAnalyticsRepository) GetTotalContentCount(ctx context.Conte
 	return r.GetContentCountByStatus(ctx, "", startDate, endDate)
 }
 
-// GetTotalViews returns total views from content channels and kpi_metrics
+// GetTotalViews returns total views from content channels metrics JSONB
 func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
 	var views int64
 	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select("COALESCE(SUM(cc.views), 0)").
-		Where("cc.deleted_at IS NULL")
+		Select("COALESCE(SUM((cc.metrics->>'views')::int), 0)").
+		Where("cc.metrics IS NOT NULL")
 
 	if startDate != nil {
 		query = query.Where("cc.published_at >= ?", *startDate)
@@ -69,12 +69,12 @@ func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, sta
 	return views, nil
 }
 
-// GetTotalEngagements returns total engagements (likes + comments + shares)
+// GetTotalEngagements returns total engagements (likes + comments + shares) from metrics JSONB
 func (r *contentStaffAnalyticsRepository) GetTotalEngagements(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
 	var engagements int64
 	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select("COALESCE(SUM(COALESCE(cc.likes, 0) + COALESCE(cc.comments, 0) + COALESCE(cc.shares, 0)), 0)").
-		Where("cc.deleted_at IS NULL")
+		Select("COALESCE(SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0)), 0)").
+		Where("cc.metrics IS NOT NULL")
 
 	if startDate != nil {
 		query = query.Where("cc.published_at >= ?", *startDate)
@@ -110,26 +110,26 @@ func (r *contentStaffAnalyticsRepository) GetTotalClicks(ctx context.Context, st
 	return clicks, nil
 }
 
-// GetMetricsByPlatform returns metrics aggregated by platform
+// GetMetricsByPlatform returns metrics aggregated by platform (channel name)
 func (r *contentStaffAnalyticsRepository) GetMetricsByPlatform(ctx context.Context, startDate, endDate *time.Time) ([]dtos.PlatformMetricsResult, error) {
 	var results []dtos.PlatformMetricsResult
 
 	query := r.db.WithContext(ctx).Table("content_channels cc").
 		Select(`
-			ch.platform,
+			ch.name as platform,
 			COUNT(DISTINCT cc.content_id) as content_count,
-			COALESCE(SUM(cc.views), 0) as total_views,
-			COALESCE(SUM(cc.likes), 0) as total_likes,
-			COALESCE(SUM(cc.comments), 0) as total_comments,
-			COALESCE(SUM(cc.shares), 0) as total_shares,
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
+			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as total_likes,
+			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as total_comments,
+			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as total_shares,
 			0 as total_clicks,
-			CASE WHEN SUM(cc.views) > 0 
-				THEN (SUM(COALESCE(cc.likes, 0) + COALESCE(cc.comments, 0) + COALESCE(cc.shares, 0))::float / SUM(cc.views)::float * 100)
+			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
+				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
 				ELSE 0 
 			END as engagement_rate
 		`).
 		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Where("cc.deleted_at IS NULL")
+		Where("cc.metrics IS NOT NULL")
 
 	if startDate != nil {
 		query = query.Where("cc.published_at >= ?", *startDate)
@@ -138,7 +138,7 @@ func (r *contentStaffAnalyticsRepository) GetMetricsByPlatform(ctx context.Conte
 		query = query.Where("cc.published_at <= ?", *endDate)
 	}
 
-	query = query.Group("ch.platform").Order("total_views DESC")
+	query = query.Group("ch.name").Order("total_views DESC")
 
 	if err := query.Scan(&results).Error; err != nil {
 		zap.L().Error("Failed to get metrics by platform", zap.Error(err))
@@ -151,33 +151,36 @@ func (r *contentStaffAnalyticsRepository) GetMetricsByPlatform(ctx context.Conte
 func (r *contentStaffAnalyticsRepository) GetTopContentByViews(ctx context.Context, platform *string, limit int, startDate, endDate *time.Time) ([]dtos.ContentMetricsResult, error) {
 	var results []dtos.ContentMetricsResult
 
+	postedStatus := enum.AutoPostStatusPosted.String()
+
 	query := r.db.WithContext(ctx).Table("content_channels cc").
 		Select(`
 			c.id as content_id,
 			c.title,
-			ch.platform,
+			ch.name as platform,
 			ch.name as channel_name,
 			cmp.name as campaign_name,
-			COALESCE(cc.views, 0) as views,
-			COALESCE(cc.likes, 0) as likes,
-			COALESCE(cc.comments, 0) as comments,
-			COALESCE(cc.shares, 0) as shares,
+			COALESCE((cc.metrics->>'views')::int, 0) as views,
+			COALESCE((cc.metrics->>'likes')::int, 0) as likes,
+			COALESCE((cc.metrics->>'comments')::int, 0) as comments,
+			COALESCE((cc.metrics->>'shares')::int, 0) as shares,
 			0 as clicks,
-			CASE WHEN cc.views > 0 
-				THEN ((COALESCE(cc.likes, 0) + COALESCE(cc.comments, 0) + COALESCE(cc.shares, 0))::float / cc.views::float * 100)
+			CASE WHEN (cc.metrics->>'views')::int > 0 
+				THEN ((COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / (cc.metrics->>'views')::int::float * 100)
 				ELSE 0 
 			END as engagement_rate,
 			cc.published_at as posted_at
 		`).
 		Joins("JOIN contents c ON c.id = cc.content_id").
 		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Joins("LEFT JOIN milestones m ON m.id = c.milestone_id").
+		Joins("LEFT JOIN tasks t ON t.id = c.task_id").
+		Joins("LEFT JOIN milestones m ON m.id = t.milestone_id").
 		Joins("LEFT JOIN campaigns cmp ON cmp.id = m.campaign_id").
-		Where("cc.deleted_at IS NULL").
-		Where("cc.auto_post_status = ?", "POSTED")
+		Where("cc.metrics IS NOT NULL").
+		Where("cc.auto_post_status = ?", postedStatus)
 
 	if platform != nil && *platform != "" {
-		query = query.Where("ch.platform = ?", *platform)
+		query = query.Where("ch.name = ?", *platform)
 	}
 	if startDate != nil {
 		query = query.Where("cc.published_at >= ?", *startDate)
@@ -199,27 +202,28 @@ func (r *contentStaffAnalyticsRepository) GetTopContentByViews(ctx context.Conte
 func (r *contentStaffAnalyticsRepository) GetTopChannelsByEngagement(ctx context.Context, limit int, startDate, endDate *time.Time) ([]dtos.ChannelMetricsResult, error) {
 	var results []dtos.ChannelMetricsResult
 
+	postedStatus := enum.AutoPostStatusPosted.String()
+
 	query := r.db.WithContext(ctx).Table("content_channels cc").
 		Select(`
 			ch.id as channel_id,
 			ch.name as channel_name,
-			ch.platform,
-			u.full_name as owner_name,
+			ch.name as platform,
+			'' as owner_name,
 			COUNT(DISTINCT cc.content_id) as content_count,
-			COALESCE(SUM(cc.views), 0) as total_views,
-			COALESCE(SUM(cc.likes), 0) as total_likes,
-			COALESCE(SUM(cc.comments), 0) as total_comments,
-			COALESCE(SUM(cc.shares), 0) as total_shares,
-			COALESCE(SUM(cc.likes) + SUM(cc.comments) + SUM(cc.shares), 0) as total_engagements,
-			CASE WHEN SUM(cc.views) > 0 
-				THEN (SUM(COALESCE(cc.likes, 0) + COALESCE(cc.comments, 0) + COALESCE(cc.shares, 0))::float / SUM(cc.views)::float * 100)
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
+			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as total_likes,
+			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as total_comments,
+			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as total_shares,
+			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements,
+			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
+				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
 				ELSE 0 
 			END as engagement_rate
 		`).
 		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Joins("LEFT JOIN users u ON u.id = ch.user_id").
-		Where("cc.deleted_at IS NULL").
-		Where("cc.auto_post_status = ?", "POSTED")
+		Where("cc.metrics IS NOT NULL").
+		Where("cc.auto_post_status = ?", postedStatus)
 
 	if startDate != nil {
 		query = query.Where("cc.published_at >= ?", *startDate)
@@ -228,7 +232,7 @@ func (r *contentStaffAnalyticsRepository) GetTopChannelsByEngagement(ctx context
 		query = query.Where("cc.published_at <= ?", *endDate)
 	}
 
-	query = query.Group("ch.id, ch.name, ch.platform, u.full_name").
+	query = query.Group("ch.id, ch.name").
 		Order("total_engagements DESC").
 		Limit(limit)
 
@@ -254,17 +258,17 @@ func (r *contentStaffAnalyticsRepository) GetEngagementTrend(ctx context.Context
 	query := r.db.WithContext(ctx).Table("content_channels cc").
 		Select(`
 			` + timeBucket + ` as date,
-			COALESCE(SUM(cc.views), 0) as views,
-			COALESCE(SUM(cc.likes), 0) as likes,
-			COALESCE(SUM(cc.comments), 0) as comments,
-			COALESCE(SUM(cc.shares), 0) as shares,
-			COALESCE(SUM(cc.likes) + SUM(cc.comments) + SUM(cc.shares), 0) as total_engagements,
-			CASE WHEN SUM(cc.views) > 0 
-				THEN (SUM(COALESCE(cc.likes, 0) + COALESCE(cc.comments, 0) + COALESCE(cc.shares, 0))::float / SUM(cc.views)::float * 100)
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as views,
+			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as likes,
+			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as comments,
+			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as shares,
+			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements,
+			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
+				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
 				ELSE 0 
 			END as engagement_rate
 		`).
-		Where("cc.deleted_at IS NULL").
+		Where("cc.metrics IS NOT NULL").
 		Where("cc.published_at IS NOT NULL")
 
 	if startDate != nil {
@@ -293,13 +297,13 @@ func (r *contentStaffAnalyticsRepository) GetRecentContent(ctx context.Context, 
 			c.title,
 			c.status,
 			cmp.name as campaign_name,
-			u.full_name as creator_name,
+			'' as creator_name,
 			c.created_at,
 			c.updated_at
 		`).
-		Joins("LEFT JOIN milestones m ON m.id = c.milestone_id").
+		Joins("LEFT JOIN tasks t ON t.id = c.task_id").
+		Joins("LEFT JOIN milestones m ON m.id = t.milestone_id").
 		Joins("LEFT JOIN campaigns cmp ON cmp.id = m.campaign_id").
-		Joins("LEFT JOIN users u ON u.id = c.created_by").
 		Where("c.deleted_at IS NULL").
 		Order("c.created_at DESC").
 		Limit(limit)
@@ -340,7 +344,6 @@ func (r *contentStaffAnalyticsRepository) GetCampaignContentMetrics(ctx context.
 	var results []dtos.CampaignContentMetrics
 
 	// Use enum values for content statuses
-	// Note: 'pending' is represented by AWAIT_STAFF and AWAIT_BRAND statuses
 	postedStatus := enum.ContentStatusPosted.String()
 	awaitStaffStatus := enum.ContentStatusAwaitStaff.String()
 	awaitBrandStatus := enum.ContentStatusAwaitBrand.String()
@@ -354,11 +357,12 @@ func (r *contentStaffAnalyticsRepository) GetCampaignContentMetrics(ctx context.
 			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as posted_count,
 			SUM(CASE WHEN c.status IN (?, ?) THEN 1 ELSE 0 END) as pending_count,
 			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as draft_count,
-			COALESCE(SUM(cc.views), 0) as total_views,
-			COALESCE(SUM(cc.likes) + SUM(cc.comments) + SUM(cc.shares), 0) as total_engagements
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
+			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements
 		`, postedStatus, awaitStaffStatus, awaitBrandStatus, draftStatus).
 		Joins("JOIN milestones m ON m.campaign_id = cmp.id").
-		Joins("LEFT JOIN contents c ON c.milestone_id = m.id").
+		Joins("LEFT JOIN tasks t ON t.milestone_id = m.id").
+		Joins("LEFT JOIN contents c ON c.task_id = t.id").
 		Joins("LEFT JOIN content_channels cc ON cc.content_id = c.id").
 		Where("cmp.deleted_at IS NULL")
 

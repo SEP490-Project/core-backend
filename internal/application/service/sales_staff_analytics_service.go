@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"sync"
 	"time"
@@ -130,7 +131,6 @@ func (s *salesStaffAnalyticsService) GetDashboard(ctx context.Context, req *requ
 			for i, r := range recent {
 				recentItems[i] = responses.RecentOrderItem{
 					OrderID:      r.OrderID,
-					OrderNumber:  r.OrderNumber,
 					CustomerName: r.CustomerName,
 					TotalAmount:  r.TotalAmount,
 					Status:       r.Status,
@@ -209,14 +209,14 @@ func (s *salesStaffAnalyticsService) getOverviewMetrics(ctx context.Context, sta
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", "RECEIVED", startDate, endDate)
+			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", enum.OrderStatusReceived.String(), startDate, endDate)
 			mu.Lock()
 			overview.CompletedOrders = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", "PENDING", startDate, endDate)
+			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", enum.OrderStatusPending.String(), startDate, endDate)
 			mu.Lock()
 			overview.PendingOrders = count
 			mu.Unlock()
@@ -240,11 +240,11 @@ func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req 
 	_ = utils.RunParallel(ctx, 6,
 		// Standard orders
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, "STANDARD", req.StartDate, req.EndDate)
-			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, "STANDARD", req.StartDate, req.EndDate)
-			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "STANDARD", "RECEIVED", req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "STANDARD", "PENDING", req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "STANDARD", "CANCELLED", req.StartDate, req.EndDate)
+			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
+			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
+			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusReceived.String(), req.StartDate, req.EndDate)
+			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusPending.String(), req.StartDate, req.EndDate)
+			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusCancelled.String(), req.StartDate, req.EndDate)
 
 			mu.Lock()
 			breakdown.StandardOrders = responses.OrderTypeStats{
@@ -260,11 +260,11 @@ func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req 
 
 		// Limited orders
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, "LIMITED", req.StartDate, req.EndDate)
-			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, "LIMITED", req.StartDate, req.EndDate)
-			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "LIMITED", "RECEIVED", req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "LIMITED", "PENDING", req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "LIMITED", "CANCELLED", req.StartDate, req.EndDate)
+			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
+			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
+			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusReceived.String(), req.StartDate, req.EndDate)
+			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusPending.String(), req.StartDate, req.EndDate)
+			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusCancelled.String(), req.StartDate, req.EndDate)
 
 			mu.Lock()
 			breakdown.LimitedOrders = responses.OrderTypeStats{
@@ -282,10 +282,9 @@ func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req 
 		func(ctx context.Context) error {
 			count, _ := s.analyticsRepo.GetPreOrdersCount(ctx, req.StartDate, req.EndDate)
 			revenue, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
-			received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "RECEIVED", req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "PENDING", req.StartDate, req.EndDate)
-			confirmed, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "CONFIRMED", req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "CANCELLED", req.StartDate, req.EndDate)
+			received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusReceived.String(), req.StartDate, req.EndDate)
+			pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusPending.String(), req.StartDate, req.EndDate)
+			cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusCancelled.String(), req.StartDate, req.EndDate)
 
 			mu.Lock()
 			breakdown.PreOrders = responses.PreOrderStats{
@@ -293,7 +292,6 @@ func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req 
 				TotalRevenue:   revenue,
 				ReceivedCount:  received,
 				PendingCount:   pending,
-				ConfirmedCount: confirmed,
 				CancelledCount: cancelled,
 			}
 			mu.Unlock()
@@ -308,17 +306,15 @@ func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req 
 func (s *salesStaffAnalyticsService) GetPreOrdersOverview(ctx context.Context, req *requests.PreOrdersOverviewRequest) (*responses.PreOrderStats, error) {
 	count, _ := s.analyticsRepo.GetPreOrdersCount(ctx, req.StartDate, req.EndDate)
 	revenue, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
-	received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "RECEIVED", req.StartDate, req.EndDate)
-	pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "PENDING", req.StartDate, req.EndDate)
-	confirmed, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "CONFIRMED", req.StartDate, req.EndDate)
-	cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, "CANCELLED", req.StartDate, req.EndDate)
+	received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusReceived.String(), req.StartDate, req.EndDate)
+	pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusPending.String(), req.StartDate, req.EndDate)
+	cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusCancelled.String(), req.StartDate, req.EndDate)
 
 	return &responses.PreOrderStats{
 		TotalCount:     count,
 		TotalRevenue:   revenue,
 		ReceivedCount:  received,
 		PendingCount:   pending,
-		ConfirmedCount: confirmed,
 		CancelledCount: cancelled,
 	}, nil
 }
@@ -330,14 +326,14 @@ func (s *salesStaffAnalyticsService) GetRevenueBySource(ctx context.Context, req
 	var mu sync.Mutex
 	_ = utils.RunParallel(ctx, 6,
 		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, "STANDARD", req.StartDate, req.EndDate)
+			r, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
 			mu.Lock()
 			revenue.StandardProductRevenue = r
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			limitedOrders, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, "LIMITED", req.StartDate, req.EndDate)
+			limitedOrders, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
 			preOrders, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
 			mu.Lock()
 			revenue.LimitedProductRevenue = limitedOrders + preOrders

@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ func NewBrandPartnerAnalyticsService(
 }
 
 // GetDashboard returns the complete Brand Partner dashboard
-func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID uuid.UUID, req *requests.BrandPartnerDashboardRequest) (*responses.BrandPartnerDashboardResponse, error) {
+func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandPartnerDashboardRequest) (*responses.BrandPartnerDashboardResponse, error) {
 	startDate, endDate := req.GetDateRange()
 
 	var mu sync.Mutex
@@ -43,7 +44,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 	err := utils.RunParallel(ctx, 7,
 		// Query 1: Overview metrics
 		func(ctx context.Context) error {
-			overview, err := s.getOverviewMetrics(ctx, brandID, &startDate, &endDate)
+			overview, err := s.getOverviewMetrics(ctx, brandUserID, &startDate, &endDate)
 			if err != nil {
 				zap.L().Warn("Failed to get overview metrics", zap.Error(err))
 				return nil
@@ -56,7 +57,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 2: Top products
 		func(ctx context.Context) error {
-			products, err := s.GetTopProducts(ctx, brandID, &requests.BrandTopProductsRequest{
+			products, err := s.GetTopProducts(ctx, brandUserID, &requests.BrandTopProductsRequest{
 				StartDate: &startDate,
 				EndDate:   &endDate,
 				Limit:     5,
@@ -73,7 +74,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 3: Campaign metrics
 		func(ctx context.Context) error {
-			campaigns, err := s.GetCampaignMetrics(ctx, brandID, &requests.BrandCampaignsRequest{
+			campaigns, err := s.GetCampaignMetrics(ctx, brandUserID, &requests.BrandCampaignsRequest{
 				StartDate: &startDate,
 				EndDate:   &endDate,
 				Limit:     5,
@@ -90,7 +91,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 4: Content metrics
 		func(ctx context.Context) error {
-			content, err := s.GetContentMetrics(ctx, brandID, &requests.BrandContentMetricsRequest{
+			content, err := s.GetContentMetrics(ctx, brandUserID, &requests.BrandContentMetricsRequest{
 				StartDate: &startDate,
 				EndDate:   &endDate,
 			})
@@ -106,7 +107,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 5: Revenue trend
 		func(ctx context.Context) error {
-			trend, err := s.GetRevenueTrend(ctx, brandID, &requests.BrandRevenueTrendRequest{
+			trend, err := s.GetRevenueTrend(ctx, brandUserID, &requests.BrandRevenueTrendRequest{
 				StartDate:   &startDate,
 				EndDate:     &endDate,
 				Granularity: "DAY",
@@ -123,7 +124,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 6: Affiliate metrics
 		func(ctx context.Context) error {
-			affiliate, err := s.GetAffiliateMetrics(ctx, brandID, &requests.BrandAffiliateMetricsRequest{
+			affiliate, err := s.GetAffiliateMetrics(ctx, brandUserID, &requests.BrandAffiliateMetricsRequest{
 				StartDate: &startDate,
 				EndDate:   &endDate,
 			})
@@ -139,7 +140,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 
 		// Query 7: Contract details
 		func(ctx context.Context) error {
-			contracts, err := s.GetContractDetails(ctx, brandID, &requests.BrandContractsRequest{
+			contracts, err := s.GetContractDetails(ctx, brandUserID, &requests.BrandContractsRequest{
 				Limit: 5,
 			})
 			if err != nil {
@@ -160,78 +161,9 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandID
 	return dashboard, nil
 }
 
-// getOverviewMetrics returns high-level overview metrics for a brand
-func (s *brandPartnerAnalyticsService) getOverviewMetrics(ctx context.Context, brandID uuid.UUID, startDate, endDate *time.Time) (*responses.BrandOverviewMetrics, error) {
-	overview := &responses.BrandOverviewMetrics{}
-
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 8,
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetBrandContractCount(ctx, brandID, nil)
-			mu.Lock()
-			overview.TotalContracts = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			active := "ACTIVE"
-			count, _ := s.analyticsRepo.GetBrandContractCount(ctx, brandID, &active)
-			mu.Lock()
-			overview.ActiveContracts = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetBrandCampaignCount(ctx, brandID, nil)
-			mu.Lock()
-			overview.TotalCampaigns = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			active := "ACTIVE"
-			count, _ := s.analyticsRepo.GetBrandCampaignCount(ctx, brandID, &active)
-			mu.Lock()
-			overview.ActiveCampaigns = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetBrandProductCount(ctx, brandID, nil)
-			mu.Lock()
-			overview.TotalProducts = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetBrandOrderCount(ctx, brandID, nil, startDate, endDate)
-			mu.Lock()
-			overview.TotalOrders = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetBrandTotalRevenue(ctx, brandID, startDate, endDate)
-			mu.Lock()
-			overview.TotalRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			pending, _ := s.analyticsRepo.GetBrandPendingPayments(ctx, brandID)
-			mu.Lock()
-			overview.PendingPayments = pending
-			mu.Unlock()
-			return nil
-		},
-	)
-
-	return overview, nil
-}
-
 // GetTopProducts returns top products by revenue for a brand
-func (s *brandPartnerAnalyticsService) GetTopProducts(ctx context.Context, brandID uuid.UUID, req *requests.BrandTopProductsRequest) ([]responses.BrandProductMetric, error) {
-	results, err := s.analyticsRepo.GetBrandTopProducts(ctx, brandID, req.GetLimit(), req.StartDate, req.EndDate)
+func (s *brandPartnerAnalyticsService) GetTopProducts(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopProductsRequest) ([]responses.BrandProductMetric, error) {
+	results, err := s.analyticsRepo.GetBrandTopProducts(ctx, brandUserID, req.GetLimit(), req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -253,8 +185,8 @@ func (s *brandPartnerAnalyticsService) GetTopProducts(ctx context.Context, brand
 }
 
 // GetCampaignMetrics returns campaign performance metrics for a brand
-func (s *brandPartnerAnalyticsService) GetCampaignMetrics(ctx context.Context, brandID uuid.UUID, req *requests.BrandCampaignsRequest) ([]responses.BrandCampaignMetric, error) {
-	results, err := s.analyticsRepo.GetBrandCampaignMetrics(ctx, brandID, req.GetLimit(), req.StartDate, req.EndDate)
+func (s *brandPartnerAnalyticsService) GetCampaignMetrics(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandCampaignsRequest) ([]responses.BrandCampaignMetric, error) {
+	results, err := s.analyticsRepo.GetBrandCampaignMetrics(ctx, brandUserID, req.GetLimit(), req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -284,8 +216,8 @@ func (s *brandPartnerAnalyticsService) GetCampaignMetrics(ctx context.Context, b
 }
 
 // GetContentMetrics returns content performance metrics for a brand
-func (s *brandPartnerAnalyticsService) GetContentMetrics(ctx context.Context, brandID uuid.UUID, req *requests.BrandContentMetricsRequest) (*responses.BrandContentMetric, error) {
-	result, err := s.analyticsRepo.GetBrandContentMetrics(ctx, brandID, req.StartDate, req.EndDate)
+func (s *brandPartnerAnalyticsService) GetContentMetrics(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandContentMetricsRequest) (*responses.BrandContentMetric, error) {
+	result, err := s.analyticsRepo.GetBrandContentMetrics(ctx, brandUserID, req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -302,8 +234,8 @@ func (s *brandPartnerAnalyticsService) GetContentMetrics(ctx context.Context, br
 }
 
 // GetRevenueTrend returns revenue time-series for a brand
-func (s *brandPartnerAnalyticsService) GetRevenueTrend(ctx context.Context, brandID uuid.UUID, req *requests.BrandRevenueTrendRequest) ([]responses.BrandRevenueTrendPoint, error) {
-	results, err := s.analyticsRepo.GetBrandRevenueTrend(ctx, brandID, req.GetGranularity(), req.StartDate, req.EndDate)
+func (s *brandPartnerAnalyticsService) GetRevenueTrend(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandRevenueTrendRequest) ([]responses.BrandRevenueTrendPoint, error) {
+	results, err := s.analyticsRepo.GetBrandRevenueTrend(ctx, brandUserID, req.GetGranularity(), req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -321,8 +253,8 @@ func (s *brandPartnerAnalyticsService) GetRevenueTrend(ctx context.Context, bran
 }
 
 // GetAffiliateMetrics returns affiliate link performance for a brand
-func (s *brandPartnerAnalyticsService) GetAffiliateMetrics(ctx context.Context, brandID uuid.UUID, req *requests.BrandAffiliateMetricsRequest) (*responses.BrandAffiliateMetric, error) {
-	result, err := s.analyticsRepo.GetBrandAffiliateMetrics(ctx, brandID, req.StartDate, req.EndDate)
+func (s *brandPartnerAnalyticsService) GetAffiliateMetrics(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandAffiliateMetricsRequest) (*responses.BrandAffiliateMetric, error) {
+	result, err := s.analyticsRepo.GetBrandAffiliateMetrics(ctx, brandUserID, req.StartDate, req.EndDate)
 	if err != nil {
 		return nil, err
 	}
@@ -335,8 +267,8 @@ func (s *brandPartnerAnalyticsService) GetAffiliateMetrics(ctx context.Context, 
 }
 
 // GetContractDetails returns contract details for a brand
-func (s *brandPartnerAnalyticsService) GetContractDetails(ctx context.Context, brandID uuid.UUID, req *requests.BrandContractsRequest) ([]responses.BrandContractDetail, error) {
-	results, err := s.analyticsRepo.GetBrandContractDetails(ctx, brandID, req.GetLimit())
+func (s *brandPartnerAnalyticsService) GetContractDetails(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandContractsRequest) ([]responses.BrandContractDetail, error) {
+	results, err := s.analyticsRepo.GetBrandContractDetails(ctx, brandUserID, req.GetLimit())
 	if err != nil {
 		return nil, err
 	}
@@ -358,3 +290,76 @@ func (s *brandPartnerAnalyticsService) GetContractDetails(ctx context.Context, b
 	}
 	return contracts, nil
 }
+
+// region: ============== Private Helper Methods ==============
+
+// getOverviewMetrics returns high-level overview metrics for a brand
+func (s *brandPartnerAnalyticsService) getOverviewMetrics(ctx context.Context, brandUserID uuid.UUID, startDate, endDate *time.Time) (*responses.BrandOverviewMetrics, error) {
+	overview := &responses.BrandOverviewMetrics{}
+
+	var mu sync.Mutex
+	_ = utils.RunParallel(ctx, 8,
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetBrandContractCount(ctx, brandUserID, nil)
+			mu.Lock()
+			overview.TotalContracts = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			active := enum.ContractStatusActive.String()
+			count, _ := s.analyticsRepo.GetBrandContractCount(ctx, brandUserID, &active)
+			mu.Lock()
+			overview.ActiveContracts = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetBrandCampaignCount(ctx, brandUserID, nil)
+			mu.Lock()
+			overview.TotalCampaigns = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			active := enum.CampaignRunning.String()
+			count, _ := s.analyticsRepo.GetBrandCampaignCount(ctx, brandUserID, &active)
+			mu.Lock()
+			overview.ActiveCampaigns = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetBrandProductCount(ctx, brandUserID, nil)
+			mu.Lock()
+			overview.TotalProducts = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetBrandOrderCount(ctx, brandUserID, nil, startDate, endDate)
+			mu.Lock()
+			overview.TotalOrders = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetBrandTotalRevenue(ctx, brandUserID, startDate, endDate)
+			mu.Lock()
+			overview.TotalRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			pending, _ := s.analyticsRepo.GetBrandPendingPayments(ctx, brandUserID)
+			mu.Lock()
+			overview.PendingPayments = pending
+			mu.Unlock()
+			return nil
+		},
+	)
+
+	return overview, nil
+}
+
+// endregion

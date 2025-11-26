@@ -36,7 +36,6 @@ type RevenueTrendResult struct {
 // RecentOrderResult represents recent order query result
 type RecentOrderResult struct {
 	OrderID      uuid.UUID
-	OrderNumber  string
 	CustomerName string
 	TotalAmount  float64
 	Status       string
