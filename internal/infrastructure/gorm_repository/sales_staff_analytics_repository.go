@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"time"
 
 	"github.com/google/uuid"
@@ -187,7 +188,8 @@ func (r *salesStaffAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Contex
 
 	// Build date filter clause
 	dateFilter := ""
-	args := []any{}
+	receivedStatus := enum.OrderStatusReceived.String()
+	args := []any{receivedStatus}
 	if startDate != nil && endDate != nil {
 		dateFilter = "AND o.created_at BETWEEN ? AND ?"
 		args = append(args, *startDate, *endDate)
@@ -204,7 +206,7 @@ func (r *salesStaffAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Contex
 			JOIN order_items oi ON oi.order_id = o.id
 			JOIN products p ON p.id = oi.product_id
 			WHERE o.deleted_at IS NULL 
-			AND o.status = 'RECEIVED'
+			AND o.status = ?
 			` + dateFilter + `
 			GROUP BY p.brand_id
 		)

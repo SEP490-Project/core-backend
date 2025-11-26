@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/enum"
 	"time"
 
 	"github.com/google/uuid"
@@ -338,17 +339,24 @@ func (r *contentStaffAnalyticsRepository) GetContentStatusBreakdown(ctx context.
 func (r *contentStaffAnalyticsRepository) GetCampaignContentMetrics(ctx context.Context, campaignID *uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.CampaignContentMetrics, error) {
 	var results []dtos.CampaignContentMetrics
 
+	// Use enum values for content statuses
+	// Note: 'pending' is represented by AWAIT_STAFF and AWAIT_BRAND statuses
+	postedStatus := enum.ContentStatusPosted.String()
+	awaitStaffStatus := enum.ContentStatusAwaitStaff.String()
+	awaitBrandStatus := enum.ContentStatusAwaitBrand.String()
+	draftStatus := enum.ContentStatusDraft.String()
+
 	query := r.db.WithContext(ctx).Table("campaigns cmp").
 		Select(`
 			cmp.id as campaign_id,
 			cmp.name as campaign_name,
 			COUNT(DISTINCT c.id) as content_count,
-			SUM(CASE WHEN c.status = 'POSTED' THEN 1 ELSE 0 END) as posted_count,
-			SUM(CASE WHEN c.status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
-			SUM(CASE WHEN c.status = 'DRAFT' THEN 1 ELSE 0 END) as draft_count,
+			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as posted_count,
+			SUM(CASE WHEN c.status IN (?, ?) THEN 1 ELSE 0 END) as pending_count,
+			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as draft_count,
 			COALESCE(SUM(cc.views), 0) as total_views,
 			COALESCE(SUM(cc.likes) + SUM(cc.comments) + SUM(cc.shares), 0) as total_engagements
-		`).
+		`, postedStatus, awaitStaffStatus, awaitBrandStatus, draftStatus).
 		Joins("JOIN milestones m ON m.campaign_id = cmp.id").
 		Joins("LEFT JOIN contents c ON c.milestone_id = m.id").
 		Joins("LEFT JOIN content_channels cc ON cc.content_id = c.id").

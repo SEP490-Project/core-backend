@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/enum"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -109,7 +110,7 @@ func (r *adminAnalyticsRepository) GetActiveBrandsCount(ctx context.Context) (in
 	var count int64
 	err := r.db.WithContext(ctx).
 		Table("brands b").
-		Joins("INNER JOIN contracts c ON c.brand_id = b.id AND c.deleted_at IS NULL AND c.status = 'ACTIVE'").
+		Joins("INNER JOIN contracts c ON c.brand_id = b.id AND c.deleted_at IS NULL AND c.status = ?", enum.ContractStatusActive.String()).
 		Where("b.deleted_at IS NULL").
 		Distinct("b.id").
 		Count(&count).Error
@@ -159,7 +160,7 @@ func (r *adminAnalyticsRepository) GetCollectedContractAmount(ctx context.Contex
 		Table("contract_payments cp").
 		Joins("INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID").
+		Where("cp.status = ?", enum.ContractPaymentStatusPaid.String()).
 		Select("COALESCE(SUM(cp.amount), 0)").
 		Scan(&total).Error
 	return total, err
@@ -172,7 +173,7 @@ func (r *adminAnalyticsRepository) GetPendingContractAmount(ctx context.Context)
 		Table("contract_payments cp").
 		Joins("INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status IN ?", []string{"PENDING", "OVERDUE"}).
+		Where("cp.status IN ?", []string{enum.ContractPaymentStatusPending.String(), enum.ContractPaymentStatusOverdue.String()}).
 		Select("COALESCE(SUM(cp.amount), 0)").
 		Scan(&total).Error
 	return total, err
@@ -219,7 +220,7 @@ func (r *adminAnalyticsRepository) GetPostedContentCount(ctx context.Context) (i
 	err := r.db.WithContext(ctx).
 		Table("contents").
 		Where("deleted_at IS NULL").
-		Where("status = ?", "POSTED").
+		Where("status = ?", enum.ContentStatusPosted.String()).
 		Count(&count).Error
 	return count, err
 }
@@ -232,11 +233,22 @@ func (r *adminAnalyticsRepository) GetPostedContentCount(ctx context.Context) (i
 func (r *adminAnalyticsRepository) GetTotalPlatformRevenue(ctx context.Context, startDate, endDate *time.Time) (float64, error) {
 	var total float64
 
+	// Valid order statuses for revenue calculation
+	validOrderStatuses := []string{
+		enum.OrderStatusPaid.String(),
+		enum.OrderStatusConfirmed.String(),
+		enum.OrderStatusShipped.String(),
+		enum.OrderStatusInTransit.String(),
+		enum.OrderStatusDelivered.String(),
+		enum.OrderStatusReceived.String(),
+		enum.OrderStatusAwaitingPickUp.String(),
+	}
+
 	// Revenue from paid orders
 	orderQuery := r.db.WithContext(ctx).
 		Table("orders").
 		Where("deleted_at IS NULL").
-		Where("status IN ?", []string{"PAID", "CONFIRMED", "SHIPPED", "IN_TRANSIT", "DELIVERED", "RECEIVED", "AWAITING_PICKUP"})
+		Where("status IN ?", validOrderStatuses)
 
 	if startDate != nil {
 		orderQuery = orderQuery.Where("created_at >= ?", *startDate)
@@ -255,7 +267,7 @@ func (r *adminAnalyticsRepository) GetTotalPlatformRevenue(ctx context.Context, 
 		Table("contract_payments cp").
 		Joins("INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID")
+		Where("cp.status = ?", enum.ContractPaymentStatusPaid.String())
 
 	if startDate != nil {
 		paymentQuery = paymentQuery.Where("cp.created_at >= ? OR cp.updated_at >= ?", *startDate, *startDate)
@@ -281,7 +293,7 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueByContractType(ctx context.
 		Table("contract_payments cp").
 		Joins("INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL").
 		Where("cp.deleted_at IS NULL").
-		Where("cp.status = ?", "PAID").
+		Where("cp.status = ?", enum.ContractPaymentStatusPaid.String()).
 		Where("c.type = ?", contractType)
 
 	if startDate != nil {
@@ -299,13 +311,24 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueByContractType(ctx context.
 func (r *adminAnalyticsRepository) GetPlatformProductRevenue(ctx context.Context, productType string, startDate, endDate *time.Time) (float64, error) {
 	var total float64
 
+	// Valid order statuses for revenue calculation
+	validOrderStatuses := []string{
+		enum.OrderStatusPaid.String(),
+		enum.OrderStatusConfirmed.String(),
+		enum.OrderStatusShipped.String(),
+		enum.OrderStatusInTransit.String(),
+		enum.OrderStatusDelivered.String(),
+		enum.OrderStatusReceived.String(),
+		enum.OrderStatusAwaitingPickUp.String(),
+	}
+
 	query := r.db.WithContext(ctx).
 		Table("orders o").
 		Joins("INNER JOIN order_items oi ON oi.order_id = o.id").
 		Joins("INNER JOIN product_variants pv ON pv.id = oi.variant_id AND pv.deleted_at IS NULL").
 		Joins("INNER JOIN products p on p.id = pv.product_id and p.deleted_at IS NULL").
 		Where("o.deleted_at IS NULL").
-		Where("o.status IN ?", []string{"PAID", "CONFIRMED", "SHIPPED", "IN_TRANSIT", "DELIVERED", "RECEIVED", "AWAITING_PICKUP"}).
+		Where("o.status IN ?", validOrderStatuses).
 		Where("p.type = ?", productType)
 
 	if startDate != nil {
@@ -318,10 +341,20 @@ func (r *adminAnalyticsRepository) GetPlatformProductRevenue(ctx context.Context
 	err := query.Select("COALESCE(SUM(oi.subtotal), 0)").Scan(&total).Error
 	if productType == enum.ProductTypeLimited.String() {
 		var revenue float64
+
+		// Valid pre-order statuses
+		validPreOrderStatuses := []string{
+			enum.PreOrderStatusPaid.String(),
+			enum.PreOrderStatusAwaitingPickup.String(),
+			enum.PreOrderStatusInTransit.String(),
+			enum.PreOrderStatusDelivered.String(),
+			enum.PreOrderStatusReceived.String(),
+		}
+
 		query := r.db.WithContext(ctx).Table("pre_orders").
 			Select("COALESCE(SUM(total_amount), 0)").
 			Where("deleted_at IS NULL").
-			Where("status IN ?", []string{"PAID", "AWAITING_PICKUP", "IN_TRANSIT", "DELIVERED", "RECEIVED"})
+			Where("status IN ?", validPreOrderStatuses)
 
 		if startDate != nil {
 			query = query.Where("created_at >= ?", *startDate)
@@ -352,6 +385,10 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueTrend(ctx context.Context, 
 	default:
 		truncInterval = "month"
 	}
+
+	// Build valid order status list for SQL
+	validOrderStatuses := getValidOrderStatusesSQL()
+	paidStatus := enum.ContractPaymentStatusPaid.String()
 
 	// Build date filter conditions
 	var dateConditions string
@@ -388,7 +425,7 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueTrend(ctx context.Context, 
 			       COALESCE(SUM(total_amount), 0) AS revenue
 			FROM orders
 			WHERE deleted_at IS NULL
-				AND status IN ('PAID', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'AWAITING_PICKUP')
+				AND status IN (` + validOrderStatuses + `)
 				` + dateConditions + `
 			GROUP BY date_trunc('` + truncInterval + `', created_at)
 		),
@@ -398,7 +435,7 @@ func (r *adminAnalyticsRepository) GetPlatformRevenueTrend(ctx context.Context, 
 			FROM contract_payments cp
 			INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL
 			WHERE cp.deleted_at IS NULL
-				AND cp.status = 'PAID'
+				AND cp.status = '` + paidStatus + `'
 				` + paymentDateConditions + `
 			GROUP BY date_trunc('` + truncInterval + `', cp.updated_at)
 		)
@@ -448,6 +485,9 @@ func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granulari
 	dateFuncCreatedAt := getDateTruncFunc(granularity)               // For tables with created_at column
 	dateFuncSeries := getDateTruncFuncForGenerateSeries(granularity) // For generate_series output
 
+	// Get valid order statuses for revenue calculations
+	validOrderStatuses := getValidOrderStatusesSQL()
+
 	// Build the query using CTE
 	query := `
 		WITH dates AS (
@@ -469,7 +509,7 @@ func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granulari
 			SELECT ` + dateFuncCreatedAt + ` AS date, COUNT(*) AS new_orders, COALESCE(SUM(total_amount), 0) AS revenue
 			FROM orders
 			WHERE deleted_at IS NULL
-				AND status IN ('PAID', 'CONFIRMED', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED', 'AWAITING_PICKUP') 
+				AND status IN (` + validOrderStatuses + `) 
 				AND created_at >= $1 AND created_at < $2
 			GROUP BY ` + dateFuncCreatedAt + `
 		),
@@ -519,6 +559,270 @@ func (r *adminAnalyticsRepository) GetGrowthTrend(ctx context.Context, granulari
 	return results, err
 }
 
+// =============================================================================
+// CONSOLIDATED DASHBOARD QUERIES (optimized batch methods)
+// =============================================================================
+
+// GetDashboardUsersMetrics returns all user metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardUsersMetrics(ctx context.Context, activeDays int, monthStart, monthEnd time.Time) (*dtos.DashboardUsersResult, error) {
+	cutoff := time.Now().AddDate(0, 0, -activeDays)
+
+	query := `
+		SELECT
+			COUNT(*) AS total_users,
+			COUNT(*) FILTER (WHERE last_login >= $1) AS active_users,
+			COUNT(*) FILTER (WHERE role = $4) AS admin,
+			COUNT(*) FILTER (WHERE role = $5) AS marketing_staff,
+			COUNT(*) FILTER (WHERE role = $6) AS sales_staff,
+			COUNT(*) FILTER (WHERE role = $7) AS content_staff,
+			COUNT(*) FILTER (WHERE role = $8) AS brand_partner,
+			COUNT(*) FILTER (WHERE role = $9) AS customer,
+			COUNT(*) FILTER (WHERE created_at >= $2 AND created_at < $3) AS new_this_month
+		FROM users
+		WHERE deleted_at IS NULL
+	`
+
+	var result dtos.DashboardUsersResult
+	err := r.db.WithContext(ctx).Raw(query,
+		cutoff, monthStart, monthEnd,
+		enum.UserRoleAdmin.String(),
+		enum.UserRoleMarketingStaff.String(),
+		enum.UserRoleSalesStaff.String(),
+		enum.UserRoleContentStaff.String(),
+		enum.UserRoleBrandPartner.String(),
+		enum.UserRoleCustomer.String(),
+	).Scan(&result).Error
+	return &result, err
+}
+
+// GetDashboardContractsMetrics returns all contract metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardContractsMetrics(ctx context.Context) (*dtos.DashboardContractsResult, error) {
+	query := `
+		WITH contract_stats AS (
+			SELECT
+				COUNT(*) AS total_contracts,
+				COUNT(*) FILTER (WHERE status = $1) AS draft,
+				COUNT(*) FILTER (WHERE status = $2) AS approved,
+				COUNT(*) FILTER (WHERE status = $3) AS active,
+				COUNT(*) FILTER (WHERE status = $4) AS completed,
+				COUNT(*) FILTER (WHERE status = $5) AS terminated,
+				COALESCE(SUM((financial_terms ->> 'total_cost')::numeric), 0) AS total_value
+			FROM contracts
+			WHERE deleted_at IS NULL
+		),
+		payment_stats AS (
+			SELECT
+				COALESCE(SUM(cp.amount) FILTER (WHERE cp.status = $6), 0) AS collected_amount,
+				COALESCE(SUM(cp.amount) FILTER (WHERE cp.status IN ($7, $8)), 0) AS pending_amount
+			FROM contract_payments cp
+			INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL
+			WHERE cp.deleted_at IS NULL
+		)
+		SELECT
+			cs.total_contracts,
+			cs.draft,
+			cs.approved,
+			cs.active,
+			cs.completed,
+			cs.terminated,
+			cs.total_value,
+			ps.collected_amount,
+			ps.pending_amount
+		FROM contract_stats cs, payment_stats ps
+	`
+
+	var result dtos.DashboardContractsResult
+	err := r.db.WithContext(ctx).Raw(query,
+		enum.ContractStatusDraft.String(),
+		enum.ContractStatusApproved.String(),
+		enum.ContractStatusActive.String(),
+		enum.ContractStatusCompleted.String(),
+		enum.ContractStatusTerminated.String(),
+		enum.ContractPaymentStatusPaid.String(),
+		enum.ContractPaymentStatusPending.String(),
+		enum.ContractPaymentStatusOverdue.String(),
+	).Scan(&result).Error
+	return &result, err
+}
+
+// GetDashboardCampaignsMetrics returns all campaign metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardCampaignsMetrics(ctx context.Context) (*dtos.DashboardCampaignsResult, error) {
+	query := `
+		WITH campaign_stats AS (
+			SELECT
+				COUNT(*) AS total_campaigns,
+				COUNT(*) FILTER (WHERE status = $1) AS draft,
+				COUNT(*) FILTER (WHERE status = $2) AS running,
+				COUNT(*) FILTER (WHERE status = $3) AS completed,
+				COUNT(*) FILTER (WHERE status = $4) AS cancelled
+			FROM campaigns
+			WHERE deleted_at IS NULL
+		),
+		content_stats AS (
+			SELECT
+				COUNT(*) AS content_created,
+				COUNT(*) FILTER (WHERE status = $5) AS content_posted
+			FROM contents
+			WHERE deleted_at IS NULL
+		)
+		SELECT
+			cs.total_campaigns,
+			cs.draft,
+			cs.running,
+			cs.completed,
+			cs.cancelled,
+			cts.content_created,
+			cts.content_posted
+		FROM campaign_stats cs, content_stats cts
+	`
+
+	var result dtos.DashboardCampaignsResult
+	err := r.db.WithContext(ctx).Raw(query,
+		enum.CampaignDraft.String(),
+		enum.CampaignRunning.String(),
+		enum.CampaignCompleted.String(),
+		enum.CampaignCancelled.String(),
+		enum.ContentStatusPosted.String(),
+	).Scan(&result).Error
+	return &result, err
+}
+
+// GetDashboardBrandsMetrics returns all brand metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardBrandsMetrics(ctx context.Context) (*dtos.DashboardBrandsResult, error) {
+	query := `
+		SELECT
+			COUNT(*) AS total_brands,
+			COUNT(DISTINCT b.id) FILTER (
+				WHERE EXISTS (
+					SELECT 1 FROM contracts c
+					WHERE c.brand_id = b.id AND c.deleted_at IS NULL AND c.status = $1
+				)
+			) AS active_brands
+		FROM brands b
+		WHERE b.deleted_at IS NULL
+	`
+
+	var result dtos.DashboardBrandsResult
+	err := r.db.WithContext(ctx).Raw(query, enum.ContractStatusActive.String()).Scan(&result).Error
+	return &result, err
+}
+
+// GetDashboardOrdersMetrics returns all order metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardOrdersMetrics(ctx context.Context, startDate, endDate *time.Time) (*dtos.DashboardOrdersResult, error) {
+	query := `
+		SELECT
+			COUNT(*) AS total_orders,
+			COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2) AS monthly_orders
+		FROM orders
+		WHERE deleted_at IS NULL
+	`
+
+	var result dtos.DashboardOrdersResult
+	err := r.db.WithContext(ctx).Raw(query, startDate, endDate).Scan(&result).Error
+	return &result, err
+}
+
+// GetDashboardRevenueMetrics returns all revenue metrics in a single query
+func (r *adminAnalyticsRepository) GetDashboardRevenueMetrics(ctx context.Context, startDate, endDate *time.Time) (*dtos.DashboardRevenueResult, error) {
+	// Build list of valid order statuses
+	validOrderStatuses := []string{
+		enum.OrderStatusPaid.String(),
+		enum.OrderStatusConfirmed.String(),
+		enum.OrderStatusShipped.String(),
+		enum.OrderStatusInTransit.String(),
+		enum.OrderStatusDelivered.String(),
+		enum.OrderStatusReceived.String(),
+		enum.OrderStatusAwaitingPickUp.String(),
+	}
+	validPreOrderStatuses := []string{
+		enum.PreOrderStatusPaid.String(),
+		enum.PreOrderStatusAwaitingPickup.String(),
+		enum.PreOrderStatusInTransit.String(),
+		enum.PreOrderStatusDelivered.String(),
+		enum.PreOrderStatusReceived.String(),
+	}
+
+	query := `
+		WITH order_revenue AS (
+			SELECT COALESCE(SUM(total_amount), 0) AS total
+			FROM orders
+			WHERE deleted_at IS NULL
+				AND status = ANY($3)
+		),
+		pre_order_revenue AS (
+			SELECT COALESCE(SUM(total_amount), 0) AS total
+			FROM pre_orders
+			WHERE deleted_at IS NULL
+				AND status = any($11)
+		),
+		monthly_order_revenue AS (
+			SELECT COALESCE(SUM(total_amount), 0) AS total
+			FROM orders
+			WHERE deleted_at IS NULL
+				AND status = ANY($3)
+				AND created_at >= $1 AND created_at < $2
+		),
+		contract_revenue AS (
+			SELECT
+				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $4), 0) AS advertising_revenue,
+				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $5), 0) AS affiliate_revenue,
+				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $6), 0) AS ambassador_revenue,
+				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $7), 0) AS co_producing_revenue,
+				COALESCE(SUM(cp.amount), 0) AS total_contract_revenue
+			FROM contract_payments cp
+			INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL
+			WHERE cp.deleted_at IS NULL
+				AND cp.status = $8
+				AND cp.updated_at >= $1 AND cp.updated_at < $2
+		),
+		product_revenue AS (
+			SELECT
+				COALESCE(SUM(oi.subtotal) FILTER (WHERE p.type = $9), 0) AS standard_product_revenue,
+				COALESCE(SUM(oi.subtotal) FILTER (WHERE p.type = $10), 0) AS limited_product_revenue
+			FROM orders o
+			INNER JOIN order_items oi ON oi.order_id = o.id
+			INNER JOIN product_variants pv ON pv.id = oi.variant_id AND pv.deleted_at IS NULL
+			INNER JOIN products p ON p.id = pv.product_id AND p.deleted_at IS NULL
+			WHERE o.deleted_at IS NULL
+				AND o.status = ANY($3)
+				AND o.created_at >= $1 AND o.created_at < $2
+		),
+		pre_order_limited_revenue as (
+			select COALESCE(SUM(total_amount), 0) AS limited_product_revenue
+			FROM pre_orders
+			WHERE deleted_at IS NULL
+				AND status = any($11)
+				AND created_at >= $1 AND created_at < $2
+		)
+		SELECT
+			orv.total + pov.total + cr.total_contract_revenue AS total_revenue,
+			morv.total + cr.total_contract_revenue + polr.limited_product_revenue AS monthly_revenue,
+			cr.advertising_revenue,
+			cr.affiliate_revenue,
+			cr.ambassador_revenue,
+			cr.co_producing_revenue,
+			pr.standard_product_revenue,
+			pr.limited_product_revenue + polr.limited_product_revenue AS limited_product_revenue
+		FROM order_revenue orv, pre_order_revenue pov, monthly_order_revenue morv, contract_revenue cr, product_revenue pr, pre_order_limited_revenue polr
+	`
+
+	var result dtos.DashboardRevenueResult
+	err := r.db.WithContext(ctx).Raw(query,
+		startDate,
+		endDate,
+		validOrderStatuses,
+		enum.ContractTypeAdvertising.String(),
+		enum.ContractTypeAffiliate.String(),
+		enum.ContractTypeAmbassador.String(),
+		enum.ContractTypeCoProduce.String(),
+		enum.ContractPaymentStatusPaid.String(),
+		enum.ProductTypeStandard.String(),
+		enum.ProductTypeLimited.String(),
+		validPreOrderStatuses,
+	).Scan(&result).Error
+	return &result, err
+}
+
 // getDateTruncFunc returns the appropriate date_trunc function based on granularity
 // This version uses 'created_at' column for tables
 func getDateTruncFunc(granularity string) string {
@@ -543,4 +847,23 @@ func getDateTruncFuncForGenerateSeries(granularity string) string {
 	default:
 		return "date_trunc('month', date)"
 	}
+}
+
+// getValidOrderStatusesSQL returns a SQL-safe string of valid order statuses for revenue calculations
+// These are statuses that represent completed/valid orders for revenue reporting
+func getValidOrderStatusesSQL() string {
+	statuses := []enum.OrderStatus{
+		enum.OrderStatusPaid,
+		enum.OrderStatusConfirmed,
+		enum.OrderStatusShipped,
+		enum.OrderStatusInTransit,
+		enum.OrderStatusDelivered,
+		enum.OrderStatusReceived,
+		enum.OrderStatusAwaitingPickUp,
+	}
+	var quoted []string
+	for _, s := range statuses {
+		quoted = append(quoted, "'"+s.String()+"'")
+	}
+	return strings.Join(quoted, ", ")
 }
