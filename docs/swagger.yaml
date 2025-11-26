@@ -1599,76 +1599,6 @@ definitions:
       premiere_date:
         type: string
     type: object
-  model.Order:
-    properties:
-      action_notes:
-        items:
-          $ref: '#/definitions/model.OrderActionNote'
-        type: array
-      address_line2:
-        type: string
-      city:
-        type: string
-      confirmation_image:
-        type: string
-      created_at:
-        type: string
-      district_name:
-        type: string
-      email:
-        type: string
-      full_name:
-        description: Copied shipping address fields (migration moved from a foreign
-          key to flat columns)
-        type: string
-      ghn_district_id:
-        type: integer
-      ghn_order_code:
-        type: string
-      ghn_province_id:
-        type: integer
-      ghn_ward_code:
-        type: string
-      id:
-        type: string
-      is_self_picked_up:
-        type: boolean
-      order_items:
-        items:
-          $ref: '#/definitions/model.OrderItem'
-        type: array
-      order_type:
-        type: string
-      payment_bin:
-        type: string
-      payment_id:
-        description: Transient fields populated by repository (not persisted)
-        type: string
-      phone_number:
-        type: string
-      province_name:
-        type: string
-      shipping_fee:
-        type: integer
-      staff_resource:
-        type: string
-      status:
-        $ref: '#/definitions/enum.OrderStatus'
-      street:
-        type: string
-      total_amount:
-        type: number
-      updated_at:
-        type: string
-      user_id:
-        type: string
-      user_note:
-        type: string
-      user_resource:
-        type: string
-      ward_name:
-        type: string
-    type: object
   model.OrderActionNote:
     properties:
       action_type:
@@ -1731,102 +1661,6 @@ definitions:
         type: string
       weight:
         description: DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
-        type: integer
-      width:
-        description: in centimeters
-        type: integer
-    type: object
-  model.PreOrder:
-    properties:
-      action_notes:
-        description: Action notes for pre-order (JSONB)
-        items:
-          $ref: '#/definitions/model.PreOrderActionNote'
-        type: array
-      address_line2:
-        type: string
-      capacity:
-        description: The same as orderItem
-        type: number
-      capacity_unit:
-        type: string
-      city:
-        type: string
-      confirmation_image:
-        type: string
-      container_type:
-        $ref: '#/definitions/enum.ContainerType'
-      created_at:
-        type: string
-      dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
-      district_name:
-        type: string
-      email:
-        type: string
-      expiry_date:
-        type: string
-      full_name:
-        description: The same as order which Copied shipping address fields
-        type: string
-      ghn_district_id:
-        type: integer
-      ghn_province_id:
-        type: integer
-      ghn_ward_code:
-        type: string
-      height:
-        description: in centimeters
-        type: integer
-      id:
-        type: string
-      instructions:
-        type: string
-      is_self_picked_up:
-        type: boolean
-      length:
-        description: in centimeters
-        type: integer
-      manufacturing_date:
-        type: string
-      payment_bin:
-        type: string
-      payment_id:
-        description: Transient fields populated by repository (not persisted)
-        type: string
-      phone_number:
-        type: string
-      province_name:
-        type: string
-      quantity:
-        type: integer
-      staff_resource:
-        type: string
-      status:
-        $ref: '#/definitions/enum.PreOrderStatus'
-      street:
-        type: string
-      total_amount:
-        type: number
-      unit_price:
-        type: number
-      updated_at:
-        type: string
-      user_id:
-        type: string
-      user_note:
-        description: DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
-        type: string
-      user_resource:
-        type: string
-      uses:
-        type: string
-      variant_id:
-        type: string
-      ward_name:
-        type: string
-      weight:
-        description: in grams
         type: integer
       width:
         description: in centimeters
@@ -3838,226 +3672,6 @@ definitions:
     type: object
   requests.UpdateProfileRequest:
     properties:
-      availability_end_date:
-        example: 2023-10-31T10:00
-        type: string
-      availability_start_date:
-        example: 2023-10-01T10:00
-        type: string
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      category_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      concept_id:
-        example: 770e8400-e29b-41d4-a716-446655440000
-        type: string
-      description:
-        example: Updated product description
-        maxLength: 1000
-        type: string
-      name:
-        example: Updated Product Name
-        maxLength: 255
-        minLength: 1
-        type: string
-      premiere_date:
-        example: 2023-10-01T10:00:00
-        type: string
-    type: object
-  requests.UpdateLimitedProductVariantRequest:
-    properties:
-      capacity:
-        example: 500
-        minimum: 0
-        type: number
-      capacity_unit:
-        allOf:
-        - $ref: '#/definitions/enum.CapacityUnit'
-        enum:
-        - ML
-        - L
-        - G
-        - KG
-        - OZ
-      container_type:
-        allOf:
-        - $ref: '#/definitions/enum.ContainerType'
-        enum:
-        - BOTTLE
-        - TUBE
-        - JAR
-        - STICK
-        - PENCIL
-        - COMPACT
-        - PALLETE
-        - SACHET
-        - VIAL
-        - ROLLER_BOTTLE
-        example: BOTTLE
-      dispenser_type:
-        allOf:
-        - $ref: '#/definitions/enum.DispenserType'
-        enum:
-        - PUMP
-        - SPRAY
-        - DROPPER
-        - ROLL_ON
-        - TWIST_UP
-        - SQUEEZE
-        - NONE
-        example: SPRAY
-      expiry_date:
-        example: "2025-10-01T00:00:00Z"
-        type: string
-      height:
-        description: in centimeters
-        example: 15
-        minimum: 0
-        type: integer
-      input_stock:
-        example: 100
-        type: integer
-      instructions:
-        example: Shake well before use
-        type: string
-      is_default:
-        example: true
-        type: boolean
-      length:
-        description: in centimeters
-        example: 10
-        minimum: 0
-        type: integer
-      manufacturing_date:
-        example: "2023-10-01T00:00:00Z"
-        type: string
-      max_stock:
-        type: integer
-      pre_order_limit:
-        type: integer
-      price:
-        example: 1000
-        minimum: 1000
-        type: number
-      uses:
-        example: For daily use
-        type: string
-      weight:
-        description: in grams
-        example: 250
-        minimum: 0
-        type: integer
-      width:
-        example: 5
-        minimum: 0
-        type: integer
-    type: object
-  requests.UpdateProductRequest:
-    properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      category_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      description:
-        example: Updated product description
-        maxLength: 1000
-        type: string
-      name:
-        example: Updated Product Name
-        maxLength: 255
-        minLength: 1
-        type: string
-    type: object
-  requests.UpdateProductVariantRequest:
-    properties:
-      capacity:
-        example: 500
-        minimum: 0
-        type: number
-      capacity_unit:
-        allOf:
-        - $ref: '#/definitions/enum.CapacityUnit'
-        enum:
-        - ML
-        - L
-        - G
-        - KG
-        - OZ
-      container_type:
-        allOf:
-        - $ref: '#/definitions/enum.ContainerType'
-        enum:
-        - BOTTLE
-        - TUBE
-        - JAR
-        - STICK
-        - PENCIL
-        - COMPACT
-        - PALLETE
-        - SACHET
-        - VIAL
-        - ROLLER_BOTTLE
-        example: BOTTLE
-      dispenser_type:
-        allOf:
-        - $ref: '#/definitions/enum.DispenserType'
-        enum:
-        - PUMP
-        - SPRAY
-        - DROPPER
-        - ROLL_ON
-        - TWIST_UP
-        - SQUEEZE
-        - NONE
-        example: SPRAY
-      expiry_date:
-        example: "2025-10-01T00:00:00Z"
-        type: string
-      height:
-        description: in centimeters
-        example: 15
-        minimum: 0
-        type: integer
-      input_stock:
-        example: 100
-        type: integer
-      instructions:
-        example: Shake well before use
-        type: string
-      is_default:
-        example: true
-        type: boolean
-      length:
-        description: in centimeters
-        example: 10
-        minimum: 0
-        type: integer
-      manufacturing_date:
-        example: "2023-10-01T00:00:00Z"
-        type: string
-      price:
-        example: 1000
-        minimum: 1000
-        type: number
-      uses:
-        example: For daily use
-        type: string
-      weight:
-        description: in grams
-        example: 250
-        minimum: 0
-        type: integer
-      width:
-        example: 5
-        minimum: 0
-        type: integer
-    type: object
-  requests.UpdateProfileRequest:
-    properties:
       avatar_url:
         example: https://example.com/avatar.jpg
         type: string
@@ -4171,6 +3785,25 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.AdminCampaignsSummary:
+    properties:
+      cancelled:
+        type: integer
+      completed:
+        type: integer
+      content_created:
+        description: Total content pieces
+        type: integer
+      content_posted:
+        description: Content with status POSTED
+        type: integer
+      draft:
+        type: integer
+      running:
+        type: integer
+      total_campaigns:
+        type: integer
+    type: object
   responses.AdminConfigListResponse:
     properties:
       data:
@@ -4214,6 +3847,88 @@ definitions:
       value_type:
         example: STRING
         type: string
+    type: object
+  responses.AdminDashboardResponse:
+    properties:
+      campaigns_summary:
+        $ref: '#/definitions/responses.AdminCampaignsSummary'
+      contracts_summary:
+        $ref: '#/definitions/responses.ContractsSummary'
+      growth_trend:
+        items:
+          $ref: '#/definitions/responses.GrowthTrendPoint'
+        type: array
+      overview:
+        $ref: '#/definitions/responses.AdminOverviewMetrics'
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      recent_activity:
+        items:
+          $ref: '#/definitions/responses.SystemActivityItem'
+        type: array
+      revenue_breakdown:
+        $ref: '#/definitions/responses.AdminRevenueBreakdown'
+      users_breakdown:
+        $ref: '#/definitions/responses.UsersBreakdown'
+    type: object
+  responses.AdminOverviewMetrics:
+    properties:
+      active_brands:
+        description: Brands with active contracts
+        type: integer
+      active_campaigns:
+        type: integer
+      active_contracts:
+        type: integer
+      active_users:
+        description: Users active in last 30 days
+        type: integer
+      monthly_orders:
+        type: integer
+      monthly_revenue:
+        type: number
+      revenue_growth:
+        description: Percentage change
+        type: number
+      total_brands:
+        type: integer
+      total_campaigns:
+        type: integer
+      total_contracts:
+        type: integer
+      total_orders:
+        type: integer
+      total_revenue:
+        type: number
+      total_users:
+        type: integer
+      user_growth:
+        description: Percentage change
+        type: number
+    type: object
+  responses.AdminRevenueBreakdown:
+    properties:
+      advertising_revenue:
+        description: Contract Revenue by Type
+        type: number
+      affiliate_revenue:
+        type: number
+      ambassador_revenue:
+        type: number
+      co_producing_revenue:
+        type: number
+      limited_product_revenue:
+        type: number
+      standard_product_revenue:
+        description: Product Revenue
+        type: number
+      total_contract_revenue:
+        description: Totals
+        type: number
+      total_product_revenue:
+        type: number
+      total_revenue:
+        type: number
     type: object
   responses.AffiliateLinkChannel:
     properties:
@@ -4313,6 +4028,82 @@ definitions:
       updated_at:
         type: string
     type: object
+  responses.BrandAffiliateMetric:
+    properties:
+      active_links:
+        type: integer
+      total_clicks:
+        type: integer
+      total_links:
+        type: integer
+    type: object
+  responses.BrandCampaignMetric:
+    properties:
+      campaign_id:
+        type: string
+      campaign_name:
+        type: string
+      completed_tasks:
+        type: integer
+      completion_rate:
+        type: number
+      content_count:
+        type: integer
+      end_date:
+        type: string
+      milestone_count:
+        type: integer
+      start_date:
+        type: string
+      status:
+        type: string
+      task_count:
+        type: integer
+      total_engagements:
+        type: integer
+      total_views:
+        type: integer
+    type: object
+  responses.BrandContentMetric:
+    properties:
+      engagement_rate:
+        type: number
+      posted_content:
+        type: integer
+      total_comments:
+        type: integer
+      total_content:
+        type: integer
+      total_likes:
+        type: integer
+      total_shares:
+        type: integer
+      total_views:
+        type: integer
+    type: object
+  responses.BrandContractDetail:
+    properties:
+      campaign_count:
+        type: integer
+      contract_id:
+        type: string
+      contract_number:
+        type: string
+      end_date:
+        type: string
+      paid_amount:
+        type: number
+      pending_amount:
+        type: number
+      start_date:
+        type: string
+      status:
+        type: string
+      total_value:
+        type: number
+      type:
+        type: string
+    type: object
   responses.BrandDetailResponse:
     properties:
       address:
@@ -4358,6 +4149,25 @@ definitions:
       website:
         type: string
     type: object
+  responses.BrandOverviewMetrics:
+    properties:
+      active_campaigns:
+        type: integer
+      active_contracts:
+        type: integer
+      pending_payments:
+        type: number
+      total_campaigns:
+        type: integer
+      total_contracts:
+        type: integer
+      total_orders:
+        type: integer
+      total_products:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
   responses.BrandPaginationResponse:
     properties:
       data:
@@ -4374,6 +4184,53 @@ definitions:
         type: integer
       success:
         type: boolean
+    type: object
+  responses.BrandPartnerDashboardResponse:
+    properties:
+      affiliate_metrics:
+        $ref: '#/definitions/responses.BrandAffiliateMetric'
+      campaigns:
+        items:
+          $ref: '#/definitions/responses.BrandCampaignMetric'
+        type: array
+      content_metrics:
+        $ref: '#/definitions/responses.BrandContentMetric'
+      contracts:
+        items:
+          $ref: '#/definitions/responses.BrandContractDetail'
+        type: array
+      overview:
+        $ref: '#/definitions/responses.BrandOverviewMetrics'
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      revenue_trend:
+        items:
+          $ref: '#/definitions/responses.BrandRevenueTrendPoint'
+        type: array
+      top_products:
+        items:
+          $ref: '#/definitions/responses.BrandProductMetric'
+        type: array
+    type: object
+  responses.BrandProductMetric:
+    properties:
+      order_count:
+        type: integer
+      product_id:
+        type: string
+      product_name:
+        type: string
+      product_type:
+        description: STANDARD, LIMITED
+        type: string
+      rank:
+        type: integer
+      revenue:
+        type: number
+      status:
+        type: string
+      units_sold:
+        type: integer
     type: object
   responses.BrandResponse:
     properties:
@@ -4415,6 +4272,33 @@ definitions:
         type: integer
       revenue:
         example: 1.500000005e+08
+        type: number
+    type: object
+  responses.BrandRevenueTrendPoint:
+    properties:
+      date:
+        type: string
+      order_count:
+        type: integer
+      revenue:
+        type: number
+      units_sold:
+        type: integer
+    type: object
+  responses.BrandSalesMetric:
+    properties:
+      brand_id:
+        type: string
+      brand_name:
+        type: string
+      order_count:
+        type: integer
+      product_count:
+        description: Number of products sold
+        type: integer
+      rank:
+        type: integer
+      total_revenue:
         type: number
     type: object
   responses.BrandSummary:
@@ -4464,6 +4348,25 @@ definitions:
       tax_number:
         example: TAX123456
         type: string
+    type: object
+  responses.CampaignContentMetric:
+    properties:
+      campaign_id:
+        type: string
+      campaign_name:
+        type: string
+      content_count:
+        type: integer
+      draft_count:
+        type: integer
+      pending_count:
+        type: integer
+      posted_count:
+        type: integer
+      total_engagements:
+        type: integer
+      total_views:
+        type: integer
     type: object
   responses.CampaignDetailsResponse:
     properties:
@@ -4629,6 +4532,33 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.ChannelMetric:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      content_count:
+        type: integer
+      engagement_rate:
+        type: number
+      owner_name:
+        type: string
+      platform:
+        type: string
+      rank:
+        type: integer
+      total_comments:
+        type: integer
+      total_engagements:
+        type: integer
+      total_likes:
+        type: integer
+      total_shares:
+        type: integer
+      total_views:
+        type: integer
+    type: object
   responses.ChannelMetricItem:
     properties:
       channel:
@@ -4758,6 +4688,69 @@ definitions:
       updated_at:
         type: string
     type: object
+  responses.ContentMetric:
+    properties:
+      campaign_name:
+        type: string
+      channel_name:
+        type: string
+      clicks:
+        description: Affiliate link clicks
+        type: integer
+      comments:
+        type: integer
+      content_id:
+        type: string
+      engagement_rate:
+        type: number
+      likes:
+        type: integer
+      platform:
+        type: string
+      posted_at:
+        type: string
+      rank:
+        type: integer
+      shares:
+        type: integer
+      title:
+        type: string
+      views:
+        type: integer
+    type: object
+  responses.ContentOverviewMetrics:
+    properties:
+      draft_content:
+        description: Content in draft
+        type: integer
+      engagement_growth:
+        description: Percentage change
+        type: number
+      engagement_rate:
+        description: Engagement rate percentage
+        type: number
+      pending_content:
+        description: Content awaiting approval/posting
+        type: integer
+      posted_content:
+        description: Content with status POSTED
+        type: integer
+      total_clicks:
+        description: From affiliate links
+        type: integer
+      total_content:
+        description: Total content pieces created
+        type: integer
+      total_engagements:
+        description: Sum of likes + comments + shares
+        type: integer
+      total_views:
+        description: Sum of all content views
+        type: integer
+      view_growth:
+        description: Percentage change from previous period
+        type: number
+    type: object
   responses.ContentPaginationResponse:
     properties:
       data:
@@ -4808,6 +4801,50 @@ definitions:
         $ref: '#/definitions/enum.ContentType'
       updated_at:
         type: string
+    type: object
+  responses.ContentStaffDashboardResponse:
+    properties:
+      content_status_breakdown:
+        $ref: '#/definitions/responses.ContentStatusBreakdown'
+      engagement_trend:
+        items:
+          $ref: '#/definitions/responses.EngagementTrendPoint'
+        type: array
+      overview:
+        $ref: '#/definitions/responses.ContentOverviewMetrics'
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      platform_metrics:
+        items:
+          $ref: '#/definitions/responses.PlatformMetric'
+        type: array
+      recent_content:
+        items:
+          $ref: '#/definitions/responses.RecentContentItem'
+        type: array
+      top_channels:
+        items:
+          $ref: '#/definitions/responses.ChannelMetric'
+        type: array
+      top_content:
+        items:
+          $ref: '#/definitions/responses.ContentMetric'
+        type: array
+    type: object
+  responses.ContentStatusBreakdown:
+    properties:
+      approved_count:
+        type: integer
+      draft_count:
+        type: integer
+      pending_count:
+        type: integer
+      posted_count:
+        type: integer
+      rejected_count:
+        type: integer
+      total_count:
+        type: integer
     type: object
   responses.ContractAnalyticsSummary:
     properties:
@@ -5099,6 +5136,29 @@ definitions:
         example: ADVERTISING
         type: string
     type: object
+  responses.ContractsSummary:
+    properties:
+      active:
+        type: integer
+      cancelled:
+        type: integer
+      collected_amount:
+        description: Total paid amount
+        type: number
+      completed:
+        type: integer
+      draft:
+        type: integer
+      pending:
+        type: integer
+      pending_amount:
+        description: Outstanding payment amount
+        type: number
+      total_contracts:
+        type: integer
+      total_value:
+        type: number
+    type: object
   responses.DashboardMetricsResponse:
     properties:
       overview:
@@ -5199,6 +5259,22 @@ definitions:
       WhiteListClient: {}
       WhiteListDistrict: {}
     type: object
+  responses.EngagementTrendPoint:
+    properties:
+      comments:
+        type: integer
+      date:
+        type: string
+      engagements:
+        description: 'Total: likes + comments + shares'
+        type: integer
+      likes:
+        type: integer
+      shares:
+        type: integer
+      views:
+        type: integer
+    type: object
   responses.FileDetailResponse:
     properties:
       alt_text:
@@ -5293,6 +5369,19 @@ definitions:
         type: integer
       success:
         type: boolean
+    type: object
+  responses.GrowthTrendPoint:
+    properties:
+      date:
+        type: string
+      new_contracts:
+        type: integer
+      new_orders:
+        type: integer
+      new_users:
+        type: integer
+      revenue:
+        type: number
     type: object
   responses.LoginResponse:
     properties:
@@ -5423,6 +5512,102 @@ definitions:
       user_id:
         type: string
     type: object
+  responses.OrderResponse:
+    properties:
+      action_notes:
+        items:
+          $ref: '#/definitions/model.OrderActionNote'
+        type: array
+      address_line2:
+        type: string
+      city:
+        type: string
+      confirmation_image:
+        type: string
+      created_at:
+        type: string
+      district_name:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_order_code:
+        type: string
+      ghn_province_id:
+        type: integer
+      ghn_ward_code:
+        type: string
+      id:
+        type: string
+      is_self_picked_up:
+        type: boolean
+      order_items:
+        items:
+          $ref: '#/definitions/model.OrderItem'
+        type: array
+      order_type:
+        type: string
+      payment_transaction:
+        $ref: '#/definitions/responses.PaymentTransactionResponse'
+      phone_number:
+        type: string
+      province_name:
+        type: string
+      shipping_fee:
+        type: integer
+      staff_resource:
+        type: string
+      status:
+        type: string
+      street:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      user_note:
+        type: string
+      user_resource:
+        type: string
+      ward_name:
+        type: string
+    type: object
+  responses.OrderTypeStats:
+    properties:
+      cancelled_count:
+        description: Status = CANCELLED
+        type: integer
+      completed_count:
+        description: Status = RECEIVED
+        type: integer
+      pending_count:
+        description: Status in progress
+        type: integer
+      total_count:
+        type: integer
+      total_revenue:
+        type: number
+    type: object
+  responses.OrdersBreakdown:
+    properties:
+      limited_orders:
+        allOf:
+        - $ref: '#/definitions/responses.OrderTypeStats'
+        description: Order type = LIMITED
+      pre_orders:
+        allOf:
+        - $ref: '#/definitions/responses.PreOrderStats'
+        description: From pre_orders table
+      standard_orders:
+        allOf:
+        - $ref: '#/definitions/responses.OrderTypeStats'
+        description: Order type = STANDARD
+    type: object
   responses.OverviewMetrics:
     properties:
       active_contracts:
@@ -5549,6 +5734,25 @@ definitions:
           type: object
         type: array
     type: object
+  responses.PaymentStatusOverview:
+    properties:
+      overdue_amount:
+        type: number
+      overdue_payments:
+        type: integer
+      paid_amount:
+        type: number
+      paid_payments:
+        type: integer
+      pending_amount:
+        type: number
+      pending_payments:
+        type: integer
+      total_amount:
+        type: number
+      total_payments:
+        type: integer
+    type: object
   responses.PaymentTransactionPaginationResponse:
     properties:
       data:
@@ -5605,6 +5809,159 @@ definitions:
         type: string
       start_date:
         type: string
+    type: object
+  responses.PlatformMetric:
+    properties:
+      content_count:
+        description: Number of contents on this platform
+        type: integer
+      engagement_rate:
+        description: (likes + comments + shares) / views * 100
+        type: number
+      platform:
+        description: FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE
+        type: string
+      total_clicks:
+        description: Affiliate link clicks
+        type: integer
+      total_comments:
+        type: integer
+      total_likes:
+        type: integer
+      total_shares:
+        type: integer
+      total_views:
+        type: integer
+    type: object
+  responses.PlatformRevenueResponse:
+    properties:
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      revenue_breakdown:
+        $ref: '#/definitions/responses.AdminRevenueBreakdown'
+      revenue_trend:
+        items:
+          $ref: '#/definitions/responses.RevenueTrendPoint'
+        type: array
+      top_brands:
+        items:
+          $ref: '#/definitions/responses.BrandSalesMetric'
+        type: array
+      total_revenue:
+        type: number
+    type: object
+  responses.PreOrderResponse:
+    properties:
+      action_notes:
+        description: Action notes for pre-order (JSONB)
+        items:
+          $ref: '#/definitions/model.PreOrderActionNote'
+        type: array
+      address_line2:
+        type: string
+      capacity:
+        description: The same as orderItem
+        type: number
+      capacity_unit:
+        type: string
+      city:
+        type: string
+      confirmation_image:
+        type: string
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      district_name:
+        type: string
+      email:
+        type: string
+      expiry_date:
+        type: string
+      full_name:
+        description: The same as order which Copied shipping address fields
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_province_id:
+        type: integer
+      ghn_ward_code:
+        type: string
+      height:
+        description: in centimeters
+        type: integer
+      id:
+        type: string
+      instructions:
+        type: string
+      is_self_picked_up:
+        type: boolean
+      length:
+        description: in centimeters
+        type: integer
+      manufacturing_date:
+        type: string
+      payment_bin:
+        type: string
+      payment_id:
+        description: Transient fields populated by repository (not persisted)
+        type: string
+      paymentTx:
+        $ref: '#/definitions/responses.PaymentTransactionResponse'
+      phone_number:
+        type: string
+      province_name:
+        type: string
+      quantity:
+        type: integer
+      staff_resource:
+        type: string
+      status:
+        $ref: '#/definitions/enum.PreOrderStatus'
+      street:
+        type: string
+      total_amount:
+        type: number
+      unit_price:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      user_note:
+        type: string
+      user_resource:
+        type: string
+      uses:
+        type: string
+      variant_id:
+        type: string
+      ward_name:
+        type: string
+      weight:
+        description: in grams
+        type: integer
+      width:
+        description: in centimeters
+        type: integer
+    type: object
+  responses.PreOrderStats:
+    properties:
+      cancelled_count:
+        type: integer
+      pending_count:
+        type: integer
+      received_count:
+        description: Status = RECEIVED
+        type: integer
+      total_count:
+        type: integer
+      total_revenue:
+        type: number
     type: object
   responses.ProductAttributesResponse:
     properties:
@@ -5757,6 +6114,24 @@ definitions:
           $ref: '#/definitions/responses.ProductVariantResponse'
         type: array
     type: object
+  responses.ProductSalesMetric:
+    properties:
+      brand_name:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      product_type:
+        description: STANDARD or LIMITED
+        type: string
+      rank:
+        type: integer
+      total_revenue:
+        type: number
+      units_sold:
+        type: integer
+    type: object
   responses.ProductVariantResponse:
     properties:
       attributes:
@@ -5899,6 +6274,64 @@ definitions:
       timestamp:
         type: string
     type: object
+  responses.RecentContentItem:
+    properties:
+      campaign_name:
+        type: string
+      content_id:
+        type: string
+      created_at:
+        type: string
+      creator_name:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  responses.RecentOrderItem:
+    properties:
+      created_at:
+        type: string
+      customer_name:
+        type: string
+      item_count:
+        type: integer
+      order_id:
+        type: string
+      order_type:
+        description: STANDARD or LIMITED
+        type: string
+      status:
+        type: string
+      total_amount:
+        type: number
+    type: object
+  responses.RevenueBySource:
+    properties:
+      advertising_revenue:
+        description: Contract payments for ADVERTISING
+        type: number
+      affiliate_revenue:
+        description: Contract payments for AFFILIATE
+        type: number
+      ambassador_revenue:
+        description: Contract payments for AMBASSADOR
+        type: number
+      co_producing_revenue:
+        description: Contract payments for CO_PRODUCING
+        type: number
+      limited_product_revenue:
+        description: Orders with order_type = LIMITED + pre_orders
+        type: number
+      standard_product_revenue:
+        description: Orders with order_type = STANDARD
+        type: number
+      total_revenue:
+        type: number
+    type: object
   responses.RevenueByTypeResponse:
     properties:
       advertising:
@@ -5919,6 +6352,77 @@ definitions:
       total_revenue:
         example: 140000000
         type: number
+    type: object
+  responses.RevenueTrendPoint:
+    properties:
+      average_order_value:
+        type: number
+      date:
+        type: string
+      order_count:
+        type: integer
+      revenue:
+        type: number
+    type: object
+  responses.SalesOverviewMetrics:
+    properties:
+      average_order_value:
+        description: Average order value
+        type: number
+      completed_orders:
+        description: Orders with status RECEIVED
+        type: integer
+      contract_revenue:
+        description: Revenue from contract payments
+        type: number
+      order_growth:
+        description: Percentage change in order count
+        type: number
+      order_revenue:
+        description: Revenue from orders only
+        type: number
+      pending_orders:
+        description: Orders pending fulfillment
+        type: integer
+      revenue_growth:
+        description: Percentage change from previous period
+        type: number
+      total_orders:
+        description: Total order count
+        type: integer
+      total_pre_orders:
+        description: Total pre-order count
+        type: integer
+      total_revenue:
+        description: Total revenue from all sources
+        type: number
+    type: object
+  responses.SalesStaffDashboardResponse:
+    properties:
+      orders_breakdown:
+        $ref: '#/definitions/responses.OrdersBreakdown'
+      overview:
+        $ref: '#/definitions/responses.SalesOverviewMetrics'
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      recent_orders:
+        items:
+          $ref: '#/definitions/responses.RecentOrderItem'
+        type: array
+      revenue_by_source:
+        $ref: '#/definitions/responses.RevenueBySource'
+      revenue_trend:
+        items:
+          $ref: '#/definitions/responses.RevenueTrendPoint'
+        type: array
+      top_brands:
+        items:
+          $ref: '#/definitions/responses.BrandSalesMetric'
+        type: array
+      top_products:
+        items:
+          $ref: '#/definitions/responses.ProductSalesMetric'
+        type: array
     type: object
   responses.SessionInfo:
     properties:
@@ -6058,6 +6562,50 @@ definitions:
         allOf:
         - $ref: '#/definitions/enum.TaskType'
         example: CONTENT
+    type: object
+  responses.SystemActivityItem:
+    properties:
+      activity_type:
+        description: e.g., "CONTRACT_CREATED", "ORDER_PLACED"
+        type: string
+      description:
+        type: string
+      entity_id:
+        type: string
+      entity_type:
+        description: e.g., "CONTRACT", "ORDER", "USER"
+        type: string
+      timestamp:
+        type: string
+      user_id:
+        type: string
+      user_name:
+        type: string
+    type: object
+  responses.SystemHealthResponse:
+    properties:
+      average_response_ms:
+        type: integer
+      cache_status:
+        description: OK, WARNING, ERROR
+        type: string
+      database_status:
+        description: OK, WARNING, ERROR
+        type: string
+      error_rate:
+        description: Percentage in last hour
+        type: number
+      failed_jobs_24h:
+        description: Failed jobs in last 24h
+        type: integer
+      pending_jobs:
+        description: Jobs in queue
+        type: integer
+      queue_status:
+        description: OK, WARNING, ERROR
+        type: string
+      uptime:
+        type: string
     type: object
   responses.TagPaginationResponse:
     properties:
@@ -6315,6 +6863,15 @@ definitions:
       username:
         type: string
     type: object
+  responses.UserGrowthPoint:
+    properties:
+      date:
+        type: string
+      new_users:
+        type: integer
+      total:
+        type: integer
+    type: object
   responses.UserInfoResponse:
     properties:
       avatar_url:
@@ -6468,6 +7025,44 @@ definitions:
       username:
         example: john_doe
         type: string
+    type: object
+  responses.UsersBreakdown:
+    properties:
+      admin:
+        type: integer
+      brand_partner:
+        type: integer
+      content_staff:
+        type: integer
+      customer:
+        type: integer
+      marketing_staff:
+        type: integer
+      new_this_month:
+        description: Registered this month
+        type: integer
+      sales_staff:
+        type: integer
+      total_active:
+        description: Active in last 30 days
+        type: integer
+    type: object
+  responses.UsersOverviewResponse:
+    properties:
+      active_users:
+        type: integer
+      growth_trend:
+        items:
+          $ref: '#/definitions/responses.UserGrowthPoint'
+        type: array
+      new_users_this_month:
+        type: integer
+      period:
+        $ref: '#/definitions/responses.PeriodInfo'
+      role_breakdown:
+        $ref: '#/definitions/responses.UsersBreakdown'
+      total_users:
+        type: integer
     type: object
   responses.VariantAttributeResponse:
     properties:
@@ -6901,6 +7496,320 @@ paths:
       summary: Get supported AI models
       tags:
       - AI
+  /api/v1/analytics/admin/campaigns:
+    get:
+      consumes:
+      - application/json
+      description: Returns campaign statistics including status breakdown and content
+        counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AdminCampaignsSummary'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaigns Summary
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/contracts:
+    get:
+      consumes:
+      - application/json
+      description: Returns contract statistics including status breakdown and values
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractsSummary'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Contracts Summary
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive platform-wide analytics dashboard for Admin
+        including user metrics, revenue breakdown, contracts, campaigns, and growth
+        trends
+      parameters:
+      - description: Year for filtering (defaults to current year)
+        in: query
+        name: year
+        type: integer
+      - description: Month for filtering (defaults to current month)
+        in: query
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AdminDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Admin Dashboard
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/health:
+    get:
+      consumes:
+      - application/json
+      description: Returns system health metrics including database, cache, and queue
+        status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.SystemHealthResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get System Health
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/revenue:
+    get:
+      consumes:
+      - application/json
+      description: Returns platform-wide revenue analytics including breakdown by
+        source and trends
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: 'Time granularity (DAY, WEEK, MONTH - default: MONTH)'
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PlatformRevenueResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Platform Revenue
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/user-growth:
+    get:
+      consumes:
+      - application/json
+      description: Returns user registration growth over time
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: 'Time granularity (DAY, WEEK, MONTH - default: MONTH)'
+        in: query
+        name: granularity
+        type: string
+      - description: Filter by user role
+        in: query
+        name: role
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.UserGrowthPoint'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Growth
+      tags:
+      - Admin Analytics
+  /api/v1/analytics/admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Returns user statistics including role breakdown and growth trends
+      parameters:
+      - description: Filter by user role (ADMIN, MARKETING_STAFF, SALES_STAFF, CONTENT_STAFF,
+          BRAND_PARTNER, CUSTOMER)
+        in: query
+        name: role
+        type: string
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UsersOverviewResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Users Overview
+      tags:
+      - Admin Analytics
   /api/v1/analytics/affiliate-links/by-channel:
     get:
       consumes:
@@ -7159,6 +8068,750 @@ paths:
       summary: Get top performing affiliate links
       tags:
       - Analytics/AffiliateLinks
+  /api/v1/analytics/brand-partner/affiliates:
+    get:
+      consumes:
+      - application/json
+      description: Returns affiliate link performance metrics for the brand partner
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandAffiliateMetric'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Affiliate Metrics
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/campaigns:
+    get:
+      consumes:
+      - application/json
+      description: Returns campaign performance metrics for the brand partner
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by campaign status (DRAFT, ACTIVE, IN_PROGRESS, PENDING,
+          FINISHED, CANCELLED)
+        in: query
+        name: status
+        type: string
+      - description: 'Number of campaigns to return (default: 10, max: 50)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandCampaignMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Campaign Metrics
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/content:
+    get:
+      consumes:
+      - application/json
+      description: Returns content performance metrics summary for the brand partner
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandContentMetric'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Content Metrics
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/contracts:
+    get:
+      consumes:
+      - application/json
+      description: Returns contract details for the brand partner
+      parameters:
+      - description: Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED,
+          CANCELLED)
+        in: query
+        name: status
+        type: string
+      - description: 'Number of contracts to return (default: 10, max: 50)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandContractDetail'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Contract Details
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive analytics dashboard for Brand Partner including
+        overview metrics, top products, campaigns, content, revenue trend, affiliate
+        metrics, and contracts
+      parameters:
+      - description: Year for filtering (defaults to current year)
+        in: query
+        name: year
+        type: integer
+      - description: Month for filtering (defaults to current month)
+        in: query
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BrandPartnerDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand Partner Dashboard
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/revenue-trend:
+    get:
+      consumes:
+      - application/json
+      description: Returns revenue time-series data for the brand partner
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: 'Time granularity (DAY, WEEK, MONTH - default: DAY)'
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandRevenueTrendPoint'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Revenue Trend
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/brand-partner/top-products:
+    get:
+      consumes:
+      - application/json
+      description: Returns top products by revenue for the brand partner
+      parameters:
+      - description: Start date (ISO 8601 format)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (ISO 8601 format)
+        in: query
+        name: end_date
+        type: string
+      - description: 'Number of products to return (default: 10, max: 50)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandProductMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Top Products
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/content/campaigns:
+    get:
+      consumes:
+      - application/json
+      description: Returns content metrics aggregated by campaign
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by specific campaign ID
+        format: uuid
+        in: query
+        name: campaign_id
+        type: string
+      - default: 10
+        description: 'Number of results (default: 10, max: 50)'
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.CampaignContentMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Campaign Content Metrics
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/channels:
+    get:
+      consumes:
+      - application/json
+      description: Returns top performing channels ranked by total engagement
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by platform
+        enum:
+        - FACEBOOK
+        - TIKTOK
+        - INSTAGRAM
+        - YOUTUBE
+        in: query
+        name: platform
+        type: string
+      - default: 10
+        description: 'Number of results (default: 10, max: 50)'
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ChannelMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Top Channels
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive content dashboard with overview metrics,
+        content status breakdown, platform metrics, top content, top channels, recent
+        content, and engagement trend
+      parameters:
+      - description: Year (defaults to current year)
+        example: 2025
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        type: integer
+      - description: Month (defaults to current month)
+        example: 11
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentStaffDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Content Staff Dashboard
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/platforms:
+    get:
+      consumes:
+      - application/json
+      description: Returns content and engagement metrics aggregated by platform (FACEBOOK,
+        TIKTOK, INSTAGRAM, YOUTUBE)
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.PlatformMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Metrics by Platform
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/status:
+    get:
+      consumes:
+      - application/json
+      description: Returns content counts broken down by status (DRAFT, PENDING, APPROVED,
+        REJECTED, POSTED)
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentStatusBreakdown'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Content Status Breakdown
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/top:
+    get:
+      consumes:
+      - application/json
+      description: Returns top performing content ranked by views
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by platform
+        enum:
+        - FACEBOOK
+        - TIKTOK
+        - INSTAGRAM
+        - YOUTUBE
+        in: query
+        name: platform
+        type: string
+      - default: 10
+        description: 'Number of results (default: 10, max: 50)'
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ContentMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Top Content
+      tags:
+      - Content Staff Analytics
+  /api/v1/analytics/content/trend:
+    get:
+      consumes:
+      - application/json
+      description: Returns engagement time-series data with configurable granularity
+        (DAY, WEEK, MONTH)
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: DAY
+        description: Time bucket granularity
+        enum:
+        - DAY
+        - WEEK
+        - MONTH
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.EngagementTrendPoint'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Engagement Trend
+      tags:
+      - Content Staff Analytics
   /api/v1/analytics/marketing/active-brands:
     get:
       description: Returns the total count of brands with status = 'ACTIVE'
@@ -7488,6 +9141,455 @@ paths:
       summary: Get campaigns approaching deadline
       tags:
       - Analytics/MarketingStaffs
+  /api/v1/analytics/sales/brands:
+    get:
+      consumes:
+      - application/json
+      description: Returns top brands ranked by total revenue
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: 10
+        description: 'Number of results (default: 10, max: 50)'
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandSalesMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Top Brands
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns comprehensive sales dashboard with overview metrics, orders
+        breakdown, revenue by source, top brands, top products, recent orders, and
+        revenue trend
+      parameters:
+      - description: Year (defaults to current year)
+        example: 2025
+        in: query
+        maximum: 2100
+        minimum: 2000
+        name: year
+        type: integer
+      - description: Month (defaults to current month)
+        example: 11
+        in: query
+        maximum: 12
+        minimum: 1
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.SalesStaffDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Sales Staff Dashboard
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/orders:
+    get:
+      consumes:
+      - application/json
+      description: Returns orders statistics broken down by order type (STANDARD,
+        LIMITED) and status
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by order type
+        enum:
+        - STANDARD
+        - LIMITED
+        in: query
+        name: order_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.OrdersBreakdown'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Orders Overview
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/payments:
+    get:
+      consumes:
+      - application/json
+      description: Returns contract payment status overview with counts and amounts
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by specific contract ID
+        format: uuid
+        in: query
+        name: contract_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PaymentStatusOverview'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Payment Status
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/pre-orders:
+    get:
+      consumes:
+      - application/json
+      description: Returns pre-orders statistics including counts by status
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.PreOrderStats'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Pre-Orders Overview
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/products:
+    get:
+      consumes:
+      - application/json
+      description: Returns top products ranked by revenue
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by product type
+        enum:
+        - STANDARD
+        - LIMITED
+        in: query
+        name: product_type
+        type: string
+      - default: 10
+        description: 'Number of results (default: 10, max: 50)'
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ProductSalesMetric'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Top Products
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/revenue:
+    get:
+      consumes:
+      - application/json
+      description: Returns revenue breakdown by source (standard products, limited
+        products, advertising, affiliate, ambassador, co-producing)
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueBySource'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Revenue by Source
+      tags:
+      - Sales Staff Analytics
+  /api/v1/analytics/sales/trend:
+    get:
+      consumes:
+      - application/json
+      description: Returns revenue time-series data with configurable granularity
+        (DAY, WEEK, MONTH)
+      parameters:
+      - description: Start date (RFC3339 format)
+        format: date-time
+        in: query
+        name: start_date
+        type: string
+      - description: End date (RFC3339 format)
+        format: date-time
+        in: query
+        name: end_date
+        type: string
+      - default: DAY
+        description: Time bucket granularity
+        enum:
+        - DAY
+        - WEEK
+        - MONTH
+        in: query
+        name: granularity
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RevenueTrendPoint'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Revenue Trend
+      tags:
+      - Sales Staff Analytics
   /api/v1/auth/change-password:
     post:
       consumes:
@@ -12606,7 +14708,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Order'
+                    $ref: '#/definitions/responses.OrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -12950,7 +15052,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Order'
+                    $ref: '#/definitions/responses.OrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -13001,7 +15103,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Order'
+                    $ref: '#/definitions/responses.OrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -13366,7 +15468,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Order'
+                    $ref: '#/definitions/responses.OrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -13947,7 +16049,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.PreOrder'
+                    $ref: '#/definitions/responses.PreOrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -13999,86 +16101,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a PreOrder (reserve stock)
-      tags:
-      - Preorders
-  /api/v1/preorders/{id}/compensation:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Submit a compensation request with reason and supporting file
-      parameters:
-      - description: PreOrder ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reason for compensation
-        in: formData
-        name: reason
-        required: true
-        type: string
-      - description: Evidence file
-        in: formData
-        name: file
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Request compensation for a preorder (customer)
-      tags:
-      - Preorders.States
-  /api/v1/preorders/{id}/received:
-    patch:
-      consumes:
-      - application/json
-      description: Mark a preorder as received by the customer
-      parameters:
-      - description: PreOrder ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Mark preorder as received (customer)
       tags:
       - Preorders
   /api/v1/preorders/{id}/compensation:
@@ -14308,7 +16330,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.PreOrder'
+                    $ref: '#/definitions/responses.PreOrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -14360,7 +16382,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/model.Order'
+                    $ref: '#/definitions/responses.OrderResponse'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'

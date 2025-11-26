@@ -2,13 +2,17 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,7 +32,7 @@ func NewAffiliateLinkAnalyticsService(
 	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
 	affiliateLinkRepo irepository.AffiliateLinkRepository,
 	contractRepo irepository.GenericRepository[model.Contract],
-) *AffiliateLinkAnalyticsService {
+) iservice.AffiliateLinkAnalyticsService {
 	return &AffiliateLinkAnalyticsService{
 		clickEventRepo:    clickEventRepo,
 		kpiMetricsRepo:    kpiMetricsRepo,
@@ -42,7 +46,6 @@ func (s *AffiliateLinkAnalyticsService) GetMetricsByContract(
 	ctx context.Context,
 	req *requests.ContractMetricsRequest,
 ) (*responses.ContractMetricsResponse, error) {
-	// Set default time range if not provided (last 30 days)
 	startDate, endDate := s.getDefaultTimeRange(req.StartDate, req.EndDate)
 
 	// Get contract details
@@ -59,54 +62,119 @@ func (s *AffiliateLinkAnalyticsService) GetMetricsByContract(
 		func(db *gorm.DB) *gorm.DB {
 			return db.Where("contract_id = ?", req.ContractID)
 		},
-		nil, 0, 0)
+		[]string{"Channel"}, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get affiliate links: %w", err)
 	}
 
 	if len(links) == 0 {
-		// Return empty metrics if no links exist
 		return &responses.ContractMetricsResponse{
 			ContractID:   contract.ID,
 			ContractName: s.getStringValue(contract.ContractNumber),
 			BrandName:    contract.Brand.Name,
-			TotalClicks:  0,
-			UniqueUsers:  0,
-			CTR:          0,
-			TopChannels:  []responses.ChannelMetricItem{},
-			TopLinks:     []responses.AffiliateLinkMetric{},
 			Period: responses.PeriodInfo{
 				StartDate: startDate,
 				EndDate:   endDate,
 			},
+			TopChannels: []responses.ChannelMetricItem{},
+			TopLinks:    []responses.AffiliateLinkMetric{},
 		}, nil
 	}
 
-	// Extract link IDs
-	linkIDs := make([]uuid.UUID, len(links))
-	for i, link := range links {
-		linkIDs[i] = link.ID
+	// Get clicks for the contract
+	clicks, err := s.clickEventRepo.GetClicksByContract(ctx, req.ContractID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clicks: %w", err)
 	}
 
-	// Get click metrics for all links in this contract
-	totalClicks, uniqueUsers, err := s.getClickMetrics(ctx, linkIDs, startDate, endDate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get click metrics: %w", err)
+	totalClicks := int64(len(clicks))
+	uniqueUsers := s.countUniqueUsers(clicks)
+	ctr := s.calculateCTR(totalClicks, uniqueUsers)
+
+	// Aggregate by channel and link
+	channelStats := make(map[string]*responses.ChannelMetricItem)
+	linkStats := make(map[uuid.UUID]*responses.AffiliateLinkMetric)
+
+	// Initialize link stats
+	for _, link := range links {
+		channelName := "UNKNOWN"
+		if link.Channel != nil {
+			channelName = link.Channel.Name
+		}
+		linkStats[link.ID] = &responses.AffiliateLinkMetric{
+			AffiliateLinkID: link.ID,
+			LinkName:        link.Hash,
+			ShortHash:       link.Hash,
+			TrackingURL:     link.TrackingURL,
+			Channel:         channelName,
+		}
 	}
 
-	// Get top channels for this contract
-	topChannels, err := s.getTopChannelsByLinks(ctx, linkIDs, startDate, endDate)
-	if err != nil {
-		zap.L().Error("Failed to get top channels", zap.Error(err))
-		topChannels = []responses.ChannelMetricItem{} // Default to empty
+	// Process clicks
+	linkUniqueUsers := make(map[uuid.UUID]map[string]struct{})
+	channelUniqueUsers := make(map[string]map[string]struct{})
+
+	for _, click := range clicks {
+		// Link Stats
+		if stat, ok := linkStats[click.AffiliateLinkID]; ok {
+			stat.TotalClicks++
+
+			userKey := s.getUserKey(click)
+
+			// Link Unique
+			if _, ok := linkUniqueUsers[click.AffiliateLinkID]; !ok {
+				linkUniqueUsers[click.AffiliateLinkID] = make(map[string]struct{})
+			}
+			linkUniqueUsers[click.AffiliateLinkID][userKey] = struct{}{}
+
+			// Channel Stats
+			channelName := stat.Channel
+			if _, exists := channelStats[channelName]; !exists {
+				channelStats[channelName] = &responses.ChannelMetricItem{
+					Channel: channelName,
+				}
+			}
+			channelStats[channelName].TotalClicks++
+
+			// Channel Unique
+			if _, ok := channelUniqueUsers[channelName]; !ok {
+				channelUniqueUsers[channelName] = make(map[string]struct{})
+			}
+			channelUniqueUsers[channelName][userKey] = struct{}{}
+		}
 	}
 
-	// Get top performing links for this contract
-	topLinks, err := s.getTopLinksByIDs(ctx, linkIDs, startDate, endDate, 5)
-	if err != nil {
-		zap.L().Error("Failed to get top links", zap.Error(err))
-		topLinks = []responses.AffiliateLinkMetric{} // Default to empty
+	// Finalize Link Stats
+	var topLinks []responses.AffiliateLinkMetric
+	for id, stat := range linkStats {
+		stat.UniqueUsers = int64(len(linkUniqueUsers[id]))
+		stat.CTR = s.calculateCTR(stat.TotalClicks, stat.UniqueUsers)
+		if stat.TotalClicks > 0 {
+			topLinks = append(topLinks, *stat)
+		}
 	}
+	// Sort links by clicks
+	sort.Slice(topLinks, func(i, j int) bool {
+		return topLinks[i].TotalClicks > topLinks[j].TotalClicks
+	})
+	if len(topLinks) > 5 {
+		topLinks = topLinks[:5]
+	}
+
+	// Finalize Channel Stats
+	var topChannels []responses.ChannelMetricItem
+	for name, stat := range channelStats {
+		stat.UniqueUsers = int64(len(channelUniqueUsers[name]))
+		stat.CTR = s.calculateCTR(stat.TotalClicks, stat.UniqueUsers)
+		if totalClicks > 0 {
+			stat.PercentTotal = float64(stat.TotalClicks) / float64(totalClicks) * 100
+		}
+		topChannels = append(topChannels, *stat)
+	}
+	// Sort channels by clicks
+	sort.Slice(topChannels, func(i, j int) bool {
+		return topChannels[i].TotalClicks > topChannels[j].TotalClicks
+	})
 
 	return &responses.ContractMetricsResponse{
 		ContractID:   contract.ID,
@@ -114,7 +182,7 @@ func (s *AffiliateLinkAnalyticsService) GetMetricsByContract(
 		BrandName:    contract.Brand.Name,
 		TotalClicks:  totalClicks,
 		UniqueUsers:  uniqueUsers,
-		CTR:          s.calculateCTR(totalClicks, uniqueUsers),
+		CTR:          ctr,
 		TopChannels:  topChannels,
 		TopLinks:     topLinks,
 		Period: responses.PeriodInfo{
@@ -131,40 +199,24 @@ func (s *AffiliateLinkAnalyticsService) GetMetricsByChannel(
 ) (*responses.ChannelMetricsResponse, error) {
 	startDate, endDate := s.getDefaultTimeRange(req.StartDate, req.EndDate)
 
-	// Get all active affiliate links
-	links, _, err := s.affiliateLinkRepo.GetActiveLinks(ctx, 0, 0)
+	// Use GetTopChannels from ClickEventRepo
+	topChannels, err := s.clickEventRepo.GetTopChannels(ctx, startDate, endDate, 100)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active links: %w", err)
+		return nil, fmt.Errorf("failed to get channel metrics: %w", err)
 	}
 
-	// Group links by channel
-	channelLinks := make(map[string][]uuid.UUID)
-	for _, link := range links {
-		channelStr := s.getChannelString(link.Channel)
-		channelLinks[channelStr] = append(channelLinks[channelStr], link.ID)
-	}
-
-	// Get metrics for each channel
 	var channels []responses.ChannelMetricItem
 	var totalClicksAllChannels int64
 
-	for channel, linkIDs := range channelLinks {
-		clicks, users, err := s.getClickMetrics(ctx, linkIDs, startDate, endDate)
-		if err != nil {
-			zap.L().Warn("Failed to get metrics for channel", zap.String("channel", channel), zap.Error(err))
-			continue
-		}
-
+	for _, p := range topChannels {
 		channels = append(channels, responses.ChannelMetricItem{
-			Channel:      channel,
-			TotalClicks:  clicks,
-			UniqueUsers:  users,
-			CTR:          s.calculateCTR(clicks, users),
-			LinkCount:    len(linkIDs),
-			PercentTotal: 0, // Will be calculated after we have total
+			Channel:      p.ChannelName,
+			TotalClicks:  p.TotalClicks,
+			UniqueUsers:  p.UniqueUsers,
+			CTR:          s.calculateCTR(p.TotalClicks, p.UniqueUsers),
+			PercentTotal: 0,
 		})
-
-		totalClicksAllChannels += clicks
+		totalClicksAllChannels += p.TotalClicks
 	}
 
 	// Calculate percentages
@@ -191,7 +243,7 @@ func (s *AffiliateLinkAnalyticsService) GetTimeSeriesData(
 	startDate, endDate := s.getDefaultTimeRange(req.StartDate, req.EndDate)
 
 	// Get affiliate link details
-	link, err := s.affiliateLinkRepo.GetByID(ctx, req.AffiliateLinkID, nil)
+	link, err := s.affiliateLinkRepo.GetByID(ctx, req.AffiliateLinkID, []string{"Channel"})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("affiliate link not found")
@@ -213,7 +265,7 @@ func (s *AffiliateLinkAnalyticsService) GetTimeSeriesData(
 
 	return &responses.TimeSeriesDataResponse{
 		AffiliateLinkID: link.ID,
-		LinkName:        link.Hash, // Use hash as name since Name field doesn't exist
+		LinkName:        link.Hash,
 		TrackingURL:     link.TrackingURL,
 		Channel:         s.getChannelString(link.Channel),
 		DataPoints:      dataPoints,
@@ -242,48 +294,38 @@ func (s *AffiliateLinkAnalyticsService) GetTopPerformers(
 		limit = 10
 	}
 
-	// Get all active links
-	links, _, err := s.affiliateLinkRepo.GetActiveLinks(ctx, 0, 0)
+	// Use optimized query from ClickEventRepo
+	perfs, err := s.clickEventRepo.GetTopPerformingLinks(ctx, startDate, endDate, limit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active links: %w", err)
+		return nil, fmt.Errorf("failed to get top performers: %w", err)
 	}
 
-	// Get metrics for each link
-	linkMetrics := make([]responses.AffiliateLinkMetric, 0, len(links))
-	for _, link := range links {
-		clicks, users, err := s.getClickMetrics(ctx, []uuid.UUID{link.ID}, startDate, endDate)
-		if err != nil {
-			zap.L().Warn("Failed to get metrics for link", zap.String("link_id", link.ID.String()), zap.Error(err))
-			continue
-		}
-
-		linkMetrics = append(linkMetrics, responses.AffiliateLinkMetric{
-			AffiliateLinkID: link.ID,
-			LinkName:        link.Hash, // Use hash as identifier
-			ShortHash:       link.Hash,
-			TrackingURL:     link.TrackingURL,
-			Channel:         s.getChannelString(link.Channel),
-			TotalClicks:     clicks,
-			UniqueUsers:     users,
-			CTR:             s.calculateCTR(clicks, users),
+	var topLinks []responses.AffiliateLinkMetric
+	for i, p := range perfs {
+		topLinks = append(topLinks, responses.AffiliateLinkMetric{
+			AffiliateLinkID: p.AffiliateLinkID,
+			LinkName:        p.Hash,
+			ShortHash:       p.Hash,
+			TrackingURL:     "", // Not returned by aggregation query
+			Channel:         p.ChannelName,
+			TotalClicks:     p.TotalClicks,
+			UniqueUsers:     p.UniqueUsers,
+			CTR:             s.calculateCTR(p.TotalClicks, p.UniqueUsers),
+			Rank:            i + 1,
 		})
 	}
 
-	// Sort based on criteria
-	s.sortLinkMetrics(linkMetrics, sortBy)
-
-	// Limit results
-	if len(linkMetrics) > limit {
-		linkMetrics = linkMetrics[:limit]
-	}
-
-	// Add rank
-	for i := range linkMetrics {
-		linkMetrics[i].Rank = i + 1
+	// If sorting by other than CLICKS (which is default in repo), we might need to resort
+	if sortBy != "CLICKS" {
+		s.sortLinkMetrics(topLinks, sortBy)
+		// Re-assign ranks
+		for i := range topLinks {
+			topLinks[i].Rank = i + 1
+		}
 	}
 
 	return &responses.TopPerformerResponse{
-		TopLinks: linkMetrics,
+		TopLinks: topLinks,
 		SortBy:   sortBy,
 		Period: responses.PeriodInfo{
 			StartDate: startDate,
@@ -393,10 +435,8 @@ func (s *AffiliateLinkAnalyticsService) ValidateContractAccess(
 	}
 
 	// For now, allow all authenticated users to access analytics
-	// TODO: Implement proper RBAC - check if user is BRAND_PARTNER and owns the brand
-	// This would require checking user's role and brand ownership
-	_ = contract // Use contract to avoid unused variable error
-	_ = userID   // Use userID to avoid unused variable error
+	_ = contract
+	_ = userID
 
 	return nil
 }
@@ -436,34 +476,22 @@ func (s *AffiliateLinkAnalyticsService) calculateCTR(clicks, users int64) float6
 	return float64(clicks) / float64(users)
 }
 
-func (s *AffiliateLinkAnalyticsService) getClickMetrics(
-	ctx context.Context,
-	linkIDs []uuid.UUID,
-	startDate, endDate time.Time,
-) (totalClicks int64, uniqueUsers int64, err error) {
-	// This would use a custom repository method to query click_events
-	// For now, return placeholder implementation
-	// TODO: Implement actual query using TimescaleDB
-	return 0, 0, nil
+func (s *AffiliateLinkAnalyticsService) countUniqueUsers(clicks []model.ClickEvent) int64 {
+	unique := make(map[string]struct{})
+	for _, c := range clicks {
+		unique[s.getUserKey(c)] = struct{}{}
+	}
+	return int64(len(unique))
 }
 
-func (s *AffiliateLinkAnalyticsService) getTopChannelsByLinks(
-	ctx context.Context,
-	linkIDs []uuid.UUID,
-	startDate, endDate time.Time,
-) ([]responses.ChannelMetricItem, error) {
-	// TODO: Implement channel aggregation from click_events
-	return []responses.ChannelMetricItem{}, nil
-}
-
-func (s *AffiliateLinkAnalyticsService) getTopLinksByIDs(
-	ctx context.Context,
-	linkIDs []uuid.UUID,
-	startDate, endDate time.Time,
-	limit int,
-) ([]responses.AffiliateLinkMetric, error) {
-	// TODO: Implement top links query
-	return []responses.AffiliateLinkMetric{}, nil
+func (s *AffiliateLinkAnalyticsService) getUserKey(c model.ClickEvent) string {
+	if c.UserID != nil {
+		return c.UserID.String()
+	}
+	if c.IPAddress != nil {
+		return *c.IPAddress
+	}
+	return "unknown"
 }
 
 func (s *AffiliateLinkAnalyticsService) getTimeSeriesPoints(
@@ -472,44 +500,99 @@ func (s *AffiliateLinkAnalyticsService) getTimeSeriesPoints(
 	startDate, endDate time.Time,
 	granularity string,
 ) ([]responses.TimeSeriesPoint, error) {
-	// TODO: Implement time_bucket query using TimescaleDB
-	return []responses.TimeSeriesPoint{}, nil
+	var points []responses.TimeSeriesPoint
+
+	if granularity == "HOUR" {
+		stats, err := s.clickEventRepo.GetHourlyStats(ctx, linkID, startDate, endDate)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range stats {
+			points = append(points, responses.TimeSeriesPoint{
+				Timestamp:   s.Hour,
+				Clicks:      s.TotalClicks,
+				UniqueUsers: s.UniqueUsers,
+			})
+		}
+	} else {
+		// Default to DAY
+		stats, err := s.clickEventRepo.GetDailyStats(ctx, linkID, startDate, endDate)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range stats {
+			points = append(points, responses.TimeSeriesPoint{
+				Timestamp:   s.Date,
+				Clicks:      s.TotalClicks,
+				UniqueUsers: s.UniqueUsers,
+			})
+		}
+	}
+
+	return points, nil
 }
 
 func (s *AffiliateLinkAnalyticsService) sortLinkMetrics(metrics []responses.AffiliateLinkMetric, sortBy string) {
-	// TODO: Implement sorting logic based on sortBy (CLICKS, CTR, ENGAGEMENT)
+	sort.Slice(metrics, func(i, j int) bool {
+		switch sortBy {
+		case "CTR":
+			return metrics[i].CTR > metrics[j].CTR
+		case "ENGAGEMENT":
+			return metrics[i].UniqueUsers > metrics[j].UniqueUsers
+		default: // CLICKS
+			return metrics[i].TotalClicks > metrics[j].TotalClicks
+		}
+	})
 }
 
 func (s *AffiliateLinkAnalyticsService) calculateOverview(
 	ctx context.Context,
 	startDate, endDate time.Time,
 ) (*responses.OverviewMetrics, error) {
-	// Get all active links
-	links, _, err := s.affiliateLinkRepo.GetActiveLinks(ctx, 0, 0)
+	// Get global click stats
+	stats, err := s.clickEventRepo.GetGlobalOverview(ctx, startDate, endDate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get active links: %w", err)
+		return nil, fmt.Errorf("failed to get global overview: %w", err)
 	}
 
-	// Get all contracts with affiliate links
-	contracts, _, err := s.contractRepo.GetAll(ctx,
-		func(db *gorm.DB) *gorm.DB {
-			return db.Where("id IN (SELECT DISTINCT contract_id FROM affiliate_links WHERE deleted_at IS NULL)")
-		},
-		nil, 0, 0)
+	// Get all active links count
+	totalLinks, err := s.affiliateLinkRepo.Count(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("status = ?", enum.AffiliateLinkStatusActive)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get contracts: %w", err)
+		return nil, fmt.Errorf("failed to count links: %w", err)
 	}
 
-	// TODO: Calculate actual metrics from click_events
-	// For now, return structure with placeholder values
+	// Get active contracts count
+	activeContracts, err := s.contractRepo.Count(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("status = ?", enum.ContractStatusActive)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to count contracts: %w", err)
+	}
+
+	// Calculate growth
+	duration := endDate.Sub(startDate)
+	prevEndDate := startDate
+	prevStartDate := startDate.Add(-duration)
+
+	prevStats, err := s.clickEventRepo.GetGlobalOverview(ctx, prevStartDate, prevEndDate)
+	if err != nil {
+		zap.L().Warn("Failed to get previous period stats for growth calculation", zap.Error(err))
+		prevStats = dtos.GlobalClickStats{}
+	}
+
+	clickGrowth := s.calculateGrowth(float64(stats.TotalClicks), float64(prevStats.TotalClicks))
+	userGrowth := s.calculateGrowth(float64(stats.UniqueUsers), float64(prevStats.UniqueUsers))
+
 	return &responses.OverviewMetrics{
-		TotalClicks:     0,
-		UniqueUsers:     0,
-		TotalLinks:      len(links),
-		ActiveContracts: len(contracts),
-		AverageCTR:      0,
-		ClickGrowth:     0,
-		UserGrowth:      0,
+		TotalClicks:     stats.TotalClicks,
+		UniqueUsers:     stats.UniqueUsers,
+		TotalLinks:      int(totalLinks),
+		ActiveContracts: int(activeContracts),
+		AverageCTR:      s.calculateCTR(stats.TotalClicks, stats.UniqueUsers),
+		ClickGrowth:     clickGrowth,
+		UserGrowth:      userGrowth,
 	}, nil
 }
 
@@ -518,8 +601,22 @@ func (s *AffiliateLinkAnalyticsService) getTopContracts(
 	startDate, endDate time.Time,
 	limit int,
 ) ([]responses.ContractAnalyticsSummary, error) {
-	// TODO: Implement top contracts query
-	return []responses.ContractAnalyticsSummary{}, nil
+	perfs, err := s.clickEventRepo.GetTopContracts(ctx, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	var summaries []responses.ContractAnalyticsSummary
+	for _, p := range perfs {
+		summaries = append(summaries, responses.ContractAnalyticsSummary{
+			ContractID:   p.ContractID,
+			ContractName: p.ContractName,
+			TotalClicks:  p.TotalClicks,
+			UniqueUsers:  p.UniqueUsers,
+			CTR:          s.calculateCTR(p.TotalClicks, p.UniqueUsers),
+		})
+	}
+	return summaries, nil
 }
 
 func (s *AffiliateLinkAnalyticsService) getTopChannels(
@@ -527,22 +624,88 @@ func (s *AffiliateLinkAnalyticsService) getTopChannels(
 	startDate, endDate time.Time,
 	limit int,
 ) ([]responses.ChannelMetricItem, error) {
-	// TODO: Implement top channels aggregation
-	return []responses.ChannelMetricItem{}, nil
+	perfs, err := s.clickEventRepo.GetTopChannels(ctx, startDate, endDate, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	var channels []responses.ChannelMetricItem
+	for _, p := range perfs {
+		channels = append(channels, responses.ChannelMetricItem{
+			Channel:     p.ChannelName,
+			TotalClicks: p.TotalClicks,
+			UniqueUsers: p.UniqueUsers,
+			CTR:         s.calculateCTR(p.TotalClicks, p.UniqueUsers),
+		})
+	}
+	return channels, nil
 }
 
 func (s *AffiliateLinkAnalyticsService) getRecentActivity(
 	ctx context.Context,
 	limit int,
 ) ([]responses.RecentActivityItem, error) {
-	// TODO: Implement recent activity query from click_events
-	return []responses.RecentActivityItem{}, nil
+	since := time.Now().Add(-24 * time.Hour)
+	events, err := s.clickEventRepo.GetRecentClicks(ctx, since, 100)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort DESC
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].ClickedAt.After(events[j].ClickedAt)
+	})
+
+	if len(events) > limit {
+		events = events[:limit]
+	}
+
+	var items []responses.RecentActivityItem
+	for _, e := range events {
+		// Need to fetch link to get name
+		link, err := s.affiliateLinkRepo.GetByID(ctx, e.AffiliateLinkID, nil)
+		linkName := "Unknown"
+		if err == nil {
+			linkName = link.Hash
+		}
+
+		items = append(items, responses.RecentActivityItem{
+			AffiliateLinkID: e.AffiliateLinkID,
+			LinkName:        linkName,
+			Channel:         s.getChannelString(link.Channel),
+			ClickCount:      1,
+			Timestamp:       e.ClickedAt,
+		})
+	}
+	return items, nil
 }
 
 func (s *AffiliateLinkAnalyticsService) getTrendData(
 	ctx context.Context,
 	startDate, endDate time.Time,
 ) ([]responses.TrendDataPoint, error) {
-	// TODO: Implement trend data using time_bucket for daily aggregation
-	return []responses.TrendDataPoint{}, nil
+	stats, err := s.clickEventRepo.GetGlobalTrendData(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	var points []responses.TrendDataPoint
+	for _, s := range stats {
+		points = append(points, responses.TrendDataPoint{
+			Date:        s.Date,
+			Clicks:      s.TotalClicks,
+			UniqueUsers: s.UniqueUsers,
+		})
+	}
+	return points, nil
+}
+
+func (s *AffiliateLinkAnalyticsService) calculateGrowth(current, previous float64) float64 {
+	if previous == 0 {
+		if current > 0 {
+			return 100 // 100% growth if started from 0
+		}
+		return 0
+	}
+	return ((current - previous) / previous) * 100
 }
