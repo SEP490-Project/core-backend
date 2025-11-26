@@ -25,10 +25,10 @@ import (
 )
 
 type contractPaymentService struct {
-	contractPaymentRepo     irepository.GenericRepository[model.ContractPayment]
-	contractRepo            irepository.GenericRepository[model.Contract]
-	paymentCalculationRepo  irepository.ContractPaymentCalculationRepository
-	config                  *config.AdminConfig
+	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
+	contractRepo           irepository.GenericRepository[model.Contract]
+	paymentCalculationRepo irepository.ContractPaymentCalculationRepository
+	config                 *config.AdminConfig
 }
 
 // GetContractPaymentByID implements iservice.ContractPaymentService.

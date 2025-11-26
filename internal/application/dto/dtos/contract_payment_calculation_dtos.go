@@ -41,16 +41,16 @@ type LevelPaymentBreakdown struct {
 // CoProducingPaymentCalculation represents the calculated revenue distribution for a CO_PRODUCING contract.
 // This is used internally during payment calculation and stored in CalculationBreakdown JSONB.
 type CoProducingPaymentCalculation struct {
-	ContractID       uuid.UUID                    `json:"contract_id"`
-	PeriodStart      time.Time                    `json:"period_start"`
-	PeriodEnd        time.Time                    `json:"period_end"`
-	TotalRevenue     float64                      `json:"total_revenue"`     // Total revenue from limited products
-	CompanyPercent   int                          `json:"company_percent"`   // Company's share percentage
-	BrandPercent     int                          `json:"brand_percent"`     // Brand/KOL's share percentage
-	CompanyShare     float64                      `json:"company_share"`     // Calculated company share amount
-	BrandShare       float64                      `json:"brand_share"`       // Calculated brand share amount (this is the payment)
+	ContractID       uuid.UUID                       `json:"contract_id"`
+	PeriodStart      time.Time                       `json:"period_start"`
+	PeriodEnd        time.Time                       `json:"period_end"`
+	TotalRevenue     float64                         `json:"total_revenue"`   // Total revenue from limited products
+	CompanyPercent   int                             `json:"company_percent"` // Company's share percentage
+	BrandPercent     int                             `json:"brand_percent"`   // Brand/KOL's share percentage
+	CompanyShare     float64                         `json:"company_share"`   // Calculated company share amount
+	BrandShare       float64                         `json:"brand_share"`     // Calculated brand share amount (this is the payment)
 	RevenueBreakdown *LimitedProductRevenueBreakdown `json:"revenue_breakdown"`
-	CalculatedAt     time.Time                    `json:"calculated_at"`
+	CalculatedAt     time.Time                       `json:"calculated_at"`
 }
 
 // LimitedProductRevenueBreakdown shows the revenue sources for CO_PRODUCING contracts.
