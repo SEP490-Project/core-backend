@@ -537,6 +537,519 @@
                 }
             }
         },
+        "/api/v1/analytics/admin/campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns campaign statistics including status breakdown and content counts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get Campaigns Summary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AdminCampaignsSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/contracts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns contract statistics including status breakdown and values",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get Contracts Summary",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContractsSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive platform-wide analytics dashboard for Admin including user metrics, revenue breakdown, contracts, campaigns, and growth trends",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get Admin Dashboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Year for filtering (defaults to current year)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Month for filtering (defaults to current month)",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AdminDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/health": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns system health metrics including database, cache, and queue status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get System Health",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.SystemHealthResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/revenue": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns platform-wide revenue analytics including breakdown by source and trends",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get Platform Revenue",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Time granularity (DAY, WEEK, MONTH - default: MONTH)",
+                        "name": "granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PlatformRevenueResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/user-growth": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns user registration growth over time",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get User Growth",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Time granularity (DAY, WEEK, MONTH - default: MONTH)",
+                        "name": "granularity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by user role",
+                        "name": "role",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.UserGrowthPoint"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns user statistics including role breakdown and growth trends",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Analytics"
+                ],
+                "summary": "Get Users Overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by user role (ADMIN, MARKETING_STAFF, SALES_STAFF, CONTENT_STAFF, BRAND_PARTNER, CUSTOMER)",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UsersOverviewResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/affiliate-links/by-channel": {
             "get": {
                 "security": [
@@ -932,6 +1445,1195 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/affiliates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns affiliate link performance metrics for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Affiliate Metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandAffiliateMetric"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns campaign performance metrics for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Campaign Metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by campaign status (DRAFT, ACTIVE, IN_PROGRESS, PENDING, FINISHED, CANCELLED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of campaigns to return (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandCampaignMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/content": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns content performance metrics summary for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Content Metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandContentMetric"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/contracts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns contract details for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Contract Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of contracts to return (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandContractDetail"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive analytics dashboard for Brand Partner including overview metrics, top products, campaigns, content, revenue trend, affiliate metrics, and contracts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand Partner Dashboard",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Year for filtering (defaults to current year)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Month for filtering (defaults to current month)",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BrandPartnerDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/revenue-trend": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue time-series data for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Revenue Trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Time granularity (DAY, WEEK, MONTH - default: DAY)",
+                        "name": "granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandRevenueTrendPoint"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/brand-partner/top-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top products by revenue for the brand partner",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Brand Partner Analytics"
+                ],
+                "summary": "Get Brand's Top Products",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date (ISO 8601 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of products to return (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandProductMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/campaigns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns content metrics aggregated by campaign",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Campaign Content Metrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by specific campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.CampaignContentMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/channels": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top performing channels ranked by total engagement",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Top Channels",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "FACEBOOK",
+                            "TIKTOK",
+                            "INSTAGRAM",
+                            "YOUTUBE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by platform",
+                        "name": "platform",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ChannelMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive content dashboard with overview metrics, content status breakdown, platform metrics, top content, top channels, recent content, and engagement trend",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Content Staff Dashboard",
+                "parameters": [
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "example": 2025,
+                        "description": "Year (defaults to current year)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 11,
+                        "description": "Month (defaults to current month)",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContentStaffDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/platforms": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns content and engagement metrics aggregated by platform (FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Metrics by Platform",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.PlatformMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns content counts broken down by status (DRAFT, PENDING, APPROVED, REJECTED, POSTED)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Content Status Breakdown",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContentStatusBreakdown"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/top": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top performing content ranked by views",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Top Content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "FACEBOOK",
+                            "TIKTOK",
+                            "INSTAGRAM",
+                            "YOUTUBE"
+                        ],
+                        "type": "string",
+                        "description": "Filter by platform",
+                        "name": "platform",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ContentMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/trend": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns engagement time-series data with configurable granularity (DAY, WEEK, MONTH)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Staff Analytics"
+                ],
+                "summary": "Get Engagement Trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DAY",
+                            "WEEK",
+                            "MONTH"
+                        ],
+                        "type": "string",
+                        "default": "DAY",
+                        "description": "Time bucket granularity",
+                        "name": "granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.EngagementTrendPoint"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -1457,6 +3159,716 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/brands": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top brands ranked by total revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Top Brands",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandSalesMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns comprehensive sales dashboard with overview metrics, orders breakdown, revenue by source, top brands, top products, recent orders, and revenue trend",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Sales Staff Dashboard",
+                "parameters": [
+                    {
+                        "maximum": 2100,
+                        "minimum": 2000,
+                        "type": "integer",
+                        "example": 2025,
+                        "description": "Year (defaults to current year)",
+                        "name": "year",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 12,
+                        "minimum": 1,
+                        "type": "integer",
+                        "example": 11,
+                        "description": "Month (defaults to current month)",
+                        "name": "month",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.SalesStaffDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns orders statistics broken down by order type (STANDARD, LIMITED) and status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Orders Overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "STANDARD",
+                            "LIMITED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by order type",
+                        "name": "order_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.OrdersBreakdown"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/payments": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns contract payment status overview with counts and amounts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Payment Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Filter by specific contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PaymentStatusOverview"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/pre-orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns pre-orders statistics including counts by status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Pre-Orders Overview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PreOrderStats"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top products ranked by revenue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Top Products",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "STANDARD",
+                            "LIMITED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by product type",
+                        "name": "product_type",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of results (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ProductSalesMetric"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/revenue": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue breakdown by source (standard products, limited products, advertising, affiliate, ambassador, co-producing)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Revenue by Source",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.RevenueBySource"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/trend": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns revenue time-series data with configurable granularity (DAY, WEEK, MONTH)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sales Staff Analytics"
+                ],
+                "summary": "Get Revenue Trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Start date (RFC3339 format)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "End date (RFC3339 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DAY",
+                            "WEEK",
+                            "MONTH"
+                        ],
+                        "type": "string",
+                        "default": "DAY",
+                        "description": "Time bucket granularity",
+                        "name": "granularity",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.RevenueTrendPoint"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -9501,7 +11913,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -9857,7 +12269,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -10146,7 +12558,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -10365,7 +12777,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -11476,7 +13888,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PreOrder"
+                                                "$ref": "#/definitions/responses.PreOrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -11687,7 +14099,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PreOrder"
+                                                "$ref": "#/definitions/responses.PreOrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -11769,7 +14181,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -12968,85 +15380,6 @@
                     }
                 ],
                 "description": "Update product details (brand, category, name, description). Cannot change product type.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Update a product",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Product ID (UUID)",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Product update payload",
-                        "name": "payload",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.UpdateProductRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Product updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ProductResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Product not found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/products/{id}/state": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Move a product to a target state (DRAFT, SUBMITTED, REVISION, ACTIVED, INACTIVED)",
                 "consumes": [
                     "application/json"
                 ],
@@ -18158,109 +20491,6 @@
                 }
             }
         },
-        "model.Order": {
-            "type": "object",
-            "properties": {
-                "action_notes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OrderActionNote"
-                    }
-                },
-                "address_line2": {
-                    "type": "string"
-                },
-                "city": {
-                    "type": "string"
-                },
-                "confirmation_image": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "district_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "description": "Copied shipping address fields (migration moved from a foreign key to flat columns)",
-                    "type": "string"
-                },
-                "ghn_district_id": {
-                    "type": "integer"
-                },
-                "ghn_order_code": {
-                    "type": "string"
-                },
-                "ghn_province_id": {
-                    "type": "integer"
-                },
-                "ghn_ward_code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_self_picked_up": {
-                    "type": "boolean"
-                },
-                "order_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OrderItem"
-                    }
-                },
-                "order_type": {
-                    "type": "string"
-                },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "province_name": {
-                    "type": "string"
-                },
-                "shipping_fee": {
-                    "type": "integer"
-                },
-                "staff_resource": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/enum.OrderStatus"
-                },
-                "street": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "user_note": {
-                    "type": "string"
-                },
-                "user_resource": {
-                    "type": "string"
-                },
-                "ward_name": {
-                    "type": "string"
-                }
-            }
-        },
         "model.OrderActionNote": {
             "type": "object",
             "properties": {
@@ -18351,146 +20581,6 @@
                 },
                 "weight": {
                     "description": "DeletedAt gorm.DeletedAt `json:\"deleted_at\" gorm:\"column:deleted_at;index\"`",
-                    "type": "integer"
-                },
-                "width": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                }
-            }
-        },
-        "model.PreOrder": {
-            "type": "object",
-            "properties": {
-                "action_notes": {
-                    "description": "Action notes for pre-order (JSONB)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.PreOrderActionNote"
-                    }
-                },
-                "address_line2": {
-                    "type": "string"
-                },
-                "capacity": {
-                    "description": "The same as orderItem",
-                    "type": "number"
-                },
-                "capacity_unit": {
-                    "type": "string"
-                },
-                "city": {
-                    "type": "string"
-                },
-                "confirmation_image": {
-                    "type": "string"
-                },
-                "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
-                },
-                "district_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "expiry_date": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "description": "The same as order which Copied shipping address fields",
-                    "type": "string"
-                },
-                "ghn_district_id": {
-                    "type": "integer"
-                },
-                "ghn_province_id": {
-                    "type": "integer"
-                },
-                "ghn_ward_code": {
-                    "type": "string"
-                },
-                "height": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "instructions": {
-                    "type": "string"
-                },
-                "is_self_picked_up": {
-                    "type": "boolean"
-                },
-                "length": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                },
-                "manufacturing_date": {
-                    "type": "string"
-                },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "province_name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "staff_resource": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/enum.PreOrderStatus"
-                },
-                "street": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "user_note": {
-                    "description": "DeletedAt gorm.DeletedAt      `json:\"deleted_at\" gorm:\"column:deleted_at\"swaggerignore:\"true\"`",
-                    "type": "string"
-                },
-                "user_resource": {
-                    "type": "string"
-                },
-                "uses": {
-                    "type": "string"
-                },
-                "variant_id": {
-                    "type": "string"
-                },
-                "ward_name": {
-                    "type": "string"
-                },
-                "weight": {
-                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
@@ -21408,6 +23498,34 @@
                 }
             }
         },
+        "responses.AdminCampaignsSummary": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "content_created": {
+                    "description": "Total content pieces",
+                    "type": "integer"
+                },
+                "content_posted": {
+                    "description": "Content with status POSTED",
+                    "type": "integer"
+                },
+                "draft": {
+                    "type": "integer"
+                },
+                "running": {
+                    "type": "integer"
+                },
+                "total_campaigns": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.AdminConfigListResponse": {
             "type": "object",
             "properties": {
@@ -21468,6 +23586,127 @@
                 "value_type": {
                     "type": "string",
                     "example": "STRING"
+                }
+            }
+        },
+        "responses.AdminDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "campaigns_summary": {
+                    "$ref": "#/definitions/responses.AdminCampaignsSummary"
+                },
+                "contracts_summary": {
+                    "$ref": "#/definitions/responses.ContractsSummary"
+                },
+                "growth_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.GrowthTrendPoint"
+                    }
+                },
+                "overview": {
+                    "$ref": "#/definitions/responses.AdminOverviewMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "recent_activity": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.SystemActivityItem"
+                    }
+                },
+                "revenue_breakdown": {
+                    "$ref": "#/definitions/responses.AdminRevenueBreakdown"
+                },
+                "users_breakdown": {
+                    "$ref": "#/definitions/responses.UsersBreakdown"
+                }
+            }
+        },
+        "responses.AdminOverviewMetrics": {
+            "type": "object",
+            "properties": {
+                "active_brands": {
+                    "description": "Brands with active contracts",
+                    "type": "integer"
+                },
+                "active_campaigns": {
+                    "type": "integer"
+                },
+                "active_contracts": {
+                    "type": "integer"
+                },
+                "active_users": {
+                    "description": "Users active in last 30 days",
+                    "type": "integer"
+                },
+                "monthly_orders": {
+                    "type": "integer"
+                },
+                "monthly_revenue": {
+                    "type": "number"
+                },
+                "revenue_growth": {
+                    "description": "Percentage change",
+                    "type": "number"
+                },
+                "total_brands": {
+                    "type": "integer"
+                },
+                "total_campaigns": {
+                    "type": "integer"
+                },
+                "total_contracts": {
+                    "type": "integer"
+                },
+                "total_orders": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                },
+                "total_users": {
+                    "type": "integer"
+                },
+                "user_growth": {
+                    "description": "Percentage change",
+                    "type": "number"
+                }
+            }
+        },
+        "responses.AdminRevenueBreakdown": {
+            "type": "object",
+            "properties": {
+                "advertising_revenue": {
+                    "description": "Contract Revenue by Type",
+                    "type": "number"
+                },
+                "affiliate_revenue": {
+                    "type": "number"
+                },
+                "ambassador_revenue": {
+                    "type": "number"
+                },
+                "co_producing_revenue": {
+                    "type": "number"
+                },
+                "limited_product_revenue": {
+                    "type": "number"
+                },
+                "standard_product_revenue": {
+                    "description": "Product Revenue",
+                    "type": "number"
+                },
+                "total_contract_revenue": {
+                    "description": "Totals",
+                    "type": "number"
+                },
+                "total_product_revenue": {
+                    "type": "number"
+                },
+                "total_revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -21622,6 +23861,122 @@
                 }
             }
         },
+        "responses.BrandAffiliateMetric": {
+            "type": "object",
+            "properties": {
+                "active_links": {
+                    "type": "integer"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "total_links": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BrandCampaignMetric": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "campaign_name": {
+                    "type": "string"
+                },
+                "completed_tasks": {
+                    "type": "integer"
+                },
+                "completion_rate": {
+                    "type": "number"
+                },
+                "content_count": {
+                    "type": "integer"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "milestone_count": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "task_count": {
+                    "type": "integer"
+                },
+                "total_engagements": {
+                    "type": "integer"
+                },
+                "total_views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BrandContentMetric": {
+            "type": "object",
+            "properties": {
+                "engagement_rate": {
+                    "type": "number"
+                },
+                "posted_content": {
+                    "type": "integer"
+                },
+                "total_comments": {
+                    "type": "integer"
+                },
+                "total_content": {
+                    "type": "integer"
+                },
+                "total_likes": {
+                    "type": "integer"
+                },
+                "total_shares": {
+                    "type": "integer"
+                },
+                "total_views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BrandContractDetail": {
+            "type": "object",
+            "properties": {
+                "campaign_count": {
+                    "type": "integer"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "paid_amount": {
+                    "type": "number"
+                },
+                "pending_amount": {
+                    "type": "number"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_value": {
+                    "type": "number"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandDetailResponse": {
             "type": "object",
             "properties": {
@@ -21687,6 +24042,35 @@
                 }
             }
         },
+        "responses.BrandOverviewMetrics": {
+            "type": "object",
+            "properties": {
+                "active_campaigns": {
+                    "type": "integer"
+                },
+                "active_contracts": {
+                    "type": "integer"
+                },
+                "pending_payments": {
+                    "type": "number"
+                },
+                "total_campaigns": {
+                    "type": "integer"
+                },
+                "total_contracts": {
+                    "type": "integer"
+                },
+                "total_orders": {
+                    "type": "integer"
+                },
+                "total_products": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
         "responses.BrandPaginationResponse": {
             "type": "object",
             "properties": {
@@ -21710,6 +24094,77 @@
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "responses.BrandPartnerDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "affiliate_metrics": {
+                    "$ref": "#/definitions/responses.BrandAffiliateMetric"
+                },
+                "campaigns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandCampaignMetric"
+                    }
+                },
+                "content_metrics": {
+                    "$ref": "#/definitions/responses.BrandContentMetric"
+                },
+                "contracts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandContractDetail"
+                    }
+                },
+                "overview": {
+                    "$ref": "#/definitions/responses.BrandOverviewMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "revenue_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandRevenueTrendPoint"
+                    }
+                },
+                "top_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandProductMetric"
+                    }
+                }
+            }
+        },
+        "responses.BrandProductMetric": {
+            "type": "object",
+            "properties": {
+                "order_count": {
+                    "type": "integer"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "product_type": {
+                    "description": "STANDARD, LIMITED",
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "units_sold": {
+                    "type": "integer"
                 }
             }
         },
@@ -21775,6 +24230,47 @@
                 }
             }
         },
+        "responses.BrandRevenueTrendPoint": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "order_count": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "units_sold": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BrandSalesMetric": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "order_count": {
+                    "type": "integer"
+                },
+                "product_count": {
+                    "description": "Number of products sold",
+                    "type": "integer"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
         "responses.BrandSummary": {
             "type": "object",
             "properties": {
@@ -21837,6 +24333,35 @@
                 "tax_number": {
                     "type": "string",
                     "example": "TAX123456"
+                }
+            }
+        },
+        "responses.CampaignContentMetric": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string"
+                },
+                "campaign_name": {
+                    "type": "string"
+                },
+                "content_count": {
+                    "type": "integer"
+                },
+                "draft_count": {
+                    "type": "integer"
+                },
+                "pending_count": {
+                    "type": "integer"
+                },
+                "posted_count": {
+                    "type": "integer"
+                },
+                "total_engagements": {
+                    "type": "integer"
+                },
+                "total_views": {
+                    "type": "integer"
                 }
             }
         },
@@ -22071,6 +24596,47 @@
                 }
             }
         },
+        "responses.ChannelMetric": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_count": {
+                    "type": "integer"
+                },
+                "engagement_rate": {
+                    "type": "number"
+                },
+                "owner_name": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "total_comments": {
+                    "type": "integer"
+                },
+                "total_engagements": {
+                    "type": "integer"
+                },
+                "total_likes": {
+                    "type": "integer"
+                },
+                "total_shares": {
+                    "type": "integer"
+                },
+                "total_views": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.ChannelMetricItem": {
             "type": "object",
             "properties": {
@@ -22259,6 +24825,96 @@
                 }
             }
         },
+        "responses.ContentMetric": {
+            "type": "object",
+            "properties": {
+                "campaign_name": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "clicks": {
+                    "description": "Affiliate link clicks",
+                    "type": "integer"
+                },
+                "comments": {
+                    "type": "integer"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "engagement_rate": {
+                    "type": "number"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "posted_at": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "shares": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ContentOverviewMetrics": {
+            "type": "object",
+            "properties": {
+                "draft_content": {
+                    "description": "Content in draft",
+                    "type": "integer"
+                },
+                "engagement_growth": {
+                    "description": "Percentage change",
+                    "type": "number"
+                },
+                "engagement_rate": {
+                    "description": "Engagement rate percentage",
+                    "type": "number"
+                },
+                "pending_content": {
+                    "description": "Content awaiting approval/posting",
+                    "type": "integer"
+                },
+                "posted_content": {
+                    "description": "Content with status POSTED",
+                    "type": "integer"
+                },
+                "total_clicks": {
+                    "description": "From affiliate links",
+                    "type": "integer"
+                },
+                "total_content": {
+                    "description": "Total content pieces created",
+                    "type": "integer"
+                },
+                "total_engagements": {
+                    "description": "Sum of likes + comments + shares",
+                    "type": "integer"
+                },
+                "total_views": {
+                    "description": "Sum of all content views",
+                    "type": "integer"
+                },
+                "view_growth": {
+                    "description": "Percentage change from previous period",
+                    "type": "number"
+                }
+            }
+        },
         "responses.ContentPaginationResponse": {
             "type": "object",
             "properties": {
@@ -22333,6 +24989,73 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.ContentStaffDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "content_status_breakdown": {
+                    "$ref": "#/definitions/responses.ContentStatusBreakdown"
+                },
+                "engagement_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.EngagementTrendPoint"
+                    }
+                },
+                "overview": {
+                    "$ref": "#/definitions/responses.ContentOverviewMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "platform_metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PlatformMetric"
+                    }
+                },
+                "recent_content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RecentContentItem"
+                    }
+                },
+                "top_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelMetric"
+                    }
+                },
+                "top_content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentMetric"
+                    }
+                }
+            }
+        },
+        "responses.ContentStatusBreakdown": {
+            "type": "object",
+            "properties": {
+                "approved_count": {
+                    "type": "integer"
+                },
+                "draft_count": {
+                    "type": "integer"
+                },
+                "pending_count": {
+                    "type": "integer"
+                },
+                "posted_count": {
+                    "type": "integer"
+                },
+                "rejected_count": {
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
                 }
             }
         },
@@ -22744,6 +25467,40 @@
                 }
             }
         },
+        "responses.ContractsSummary": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer"
+                },
+                "cancelled": {
+                    "type": "integer"
+                },
+                "collected_amount": {
+                    "description": "Total paid amount",
+                    "type": "number"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "draft": {
+                    "type": "integer"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "pending_amount": {
+                    "description": "Outstanding payment amount",
+                    "type": "number"
+                },
+                "total_contracts": {
+                    "type": "integer"
+                },
+                "total_value": {
+                    "type": "number"
+                }
+            }
+        },
         "responses.DashboardMetricsResponse": {
             "type": "object",
             "properties": {
@@ -22894,6 +25651,30 @@
                 "WhiteListDistrict": {}
             }
         },
+        "responses.EngagementTrendPoint": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "engagements": {
+                    "description": "Total: likes + comments + shares",
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "shares": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.FileDetailResponse": {
             "type": "object",
             "properties": {
@@ -23029,6 +25810,26 @@
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "responses.GrowthTrendPoint": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "new_contracts": {
+                    "type": "integer"
+                },
+                "new_orders": {
+                    "type": "integer"
+                },
+                "new_users": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -23217,6 +26018,156 @@
                 },
                 "user_id": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.OrderResponse": {
+            "type": "object",
+            "properties": {
+                "action_notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderActionNote"
+                    }
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_order_code": {
+                    "type": "string"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
+                "order_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderItem"
+                    }
+                },
+                "order_type": {
+                    "type": "string"
+                },
+                "payment_transaction": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "shipping_fee": {
+                    "type": "integer"
+                },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.OrderTypeStats": {
+            "type": "object",
+            "properties": {
+                "cancelled_count": {
+                    "description": "Status = CANCELLED",
+                    "type": "integer"
+                },
+                "completed_count": {
+                    "description": "Status = RECEIVED",
+                    "type": "integer"
+                },
+                "pending_count": {
+                    "description": "Status in progress",
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.OrdersBreakdown": {
+            "type": "object",
+            "properties": {
+                "limited_orders": {
+                    "description": "Order type = LIMITED",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.OrderTypeStats"
+                        }
+                    ]
+                },
+                "pre_orders": {
+                    "description": "From pre_orders table",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.PreOrderStats"
+                        }
+                    ]
+                },
+                "standard_orders": {
+                    "description": "Order type = STANDARD",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.OrderTypeStats"
+                        }
+                    ]
                 }
             }
         },
@@ -23411,6 +26362,35 @@
                 }
             }
         },
+        "responses.PaymentStatusOverview": {
+            "type": "object",
+            "properties": {
+                "overdue_amount": {
+                    "type": "number"
+                },
+                "overdue_payments": {
+                    "type": "integer"
+                },
+                "paid_amount": {
+                    "type": "number"
+                },
+                "paid_payments": {
+                    "type": "integer"
+                },
+                "pending_amount": {
+                    "type": "number"
+                },
+                "pending_payments": {
+                    "type": "integer"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "total_payments": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.PaymentTransactionPaginationResponse": {
             "type": "object",
             "properties": {
@@ -23490,6 +26470,231 @@
                 },
                 "start_date": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.PlatformMetric": {
+            "type": "object",
+            "properties": {
+                "content_count": {
+                    "description": "Number of contents on this platform",
+                    "type": "integer"
+                },
+                "engagement_rate": {
+                    "description": "(likes + comments + shares) / views * 100",
+                    "type": "number"
+                },
+                "platform": {
+                    "description": "FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE",
+                    "type": "string"
+                },
+                "total_clicks": {
+                    "description": "Affiliate link clicks",
+                    "type": "integer"
+                },
+                "total_comments": {
+                    "type": "integer"
+                },
+                "total_likes": {
+                    "type": "integer"
+                },
+                "total_shares": {
+                    "type": "integer"
+                },
+                "total_views": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.PlatformRevenueResponse": {
+            "type": "object",
+            "properties": {
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "revenue_breakdown": {
+                    "$ref": "#/definitions/responses.AdminRevenueBreakdown"
+                },
+                "revenue_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueTrendPoint"
+                    }
+                },
+                "top_brands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandSalesMetric"
+                    }
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.PreOrderResponse": {
+            "type": "object",
+            "properties": {
+                "action_notes": {
+                    "description": "Action notes for pre-order (JSONB)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.PreOrderActionNote"
+                    }
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "description": "The same as orderItem",
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
+                    "type": "string"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "The same as order which Copied shipping address fields",
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "paymentTx": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "payment_bin": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "description": "Transient fields populated by repository (not persisted)",
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.PreOrderStatus"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.PreOrderStats": {
+            "type": "object",
+            "properties": {
+                "cancelled_count": {
+                    "type": "integer"
+                },
+                "pending_count": {
+                    "type": "integer"
+                },
+                "received_count": {
+                    "description": "Status = RECEIVED",
+                    "type": "integer"
+                },
+                "total_count": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -23720,6 +26925,33 @@
                 }
             }
         },
+        "responses.ProductSalesMetric": {
+            "type": "object",
+            "properties": {
+                "brand_name": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "product_type": {
+                    "description": "STANDARD or LIMITED",
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "type": "number"
+                },
+                "units_sold": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.ProductVariantResponse": {
             "type": "object",
             "properties": {
@@ -23933,6 +27165,91 @@
                 }
             }
         },
+        "responses.RecentContentItem": {
+            "type": "object",
+            "properties": {
+                "campaign_name": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "creator_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.RecentOrderItem": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "item_count": {
+                    "type": "integer"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "order_type": {
+                    "description": "STANDARD or LIMITED",
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.RevenueBySource": {
+            "type": "object",
+            "properties": {
+                "advertising_revenue": {
+                    "description": "Contract payments for ADVERTISING",
+                    "type": "number"
+                },
+                "affiliate_revenue": {
+                    "description": "Contract payments for AFFILIATE",
+                    "type": "number"
+                },
+                "ambassador_revenue": {
+                    "description": "Contract payments for AMBASSADOR",
+                    "type": "number"
+                },
+                "co_producing_revenue": {
+                    "description": "Contract payments for CO_PRODUCING",
+                    "type": "number"
+                },
+                "limited_product_revenue": {
+                    "description": "Orders with order_type = LIMITED + pre_orders",
+                    "type": "number"
+                },
+                "standard_product_revenue": {
+                    "description": "Orders with order_type = STANDARD",
+                    "type": "number"
+                },
+                "total_revenue": {
+                    "type": "number"
+                }
+            }
+        },
         "responses.RevenueByTypeResponse": {
             "type": "object",
             "properties": {
@@ -23959,6 +27276,109 @@
                 "total_revenue": {
                     "type": "number",
                     "example": 140000000
+                }
+            }
+        },
+        "responses.RevenueTrendPoint": {
+            "type": "object",
+            "properties": {
+                "average_order_value": {
+                    "type": "number"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "order_count": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.SalesOverviewMetrics": {
+            "type": "object",
+            "properties": {
+                "average_order_value": {
+                    "description": "Average order value",
+                    "type": "number"
+                },
+                "completed_orders": {
+                    "description": "Orders with status RECEIVED",
+                    "type": "integer"
+                },
+                "contract_revenue": {
+                    "description": "Revenue from contract payments",
+                    "type": "number"
+                },
+                "order_growth": {
+                    "description": "Percentage change in order count",
+                    "type": "number"
+                },
+                "order_revenue": {
+                    "description": "Revenue from orders only",
+                    "type": "number"
+                },
+                "pending_orders": {
+                    "description": "Orders pending fulfillment",
+                    "type": "integer"
+                },
+                "revenue_growth": {
+                    "description": "Percentage change from previous period",
+                    "type": "number"
+                },
+                "total_orders": {
+                    "description": "Total order count",
+                    "type": "integer"
+                },
+                "total_pre_orders": {
+                    "description": "Total pre-order count",
+                    "type": "integer"
+                },
+                "total_revenue": {
+                    "description": "Total revenue from all sources",
+                    "type": "number"
+                }
+            }
+        },
+        "responses.SalesStaffDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "orders_breakdown": {
+                    "$ref": "#/definitions/responses.OrdersBreakdown"
+                },
+                "overview": {
+                    "$ref": "#/definitions/responses.SalesOverviewMetrics"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "recent_orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RecentOrderItem"
+                    }
+                },
+                "revenue_by_source": {
+                    "$ref": "#/definitions/responses.RevenueBySource"
+                },
+                "revenue_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueTrendPoint"
+                    }
+                },
+                "top_brands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandSalesMetric"
+                    }
+                },
+                "top_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ProductSalesMetric"
+                    }
                 }
             }
         },
@@ -24160,6 +27580,69 @@
                         }
                     ],
                     "example": "CONTENT"
+                }
+            }
+        },
+        "responses.SystemActivityItem": {
+            "type": "object",
+            "properties": {
+                "activity_type": {
+                    "description": "e.g., \"CONTRACT_CREATED\", \"ORDER_PLACED\"",
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "string"
+                },
+                "entity_type": {
+                    "description": "e.g., \"CONTRACT\", \"ORDER\", \"USER\"",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.SystemHealthResponse": {
+            "type": "object",
+            "properties": {
+                "average_response_ms": {
+                    "type": "integer"
+                },
+                "cache_status": {
+                    "description": "OK, WARNING, ERROR",
+                    "type": "string"
+                },
+                "database_status": {
+                    "description": "OK, WARNING, ERROR",
+                    "type": "string"
+                },
+                "error_rate": {
+                    "description": "Percentage in last hour",
+                    "type": "number"
+                },
+                "failed_jobs_24h": {
+                    "description": "Failed jobs in last 24h",
+                    "type": "integer"
+                },
+                "pending_jobs": {
+                    "description": "Jobs in queue",
+                    "type": "integer"
+                },
+                "queue_status": {
+                    "description": "OK, WARNING, ERROR",
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
                 }
             }
         },
@@ -24526,6 +28009,20 @@
                 }
             }
         },
+        "responses.UserGrowthPoint": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "new_users": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.UserInfoResponse": {
             "type": "object",
             "properties": {
@@ -24744,6 +28241,63 @@
                 "username": {
                     "type": "string",
                     "example": "john_doe"
+                }
+            }
+        },
+        "responses.UsersBreakdown": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "type": "integer"
+                },
+                "brand_partner": {
+                    "type": "integer"
+                },
+                "content_staff": {
+                    "type": "integer"
+                },
+                "customer": {
+                    "type": "integer"
+                },
+                "marketing_staff": {
+                    "type": "integer"
+                },
+                "new_this_month": {
+                    "description": "Registered this month",
+                    "type": "integer"
+                },
+                "sales_staff": {
+                    "type": "integer"
+                },
+                "total_active": {
+                    "description": "Active in last 30 days",
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.UsersOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "active_users": {
+                    "type": "integer"
+                },
+                "growth_trend": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.UserGrowthPoint"
+                    }
+                },
+                "new_users_this_month": {
+                    "type": "integer"
+                },
+                "period": {
+                    "$ref": "#/definitions/responses.PeriodInfo"
+                },
+                "role_breakdown": {
+                    "$ref": "#/definitions/responses.UsersBreakdown"
+                },
+                "total_users": {
+                    "type": "integer"
                 }
             }
         },

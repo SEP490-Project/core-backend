@@ -860,6 +860,17 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 			zap.String("contract_payment_id", contractPayment.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
 
+		// Unlock payment amount for AFFILIATE/CO_PRODUCING contracts
+		// This allows the amount to be recalculated on the next GET request
+		if contractPayment.LockedAmount != nil {
+			contractPayment.LockedAmount = nil
+			contractPayment.LockedAt = nil
+			contractPayment.LockedClicks = nil
+			contractPayment.LockedRevenue = nil
+			zap.L().Info("Unlocked payment amount after failure",
+				zap.String("contract_payment_id", contractPayment.ID.String()))
+		}
+
 	default:
 		// PENDING or other statuses - no change needed
 		zap.L().Debug("No contract payment status change needed",
@@ -1016,7 +1027,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 			return err
 		}
 
-		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+		if err = uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to PAID",
 				zap.String("preorder_id", preorder.ID.String()),
 				zap.Error(err))
@@ -1041,7 +1052,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 				*variant.CurrentStock += preorder.Quantity
 				*variant.PreOrderCount -= preorder.Quantity
 			}
-			if err := variantRepo.Update(ctx, variant); err != nil {
+			if err = variantRepo.Update(ctx, variant); err != nil {
 				zap.L().Error("Failed to restore variant stock after preorder payment failure",
 					zap.String("variant_id", variant.ID.String()), zap.Error(err))
 			} else {
@@ -1072,11 +1083,11 @@ func (t stateTransferService) handlePreOrderSideEffect(
 func (t stateTransferService) handleOrderStatusSideEffect(
 	ctx context.Context,
 	uow irepository.UnitOfWork,
-	transactionCtx *ordersm.OrderContext,
+	_ *ordersm.OrderContext,
 	nextStatus enum.OrderStatus,
 	order *model.Order,
-	updatedBy *model.User,
-	reason *string, //optional
+	_ *model.User,
+	_ *string, //optional
 ) error {
 	//&&&
 	var err error

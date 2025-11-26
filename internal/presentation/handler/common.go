@@ -184,7 +184,7 @@ func parseParamUUID(c *gin.Context, paramName string, httpSttCode *int, msg *str
 		httpSttCode = new(int)
 		*httpSttCode = http.StatusBadRequest
 	} else if msg == nil {
-		defaultMsg := fmt.Sprintf("Invalid %s or not being found" + paramName)
+		defaultMsg := fmt.Sprintf("invalid %s or not being found" + paramName)
 		msg = &defaultMsg
 	}
 

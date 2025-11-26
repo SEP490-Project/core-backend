@@ -457,7 +457,7 @@ func validateVariantForPreOrder(variant model.ProductVariant) error {
 	}
 
 	//validate if product is active
-	if variant.Product.IsActive == false {
+	if !variant.Product.IsActive {
 		return fmt.Errorf("product is not available, please contact admin to activate it")
 	}
 
@@ -726,15 +726,15 @@ func MovePreOrderStateUsingFSM(preorder *model.PreOrder, user *model.User, newSt
 	return nil
 }
 
-func (t *preOrderService) lookupPreOrderWithLimitedProductAndUser(ctx context.Context, preorderID, actionBy uuid.UUID) (*model.PreOrder, *model.LimitedProduct, *model.User, error) {
+func (p *preOrderService) lookupPreOrderWithLimitedProductAndUser(ctx context.Context, preorderID, actionBy uuid.UUID) (*model.PreOrder, *model.LimitedProduct, *model.User, error) {
 	// 1) Load PreOrder
-	preOrder, err := t.preOrderRepository.GetByID(ctx, preorderID, nil)
+	preOrder, err := p.preOrderRepository.GetByID(ctx, preorderID, nil)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	variantIncludes := []string{"Product", "Product.Limited"}
-	variant, err := t.variantRepository.GetByID(ctx, preOrder.VariantID, variantIncludes)
+	variant, err := p.variantRepository.GetByID(ctx, preOrder.VariantID, variantIncludes)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -744,11 +744,11 @@ func (t *preOrderService) lookupPreOrderWithLimitedProductAndUser(ctx context.Co
 	if actionBy == uuid.Nil {
 		user = &model.User{
 			ID:       uuid.UUID{},
-			FullName: t.config.AdminConfig.SystemName,
-			Email:    t.config.AdminConfig.SystemEmail,
+			FullName: p.config.AdminConfig.SystemName,
+			Email:    p.config.AdminConfig.SystemEmail,
 		}
 	} else {
-		user, err = t.userRepository.GetByID(ctx, actionBy, nil)
+		user, err = p.userRepository.GetByID(ctx, actionBy, nil)
 		if err != nil {
 			return nil, nil, nil, err
 		}
