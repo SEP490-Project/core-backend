@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -359,29 +360,35 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 }
 
 func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, order *model.Order) error {
-	var newStatus enum.OrderStatus
-	switch deliveryStatus {
-	case enum.GHNDeliveryStatusStoring:
-		newStatus = enum.OrderStatusShipped
-	case enum.GHNDeliveryStatusDelivering:
-		newStatus = enum.OrderStatusInTransit
-	case enum.GHNDeliveryStatusDelivered:
-		newStatus = enum.OrderStatusDelivered
-	default:
-		zap.L().Info("GHN status does not trigger side effect", zap.String("status", string(deliveryStatus)))
+	webhookURL := fmt.Sprintf(
+		"https://api.bshowsell.site/api/v1/ghn/webhook?status=%s&code=%s",
+		string(deliveryStatus),
+		*order.GHNOrderCode,
+	)
+
+	// Make HTTP GET request to the webhook
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, webhookURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create webhook request: %w", err)
 	}
 
-	if err := g.db.WithContext(ctx).
-		Model(&order).
-		Update("status", newStatus).Error; err != nil {
-		return fmt.Errorf("failed to update order status: %w", err)
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call GHN webhook: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("GHN webhook returned status %d: %s", resp.StatusCode, string(body))
 	}
 
-	zap.L().Info("Order status updated successfully",
+	zap.L().Info("GHN webhook called successfully",
 		zap.String("order_id", order.ID.String()),
 		zap.String("order_code", *order.GHNOrderCode),
-		zap.String("old_status", string(order.Status)),
-		zap.String("new_status", string(newStatus)))
+		zap.String("sent status", deliveryStatus.String()),
+	)
 
 	return nil
 }

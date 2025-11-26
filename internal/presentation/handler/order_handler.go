@@ -534,7 +534,7 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 	}()
 
 	// Perform state transfer
-	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, updatedBy, reasonPtr); err != nil {
+	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, &updatedBy, reasonPtr); err != nil {
 		_ = uow.Rollback()
 		zap.L().Error("failed to censor order", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update order: "+err.Error(), http.StatusBadRequest))

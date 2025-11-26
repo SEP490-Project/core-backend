@@ -38,6 +38,9 @@ type StateTransferService interface {
 	// MoveOrderToState moves an order to a new state
 	// Rules: I current state was perfomed by Customer. Staff can only allow to perform an action after 5 minutes.
 	// Move status depends on the FSM ->
-	MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedBy uuid.UUID, note *string) error
+	MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedBy *uuid.UUID, note *string) error
 	MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, reason, fileURL *string) error
+
+	//For GHNwebhook
+	MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error
 }
