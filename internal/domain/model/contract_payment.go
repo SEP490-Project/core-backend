@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +25,20 @@ type ContractPayment struct {
 	CreatedBy             *uuid.UUID                 `json:"created_by" gorm:"type:uuid;column:created_by"`
 	UpdatedBy             *uuid.UUID                 `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	DeletedAt             gorm.DeletedAt             `json:"deleted_at" gorm:"column:deleted_at;index"`
+
+	// Payment period fields (for AFFILIATE/CO_PRODUCING contracts)
+	PeriodStart *time.Time `json:"period_start" gorm:"column:period_start"`
+	PeriodEnd   *time.Time `json:"period_end" gorm:"column:period_end"`
+
+	// Calculation tracking fields
+	CalculatedAt         *time.Time     `json:"calculated_at" gorm:"column:calculated_at"`
+	CalculationBreakdown datatypes.JSON `json:"calculation_breakdown" gorm:"column:calculation_breakdown;type:jsonb"`
+
+	// Payment locking fields (for payment link creation)
+	LockedAmount  *float64   `json:"locked_amount" gorm:"column:locked_amount;type:decimal(15,2)"`
+	LockedAt      *time.Time `json:"locked_at" gorm:"column:locked_at"`
+	LockedClicks  *int64     `json:"locked_clicks" gorm:"column:locked_clicks"`
+	LockedRevenue *float64   `json:"locked_revenue" gorm:"column:locked_revenue;type:decimal(15,2)"`
 
 	// Relationships
 	Contract *Contract `json:"-" gorm:"foreignKey:ContractID"`

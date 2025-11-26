@@ -59,6 +59,9 @@ type DatabaseRegistry struct {
 	//Marketing Analytics
 	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
 
+	//Contract Payment Calculation
+	ContractPaymentCalculationRepository irepository.ContractPaymentCalculationRepository
+
 	FileRepository irepository.GenericRepository[model.File]
 }
 
@@ -97,8 +100,9 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		AffiliateLinkRepository:      NewAffiliateLinkRepository(db),
 		ClickEventRepository:         NewClickEventRepository(db),
 		KPIMetricsRepository:         NewGenericRepository[model.KPIMetrics](db),
-		PreOrderRepository:           NewPreOrderRepository(db),
-		MarketingAnalyticsRepository: NewMarketingAnalyticsRepository(db),
-		FileRepository:               NewGenericRepository[model.File](db),
+		PreOrderRepository:                   NewPreOrderRepository(db),
+		MarketingAnalyticsRepository:         NewMarketingAnalyticsRepository(db),
+		ContractPaymentCalculationRepository: NewContractPaymentCalculationRepository(db),
+		FileRepository:                       NewGenericRepository[model.File](db),
 	}
 }

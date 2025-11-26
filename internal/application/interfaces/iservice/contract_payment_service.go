@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/model"
 
 	"github.com/google/uuid"
 )
@@ -25,4 +26,11 @@ type ContractPaymentService interface {
 		uow irepository.UnitOfWork,
 		request *requests.GenerateContractPaymentLinkRequest,
 		paymentTransactionService PaymentTransactionService) (*responses.PayOSLinkResponse, error)
+
+	// LockPaymentAmount locks the current calculated amount when creating a payment link.
+	// This prevents the amount from changing while payment is in progress.
+	LockPaymentAmount(ctx context.Context, payment *model.ContractPayment) error
+
+	// UnlockPaymentOnFailure clears the locked state when payment fails.
+	UnlockPaymentOnFailure(ctx context.Context, payment *model.ContractPayment) error
 }
