@@ -107,6 +107,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
+		r.SetupSalesStaffAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -771,6 +772,28 @@ func (r *Router) SetupMarketingAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/revenue-by-type", marketingAnalyticsHandler.GetRevenueByContractType)
 			protectedGroup.GET("/upcoming-deadlines", marketingAnalyticsHandler.GetUpcomingDeadlineCampaigns)
 			protectedGroup.GET("/dashboard", marketingAnalyticsHandler.GetDashboard)
+		}
+	}
+}
+
+// SetupSalesStaffAnalyticsRoutes sets up routes for sales staff analytics dashboard
+func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	salesAnalyticsHandler := r.handlerRegistry.SalesStaffAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/sales")
+	{
+		// Protected routes (Admin and Sales Staff can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, sales))
+		{
+			protectedGroup.GET("/dashboard", salesAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/orders", salesAnalyticsHandler.GetOrdersOverview)
+			protectedGroup.GET("/pre-orders", salesAnalyticsHandler.GetPreOrdersOverview)
+			protectedGroup.GET("/revenue", salesAnalyticsHandler.GetRevenueBySource)
+			protectedGroup.GET("/brands", salesAnalyticsHandler.GetTopBrands)
+			protectedGroup.GET("/products", salesAnalyticsHandler.GetTopProducts)
+			protectedGroup.GET("/trend", salesAnalyticsHandler.GetRevenueTrend)
+			protectedGroup.GET("/payments", salesAnalyticsHandler.GetPaymentStatus)
 		}
 	}
 }

@@ -62,6 +62,9 @@ type DatabaseRegistry struct {
 	//Contract Payment Calculation
 	ContractPaymentCalculationRepository irepository.ContractPaymentCalculationRepository
 
+	//Sales Staff Analytics
+	SalesStaffAnalyticsRepository irepository.SalesStaffAnalyticsRepository
+
 	FileRepository irepository.GenericRepository[model.File]
 }
 
