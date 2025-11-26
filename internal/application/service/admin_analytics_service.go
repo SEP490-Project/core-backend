@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"sync"
 	"time"
@@ -27,7 +28,7 @@ func NewAdminAnalyticsService(
 	}
 }
 
-// GetDashboard returns the complete Admin dashboard
+// GetDashboard returns the complete Admin dashboard by aggregating individual endpoint data
 func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.AdminDashboardRequest) (*responses.AdminDashboardResponse, error) {
 	startDate, endDate := req.GetDateRange()
 
@@ -39,48 +40,42 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 		},
 	}
 
-	// Execute queries in parallel
+	// Execute queries in parallel - reusing public endpoint methods
 	err := utils.RunParallel(ctx, 6,
-		// Query 1: Overview metrics
+		// Query 1: Users overview (extracts overview metrics + users breakdown)
 		func(ctx context.Context) error {
-			overview, err := s.getOverviewMetrics(ctx, &startDate, &endDate)
+			usersOverview, err := s.GetUsersOverview(ctx, &requests.UsersOverviewRequest{})
 			if err != nil {
-				zap.L().Warn("Failed to get overview metrics", zap.Error(err))
+				zap.L().Warn("Failed to get users overview", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.Overview = *overview
+			dashboard.Overview.TotalUsers = usersOverview.TotalUsers
+			dashboard.Overview.ActiveUsers = usersOverview.ActiveUsers
+			dashboard.UsersBreakdown = usersOverview.RoleBreakdown
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 2: Users breakdown
+		// Query 2: Platform revenue (extracts revenue breakdown)
 		func(ctx context.Context) error {
-			breakdown, err := s.getUsersBreakdown(ctx)
+			revenueResp, err := s.GetPlatformRevenue(ctx, &requests.PlatformRevenueRequest{
+				StartDate: &startDate,
+				EndDate:   &endDate,
+			})
 			if err != nil {
-				zap.L().Warn("Failed to get users breakdown", zap.Error(err))
+				zap.L().Warn("Failed to get platform revenue", zap.Error(err))
 				return nil
 			}
 			mu.Lock()
-			dashboard.UsersBreakdown = *breakdown
+			dashboard.Overview.TotalRevenue = revenueResp.TotalRevenue
+			dashboard.Overview.MonthlyRevenue = revenueResp.TotalRevenue // Same period
+			dashboard.RevenueBreakdown = revenueResp.RevenueBreakdown
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 3: Revenue breakdown
-		func(ctx context.Context) error {
-			revenue, err := s.getRevenueBreakdown(ctx, &startDate, &endDate)
-			if err != nil {
-				zap.L().Warn("Failed to get revenue breakdown", zap.Error(err))
-				return nil
-			}
-			mu.Lock()
-			dashboard.RevenueBreakdown = *revenue
-			mu.Unlock()
-			return nil
-		},
-
-		// Query 4: Contracts summary
+		// Query 3: Contracts summary
 		func(ctx context.Context) error {
 			summary, err := s.GetContractsSummary(ctx, &requests.DashboardRequest{})
 			if err != nil {
@@ -88,12 +83,14 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 				return nil
 			}
 			mu.Lock()
+			dashboard.Overview.TotalContracts = summary.TotalContracts
+			dashboard.Overview.ActiveContracts = summary.Active
 			dashboard.ContractsSummary = *summary
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 5: Campaigns summary
+		// Query 4: Campaigns summary
 		func(ctx context.Context) error {
 			summary, err := s.GetCampaignsSummary(ctx, &requests.DashboardRequest{})
 			if err != nil {
@@ -101,18 +98,30 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 				return nil
 			}
 			mu.Lock()
+			dashboard.Overview.TotalCampaigns = summary.TotalCampaigns
+			dashboard.Overview.ActiveCampaigns = summary.Running
 			dashboard.CampaignsSummary = *summary
 			mu.Unlock()
 			return nil
 		},
 
-		// Query 6: Growth trend
+		// Query 5: Brands count
 		func(ctx context.Context) error {
-			trend, err := s.analyticsRepo.GetGrowthTrend(ctx, "DAY", &startDate, &endDate)
-			if err != nil {
-				zap.L().Warn("Failed to get growth trend", zap.Error(err))
-				return nil
-			}
+			totalBrands, _ := s.analyticsRepo.GetTotalBrandsCount(ctx)
+			activeBrands, _ := s.analyticsRepo.GetActiveBrandsCount(ctx)
+			mu.Lock()
+			dashboard.Overview.TotalBrands = totalBrands
+			dashboard.Overview.ActiveBrands = activeBrands
+			mu.Unlock()
+			return nil
+		},
+
+		// Query 6: Orders count + Growth trend
+		func(ctx context.Context) error {
+			totalOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, nil, nil)
+			monthlyOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, &startDate, &endDate)
+			trend, _ := s.analyticsRepo.GetGrowthTrend(ctx, "DAY", &startDate, &endDate)
+
 			trendPoints := make([]responses.GrowthTrendPoint, len(trend))
 			for i, t := range trend {
 				trendPoints[i] = responses.GrowthTrendPoint{
@@ -123,7 +132,10 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 					Revenue:      t.Revenue,
 				}
 			}
+
 			mu.Lock()
+			dashboard.Overview.TotalOrders = totalOrders
+			dashboard.Overview.MonthlyOrders = monthlyOrders
 			dashboard.GrowthTrend = trendPoints
 			mu.Unlock()
 			return nil
@@ -135,222 +147,6 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 	}
 
 	return dashboard, nil
-}
-
-// getOverviewMetrics returns high-level platform metrics
-func (s *adminAnalyticsService) getOverviewMetrics(ctx context.Context, startDate, endDate *time.Time) (*responses.AdminOverviewMetrics, error) {
-	overview := &responses.AdminOverviewMetrics{}
-
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 10,
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetTotalUsersCount(ctx)
-			mu.Lock()
-			overview.TotalUsers = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetActiveUsersCount(ctx, 30)
-			mu.Lock()
-			overview.ActiveUsers = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetTotalBrandsCount(ctx)
-			mu.Lock()
-			overview.TotalBrands = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetActiveBrandsCount(ctx)
-			mu.Lock()
-			overview.ActiveBrands = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetTotalContractsCount(ctx)
-			mu.Lock()
-			overview.TotalContracts = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "ACTIVE")
-			mu.Lock()
-			overview.ActiveContracts = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetTotalCampaignsCount(ctx)
-			mu.Lock()
-			overview.TotalCampaigns = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "ACTIVE")
-			mu.Lock()
-			overview.ActiveCampaigns = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetTotalPlatformRevenue(ctx, nil, nil)
-			mu.Lock()
-			overview.TotalRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetTotalPlatformRevenue(ctx, startDate, endDate)
-			mu.Lock()
-			overview.MonthlyRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-	)
-
-	// Calculate orders
-	totalOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, nil, nil)
-	monthlyOrders, _ := s.analyticsRepo.GetTotalOrdersCount(ctx, startDate, endDate)
-	overview.TotalOrders = totalOrders
-	overview.MonthlyOrders = monthlyOrders
-
-	return overview, nil
-}
-
-// getUsersBreakdown returns user count breakdown by role
-func (s *adminAnalyticsService) getUsersBreakdown(ctx context.Context) (*responses.UsersBreakdown, error) {
-	breakdown := &responses.UsersBreakdown{}
-
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 8,
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "ADMIN")
-			mu.Lock()
-			breakdown.Admin = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "MARKETING_STAFF")
-			mu.Lock()
-			breakdown.MarketingStaff = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "SALES_STAFF")
-			mu.Lock()
-			breakdown.SalesStaff = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "CONTENT_STAFF")
-			mu.Lock()
-			breakdown.ContentStaff = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "BRAND_PARTNER")
-			mu.Lock()
-			breakdown.BrandPartner = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, "CUSTOMER")
-			mu.Lock()
-			breakdown.Customer = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetActiveUsersCount(ctx, 30)
-			mu.Lock()
-			breakdown.TotalActive = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			now := time.Now()
-			start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-			end := start.AddDate(0, 1, 0)
-			count, _ := s.analyticsRepo.GetNewUsersCount(ctx, start, end)
-			mu.Lock()
-			breakdown.NewThisMonth = count
-			mu.Unlock()
-			return nil
-		},
-	)
-
-	return breakdown, nil
-}
-
-// getRevenueBreakdown returns platform revenue breakdown
-func (s *adminAnalyticsService) getRevenueBreakdown(ctx context.Context, startDate, endDate *time.Time) (*responses.AdminRevenueBreakdown, error) {
-	breakdown := &responses.AdminRevenueBreakdown{}
-
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 6,
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, "ADVERTISING", startDate, endDate)
-			mu.Lock()
-			breakdown.AdvertisingRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, "AFFILIATE", startDate, endDate)
-			mu.Lock()
-			breakdown.AffiliateRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, "AMBASSADOR", startDate, endDate)
-			mu.Lock()
-			breakdown.AmbassadorRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, "CO_PRODUCING", startDate, endDate)
-			mu.Lock()
-			breakdown.CoProducingRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformProductRevenue(ctx, "STANDARD", startDate, endDate)
-			mu.Lock()
-			breakdown.StandardProductRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetPlatformProductRevenue(ctx, "LIMITED", startDate, endDate)
-			mu.Lock()
-			breakdown.LimitedProductRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-	)
-
-	// Calculate totals
-	breakdown.TotalContractRevenue = breakdown.AdvertisingRevenue + breakdown.AffiliateRevenue +
-		breakdown.AmbassadorRevenue + breakdown.CoProducingRevenue
-	breakdown.TotalProductRevenue = breakdown.StandardProductRevenue + breakdown.LimitedProductRevenue
-	breakdown.TotalRevenue = breakdown.TotalContractRevenue + breakdown.TotalProductRevenue
-
-	return breakdown, nil
 }
 
 // GetUsersOverview returns user statistics and growth
@@ -529,37 +325,37 @@ func (s *adminAnalyticsService) GetContractsSummary(ctx context.Context, req *re
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "DRAFT")
+			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, enum.ContractStatusDraft.String())
 			mu.Lock()
 			summary.Draft = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "PENDING")
+			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, enum.ContractStatusApproved.String())
 			mu.Lock()
-			summary.Pending = count
+			summary.Approved = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "ACTIVE")
+			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, enum.ContractStatusActive.String())
 			mu.Lock()
 			summary.Active = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "COMPLETED")
+			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, enum.ContractStatusCompleted.String())
 			mu.Lock()
 			summary.Completed = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, "CANCELLED")
+			count, _ := s.analyticsRepo.GetContractCountByStatus(ctx, enum.ContractStatusTerminated.String())
 			mu.Lock()
-			summary.Cancelled = count
+			summary.Terminated = count
 			mu.Unlock()
 			return nil
 		},
@@ -589,7 +385,7 @@ func (s *adminAnalyticsService) GetCampaignsSummary(ctx context.Context, req *re
 	summary := &responses.AdminCampaignsSummary{}
 
 	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 9,
+	_ = utils.RunParallel(ctx, 5,
 		func(ctx context.Context) error {
 			count, _ := s.analyticsRepo.GetTotalCampaignsCount(ctx)
 			mu.Lock()
@@ -598,42 +394,28 @@ func (s *adminAnalyticsService) GetCampaignsSummary(ctx context.Context, req *re
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "DRAFT")
+			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, enum.CampaignDraft.String())
 			mu.Lock()
 			summary.Draft = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "ACTIVE")
+			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, enum.CampaignRunning.String())
 			mu.Lock()
-			summary.Active = count
+			summary.Running = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "IN_PROGRESS")
+			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, enum.CampaignCompleted.String())
 			mu.Lock()
-			summary.InProgress = count
+			summary.Completed = count
 			mu.Unlock()
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "PENDING")
-			mu.Lock()
-			summary.Pending = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "FINISHED")
-			mu.Lock()
-			summary.Finished = count
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, "CANCELLED")
+			count, _ := s.analyticsRepo.GetCampaignCountByStatus(ctx, enum.CampaignCancelled.String())
 			mu.Lock()
 			summary.Cancelled = count
 			mu.Unlock()
@@ -657,3 +439,136 @@ func (s *adminAnalyticsService) GetCampaignsSummary(ctx context.Context, req *re
 
 	return summary, nil
 }
+
+// region: ============== Private Helper Methods ==============
+
+// getUsersBreakdown returns user count breakdown by role
+func (s *adminAnalyticsService) getUsersBreakdown(ctx context.Context) (*responses.UsersBreakdown, error) {
+	breakdown := &responses.UsersBreakdown{}
+
+	var mu sync.Mutex
+	_ = utils.RunParallel(ctx, 8,
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleAdmin.String())
+			mu.Lock()
+			breakdown.Admin = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleMarketingStaff.String())
+			mu.Lock()
+			breakdown.MarketingStaff = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleSalesStaff.String())
+			mu.Lock()
+			breakdown.SalesStaff = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleContentStaff.String())
+			mu.Lock()
+			breakdown.ContentStaff = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleBrandPartner.String())
+			mu.Lock()
+			breakdown.BrandPartner = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetUserCountByRole(ctx, enum.UserRoleCustomer.String())
+			mu.Lock()
+			breakdown.Customer = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			count, _ := s.analyticsRepo.GetActiveUsersCount(ctx, 30)
+			mu.Lock()
+			breakdown.TotalActive = count
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			now := time.Now()
+			start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			end := start.AddDate(0, 1, 0)
+			count, _ := s.analyticsRepo.GetNewUsersCount(ctx, start, end)
+			mu.Lock()
+			breakdown.NewThisMonth = count
+			mu.Unlock()
+			return nil
+		},
+	)
+
+	return breakdown, nil
+}
+
+// getRevenueBreakdown returns platform revenue breakdown
+func (s *adminAnalyticsService) getRevenueBreakdown(ctx context.Context, startDate, endDate *time.Time) (*responses.AdminRevenueBreakdown, error) {
+	breakdown := &responses.AdminRevenueBreakdown{}
+
+	var mu sync.Mutex
+	_ = utils.RunParallel(ctx, 6,
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, enum.ContractTypeAdvertising.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.AdvertisingRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, enum.ContractTypeAffiliate.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.AffiliateRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, enum.ContractTypeAmbassador.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.AmbassadorRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformRevenueByContractType(ctx, enum.ContractTypeCoProduce.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.CoProducingRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformProductRevenue(ctx, enum.ProductTypeStandard.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.StandardProductRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+		func(ctx context.Context) error {
+			revenue, _ := s.analyticsRepo.GetPlatformProductRevenue(ctx, enum.ProductTypeLimited.String(), startDate, endDate)
+			mu.Lock()
+			breakdown.LimitedProductRevenue = revenue
+			mu.Unlock()
+			return nil
+		},
+	)
+
+	// Calculate totals
+	breakdown.TotalContractRevenue = breakdown.AdvertisingRevenue + breakdown.AffiliateRevenue +
+		breakdown.AmbassadorRevenue + breakdown.CoProducingRevenue
+	breakdown.TotalProductRevenue = breakdown.StandardProductRevenue + breakdown.LimitedProductRevenue
+	breakdown.TotalRevenue = breakdown.TotalContractRevenue + breakdown.TotalProductRevenue
+
+	return breakdown, nil
+}
+
+// endregion
