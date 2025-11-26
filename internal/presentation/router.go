@@ -109,6 +109,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupMarketingAnalyticsRoutes(v1)
 		r.SetupSalesStaffAnalyticsRoutes(v1)
 		r.SetupContentStaffAnalyticsRoutes(v1)
+		r.SetupBrandPartnerAnalyticsRoutes(v1)
+		r.SetupAdminAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -816,6 +818,48 @@ func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/channels", contentAnalyticsHandler.GetTopChannels)
 			protectedGroup.GET("/trend", contentAnalyticsHandler.GetEngagementTrend)
 			protectedGroup.GET("/campaigns", contentAnalyticsHandler.GetCampaignContentMetrics)
+		}
+	}
+}
+
+// SetupBrandPartnerAnalyticsRoutes sets up routes for brand partner analytics dashboard
+func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
+	brandAnalyticsHandler := r.handlerRegistry.BrandPartnerAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/brand-partner")
+	{
+		// Protected routes (Admin, Brand Partner can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, brand))
+		{
+			protectedGroup.GET("/dashboard", brandAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/top-products", brandAnalyticsHandler.GetTopProducts)
+			protectedGroup.GET("/campaigns", brandAnalyticsHandler.GetCampaignMetrics)
+			protectedGroup.GET("/content", brandAnalyticsHandler.GetContentMetrics)
+			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
+			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
+			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
+		}
+	}
+}
+
+// SetupAdminAnalyticsRoutes sets up routes for admin analytics dashboard
+func (r *Router) SetupAdminAnalyticsRoutes(group *gin.RouterGroup) {
+	adminAnalyticsHandler := r.handlerRegistry.AdminAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/admin")
+	{
+		// Protected routes (Admin only)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			protectedGroup.GET("/dashboard", adminAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/users", adminAnalyticsHandler.GetUsersOverview)
+			protectedGroup.GET("/revenue", adminAnalyticsHandler.GetPlatformRevenue)
+			protectedGroup.GET("/health", adminAnalyticsHandler.GetSystemHealth)
+			protectedGroup.GET("/user-growth", adminAnalyticsHandler.GetUserGrowth)
+			protectedGroup.GET("/contracts", adminAnalyticsHandler.GetContractsSummary)
+			protectedGroup.GET("/campaigns", adminAnalyticsHandler.GetCampaignsSummary)
 		}
 	}
 }

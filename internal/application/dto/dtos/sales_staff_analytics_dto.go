@@ -1,5 +1,11 @@
 package dtos
 
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
 // BrandRevenueResult represents brand revenue query result
 type BrandRevenueResult struct {
 	BrandID      uuid.UUID

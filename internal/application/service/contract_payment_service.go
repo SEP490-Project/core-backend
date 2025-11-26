@@ -85,7 +85,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 	//    This ensures new clicks/revenue go to the next payment period
 	if contractPayment.Contract.Type == enum.ContractTypeAffiliate ||
 		contractPayment.Contract.Type == enum.ContractTypeCoProduce {
-		if err := c.LockPaymentAmount(ctx, contractPayment); err != nil {
+		if err = c.LockPaymentAmount(ctx, contractPayment); err != nil {
 			zap.L().Error("Failed to lock payment amount", zap.Error(err))
 			return nil, fmt.Errorf("failed to lock payment amount: %w", err)
 		}
