@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/application/service/notification_builder"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/ordersm"
@@ -829,197 +830,16 @@ func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum
 }
 
 func (o orderService) sendNotification(ctx context.Context, orderStatus enum.OrderStatus, order *model.Order, actionBy *model.User) error {
-	//TO DO: implement notification logic here
-	var req requests.PublishNotificationRequest
-	switch orderStatus {
-	case enum.OrderStatusPending:
-		//o.notificationService.
+	req, err := notification_builder.BuildOrderNotification(ctx, orderStatus, order, actionBy)
+	if err != nil {
+		zap.L().Debug("no notification builder for order status", zap.Error(err))
 		return nil
-	case enum.OrderStatusPaid:
-		emailSubject := "Thanks you for choosing us"
-		selectedTemplate := "order_created"
-		emailPayload := EmailNotificationPayload{
-			EmailSubject:      &emailSubject,
-			EmailTemplateName: &selectedTemplate,
-			EmailTemplateData: nil,
-			EmailHTMLBody:     nil,
-		}
-		pushPayload := PushNotificationPayload{
-			Title: "Payment Successful",
-			Body:  "Thank you for your payment. We will process your order as soon as possible.",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"EMAIL"}, emailPayload, pushPayload)
-	case enum.OrderStatusRefundRequested:
-		emailSubject := "📩 Refund Request Received"
-		selectedTemplate := "refund_request_received"
-		emailPayload := EmailNotificationPayload{
-			EmailSubject:      &emailSubject,
-			EmailTemplateName: &selectedTemplate,
-			EmailTemplateData: map[string]interface{}{
-				"RefundCode":       order.ID.String(),
-				"RequestDate":      order.UpdatedAt.Format("02 Jan 2006 15:04"),
-				"RefundAmount":     fmt.Sprintf("%d VND", order.TotalAmount),
-				"Reason":           order.GetLatestActionNote().Reason,
-				"RefundStatusLink": "https://yourdomain.com/user/orders/" + order.ID.String(),
-				"Year":             time.Now().Year(),
-			},
-			EmailHTMLBody: nil,
-		}
-		pushPayload := PushNotificationPayload{
-			Title: "Refund Request Received",
-			Body:  "We have received your refund request and will process it shortly.",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"EMAIL", "PUSH"}, emailPayload, pushPayload)
-		//Also need to notify to all admin/staff
-	case enum.OrderStatusRefunded:
-		emailSubject := "💰 Your Refund Has Been Approved!"
-		selectedTemplate := "refund_request_received"
-		emailPayload := EmailNotificationPayload{
-			EmailSubject:      &emailSubject,
-			EmailTemplateName: &selectedTemplate,
-			EmailTemplateData: map[string]interface{}{
-				"CustomerName":  order.User.FullName,
-				"OrderCode":     order.ID.String(),
-				"RefundAmount":  fmt.Sprintf("%f", order.TotalAmount) + "VND",
-				"RefundDate":    order.UpdatedAt.Format("02 Jan 2006 15:04"),
-				"PaymentMethod": "PAYOS",
-				"OrderLink":     "https://yourdomain.com/user/orders/" + order.ID.String(),
-				"Year":          time.Now().Year(),
-			},
-			EmailHTMLBody: nil,
-		}
-		pushPayload := PushNotificationPayload{
-			Title: "Ding Ding Ding 💰... Your Refund Has Been Approved!",
-			Body:  "",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"EMAIL", "PUSH"}, emailPayload, pushPayload)
-	case enum.OrderStatusConfirmed:
-		pushPayload := PushNotificationPayload{
-			Title: "Your Order Has Been Confirm!",
-			Body:  "Happy Happy Happy",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
-	case enum.OrderStatusCancelled:
-		return nil
-	case enum.OrderStatusShipped:
-		pushPayload := PushNotificationPayload{
-			Title: "Your Order is on the way!",
-			Body:  "Your Order had delivered to transportation Unit!",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
-	case enum.OrderStatusInTransit:
-		pushPayload := PushNotificationPayload{
-			Title: "Your Order is almost there!",
-			Body:  "Your Order will reach you soon!",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
-	case enum.OrderStatusDelivered:
-		pushPayload := PushNotificationPayload{
-			Title: "I'm Here!",
-			Body:  "The delivery person will contact you soon!",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
-	case enum.OrderStatusReceived:
-		pushPayload := PushNotificationPayload{
-			Title: "Thanks for using our service!",
-			Body:  "We hope to see you again soon.",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
-	case enum.OrderStatusCompensateRequested:
-		emailSubject := "💰 Your Refund Has Been Approved!"
-		selectedTemplate := "refund_request_received"
-		emailPayload := EmailNotificationPayload{
-			EmailSubject:      &emailSubject,
-			EmailTemplateName: &selectedTemplate,
-			EmailTemplateData: map[string]interface{}{
-				"CustomerName":  order.User.FullName,
-				"OrderCode":     order.ID.String(),
-				"RefundAmount":  fmt.Sprintf("%f", order.TotalAmount) + "VND",
-				"RefundDate":    order.UpdatedAt.Format("02 Jan 2006 15:04"),
-				"PaymentMethod": "PAYOS",
-				"OrderLink":     "https://yourdomain.com/user/orders/" + order.ID.String(),
-				"Year":          time.Now().Year(),
-			},
-			EmailHTMLBody: nil,
-		}
-		pushPayload := PushNotificationPayload{
-			Title: "Ding Ding Ding 💰... Your Refund Has Been Approved!",
-			Body:  "",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"EMAIL", "PUSH"}, emailPayload, pushPayload)
-
-	case enum.OrderStatusCompensated:
-	case enum.OrderStatusAwaitingPickUp:
-		pushPayload := PushNotificationPayload{
-			Title: "Your Order is ready for pick-up!",
-			Body:  "Please visit our store to collect your order.",
-			Data: map[string]string{
-				"data": "/(order)/order-detail/:id",
-			},
-		}
-		req = buildNotificationRequest(order.UserID, []string{"PUSH"}, EmailNotificationPayload{}, pushPayload)
 	}
 
-	_, err := o.notificationService.CreateAndPublishNotification(ctx, &req)
+	_, err = o.notificationService.CreateAndPublishNotification(ctx, &req)
 	if err != nil {
 		zap.L().Error("Failed to send notification", zap.Error(err))
 		return err
 	}
 	return nil
-}
-
-type EmailNotificationPayload struct {
-	EmailSubject      *string
-	EmailTemplateName *string
-	EmailTemplateData map[string]interface{}
-	EmailHTMLBody     *string
-}
-
-type PushNotificationPayload struct {
-	Title string
-	Body  string
-	Data  map[string]string
-}
-
-func buildNotificationRequest(userID uuid.UUID, channel []string, emailPayload EmailNotificationPayload, pushPayload PushNotificationPayload) requests.PublishNotificationRequest {
-	return requests.PublishNotificationRequest{
-		UserID:   userID,
-		Channels: channel,
-		//Push
-		Title: pushPayload.Title,
-		Body:  pushPayload.Body,
-		Data:  pushPayload.Data,
-		//Email
-		EmailSubject:      emailPayload.EmailSubject,
-		EmailTemplateName: emailPayload.EmailTemplateName,
-		EmailTemplateData: emailPayload.EmailTemplateData,
-		EmailHTMLBody:     emailPayload.EmailHTMLBody,
-	}
 }

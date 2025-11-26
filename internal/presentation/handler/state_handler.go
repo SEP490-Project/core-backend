@@ -449,6 +449,35 @@ func (h *StateHandler) UpdateMilestoneState(c *gin.Context) {
 	}))
 }
 
+// GHNOrderUpdateWebHook handles order update webhook
+// @Summary Order Update Webhook
+// @Description Receive order update from external service
+// @Tags Webhook
+// @Accept json
+// @Produce json
+// @Param status query string true "Order status"
+// @Param code   query string false "Order code"
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/ghn/webhook [get]
+func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	status := c.Query("status")
+	code := c.Query("code")
+
+	zap.L().Info("Received order update hook request", zap.String("status", status), zap.String("code", code))
+
+	//Find Order by code
+	// Call service with these parameters
+	err := h.StateTransferService.MoveOrderToStateByGHNWebhook(ctx, code, enum.GHNDeliveryStatus(status))
+	if err != nil {
+		zap.L().Error("Failed to move order to GHN hook", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to move order: "+err.Error(), http.StatusInternalServerError))
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Order state updated via GHN webhook", nil, nil))
+}
+
 // UpdateContractState godoc
 //
 //	@Summary		Update Contract State
