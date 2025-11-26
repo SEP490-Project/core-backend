@@ -187,7 +187,7 @@ func (r *salesStaffAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Contex
 
 	// Build date filter clause
 	dateFilter := ""
-	args := []interface{}{}
+	args := []any{}
 	if startDate != nil && endDate != nil {
 		dateFilter = "AND o.created_at BETWEEN ? AND ?"
 		args = append(args, *startDate, *endDate)

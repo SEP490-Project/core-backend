@@ -48,6 +48,8 @@ type ApplicationRegistry struct {
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 	SalesStaffAnalyticsService    iservice.SalesStaffAnalyticsService
 	ContentStaffAnalyticsService  iservice.ContentStaffAnalyticsService
+	BrandPartnerAnalyticsService  iservice.BrandPartnerAnalyticsService
+	AdminAnalyticsService         iservice.AdminAnalyticsService
 	FacebookSocialService         iservice.FacebookSocialService
 	TikTokSocialService           iservice.TikTokSocialService
 	AIService                     iservice.AIService
@@ -186,6 +188,8 @@ func NewApplicationRegistry(
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		SalesStaffAnalyticsService:    service.NewSalesStaffAnalyticsService(databaseRegistry.SalesStaffAnalyticsRepository),
 		ContentStaffAnalyticsService:  service.NewContentStaffAnalyticsService(databaseRegistry.ContentStaffAnalyticsRepository),
+		BrandPartnerAnalyticsService:  service.NewBrandPartnerAnalyticsService(databaseRegistry.BrandPartnerAnalyticsRepository),
+		AdminAnalyticsService:         service.NewAdminAnalyticsService(databaseRegistry.AdminAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),

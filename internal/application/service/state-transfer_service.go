@@ -1027,7 +1027,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 			return err
 		}
 
-		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+		if err = uow.PreOrder().Update(ctx, preorder); err != nil {
 			zap.L().Error("Failed to update preorder status to PAID",
 				zap.String("preorder_id", preorder.ID.String()),
 				zap.Error(err))
@@ -1052,7 +1052,7 @@ func (t stateTransferService) handlePreOrderSideEffect(
 				*variant.CurrentStock += preorder.Quantity
 				*variant.PreOrderCount -= preorder.Quantity
 			}
-			if err := variantRepo.Update(ctx, variant); err != nil {
+			if err = variantRepo.Update(ctx, variant); err != nil {
 				zap.L().Error("Failed to restore variant stock after preorder payment failure",
 					zap.String("variant_id", variant.ID.String()), zap.Error(err))
 			} else {
@@ -1083,11 +1083,11 @@ func (t stateTransferService) handlePreOrderSideEffect(
 func (t stateTransferService) handleOrderStatusSideEffect(
 	ctx context.Context,
 	uow irepository.UnitOfWork,
-	transactionCtx *ordersm.OrderContext,
+	_ *ordersm.OrderContext,
 	nextStatus enum.OrderStatus,
 	order *model.Order,
-	updatedBy *model.User,
-	reason *string, //optional
+	_ *model.User,
+	_ *string, //optional
 ) error {
 	//&&&
 	var err error

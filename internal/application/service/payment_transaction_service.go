@@ -456,7 +456,7 @@ func (s *paymentTransactionService) CancelExpiredLinks(ctx context.Context) (int
 		}
 		orderCode := strconv.FormatInt(transaction.PayOSMetadata.OrderCode, 10)
 
-		if err := s.CancelPaymentLink(ctx, uow, orderCode, "Expired payment link"); err != nil {
+		if err = s.CancelPaymentLink(ctx, uow, orderCode, "Expired payment link"); err != nil {
 			zap.L().Warn("Failed to cancel expired payment link",
 				zap.String("order_code", orderCode),
 				zap.Error(err))
