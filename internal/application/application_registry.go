@@ -47,6 +47,7 @@ type ApplicationRegistry struct {
 	PreOrderService               iservice.PreOrderService
 	MarketingAnalyticsService     iservice.MarketingAnalyticsService
 	SalesStaffAnalyticsService    iservice.SalesStaffAnalyticsService
+	ContentStaffAnalyticsService  iservice.ContentStaffAnalyticsService
 	FacebookSocialService         iservice.FacebookSocialService
 	TikTokSocialService           iservice.TikTokSocialService
 	AIService                     iservice.AIService
@@ -184,6 +185,7 @@ func NewApplicationRegistry(
 		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, stateTransferService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		SalesStaffAnalyticsService:    service.NewSalesStaffAnalyticsService(databaseRegistry.SalesStaffAnalyticsRepository),
+		ContentStaffAnalyticsService:  service.NewContentStaffAnalyticsService(databaseRegistry.ContentStaffAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
 		TikTokSocialService:           tiktokSocialService,
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
