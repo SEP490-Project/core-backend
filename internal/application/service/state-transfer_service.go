@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/application/service/notification_builder"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/campaignsm"
@@ -41,10 +42,43 @@ type stateTransferService struct {
 	variantRepository       irepository.GenericRepository[model.ProductVariant]
 	affiliateLinkRepository irepository.AffiliateLinkRepository
 	userRepository          irepository.GenericRepository[model.User]
+	notificationService     iservice.NotificationService
 	uow                     irepository.UnitOfWork
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
 	adminConfig             config.AdminConfig
+}
+
+func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
+	//find order By GHN code
+	filter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("ghn_order_code = ?", ghnCode)
+	}
+	order, err := t.orderRepository.GetByCondition(ctx, filter, []string{})
+	if err != nil {
+		zap.L().Error("Failed to load order from DB by GHN code",
+			zap.String("ghn_order_code", ghnCode),
+			zap.Error(err))
+		return errors.New("Unable to find order by GHN code: " + err.Error())
+	}
+	//map GHN status to Order status
+	var newStatus enum.OrderStatus
+	switch ghnStatus {
+	case enum.GHNDeliveryStatusStoring:
+		newStatus = enum.OrderStatusShipped
+	case enum.GHNDeliveryStatusDelivering:
+		newStatus = enum.OrderStatusInTransit
+	case enum.GHNDeliveryStatusDelivered:
+		newStatus = enum.OrderStatusDelivered
+	default:
+		zap.L().Info("GHN status does not trigger side effect", zap.String("status", string(ghnStatus)))
+	}
+
+	err = t.MoveOrderToState(ctx, order.ID, newStatus, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderID uuid.UUID, targetState enum.PreOrderStatus, updatedBy uuid.UUID, reason, fileURL *string) error {
@@ -685,7 +719,7 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 	return nil
 }
 
-func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedUserID uuid.UUID, note *string) error {
+func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid.UUID, targetState enum.OrderStatus, updatedUserID *uuid.UUID, note *string) error {
 
 	err := helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// 1) Load order with items and variants + product
@@ -709,9 +743,18 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return errors.New(msg)
 		}
 
-		updatedBy, err := uow.Users().GetByID(ctx, updatedUserID, []string{})
-		if err != nil {
-			return err
+		var updatedBy *model.User
+		if updatedUserID == nil {
+			updatedBy = &model.User{
+				ID:       uuid.UUID{},
+				FullName: t.adminConfig.SystemName,
+				Email:    t.adminConfig.SystemEmail,
+			}
+		} else {
+			updatedBy, err = uow.Users().GetByID(ctx, updatedUserID, []string{})
+			if err != nil {
+				return err
+			}
 		}
 
 		// 2) Handle order side effects
@@ -848,7 +891,7 @@ func (t stateTransferService) handleOrderSideEffect(
 	uow irepository.UnitOfWork,
 	order *model.Order,
 	transactionStatus enum.PaymentTransactionStatus,
-	_ uuid.UUID,
+	userID uuid.UUID,
 ) error {
 	if order == nil {
 		return errors.New("order is nil")
@@ -862,17 +905,6 @@ func (t stateTransferService) handleOrderSideEffect(
 	case enum.PaymentTransactionStatusCompleted:
 		//Update Order to Confirm and handle the
 		newStatus = enum.OrderStatusPaid
-		//zap.L().Info("Payment completed for Order -> Change status to: " + newStatus.String())
-		//orderItemRepo := uow.OrderItem()
-		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-		//	return db.Where("order_id = ?", order.ID)
-		//}, map[string]any{"item_status": enum.OrderStatusPaid.String()}); err != nil {
-		//	zap.L().Error("Failed to paid order items",
-		//		zap.String("order_id", order.ID.String()),
-		//		zap.Error(err))
-		//	return errors.New("failed to paid order items: " + err.Error())
-		//}
-
 		zap.L().Info("Updating order to OrderStatusPaid (payment completed)",
 			zap.String("order_id", order.ID.String()))
 
@@ -881,15 +913,7 @@ func (t stateTransferService) handleOrderSideEffect(
 		enum.PaymentTransactionStatusExpired:
 
 		newStatus = enum.OrderStatusCancelled
-		//orderItemRepo := uow.OrderItem()
-		//if err := orderItemRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-		//	return db.Where("order_id = ? AND item_status <> ?", order.ID, enum.OrderStatusCancelled.String())
-		//}, map[string]any{"item_status": enum.OrderStatusCancelled.String()}); err != nil {
-		//	zap.L().Error("Failed to cancel order items",
-		//		zap.String("order_id", order.ID.String()),
-		//		zap.Error(err))
-		//	return errors.New("failed to cancel order items: " + err.Error())
-		//}
+
 		zap.L().Info("Keeping/reverting order to CANCELLED",
 			zap.String("order_id", order.ID.String()),
 			zap.String("transaction_status", string(transactionStatus)))
@@ -956,6 +980,19 @@ func (t stateTransferService) handleOrderSideEffect(
 		zap.String("order_id", order.ID.String()),
 		zap.String("new_status", string(newStatus)))
 
+	//Send notifications
+	actionBy, _ := t.userRepository.GetByID(ctx, userID, nil)
+	req, err := notification_builder.BuildOrderNotification(ctx, newStatus, order, actionBy)
+	if err != nil {
+		zap.L().Debug("no notification builder for order status", zap.Error(err))
+		return nil
+	}
+
+	_, err = t.notificationService.CreateAndPublishNotification(ctx, &req)
+	if err != nil {
+		zap.L().Error("Failed to send notification", zap.Error(err))
+		return err
+	}
 	return nil
 }
 
@@ -1121,6 +1158,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
+	notificationService *NotificationService,
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,
@@ -1136,6 +1174,7 @@ func NewStateTransferService(
 		preOrderRepository:      dbReg.PreOrderRepository,
 		variantRepository:       dbReg.ProductVariantRepository,
 		userRepository:          dbReg.UserRepository,
+		notificationService:     notificationService,
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,
