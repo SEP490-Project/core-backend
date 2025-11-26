@@ -4,8 +4,9 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-	"github.com/aws/smithy-go/ptr"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 )
 
 // PreOrderContext holds the current state and related data for FSM

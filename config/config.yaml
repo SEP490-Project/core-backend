@@ -86,6 +86,7 @@ otel:
 
 # RabbitMQ configuration
 rabbitmq:
+  url: ""
   host: my-vps
   port: 5672
   username: "admin"

@@ -55,12 +55,13 @@ func (r *contractPaymentCalculationRepository) GetTotalClicksForContract(
 // associated with a contract within a payment period.
 //
 // Query path for CO_PRODUCING contracts:
-//   contracts -> campaigns -> milestones -> tasks -> products (type=LIMITED) -> limited_products
-//   Then: products -> product_variants -> order_items/pre_orders
+//
+//	contracts -> campaigns -> milestones -> tasks -> products (type=LIMITED) -> limited_products
+//	Then: products -> product_variants -> order_items/pre_orders
 //
 // Revenue sources:
-//   1. pre_orders (status = 'RECEIVED') - Pre-order purchases
-//   2. orders (order_type = 'LIMITED', status = 'RECEIVED') - Regular limited product orders
+//  1. pre_orders (status = 'RECEIVED') - Pre-order purchases
+//  2. orders (order_type = 'LIMITED', status = 'RECEIVED') - Regular limited product orders
 func (r *contractPaymentCalculationRepository) GetLimitedProductRevenue(
 	ctx context.Context,
 	contractID uuid.UUID,
