@@ -58,7 +58,6 @@ type PreOrderStats struct {
 	TotalRevenue   float64 `json:"total_revenue"`
 	ReceivedCount  int64   `json:"received_count"` // Status = RECEIVED
 	PendingCount   int64   `json:"pending_count"`
-	ConfirmedCount int64   `json:"confirmed_count"`
 	CancelledCount int64   `json:"cancelled_count"`
 }
 
@@ -97,7 +96,6 @@ type ProductSalesMetric struct {
 // RecentOrderItem represents a recent order
 type RecentOrderItem struct {
 	OrderID      uuid.UUID `json:"order_id"`
-	OrderNumber  string    `json:"order_number"`
 	CustomerName string    `json:"customer_name"`
 	TotalAmount  float64   `json:"total_amount"`
 	Status       string    `json:"status"`

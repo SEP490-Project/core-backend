@@ -55,7 +55,7 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy,
 //	@Param			status		query		string	false	"Filter by order status"
 //	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
 //	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
-//	@Success		200			{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401			{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -303,7 +303,7 @@ func (h *OrderHandler) CreateLimitedOrder(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.StaffOrdersQuery	false	"Staff orders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -386,7 +386,7 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.SelfDeliveringQuery	false	"Staff orders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -465,7 +465,7 @@ type CensorOrderRequest struct {
 //	@Param			orderID	path		string				true	"Order ID"
 //	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
 //	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth

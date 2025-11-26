@@ -1486,12 +1486,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "Start date (ISO 8601 format)",
                         "name": "start_date",
                         "in": "query"
@@ -1562,12 +1556,6 @@ const docTemplate = `{
                 ],
                 "summary": "Get Brand's Campaign Metrics",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "description": "Start date (ISO 8601 format)",
@@ -1657,12 +1645,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
                         "description": "Start date (ISO 8601 format)",
                         "name": "start_date",
                         "in": "query"
@@ -1733,12 +1715,6 @@ const docTemplate = `{
                 ],
                 "summary": "Get Brand's Contract Details",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "description": "Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)",
@@ -1815,12 +1791,6 @@ const docTemplate = `{
                 "summary": "Get Brand Partner Dashboard",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
-                    {
                         "type": "integer",
                         "description": "Year for filtering (defaults to current year)",
                         "name": "year",
@@ -1892,12 +1862,6 @@ const docTemplate = `{
                 ],
                 "summary": "Get Brand's Revenue Trend",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "description": "Start date (ISO 8601 format)",
@@ -1979,12 +1943,6 @@ const docTemplate = `{
                 ],
                 "summary": "Get Brand's Top Products",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Brand ID (optional, defaults to user's brand)",
-                        "name": "brand_id",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "description": "Start date (ISO 8601 format)",
@@ -11962,7 +11920,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -12318,7 +12276,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -12607,7 +12565,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -12826,7 +12784,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -13937,7 +13895,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PreOrder"
+                                                "$ref": "#/definitions/responses.PreOrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -14148,7 +14106,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.PreOrder"
+                                                "$ref": "#/definitions/responses.PreOrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -14230,7 +14188,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/model.Order"
+                                                "$ref": "#/definitions/responses.OrderResponse"
                                             }
                                         },
                                         "pagination": {
@@ -20540,109 +20498,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Order": {
-            "type": "object",
-            "properties": {
-                "action_notes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OrderActionNote"
-                    }
-                },
-                "address_line2": {
-                    "type": "string"
-                },
-                "city": {
-                    "type": "string"
-                },
-                "confirmation_image": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "district_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "description": "Copied shipping address fields (migration moved from a foreign key to flat columns)",
-                    "type": "string"
-                },
-                "ghn_district_id": {
-                    "type": "integer"
-                },
-                "ghn_order_code": {
-                    "type": "string"
-                },
-                "ghn_province_id": {
-                    "type": "integer"
-                },
-                "ghn_ward_code": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_self_picked_up": {
-                    "type": "boolean"
-                },
-                "order_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.OrderItem"
-                    }
-                },
-                "order_type": {
-                    "type": "string"
-                },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "province_name": {
-                    "type": "string"
-                },
-                "shipping_fee": {
-                    "type": "integer"
-                },
-                "staff_resource": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/enum.OrderStatus"
-                },
-                "street": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "user_note": {
-                    "type": "string"
-                },
-                "user_resource": {
-                    "type": "string"
-                },
-                "ward_name": {
-                    "type": "string"
-                }
-            }
-        },
         "model.OrderActionNote": {
             "type": "object",
             "properties": {
@@ -20733,146 +20588,6 @@ const docTemplate = `{
                 },
                 "weight": {
                     "description": "DeletedAt gorm.DeletedAt ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at;index\"` + "`" + `",
-                    "type": "integer"
-                },
-                "width": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                }
-            }
-        },
-        "model.PreOrder": {
-            "type": "object",
-            "properties": {
-                "action_notes": {
-                    "description": "Action notes for pre-order (JSONB)",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.PreOrderActionNote"
-                    }
-                },
-                "address_line2": {
-                    "type": "string"
-                },
-                "capacity": {
-                    "description": "The same as orderItem",
-                    "type": "number"
-                },
-                "capacity_unit": {
-                    "type": "string"
-                },
-                "city": {
-                    "type": "string"
-                },
-                "confirmation_image": {
-                    "type": "string"
-                },
-                "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
-                },
-                "district_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "expiry_date": {
-                    "type": "string"
-                },
-                "full_name": {
-                    "description": "The same as order which Copied shipping address fields",
-                    "type": "string"
-                },
-                "ghn_district_id": {
-                    "type": "integer"
-                },
-                "ghn_province_id": {
-                    "type": "integer"
-                },
-                "ghn_ward_code": {
-                    "type": "string"
-                },
-                "height": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "instructions": {
-                    "type": "string"
-                },
-                "is_self_picked_up": {
-                    "type": "boolean"
-                },
-                "length": {
-                    "description": "in centimeters",
-                    "type": "integer"
-                },
-                "manufacturing_date": {
-                    "type": "string"
-                },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "province_name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "staff_resource": {
-                    "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/enum.PreOrderStatus"
-                },
-                "street": {
-                    "type": "string"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "unit_price": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                },
-                "user_note": {
-                    "description": "DeletedAt gorm.DeletedAt      ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at\"swaggerignore:\"true\"` + "`" + `",
-                    "type": "string"
-                },
-                "user_resource": {
-                    "type": "string"
-                },
-                "uses": {
-                    "type": "string"
-                },
-                "variant_id": {
-                    "type": "string"
-                },
-                "ward_name": {
-                    "type": "string"
-                },
-                "weight": {
-                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
@@ -23793,10 +23508,10 @@ const docTemplate = `{
         "responses.AdminCampaignsSummary": {
             "type": "object",
             "properties": {
-                "active": {
+                "cancelled": {
                     "type": "integer"
                 },
-                "cancelled": {
+                "completed": {
                     "type": "integer"
                 },
                 "content_created": {
@@ -23810,13 +23525,7 @@ const docTemplate = `{
                 "draft": {
                     "type": "integer"
                 },
-                "finished": {
-                    "type": "integer"
-                },
-                "in_progress": {
-                    "type": "integer"
-                },
-                "pending": {
+                "running": {
                     "type": "integer"
                 },
                 "total_campaigns": {
@@ -26319,6 +26028,104 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.OrderResponse": {
+            "type": "object",
+            "properties": {
+                "action_notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderActionNote"
+                    }
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_order_code": {
+                    "type": "string"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
+                "order_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderItem"
+                    }
+                },
+                "order_type": {
+                    "type": "string"
+                },
+                "payment_transaction": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "shipping_fee": {
+                    "type": "integer"
+                },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.OrderTypeStats": {
             "type": "object",
             "properties": {
@@ -26732,13 +26539,155 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.PreOrderResponse": {
+            "type": "object",
+            "properties": {
+                "action_notes": {
+                    "description": "Action notes for pre-order (JSONB)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.PreOrderActionNote"
+                    }
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "capacity": {
+                    "description": "The same as orderItem",
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
+                    "type": "string"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "The same as order which Copied shipping address fields",
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "height": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
+                "length": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "paymentTx": {
+                    "$ref": "#/definitions/responses.PaymentTransactionResponse"
+                },
+                "payment_bin": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "description": "Transient fields populated by repository (not persisted)",
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.PreOrderStatus"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                },
+                "weight": {
+                    "description": "in grams",
+                    "type": "integer"
+                },
+                "width": {
+                    "description": "in centimeters",
+                    "type": "integer"
+                }
+            }
+        },
         "responses.PreOrderStats": {
             "type": "object",
             "properties": {
                 "cancelled_count": {
-                    "type": "integer"
-                },
-                "confirmed_count": {
                     "type": "integer"
                 },
                 "pending_count": {
@@ -27262,9 +27211,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "order_id": {
-                    "type": "string"
-                },
-                "order_number": {
                     "type": "string"
                 },
                 "order_type": {

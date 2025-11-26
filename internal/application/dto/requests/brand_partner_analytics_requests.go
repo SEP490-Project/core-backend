@@ -11,7 +11,7 @@ import (
 // =============================================================================
 
 // BrandPartnerDashboardRequest represents a request for Brand Partner dashboard
-// BrandID is extracted from the authenticated user's context
+// BrandUserID is extracted from the authenticated user's context
 type BrandPartnerDashboardRequest struct {
 	Year  *int `form:"year" json:"year" validate:"omitempty,min=2000,max=2100" example:"2025"`
 	Month *int `form:"month" json:"month" validate:"omitempty,min=1,max=12" example:"11"`
@@ -43,7 +43,7 @@ func (r *BrandPartnerDashboardRequest) GetDateRange() (start, end time.Time) {
 
 // BrandContractsOverviewRequest represents a request for brand's contracts overview
 type BrandContractsOverviewRequest struct {
-	BrandID      uuid.UUID  `json:"-"` // Injected from auth context
+	BrandUserID  uuid.UUID  `json:"-"` // Injected from auth context
 	ContractType *string    `form:"contract_type" json:"contract_type" binding:"omitempty,oneof=ADVERTISING AFFILIATE AMBASSADOR CO_PRODUCING"`
 	StartDate    *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
 	EndDate      *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
@@ -51,24 +51,24 @@ type BrandContractsOverviewRequest struct {
 
 // BrandCampaignsOverviewRequest represents a request for brand's campaigns overview
 type BrandCampaignsOverviewRequest struct {
-	BrandID   uuid.UUID  `json:"-"` // Injected from auth context
-	Status    *string    `form:"status" json:"status" binding:"omitempty,oneof=DRAFT ACTIVE IN_PROGRESS PENDING FINISHED CANCELLED"`
-	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	BrandUserID uuid.UUID  `json:"-"` // Injected from auth context
+	Status      *string    `form:"status" json:"status" binding:"omitempty,oneof=DRAFT ACTIVE IN_PROGRESS PENDING FINISHED CANCELLED"`
+	StartDate   *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate     *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
 }
 
 // BrandRevenueSourcesRequest represents a request for brand's revenue breakdown
 type BrandRevenueSourcesRequest struct {
-	BrandID   uuid.UUID  `json:"-"` // Injected from auth context
-	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	BrandUserID uuid.UUID  `json:"-"` // Injected from auth context
+	StartDate   *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate     *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
 }
 
 // BrandUpcomingMilestonesRequest represents a request for brand's upcoming milestones
 type BrandUpcomingMilestonesRequest struct {
-	BrandID uuid.UUID `json:"-"`                                                   // Injected from auth context
-	Days    int       `form:"days" json:"days" binding:"omitempty,min=1,max=90"`   // Days ahead to look (default: 30)
-	Limit   int       `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Max items to return (default: 10)
+	BrandUserID uuid.UUID `json:"-"`                                                   // Injected from auth context
+	Days        int       `form:"days" json:"days" binding:"omitempty,min=1,max=90"`   // Days ahead to look (default: 30)
+	Limit       int       `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Max items to return (default: 10)
 }
 
 // GetDays returns the days (defaults to 30)
@@ -89,9 +89,9 @@ func (r *BrandUpcomingMilestonesRequest) GetLimit() int {
 
 // BrandUpcomingPaymentsRequest represents a request for brand's upcoming payments
 type BrandUpcomingPaymentsRequest struct {
-	BrandID uuid.UUID `json:"-"`                                                   // Injected from auth context
-	Days    int       `form:"days" json:"days" binding:"omitempty,min=1,max=90"`   // Days ahead to look (default: 30)
-	Limit   int       `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Max items to return (default: 10)
+	BrandUserID uuid.UUID `json:"-"`                                                   // Injected from auth context
+	Days        int       `form:"days" json:"days" binding:"omitempty,min=1,max=90"`   // Days ahead to look (default: 30)
+	Limit       int       `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Max items to return (default: 10)
 }
 
 // GetDays returns the days (defaults to 30)
@@ -112,12 +112,12 @@ func (r *BrandUpcomingPaymentsRequest) GetLimit() int {
 
 // BrandContentPerformanceRequest represents a request for brand's content performance
 type BrandContentPerformanceRequest struct {
-	BrandID    uuid.UUID  `json:"-"` // Injected from auth context
-	CampaignID *uuid.UUID `form:"campaign_id" json:"campaign_id" binding:"omitempty,uuid"`
-	Platform   *string    `form:"platform" json:"platform" binding:"omitempty,oneof=FACEBOOK TIKTOK INSTAGRAM YOUTUBE"`
-	StartDate  *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate    *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
-	Limit      int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Default: 10
+	BrandUserID uuid.UUID  `json:"-"` // Injected from auth context
+	CampaignID  *uuid.UUID `form:"campaign_id" json:"campaign_id" binding:"omitempty,uuid"`
+	Platform    *string    `form:"platform" json:"platform" binding:"omitempty,oneof=FACEBOOK TIKTOK INSTAGRAM YOUTUBE"`
+	StartDate   *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate     *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	Limit       int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Default: 10
 }
 
 // GetLimit returns the limit (defaults to 10)
@@ -130,11 +130,11 @@ func (r *BrandContentPerformanceRequest) GetLimit() int {
 
 // BrandAffiliatePerformanceRequest represents a request for brand's affiliate link performance
 type BrandAffiliatePerformanceRequest struct {
-	BrandID    uuid.UUID  `json:"-"` // Injected from auth context
-	ContractID *uuid.UUID `form:"contract_id" json:"contract_id" binding:"omitempty,uuid"`
-	StartDate  *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate    *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
-	Limit      int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Default: 10
+	BrandUserID uuid.UUID  `json:"-"` // Injected from auth context
+	ContractID  *uuid.UUID `form:"contract_id" json:"contract_id" binding:"omitempty,uuid"`
+	StartDate   *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate     *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	Limit       int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"` // Default: 10
 }
 
 // GetLimit returns the limit (defaults to 10)

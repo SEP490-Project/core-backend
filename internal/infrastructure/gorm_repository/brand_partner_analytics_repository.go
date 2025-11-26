@@ -22,14 +22,15 @@ func NewBrandPartnerAnalyticsRepository(db *gorm.DB) irepository.BrandPartnerAna
 }
 
 // GetBrandContractCount returns count of contracts for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandContractCount(ctx context.Context, brandID uuid.UUID, status *string) (int64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandContractCount(ctx context.Context, brandUserID uuid.UUID, status *string) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Table("contracts").
-		Where("brand_id = ?", brandID).
-		Where("deleted_at IS NULL")
+		Joins("inner join brands on brands.id = contracts.brand_id").
+		Where("brands.user_id = ?", brandUserID).
+		Where("contracts.deleted_at IS NULL")
 
 	if status != nil && *status != "" {
-		query = query.Where("status = ?", *status)
+		query = query.Where("contracts.status = ?", *status)
 	}
 
 	if err := query.Count(&count).Error; err != nil {
@@ -40,11 +41,12 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContractCount(ctx context.Cont
 }
 
 // GetBrandCampaignCount returns count of campaigns for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandCampaignCount(ctx context.Context, brandID uuid.UUID, status *string) (int64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandCampaignCount(ctx context.Context, brandUserID uuid.UUID, status *string) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Table("campaigns cmp").
 		Joins("JOIN contracts c ON c.id = cmp.contract_id").
-		Where("c.brand_id = ?", brandID).
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
 		Where("cmp.deleted_at IS NULL")
 
 	if status != nil && *status != "" {
@@ -59,14 +61,19 @@ func (r *brandPartnerAnalyticsRepository) GetBrandCampaignCount(ctx context.Cont
 }
 
 // GetBrandTotalRevenue returns total revenue from product sales for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandTotalRevenue(ctx context.Context, brandID uuid.UUID, startDate, endDate *time.Time) (float64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandTotalRevenue(ctx context.Context, brandUserID uuid.UUID, startDate, endDate *time.Time) (float64, error) {
 	var revenue float64
+
+	receivedStatus := enum.OrderStatusReceived.String()
+
 	query := r.db.WithContext(ctx).Table("orders o").
-		Select("COALESCE(SUM(oi.quantity * oi.unit_price), 0)").
+		Select("COALESCE(SUM(oi.subtotal), 0)").
 		Joins("JOIN order_items oi ON oi.order_id = o.id").
-		Joins("JOIN products p ON p.id = oi.product_id").
-		Where("p.brand_id = ?", brandID).
-		Where("o.status = ?", "PAID").
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Where("b.user_id = ?", brandUserID).
+		Where("o.status = ?", receivedStatus).
 		Where("o.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -84,13 +91,17 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTotalRevenue(ctx context.Conte
 }
 
 // GetBrandTotalPayments returns total payments received from contracts
-func (r *brandPartnerAnalyticsRepository) GetBrandTotalPayments(ctx context.Context, brandID uuid.UUID, startDate, endDate *time.Time) (float64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandTotalPayments(ctx context.Context, brandUserID uuid.UUID, startDate, endDate *time.Time) (float64, error) {
 	var payments float64
+
+	paidStatus := enum.ContractPaymentStatusPaid.String()
+
 	query := r.db.WithContext(ctx).Table("contract_payments cp").
 		Select("COALESCE(SUM(cp.amount), 0)").
 		Joins("JOIN contracts c ON c.id = cp.contract_id").
-		Where("c.brand_id = ?", brandID).
-		Where("cp.status = ?", "PAID").
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
+		Where("cp.status = ?", paidStatus).
 		Where("cp.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -108,13 +119,17 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTotalPayments(ctx context.Cont
 }
 
 // GetBrandPendingPayments returns pending payments for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandPendingPayments(ctx context.Context, brandID uuid.UUID) (float64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandPendingPayments(ctx context.Context, brandUserID uuid.UUID) (float64, error) {
 	var pending float64
+
+	pendingStatus := enum.ContractPaymentStatusPending.String()
+
 	query := r.db.WithContext(ctx).Table("contract_payments cp").
 		Select("COALESCE(SUM(cp.amount), 0)").
 		Joins("JOIN contracts c ON c.id = cp.contract_id").
-		Where("c.brand_id = ?", brandID).
-		Where("cp.status = ?", "PENDING").
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
+		Where("cp.status = ?", pendingStatus).
 		Where("cp.deleted_at IS NULL")
 
 	if err := query.Scan(&pending).Error; err != nil {
@@ -125,11 +140,13 @@ func (r *brandPartnerAnalyticsRepository) GetBrandPendingPayments(ctx context.Co
 }
 
 // GetBrandProductCount returns count of products for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandProductCount(ctx context.Context, brandID uuid.UUID, status *string) (int64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandProductCount(ctx context.Context, brandUserID uuid.UUID, status *string) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Table("products").
-		Where("brand_id = ?", brandID).
-		Where("deleted_at IS NULL")
+		Joins("JOIN brands ON brands.id = products.brand_id").
+		Joins("JOIN users ON users.id = brands.user_id").
+		Where("users.id = ?", brandUserID).
+		Where("products.deleted_at IS NULL")
 
 	if status != nil && *status != "" {
 		query = query.Where("status = ?", *status)
@@ -143,13 +160,16 @@ func (r *brandPartnerAnalyticsRepository) GetBrandProductCount(ctx context.Conte
 }
 
 // GetBrandOrderCount returns count of orders for a brand's products
-func (r *brandPartnerAnalyticsRepository) GetBrandOrderCount(ctx context.Context, brandID uuid.UUID, status *string, startDate, endDate *time.Time) (int64, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandOrderCount(ctx context.Context, brandUserID uuid.UUID, status *string, startDate, endDate *time.Time) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Table("orders o").
 		Select("COUNT(DISTINCT o.id)").
 		Joins("JOIN order_items oi ON oi.order_id = o.id").
-		Joins("JOIN products p ON p.id = oi.product_id").
-		Where("p.brand_id = ?", brandID).
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Joins("JOIN users u ON u.id = b.user_id").
+		Where("u.id = ?", brandUserID).
 		Where("o.deleted_at IS NULL")
 
 	if status != nil && *status != "" {
@@ -170,10 +190,10 @@ func (r *brandPartnerAnalyticsRepository) GetBrandOrderCount(ctx context.Context
 }
 
 // GetBrandTopProducts returns top products by revenue for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandTopProducts(ctx context.Context, brandID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductMetrics, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandTopProducts(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductMetrics, error) {
 	var results []dtos.BrandProductMetrics
 
-	paidStatus := enum.OrderStatusPaid.String()
+	receivedStatus := enum.OrderStatusReceived.String()
 
 	query := r.db.WithContext(ctx).Table("products p").
 		Select(`
@@ -183,11 +203,14 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopProducts(ctx context.Contex
 			p.status,
 			COUNT(DISTINCT o.id) as order_count,
 			COALESCE(SUM(oi.quantity), 0) as units_sold,
-			COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
+			COALESCE(SUM(oi.subtotal), 0) as revenue
 		`).
-		Joins("LEFT JOIN order_items oi ON oi.product_id = p.id").
-		Joins("LEFT JOIN orders o ON o.id = oi.order_id AND o.status = ?", paidStatus).
-		Where("p.brand_id = ?", brandID).
+		Joins("LEFT JOIN product_variants pv ON pv.product_id = p.id").
+		Joins("LEFT JOIN order_items oi ON oi.variant_id = pv.id").
+		Joins("LEFT JOIN orders o ON o.id = oi.order_id AND o.status = ?", receivedStatus).
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Joins("JOIN users u ON u.id = b.user_id").
+		Where("u.id = ?", brandUserID).
 		Where("p.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -209,7 +232,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopProducts(ctx context.Contex
 }
 
 // GetBrandCampaignMetrics returns campaign performance metrics for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandCampaignMetrics(ctx context.Context, brandID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandCampaignMetrics, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandCampaignMetrics(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandCampaignMetrics, error) {
 	var results []dtos.BrandCampaignMetrics
 
 	doneStatus := enum.TaskStatusDone.String()
@@ -225,15 +248,16 @@ func (r *brandPartnerAnalyticsRepository) GetBrandCampaignMetrics(ctx context.Co
 			COUNT(DISTINCT t.id) as task_count,
 			SUM(CASE WHEN t.status = ? THEN 1 ELSE 0 END) as completed_tasks,
 			COUNT(DISTINCT ct.id) as content_count,
-			COALESCE(SUM(cc.views), 0) as total_views,
-			COALESCE(SUM(cc.likes) + SUM(cc.comments) + SUM(cc.shares), 0) as total_engagements
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
+			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements
 		`, doneStatus).
 		Joins("JOIN contracts c ON c.id = cmp.contract_id").
 		Joins("LEFT JOIN milestones m ON m.campaign_id = cmp.id").
 		Joins("LEFT JOIN tasks t ON t.milestone_id = m.id").
-		Joins("LEFT JOIN contents ct ON ct.milestone_id = m.id").
+		Joins("LEFT JOIN contents ct ON ct.task_id = t.id").
 		Joins("LEFT JOIN content_channels cc ON cc.content_id = ct.id").
-		Where("c.brand_id = ?", brandID).
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
 		Where("cmp.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -255,7 +279,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandCampaignMetrics(ctx context.Co
 }
 
 // GetBrandContentMetrics returns content performance metrics for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandContentMetrics(ctx context.Context, brandID uuid.UUID, startDate, endDate *time.Time) (*dtos.BrandContentMetrics, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandContentMetrics(ctx context.Context, brandUserID uuid.UUID, startDate, endDate *time.Time) (*dtos.BrandContentMetrics, error) {
 	var result dtos.BrandContentMetrics
 
 	postedStatus := enum.ContentStatusPosted.String()
@@ -264,16 +288,18 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContentMetrics(ctx context.Con
 		Select(`
 			COUNT(DISTINCT ct.id) as total_content,
 			SUM(CASE WHEN ct.status = ? THEN 1 ELSE 0 END) as posted_content,
-			COALESCE(SUM(cc.views), 0) as total_views,
-			COALESCE(SUM(cc.likes), 0) as total_likes,
-			COALESCE(SUM(cc.comments), 0) as total_comments,
-			COALESCE(SUM(cc.shares), 0) as total_shares
+			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
+			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as total_likes,
+			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as total_comments,
+			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as total_shares
 		`, postedStatus).
-		Joins("JOIN milestones m ON m.id = ct.milestone_id").
+		Joins("JOIN tasks t ON t.id = ct.task_id").
+		Joins("JOIN milestones m ON m.id = t.milestone_id").
 		Joins("JOIN campaigns cmp ON cmp.id = m.campaign_id").
 		Joins("JOIN contracts c ON c.id = cmp.contract_id").
 		Joins("LEFT JOIN content_channels cc ON cc.content_id = ct.id").
-		Where("c.brand_id = ?", brandID).
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
 		Where("ct.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -297,7 +323,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContentMetrics(ctx context.Con
 }
 
 // GetBrandRevenueTrend returns revenue time-series for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandRevenueTrend(ctx context.Context, brandID uuid.UUID, granularity string, startDate, endDate *time.Time) ([]dtos.BrandRevenueTrendResult, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandRevenueTrend(ctx context.Context, brandUserID uuid.UUID, granularity string, startDate, endDate *time.Time) ([]dtos.BrandRevenueTrendResult, error) {
 	var results []dtos.BrandRevenueTrendResult
 
 	timeBucket := "date_trunc('day', o.created_at)"
@@ -308,19 +334,22 @@ func (r *brandPartnerAnalyticsRepository) GetBrandRevenueTrend(ctx context.Conte
 		timeBucket = "date_trunc('month', o.created_at)"
 	}
 
-	paidStatus := enum.OrderStatusPaid.String()
+	receivedStatus := enum.OrderStatusReceived.String()
 
 	query := r.db.WithContext(ctx).Table("orders o").
 		Select(`
 			`+timeBucket+` as date,
 			COUNT(DISTINCT o.id) as order_count,
 			COALESCE(SUM(oi.quantity), 0) as units_sold,
-			COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
+			COALESCE(SUM(oi.subtotal), 0) as revenue
 		`).
 		Joins("JOIN order_items oi ON oi.order_id = o.id").
-		Joins("JOIN products p ON p.id = oi.product_id").
-		Where("p.brand_id = ?", brandID).
-		Where("o.status = ?", paidStatus).
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Joins("JOIN users u ON u.id = b.user_id").
+		Where("u.id = ?", brandUserID).
+		Where("o.status = ?", receivedStatus).
 		Where("o.deleted_at IS NULL")
 
 	if startDate != nil {
@@ -340,23 +369,24 @@ func (r *brandPartnerAnalyticsRepository) GetBrandRevenueTrend(ctx context.Conte
 }
 
 // GetBrandAffiliateMetrics returns affiliate link performance for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandAffiliateMetrics(ctx context.Context, brandID uuid.UUID, startDate, endDate *time.Time) (*dtos.BrandAffiliateMetrics, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandAffiliateMetrics(ctx context.Context, brandUserID uuid.UUID, startDate, endDate *time.Time) (*dtos.BrandAffiliateMetrics, error) {
 	var result dtos.BrandAffiliateMetrics
 
 	// Get affiliate link stats
 	query := r.db.WithContext(ctx).Table("affiliate_links al").
 		Select(`
 			COUNT(DISTINCT al.id) as total_links,
-			COUNT(DISTINCT CASE WHEN al.is_active = true THEN al.id END) as active_links,
+			COUNT(DISTINCT CASE WHEN al.status = ? THEN al.id END) as active_links,
 			COALESCE(SUM(ce.click_count), 0) as total_clicks
-		`).
+		`, enum.AffiliateLinkStatusActive.String()).
 		Joins("JOIN contracts c ON c.id = al.contract_id").
 		Joins(`LEFT JOIN (
 			SELECT affiliate_link_id, COUNT(*) as click_count 
 			FROM click_events 
 			GROUP BY affiliate_link_id
 		) ce ON ce.affiliate_link_id = al.id`).
-		Where("c.brand_id = ?", brandID).
+		Joins("JOIN brands b ON b.id = c.brand_id").
+		Where("b.user_id = ?", brandUserID).
 		Where("al.deleted_at IS NULL")
 
 	if err := query.Scan(&result).Error; err != nil {
@@ -368,47 +398,73 @@ func (r *brandPartnerAnalyticsRepository) GetBrandAffiliateMetrics(ctx context.C
 }
 
 // GetBrandContractDetails returns contract details for a brand
-func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Context, brandID uuid.UUID, limit int) ([]dtos.BrandContractDetails, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Context, brandUserID uuid.UUID, limit int) ([]dtos.BrandContractDetails, error) {
 	var results []dtos.BrandContractDetails
 
 	paidStatus := enum.ContractPaymentStatusPaid.String()
 	pendingStatus := enum.ContractPaymentStatusPending.String()
 
-	query := r.db.WithContext(ctx).Table("contracts c").
-		Select(`
-			c.id as contract_id,
-			c.contract_number,
-			c.type,
-			c.status,
-			c.total_value,
-			c.start_date,
-			c.end_date,
-			COALESCE(paid.amount, 0) as paid_amount,
-			COALESCE(pending.amount, 0) as pending_amount,
-			COUNT(DISTINCT cmp.id) as campaign_count
-		`).
-		Joins(`LEFT JOIN (
-			SELECT contract_id, SUM(amount) as amount 
-			FROM contract_payments 
-			WHERE status = ? AND deleted_at IS NULL
-			GROUP BY contract_id
-		) paid ON paid.contract_id = c.id`, paidStatus).
-		Joins(`LEFT JOIN (
-			SELECT contract_id, SUM(amount) as amount 
-			FROM contract_payments 
-			WHERE status = ? AND deleted_at IS NULL
-			GROUP BY contract_id
-		) pending ON pending.contract_id = c.id`, pendingStatus).
-		Joins("LEFT JOIN campaigns cmp ON cmp.contract_id = c.id AND cmp.deleted_at IS NULL").
-		Where("c.brand_id = ?", brandID).
-		Where("c.deleted_at IS NULL").
-		Group("c.id, c.contract_number, c.type, c.status, c.total_value, c.start_date, c.end_date, paid.amount, pending.amount").
-		Order("c.start_date DESC").
-		Limit(limit)
+	query := `
+		WITH target_contracts AS (
+			-- 1. First, find ONLY the contracts for this user.
+			SELECT c.id, c.contract_number, c.type, c.status, c.financial_terms, c.start_date, c.end_date
+			FROM contracts c
+			JOIN brands b ON b.id = c.brand_id
+			WHERE b.user_id = ? 
+			  AND c.deleted_at IS NULL
+		),
+		paid_payments AS (
+			-- 2. Only sum payments for the contracts found above
+			SELECT cp.contract_id, SUM(cp.amount) as amount
+			FROM contract_payments cp
+			JOIN target_contracts tc ON tc.id = cp.contract_id
+			WHERE cp.status = ? AND cp.deleted_at IS NULL
+			GROUP BY cp.contract_id
+		),
+		pending_payments AS (
+			-- 3. Only sum pending for the contracts found above
+			SELECT cp.contract_id, SUM(cp.amount) as amount
+			FROM contract_payments cp
+			JOIN target_contracts tc ON tc.id = cp.contract_id
+			WHERE cp.status = ? AND cp.deleted_at IS NULL
+			GROUP BY cp.contract_id
+		),
+		campaign_counts AS (
+			-- 4. Only count campaigns for the contracts found above
+			SELECT cmp.contract_id, COUNT(cmp.id) as cnt
+			FROM campaigns cmp
+			JOIN target_contracts tc ON tc.id = cmp.contract_id
+			WHERE cmp.deleted_at IS NULL
+			GROUP BY cmp.contract_id
+		)
+		SELECT tc.id as contract_id,
+			   tc.contract_number,
+			   tc.type,
+			   tc.status,
+			   (tc.financial_terms ->> 'total_cost')::numeric as total_value,
+			   tc.start_date,
+			   tc.end_date,
+			   COALESCE(paid.amount, 0)    as paid_amount,
+			   COALESCE(pending.amount, 0) as pending_amount,
+			   COALESCE(cmp.cnt, 0)        as campaign_count
+		FROM target_contracts tc
+				 LEFT JOIN paid_payments paid ON paid.contract_id = tc.id
+				 LEFT JOIN pending_payments pending ON pending.contract_id = tc.id
+				 LEFT JOIN campaign_counts cmp ON cmp.contract_id = tc.id
+		ORDER BY tc.start_date DESC
+		LIMIT ?;
+	`
 
-	if err := query.Scan(&results).Error; err != nil {
+	// Execute the raw query using GORM
+	// Parameter order must match the ? in the query:
+	// 1. brandUserID
+	// 2. paidStatus
+	// 3. pendingStatus
+	// 4. limit
+	if err := r.db.WithContext(ctx).Raw(query, brandUserID, paidStatus, pendingStatus, limit).Scan(&results).Error; err != nil {
 		zap.L().Error("Failed to get brand contract details", zap.Error(err))
 		return nil, err
 	}
+
 	return results, nil
 }

@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type BrandPartnerAnalyticsHandler struct {
@@ -20,28 +19,6 @@ func NewBrandPartnerAnalyticsHandler(analyticsService iservice.BrandPartnerAnaly
 	}
 }
 
-// getBrandIDFromContext extracts the brand ID from the user's context
-// In a real implementation, this would get the brand associated with the logged-in brand partner user
-func (h *BrandPartnerAnalyticsHandler) getBrandIDFromContext(c *gin.Context) (uuid.UUID, error) {
-	// Try to get brand_id from query param first (for testing/admin override)
-	brandIDStr := c.Query("brand_id")
-	if brandIDStr != "" {
-		return uuid.Parse(brandIDStr)
-	}
-
-	// Get from user context (brand partner should have associated brand_id)
-	if brandID, exists := c.Get("brand_id"); exists {
-		if id, ok := brandID.(uuid.UUID); ok {
-			return id, nil
-		}
-		if idStr, ok := brandID.(string); ok {
-			return uuid.Parse(idStr)
-		}
-	}
-
-	return uuid.Nil, nil
-}
-
 // GetDashboard returns the complete Brand Partner analytics dashboard
 //
 //	@Summary		Get Brand Partner Dashboard
@@ -49,25 +26,20 @@ func (h *BrandPartnerAnalyticsHandler) getBrandIDFromContext(c *gin.Context) (uu
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
-//	@Param			year		query		int		false	"Year for filtering (defaults to current year)"
-//	@Param			month		query		int		false	"Month for filtering (defaults to current month)"
-//	@Success		200			{object}	responses.APIResponse{data=responses.BrandPartnerDashboardResponse}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
+//	@Param			year	query		int	false	"Year for filtering (defaults to current year)"
+//	@Param			month	query		int	false	"Month for filtering (defaults to current month)"
+//	@Success		200		{object}	responses.APIResponse{data=responses.BrandPartnerDashboardResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/analytics/brand-partner/dashboard [get]
 func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -77,7 +49,7 @@ func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := h.analyticsService.GetDashboard(ctx, brandID, &req)
+	dashboard, err := h.analyticsService.GetDashboard(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch dashboard: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -93,7 +65,6 @@ func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
 //	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
 //	@Param			limit		query		int		false	"Number of products to return (default: 10, max: 50)"
@@ -106,13 +77,9 @@ func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
 func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -122,7 +89,7 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 		return
 	}
 
-	products, err := h.analyticsService.GetTopProducts(ctx, brandID, &req)
+	products, err := h.analyticsService.GetTopProducts(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch top products: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -138,7 +105,6 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
 //	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
 //	@Param			status		query		string	false	"Filter by campaign status (DRAFT, ACTIVE, IN_PROGRESS, PENDING, FINISHED, CANCELLED)"
@@ -152,13 +118,9 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -168,7 +130,7 @@ func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
 		return
 	}
 
-	campaigns, err := h.analyticsService.GetCampaignMetrics(ctx, brandID, &req)
+	campaigns, err := h.analyticsService.GetCampaignMetrics(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch campaign metrics: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -184,7 +146,6 @@ func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
 //	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
 //	@Success		200			{object}	responses.APIResponse{data=responses.BrandContentMetric}
@@ -196,13 +157,9 @@ func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
 func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -212,7 +169,7 @@ func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
 		return
 	}
 
-	content, err := h.analyticsService.GetContentMetrics(ctx, brandID, &req)
+	content, err := h.analyticsService.GetContentMetrics(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch content metrics: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -228,7 +185,6 @@ func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
 //	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
 //	@Param			granularity	query		string	false	"Time granularity (DAY, WEEK, MONTH - default: DAY)"
@@ -241,13 +197,9 @@ func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
 func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -257,7 +209,7 @@ func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 		return
 	}
 
-	trend, err := h.analyticsService.GetRevenueTrend(ctx, brandID, &req)
+	trend, err := h.analyticsService.GetRevenueTrend(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch revenue trend: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -273,7 +225,6 @@ func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
 //	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
 //	@Success		200			{object}	responses.APIResponse{data=responses.BrandAffiliateMetric}
@@ -285,13 +236,9 @@ func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 func (h *BrandPartnerAnalyticsHandler) GetAffiliateMetrics(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -301,7 +248,7 @@ func (h *BrandPartnerAnalyticsHandler) GetAffiliateMetrics(c *gin.Context) {
 		return
 	}
 
-	affiliate, err := h.analyticsService.GetAffiliateMetrics(ctx, brandID, &req)
+	affiliate, err := h.analyticsService.GetAffiliateMetrics(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch affiliate metrics: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -317,25 +264,20 @@ func (h *BrandPartnerAnalyticsHandler) GetAffiliateMetrics(c *gin.Context) {
 //	@Tags			Brand Partner Analytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID (optional, defaults to user's brand)"
-//	@Param			status		query		string	false	"Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)"
-//	@Param			limit		query		int		false	"Number of contracts to return (default: 10, max: 50)"
-//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandContractDetail}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
+//	@Param			status	query		string	false	"Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)"
+//	@Param			limit	query		int		false	"Number of contracts to return (default: 10, max: 50)"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.BrandContractDetail}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/analytics/brand-partner/contracts [get]
 func (h *BrandPartnerAnalyticsHandler) GetContractDetails(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	brandID, err := h.getBrandIDFromContext(c)
+	brandUserID, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid brand ID", http.StatusBadRequest))
-		return
-	}
-	if brandID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Brand ID is required", http.StatusBadRequest))
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -345,7 +287,7 @@ func (h *BrandPartnerAnalyticsHandler) GetContractDetails(c *gin.Context) {
 		return
 	}
 
-	contracts, err := h.analyticsService.GetContractDetails(ctx, brandID, &req)
+	contracts, err := h.analyticsService.GetContractDetails(ctx, brandUserID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch contract details: "+err.Error(), http.StatusInternalServerError))
 		return

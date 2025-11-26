@@ -39,7 +39,7 @@ type PreOrderHandler struct {
 //	@Param			limit	query		int		false	"Items per page (default: 10, max: 100)"
 //	@Param			search	query		string	false	"Search by product name or receiver full name"
 //	@Param			status	query		string	false	"Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -184,7 +184,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.StaffPreOrdersQuery	false	"Staff preorders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -272,7 +272,7 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 //	@Param			orderID	path		string				true	"Order ID"
 //	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
 //	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
