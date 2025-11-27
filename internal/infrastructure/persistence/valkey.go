@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"core-backend/config"
+	"core-backend/pkg/utils"
 	"fmt"
 	"strconv"
 	"time"
@@ -36,20 +37,33 @@ func NewValkeyCache() *ValkeyCache {
 		ctx:    context.Background(),
 	}
 
-	// Test connection
-	zap.L().Debug("Testing Valkey connection")
-	if err := cache.Ping(); err != nil {
-		zap.L().Error("Failed to connect to Valkey",
-			zap.String("host", cfg.Host),
-			zap.Int("port", cfg.Port),
-			zap.Error(err))
-		return nil
-	}
+	// Test connection in background to avoid blocking startup
+	// The readiness probe should handle traffic gating until this succeeds
+	go func() {
+		zap.L().Debug("Testing Valkey connection in background")
 
-	zap.L().Info("Valkey cache connected successfully",
-		zap.String("host", cfg.Host),
-		zap.Int("port", cfg.Port),
-		zap.Int("db", cfg.DB))
+		retryOpts := utils.RetryOptions{
+			MaxAttempts:       30,
+			BaseBackoff:       1 * time.Second,
+			BackoffMultiplier: 1.0,
+			AttemptTimeout:    3 * time.Second,
+		}
+
+		err := utils.RunWithRetry(context.Background(), retryOpts, func(ctx context.Context) error {
+			return client.Ping(ctx).Err()
+		})
+
+		if err != nil {
+			zap.L().Error("Failed to connect to Valkey after background retries",
+				zap.String("host", cfg.Host),
+				zap.Int("port", cfg.Port),
+				zap.Error(err))
+		} else {
+			zap.L().Info("Valkey connection established successfully",
+				zap.String("host", cfg.Host),
+				zap.Int("port", cfg.Port))
+		}
+	}()
 
 	return cache
 }
