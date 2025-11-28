@@ -493,9 +493,11 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
 	configGroup := group.Group("configs")
 	{
-		writeGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		adminOnlyGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
 		{
-			writeGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.PUT(":key", adminConfigHandler.UpdateConfig)
+			adminOnlyGroup.PUT("", adminConfigHandler.UpdateConfigs)
 		}
 
 		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
