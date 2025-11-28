@@ -116,7 +116,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupTikTokSocialRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
-		r.setupAIRoutes(v1)
 		if r.config.IsDevelopmentDebugging() {
 			r.setupTestRoutes(v1)
 		}
@@ -350,6 +349,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
+	v1WithoutTimeout := engine.Group("/api/v1")
+	{
+		r.setupAIRoutes(v1WithoutTimeout)
+	}
 }
 
 // setupUserRoutes sets up routes for user management
