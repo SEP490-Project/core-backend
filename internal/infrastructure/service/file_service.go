@@ -83,11 +83,6 @@ func (s *fileService) UploadVideoStream(ctx context.Context, req *requests.Uploa
 		return nil, nil
 	}
 
-	if err = s.extractAndSaveFileMetadataAsync(ctx, fileRecord, partPath); err != nil {
-		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to extract and save file metadata: %v", err))
-		return nil, fmt.Errorf("failed to extract and save file metadata: %w", err)
-	}
-
 	// Last chunk? assembled file -> upload
 	zap.L().Info("Final chunk received, starting upload...",
 		zap.String("filePath", partPath),
@@ -97,6 +92,11 @@ func (s *fileService) UploadVideoStream(ctx context.Context, req *requests.Uploa
 	if err = os.Rename(partPath, finalPath); err != nil {
 		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to rename assembled file: %v", err))
 		return nil, fmt.Errorf("failed to finalize file (rename): %w", err)
+	}
+
+	if err = s.extractAndSaveFileMetadataAsync(ctx, fileRecord, finalPath); err != nil {
+		s.markFileFailed(ctx, fileRecord.ID, fmt.Sprintf("failed to extract and save file metadata: %v", err))
+		return nil, fmt.Errorf("failed to extract and save file metadata: %w", err)
 	}
 
 	pathResp, err := s.enqueueVideoUploadTask(ctx, req, finalPath, fileRecord.ID)

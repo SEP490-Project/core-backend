@@ -14,6 +14,7 @@ import (
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -659,7 +660,7 @@ func (s *ContentService) determineWorkflowRoute(ctx context.Context, contentID u
 	// Get content channels with channel preload
 	contentChannels, _, err := s.contentChannelRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
-			return db.Where("content_id = ?", contentID).Preload("Channel")
+			return db.Joins("Content").Joins("Channel").Where("content_channels.content_id = ?", contentID)
 		},
 		nil, 0, 0,
 	)
@@ -668,10 +669,12 @@ func (s *ContentService) determineWorkflowRoute(ctx context.Context, contentID u
 	}
 
 	// Check if any channel is FACEBOOK or TIKTOK (external brand channels)
+	awaitBrandAllowedChannels := []string{"FACEBOOK", "TIKTOK"}
 	for _, cc := range contentChannels {
 		if cc.Channel != nil {
-			channelName := cc.Channel.Name
-			if channelName == "FACEBOOK" || channelName == "TIKTOK" {
+			if (utils.ContainsSlice(awaitBrandAllowedChannels, strings.ToUpper(cc.Channel.Code)) ||
+				utils.ContainsSlice(awaitBrandAllowedChannels, strings.ToUpper(cc.Channel.Name))) &&
+				cc.Content.TaskID != nil {
 				return enum.ContentStatusAwaitBrand, nil
 			}
 		}
