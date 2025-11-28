@@ -922,10 +922,18 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 	}
 
 	tiktokInfoGroup := group.Group("/social/tiktok")
-	tiktokInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
-		tiktokInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
-		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		adminInfoGroup := tiktokInfoGroup.Group("")
+		adminInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
+		}
+
+		generalInfoGroup := tiktokInfoGroup.Group("")
+		generalInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
+		{
+			generalInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		}
 	}
 }
 
