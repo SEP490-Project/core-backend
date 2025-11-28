@@ -1127,6 +1127,24 @@ definitions:
     - CapacityUnitG
     - CapacityUnitKG
     - CapacityUnitOZ
+  enum.ConfigValueType:
+    enum:
+    - STRING
+    - TEXTAREA
+    - NUMBER
+    - BOOLEAN
+    - JSON
+    - ARRAY
+    - TIME
+    type: string
+    x-enum-varnames:
+    - ConfigValueTypeString
+    - ConfigValueTypeTextArea
+    - ConfigValueTypeNumber
+    - ConfigValueTypeBoolean
+    - ConfigValueTypeJSON
+    - ConfigValueTypeArray
+    - ConfigValueTypeTime
   enum.ContainerType:
     enum:
     - BOTTLE
@@ -1933,6 +1951,10 @@ definitions:
     - body
     - title
     - user_id
+    type: object
+  requests.BulkUpdateAdminConfigRequest:
+    additionalProperties:
+      type: string
     type: object
   requests.BulkVariantRequest:
     properties:
@@ -3178,6 +3200,13 @@ definitions:
     - type
     - user_id
     type: object
+  requests.UpdateAdminConfigRequest:
+    properties:
+      value:
+        type: string
+    required:
+    - value
+    type: object
   requests.UpdateAffiliateLinkRequest:
     properties:
       status:
@@ -3845,8 +3874,9 @@ definitions:
         example: My Awesome Site
         type: string
       value_type:
+        allOf:
+        - $ref: '#/definitions/enum.ConfigValueType'
         example: STRING
-        type: string
     type: object
   responses.AdminDashboardResponse:
     properties:
@@ -11481,6 +11511,74 @@ paths:
       summary: Get all config values
       tags:
       - Admin Config
+    put:
+      consumes:
+      - application/json
+      description: Update multiple config values at once
+      parameters:
+      - description: Bulk Update Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BulkUpdateAdminConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Configs updated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk update config values
+      tags:
+      - Admin Config
+  /api/v1/configs/{key}:
+    put:
+      consumes:
+      - application/json
+      description: Update a single config value by key
+      parameters:
+      - description: Config Key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Update Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateAdminConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config updated successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a config value
+      tags:
+      - Admin Config
   /api/v1/configs/representative:
     get:
       consumes:
@@ -13958,6 +14056,32 @@ paths:
       summary: Update GHN Order Delivery Status
       tags:
       - ghn-mocking
+  /api/v1/ghn/webhook:
+    get:
+      consumes:
+      - application/json
+      description: Receive order update from external service
+      parameters:
+      - description: Order status
+        in: query
+        name: status
+        required: true
+        type: string
+      - description: Order code
+        in: query
+        name: code
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Order Update Webhook
+      tags:
+      - Webhook
   /api/v1/location/address:
     post:
       consumes:
