@@ -82,28 +82,28 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 	}
 
 	// // Authorization rule: only BRAND_PARTNER can move to REVISION or APPROVED
-	var roleStr *string
-	roleStr, err = extractUserRoles(c)
-	if err != nil {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context: "+err.Error(), http.StatusForbidden))
-		return
-	}
+	// var roleStr *string
+	// roleStr, err = extractUserRoles(c)
+	// if err != nil {
+	// 	c.JSON(http.StatusForbidden, responses.ErrorResponse("missing role in context: "+err.Error(), http.StatusForbidden))
+	// 	return
+	// }
 
-	if *roleStr == string(enum.UserRoleAdmin) {
-		goto SkipAdminRoleCheck
-	}
+	// 	if *roleStr == string(enum.UserRoleAdmin) {
+	// 		goto SkipAdminRoleCheck
+	// 	}
 
-	if target == enum.TaskStatusDone {
-		if *roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
-			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move Task to DONE", http.StatusForbidden))
-			return
-		}
-	} else if *roleStr == string(enum.UserRoleBrandPartner) {
-		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
-		return
-	}
+	// 	if target == enum.TaskStatusDone {
+	// 		if *roleStr != string(enum.UserRoleBrandPartner) { // could extend to Admin if desired
+	// 			c.JSON(http.StatusForbidden, responses.ErrorResponse("only BRAND_PARTNER can move Task to DONE", http.StatusForbidden))
+	// 			return
+	// 		}
+	// 	} else if *roleStr == string(enum.UserRoleBrandPartner) {
+	// 		c.JSON(http.StatusForbidden, responses.ErrorResponse("BRAND_PARTNER do not have this permission", http.StatusForbidden))
+	// 		return
+	// 	}
 
-SkipAdminRoleCheck:
+	// SkipAdminRoleCheck:
 
 	userID, err := extractUserIDFromContext(c)
 	if err != nil {
@@ -469,7 +469,7 @@ func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
 
 	//Find Order by code
 	// Call service with these parameters
-	err := h.StateTransferService.MoveOrderToStateByGHNWebhook(ctx, code, enum.GHNDeliveryStatus(status))
+	err := h.MoveOrderToStateByGHNWebhook(ctx, code, enum.GHNDeliveryStatus(status))
 	if err != nil {
 		zap.L().Error("Failed to move order to GHN hook", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to move order: "+err.Error(), http.StatusInternalServerError))
