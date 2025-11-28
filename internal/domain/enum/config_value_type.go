@@ -8,17 +8,18 @@ import (
 type ConfigValueType string
 
 const (
-	ConfigValueTypeString  ConfigValueType = "STRING"
-	ConfigValueTypeNumber  ConfigValueType = "NUMBER"
-	ConfigValueTypeBoolean ConfigValueType = "BOOLEAN"
-	ConfigValueTypeJSON    ConfigValueType = "JSON"
-	ConfigValueTypeArray   ConfigValueType = "ARRAY"
-	ConfigValueTypeTime    ConfigValueType = "TIME"
+	ConfigValueTypeString   ConfigValueType = "STRING"
+	ConfigValueTypeTextArea ConfigValueType = "TEXTAREA"
+	ConfigValueTypeNumber   ConfigValueType = "NUMBER"
+	ConfigValueTypeBoolean  ConfigValueType = "BOOLEAN"
+	ConfigValueTypeJSON     ConfigValueType = "JSON"
+	ConfigValueTypeArray    ConfigValueType = "ARRAY"
+	ConfigValueTypeTime     ConfigValueType = "TIME"
 )
 
 func (cvt ConfigValueType) IsValid() bool {
 	switch cvt {
-	case ConfigValueTypeString, ConfigValueTypeNumber, ConfigValueTypeBoolean, ConfigValueTypeJSON, ConfigValueTypeArray, ConfigValueTypeTime:
+	case ConfigValueTypeString, ConfigValueTypeTextArea, ConfigValueTypeNumber, ConfigValueTypeBoolean, ConfigValueTypeJSON, ConfigValueTypeArray, ConfigValueTypeTime:
 		return true
 	}
 	return false

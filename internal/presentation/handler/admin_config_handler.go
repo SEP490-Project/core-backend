@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -97,4 +98,97 @@ func (h *AdminConfigHandler) GetRepresentativeConfigs(c *gin.Context) {
 
 	resposne := responses.SuccessResponse("Successfully retrieved representative config values", utils.IntPtr(http.StatusOK), configResponses)
 	c.JSON(http.StatusOK, resposne)
+}
+
+// UpdateConfig godoc
+//
+//	@Summary		Update a config value
+//	@Description	Update a single config value by key
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Param			key		path		string							true	"Config Key"
+//	@Param			request	body		requests.UpdateAdminConfigRequest	true	"Update Request"
+//	@Success		200		{object}	responses.APIResponse			"Config updated successfully"
+//	@Failure		400		{object}	responses.APIResponse			"Bad Request"
+//	@Failure		500		{object}	responses.APIResponse			"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/configs/{key} [put]
+func (h *AdminConfigHandler) UpdateConfig(c *gin.Context) {
+	key := c.Param("key")
+	var req requests.UpdateAdminConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err := h.adminConfigService.UpdateConfigByKey(ctx, key, req.Value, uow); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to update config: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to commit transaction", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Config updated successfully", nil, nil))
+}
+
+// UpdateConfigs godoc
+//
+//	@Summary		Bulk update config values
+//	@Description	Update multiple config values at once
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.BulkUpdateAdminConfigRequest	true	"Bulk Update Request"
+//	@Success		200		{object}	responses.APIResponse				"Configs updated successfully"
+//	@Failure		400		{object}	responses.APIResponse				"Bad Request"
+//	@Failure		500		{object}	responses.APIResponse				"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/configs [put]
+func (h *AdminConfigHandler) UpdateConfigs(c *gin.Context) {
+	var req requests.BulkUpdateAdminConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			uow.Rollback()
+			panic(r)
+		}
+	}()
+
+	if err := h.adminConfigService.UpdateConfigs(ctx, req, uow); err != nil {
+		uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to update configs: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to commit transaction", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Configs updated successfully", nil, nil))
 }
