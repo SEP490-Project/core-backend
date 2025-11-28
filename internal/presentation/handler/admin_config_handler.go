@@ -107,11 +107,11 @@ func (h *AdminConfigHandler) GetRepresentativeConfigs(c *gin.Context) {
 //	@Tags			Admin Config
 //	@Accept			json
 //	@Produce		json
-//	@Param			key		path		string							true	"Config Key"
+//	@Param			key		path		string								true	"Config Key"
 //	@Param			request	body		requests.UpdateAdminConfigRequest	true	"Update Request"
-//	@Success		200		{object}	responses.APIResponse			"Config updated successfully"
-//	@Failure		400		{object}	responses.APIResponse			"Bad Request"
-//	@Failure		500		{object}	responses.APIResponse			"Internal server error"
+//	@Success		200		{object}	responses.APIResponse				"Config updated successfully"
+//	@Failure		400		{object}	responses.APIResponse				"Bad Request"
+//	@Failure		500		{object}	responses.APIResponse				"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/configs/{key} [put]
 func (h *AdminConfigHandler) UpdateConfig(c *gin.Context) {
@@ -158,9 +158,9 @@ func (h *AdminConfigHandler) UpdateConfig(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.BulkUpdateAdminConfigRequest	true	"Bulk Update Request"
-//	@Success		200		{object}	responses.APIResponse				"Configs updated successfully"
-//	@Failure		400		{object}	responses.APIResponse				"Bad Request"
-//	@Failure		500		{object}	responses.APIResponse				"Internal server error"
+//	@Success		200		{object}	responses.APIResponse					"Configs updated successfully"
+//	@Failure		400		{object}	responses.APIResponse					"Bad Request"
+//	@Failure		500		{object}	responses.APIResponse					"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/configs [put]
 func (h *AdminConfigHandler) UpdateConfigs(c *gin.Context) {
