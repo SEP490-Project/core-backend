@@ -25,6 +25,14 @@ func (us UserRole) IsValid() bool {
 	return false
 }
 
+func (us UserRole) IsStaff() bool {
+	switch us {
+	case UserRoleAdmin, UserRoleMarketingStaff, UserRoleContentStaff, UserRoleSalesStaff:
+		return true
+	}
+	return false
+}
+
 func (us *UserRole) Scan(value any) error {
 	s, ok := value.([]byte)
 	if !ok {

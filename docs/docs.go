@@ -6896,6 +6896,55 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update multiple config values at once",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Bulk update config values",
+                "parameters": [
+                    {
+                        "description": "Bulk Update Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.BulkUpdateAdminConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Configs updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/configs/representative": {
@@ -6931,6 +6980,64 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/configs/{key}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a single config value by key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Update a config value",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Config Key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateAdminConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Config updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -10654,6 +10761,45 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ghn/webhook": {
+            "get": {
+                "description": "Receive order update from external service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Webhook"
+                ],
+                "summary": "Order Update Webhook",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order status",
+                        "name": "status",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order code",
+                        "name": "code",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -19883,6 +20029,27 @@ const docTemplate = `{
                 "CapacityUnitOZ"
             ]
         },
+        "enum.ConfigValueType": {
+            "type": "string",
+            "enum": [
+                "STRING",
+                "TEXTAREA",
+                "NUMBER",
+                "BOOLEAN",
+                "JSON",
+                "ARRAY",
+                "TIME"
+            ],
+            "x-enum-varnames": [
+                "ConfigValueTypeString",
+                "ConfigValueTypeTextArea",
+                "ConfigValueTypeNumber",
+                "ConfigValueTypeBoolean",
+                "ConfigValueTypeJSON",
+                "ConfigValueTypeArray",
+                "ConfigValueTypeTime"
+            ]
+        },
         "enum.ContainerType": {
             "type": "string",
             "enum": [
@@ -21004,6 +21171,12 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string"
                 }
+            }
+        },
+        "requests.BulkUpdateAdminConfigRequest": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
             }
         },
         "requests.BulkVariantRequest": {
@@ -22689,6 +22862,17 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateAdminConfigRequest": {
+            "type": "object",
+            "required": [
+                "value"
+            ],
+            "properties": {
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.UpdateAffiliateLinkRequest": {
             "type": "object",
             "properties": {
@@ -23591,7 +23775,11 @@ const docTemplate = `{
                     "example": "My Awesome Site"
                 },
                 "value_type": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ConfigValueType"
+                        }
+                    ],
                     "example": "STRING"
                 }
             }

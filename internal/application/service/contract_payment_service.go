@@ -224,7 +224,7 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 
 	contractRepo := uow.Contracts()
 	contractPaymentRepo := uow.ContractPayments()
-	minimumDayBeforeDueDate := c.config.MinimumDayBeforeContracPaymentDue
+	minimumDayBeforeDueDate := c.config.MinimumDayBeforeContractPaymentDue
 
 	contract, err := contractRepo.GetByID(ctx, contractID, []string{"Brand"})
 	if err != nil {

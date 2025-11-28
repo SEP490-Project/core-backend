@@ -6,8 +6,9 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"fmt"
-	"github.com/aws/smithy-go/ptr"
 	"time"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/google/uuid"
 )

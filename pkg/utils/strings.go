@@ -39,11 +39,21 @@ func ToTitleCase(input string) string {
 }
 
 // ToSnakeCase converts a string to snake_case format.
+// It handles CamelCase (e.g. "RepresentativeName" -> "representative_name")
+// and replaces non-alphanumeric characters with underscores.
 func ToSnakeCase(input string) string {
+	// First, handle CamelCase to snake_case conversion
+	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+	snake := matchFirstCap.ReplaceAllString(input, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+
+	// Then replace non-alphanumeric characters with underscores
 	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
-	snakeCasedString := regex.ReplaceAllString(input, "_")
-	snakeCasedString = strings.ToLower(snakeCasedString)
-	return snakeCasedString
+	snake = regex.ReplaceAllString(snake, "_")
+
+	return strings.ToLower(snake)
 }
 
 // ToStructFieldName converts a string with underscores to a Struct Field Name

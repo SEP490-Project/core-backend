@@ -116,7 +116,6 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupTikTokSocialRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
-		r.setupAIRoutes(v1)
 		if r.config.IsDevelopmentDebugging() {
 			r.setupTestRoutes(v1)
 		}
@@ -350,6 +349,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
+	v1WithoutTimeout := engine.Group("/api/v1")
+	{
+		r.setupAIRoutes(v1WithoutTimeout)
+	}
 }
 
 // setupUserRoutes sets up routes for user management
@@ -493,9 +496,11 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
 	configGroup := group.Group("configs")
 	{
-		writeGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		adminOnlyGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
 		{
-			writeGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.PUT(":key", adminConfigHandler.UpdateConfig)
+			adminOnlyGroup.PUT("", adminConfigHandler.UpdateConfigs)
 		}
 
 		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
@@ -917,10 +922,18 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 	}
 
 	tiktokInfoGroup := group.Group("/social/tiktok")
-	tiktokInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
-		tiktokInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
-		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		adminInfoGroup := tiktokInfoGroup.Group("")
+		adminInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
+		}
+
+		generalInfoGroup := tiktokInfoGroup.Group("")
+		generalInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
+		{
+			generalInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		}
 	}
 }
 
