@@ -335,7 +335,7 @@ func (t *TikTokProxy) ValidateContentRequest(
 	}
 
 	if len(req.FileInfoMetadata) > 0 {
-		allowedExtensions := []string{".mp4", ".mov", ".webm"}
+		allowedExtensions := []string{"mp4", "mov", "webm"}
 		if !utils.ContainsSlice(allowedExtensions, req.FileInfoMetadata["extension"]) {
 			errorsSlice = append(errorsSlice, fmt.Errorf("invalid video file extension: %s. Allowed extensions are: %s",
 				req.FileInfoMetadata["extension"], utils.JoinSliceFunc(allowedExtensions, ", ", func(s string) string { return "'" + s + "'" })))
