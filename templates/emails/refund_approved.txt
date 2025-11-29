@@ -11,6 +11,7 @@ Order Number: {{.OrderCode}}
 Refund Amount: {{.RefundAmount}}
 Refunded On: {{.RefundedDate}}
 Payment Method: {{.PaymentMethod}}
+Attached Image: {{.ImageURL}}
 
 The refunded amount has been returned to your original payment method.
 Please note that depending on your bank or payment provider, the funds may take 3–5 business days to appear in your account.

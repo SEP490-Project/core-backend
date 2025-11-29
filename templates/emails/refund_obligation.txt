@@ -1,0 +1,30 @@
+Order Cancellation & Refund Notification
+========================================
+
+Hello {{.CustomerName}},
+
+We sincerely apologize for the inconvenience caused.
+Your recent order has been canceled by our staff due to the issue reported.
+
+Refund Details:
+---------------
+Order Code: {{.OrderCode}}
+Refund Amount: {{.RefundAmount}}
+Refund Method: {{.RefundMethod}}
+Refund Processed At: {{.RefundedAt}}
+
+We have already processed your refund.
+Depending on your bank or payment provider, the refund may take between 3–7 business days to appear in your account.
+
+Additional Information:
+-----------------------
+Attached Image: {{.ImageURL}} (image provided by our support team)
+
+We truly regret any inconvenience this situation may have caused.
+If you have any questions or need further assistance, please feel free to contact our support team.
+
+Thank you for your understanding and patience.
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.
