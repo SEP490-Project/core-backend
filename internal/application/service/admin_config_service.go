@@ -22,6 +22,19 @@ import (
 type AdminConfigService struct {
 	adminConfig *config.AdminConfig
 	configRepo  irepository.GenericRepository[model.Config]
+	listeners   []func()
+}
+
+// RegisterListener implements iservice.AdminConfigService.
+func (a *AdminConfigService) RegisterListener(listener func()) {
+	a.listeners = append(a.listeners, listener)
+}
+
+// notifyListeners calls all registered listeners.
+func (a *AdminConfigService) notifyListeners() {
+	for _, listener := range a.listeners {
+		go listener() // Run in goroutine to avoid blocking
+	}
 }
 
 // GetAllConfig implements iservice.AdminConfigService.
@@ -238,6 +251,9 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 	// 3. Update in-memory
 	_ = utils.SetStringToReflectValue(a.adminConfig, key, value)
 
+	// 4. Notify listeners
+	a.notifyListeners()
+
 	return nil
 }
 
@@ -308,6 +324,9 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 	for key, value := range configs {
 		_ = utils.SetStringToReflectValue(a.adminConfig, key, value)
 	}
+
+	// 4. Notify listeners
+	a.notifyListeners()
 
 	return nil
 }
