@@ -18,6 +18,7 @@ const (
 	ConfigKeyRepresentativeBankName            AdminConfigConst = "REPRESENTATIVE_BANK_NAME"
 	ConfigKeyRepresentativeBankAccountNumber   AdminConfigConst = "REPRESENTATIVE_BANK_ACCOUNT_NUMBER"
 	ConfigKeyRepresentativeBankAccountHolder   AdminConfigConst = "REPRESENTATIVE_BANK_ACCOUNT_HOLDER"
+	ConfigKeyRepresentativeCompanyAddress      AdminConfigConst = "REPRESENTATIVE_COMPANY_ADDRESS"
 )
 
 func (c AdminConfigConst) String() string { return string(c) }

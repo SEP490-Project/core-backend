@@ -1,0 +1,21 @@
+Compensation Request Approved
+=============================
+
+Hello {{.CustomerName}},
+
+Good news! Your compensation request for your order has been reviewed and approved.
+
+Approved Request Details:
+------------------------
+Order Number: {{.OrderCode}}
+Approved Amount: {{.ApprovedAmount}}
+Reason: {{.Reason}}
+Attached Images: {{.ImageURL}}
+
+The approved compensation will be processed shortly. Please allow a few business days for the transaction to complete.
+
+Thank you for your patience and cooperation.
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.

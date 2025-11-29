@@ -331,7 +331,11 @@ func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, 
 		switch notificationType {
 		case enum.NotificationTypeEmail:
 			emailReq := req.ToEmailRequest()
-			emailReq.To = user.Email
+			if req.CustomReceiver != nil {
+				emailReq.To = *req.CustomReceiver
+			} else {
+				emailReq.To = user.Email
+			}
 			var notificationID uuid.UUID
 			notificationID, err = s.CreateAndPublishEmail(ctx, emailReq)
 			if err != nil {

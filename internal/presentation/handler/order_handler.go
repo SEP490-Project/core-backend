@@ -469,7 +469,7 @@ type CensorOrderRequest struct {
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/censorship [POST]
+//	@Router			/api/v1/orders/staff/{orderID}/confirmation [POST]
 func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 
 	ctx := c.Request.Context()
@@ -492,38 +492,13 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 		return
 	}
 
-	var targetStatus enum.OrderStatus
-	switch action {
-	case "CONFIRM":
-		targetStatus = enum.OrderStatusConfirmed
-	case "CANCEL":
-		targetStatus = enum.OrderStatusCancelled
-	default:
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid action, allowed: CONFIRM, CANCEL", http.StatusBadRequest))
-		return
-	}
+	targetStatus := enum.OrderStatusConfirmed
 
 	// Extract acting user
 	updatedBy, err := extractUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
-	}
-
-	// If cancelling, require a JSON body with reason
-	var reasonPtr *string
-	if targetStatus == enum.OrderStatusCancelled {
-		var req CensorOrderRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when action=CANCEL: "+err.Error(), http.StatusBadRequest))
-			return
-		}
-		trimmed := strings.TrimSpace(req.Reason)
-		if trimmed == "" {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason cannot be empty", http.StatusBadRequest))
-			return
-		}
-		reasonPtr = &trimmed
 	}
 
 	uow := h.unitOfWork.Begin(ctx)
@@ -534,14 +509,12 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 	}()
 
 	// Perform state transfer
-	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, &updatedBy, reasonPtr); err != nil {
+	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, &updatedBy, nil); err != nil {
 		_ = uow.Rollback()
 		zap.L().Error("failed to censor order", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update order: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-
-	//
 
 	if err := uow.Commit(); err != nil {
 		zap.L().Error("failed to commit transaction for censor order", zap.Error(err))
@@ -1140,8 +1113,8 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 
 // ObligateEarlyRefund godoc
 //
-//	@Summary		Force early refund, skip REFUND_REQUEST
-//	@Description	Upload proof image
+//	@Summary		CANCEL PAID ITEM
+//	@Description	Force early refund, skip REFUND_REQUEST
 //	@Tags			Orders[Staff].States
 //	@Accept			multipart/form-data
 //	@Produce		json

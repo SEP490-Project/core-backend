@@ -4,17 +4,17 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
-	responses "core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
-	"core-backend/internal/application/service/notification_builder"
+	notiBuilder "core-backend/internal/application/service/notification_builder"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/infrastructure"
-	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
@@ -27,6 +27,7 @@ import (
 
 type orderService struct {
 	config                       *config.AppConfig
+	db                           *gorm.DB
 	orderRepository              irepository.OrderRepository
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
@@ -57,15 +58,18 @@ func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionB
 	}
 	order.StaffResource = fileURL
 
+	go func() {
+		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyObligateRefund, order, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+
 	err = o.orderRepository.Update(ctx, order)
 	if err != nil {
 		return err
 	}
 
-	err = o.sendNotification(ctx, order.Status, order, user)
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -87,6 +91,12 @@ func (o *orderService) RequestCompensation(ctx context.Context, orderID, actionB
 		return err
 	}
 	order.UserResource = fileURL
+	go func() {
+		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyCompensateRequested, order, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
 	return o.orderRepository.Update(ctx, order)
 }
 
@@ -104,6 +114,12 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 		if utils.NotEmptyOrNil(fileURL) {
 			order.StaffResource = fileURL
 		}
+		go func() {
+			err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyCompensationDenied, order, user)
+			if err != nil {
+				zap.L().Error(err.Error())
+			}
+		}()
 
 		return o.orderRepository.Update(ctx, order)
 
@@ -113,7 +129,12 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 			return err
 		}
 		order.StaffResource = fileURL
-
+		go func() {
+			err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyCompensated, order, user)
+			if err != nil {
+				zap.L().Error(err.Error())
+			}
+		}()
 		return o.orderRepository.Update(ctx, order)
 	}
 }
@@ -122,11 +143,6 @@ func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy
 	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
-	}
-
-	standByTime := o.config.AdminConfig.CensorshipIntervalMinutes
-	if order.UpdatedAt.Add(time.Duration(standByTime) * time.Minute).Before(requestTime) {
-		return errors.New("refund request time has expired")
 	}
 
 	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefundRequested, nil)
@@ -139,7 +155,7 @@ func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy
 		return err
 	}
 
-	err = o.sendNotification(ctx, order.Status, order, user)
+	err = o.sendNotification(ctx, notiBuilder.OrderNotifyRefundRequested, order, user)
 	if err != nil {
 		return err
 	}
@@ -158,24 +174,18 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 	}
 	order.StaffResource = &fileURL
 	err = o.orderRepository.Update(ctx, order)
-	if err == nil {
-		return err
-	}
-
-	err = o.sendNotification(ctx, order.Status, order, user)
 	if err != nil {
 		return err
 	}
 
-	err = o.sendNotification(ctx, order.Status, order, user)
-	if err != nil {
-		return err
-	}
-	//send noti if success
-	//o.notificationService.
+	go func() {
+		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyRefunded, order, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
 
 	return nil
-
 }
 
 func (o *orderService) GetSelfDeliveringOrdersWithPagination(limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.Order, int, error) {
@@ -264,7 +274,7 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userI
 		return err
 	}
 
-	err = o.sendNotification(ctx, order.Status, order, user)
+	err = o.sendNotification(ctx, notiBuilder.OrderNotifyAwaitingPickUp, order, user)
 	if err != nil {
 		return err
 	}
@@ -288,7 +298,18 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 		return err
 	}
 
-	return o.orderRepository.Update(ctx, order)
+	err = o.orderRepository.Update(ctx, order)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyReceived, order, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+	return nil
 }
 
 func (o *orderService) GetOrdersByUserIDWithPagination(
@@ -789,6 +810,7 @@ func (o *orderService) CancelOrder(ctx context.Context, orderID uuid.UUID, updat
 func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, notificationService iservice.NotificationService) iservice.OrderService {
 	return &orderService{
 		config:                       cfg,
+		db:                           dbRegistry.GormDatabase,
 		orderRepository:              dbRegistry.OrderRepository,
 		orderItemRepository:          dbRegistry.OrderItemRepository,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
@@ -829,17 +851,20 @@ func MoveOrderStateUsingFSM(order *model.Order, user *model.User, newStatus enum
 	return nil
 }
 
-func (o orderService) sendNotification(ctx context.Context, orderStatus enum.OrderStatus, order *model.Order, actionBy *model.User) error {
-	req, err := notification_builder.BuildOrderNotification(ctx, orderStatus, order, actionBy)
+func (o orderService) sendNotification(ctx context.Context, notiStatus notiBuilder.OrderNotificationType, order *model.Order, actionBy *model.User) error {
+	//This contains many payloads to different receivers
+	payloads, err := notiBuilder.BuildOrderNotifications(ctx, *o.config, o.db, notiStatus, order, actionBy)
 	if err != nil {
 		zap.L().Debug("no notification builder for order status", zap.Error(err))
 		return nil
 	}
 
-	_, err = o.notificationService.CreateAndPublishNotification(ctx, &req)
-	if err != nil {
-		zap.L().Error("Failed to send notification", zap.Error(err))
-		return err
+	for _, p := range payloads {
+		_, err = o.notificationService.CreateAndPublishNotification(ctx, &p)
+		if err != nil {
+			zap.L().Error("Failed to send notification", zap.Error(err))
+			return err
+		}
 	}
 	return nil
 }

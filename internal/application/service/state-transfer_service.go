@@ -47,6 +47,7 @@ type stateTransferService struct {
 	rabbitMQ                *rabbitmq.RabbitMQ
 	ghnProxy                iproxies.GHNProxy
 	adminConfig             config.AdminConfig
+	config                  *config.AppConfig
 }
 
 func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
@@ -791,6 +792,25 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 			return fmt.Errorf("failed to update order state: %w", err)
 		}
 
+		// send notification
+		orderNotiStatus, err := ConvertToNotificationType(order)
+		if err != nil {
+			return err
+		}
+
+		payloads, err := notification_builder.BuildOrderNotifications(ctx, *t.config, t.uow.DB(), orderNotiStatus, order, updatedBy)
+		if err != nil {
+			zap.L().Debug("no notification builder for order status", zap.Error(err))
+			return nil
+		}
+
+		for _, p := range payloads {
+			_, err = t.notificationService.CreateAndPublishNotification(ctx, &p)
+			if err != nil {
+				zap.L().Error("Failed to send notification", zap.Error(err))
+				return err
+			}
+		}
 		return nil
 	})
 
@@ -980,19 +1000,39 @@ func (t stateTransferService) handleOrderSideEffect(
 		zap.String("order_id", order.ID.String()),
 		zap.String("new_status", string(newStatus)))
 
-	//Send notifications
-	actionBy, _ := t.userRepository.GetByID(ctx, userID, nil)
-	req, err := notification_builder.BuildOrderNotification(ctx, newStatus, order, actionBy)
-	if err != nil {
-		zap.L().Debug("no notification builder for order status", zap.Error(err))
-		return nil
-	}
+	//Send notifications asynchronously
+	go func() {
+		ctxBg := context.Background()
 
-	_, err = t.notificationService.CreateAndPublishNotification(ctx, &req)
-	if err != nil {
-		zap.L().Error("Failed to send notification", zap.Error(err))
-		return err
-	}
+		actionBy, _ := t.userRepository.GetByID(ctxBg, userID, nil)
+
+		orderNotiStatus, err := ConvertToNotificationType(order)
+		if err != nil {
+			zap.L().Warn("ConvertToNotificationType failed", zap.Error(err))
+			return
+		}
+
+		payloads, err := notification_builder.BuildOrderNotifications(
+			ctxBg,
+			*t.config,
+			t.uow.DB(),
+			orderNotiStatus,
+			order,
+			actionBy,
+		)
+		if err != nil {
+			zap.L().Debug("no notification builder for order status", zap.Error(err))
+			return
+		}
+
+		for _, p := range payloads {
+			_, err = t.notificationService.CreateAndPublishNotification(ctxBg, &p)
+			if err != nil {
+				zap.L().Error("Failed to send notification async", zap.Error(err))
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -1078,15 +1118,12 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	updatedBy *model.User,
 	reason *string, //optional
 ) error {
-	//&&&
 	var err error
 
 	if order == nil {
 		return errors.New("order is nil")
 	}
 	orderRepo := uow.Order()
-
-	//note := transactionCtx.GenerateActionNote(updatedBy, reason)
 
 	switch nextStatus {
 	case enum.OrderStatusConfirmed:
@@ -1112,11 +1149,6 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 		}
 		zap.L().Info("Here goes the email :D")
 	case enum.OrderStatusCancelled:
-		//Add action notes as log
-		zap.L().Info("Order cancelled, bending rejected email")
-		//Add Note
-		//order.AddActionNote(*note)
-
 		// Regain stock for LIMITED orders and persist per-variant
 		if order.OrderType == enum.ProductTypeLimited.String() {
 			variantRepo := uow.ProductVariant()
@@ -1144,17 +1176,12 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 					zap.Int("new_stock", newStock))
 			}
 		}
-		//Update action will do outside
-		//err = orderRepo.Update(ctx, order)
 	case enum.OrderStatusRefunded:
 		zap.L().Info("Order refunded, sending rejected email")
-		//order.AddActionNote(*note)
 		err = orderRepo.Update(ctx, order)
 	}
 	return err
 }
-
-// endregion
 
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
@@ -1171,6 +1198,7 @@ func NewStateTransferService(
 		taskRepository:          dbReg.TaskRepository,
 		productRepository:       dbReg.ProductRepository,
 		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
+		orderRepository:         dbReg.OrderRepository,
 		preOrderRepository:      dbReg.PreOrderRepository,
 		variantRepository:       dbReg.ProductVariantRepository,
 		userRepository:          dbReg.UserRepository,
@@ -1178,6 +1206,7 @@ func NewStateTransferService(
 		uow:                     uow,
 		rabbitMQ:                rabbitmq,
 		ghnProxy:                ghnProxy,
+		config:                  configs,
 		adminConfig:             configs.AdminConfig,
 	}
 }
@@ -1211,4 +1240,46 @@ func (t *stateTransferService) lookupPreOrderWithLimitedProductAndUser(ctx conte
 	}
 
 	return preOrder, variant.Product.Limited, user, nil
+}
+
+func ConvertToNotificationType(order *model.Order) (notification_builder.OrderNotificationType, error) {
+	status := order.Status
+	switch status {
+	case enum.OrderStatusPending:
+		return notification_builder.OrderNotifyPending, nil
+	case enum.OrderStatusPaid:
+		return notification_builder.OrderNotifyPaid, nil
+	case enum.OrderStatusRefundRequested:
+		return notification_builder.OrderNotifyRefundRequested, nil
+	case enum.OrderStatusRefunded:
+		lastActionStatus := order.GetLatestActionNote().ActionType
+		if lastActionStatus == enum.OrderStatusPaid {
+			return notification_builder.OrderNotifyObligateRefund, nil
+		}
+		return notification_builder.OrderNotifyRefunded, nil
+	case enum.OrderStatusConfirmed:
+		return notification_builder.OrderNotifyConfirmed, nil
+	case enum.OrderStatusCancelled:
+		return notification_builder.OrderNotifyCancelled, nil
+	case enum.OrderStatusShipped:
+		return notification_builder.OrderNotifyShipped, nil
+	case enum.OrderStatusInTransit:
+		return notification_builder.OrderNotifyInTransit, nil
+	case enum.OrderStatusDelivered:
+		lastActionStatus := order.GetLatestActionNote().ActionType
+		if lastActionStatus == enum.OrderStatusCompensateRequested {
+			return notification_builder.OrderNotifyCompensationDenied, nil
+		}
+		return notification_builder.OrderNotifyDelivered, nil
+	case enum.OrderStatusReceived:
+		return notification_builder.OrderNotifyReceived, nil
+	case enum.OrderStatusCompensateRequested:
+		return notification_builder.OrderNotifyCompensateRequested, nil
+	case enum.OrderStatusCompensated:
+		return notification_builder.OrderNotifyCompensated, nil
+	case enum.OrderStatusAwaitingPickUp:
+		return notification_builder.OrderNotifyAwaitingPickUp, nil
+	default:
+		return "", fmt.Errorf("unrecognized order status: %s", status)
+	}
 }
