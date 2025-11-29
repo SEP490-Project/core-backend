@@ -1,106 +1,123 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Refund Completed</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .email-container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #28a745; /* Success green */
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            color: #28a745;
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            margin: 20px 0;
-        }
-        .refund-details {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            border: 1px dashed #ced4da;
-        }
-        .refund-details p {
-            margin: 8px 0;
-        }
-        .refund-details strong {
-            color: #495057;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #28a745;
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .button:hover {
-            background-color: #218838;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 28px 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 18px;
+        border-bottom: 2px solid #ff9fb2;
+        margin-bottom: 24px;
+      }
+      .header h1 {
+        color: #ff9fb2;
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .content {
+        margin: 16px 0;
+        font-size: 14px;
+        color: #4b5563;
+      }
+      .content p {
+        margin: 8px 0 10px 0;
+      }
+      .refund-details {
+        background-color: #f9fafb;
+        padding: 14px 16px;
+        border-radius: 6px;
+        margin: 16px 0 18px 0;
+        border-left: 4px solid #ff9fb2;
+        font-size: 13px;
+      }
+      .refund-details p {
+        margin: 4px 0;
+      }
+      .refund-details strong {
+        color: #111827;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 22px;
+        background-color: #ff9fb2;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        margin: 18px 0 4px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .button:hover {
+        background-color: #ff7f97;
+      }
+      .footer {
+        margin-top: 26px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .footer p {
+        margin: 3px 0;
+      }
     </style>
-</head>
-<body>
-<div class="email-container">
-    <div class="header">
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
         <h1>💵 Refund Successfully Completed</h1>
-    </div>
-    <div class="content">
+      </div>
+
+      <div class="content">
         <p>Hello {{.CustomerName}},</p>
         <p>
-            We are pleased to let you know that your refund has been successfully
-            processed. The refunded amount has been returned to your original payment
-            method.
+          We are pleased to inform you that your refund has been successfully
+          processed. The refunded amount has been returned to your original
+          payment method.
         </p>
 
         <div class="refund-details">
-            <p><strong>Order Number:</strong> {{.OrderCode}}</p>
-            <p><strong>Refund Amount:</strong> {{.RefundAmount}}</p>
-            <p><strong>Refunded On:</strong> {{.RefundedDate}}</p>
-            <p><strong>Payment Method:</strong> {{.PaymentMethod}}</p>
+          <p><strong>Order Number:</strong> {{.OrderCode}}</p>
+          <p><strong>Refund Amount:</strong> {{.RefundAmount}}</p>
+          <p><strong>Refunded On:</strong> {{.RefundedDate}}</p>
+          <p><strong>Payment Method:</strong> {{.PaymentMethod}}</p>
         </div>
 
         <p>
-            Depending on your bank or payment provider, it may take up to
-            <strong>3–5 business days</strong> for the funds to appear in your account.
+          Depending on your bank or payment provider, it may take up to
+          <strong>3–5 business days</strong> for the funds to appear in your
+          account.
         </p>
 
-        <a href="{{.OrderLink}}" class="button">View Order Details</a>
-    </div>
-    <div class="footer">
+        <div style="text-align: center">
+          <a href="{{.OrderLink}}" class="button">View Order Details</a>
+        </div>
+      </div>
+
+      <div class="footer">
         <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
         <p>This is an automated message. Please do not reply to this email.</p>
+      </div>
     </div>
-</div>
-</body>
+  </body>
 </html>
