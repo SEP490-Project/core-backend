@@ -1075,19 +1075,19 @@ func (h *ProductHandler) PublishProduct(c *gin.Context) {
 
 // UpdateProduct godoc
 //
-//	@Summary        Update a product
-//	@Description    Update product details (brand, category, name, description). Cannot change product type.
-//	@Tags           Products
-//	@Accept         json
-//	@Produce        json
-//	@Param          id      path      string                         true  "Product ID (UUID)"
-//	@Param          payload body      requests.UpdateProductRequest  true  "Product update payload"
-//	@Success        200     {object}  responses.ProductResponse       "Product updated successfully"
-//	@Failure        400     {object}  object{error=string}            "Bad Request"
-//	@Failure        404     {object}  object{error=string}            "Product not found"
-//	@Failure        500     {object}  object{error=string}            "Internal server error"
-//	@Security       BearerAuth
-//	@Router         /api/v1/products/{id} [put]
+//	@Summary		Update a product
+//	@Description	Update product details (brand, category, name, description). Cannot change product type.
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string							true	"Product ID (UUID)"
+//	@Param			payload	body		requests.UpdateProductRequest	true	"Product update payload"
+//	@Success		200		{object}	responses.ProductResponse		"Product updated successfully"
+//	@Failure		400		{object}	object{error=string}			"Bad Request"
+//	@Failure		404		{object}	object{error=string}			"Product not found"
+//	@Failure		500		{object}	object{error=string}			"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{id} [put]
 func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 	// --- Extract Product ID ---
 	idStr := c.Param("id")
@@ -1133,20 +1133,20 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 
 // UpdateLimitedProduct godoc
 //
-//	@Summary        Update a limited product
-//	@Description    Update limited product details (dates, concept, stock-related fields). Only applicable for products of type LIMITED and not actived.
-//	@Tags           Products.Limited
-//	@Accept         json
-//	@Produce        json
-//	@Param          id      path      string                                 true  "Limited Product ID (UUID)"
-//	@Param          payload body      requests.UpdateLimitedProductRequest  true  "Limited product update payload"
-//	@Success        200     {object}  responses.ProductResponse             "Limited product updated successfully"
-//	@Failure        400     {object}  object{error=string}                 "Bad Request"
-//	@Failure        404     {object}  object{error=string}                 "Product not found"
-//	@Failure        401     {object}  object{error=string}                 "Unauthorized"
-//	@Failure        500     {object}  object{error=string}                 "Internal server error"
-//	@Security       BearerAuth
-//	@Router         /api/v1/products/limited/{id} [put]
+//	@Summary		Update a limited product
+//	@Description	Update limited product details (dates, concept, stock-related fields). Only applicable for products of type LIMITED and not actived.
+//	@Tags			Products.Limited
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string									true	"Limited Product ID (UUID)"
+//	@Param			payload	body		requests.UpdateLimitedProductRequest	true	"Limited product update payload"
+//	@Success		200		{object}	responses.ProductResponse				"Limited product updated successfully"
+//	@Failure		400		{object}	object{error=string}					"Bad Request"
+//	@Failure		404		{object}	object{error=string}					"Product not found"
+//	@Failure		401		{object}	object{error=string}					"Unauthorized"
+//	@Failure		500		{object}	object{error=string}					"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/limited/{id} [put]
 func (h *ProductHandler) UpdateLimitedProduct(c *gin.Context) {
 	// Extract product id
 	idStr := c.Param("id")
@@ -1193,17 +1193,17 @@ func (h *ProductHandler) UpdateLimitedProduct(c *gin.Context) {
 //
 //	@Summary		Update a product variant
 //	@Description	Update fields of an existing product variant
-//	@Tags		Products.Variants
-//	@Accept		json
-//	@Produce	json
-//	@Param		variantId	path		string	true	"Variant ID (UUID)"
-//	@Param		payload		body		requests.UpdateProductVariantRequest	true	"Variant update payload"
-//	@Success	200	{object}	responses.ProductVariantResponse
-//	@Failure	400	{object}	object{error=string}
-//	@Failure	404	{object}	object{error=string}
-//	@Failure	401	{object}	object{error=string}
-//	@Security	BearerAuth
-//	@Router		/api/v1/products/variants/{variantId} [patch]
+//	@Tags			Products.Variants
+//	@Accept			json
+//	@Produce		json
+//	@Param			variantId	path		string									true	"Variant ID (UUID)"
+//	@Param			payload		body		requests.UpdateProductVariantRequest	true	"Variant update payload"
+//	@Success		200			{object}	responses.ProductVariantResponse
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		404			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/variants/{variantId} [patch]
 func (h *ProductHandler) UpdateVariant(c *gin.Context) {
 	variantIDStr := c.Param("variantId")
 	variantID, err := uuid.Parse(variantIDStr)
@@ -1243,17 +1243,17 @@ func (h *ProductHandler) UpdateVariant(c *gin.Context) {
 //
 //	@Summary		Update a limited product variant
 //	@Description	Update fields of an existing variant that belongs to a LIMITED product (stock/preorder related validations applied)
-//	@Tags		Products.Variants
-//	@Accept		json
-//	@Produce	json
-//	@Param		variantId	path		string	true	"Variant ID (UUID)"
-//	@Param		payload		body		requests.UpdateLimitedProductVariantRequest	true	"Limited variant update payload"
-//	@Success	200	{object}	responses.ProductVariantResponse
-//	@Failure	400	{object}	object{error=string}
-//	@Failure	404	{object}	object{error=string}
-//	@Failure	401	{object}	object{error=string}
-//	@Security	BearerAuth
-//	@Router		/api/v1/products/variants/limited/{variantId} [patch]
+//	@Tags			Products.Variants
+//	@Accept			json
+//	@Produce		json
+//	@Param			variantId	path		string										true	"Variant ID (UUID)"
+//	@Param			payload		body		requests.UpdateLimitedProductVariantRequest	true	"Limited variant update payload"
+//	@Success		200			{object}	responses.ProductVariantResponse
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		404			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/variants/limited/{variantId} [patch]
 func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 	variantIDStr := c.Param("variantId")
 	variantID, err := uuid.Parse(variantIDStr)

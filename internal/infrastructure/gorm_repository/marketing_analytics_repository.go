@@ -22,14 +22,14 @@ func NewMarketingAnalyticsRepository(db *gorm.DB) irepository.MarketingAnalytics
 	return &MarketingAnalyticsRepository{db: db}
 }
 
-// GetActiveBrandsCount returns the count of brands with status = 'ACTIVE'
+// GetActiveBrandsCount returns the count of brands with status = ACTIVE
 func (r *MarketingAnalyticsRepository) GetActiveBrandsCount(ctx context.Context) (int64, error) {
 	var count int64
 
 	err := r.db.WithContext(ctx).
 		Model(&struct{}{}).
 		Table("brands").
-		Where("status = ?", "ACTIVE").
+		Where("status = ?", string(enum.BrandStatusActive)).
 		Where("deleted_at IS NULL").
 		Count(&count).Error
 
@@ -41,14 +41,14 @@ func (r *MarketingAnalyticsRepository) GetActiveBrandsCount(ctx context.Context)
 	return count, nil
 }
 
-// GetActiveCampaignsCount returns the count of campaigns with status = 'RUNNING'
+// GetActiveCampaignsCount returns the count of campaigns with status = RUNNING
 func (r *MarketingAnalyticsRepository) GetActiveCampaignsCount(ctx context.Context) (int64, error) {
 	var count int64
 
 	err := r.db.WithContext(ctx).
 		Model(&struct{}{}).
 		Table("campaigns").
-		Where("status = ?", "RUNNING").
+		Where("status = ?", enum.CampaignRunning.String()).
 		Where("deleted_at IS NULL").
 		Count(&count).Error
 
@@ -85,16 +85,18 @@ func (r *MarketingAnalyticsRepository) GetDraftCampaignsCount(ctx context.Contex
 func (r *MarketingAnalyticsRepository) GetMonthlyContractRevenue(ctx context.Context, year, month int) (float64, error) {
 	var revenue float64
 
+	paidStatus := enum.ContractPaymentStatusPaid.String()
+
 	query := `
 		SELECT COALESCE(SUM(amount), 0) as revenue
 		FROM contract_payments
-		WHERE status = 'PAID'
+		WHERE status = ?
 		  AND deleted_at IS NULL
 		  AND EXTRACT(YEAR FROM due_date) = ?
 		  AND EXTRACT(MONTH FROM due_date) = ?
 	`
 
-	err := r.db.WithContext(ctx).Raw(query, year, month).Scan(&revenue).Error
+	err := r.db.WithContext(ctx).Raw(query, paidStatus, year, month).Scan(&revenue).Error
 	if err != nil {
 		zap.L().Error("Failed to get monthly contract revenue",
 			zap.Int("year", year),
@@ -113,6 +115,12 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 		return nil, err
 	}
 
+	// Use enum values for status filtering
+	paidPaymentStatus := enum.ContractPaymentStatusPaid.String()
+	paidOrderStatus := enum.OrderStatusPaid.String()
+	standardProductType := string(enum.ProductTypeStandard)
+	activeBrandStatus := string(enum.BrandStatusActive)
+
 	query := `
 		WITH contract_revenue AS (
 			SELECT 
@@ -120,11 +128,11 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 				COALESCE(SUM(cp.amount), 0) as revenue
 			FROM contracts c
 			JOIN contract_payments cp ON c.id = cp.contract_id
-			WHERE cp.status = 'PAID'
+			WHERE cp.status = $1
 			  AND cp.deleted_at IS NULL
 			  AND c.deleted_at IS NULL
-			  AND cp.due_date >= ?
-			  AND cp.due_date <= ?
+			  AND cp.due_date >= $2
+			  AND cp.due_date <= $3
 			GROUP BY c.brand_id
 		),
 		product_revenue AS (
@@ -135,10 +143,10 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 				inner join products p on pv.product_id = p.id
 				JOIN order_items oi ON p.id = oi.variant_id
 				JOIN orders o ON oi.order_id = o.id
-			WHERE p.type = 'STANDARD'
-			  AND o.status = 'PAID'
-			  AND o.created_at >= ?
-			  AND o.created_at <= ?
+			WHERE p.type = $4
+			  AND o.status = $5
+			  AND o.created_at >= $2
+			  AND o.created_at <= $3
 			GROUP BY p.brand_id
 		),
 		total_revenue AS (
@@ -149,7 +157,7 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 			FROM brands b
 			LEFT JOIN contract_revenue cr ON b.id = cr.brand_id
 			LEFT JOIN product_revenue pr ON b.id = pr.brand_id
-			WHERE b.status = 'ACTIVE' AND b.deleted_at IS NULL
+			WHERE b.status = $6 AND b.deleted_at IS NULL
 		)
 		SELECT 
 			brand_id,
@@ -163,7 +171,7 @@ func (r *MarketingAnalyticsRepository) GetTopBrandsByRevenue(ctx context.Context
 	`
 
 	var results []dtoResponses.BrandRevenueResponse
-	err = r.db.WithContext(ctx).Raw(query, startDate, endDate, startDate, endDate).Scan(&results).Error
+	err = r.db.WithContext(ctx).Raw(query, paidPaymentStatus, startDate, endDate, standardProductType, paidOrderStatus, activeBrandStatus).Scan(&results).Error
 	if err != nil {
 		zap.L().Error("Failed to get top brands by revenue",
 			zap.String("filter_type", filter.FilterType),
@@ -182,6 +190,15 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 		return nil, err
 	}
 
+	// Use enum values for status and type filtering
+	paidPaymentStatus := enum.ContractPaymentStatusPaid.String()
+	paidOrderStatus := enum.OrderStatusPaid.String()
+	standardProductType := string(enum.ProductTypeStandard)
+	advertisingType := string(enum.ContractTypeAdvertising)
+	affiliateType := string(enum.ContractTypeAffiliate)
+	brandAmbassadorType := string(enum.ContractTypeAmbassador)
+	coProducingType := string(enum.ContractTypeCoProduce)
+
 	query := `
 		WITH contract_revenue AS (
 			SELECT
@@ -189,11 +206,11 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 				COALESCE(SUM(cp.amount), 0) as revenue
 			FROM contracts c
 					 JOIN contract_payments cp ON c.id = cp.contract_id
-			WHERE cp.status = 'PAID'
+			WHERE cp.status = $1
 			  AND cp.deleted_at IS NULL
 			  AND c.deleted_at IS NULL
-			  AND cp.due_date >= ?
-			  AND cp.due_date <= ?
+			  AND cp.due_date >= $2
+			  AND cp.due_date <= $3
 			GROUP BY c.type
 		),
 			 standard_product_revenue AS (
@@ -202,23 +219,23 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 					 INNER JOIN products p on pv.product_id = p.id
 						  JOIN order_items oi ON p.id = oi.variant_id
 						  JOIN orders o ON oi.order_id = o.id
-				 WHERE p.type = 'STANDARD'
-				   AND o.status = 'PAID'
-				   AND o.created_at >= ?
-				   AND o.created_at <= ?
+				 WHERE p.type = $4
+				   AND o.status = $5
+				   AND o.created_at >= $2
+				   AND o.created_at <= $3
 			 )
 		SELECT
-			COALESCE(MAX(CASE WHEN type = 'ADVERTISING' THEN revenue END), 0) as advertising,
-			COALESCE(MAX(CASE WHEN type = 'AFFILIATE' THEN revenue END), 0) as affiliate,
-			COALESCE(MAX(CASE WHEN type = 'BRAND_AMBASSADOR' THEN revenue END), 0) as brand_ambassador,
-			COALESCE(MAX(CASE WHEN type = 'CO_PRODUCING' THEN revenue END), 0) as co_produce,
+			COALESCE(MAX(CASE WHEN type = $6 THEN revenue END), 0) as advertising,
+			COALESCE(MAX(CASE WHEN type = $7 THEN revenue END), 0) as affiliate,
+			COALESCE(MAX(CASE WHEN type = $8 THEN revenue END), 0) as brand_ambassador,
+			COALESCE(MAX(CASE WHEN type = $9 THEN revenue END), 0) as co_produce,
 			COALESCE((SELECT revenue FROM standard_product_revenue), 0) as standard_product,
 			COALESCE(SUM(revenue), 0) + COALESCE((SELECT revenue FROM standard_product_revenue), 0) as total_revenue
 		FROM contract_revenue
 	`
 
 	var result dtoResponses.RevenueByTypeResponse
-	err = r.db.WithContext(ctx).Raw(query, startDate, endDate, startDate, endDate).Scan(&result).Error
+	err = r.db.WithContext(ctx).Raw(query, paidPaymentStatus, startDate, endDate, standardProductType, paidOrderStatus, advertisingType, affiliateType, brandAmbassadorType, coProducingType).Scan(&result).Error
 	if err != nil {
 		zap.L().Error("Failed to get revenue by contract type",
 			zap.String("filter_type", filter.FilterType),
@@ -230,7 +247,7 @@ func (r *MarketingAnalyticsRepository) GetRevenueByContractType(ctx context.Cont
 	return &result, nil
 }
 
-// GetUpcomingDeadlineCampaigns returns campaigns with end_date within X days and status = 'RUNNING'
+// GetUpcomingDeadlineCampaigns returns campaigns with end_date within X days and status = RUNNING
 func (r *MarketingAnalyticsRepository) GetUpcomingDeadlineCampaigns(ctx context.Context, daysBeforeDeadline int) ([]dtoResponses.UpcomingCampaignResponse, error) {
 	if daysBeforeDeadline <= 0 {
 		return nil, errors.New("daysBeforeDeadline must be greater than 0")
@@ -238,6 +255,7 @@ func (r *MarketingAnalyticsRepository) GetUpcomingDeadlineCampaigns(ctx context.
 
 	now := time.Now()
 	futureDate := now.AddDate(0, 0, daysBeforeDeadline)
+	runningStatus := enum.CampaignRunning.String()
 
 	query := `
 		SELECT 
@@ -250,12 +268,12 @@ func (r *MarketingAnalyticsRepository) GetUpcomingDeadlineCampaigns(ctx context.
 		FROM campaigns c
 		JOIN contracts ct ON c.contract_id = ct.id
 		JOIN brands b ON ct.brand_id = b.id
-		WHERE c.status = 'RUNNING'
+		WHERE c.status = $1
 		  AND c.deleted_at IS NULL
 		  AND ct.deleted_at IS NULL
 		  AND b.deleted_at IS NULL
-		  AND c.end_date >= ?
-		  AND c.end_date <= ?
+		  AND c.end_date >= $2
+		  AND c.end_date <= $3
 		ORDER BY c.end_date ASC
 	`
 
@@ -268,7 +286,7 @@ func (r *MarketingAnalyticsRepository) GetUpcomingDeadlineCampaigns(ctx context.
 		BrandName     string    `gorm:"column:brand_name"`
 	}
 
-	err := r.db.WithContext(ctx).Raw(query, now, futureDate).Scan(&results).Error
+	err := r.db.WithContext(ctx).Raw(query, runningStatus, now, futureDate).Scan(&results).Error
 	if err != nil {
 		zap.L().Error("Failed to get upcoming deadline campaigns",
 			zap.Int("days_before_deadline", daysBeforeDeadline),

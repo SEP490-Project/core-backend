@@ -439,6 +439,11 @@ func (c *channelService) GetDecryptedTokenPair(ctx context.Context, channelName 
 			return "", "", errors.New("no access token in Vault")
 		}
 
+		if channel.AccessTokenExpiresAt != nil && time.Until(*channel.AccessTokenExpiresAt) <= 0 {
+			zap.L().Warn("Access token has expired, need to refresh immediately to continue", zap.String("channel_name", channelName))
+			return "", refreshToken, ErrTikTokAccessExpired
+		}
+
 		return accessToken, refreshToken, nil
 	}
 

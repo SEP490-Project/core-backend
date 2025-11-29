@@ -342,6 +342,8 @@ func (t *TikTokSocialService) getTikTokAccessToken(ctx context.Context) (string,
 				return "", errors.New("failed to refresh TikTok access token")
 			}
 
+			return t.channelService.GetDecryptedToken(ctx, "TIKTOK")
+
 		default:
 			zap.L().Error("Failed to get TikTok token pair", zap.Error(err))
 			return "", errors.New("failed to retrieve TikTok tokens")

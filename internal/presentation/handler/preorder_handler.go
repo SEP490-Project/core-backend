@@ -39,7 +39,7 @@ type PreOrderHandler struct {
 //	@Param			limit	query		int		false	"Items per page (default: 10, max: 100)"
 //	@Param			search	query		string	false	"Search by product name or receiver full name"
 //	@Param			status	query		string	false	"Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -184,7 +184,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.StaffPreOrdersQuery	false	"Staff preorders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.PreOrder,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -272,7 +272,7 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 //	@Param			orderID	path		string				true	"Order ID"
 //	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
 //	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -378,18 +378,18 @@ func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
 
 // MarkPreOrderAsReceived godoc
 //
-// @Summary     Mark preorder as received (customer)
-// @Description Mark a preorder as received by the customer
-// @Tags        Preorders.States
-// @Accept      json
-// @Produce     json
-// @Param       id   path      string true  "PreOrder ID (UUID)"
-// @Success     200  {object}  responses.APIResponse
-// @Failure     400  {object}  responses.APIResponse
-// @Failure     401  {object}  responses.APIResponse
-// @Failure     500  {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/preorders/{id}/received [patch]
+//	@Summary		Mark preorder as received (customer)
+//	@Description	Mark a preorder as received by the customer
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"PreOrder ID (UUID)"
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/{id}/received [patch]
 func (p *PreOrderHandler) MarkPreOrderAsReceived(c *gin.Context) {
 	idParam := c.Param("id")
 	preOrderID, err := uuid.Parse(idParam)
@@ -416,20 +416,20 @@ func (p *PreOrderHandler) MarkPreOrderAsReceived(c *gin.Context) {
 
 // RequestCompensation godoc
 //
-// @Summary     Request compensation for a preorder (customer)
-// @Description Submit a compensation request with reason and supporting file
-// @Tags        Preorders.States
-// @Accept      multipart/form-data
-// @Produce     json
-// @Param       id     path      string true  "PreOrder ID (UUID)"
-// @Param       reason formData  string true  "Reason for compensation"
-// @Param       file   formData  file   true  "Evidence file"
-// @Success     200    {object}  responses.APIResponse
-// @Failure     400    {object}  responses.APIResponse
-// @Failure     401    {object}  responses.APIResponse
-// @Failure     500    {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/preorders/{id}/compensation [post]
+//	@Summary		Request compensation for a preorder (customer)
+//	@Description	Submit a compensation request with reason and supporting file
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			id		path		string	true	"PreOrder ID (UUID)"
+//	@Param			reason	formData	string	true	"Reason for compensation"
+//	@Param			file	formData	file	true	"Evidence file"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/{id}/compensation [post]
 func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 	idParam := c.Param("id")
 	preOrderID, err := uuid.Parse(idParam)
@@ -493,21 +493,21 @@ func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 
 // ProcessCompensation godoc
 //
-// @Summary     Process compensation for a preorder (staff)
-// @Description Approve or reject a compensation request
-// @Tags        Preorders[Staff].States
-// @Accept      multipart/form-data
-// @Produce     json
-// @Param       orderID    path      string true  "PreOrder ID (UUID)"
-// @Param       isApproved formData  string true  "true|false"
-// @Param       reason     formData  string false "Reason (optional)"
-// @Param       file       formData  file   false "Confirmation file"
-// @Success     200        {object}  responses.APIResponse
-// @Failure     400        {object}  responses.APIResponse
-// @Failure     401        {object}  responses.APIResponse
-// @Failure     500        {object}  responses.APIResponse
-// @Security    BearerAuth
-// @Router      /api/v1/preorders/staff/{orderID}/compensation [post]
+//	@Summary		Process compensation for a preorder (staff)
+//	@Description	Approve or reject a compensation request
+//	@Tags			Preorders[Staff].States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			orderID		path		string	true	"PreOrder ID (UUID)"
+//	@Param			isApproved	formData	string	true	"true|false"
+//	@Param			reason		formData	string	false	"Reason (optional)"
+//	@Param			file		formData	file	false	"Confirmation file"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{orderID}/compensation [post]
 func (p *PreOrderHandler) ProcessCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	preOrderID, err := uuid.Parse(idParam)
