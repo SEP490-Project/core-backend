@@ -55,7 +55,7 @@ func NewOrderHandler(orderSvc iservice.OrderService, ghnProxy iproxies.GHNProxy,
 //	@Param			status		query		string	false	"Filter by order status"
 //	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
 //	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
-//	@Success		200			{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Success		200			{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401			{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -303,7 +303,7 @@ func (h *OrderHandler) CreateLimitedOrder(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.StaffOrdersQuery	false	"Staff orders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -386,7 +386,7 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			query	query		requests.SelfDeliveringQuery	false	"Staff orders query"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -465,11 +465,11 @@ type CensorOrderRequest struct {
 //	@Param			orderID	path		string				true	"Order ID"
 //	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
 //	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Success		200		{object}	responses.APIResponse{data=[]model.Order,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/censorship [POST]
+//	@Router			/api/v1/orders/staff/{orderID}/confirmation [POST]
 func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 
 	ctx := c.Request.Context()
@@ -492,38 +492,13 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 		return
 	}
 
-	var targetStatus enum.OrderStatus
-	switch action {
-	case "CONFIRM":
-		targetStatus = enum.OrderStatusConfirmed
-	case "CANCEL":
-		targetStatus = enum.OrderStatusCancelled
-	default:
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid action, allowed: CONFIRM, CANCEL", http.StatusBadRequest))
-		return
-	}
+	targetStatus := enum.OrderStatusConfirmed
 
 	// Extract acting user
 	updatedBy, err := extractUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
-	}
-
-	// If cancelling, require a JSON body with reason
-	var reasonPtr *string
-	if targetStatus == enum.OrderStatusCancelled {
-		var req CensorOrderRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when action=CANCEL: "+err.Error(), http.StatusBadRequest))
-			return
-		}
-		trimmed := strings.TrimSpace(req.Reason)
-		if trimmed == "" {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason cannot be empty", http.StatusBadRequest))
-			return
-		}
-		reasonPtr = &trimmed
 	}
 
 	uow := h.unitOfWork.Begin(ctx)
@@ -534,14 +509,12 @@ func (h *OrderHandler) OrderCensorship(c *gin.Context) {
 	}()
 
 	// Perform state transfer
-	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, &updatedBy, reasonPtr); err != nil {
+	if err := h.stateTransferService.MoveOrderToState(ctx, orderID, targetStatus, &updatedBy, nil); err != nil {
 		_ = uow.Rollback()
 		zap.L().Error("failed to censor order", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update order: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-
-	//
 
 	if err := uow.Commit(); err != nil {
 		zap.L().Error("failed to commit transaction for censor order", zap.Error(err))
@@ -856,19 +829,19 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 
 // RequestRefund handles early refund requests for a specific order.
 //
-//	@Summary		Request early refund
-//	@Description	Allows a user to request an early refund for an existing order.
-//	@Tags			Orders.States
-//	@Accept			json
-//	@Produce		json
-//	@Param			orderID	path		string					true	"Order ID (UUID)"
-//	@Success		200		{object}	responses.APIResponse	"Refund request accepted"
-//	@Failure		400		{object}	responses.APIResponse	"Invalid order ID or business rule violation"
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		422		{object}	responses.APIResponse	"Refund period expired"
-//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/{orderID}/refund [post]
+// @Summary     Request early refund
+// @Description Allows a user to request an early refund for an existing order.
+// @Tags        Orders.States
+// @Accept      json
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Success     200       {object}  responses.APIResponse "Refund request accepted"
+// @Failure     400       {object}  responses.APIResponse "Invalid order ID or business rule violation"
+// @Failure     401       {object}  responses.APIResponse "Unauthorized"
+// @Failure     422       {object}  responses.APIResponse "Refund period expired"
+// @Failure     500       {object}  responses.APIResponse "Internal server error"
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/refund [post]
 func (h *OrderHandler) RequestRefund(c *gin.Context) {
 	now := time.Now()
 	idParam := c.Param("orderID")
@@ -897,19 +870,19 @@ func (h *OrderHandler) RequestRefund(c *gin.Context) {
 
 // ApproveRefund godoc
 //
-//	@Summary		Approve early refund (staff)
-//	@Description	Approve refund request and optionally attach confirmation image
-//	@Tags			Orders[Staff].States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID	path		string	true	"Order ID (UUID)"
-//	@Param			file	formData	file	false	"Confirmation image"
-//	@Success		200		{object}	responses.APIResponse
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		401		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/refund/approve [post]
+//	@Summary     Approve early refund (staff)
+//	@Description Approve refund request and optionally attach confirmation image
+//	@Tags        Orders[Staff].States
+//	@Accept      multipart/form-data
+//	@Produce     json
+//	@Param       orderID  path      string true  "Order ID (UUID)"
+//	@Param       file     formData  file   false "Confirmation image"
+//	@Success     200      {object}  responses.APIResponse
+//	@Failure     400      {object}  responses.APIResponse
+//	@Failure     401      {object}  responses.APIResponse
+//	@Failure     500      {object}  responses.APIResponse
+//	@Security    BearerAuth
+//	@Router      /api/v1/orders/staff/{orderID}/refund/approve [post]
 func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -971,18 +944,18 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 
 // RequestCompensation godoc
 //
-//	@Summary		Request compensation for an order
-//	@Description	Submit a compensation request for an order with reason and optional supporting file.
-//	@Tags			Orders.States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID	path		string	true	"Order ID (UUID)"
-//	@Param			reason	formData	string	true	"Reason for compensation"
-//	@Param			file	formData	file	true	"File as evidence"
-//	@Success		200		{object}	responses.APIResponse
-//	@Failure		400		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/{orderID}/compensation [post]
+// @Summary     Request compensation for an order
+// @Description Submit a compensation request for an order with reason and optional supporting file.
+// @Tags        Orders.States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       reason    formData  string true  "Reason for compensation"
+// @Param       file      formData  file   true  "File as evidence"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/{orderID}/compensation [post]
 func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -1050,21 +1023,21 @@ func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 
 // ProcessCompensation godoc
 //
-//	@Summary		Process compensation (staff)
-//	@Description	Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
-//	@Tags			Orders[Staff].States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			orderID		path		string	true	"Order ID (UUID)"
-//	@Param			isApproved	formData	string	true	"true|false"
-//	@Param			reason		formData	string	false	"Reason (optional)"
-//	@Param			file		formData	file	false	"Confirmation / Evidence file (such as transaction bill)"
-//	@Success		200			{object}	responses.APIResponse
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/orders/staff/{orderID}/compensation [post]
+// @Summary     Process compensation (staff)
+// @Description Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).
+// @Tags        Orders[Staff].States
+// @Accept      multipart/form-data
+// @Produce     json
+// @Param       orderID   path      string true  "Order ID (UUID)"
+// @Param       isApproved formData  string true  "true|false"
+// @Param       reason    formData  string false "Reason (optional)"
+// @Param       file      formData  file   false "Confirmation / Evidence file (such as transaction bill)"
+// @Success     200       {object}  responses.APIResponse
+// @Failure     400       {object}  responses.APIResponse
+// @Failure     401       {object}  responses.APIResponse
+// @Failure     500       {object}  responses.APIResponse
+// @Security    BearerAuth
+// @Router      /api/v1/orders/staff/{orderID}/compensation [post]
 func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 	idParam := c.Param("orderID")
 	orderID, err := uuid.Parse(idParam)
@@ -1140,13 +1113,13 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 
 // ObligateEarlyRefund godoc
 //
-//	@Summary		Force early refund, skip REFUND_REQUEST
-//	@Description	Upload proof image
+//	@Summary		CANCEL PAID ITEM
+//	@Description	Force early refund, skip REFUND_REQUEST
 //	@Tags			Orders[Staff].States
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			orderID	path		string					true	"Order ID (UUID)"
-//	@Param			reason	formData	string					true	"Reason for Refund"
+//	@Param          reason    formData  string true  "Reason for Refund"
 //	@Param			file	formData	file					true	"Proof image(s) of"
 //	@Success		200		{object}	map[string]interface{}	"Order marked as received successfully"
 //	@Failure		400		{object}	map[string]string		"Invalid order ID or status"
