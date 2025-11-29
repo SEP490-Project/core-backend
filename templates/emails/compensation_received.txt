@@ -9,8 +9,8 @@ Request Details:
 ----------------
 Order Number: {{.OrderCode}}
 Reason: {{.Reason}}
-Attached Images: {{.ImageCount}} file(s)
 Requested Amount: {{.RequestedAmount}}
+Attached Images: {{.ImageURL}} file(s)
 
 Our staff will review your explanation along with the uploaded images to verify the issue.
 You will receive another update once the review is completed.

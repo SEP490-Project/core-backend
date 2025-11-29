@@ -25,6 +25,7 @@ type AdminConfig struct {
 	RepresentativeBankName          string `mapstructure:"representative_bank_name"`
 	RepresentativeBankAccountNumber string `mapstructure:"representative_bank_account_number"`
 	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
+	RepresentativeCompanyAddress    string `mapstructure:"representative_company_address"`
 
 	// Affiliate Link Tracking Configuration
 	TrackingLinkTrustedDomains []string `mapstructure:"tracking_link_trusted_domains"`

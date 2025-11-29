@@ -1,0 +1,28 @@
+New Compensation Request Submitted
+==================================
+
+Hello Staff,
+
+A new compensation request has been submitted by a customer.
+Please review the details below.
+
+Request Details:
+----------------
+StaffName: {{.StaffName}}
+Customer Name: {{.CustomerName}}
+Order Code: {{.OrderCode}}
+Reason Provided: {{.Reason}}
+Requested Amount: {{.RequestedAmount}}
+Submitted At: {{.CreatedAt}}
+Attached Images: {{.ImageURL}} (link)
+
+Next Steps:
+-----------
+Please review the customer's explanation and evidence.
+You can proceed with the evaluation process using the link below:
+
+Review Request: {{.ReviewURL}}
+
+---
+© {{.Year}} Your Company. Internal Notification.
+This is an automated message. Do not reply to this email.

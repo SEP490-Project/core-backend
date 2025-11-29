@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Refund Request Received</title>
+    <title>Compensation Denied</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,42 +23,29 @@
         .header {
             text-align: center;
             padding-bottom: 20px;
-            border-bottom: 2px solid #ffc107; /* Yellow for pending status */
+            border-bottom: 2px solid #dc3545; /* red for denied */
             margin-bottom: 30px;
         }
         .header h1 {
-            color: #ffc107; /* Pending/Notice color */
+            color: #dc3545;
             margin: 0;
             font-size: 24px;
         }
         .content {
             margin: 20px 0;
         }
-        .refund-details {
-            background-color: #fff9db;
+        .details {
+            background-color: #f8d7da;
             padding: 15px;
             border-radius: 4px;
             margin: 15px 0;
-            border: 1px dashed #ffe8a1;
+            border: 1px dashed #f5c6cb;
         }
-        .refund-details p {
+        .details p {
             margin: 8px 0;
         }
-        .refund-details strong {
-            color: #856404;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #17a2b8;
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .button:hover {
-            background-color: #117a8b;
+        .details strong {
+            color: #721c24;
         }
         .footer {
             margin-top: 30px;
@@ -73,22 +60,28 @@
 <body>
 <div class="email-container">
     <div class="header">
-        <h1>📩 Refund Request Received</h1>
+        <h1>❌ Compensation Denied</h1>
     </div>
 
     <div class="content">
         <p>Hello {{.CustomerName}},</p>
         <p>
-            We have received your refund request and our team is currently reviewing it.
-            You will receive an update shortly regarding the next steps.
+            We have reviewed your compensation request for your order. Unfortunately, your request has been denied.
         </p>
 
-        <div class="refund-details">
-            <p><strong>Refund Request Code:</strong> {{.RefundCode}}</p>
-            <p><strong>Request Date:</strong> {{.RequestDate}}</p>
-            <p><strong>Requested Amount:</strong> {{.RefundAmount}}</p>
-            <p><strong>Reason: </strong> {{.Reason}}</p>
+        <div class="details">
+            <p><strong>Order Number:</strong> {{.OrderCode}}</p>
+            <p><strong>Reason for Denial:</strong> {{.DenialReason}}</p>
+            <p><strong>Original Requested Amount:</strong> {{.RequestedAmount}}</p>
         </div>
+
+        <p>
+            If you have any further questions or need additional support, please contact our customer service team.
+        </p>
+
+        <p>
+            Thank you for your understanding.
+        </p>
     </div>
 
     <div class="footer">

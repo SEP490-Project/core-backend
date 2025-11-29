@@ -473,6 +473,7 @@ func (h *StateHandler) GHNOrderUpdateWebHook(c *gin.Context) {
 	if err != nil {
 		zap.L().Error("Failed to move order to GHN hook", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to move order: "+err.Error(), http.StatusInternalServerError))
+		return
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Order state updated via GHN webhook", nil, nil))

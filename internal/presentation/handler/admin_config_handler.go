@@ -86,6 +86,7 @@ func (h *AdminConfigHandler) GetRepresentativeConfigs(c *gin.Context) {
 		constant.ConfigKeyRepresentativeBankName.String(),
 		constant.ConfigKeyRepresentativeBankAccountNumber.String(),
 		constant.ConfigKeyRepresentativeBankAccountHolder.String(),
+		constant.ConfigKeyRepresentativeCompanyAddress.String(),
 	}
 
 	configResponses, err := h.adminConfigService.GetConfigValuesByKeys(c.Request.Context(), keys)

@@ -1,0 +1,17 @@
+Refund Request Announcement
+
+Hello {{.StaffName}},
+
+A new refund request has been submitted by a customer. Please review the
+details below and take appropriate action based on refund policy.
+
+Customer Name: {{.CustomerName}} Order Code: {{.OrderCode}} Refund
+Reason: {{.Reason}} Requested Refund Amount: {{.RequestedAmount}}
+Submitted At: {{.CreatedAt}}
+
+Please evaluate the request carefully and update the customer regarding
+the refund approval status once the review is completed.
+
+Review Link: {{.ReviewURL}}
+
+© {{.Year}} Your Company. Internal Notification.
