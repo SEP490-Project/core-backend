@@ -84,3 +84,14 @@ func (r *CronJobRegistry) RegisterJob(name string, job CronJob) {
 	r.jobs[name] = job
 	zap.L().Info("Registered new cron job", zap.String("job_name", name))
 }
+
+func (r *CronJobRegistry) RestartAllJobs(adminConfig *config.AdminConfig) error {
+	for name, job := range r.jobs {
+		if err := job.Restart(adminConfig); err != nil {
+			zap.L().Error("Failed to restart cron job", zap.String("job_name", name), zap.Error(err))
+		} else {
+			zap.L().Info("Restarted cron job", zap.String("job_name", name))
+		}
+	}
+	return nil
+}

@@ -22,6 +22,7 @@ type CTRAggregationJob struct {
 	lastRunTime       time.Time
 	intervalMinutes   int
 	enabled           bool
+	entryID           cron.EntryID
 }
 
 func NewCTRAggregationJob(
@@ -62,7 +63,7 @@ func (j *CTRAggregationJob) Initialize() error {
 		zap.Int("interval_minutes", j.intervalMinutes))
 
 	// Schedule the job
-	_, err := j.cronScheduler.AddFunc(cronExpr, func() {
+	entryID, err := j.cronScheduler.AddFunc(cronExpr, func() {
 		if j.enabled {
 			j.Run()
 		}
@@ -72,8 +73,30 @@ func (j *CTRAggregationJob) Initialize() error {
 		zap.L().Error("Failed to schedule CTR Aggregation Job", zap.Error(err))
 		return fmt.Errorf("failed to schedule CTR aggregation job: %w", err)
 	}
+	j.entryID = entryID
 
 	return nil
+}
+
+// Restart implements CronJob.
+func (j *CTRAggregationJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting CTR Aggregation Job...")
+
+	// Remove existing job if it exists
+	if j.entryID != 0 {
+		j.cronScheduler.Remove(j.entryID)
+		j.entryID = 0
+	}
+
+	// Update configuration
+	j.enabled = adminConfig.CTRAggregationEnabled
+	j.intervalMinutes = adminConfig.CTRAggregationIntervalMinutes
+	if j.intervalMinutes <= 0 {
+		j.intervalMinutes = 5
+	}
+
+	// Re-initialize
+	return j.Initialize()
 }
 
 // Run implements CronJob.

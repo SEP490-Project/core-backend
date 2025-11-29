@@ -1,7 +1,10 @@
 // Package jobs contains the Cron jobs interfaces and the specific implementations.
 package jobs
 
-import "time"
+import (
+	"core-backend/config"
+	"time"
+)
 
 type CronJob interface {
 	Initialize() error
@@ -9,4 +12,5 @@ type CronJob interface {
 	IsEnabled() bool
 	SetEnabled(enabled bool)
 	GetLastRunTime() time.Time
+	Restart(adminConfig *config.AdminConfig) error
 }
