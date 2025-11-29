@@ -86,6 +86,7 @@ otel:
 
 # RabbitMQ configuration
 rabbitmq:
+  url: ""
   host: my-vps
   port: 5672
   username: "admin"
@@ -266,6 +267,10 @@ ai:
     - id: "gemini-2.0-flash-lite"
       provider: "gemini"
     - id: "qwen/qwen-2.5-72b-instruct"
+      provider: "openrouter"
+    - id: "tngtech/tng-r1t-chimera:free"
+      provider: "openrouter"
+    - id: "x-ai/grok-4.1-fast:free"
       provider: "openrouter"
     - id: "moonshot-v1-8k"
       provider: "moonshot"

@@ -122,12 +122,12 @@ content_generation_prompt_template: |
       }
     ]
   }
-  For Nodes components, possible types include: 
-  - Basic Nodes: "doc", "paragraph", "text", "hardBreak"
-  - Formatting & Layout Nodes: "heading", "blockquote", "horizontalRule", "codeBlock", "codeBlockLowlight"
+  For Nodes components, possible types only include: 
+  - Basic Nodes: "doc", "paragraph", "text"
+  - Blocks Nodes: "blockquote", "codeBlock", "codeBlockLowlight", "heading", "horizontalRule", "hardBreak"
   - Lists Nodes: "bulletList", "orderedList", "listItem", "taskList", "taskItem"
-  - Media & Embed Nodes: "image", "video", "youtube", "mention", "emoji"
+  - Media & Embed Nodes: "image", "video", "youtube"
   - Tables Nodes: "table", "tableRow", "tableHeader", "tableCell"
   - Interactive Nodes: "details", "detailsSummary", "detailsContent"
-  For Marks components, possible types include: "bold", "italic", "strike", "underline", "code", "link", "subscript", "superscript", "highlight", "textStyle"
+  For Marks components, possible types only include: "bold", "italic", "strike", "underline", "code", "link", "subscript", "superscript", "highlight", "textStyle"
 

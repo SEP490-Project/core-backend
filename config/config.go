@@ -328,8 +328,12 @@ func LoadConfig(configPath string) error {
 	}
 
 	// Override RabbitMQ URL if individual components are set in config
-	if appConfig.RabbitMQ.Host != "" && appConfig.RabbitMQ.Username != "" && appConfig.RabbitMQ.Password != "" {
-		appConfig.RabbitMQ.URL = fmt.Sprintf("amqp://%s:%s@%s:%d/", appConfig.RabbitMQ.Username, appConfig.RabbitMQ.Password, appConfig.RabbitMQ.Host, appConfig.RabbitMQ.Port)
+	if appConfig.RabbitMQ.URL == "" &&
+		appConfig.RabbitMQ.Host != "" &&
+		appConfig.RabbitMQ.Username != "" &&
+		appConfig.RabbitMQ.Password != "" {
+		appConfig.RabbitMQ.URL = fmt.Sprintf("amqp://%s:%s@%s:%d/",
+			appConfig.RabbitMQ.Username, appConfig.RabbitMQ.Password, appConfig.RabbitMQ.Host, appConfig.RabbitMQ.Port)
 	}
 
 	fmt.Println("Loaded server port from config:", appConfig.Server.Port)

@@ -12,9 +12,9 @@ import (
 
 // AdminConfig holds the admin-related configuration settings
 type AdminConfig struct {
-	PayOSLinkExpiry                   int   `mapstructure:"payos_link_expiry"`
-	MinimumDayBeforeContracPaymentDue int   `mapstructure:"minimum_day_before_contract_payment_due"`
-	ForgetPasswordExpiryInSeconds     int64 `mapstructure:"forget_password_expiry_in_seconds"`
+	PayOSLinkExpiry                    int   `mapstructure:"payos_link_expiry"`
+	MinimumDayBeforeContractPaymentDue int   `mapstructure:"minimum_day_before_contract_payment_due"`
+	ForgetPasswordExpiryInSeconds      int64 `mapstructure:"forget_password_expiry_in_seconds"`
 
 	// Representative Information
 	RepresentativeName              string `mapstructure:"representative_name"`
@@ -64,7 +64,7 @@ type AdminConfig struct {
 	SystemName  string `mapstructure:"system_name"`
 
 	// AI Content Generation
-	ContentGenerationPromptTemplate string `mapstructure:"content_generation_prompt_template"`
+	ContentGenerationPromptTemplate string `mapstructure:"content_generation_prompt_template" type:"textarea"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables

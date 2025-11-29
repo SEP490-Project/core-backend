@@ -60,47 +60,67 @@ type DatabaseRegistry struct {
 	//Marketing Analytics
 	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
 
+	//Contract Payment Calculation
+	ContractPaymentCalculationRepository irepository.ContractPaymentCalculationRepository
+
+	//Sales Staff Analytics
+	SalesStaffAnalyticsRepository irepository.SalesStaffAnalyticsRepository
+
+	//Content Staff Analytics
+	ContentStaffAnalyticsRepository irepository.ContentStaffAnalyticsRepository
+
+	//Brand Partner Analytics
+	BrandPartnerAnalyticsRepository irepository.BrandPartnerAnalyticsRepository
+
+	//Admin Analytics
+	AdminAnalyticsRepository irepository.AdminAnalyticsRepository
+
 	FileRepository irepository.GenericRepository[model.File]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
-		GormDatabase:                 db,
-		UserRepository:               NewGenericRepository[model.User](db),
-		LoggedSessionRepository:      NewGenericRepository[model.LoggedSession](db),
-		ProductRepository:            NewGenericRepository[model.Product](db),
-		ProductVariantRepository:     NewGenericRepository[model.ProductVariant](db),
-		BrandRepository:              NewGenericRepository[model.Brand](db),
-		ProductCategoryRepository:    NewGenericRepository[model.ProductCategory](db),
-		ContractRepository:           NewGenericRepository[model.Contract](db),
-		ContractPaymentRepository:    NewGenericRepository[model.ContractPayment](db),
-		CampaignRepository:           NewGenericRepository[model.Campaign](db),
-		MilestoneRepository:          NewGenericRepository[model.Milestone](db),
-		TaskRepository:               NewTaskRepository(db),
-		ModifiedHistoryRepository:    NewGenericRepository[model.ModifiedHistory](db),
-		LimitedProductRepository:     NewGenericRepository[model.LimitedProduct](db),
-		ConceptRepository:            NewGenericRepository[model.Concept](db),
-		AdminConfigRepository:        NewGenericRepository[model.Config](db),
-		VariantAttributeRepository:   NewGenericRepository[model.VariantAttribute](db),
-		ChannelRepository:            NewGenericRepository[model.Channel](db),
-		ContentRepository:            NewGenericRepository[model.Content](db),
-		ContentChannelRepository:     NewGenericRepository[model.ContentChannel](db),
-		BlogRepository:               NewGenericRepository[model.Blog](db),
-		TagRepository:                NewTagRepository(db),
-		OrderRepository:              NewOrderRepository(db),
-		OrderItemRepository:          NewGenericRepository[model.OrderItem](db),
-		PaymentTransactionRepository: NewGenericRepository[model.PaymentTransaction](db),
-		NotificationRepository:       NewNotificationRepository(db),
-		DeviceTokenRepository:        NewDeviceTokenRepository(db),
-		ShippingAddressRepository:    NewGenericRepository[model.ShippingAddress](db),
-		ProvinceRepository:           NewGenericRepository[model.Province](db),
-		DistrictRepository:           NewGenericRepository[model.District](db),
-		WardRepository:               NewGenericRepository[model.Ward](db),
-		AffiliateLinkRepository:      NewAffiliateLinkRepository(db),
-		ClickEventRepository:         NewClickEventRepository(db),
-		KPIMetricsRepository:         NewGenericRepository[model.KPIMetrics](db),
-		PreOrderRepository:           NewPreOrderRepository(db),
-		MarketingAnalyticsRepository: NewMarketingAnalyticsRepository(db),
-		FileRepository:               NewGenericRepository[model.File](db),
+		GormDatabase:                 		  db,
+		UserRepository:                       NewGenericRepository[model.User](db),
+		LoggedSessionRepository:              NewGenericRepository[model.LoggedSession](db),
+		ProductRepository:                    NewGenericRepository[model.Product](db),
+		ProductVariantRepository:             NewGenericRepository[model.ProductVariant](db),
+		BrandRepository:                      NewGenericRepository[model.Brand](db),
+		ProductCategoryRepository:            NewGenericRepository[model.ProductCategory](db),
+		ContractRepository:                   NewGenericRepository[model.Contract](db),
+		ContractPaymentRepository:            NewGenericRepository[model.ContractPayment](db),
+		CampaignRepository:                   NewGenericRepository[model.Campaign](db),
+		MilestoneRepository:                  NewGenericRepository[model.Milestone](db),
+		TaskRepository:                       NewTaskRepository(db),
+		ModifiedHistoryRepository:            NewGenericRepository[model.ModifiedHistory](db),
+		LimitedProductRepository:             NewGenericRepository[model.LimitedProduct](db),
+		ConceptRepository:                    NewGenericRepository[model.Concept](db),
+		AdminConfigRepository:                NewGenericRepository[model.Config](db),
+		VariantAttributeRepository:           NewGenericRepository[model.VariantAttribute](db),
+		ChannelRepository:                    NewGenericRepository[model.Channel](db),
+		ContentRepository:                    NewGenericRepository[model.Content](db),
+		ContentChannelRepository:             NewGenericRepository[model.ContentChannel](db),
+		BlogRepository:                       NewGenericRepository[model.Blog](db),
+		TagRepository:                        NewTagRepository(db),
+		OrderRepository:                      NewOrderRepository(db),
+		OrderItemRepository:                  NewGenericRepository[model.OrderItem](db),
+		PaymentTransactionRepository:         NewGenericRepository[model.PaymentTransaction](db),
+		NotificationRepository:               NewNotificationRepository(db),
+		DeviceTokenRepository:                NewDeviceTokenRepository(db),
+		ShippingAddressRepository:            NewGenericRepository[model.ShippingAddress](db),
+		ProvinceRepository:                   NewGenericRepository[model.Province](db),
+		DistrictRepository:                   NewGenericRepository[model.District](db),
+		WardRepository:                       NewGenericRepository[model.Ward](db),
+		AffiliateLinkRepository:              NewAffiliateLinkRepository(db),
+		ClickEventRepository:                 NewClickEventRepository(db),
+		KPIMetricsRepository:                 NewGenericRepository[model.KPIMetrics](db),
+		PreOrderRepository:                   NewPreOrderRepository(db),
+		MarketingAnalyticsRepository:         NewMarketingAnalyticsRepository(db),
+		ContractPaymentCalculationRepository: NewContractPaymentCalculationRepository(db),
+		SalesStaffAnalyticsRepository:        NewSalesStaffAnalyticsRepository(db),
+		ContentStaffAnalyticsRepository:      NewContentStaffAnalyticsRepository(db),
+		BrandPartnerAnalyticsRepository:      NewBrandPartnerAnalyticsRepository(db),
+		AdminAnalyticsRepository:             NewAdminAnalyticsRepository(db),
+		FileRepository:                       NewGenericRepository[model.File](db),
 	}
 }

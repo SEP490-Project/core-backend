@@ -107,12 +107,15 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
+		r.SetupSalesStaffAnalyticsRoutes(v1)
+		r.SetupContentStaffAnalyticsRoutes(v1)
+		r.SetupBrandPartnerAnalyticsRoutes(v1)
+		r.SetupAdminAnalyticsRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
 		r.setupPaymentTransactionsRoutes(v1)
 		r.setupFileRoutes(v1)
-		r.setupAIRoutes(v1)
 		if r.config.IsDevelopmentDebugging() {
 			r.setupTestRoutes(v1)
 		}
@@ -346,6 +349,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE
 	}
 
+	v1WithoutTimeout := engine.Group("/api/v1")
+	{
+		r.setupAIRoutes(v1WithoutTimeout)
+	}
 }
 
 // setupUserRoutes sets up routes for user management
@@ -489,9 +496,11 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 	adminConfigHandler := r.handlerRegistry.AdminConfigHandler
 	configGroup := group.Group("configs")
 	{
-		writeGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		adminOnlyGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin))
 		{
-			writeGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.GET("", adminConfigHandler.GetAllConfigValues)
+			adminOnlyGroup.PUT(":key", adminConfigHandler.UpdateConfig)
+			adminOnlyGroup.PUT("", adminConfigHandler.UpdateConfigs)
 		}
 
 		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
@@ -775,6 +784,91 @@ func (r *Router) SetupMarketingAnalyticsRoutes(group *gin.RouterGroup) {
 	}
 }
 
+// SetupSalesStaffAnalyticsRoutes sets up routes for sales staff analytics dashboard
+func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	salesAnalyticsHandler := r.handlerRegistry.SalesStaffAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/sales")
+	{
+		// Protected routes (Admin and Sales Staff can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, sales))
+		{
+			protectedGroup.GET("/dashboard", salesAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/orders", salesAnalyticsHandler.GetOrdersOverview)
+			protectedGroup.GET("/pre-orders", salesAnalyticsHandler.GetPreOrdersOverview)
+			protectedGroup.GET("/revenue", salesAnalyticsHandler.GetRevenueBySource)
+			protectedGroup.GET("/brands", salesAnalyticsHandler.GetTopBrands)
+			protectedGroup.GET("/products", salesAnalyticsHandler.GetTopProducts)
+			protectedGroup.GET("/trend", salesAnalyticsHandler.GetRevenueTrend)
+			protectedGroup.GET("/payments", salesAnalyticsHandler.GetPaymentStatus)
+		}
+	}
+}
+
+// SetupContentStaffAnalyticsRoutes sets up routes for content staff analytics dashboard
+func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	contentAnalyticsHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/content")
+	{
+		// Protected routes (Admin, Marketing and Content Staff can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			protectedGroup.GET("/dashboard", contentAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/status", contentAnalyticsHandler.GetContentStatusBreakdown)
+			protectedGroup.GET("/platforms", contentAnalyticsHandler.GetMetricsByPlatform)
+			protectedGroup.GET("/top", contentAnalyticsHandler.GetTopContent)
+			protectedGroup.GET("/channels", contentAnalyticsHandler.GetTopChannels)
+			protectedGroup.GET("/trend", contentAnalyticsHandler.GetEngagementTrend)
+			protectedGroup.GET("/campaigns", contentAnalyticsHandler.GetCampaignContentMetrics)
+		}
+	}
+}
+
+// SetupBrandPartnerAnalyticsRoutes sets up routes for brand partner analytics dashboard
+func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
+	brandAnalyticsHandler := r.handlerRegistry.BrandPartnerAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/brand-partner")
+	{
+		// Protected routes (Admin, Brand Partner can view analytics)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, brand))
+		{
+			protectedGroup.GET("/dashboard", brandAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/top-products", brandAnalyticsHandler.GetTopProducts)
+			protectedGroup.GET("/campaigns", brandAnalyticsHandler.GetCampaignMetrics)
+			protectedGroup.GET("/content", brandAnalyticsHandler.GetContentMetrics)
+			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
+			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
+			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
+		}
+	}
+}
+
+// SetupAdminAnalyticsRoutes sets up routes for admin analytics dashboard
+func (r *Router) SetupAdminAnalyticsRoutes(group *gin.RouterGroup) {
+	adminAnalyticsHandler := r.handlerRegistry.AdminAnalyticsHandler
+	analyticsGroup := group.Group("/analytics/admin")
+	{
+		// Protected routes (Admin only)
+		protectedGroup := analyticsGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			protectedGroup.GET("/dashboard", adminAnalyticsHandler.GetDashboard)
+			protectedGroup.GET("/users", adminAnalyticsHandler.GetUsersOverview)
+			protectedGroup.GET("/revenue", adminAnalyticsHandler.GetPlatformRevenue)
+			protectedGroup.GET("/health", adminAnalyticsHandler.GetSystemHealth)
+			protectedGroup.GET("/user-growth", adminAnalyticsHandler.GetUserGrowth)
+			protectedGroup.GET("/contracts", adminAnalyticsHandler.GetContractsSummary)
+			protectedGroup.GET("/campaigns", adminAnalyticsHandler.GetCampaignsSummary)
+		}
+	}
+}
+
 func (r *Router) SetupPayOSRoutes(group *gin.RouterGroup) {
 	// ---------- PAYOS ----------
 	payOsHandler := r.handlerRegistry.PayOsHandler
@@ -828,10 +922,18 @@ func (r *Router) setupTikTokSocialRoutes(group *gin.RouterGroup) {
 	}
 
 	tiktokInfoGroup := group.Group("/social/tiktok")
-	tiktokInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
-		tiktokInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
-		tiktokInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		adminInfoGroup := tiktokInfoGroup.Group("")
+		adminInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminInfoGroup.GET("/system-user-profile", tiktokHandler.GetSystemUserProfile)
+		}
+
+		generalInfoGroup := tiktokInfoGroup.Group("")
+		generalInfoGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
+		{
+			generalInfoGroup.GET("/creator-info", tiktokHandler.GetCreatorInfo)
+		}
 	}
 }
 

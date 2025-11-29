@@ -88,13 +88,13 @@ type PreOrder struct {
 	IsSelfPickedUp    bool    `json:"is_self_picked_up" gorm:"column:is_self_picked_up;not null;default:false"`
 	ConfirmationImage *string `json:"confirmation_image,omitempty" gorm:"column:confirmation_image;type:text"`
 
-	Status    enum.PreOrderStatus `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
-	CreatedAt time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	//DeletedAt gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at"swaggerignore:"true"`
-	UserNote      *string `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
-	UserResource  *string `json:"user_resource,omitempty" gorm:"column:user_resource;type:text"`
-	StaffResource *string `json:"staff_resource,omitempty" gorm:"column:staff_resource;type:text"`
+	Status        enum.PreOrderStatus `json:"status" gorm:"column:status;not null;check:status in ('PENDING', 'PRE_ORDERED', 'AWAITING_RELEASE', 'AWAITING_PICKUP', 'CONFIRMED', 'CANCELLED', 'IN_TRANSIT', 'DELIVERED', 'RECEIVED')"`
+	CreatedAt     time.Time           `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt     time.Time           `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt     gorm.DeletedAt      `json:"deleted_at" gorm:"column:deleted_at" swaggertype:"string"`
+	UserNote      *string             `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
+	UserResource  *string             `json:"user_resource,omitempty" gorm:"column:user_resource;type:text"`
+	StaffResource *string             `json:"staff_resource,omitempty" gorm:"column:staff_resource;type:text"`
 
 	// Action notes for pre-order (JSONB)
 	ActionNotes *PreOrderActionNotes `json:"action_notes,omitempty" gorm:"column:action_notes;type:jsonb"`

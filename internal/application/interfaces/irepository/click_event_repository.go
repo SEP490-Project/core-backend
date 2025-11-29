@@ -2,6 +2,7 @@ package irepository
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/domain/model"
 	"time"
 
@@ -24,10 +25,10 @@ type ClickEventRepository interface {
 
 	// GetHourlyStats retrieves aggregated hourly click statistics for an affiliate link
 	// Uses TimescaleDB time_bucket function for efficient aggregation
-	GetHourlyStats(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) ([]HourlyClickStats, error)
+	GetHourlyStats(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) ([]dtos.HourlyClickStats, error)
 
 	// GetDailyStats retrieves aggregated daily click statistics for an affiliate link
-	GetDailyStats(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) ([]DailyClickStats, error)
+	GetDailyStats(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) ([]dtos.DailyClickStats, error)
 
 	// GetClickCountByAffiliate counts total clicks for a specific affiliate link
 	GetClickCountByAffiliate(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) (int64, error)
@@ -42,31 +43,17 @@ type ClickEventRepository interface {
 	GetClicksByChannel(ctx context.Context, channelID uuid.UUID, startTime, endTime time.Time) ([]model.ClickEvent, error)
 
 	// GetTopPerformingLinks retrieves top N affiliate links by click count within a time range
-	GetTopPerformingLinks(ctx context.Context, startTime, endTime time.Time, limit int) ([]AffiliateLinkPerformance, error)
-}
+	GetTopPerformingLinks(ctx context.Context, startTime, endTime time.Time, limit int) ([]dtos.AffiliateLinkPerformance, error)
 
-// HourlyClickStats represents aggregated hourly click statistics
-type HourlyClickStats struct {
-	Hour           time.Time `json:"hour"`
-	TotalClicks    int64     `json:"total_clicks"`
-	UniqueUsers    int64     `json:"unique_users"`
-	UniqueSessions int64     `json:"unique_sessions"`
-}
+	// GetGlobalOverview retrieves global click statistics for the platform
+	GetGlobalOverview(ctx context.Context, startTime, endTime time.Time) (dtos.GlobalClickStats, error)
 
-// DailyClickStats represents aggregated daily click statistics
-type DailyClickStats struct {
-	Date           time.Time `json:"date"`
-	TotalClicks    int64     `json:"total_clicks"`
-	UniqueUsers    int64     `json:"unique_users"`
-	UniqueSessions int64     `json:"unique_sessions"`
-}
+	// GetTopContracts retrieves top N contracts by click performance
+	GetTopContracts(ctx context.Context, startTime, endTime time.Time, limit int) ([]dtos.ContractPerformance, error)
 
-// AffiliateLinkPerformance represents performance metrics for an affiliate link
-type AffiliateLinkPerformance struct {
-	AffiliateLinkID uuid.UUID `json:"affiliate_link_id"`
-	Hash            string    `json:"hash"`
-	TotalClicks     int64     `json:"total_clicks"`
-	UniqueUsers     int64     `json:"unique_users"`
-	ContentTitle    string    `json:"content_title"`
-	ChannelName     string    `json:"channel_name"`
+	// GetTopChannels retrieves top N channels by click performance
+	GetTopChannels(ctx context.Context, startTime, endTime time.Time, limit int) ([]dtos.ChannelPerformance, error)
+
+	// GetGlobalTrendData retrieves daily trend data for the dashboard
+	GetGlobalTrendData(ctx context.Context, startTime, endTime time.Time) ([]dtos.DailyClickStats, error)
 }
