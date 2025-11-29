@@ -24,4 +24,7 @@ type AdminConfigService interface {
 
 	// UpdateConfigs updates multiple admin configurations at once.
 	UpdateConfigs(ctx context.Context, configs map[string]string, uow irepository.UnitOfWork) error
+
+	// RegisterListener registers a callback function to be executed when configuration changes.
+	RegisterListener(listener func())
 }

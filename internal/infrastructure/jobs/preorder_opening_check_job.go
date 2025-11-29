@@ -18,6 +18,7 @@ type preOrderOpeningCheckJob struct {
 	enabled         bool
 	adminConfig     *config.AdminConfig
 	lastRunTime     time.Time
+	entryID         cron.EntryID
 }
 
 func NewPreOrderOpeningCheckJob(
@@ -39,7 +40,7 @@ func NewPreOrderOpeningCheckJob(
 	}
 }
 
-func (p preOrderOpeningCheckJob) Initialize() error {
+func (p *preOrderOpeningCheckJob) Initialize() error {
 	if !p.adminConfig.PreOrderOpeningCheckEnable {
 		zap.L().Info("Pre-Order Opening Check Job is disabled via admin config")
 		return nil
@@ -52,11 +53,12 @@ func (p preOrderOpeningCheckJob) Initialize() error {
 		zap.Int("interval_minutes", p.intervalMinutes))
 
 	// Schedule the job
-	_, err := p.cronScheduler.AddFunc(cronExpr, func() {
+	entryID, err := p.cronScheduler.AddFunc(cronExpr, func() {
 		if p.enabled {
 			p.Run()
 		}
 	})
+	p.entryID = entryID
 
 	if err != nil {
 		zap.L().Error("Failed to schedule Pre-Order Opening Check Job", zap.Error(err))
@@ -66,7 +68,7 @@ func (p preOrderOpeningCheckJob) Initialize() error {
 	return err
 }
 
-func (p preOrderOpeningCheckJob) Run() {
+func (p *preOrderOpeningCheckJob) Run() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.intervalMinutes)*time.Minute)
 	defer cancel()
 
@@ -83,14 +85,37 @@ func (p preOrderOpeningCheckJob) Run() {
 	)
 }
 
-func (p preOrderOpeningCheckJob) IsEnabled() bool {
+func (p *preOrderOpeningCheckJob) IsEnabled() bool {
 	return p.enabled
 }
 
-func (p preOrderOpeningCheckJob) SetEnabled(enabled bool) {
+func (p *preOrderOpeningCheckJob) SetEnabled(enabled bool) {
 	p.enabled = enabled
 }
 
-func (p preOrderOpeningCheckJob) GetLastRunTime() time.Time {
+func (p *preOrderOpeningCheckJob) GetLastRunTime() time.Time {
 	return p.lastRunTime
+}
+
+// Restart implements CronJob.
+func (p *preOrderOpeningCheckJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting Pre-Order Opening Check Job due to config change")
+
+	// Update config
+	p.adminConfig = adminConfig
+	p.enabled = adminConfig.PreOrderOpeningCheckEnable
+	intervalMinutes := adminConfig.PreOrderOpeningCheckIntervalMinutes
+	if intervalMinutes <= 0 {
+		intervalMinutes = 30
+	}
+	p.intervalMinutes = intervalMinutes
+
+	// Remove existing job if it exists
+	if p.entryID != 0 {
+		p.cronScheduler.Remove(p.entryID)
+		p.entryID = 0
+	}
+
+	// Re-initialize
+	return p.Initialize()
 }

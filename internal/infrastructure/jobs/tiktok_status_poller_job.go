@@ -31,6 +31,7 @@ type TikTokStatusPollerJob struct {
 	intervalSeconds    int
 	enabled            bool
 	lastRunTime        time.Time
+	entryID            cron.EntryID
 }
 
 func NewTikTokStatusPollerJob(
@@ -78,11 +79,12 @@ func (j *TikTokStatusPollerJob) Initialize() error {
 		zap.Int("interval_seconds", j.intervalSeconds))
 
 	// Schedule the job
-	_, err := j.cronScheduler.AddFunc(cronExpr, func() {
+	entryID, err := j.cronScheduler.AddFunc(cronExpr, func() {
 		if j.enabled {
 			j.Run()
 		}
 	})
+	j.entryID = entryID
 
 	if err != nil {
 		zap.L().Error("Failed to schedule TikTok Status Poller Job", zap.Error(err))
@@ -202,6 +204,28 @@ func (j *TikTokStatusPollerJob) GetLastRunTime() time.Time {
 	return j.lastRunTime
 }
 
+// Restart implements CronJob.
+func (j *TikTokStatusPollerJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting TikTok Status Poller Job due to config change")
+
+	// Update config
+	j.enabled = adminConfig.TikTokStatusPollerEnabled
+	intervalSeconds := adminConfig.TikTokStatusPollerIntervalSeconds
+	if intervalSeconds <= 0 {
+		intervalSeconds = 30
+	}
+	j.intervalSeconds = intervalSeconds
+
+	// Remove existing job if it exists
+	if j.entryID != 0 {
+		j.cronScheduler.Remove(j.entryID)
+		j.entryID = 0
+	}
+
+	// Re-initialize
+	return j.Initialize()
+}
+
 // updateContentChannelStatus updates the ContentChannel based on TikTok status response
 func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 	ctx context.Context,
@@ -229,7 +253,6 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 		cc.AutoPostStatus = enum.AutoPostStatusPosted
 		if len(postID) > 0 {
 			// Update ExternalPostID with the final TikTok post ID
-			// cc.ExternalPostID = postID[0]
 			cc.ExternalPostID = utils.PtrOrNil(fmt.Sprintf("%d", postID[0]))
 		}
 		cc.LastError = nil

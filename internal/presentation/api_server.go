@@ -68,6 +68,16 @@ func NewAPIServer() *APIServer {
 	// Register application-layer cron jobs (jobs that depend on application services)
 	serviceRegistry.RegisterApplicationLayerJobs()
 
+	// Register listener for AdminConfig changes to restart cron jobs
+	serviceRegistry.AdminConfigService.RegisterListener(func() {
+		if infrastructureRegistry.CronJobsRegistry != nil {
+			zap.L().Info("Admin config changed, restarting cron jobs...")
+			if err := infrastructureRegistry.CronJobsRegistry.RestartAllJobs(&config.GetAppConfig().AdminConfig); err != nil {
+				zap.L().Error("Failed to restart cron jobs", zap.Error(err))
+			}
+		}
+	})
+
 	// Initialize and start cron jobs
 	if infrastructureRegistry.CronJobsRegistry != nil {
 		if err := infrastructureRegistry.CronJobsRegistry.InitializeAllJobs(); err != nil {
