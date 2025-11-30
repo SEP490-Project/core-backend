@@ -350,9 +350,11 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 		zap.L().Info("Handling Side Effect")
 		if firstRes.Result {
 			zap.L().Info("Handling Side Effect for GHN status", zap.String("status", string(deliveryStatus)))
-			if err := g.handleSideEffect(ctx, deliveryStatus, &order); err != nil {
-				zap.L().Warn("side effect failed", zap.Error(err))
-			}
+			go func() {
+				if err := g.handleSideEffect(context.Background(), deliveryStatus, &order); err != nil {
+					zap.L().Error("Failed to fire webhook", zap.Error(err))
+				}
+			}()
 		}
 	}
 
@@ -372,7 +374,7 @@ func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHN
 		return fmt.Errorf("failed to create webhook request: %w", err)
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to call GHN webhook: %w", err)

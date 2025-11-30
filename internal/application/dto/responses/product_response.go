@@ -37,7 +37,7 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 
 	// IDs & Brand
 	pr.ID = m.ID
-	pr.BrandID = m.BrandID
+	pr.BrandID = *m.BrandID
 	if m.Brand != nil {
 		pr.BrandName = m.Brand.Name
 		pr.BrandLogoURL = m.Brand.LogoURL // *string
@@ -117,7 +117,7 @@ func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct)
 func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *ProductDetailResponse {
 	// IDs & Brand
 	d.ID = m.ID
-	d.BrandID = m.BrandID
+	d.BrandID = *m.BrandID
 	if m.Brand != nil {
 		d.BrandName = m.Brand.Name
 		d.BrandLogoURL = m.Brand.LogoURL // *string
@@ -392,7 +392,7 @@ type ProductResponseV2 struct {
 func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductResponseV2 {
 	return &ProductResponseV2{
 		ID:      m.ID,
-		BrandID: m.BrandID,
+		BrandID: *m.BrandID,
 
 		// Brand
 		BrandName:    utils.IfNotNil(m.Brand, func(b *model.Brand) string { return b.Name }),
@@ -468,7 +468,7 @@ func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *Produ
 
 	// IDs & Brand
 	pr.ID = m.ID
-	pr.BrandID = m.BrandID
+	pr.BrandID = *m.BrandID
 	if m.Brand != nil {
 		pr.BrandName = m.Brand.Name
 		pr.BrandLogoURL = m.Brand.LogoURL // *string

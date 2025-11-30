@@ -1,0 +1,20 @@
+Compensation Request Denied
+===========================
+
+Hello {{.CustomerName}},
+
+We have reviewed your compensation request for your order. Unfortunately, your request has been denied.
+
+Request Details:
+----------------
+Order Number: {{.OrderCode}}
+Reason for Denial: {{.DenialReason}}
+Original Requested Amount: {{.RequestedAmount}}
+
+If you have any further questions or need additional support, please contact our customer service team.
+
+Thank you for your understanding.
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.

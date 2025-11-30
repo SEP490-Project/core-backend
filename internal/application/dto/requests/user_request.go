@@ -12,12 +12,15 @@ import (
 
 // UpdateProfileRequest represents profile update request
 type UpdateProfileRequest struct {
-	Username        *string                        `json:"username" validate:"omitempty,min=3,max=50,alphanum" example:"new_username"`
-	FullName        *string                        `json:"full_name" validate:"omitempty,min=3,max=100" example:"John Doe"`
-	Phone           *string                        `json:"phone" validate:"omitempty,e164" example:"+1234567890"`
-	DateOfBirth     *time.Time                     `json:"date_of_birth" validate:"omitempty" example:"1990-01-01"`
-	AvatarURL       *string                        `json:"avatar_url" validate:"omitempty,url" example:"https://example.com/avatar.jpg"`
-	ShippingAddress []*UpdateAddressProfileRequest `json:"shipping_address" validate:"omitempty,dive"`
+	Username          *string                        `json:"username" validate:"omitempty,min=3,max=50,alphanum" example:"new_username"`
+	FullName          *string                        `json:"full_name" validate:"omitempty,min=3,max=100" example:"John Doe"`
+	Phone             *string                        `json:"phone" validate:"omitempty,e164" example:"+1234567890"`
+	DateOfBirth       *time.Time                     `json:"date_of_birth" validate:"omitempty" example:"1990-01-01"`
+	AvatarURL         *string                        `json:"avatar_url" validate:"omitempty,url" example:"https://example.com/avatar.jpg"`
+	BankAccount       *string                        `json:"bank_account" validate:"omitempty,max=50" example:"123456789"`
+	BankName          *string                        `json:"bank_name" validate:"omitempty,max=100" example:"Techcombank"`
+	BankAccountHolder *string                        `json:"bank_account_holder" validate:"omitempty,max=100" example:"Trần Dần"`
+	ShippingAddress   []*UpdateAddressProfileRequest `json:"shipping_address" validate:"omitempty,dive"`
 }
 
 type UpdateAddressProfileRequest struct {
@@ -60,6 +63,15 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 	}
 	if upr.AvatarURL != nil {
 		userModel.AvatarURL = upr.AvatarURL
+	}
+	if upr.BankAccount != nil {
+		userModel.BankAccount = upr.BankAccount
+	}
+	if upr.BankName != nil {
+		userModel.BankName = upr.BankName
+	}
+	if upr.BankAccountHolder != nil {
+		userModel.BankAccountHolder = upr.BankAccountHolder
 	}
 	if len(upr.ShippingAddress) > 0 {
 		// Create existing addresses map for quick lookup

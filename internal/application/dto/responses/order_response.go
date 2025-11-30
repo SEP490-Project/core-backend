@@ -1,7 +1,9 @@
 package responses
 
 import (
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"gorm.io/datatypes"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,9 +11,14 @@ import (
 
 // OrderResponse is a sanitized DTO for returning orders to API clients
 type OrderResponse struct {
-	ID                uuid.UUID                   `json:"id"`
-	UserID            uuid.UUID                   `json:"user_id"`
-	Status            string                      `json:"status"`
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+	Status string    `json:"status"`
+
+	BankAccount       string `json:"bank_account"`
+	BankName          string `json:"bank_name"`
+	BankAccountHolder string `json:"bank_account_holder"`
+
 	TotalAmount       float64                     `json:"total_amount"`
 	FullName          string                      `json:"full_name"`
 	PhoneNumber       string                      `json:"phone_number"`
@@ -26,18 +33,18 @@ type OrderResponse struct {
 	DistrictName      string                      `json:"district_name" gorm:"column:district_name"`
 	WardName          string                      `json:"ward_name" gorm:"column:ward_name"`
 	ShippingFee       int                         `json:"shipping_fee"`
-	CreatedAt         time.Time                   `json:"created_at"`
+	CreatedAt         time.Time                   `json:"created_at"2025ba`
 	UpdatedAt         time.Time                   `json:"updated_at"`
 	IsSelfPickedUp    bool                        `json:"is_self_picked_up"`
 	ConfirmationImage *string                     `json:"confirmation_image"`
 	UserResource      *string                     `json:"user_resource,omitempty"`
 	StaffResource     *string                     `json:"staff_resource,omitempty"`
 	OrderType         string                      `json:"order_type"`
-	GHNOrderCode      *string                     `json:"ghn_order_code,omitempty"`
-	ActionNotes       *model.OrderActionNotes     `json:"action_notes,omitempty"`
-	UserNote          *string                     `json:"user_note,omitempty"`
-	Payment           *PaymentTransactionResponse `json:"payment_transaction,omitempty"`
-	OrderItems        []model.OrderItem           `json:"order_items,omitempty"`
+	GHNOrderCode      *string                     `json:"ghn_order_code"`
+	ActionNotes       *model.OrderActionNotes     `json:"action_notes"`
+	UserNote          *string                     `json:"user_note"`
+	Payment           *PaymentTransactionResponse `json:"payment_transaction"`
+	OrderItems        []OrderItemResponse         `json:"order_items"`
 }
 
 func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *OrderResponse {
@@ -45,10 +52,15 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		return nil
 	}
 	resp := &OrderResponse{
-		ID:                o.ID,
-		UserID:            o.UserID,
-		Status:            string(o.Status),
-		TotalAmount:       o.TotalAmount,
+		ID:          o.ID,
+		UserID:      o.UserID,
+		Status:      string(o.Status),
+		TotalAmount: o.TotalAmount,
+
+		BankAccount:       o.BankAccount,
+		BankName:          o.BankName,
+		BankAccountHolder: o.BankAccountHolder,
+
 		FullName:          o.FullName,
 		PhoneNumber:       o.PhoneNumber,
 		Email:             o.Email,
@@ -71,8 +83,9 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		ActionNotes:       o.ActionNotes,
 		UserNote:          o.UserNote,
 		OrderType:         o.OrderType,
+		Payment:           nil,
 		GHNOrderCode:      o.GHNOrderCode,
-		OrderItems:        o.OrderItems,
+		OrderItems:        OrderItemResponse{}.ToResponseList(o.OrderItems),
 	}
 	if pt != nil {
 		resp.Payment = PaymentTransactionResponse{}.ToResponse(pt)
@@ -94,3 +107,194 @@ func (OrderResponse) ToResponseList(source []model.Order, payments map[uuid.UUID
 	}
 	return res
 }
+
+// ======================================== Order.Response (END) ========================================
+
+// * OrderItemResponse ============================== OrderItem.Response (Start) ==============================
+type OrderItemResponse struct {
+	ID              uuid.UUID          `json:"id"`
+	Quantity        int                `json:"quantity"`
+	Subtotal        float64            `json:"subtotal"`
+	UnitPrice       float64            `json:"unit_price"`
+	Capacity        *float64           `json:"capacity"`
+	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit"`
+	ContainerType   enum.ContainerType `json:"container_type"`
+	DispenserType   enum.DispenserType `json:"dispenser_type"`
+	Uses            *string            `json:"uses"`
+	ManufactureDate *time.Time         `json:"manufacturing_date"`
+	ExpiryDate      *time.Time         `json:"expiry_date"`
+	Instructions    *string            `json:"instructions"`
+	Weight          int                `json:"weight"`
+	Height          int                `json:"height"`
+	Length          int                `json:"length"`
+	Width           int                `json:"width"`
+
+	//product fields
+	ProductName       string                  `json:"product_name"`
+	Description       *string                 `json:"description"`
+	Type              string                  `json:"product_type"`
+	LimitedProperties *OrderLimitedProperties `json:"limited_properties"`
+
+	AttributesDescription *datatypes.JSON `json:"attributes_description" swaggerignore:"true"` //JSON
+
+	//Relationships
+	ItemImages []OrderItemImage           `json:"images"`
+	Brand      *OrderItemBrandResponse    `json:"brand"`
+	Category   *OrderItemCategoryResponse `json:"category"`
+}
+
+// OrderItemBrandResponse ============================== OrderItem.Brand.Response ==============================
+type OrderItemBrandResponse struct {
+	ID                  uuid.UUID `json:"id"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description,omitempty"`
+	ContactEmail        *string   `json:"contact_email,omitempty"`
+	ContactPhone        *string   `json:"contact_phone,omitempty"`
+	Address             *string   `json:"address,omitempty"`
+	Website             *string   `json:"website,omitempty"`
+	LogoURL             *string   `json:"logo_url,omitempty"`
+	TaxNumber           *string   `json:"tax_number,omitempty"`
+	RepresentativeName  *string   `json:"representative_name,omitempty"`
+	RepresentativeRole  *string   `json:"representative_role,omitempty"`
+	RepresentativeEmail *string   `json:"representative_email,omitempty"`
+}
+
+func (OrderItemBrandResponse) ToResponse(brand *model.Brand) *OrderItemBrandResponse {
+	return &OrderItemBrandResponse{
+		ID:                  brand.ID,
+		Name:                brand.Name,
+		Description:         brand.Description,
+		ContactEmail:        &brand.ContactEmail,
+		ContactPhone:        &brand.ContactPhone,
+		Address:             brand.Address,
+		Website:             brand.Website,
+		LogoURL:             brand.LogoURL,
+		TaxNumber:           brand.TaxNumber,
+		RepresentativeName:  brand.RepresentativeName,
+		RepresentativeRole:  brand.RepresentativeRole,
+		RepresentativeEmail: brand.RepresentativeEmail,
+	}
+}
+
+// OrderItemCategoryResponse ============================== OrderItem.Category.Response ==============================
+type OrderItemCategoryResponse struct {
+	ID              uuid.UUID                   `json:"id"`
+	Name            string                      `json:"name"`
+	Description     *string                     `json:"description"`
+	ParentCategory  *OrderItemCategoryResponse  `json:"parent_category"`
+	ChildCategories []OrderItemCategoryResponse `json:"child_categories"`
+}
+
+func (OrderItemCategoryResponse) ToResponse(category *model.ProductCategory) *OrderItemCategoryResponse {
+	return &OrderItemCategoryResponse{
+		ID:          category.ID,
+		Name:        category.Name,
+		Description: category.Description,
+		ParentCategory: func() *OrderItemCategoryResponse {
+			if category.ParentCategory != nil {
+				return OrderItemCategoryResponse{}.ToResponse(category.ParentCategory)
+			}
+			return nil
+		}(),
+		ChildCategories: func() []OrderItemCategoryResponse {
+			if len(category.ChildCategories) == 0 {
+				return []OrderItemCategoryResponse{}
+			}
+			res := make([]OrderItemCategoryResponse, 0, len(category.ChildCategories))
+			for _, cc := range category.ChildCategories {
+				res = append(res, *OrderItemCategoryResponse{}.ToResponse(&cc))
+			}
+			return res
+		}(),
+	}
+}
+
+func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
+	return &OrderItemResponse{
+		ID:                    oi.ID,
+		Quantity:              oi.Quantity,
+		Subtotal:              oi.Subtotal,
+		UnitPrice:             oi.UnitPrice,
+		Capacity:              oi.Capacity,
+		CapacityUnit:          *oi.CapacityUnit,
+		ContainerType:         *oi.ContainerType,
+		DispenserType:         *oi.DispenserType,
+		Uses:                  oi.Uses,
+		ManufactureDate:       oi.ManufactureDate,
+		ExpiryDate:            oi.ExpiryDate,
+		Instructions:          oi.Instructions,
+		Weight:                oi.Weight,
+		Height:                oi.Height,
+		Length:                oi.Length,
+		Width:                 oi.Width,
+		ProductName:           oi.ProductName,
+		Description:           oi.Description,
+		Type:                  oi.Type,
+		LimitedProperties:     OrderLimitedProperties{}.ToResponse(oi.Variant.Product.Limited),
+		AttributesDescription: oi.AttributesDescription,
+		ItemImages:            OrderItemImage{}.ToResponseList(oi.Variant.Images),
+		Brand:                 OrderItemBrandResponse{}.ToResponse(oi.Brand),
+		Category:              OrderItemCategoryResponse{}.ToResponse(oi.Category),
+	}
+}
+
+func (OrderItemResponse) ToResponseList(source []model.OrderItem) []OrderItemResponse {
+	if len(source) == 0 {
+		return []OrderItemResponse{}
+	}
+	res := make([]OrderItemResponse, 0, len(source))
+	for _, oi := range source {
+		res = append(res, *OrderItemResponse{}.ToResponse(&oi))
+	}
+	return res
+}
+
+// ======================================== OrderItem.OrderLimitedProperties (START) ========================================
+type OrderLimitedProperties struct {
+	PremiereDate          time.Time `json:"premiere_date,omitempty"`
+	AvailabilityStartDate time.Time `json:"availability_start_date,omitempty"`
+	AvailabilityEndDate   time.Time `json:"availability_end_date,omitempty"`
+}
+
+func (OrderLimitedProperties) ToResponse(lp *model.LimitedProduct) *OrderLimitedProperties {
+	if lp == nil {
+		return nil
+	}
+
+	return &OrderLimitedProperties{
+		PremiereDate:          lp.PremiereDate,
+		AvailabilityStartDate: lp.AvailabilityStartDate,
+		AvailabilityEndDate:   lp.AvailabilityEndDate,
+	}
+}
+
+// ======================================== OrderItem.OrderLimitedProperties (END) ========================================
+
+// ======================================== OrderItem.OrderItemImage (START) ========================================
+type OrderItemImage struct {
+	ImageURL  string `json:"image_url"`
+	AltText   string `json:"alt_text"`
+	IsPrimary bool   `json:"is_primary"`
+}
+
+func (OrderItemImage) ToResponse(image *model.VariantImage) *OrderItemImage {
+	return &OrderItemImage{
+		ImageURL:  image.ImageURL,
+		AltText:   *image.AltText,
+		IsPrimary: image.IsPrimary,
+	}
+}
+
+func (OrderItemImage) ToResponseList(source []model.VariantImage) []OrderItemImage {
+	if len(source) == 0 {
+		return []OrderItemImage{}
+	}
+	res := make([]OrderItemImage, 0, len(source))
+	for _, img := range source {
+		res = append(res, *OrderItemImage{}.ToResponse(&img))
+	}
+	return res
+}
+
+// ======================================== OrderItem.OrderItemImage (END) ========================================
+//* ============================== OrderItem.Response (END) ==============================

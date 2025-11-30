@@ -10,7 +10,7 @@ import (
 
 type Product struct {
 	ID          uuid.UUID  `json:"id" gorm:"column:id;primaryKey;autoIncrement"`
-	BrandID     uuid.UUID  `json:"brand_id" gorm:"column:brand_id;not null"`
+	BrandID     *uuid.UUID `json:"brand_id" gorm:"column:brand_id;"`
 	CategoryID  uuid.UUID  `json:"category_id" gorm:"column:category_id;not null"`
 	TaskID      *uuid.UUID `json:"task_id" gorm:"column:task_id"`
 	Name        string     `json:"name" gorm:"column:name;not null"`

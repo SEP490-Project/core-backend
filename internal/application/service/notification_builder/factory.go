@@ -2,14 +2,16 @@ package notification_builder
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
-	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"fmt"
+	"gorm.io/gorm"
 )
 
 // Notification payload helper types used by builders
 type EmailNotificationPayload struct {
+	CustomReceiver    *string
 	EmailSubject      *string
 	EmailTemplateName *string
 	EmailTemplateData map[string]interface{}
@@ -22,15 +24,45 @@ type PushNotificationPayload struct {
 	Data  map[string]string
 }
 
-func BuildOrderNotification(
+// ------- Order Notification Builder Factory -------//
+type OrderNotificationType string
+
+const (
+	OrderNotifyPending             OrderNotificationType = "PENDING"
+	OrderNotifyPaid                OrderNotificationType = "PAID"
+	OrderNotifyRefundRequested     OrderNotificationType = "REFUND_REQUEST"
+	OrderNotifyRefunded            OrderNotificationType = "REFUNDED"
+	OrderNotifyConfirmed           OrderNotificationType = "CONFIRMED"
+	OrderNotifyCancelled           OrderNotificationType = "CANCELLED"
+	OrderNotifyShipped             OrderNotificationType = "SHIPPED"
+	OrderNotifyInTransit           OrderNotificationType = "IN_TRANSIT"
+	OrderNotifyDelivered           OrderNotificationType = "DELIVERED"
+	OrderNotifyReceived            OrderNotificationType = "RECEIVED"
+	OrderNotifyCompensateRequested OrderNotificationType = "COMPENSATE_REQUEST"
+	OrderNotifyCompensated         OrderNotificationType = "COMPENSATED"
+	OrderNotifyAwaitingPickUp      OrderNotificationType = "AWAITING_PICKUP"
+
+	OrderNotifyCompensationDenied OrderNotificationType = "COMPENSATE_REJECTED"
+	OrderNotifyObligateRefund     OrderNotificationType = "OBLIGATE_REFUND"
+)
+
+func (status OrderNotificationType) String() string {
+	return string(status)
+}
+
+func BuildOrderNotifications(
 	ctx context.Context,
-	status enum.OrderStatus,
+	cfg config.AppConfig,
+	db *gorm.DB,
+	status OrderNotificationType,
 	order *model.Order,
 	user *model.User,
-) (requests.PublishNotificationRequest, error) {
+) ([]requests.PublishNotificationRequest, error) {
 	builder, exists := notificationOrderBuilders[status]
 	if !exists || builder == nil {
-		return requests.PublishNotificationRequest{}, fmt.Errorf("notification_builder: no builder for order status %s", status.String())
+		return []requests.PublishNotificationRequest{}, fmt.Errorf("notification_builder: no builder for order status %s", status.String())
 	}
-	return builder(ctx, order, user)
+	return builder(ctx, cfg, db, order, user)
 }
+
+//------- Payment Notification Builder Factory -------//
