@@ -56,7 +56,7 @@ func ToOverview(p *model.Product) *ProductOverviewResponse {
 		Description: p.Description,
 		Type:        p.Type,
 		Status:      p.Status,
-		BrandID:     p.BrandID,
+		BrandID:     *p.BrandID,
 		CategoryID:  p.CategoryID,
 	}
 	// Brand

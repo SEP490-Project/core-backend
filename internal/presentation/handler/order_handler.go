@@ -223,7 +223,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 // CreateLimitedOrder godoc
 //
 //	@Summary		Place an order and initiate payment
-//	@Description	Create an order -> calculate delivery fee -> create payment transaction
+//	@Description	Create a limited order
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json

@@ -38,7 +38,7 @@ func (d *CreateProductDTO) ToModel(createdBy uuid.UUID) *model.Product {
 		return nil
 	}
 	return &model.Product{
-		BrandID:     d.BrandID,
+		BrandID:     &d.BrandID,
 		CategoryID:  d.CategoryID,
 		TaskID:      d.TaskID,
 		Name:        d.Name,
