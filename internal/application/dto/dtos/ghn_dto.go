@@ -266,7 +266,7 @@ func (d DeliveryFeeBody) ToDeliveryFeeBodyDTOWithValidationV3(address model.Ship
 func (d DeliveryFeeItem) ToDeliveryFeeItemDTOList(orderItems []model.OrderItem) []DeliveryFeeItem {
 	var deliveryFeeItems []DeliveryFeeItem
 	for _, item := range orderItems {
-		variantPropConcat := fmt.Sprintf("%d", item.Capacity) + utils.ToTitleCase(*item.CapacityUnit) + " - " + utils.ToTitleCase(item.ContainerType.String()) + " - " + utils.ToTitleCase(item.DispenserType.String())
+		variantPropConcat := fmt.Sprintf("%d", item.Capacity) + utils.ToTitleCase(item.CapacityUnit.String()) + " - " + utils.ToTitleCase(item.ContainerType.String()) + " - " + utils.ToTitleCase(item.DispenserType.String())
 		variantName := utils.ToTitleCase(item.Variant.Product.Name) + fmt.Sprintf(" (%s) ", variantPropConcat)
 
 		deliveryFeeItems = append(deliveryFeeItems, DeliveryFeeItem{

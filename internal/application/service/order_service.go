@@ -379,7 +379,13 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 	var orders []model.Order
 	if err := o.orderRepository.DB().WithContext(ctx).
 		Scopes(filterScope).
-		Preload("OrderItems").Preload("OrderItems.Variant").Preload("OrderItems.Variant.Product").Preload("OrderItems.Variant.Product.Limited").
+		Preload("OrderItems").
+		Preload("OrderItems.Brand").
+		Preload("OrderItems.Category").Preload("OrderItems.Category.ParentCategory").Preload("OrderItems.Category.ChildCategories").
+		Preload("OrderItems.Variant").
+		Preload("OrderItems.Variant.Images").
+		Preload("OrderItems.Variant.Product").
+		Preload("OrderItems.Variant.Product.Limited").
 		Order("orders.created_at DESC, orders.id ASC").
 		Limit(limit).
 		Offset(offset).
@@ -445,6 +451,15 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		//*1. Create Order
 		//1.1.Build order items from request
 		var persistedOrderItem []model.OrderItem
+
+		// Make sure user already input bankAccount
+		createdUser, err := uow.Users().GetByID(ctx, userID, nil)
+		if err != nil {
+			return err
+		}
+		if createdUser.BankAccount == nil || createdUser.BankName == nil || createdUser.BankAccountHolder == nil {
+			return errors.New("please update your profile with bank account information before placing an order")
+		}
 
 		var prevItemCategory *int = nil
 		for _, item := range request.Items {
@@ -535,7 +550,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 		}
 
 		// Build order model now that we have items and fee
-		persistedOrder = request.ToModel(userID, persistedOrderItem, *shippingAddress, int(applyShippingFee), now)
+		persistedOrder = request.ToModel(*createdUser, persistedOrderItem, *shippingAddress, int(applyShippingFee), now)
 		// Set order type safely after initialization
 		persistedOrder.OrderType = orderType.String()
 
