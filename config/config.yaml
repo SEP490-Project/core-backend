@@ -3,7 +3,7 @@ server:
   port: 8080
   service_name: bshowsell
   environment: "development" # development, production
-  timeout: 30
+  timeout: 600
   payos_link_expiry: 300 #seconds
   timezone: "Asia/Ho_Chi_Minh"
   base_url: "http://localhost:8080"
@@ -122,9 +122,9 @@ aws_s3_streaming_bucket:
 #PAYOS
 payos:
   base_url: "https://api-merchant.payos.vn"
-  client_id: "dd413ad9-4f94-4f08-91d4-7c3597ef35ed"
-  api_key: "eb8f141c-513f-4f06-8c17-c2bf170e0d52"
-  checksum_key: "aa46d63a9fb7653696b79a13fb5613cf7c91e3bb5c6bc5358af9cde7629c99fa"
+  client_id: "86c9d013-1618-4136-8ff2-e50616555241"
+  api_key: "3b5e02ab-7655-4901-8ddd-59c788a30525"
+  checksum_key: "8ae115d58f284b9863f96a3beae66f1ad17ce9a00dd018a2247d2013e29e5eda"
   cancel_url: "http://localhost:8080/api/v1/payos/cancel-callback?returnUrl=https%3A%2F%2Fbshowsell.site%2Fpayments%3Fstatus%3Dcancel"
   return_url: "https://bshowsell.site/payments?status=success"
   notify_url: "https://api.bshowsell.site/api/v1/payos/notify"
@@ -212,7 +212,7 @@ social:
     redirect_url: "http://localhost:8080/api/v1/auth/tiktok/callback"
     frontend_redirect_url: "https://bshowsell.site/social/success"
     frontend_cancel_url: "https://bshowsell.site/social/error"
-    user_scopes: 
+    user_scopes:
       - "user.info.basic"
       - "user.info.profile"
       - "video.list"

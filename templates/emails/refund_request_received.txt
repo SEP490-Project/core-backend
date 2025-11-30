@@ -9,12 +9,8 @@ Refund Details:
 ---------------
 Refund Request Code: {{.RefundCode}}
 Request Date: {{.RequestDate}}
-Order Number: {{.OrderCode}}
 Requested Amount: {{.RefundAmount}}
 Reason: {{.Reason}}
-
-Track your refund status here:
-{{.RefundStatusLink}}
 
 ---
 © {{.Year}} Your Company. All rights reserved.

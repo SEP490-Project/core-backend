@@ -82,10 +82,13 @@
         </p>
 
         <div class="details">
-          <p><strong>Order Number:</strong> {{.OrderCode}}</p>
-          <p><strong>Reason Provided:</strong> {{.Reason}}</p>
-          <p><strong>Attached Images:</strong> {{.ImageCount}} file(s)</p>
-          <p><strong>Requested Amount:</strong> {{.RequestedAmount}}</p>
+            <p><strong>Order Number:</strong> {{.OrderCode}}</p>
+            <p><strong>Reason Provided:</strong> {{.Reason}}</p>
+            <p><strong>Requested Amount:</strong> {{.RequestedAmount}}</p>
+            <p>
+                <strong>Attached Images:</strong>
+                <img src="{{.ImageURL}}" alt="image" style="max-width:300px; max-height:300px; width:auto; height:auto;" />
+            </p>
         </div>
 
         <p>

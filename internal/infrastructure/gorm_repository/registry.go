@@ -9,6 +9,7 @@ import (
 )
 
 type DatabaseRegistry struct {
+	GormDatabase              *gorm.DB
 	UserRepository            irepository.GenericRepository[model.User]
 	LoggedSessionRepository   irepository.GenericRepository[model.LoggedSession]
 	ProductRepository         irepository.GenericRepository[model.Product]
@@ -79,6 +80,7 @@ type DatabaseRegistry struct {
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
+		GormDatabase:                 		  db,
 		UserRepository:                       NewGenericRepository[model.User](db),
 		LoggedSessionRepository:              NewGenericRepository[model.LoggedSession](db),
 		ProductRepository:                    NewGenericRepository[model.Product](db),

@@ -11,6 +11,7 @@ type PublishNotificationRequest struct {
 	Data     map[string]string `json:"data,omitempty" example:"key1:value1,key2:value2"`
 
 	// Email-specific fields (used when EMAIL channel is included)
+	CustomReceiver    *string        `json:"custom_receivers,omitempty" validate:"omitempty,email" example:"abc@gmail.com"`
 	EmailSubject      *string        `json:"email_subject,omitempty" validate:"omitempty,min=1,max=255" example:"Test Email Subject"`
 	EmailTemplateName *string        `json:"email_template_name,omitempty" validate:"omitempty,min=1" example:"task_assigned"`
 	EmailTemplateData map[string]any `json:"email_template_data,omitempty"`

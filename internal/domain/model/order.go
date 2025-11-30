@@ -51,6 +51,11 @@ type Order struct {
 	Status      enum.OrderStatus `json:"status" gorm:"column:status;not null"`
 	TotalAmount float64          `json:"total_amount" gorm:"column:total_amount;not null"`
 
+	// Bank Info
+	BankAccount       string `json:"user_bank_account" gorm:"column:user_bank_account;not null"`
+	BankName          string `json:"user_bank_name" gorm:"column:user_bank_name;not null"`
+	BankAccountHolder string `json:"user_bank_account_holder" gorm:"column:user_bank_account_holder;not null"`
+
 	// Copied shipping address fields (migration moved from a foreign key to flat columns)
 	FullName          string         `json:"full_name" gorm:"column:full_name"`
 	PhoneNumber       string         `json:"phone_number" gorm:"column:phone_number"`
@@ -67,7 +72,7 @@ type Order struct {
 	ShippingFee       int            `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
 	CreatedAt         time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt         time.Time      `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt         gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+	DeletedAt         gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 	IsSelfPickedUp    bool           `json:"is_self_picked_up" gorm:"column:is_self_picked_up;not null;default:false"`
 	ConfirmationImage *string        `json:"confirmation_image,omitempty" gorm:"column:confirmation_image;type:text"`
 	UserResource      *string        `json:"user_resource,omitempty" gorm:"column:user_resource;type:text"`
