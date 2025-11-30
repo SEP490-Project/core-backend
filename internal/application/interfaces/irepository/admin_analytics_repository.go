@@ -13,7 +13,7 @@ type AdminAnalyticsRepository interface {
 	GetActiveUsersCount(ctx context.Context, activeDays int) (int64, error)
 	GetUserCountByRole(ctx context.Context, role string) (int64, error)
 	GetNewUsersCount(ctx context.Context, startDate, endDate time.Time) (int64, error)
-	GetUserGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.UserGrowthResult, error)
+	GetUserGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time, role *string) ([]dtos.UserGrowthResult, error)
 
 	// Brands
 	GetTotalBrandsCount(ctx context.Context) (int64, error)

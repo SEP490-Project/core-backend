@@ -69,7 +69,7 @@ func (r *adminAnalyticsRepository) GetNewUsersCount(ctx context.Context, startDa
 }
 
 // GetUserGrowthTrend returns user growth trend over time
-func (r *adminAnalyticsRepository) GetUserGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.UserGrowthResult, error) {
+func (r *adminAnalyticsRepository) GetUserGrowthTrend(ctx context.Context, granularity string, startDate, endDate *time.Time, role *string) ([]dtos.UserGrowthResult, error) {
 	var results []dtos.UserGrowthResult
 
 	dateFunc := getDateTruncFunc(granularity)
@@ -77,6 +77,10 @@ func (r *adminAnalyticsRepository) GetUserGrowthTrend(ctx context.Context, granu
 		Table("users").
 		Select(dateFunc + " AS date, COUNT(*) AS new_users").
 		Where("deleted_at IS NULL")
+
+	if role != nil {
+		query = query.Where("role = ?", *role)
+	}
 
 	if startDate != nil {
 		query = query.Where("created_at >= ?", *startDate)
