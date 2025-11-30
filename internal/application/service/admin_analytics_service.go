@@ -247,7 +247,7 @@ func (s *adminAnalyticsService) GetUsersOverview(ctx context.Context, req *reque
 
 	// Get growth trend
 	start := now.AddDate(0, -6, 0)
-	growthTrend, _ = s.analyticsRepo.GetUserGrowthTrend(ctx, "MONTH", &start, nil)
+	growthTrend, _ = s.analyticsRepo.GetUserGrowthTrend(ctx, "MONTH", &start, nil, req.Role)
 
 	growthPoints := make([]responses.UserGrowthPoint, len(growthTrend))
 	for i, t := range growthTrend {
@@ -349,7 +349,7 @@ func (s *adminAnalyticsService) GetSystemHealth(ctx context.Context) (*responses
 
 // GetUserGrowth returns user growth over time
 func (s *adminAnalyticsService) GetUserGrowth(ctx context.Context, req *requests.UserGrowthRequest) ([]responses.UserGrowthPoint, error) {
-	trend, err := s.analyticsRepo.GetUserGrowthTrend(ctx, req.GetGranularity(), req.StartDate, req.EndDate)
+	trend, err := s.analyticsRepo.GetUserGrowthTrend(ctx, req.GetGranularity(), req.StartDate, req.EndDate, req.Role)
 	if err != nil {
 		return nil, err
 	}

@@ -1,86 +1,99 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Refund Request Received</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .email-container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #ffc107; /* Yellow for pending status */
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            color: #ffc107; /* Pending/Notice color */
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            margin: 20px 0;
-        }
-        .refund-details {
-            background-color: #fff9db;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-            border: 1px dashed #ffe8a1;
-        }
-        .refund-details p {
-            margin: 8px 0;
-        }
-        .refund-details strong {
-            color: #856404;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #17a2b8;
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .button:hover {
-            background-color: #117a8b;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .email-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 28px 24px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 18px;
+        border-bottom: 2px solid #ff9fb2;
+        margin-bottom: 24px;
+      }
+      .header h1 {
+        color: #ff9fb2;
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .content {
+        margin: 16px 0;
+        font-size: 14px;
+        color: #4b5563;
+      }
+      .content p {
+        margin: 8px 0 10px 0;
+      }
+      .refund-details {
+        background-color: #f9fafb;
+        padding: 14px 16px;
+        border-radius: 6px;
+        margin: 16px 0 18px 0;
+        border-left: 4px solid #ff9fb2;
+        font-size: 13px;
+      }
+      .refund-details p {
+        margin: 4px 0;
+      }
+      .refund-details strong {
+        color: #111827;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 22px;
+        background-color: #ff9fb2;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        margin: 18px 0 4px 0;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .button:hover {
+        background-color: #ff7f97;
+      }
+      .footer {
+        margin-top: 26px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+        text-align: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .footer p {
+        margin: 3px 0;
+      }
     </style>
-</head>
-<body>
-<div class="email-container">
-    <div class="header">
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
         <h1>📩 Refund Request Received</h1>
-    </div>
+      </div>
 
-    <div class="content">
+      <div class="content">
         <p>Hello {{.CustomerName}},</p>
         <p>
-            We have received your refund request and our team is currently reviewing it.
-            You will receive an update shortly regarding the next steps.
+          We have received your refund request and our team is currently
+          reviewing it. You will receive an update shortly regarding the next
+          steps.
         </p>
 
         <div class="refund-details">
@@ -91,10 +104,10 @@
         </div>
     </div>
 
-    <div class="footer">
+      <div class="footer">
         <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
         <p>This is an automated message. Please do not reply to this email.</p>
+      </div>
     </div>
-</div>
-</body>
+  </body>
 </html>
