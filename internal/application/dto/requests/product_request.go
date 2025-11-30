@@ -42,7 +42,7 @@ func (d *CreateStandardProductRequest) ToStandardModel(createdBy uuid.UUID) *mod
 		return nil
 	}
 	return &model.Product{
-		BrandID:     d.BrandID,
+		BrandID:     &d.BrandID,
 		CategoryID:  d.CategoryID,
 		TaskID:      nil,
 		Name:        d.Name,
@@ -88,7 +88,7 @@ func (d *CreateLimitedProductRequest) ToProductWithLimitedModel(createdBy uuid.U
 		return nil
 	}
 	return &model.Product{
-		BrandID:     d.BrandID,
+		BrandID:     &d.BrandID,
 		CategoryID:  d.CategoryID,
 		TaskID:      &d.TaskID,
 		Name:        d.Name,

@@ -90,7 +90,7 @@ func (p *productService) UpdateProduct(ctx context.Context, productID uuid.UUID,
 		} else if !exists {
 			return nil, errors.New("brand not found")
 		}
-		product.BrandID = *update.BrandID
+		product.BrandID = update.BrandID
 	}
 
 	// Validate and apply category change
@@ -162,7 +162,7 @@ func (p productService) UpdateLimitedProduct(ctx context.Context, productID uuid
 		} else if !exists {
 			return nil, errors.New("brand not found")
 		}
-		product.BrandID = *update.BrandID
+		product.BrandID = update.BrandID
 	}
 
 	// Validate and apply category change

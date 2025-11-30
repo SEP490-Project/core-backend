@@ -19,7 +19,7 @@ type OrderItem struct {
 	UnitPrice float64   `json:"unit_price" gorm:"column:unit_price;not null"`
 
 	Capacity              *float64            `json:"capacity" gorm:"column:capacity"`
-	CapacityUnit          *string             `json:"capacity_unit" gorm:"column:capacity_unit"`
+	CapacityUnit          *enum.CapacityUnit  `json:"capacity_unit" gorm:"column:capacity_unit"`
 	ContainerType         *enum.ContainerType `json:"container_type" gorm:"type:varchar(255);column:container_type;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
 	DispenserType         *enum.DispenserType `json:"dispenser_type" gorm:"type:varchar(255);column:dispenser_type;check:dispenser_type in ('PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE')"`
 	Uses                  *string             `json:"uses" gorm:"type:text;column:uses"`
@@ -27,18 +27,23 @@ type OrderItem struct {
 	ExpiryDate            *time.Time          `json:"expiry_date" gorm:"column:expiry_date"`
 	Instructions          *string             `json:"instructions" gorm:"type:text;column:instructions"`
 	AttributesDescription *datatypes.JSON     `json:"attributes_description" gorm:"column:attributes_description;type:jsonb" swaggerignore:"true"`
-	//ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;"`
-	//CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	//DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
-	Weight int `json:"weight" gorm:"column:weight"` // in grams
-	Height int `json:"height" gorm:"column:height"` // in centimeters
-	Length int `json:"length" gorm:"column:length"` // in centimeters
-	Width  int `json:"width" gorm:"column:width"`   // in centimeters
+	Weight                int                 `json:"weight" gorm:"column:weight"` // in grams
+	Height                int                 `json:"height" gorm:"column:height"` // in centimeters
+	Length                int                 `json:"length" gorm:"column:length"` // in centimeters
+	Width                 int                 `json:"width" gorm:"column:width"`   // in centimeters
+
+	//product fields
+	ProductName string     `json:"product_name" gorm:"column:product_name;not null"`
+	Description *string    `json:"description" gorm:"column:description"`
+	Type        string     `json:"product_type" gorm:"column:product_type;not null"`
+	BrandID     *uuid.UUID `json:"brand_id" gorm:"column:brand_id;"`
+	CategoryID  uuid.UUID  `json:"category_id" gorm:"column:category_id;not null"`
 
 	// Relationships
-	Variant ProductVariant `json:"product_variant" gorm:"foreignKey:VariantID"`
-	Order   *Order         `json:"-" gorm:"foreignKey:OrderID"`
+	Variant  ProductVariant   `json:"product_variant" gorm:"foreignKey:VariantID"`
+	Order    *Order           `json:"-" gorm:"foreignKey:OrderID"`
+	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
+	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
 }
 
 func (OrderItem) TableName() string { return "order_items" }

@@ -20,7 +20,7 @@ type OrderRequest struct {
 	IsSelfPickup bool               `json:"is_self_pickup" validate:"required"`
 }
 
-func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, address model.ShippingAddress, shippingPrice int, now time.Time) *model.Order {
+func (or *OrderRequest) ToModel(user model.User, orderItems []model.OrderItem, address model.ShippingAddress, shippingPrice int, now time.Time) *model.Order {
 
 	//Calc total amount:
 	var totalAmount float64 = 0
@@ -34,6 +34,11 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 		ShippingFee: shippingPrice,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+
+		//Bank Info
+		BankAccount:       *user.BankAccount,
+		BankName:          *user.BankName,
+		BankAccountHolder: *user.BankAccountHolder,
 
 		//Copy shipping address fields
 		FullName:       address.FullName,
@@ -52,7 +57,7 @@ func (or *OrderRequest) ToModel(userID uuid.UUID, orderItems []model.OrderItem, 
 		IsSelfPickedUp: or.IsSelfPickup,
 
 		//Order Relationships
-		UserID:     userID,
+		UserID:     user.ID,
 		OrderItems: orderItems,
 	}
 }
@@ -97,7 +102,7 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 		Subtotal:              float64(oi.Quantity) * prdVariant.Price,
 		UnitPrice:             prdVariant.Price,
 		Capacity:              &prdVariant.Capacity,
-		CapacityUnit:          ptr.String(prdVariant.CapacityUnit.String()),
+		CapacityUnit:          &prdVariant.CapacityUnit,
 		ContainerType:         &prdVariant.ContainerType,
 		DispenserType:         &prdVariant.DispenserType,
 		Uses:                  &prdVariant.Uses,
@@ -105,13 +110,17 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 		ExpiryDate:            prdVariant.ExpiryDate,
 		Instructions:          &prdVariant.Instructions,
 		AttributesDescription: attrsJSON,
-		//ItemStatus:            enum.OrderStatusPending,
-		Weight: prdVariant.Weight,
-		Height: prdVariant.Height,
-		Length: prdVariant.Length,
-		Width:  prdVariant.Width,
-		//CreatedAt: now,
-		UpdatedAt: now,
+		Weight:                prdVariant.Weight,
+		Height:                prdVariant.Height,
+		Length:                prdVariant.Length,
+		Width:                 prdVariant.Width,
+
+		//Product info snapshot
+		ProductName: prdVariant.Product.Name,
+		Description: prdVariant.Product.Description,
+		Type:        prdVariant.Product.Type.String(),
+		BrandID:     prdVariant.Product.BrandID,
+		CategoryID:  prdVariant.Product.CategoryID,
 	}
 }
 
