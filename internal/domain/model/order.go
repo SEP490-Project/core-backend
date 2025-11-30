@@ -51,6 +51,11 @@ type Order struct {
 	Status      enum.OrderStatus `json:"status" gorm:"column:status;not null"`
 	TotalAmount float64          `json:"total_amount" gorm:"column:total_amount;not null"`
 
+	// Bank Info
+	BankAccount       string `json:"user_bank_account" gorm:"column:user_bank_account;not null"`
+	BankName          string `json:"user_bank_name" gorm:"column:user_bank_name;not null"`
+	BankAccountHolder string `json:"user_bank_account_holder" gorm:"column:user_bank_account_holder;not null"`
+
 	// Copied shipping address fields (migration moved from a foreign key to flat columns)
 	FullName          string         `json:"full_name" gorm:"column:full_name"`
 	PhoneNumber       string         `json:"phone_number" gorm:"column:phone_number"`
