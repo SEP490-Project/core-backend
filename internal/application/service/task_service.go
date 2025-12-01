@@ -7,9 +7,12 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -103,6 +106,12 @@ func (t *TaskService) CreateTask(ctx context.Context, uow irepository.UnitOfWork
 		zap.L().Error("TaskService - CreateTask - failed to convert request to model",
 			zap.Error(err))
 		return nil, err
+	}
+
+	// Link to ScopeOfWork
+	if err := t.linkTaskToScopeOfWork(ctx, uow, creatingTask, createRequest.ScopeOfWorkItemID); err != nil {
+		zap.L().Warn("Failed to link task to scope of work", zap.Error(err))
+		// We don't fail the request, just log warning
 	}
 
 	if err = taskRepo.Add(ctx, creatingTask); err != nil {
@@ -232,6 +241,119 @@ func (t *TaskService) GetTaskByID(ctx context.Context, taskID uuid.UUID) (*respo
 	}
 
 	return responses.TaskResponse{}.ToResponse(task), nil
+}
+
+func (t *TaskService) linkTaskToScopeOfWork(ctx context.Context, uow irepository.UnitOfWork, task *model.Task, requestedItemID *string) error {
+	// 1. Get Milestone -> Campaign -> Contract
+	milestoneRepo := uow.Milestones()
+	milestone, err := milestoneRepo.GetByID(ctx, task.MilestoneID, []string{"Campaign"})
+	if err != nil {
+		return err
+	}
+	if milestone.Campaign == nil {
+		return errors.New("milestone has no campaign")
+	}
+
+	contractRepo := uow.Contracts()
+	contract, err := contractRepo.GetByID(ctx, milestone.Campaign.ContractID, nil)
+	if err != nil {
+		return err
+	}
+
+	// 2. Parse ScopeOfWork
+	var sow dtos.ScopeOfWork
+	if err := json.Unmarshal(contract.ScopeOfWork, &sow); err != nil {
+		return err
+	}
+
+	// 3. Find and Link
+	matched := false
+	var itemID string
+	if requestedItemID != nil {
+		itemID = *requestedItemID
+	}
+
+	// Helper to check match
+	checkMatch := func(id *int8, name string, targetType enum.TaskType) bool {
+		if id == nil {
+			return false
+		}
+		if itemID != "" {
+			return fmt.Sprintf("%d", *id) == itemID
+		}
+		// Only match if task type matches target type
+		if task.Type != targetType {
+			return false
+		}
+		return name == task.Name
+	}
+
+	// Iterate AdvertisedItems (CONTENT)
+	if sow.Deliverables.AdvertisingDeliverable.AdvertisedItems != nil {
+		for i := range sow.Deliverables.AdvertisingDeliverable.AdvertisedItems {
+			item := &sow.Deliverables.AdvertisingDeliverable.AdvertisedItems[i]
+			if checkMatch(item.ID, item.Name, enum.TaskTypeContent) {
+				item.TaskIDs = append(item.TaskIDs, task.ID)
+				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
+				matched = true
+				goto Found
+			}
+		}
+	}
+
+	// Iterate Events (EVENT)
+	if sow.Deliverables.BrandAmbassadorDeliverable.Events != nil {
+		for i := range sow.Deliverables.BrandAmbassadorDeliverable.Events {
+			item := &sow.Deliverables.BrandAmbassadorDeliverable.Events[i]
+			if checkMatch(item.ID, item.Name, enum.TaskTypeEvent) {
+				item.TaskIDs = append(item.TaskIDs, task.ID)
+				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
+				matched = true
+				goto Found
+			}
+		}
+	}
+
+	// Iterate Products (PRODUCT)
+	if sow.Deliverables.CoProducingDeliverable.Products != nil {
+		for i := range sow.Deliverables.CoProducingDeliverable.Products {
+			item := &sow.Deliverables.CoProducingDeliverable.Products[i]
+			if checkMatch(item.ID, item.Name, enum.TaskTypeProduct) {
+				item.TaskIDs = append(item.TaskIDs, task.ID)
+				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
+				matched = true
+				goto Found
+			}
+		}
+	}
+
+	// Iterate Concepts (CONTENT)
+	if sow.Deliverables.CoProducingDeliverable.Concepts != nil {
+		for i := range sow.Deliverables.CoProducingDeliverable.Concepts {
+			item := &sow.Deliverables.CoProducingDeliverable.Concepts[i]
+			if checkMatch(item.ID, item.Name, enum.TaskTypeContent) {
+				item.TaskIDs = append(item.TaskIDs, task.ID)
+				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
+				matched = true
+				goto Found
+			}
+		}
+	}
+
+Found:
+	if matched {
+		// Update Contract
+		newSOWBytes, err := json.Marshal(sow)
+		if err != nil {
+			return err
+		}
+		contract.ScopeOfWork = newSOWBytes
+		if err := contractRepo.Update(ctx, contract); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func NewTaskService(taskRepo irepository.TaskRepository, userRepo irepository.GenericRepository[model.User]) iservice.TaskService {

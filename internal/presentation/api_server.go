@@ -231,6 +231,7 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"affiliate-link-click-consumer":    s.consumerRegistry.ClickEventConsumer.Handle,
 		"content-publish-consumer":         s.consumerRegistry.ContentPublishConsumer.Handle,
 		"content-publish-all-consumer":     s.consumerRegistry.ContentPublishAllConsumer.Handle,
+		"campaign-create-consumer":         s.consumerRegistry.CampaignCreateConsumer.Handle,
 	}
 
 	// Register handlers with RabbitMQ

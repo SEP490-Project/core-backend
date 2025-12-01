@@ -5,15 +5,22 @@ import (
 	"core-backend/internal/application"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
+	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type TestHandler struct {
 	config        *config.AppConfig
 	tiktokProxy   iproxies.TikTokProxy
 	facebookProxy iproxies.FacebookProxy
+	dbRegistry    *gormrepository.DatabaseRegistry
 }
 
 func NewTestHandler(config *config.AppConfig, applicationRegistry *application.ApplicationRegistry) *TestHandler {
@@ -21,6 +28,7 @@ func NewTestHandler(config *config.AppConfig, applicationRegistry *application.A
 		config:        config,
 		tiktokProxy:   applicationRegistry.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
 		facebookProxy: applicationRegistry.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
+		dbRegistry:    applicationRegistry.DatabaseRegistry,
 	}
 }
 
@@ -164,4 +172,83 @@ func (h *TestHandler) TikTokGetCreatorInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, creatorInfo)
+}
+
+// MigrateScopeOfWorkIDs godoc
+//
+//	@Summary		Migrate ScopeOfWork IDs
+//	@Description	Populates task_ids, product_ids, content_ids in ScopeOfWork based on existing data
+//	@Tags			Test
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	any
+//	@Security		BearerAuth
+//	@Router			/api/v1/test/migrate-sow-ids [post]
+func (h *TestHandler) MigrateScopeOfWorkIDs(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// 1. Get all contracts
+	contracts, _, err := h.dbRegistry.ContractRepository.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.
+			Joins("INNER JOIN campaigns ON campaigns.contract_id = contracts.id").
+			Where("contracts.scope_of_work IS NOT NULL AND contracts.scope_of_work != ?", "null")
+	}, nil, 10000, 0)
+	if err != nil {
+		zap.L().Error("Failed to get contracts", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get contracts", http.StatusInternalServerError))
+		return
+	}
+
+	zap.L().Info("Starting migration", zap.Int("total_contracts", len(contracts)))
+
+	updatedCount := 0
+	for _, contract := range contracts {
+		// 2. Get Campaign
+		campaign, err := h.dbRegistry.CampaignRepository.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("contract_id = ?", contract.ID)
+		}, []string{"Milestones.Tasks.Product", "Milestones.Tasks.Contents"})
+
+		if err != nil {
+			zap.L().Warn("Failed to get campaign for contract", zap.String("contract_id", contract.ID.String()), zap.Error(err))
+			continue
+		}
+		if campaign == nil {
+			zap.L().Info("No campaign found for contract", zap.String("contract_id", contract.ID.String()))
+			continue
+		}
+
+		// 3. Map Tasks by ScopeOfWorkItemID
+		zap.L().Info("Mapping tasks for contract",
+			zap.String("contract_id", contract.ID.String()),
+			zap.Int("milestone_count", len(campaign.Milestones)),
+		)
+
+		// Use helper to map tasks to SOW items (Best Effort)
+		if err := helper.MapTasksToScopeOfWork(&contract, campaign.Milestones); err != nil {
+			zap.L().Error("Failed to map tasks to SOW", zap.String("contract_id", contract.ID.String()), zap.Error(err))
+			continue
+		}
+
+		// 4. Save Tasks (to persist ScopeOfWorkItemID)
+		tasks := utils.FlatMapMapper(campaign.Milestones, func(m *model.Milestone) []*model.Task { return m.Tasks })
+		tasksUpdated := 0
+		for _, t := range tasks {
+			if err := h.dbRegistry.TaskRepository.Update(ctx, t); err != nil {
+				zap.L().Error("Failed to update task", zap.String("task_id", t.ID.String()), zap.Error(err))
+			} else {
+				tasksUpdated++
+			}
+		}
+		zap.L().Info("Updated tasks for contract", zap.String("contract_id", contract.ID.String()), zap.Int("tasks_updated", tasksUpdated))
+
+		// 5. Save Contract (to persist updated ScopeOfWork)
+		if err := h.dbRegistry.ContractRepository.Update(ctx, &contract); err == nil {
+			updatedCount++
+			zap.L().Info("Successfully updated contract", zap.String("contract_id", contract.ID.String()))
+		} else {
+			zap.L().Error("Failed to update contract", zap.String("contract_id", contract.ID.String()), zap.Error(err))
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated_contracts": updatedCount})
 }
