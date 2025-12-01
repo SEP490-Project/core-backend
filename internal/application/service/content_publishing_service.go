@@ -93,11 +93,13 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 	// 6. Route to appropriate platform
 	var externalPostID string
 	var postURL string
+	var externalPostType *enum.ExternalPostType
 
 	switch channel.Code {
 	case "FACEBOOK":
-		externalPostID, postURL, err = s.publishToFacebook(ctx, content, channel, contentChannel, accessToken)
+		externalPostID, postURL, externalPostType, err = s.publishToFacebook(ctx, content, channel, contentChannel, accessToken)
 	case "TIKTOK":
+		externalPostType = utils.PtrOrNil(enum.ExternalPostTypeVideo)
 		externalPostID, postURL, err = s.publishToTikTok(ctx, content, channel, contentChannel, accessToken)
 	case "WEBSITE":
 		externalPostID, postURL, err = s.publishToWebiste(ctx, content, channel)
@@ -142,6 +144,7 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 	now := time.Now()
 	contentChannel.ExternalPostID = &externalPostID
 	contentChannel.ExternalPostURL = &postURL
+	contentChannel.ExternalPostType = externalPostType
 	contentChannel.PublishedAt = &now
 	contentChannel.AutoPostStatus = enum.AutoPostStatusPosted
 	contentChannel.LastError = nil
@@ -370,14 +373,14 @@ func (s *contentPublishingService) checkAllChannelsPosted(ctx context.Context, u
 
 // region: 3. =========== Facebook Publishing ===========
 
-func (s *contentPublishingService) publishToFacebook(ctx context.Context, content *model.Content, channel *model.Channel, contentChannel *model.ContentChannel, accessToken string) (string, string, error) {
+func (s *contentPublishingService) publishToFacebook(ctx context.Context, content *model.Content, channel *model.Channel, contentChannel *model.ContentChannel, accessToken string) (string, string, *enum.ExternalPostType, error) {
 	zap.L().Info("contentPublishingService - publishToFacebook called",
 		zap.String("content_id", content.ID.String()),
 		zap.String("channel_code", channel.Code),
 		zap.String("channel_name", channel.Name))
 
 	if channel.ExternalID == nil {
-		return "", "", errors.New("facebook page ID not set for channel")
+		return "", "", nil, errors.New("facebook page ID not set for channel")
 	}
 
 	pageID := *channel.ExternalID
@@ -385,7 +388,7 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	// Parse Tiptap content body to extract text and images
 	parseResult, err := utils.ParseTiptapJSON(content.Body)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse content body: %w", err)
+		return "", "", nil, fmt.Errorf("failed to parse content body: %w", err)
 	}
 
 	switch content.Type {
@@ -402,31 +405,31 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	case enum.ContentTypeVideo:
 		return s.publishVideoPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, content, parseResult)
 	default:
-		return "", "", fmt.Errorf("unsupported content type for Facebook: %s", content.Type)
+		return "", "", nil, fmt.Errorf("unsupported content type for Facebook: %s", content.Type)
 	}
 }
 
 // region: 4. ======== Facebook Publishing Content of Post Types ========
 
 // publishTextPostToFacebook creates a simple text post on Facebook
-func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID, message string) (string, string, error) {
+func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID, message string) (string, string, *enum.ExternalPostType, error) {
 	zap.L().Info("contentPublishingService - publishTextPostToFacebook called",
 		zap.String("page_id", pageID))
 
 	resp, err := s.facebookProxy.CreateTextPost(ctx, pageID, message, true, accessToken)
 	if err != nil {
-		return "", "", fmt.Errorf("facebook text post failed: %w", err)
+		return "", "", nil, fmt.Errorf("facebook text post failed: %w", err)
 	}
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
 
 	// Save external post ID asynchronously
 	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeText)
 
-	return resp.ID, postURL, nil
+	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeText), nil
 }
 
 // publishSinglePhotoPostToFacebook creates a photo post with a single image on Facebook
-func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, error) {
+func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, *enum.ExternalPostType, error) {
 	// Photo post with caption using first image
 	publishingRequest := &dtos.FacebookPhotoPostPublishRequest{
 		PageID:                 pageID,
@@ -437,19 +440,19 @@ func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.
 	}
 	resp, err := s.facebookProxy.CreateSinglePhotoPost(ctx, accessToken, publishingRequest)
 	if err != nil {
-		return "", "", fmt.Errorf("facebook photo post failed: %w", err)
+		return "", "", nil, fmt.Errorf("facebook photo post failed: %w", err)
 	}
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
 
 	// Save external post ID asynchronously
 	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeSingleImage)
-	return resp.ID, postURL, nil
+	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeSingleImage), nil
 }
 
 // publishMultiPhotoPostToFacebook creates a multi-photo post on Facebook
 func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult,
-) (string, string, error) {
+) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
 	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
 
@@ -487,7 +490,7 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 		AttemptTimeout:    20 * time.Second,
 	}, funcs...); err != nil {
 		zap.L().Error("Failed to upload images in parallel", zap.Error(err))
-		return "", "", fmt.Errorf("failed to upload images: %w", err)
+		return "", "", nil, fmt.Errorf("failed to upload images: %w", err)
 	}
 
 	// Step 2: Create multi-photo post
@@ -501,11 +504,11 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 	resp, err := s.facebookProxy.CreateMultiPhotoPost(ctx, accessToken, publishingRequest)
 	if err != nil {
 		zap.L().Error("Failed to create multi-photo post", zap.Error(err))
-		return "", "", fmt.Errorf("failed to create multi-photo post: %w", err)
+		return "", "", nil, fmt.Errorf("failed to create multi-photo post: %w", err)
 	}
 
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
-	return resp.ID, postURL, nil
+	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeMultiImage), nil
 }
 
 // endregion 4.
@@ -514,7 +517,7 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 
 func (s *contentPublishingService) publishVideoPostToFacebook(
 	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *utils.TiptapParseResult,
-) (string, string, error) {
+) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
 	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
 
@@ -522,7 +525,7 @@ func (s *contentPublishingService) publishVideoPostToFacebook(
 	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
 	if err != nil {
 		zap.L().Error("Failed to extract video info from content body", zap.Error(err))
-		return "", "", fmt.Errorf("failed to extract video info from content body: %w", err)
+		return "", "", nil, fmt.Errorf("failed to extract video info from content body: %w", err)
 	}
 	if parseResult != nil && parseResult.PlainText != "" {
 		videoInfo.Description = parseResult.PlainText
@@ -549,10 +552,10 @@ func (s *contentPublishingService) publishVideoPostToFacebook(
 	if err != nil {
 		zap.L().Error("Failed to create Facebook video post from URL",
 			zap.Error(err))
-		return "", "", fmt.Errorf("failed to create Facebook video post from URL: %w", err)
+		return "", "", nil, fmt.Errorf("failed to create Facebook video post from URL: %w", err)
 	}
 
-	return videoID, fmt.Sprintf("https://www.facebook.com/%s/videos/%s", pageID, videoID), nil
+	return videoID, fmt.Sprintf("https://www.facebook.com/%s/videos/%s", pageID, videoID), utils.PtrOrNil(enum.ExternalPostTypeVideo), nil
 }
 
 /* Deprecated Video publishing logic via resumable upload
