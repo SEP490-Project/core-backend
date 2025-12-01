@@ -6,9 +6,12 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -116,9 +119,9 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 
 // CreatePreOrderAndPay  godoc
 //
-//	@Summary		Create a PreOrder (reserve stock)
+//	@Summary		1. Create a PreOrder (reserve stock)
 //	@Description	Reserve a product variant as a preorder. This will decrement variant stock and create a preorder record.
-//	@Tags			Preorders
+//	@Tags			Preorders.States
 //	@Accept			json
 //	@Produce		json
 //	@Param			data	body		requests.PreOrderRequest	true	"PreOrder payload"
@@ -160,6 +163,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	//2. Initiate payment
 	var paymentTx *responses.PayOSLinkResponse
 	paymentTx, err = p.preOrderService.PayForPreservationSlot(ctx, preorder.ID, req.SuccessURL, req.CancelURL, uow)
+	// paymentTx, err = p.preOrderService.PayForPreservationSlot(ctx, preorder.ID, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusInternalServerError))
@@ -267,23 +271,23 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 	c.JSON(http.StatusOK, resp)
 }
 
-// PreOrderCensorship godoc
+// PreOrderApprove godoc
 //
-//	@Summary		Censor an PREORDER (confirm or cancel)
-//	@Description	Change preOrder state to PRE_ORDERED or CANCELLED. Use query param `action=PRE_ORDERED` or `action=CANCELLED`. If cancelling, provide optional `reason` query param.
+//	@Summary		Staff Censor an PREORDER (move to PRE_ORDERED or REFUNDED)
+//	@Description	Change preOrder state to PRE_ORDERED or REFUNDED. Use query param `action=PRE_ORDERED` or `action=REFUNDED`. If cancelling, provide optional `reason` query param.
 //	@Tags			Preorders.States
 //	@Accept			json
 //	@Produce		json
-//	@Param			orderID	path		string				true	"Order ID"
+//	@Param			preOrderID	path		string				true	"Order ID"
 //	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
 //	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
 //	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
 //	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/preorders/staff/{orderID}/censorship [POST]
-func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
-	preOrderIDStr := c.Param("orderID")
+//	@Router			/api/v1/preorders/staff/{preOrderID}/approve [POST]
+func (p *PreOrderHandler) PreOrderApprove(c *gin.Context) {
+	preOrderIDStr := c.Param("preOrderID")
 	if preOrderIDStr == "" {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order_id is required", http.StatusBadRequest))
 		return
@@ -359,7 +363,7 @@ func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
 
 // MarkPreOrderAsReceived godoc
 //
-//	@Summary		Mark preorder as received (customer)
+//	@Summary		4 .1 Mark preorder as received (customer)
 //	@Description	Mark a preorder as received by the customer
 //	@Tags			Preorders.States
 //	@Accept			json
@@ -370,7 +374,7 @@ func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
 //	@Failure		401	{object}	responses.APIResponse
 //	@Failure		500	{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/preorders/{id}/received [patch]
+//	@Router			/api/v1/preorders/self-delivering/{id}/received [post]
 func (p *PreOrderHandler) MarkPreOrderAsReceived(c *gin.Context) {
 	idParam := c.Param("id")
 	preOrderID, err := uuid.Parse(idParam)
@@ -421,22 +425,25 @@ func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 
 	actionBy, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to parse form: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
+	// Get required reason
 	reason := strings.TrimSpace(c.PostForm("reason"))
 	if reason == "" {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required", http.StatusBadRequest))
 		return
 	}
 
+	// Get required file
 	fileHeader, err := c.FormFile("file")
 	if err != nil || fileHeader == nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
 		return
 	}
 
+	// Save and upload file
 	userTmpDir := "/tmp/uploads"
 	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
@@ -559,6 +566,392 @@ func (p *PreOrderHandler) ProcessCompensation(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation processed successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL}))
 }
 
+// MarkPreOrderAsReceivedByStaff godoc
+//
+//	@Summary		3.2-[Self-Pick-Up]-END Mark preorder as RECEIVED (Staff)
+//	@Description	Mark self-pickup preorder as RECEIVED by staff
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Param			file	formData	file	true	"Evidence file"
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{preOrderID}/received [post]
+func (p *PreOrderHandler) MarkPreOrderAsReceivedByStaff(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	fileHeader, err := extractRequiredFile(c, "file")
+	if err != nil {
+		return
+	}
+
+	fileURLPtr, err := p.handleFileUpload(c, updatedBy, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// Perform state transfer using stateTransferService (non-transactional here)
+	targetStatus := enum.PreOrderStatusReceived
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil, fileURLPtr); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update preorder: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
+		return
+	}
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("Mark PreOrder as \"Delivered\" successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// PreOrderObligateRefund godoc
+//
+//	@Summary		Staff actively cancel PREORDER (move to REFUNDED)
+//	@Description	Change preOrder state to REFUNDED. Requires reason and evidence file.
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"Order ID"
+//	@Param			reason		formData	string	true	"Cancel reason"
+//	@Param			file		formData	file	true	"Evidence file"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{preOrderID}/obligate-refund [post]
+func (p *PreOrderHandler) PreOrderObligateRefund(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	// --- Extract required fields ---
+	reasonPtr, err := extractRequiredFormField(c, "reason")
+	if err != nil {
+		return
+	}
+
+	fileHeader, err := extractRequiredFile(c, "file")
+	if err != nil {
+		return
+	}
+
+	fileURLPtr, err := p.handleFileUpload(c, updatedBy, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// --- Move PreOrder to REFUNDED ---
+	err = p.preOrderService.ObligateRefund(ctx, preOrderID, updatedBy, reasonPtr, fileURLPtr)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to obligate refund: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// --- Commit transaction ---
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("Preorder refunded successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// PreOrderRefundRequest godoc
+//
+//	@Summary		Customer Request a refund (Available before staff confirm)
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"Order ID"
+//	@Param			reason		formData	string	true	"Cancel reason"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/refund/{preOrderID} [POST]
+func (p *PreOrderHandler) PreOrderRefundRequest(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	// --- Extract required fields ---
+	reasonPtr, err := extractRequiredFormField(c, "reason")
+	if err != nil {
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// --- Move PreOrder to REFUNDED ---
+	err = p.preOrderService.RefundRequest(ctx, preOrderID, updatedBy, reasonPtr)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to refund request: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// --- Commit transaction ---
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("Preorder refund requested successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+
+}
+
+// ApprovePreOrderRefund godoc
+//
+//	@Summary		3 Staff approve PREORDER refund request (REFUNDED_REQUEST -> REFUNDED)
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"Order ID"
+//	@Param			reason		formData	string	false	"Additional reason"
+//	@Param			file		formData	file	true	"Evidence file"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/refund/{preOrderID}/approve [POST]
+func (p *PreOrderHandler) ApprovePreOrderRefund(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	// --- Extract required fields ---
+	var reasonPtr *string
+	value := c.PostForm("reason")
+	if value == "" {
+		reasonPtr = &value
+	} else {
+		reasonPtr = nil
+	}
+
+	fileHeader, err := extractRequiredFile(c, "file")
+	if err != nil {
+		return
+	}
+
+	fileURLPtr, err := p.handleFileUpload(c, updatedBy, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	err = p.preOrderService.ApproveRefundRequest(ctx, preOrderID, updatedBy, reasonPtr, fileURLPtr)
+	if err != nil {
+		_ = uow.Rollback()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to refund request: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	// --- Commit transaction ---
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("Preorder refund requested successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// MarkPreOrderAsDelivered godoc
+//
+//	@Summary		3.1-[Self-Delivery] Mark preorder as delivered (Staff)
+//	@Description	Mark self-delivering preorder as delivered by staff
+//	@Tags			Preorders.States
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Param			file	formData	file	false	"Evidence file"
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/self-delivering/{preOrderID}/delivered [post]
+func (p *PreOrderHandler) MarkPreOrderAsDelivered(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
+
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	// --- Extract required fields ---
+	fileHeader, err := extractRequiredFile(c, "file")
+	if err != nil {
+		return
+	}
+
+	fileURLPtr, err := p.handleFileUpload(c, updatedBy, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// Perform state transfer using stateTransferService (non-transactional here)
+	targetStatus := enum.PreOrderStatusDelivered
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil, fileURLPtr); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update preorder: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
+		return
+	}
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("Mark PreOrder as \"Delivered\" successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+// CompensateRequest godoc
+//
+//	@Summary
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string				true	"Order ID"
+//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
+//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/{orderID}/compensation [POST]
+func (p *PreOrderHandler) CompensateRequest(c *gin.Context) {
+
+}
+
+// CompensateApproved godoc
+//
+//	@Summary
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID	path		string				true	"Order ID"
+//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
+//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
+//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{orderID}/compensation [POST]
+func (p *PreOrderHandler) CompensateApproved(c *gin.Context) {
+
+}
+
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService:      preOrderService,
@@ -566,4 +959,85 @@ func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepositor
 		stateTransferService: stateSvc,
 		fileService:          fileSvc,
 	}
+}
+
+// ---- Extract Path Param as UUID ----
+
+func parseUUIDParam(c *gin.Context, key string) (uuid.UUID, error) {
+	raw := c.Param(key)
+	if raw == "" {
+		msg := key + " is required"
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
+		return uuid.Nil, errors.New(msg)
+	}
+
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		msg := "invalid " + key + ": " + err.Error()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
+		return uuid.Nil, errors.New("invalid " + key + ": " + err.Error())
+	}
+
+	return id, nil
+}
+
+// ---- Ensure multipart form is parsed ----
+
+func parseMultipart(c *gin.Context, maxSize int64) error {
+	if err := c.Request.ParseMultipartForm(maxSize); err != nil {
+		msg := "failed to parse multipart form: " + err.Error()
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
+		return errors.New("failed to parse multipart form: " + err.Error())
+	}
+	return nil
+}
+
+// ---- Extract required form field ----
+
+func extractRequiredFormField(c *gin.Context, key string) (*string, error) {
+	value := c.PostForm(key)
+	if value == "" {
+		msg := key + " is required"
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
+		return nil, errors.New(key + " is required")
+	}
+	return &value, nil
+}
+
+// ---- Extract required file ----
+
+func extractRequiredFile(c *gin.Context, key string) (*multipart.FileHeader, error) {
+	fileHeader, err := c.FormFile(key)
+	if err != nil || fileHeader == nil {
+		msg := key + " file is required"
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
+		return nil, errors.New(key + " file is required")
+	}
+	return fileHeader, nil
+}
+
+// handleFileUpload lưu file tạm, upload lên storage và trả về URL
+func (p *PreOrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
+	// --- Tmp path ---
+	tmpDir := os.TempDir()
+	newFileName := uuid.New().String() + filepath.Ext(fileHeader.Filename)
+	localPath := filepath.Join(tmpDir, newFileName)
+
+	// --- Save file tạm ---
+	if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
+		return nil, fmt.Errorf("failed to save uploaded file: %w", err)
+	}
+	defer os.Remove(localPath)
+
+	// --- Upload file lên S3 / storage ---
+	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	if fileURL == "" {
+		return nil, errors.New("uploaded file URL is empty")
+	}
+
+	return &fileURL, nil
 }

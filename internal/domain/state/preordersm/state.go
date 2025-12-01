@@ -34,6 +34,10 @@ func NewPreOrderState(status enum.PreOrderStatus) PreOrderState {
 		return &Compensated{}
 	case enum.PreOrderStatusReceived:
 		return &ReceivedState{}
+	case enum.PreOrderStatusRefunded:
+		return &Refunded{}
+	case enum.PreOrderStatusRefundRequest:
+		return &RefundRequest{}
 	default:
 		return nil
 	}

@@ -2,13 +2,16 @@ package notification_builder
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"fmt"
+	"gorm.io/gorm"
 	"time"
 )
 
-var notificationPreOrderBuilders = map[PreOrderNotificationType]func(context.Context, *model.PreOrder, *model.User) ([]requests.PublishNotificationRequest, error){
+var notificationPreOrderBuilders = map[PreOrderNotificationType]func(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, preorder *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error){
 	PreOrderNotifyPending:             nil,
 	PreOrderNotifyPaid:                buildPreorderPaidNotification,
 	PreOrderNotifyPreOrdered:          buildPreorderPreOrderedNotification,
@@ -19,6 +22,10 @@ var notificationPreOrderBuilders = map[PreOrderNotificationType]func(context.Con
 	PreOrderNotifyCompensateRequested: buildPreorderCompensateRequestedNotification,
 	PreOrderNotifyCompensated:         buildPreorderCompensatedNotification,
 	PreOrderNotifyCancelled:           buildPreorderCancelledNotification,
+
+	PreOrderNotifyRefund:         buildPreorderRefundedNotification,
+	PreOrderNotifyRefundRequest:  buildPreorderRefundRequestNotification,
+	PreOrderNotifyObligateRefund: buildPreorderObligateRefundedNotification,
 }
 
 // helper to build a user-facing preorder link
@@ -55,7 +62,7 @@ func buildPreorderPendingNotification(_ context.Context, po *model.PreOrder, _ *
 	return buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload), nil
 }
 
-func buildPreorderPaidNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderPaidNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	emailSubject := "Pre-order Payment Confirmed"
 	template := "preorder_paid"
 	emailPayload := EmailNotificationPayload{
@@ -79,7 +86,7 @@ func buildPreorderPaidNotification(_ context.Context, po *model.PreOrder, _ *mod
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload)}, nil
 }
 
-func buildPreorderPreOrderedNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderPreOrderedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	pushPayload := PushNotificationPayload{
 		Title: "Your Item Has Been Pre-ordered",
 		Body:  fmt.Sprintf("%s has been reserved for you.", po.ProductName),
@@ -88,7 +95,7 @@ func buildPreorderPreOrderedNotification(_ context.Context, po *model.PreOrder, 
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
-func buildPreorderAwaitingPickupNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderAwaitingPickupNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	pushPayload := PushNotificationPayload{
 		Title: "Your Pre-order is Ready for Pickup",
 		Body:  "Please visit the pickup point to collect your item.",
@@ -97,7 +104,7 @@ func buildPreorderAwaitingPickupNotification(_ context.Context, po *model.PreOrd
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
-func buildPreorderInTransitNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderInTransitNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	pushPayload := PushNotificationPayload{
 		Title: "Your Pre-order is In Transit",
 		Body:  "Your item is on the way.",
@@ -106,7 +113,7 @@ func buildPreorderInTransitNotification(_ context.Context, po *model.PreOrder, _
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
-func buildPreorderDeliveredNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderDeliveredNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	pushPayload := PushNotificationPayload{
 		Title: "Your Pre-order Has Been Delivered",
 		Body:  "The delivery has been completed.",
@@ -115,7 +122,7 @@ func buildPreorderDeliveredNotification(_ context.Context, po *model.PreOrder, _
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
-func buildPreorderReceivedNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderReceivedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	pushPayload := PushNotificationPayload{
 		Title: "Thanks — Pre-order Received",
 		Body:  "We hope you enjoy your purchase.",
@@ -124,7 +131,7 @@ func buildPreorderReceivedNotification(_ context.Context, po *model.PreOrder, _ 
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelPush, EmailNotificationPayload{}, pushPayload)}, nil
 }
 
-func buildPreorderCompensateRequestedNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderCompensateRequestedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	emailSubject := "Compensation Request Received"
 	template := "preorder_compensation_received"
 	// guard latest action note
@@ -158,7 +165,7 @@ func buildPreorderCompensateRequestedNotification(_ context.Context, po *model.P
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload)}, nil
 }
 
-func buildPreorderCompensatedNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderCompensatedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	emailSubject := "Your Compensation Has Been Approved"
 	template := "preorder_compensation_approved"
 	var imageURL any
@@ -185,7 +192,7 @@ func buildPreorderCompensatedNotification(_ context.Context, po *model.PreOrder,
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload)}, nil
 }
 
-func buildPreorderCancelledNotification(_ context.Context, po *model.PreOrder, _ *model.User) ([]requests.PublishNotificationRequest, error) {
+func buildPreorderCancelledNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
 	emailSubject := "Your Pre-order Has Been Cancelled"
 	template := "preorder_cancelled"
 	emailPayload := EmailNotificationPayload{
@@ -204,4 +211,121 @@ func buildPreorderCancelledNotification(_ context.Context, po *model.PreOrder, _
 		Data:  pushDataForPreOrder(po),
 	}
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload)}, nil
+}
+
+func buildPreorderRefundRequestNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	var resp []requests.PublishNotificationRequest
+	emailSubject := "📩 Refund Request Received"
+	template := "refund_preorder_request_received"
+	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
+		EmailSubject:      &emailSubject,
+		EmailTemplateName: &template,
+		EmailTemplateData: map[string]interface{}{
+			"CustomerName": po.FullName,
+			"RefundCode":   po.ID.String(),
+			"ProductName":  po.ProductName,
+			"RequestDate":  po.UpdatedAt.Format("02 Jan 2006 15:04"),
+			"RefundAmount": po.TotalAmount,
+			"Reason":       po.GetLatestActionNote().Reason,
+		},
+	}
+	pushPayload := PushNotificationPayload{
+		Title: "Pre-order Received",
+		Body:  fmt.Sprintf("Your pre-order for %s has been received.", po.ProductName),
+		Data:  pushDataForPreOrder(po),
+	}
+	resp = append(resp, buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload))
+
+	// Announce PUSH to all SaleStaff
+	var saleStaffs []model.User
+	if err := db.Where("role = ?", enum.UserRoleSalesStaff.String()).Find(&saleStaffs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch sale staffs: %w", err)
+	}
+	for _, staff := range saleStaffs {
+		staffPushPayload := PushNotificationPayload{
+			Title: "New Refund Request",
+			Body:  fmt.Sprintf("A new refund request has been made for Order %s.", po.ID.String()),
+			Data:  pushDataForPreOrder(po),
+		}
+		emailSubject := "You have new refund request need to be done"
+		emailTemplateName := "refund_request_announcement"
+		staffEmailPayload := EmailNotificationPayload{
+			CustomReceiver:    &staff.Email,
+			EmailSubject:      &emailSubject,
+			EmailTemplateName: &emailTemplateName,
+			EmailTemplateData: map[string]interface{}{
+				"StaffName":       staff.FullName,
+				"CustomerName":    po.FullName,
+				"OrderCode":       po.ID,
+				"Reason":          po.GetLatestActionNote().Reason,
+				"RequestedAmount": fmt.Sprintf("%d VND", int(po.TotalAmount)),
+				"CreatedAt":       po.GetLatestActionNote().CreatedAt,
+				"ReviewURL":       "https://bshowsell.site",
+				"Year":            time.Now().Year(),
+			},
+			EmailHTMLBody: nil,
+		}
+		resp = append(resp, buildNotificationRequest(staff.ID, channelEmailPush, staffEmailPayload, staffPushPayload))
+	}
+	return resp, nil
+}
+
+func buildPreorderRefundedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	var resp []requests.PublishNotificationRequest
+	emailSubject := "💰 Your Refund Has Been Approved!"
+	selectedTemplate := "refund_approved"
+	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
+		EmailSubject:      &emailSubject,
+		EmailTemplateName: &selectedTemplate,
+		EmailTemplateData: map[string]interface{}{
+			"CustomerName":  po.FullName,
+			"OrderCode":     po.ID.String(),
+			"RefundAmount":  fmt.Sprintf("%d VND", int(po.TotalAmount)),
+			"RefundDate":    po.UpdatedAt.Format("02 Jan 2006 15:04"),
+			"PaymentMethod": "Bank Transfer",
+			"ImageURL":      po.StaffResource,
+			"OrderLink":     "https://bshowsell.site",
+			"Year":          time.Now().Year(),
+		},
+		EmailHTMLBody: nil,
+	}
+	pushPayload := PushNotificationPayload{
+		Title: "Ding Ding Ding 💰... Your Refund Has Been Approved!",
+		Body:  "",
+		Data:  pushDataForPreOrder(po),
+	}
+	resp = append(resp, buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload))
+	return resp, nil
+}
+
+func buildPreorderObligateRefundedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	var resp []requests.PublishNotificationRequest
+	emailSubject := "💰 Your PreOrder has been Refunded!"
+	selectedTemplate := "preorder_refund_obligation"
+	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
+		EmailSubject:      &emailSubject,
+		EmailTemplateName: &selectedTemplate,
+		EmailTemplateData: map[string]interface{}{
+			"CustomerName":     po.FullName,
+			"PreOrderCode":     po.ID.String(),
+			"RefundAmount":     fmt.Sprintf("%d VND", int(po.TotalAmount)),
+			"RefundMethod":     "Bank Transfer",
+			"RefundedAt":       po.UpdatedAt.Format("02 Jan 2006 15:04"),
+			"Reason":           po.GetLatestActionNote().Reason,
+			"EvidenceImageURL": po.StaffResource,
+			"Year":             time.Now().Year(),
+		},
+		EmailHTMLBody: nil,
+	}
+	pushPayload := PushNotificationPayload{
+		Title: "Unfortunate, Your PreOrder has been refunded!",
+		Body:  "",
+		Data:  pushDataForPreOrder(po),
+	}
+	resp = append(resp, buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload))
+	return resp, nil
+
 }
