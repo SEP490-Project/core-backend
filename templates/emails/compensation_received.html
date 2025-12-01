@@ -1,8 +1,9 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Compensation Approved</title>
     <title>Compensation Request Received</title>
     <style>
         body {
@@ -23,11 +24,11 @@
         .header {
             text-align: center;
             padding-bottom: 20px;
-            border-bottom: 2px solid #ffc107; /* warning color */
+            border-bottom: 2px solid #28a745; /* green for success */
             margin-bottom: 30px;
         }
         .header h1 {
-            color: #ffc107;
+            color: #28a745;
             margin: 0;
             font-size: 24px;
         }
@@ -35,17 +36,17 @@
             margin: 20px 0;
         }
         .details {
-            background-color: #fff3cd;
+            background-color: #d4edda;
             padding: 15px;
             border-radius: 4px;
             margin: 15px 0;
-            border: 1px dashed #ffeeba;
+            border: 1px dashed #c3e6cb;
         }
         .details p {
             margin: 8px 0;
         }
         .details strong {
-            color: #856404;
+            color: #155724;
         }
         .footer {
             margin-top: 30px;
@@ -56,19 +57,18 @@
             color: #666;
         }
     </style>
-</head>
-<body>
-<div class="email-container">
-    <div class="header">
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
         <h1>📝 Compensation Request Received</h1>
-    </div>
-
+      </div>
     <div class="content">
         <p>Hello {{.CustomerName}},</p>
         <p>
-            We have received your compensation request regarding your order. Our
-            support team will review the information and evidence you submitted
-            shortly.
+          We have received your compensation request regarding your order. Our
+          support team will review the information and evidence you submitted
+          shortly.
         </p>
 
         <div class="details">
@@ -82,9 +82,7 @@
         </div>
 
         <p>
-            Our staff will carefully review your reason and the uploaded images to
-            verify the issue. You will receive another email once the review
-            process is completed.
+            The payment bill should be attached above. If there are any issues or if you have further questions, please do not hesitate to contact our support team.
         </p>
 
         <p>
@@ -95,7 +93,7 @@
     <div class="footer">
         <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
         <p>This is an automated message. Please do not reply to this email.</p>
+      </div>
     </div>
-</div>
-</body>
+  </body>
 </html>
