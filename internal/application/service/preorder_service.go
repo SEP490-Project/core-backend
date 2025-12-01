@@ -10,6 +10,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	notiBuilder "core-backend/internal/application/service/notification_builder"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/preordersm"
@@ -33,6 +34,7 @@ import (
 
 type preOrderService struct {
 	config                       *config.AppConfig
+	db                           *gorm.DB
 	preOrderRepository           irepository.GenericRepository[model.PreOrder]
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	userRepository               irepository.GenericRepository[model.User]
@@ -42,6 +44,79 @@ type preOrderService struct {
 	ghnService                   iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 	stateTransferService         iservice.StateTransferService
+	notificationService          iservice.NotificationService
+}
+
+func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	if err != nil {
+		return err
+	}
+	err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusRefunded, reason)
+	if err != nil {
+		return err
+	}
+
+	preOrder.StaffResource = fileURL
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		return err
+	}
+
+	//Notification
+	go func() {
+		err = p.sendNotification(context.Background(), notiBuilder.PreOrderNotifyRefund, preOrder, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+	return nil
+}
+
+func (p preOrderService) RefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason *string) error {
+	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	if err != nil {
+		return err
+	}
+	err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusRefundRequest, reason)
+	if err != nil {
+		return err
+	}
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		return err
+	}
+	//Notification
+	go func() {
+		err = p.sendNotification(context.Background(), notiBuilder.PreOrderNotifyRefundRequest, preOrder, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+	return nil
+}
+
+func (p preOrderService) ObligateRefund(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
+	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	if err != nil {
+		return err
+	}
+	err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusRefunded, reason)
+	if err != nil {
+		return err
+	}
+	preOrder.StaffResource = fileURL
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		return err
+	}
+
+	//Notification
+	go func() {
+		err = p.sendNotification(context.Background(), notiBuilder.PreOrderNotifyObligateRefund, preOrder, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+
+	return nil
 }
 
 func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID, updatedBy uuid.UUID) error {
@@ -146,7 +221,7 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	_ = preOrders
 	for _, preOrder := range preOrders {
 		var err error
-		if !preOrder.IsSelfPickedUp {
+		if preOrder.IsSelfPickedUp {
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
@@ -459,9 +534,10 @@ func (p preOrderService) PayForPreservationSlot(ctx context.Context, preOrderID 
 	return paymentTransaction, nil
 }
 
-func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, stateTransferService iservice.StateTransferService) iservice.PreOrderService {
+func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseRegistry, registry *infrastructure.InfrastructureRegistry, paymentTransactionSvc iservice.PaymentTransactionService, stateTransferService iservice.StateTransferService, notificationService iservice.NotificationService) iservice.PreOrderService {
 	return &preOrderService{
 		config:                       cfg,
+		db:                           dbRegistry.GormDatabase,
 		preOrderRepository:           dbRegistry.PreOrderRepository,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
 		userRepository:               dbRegistry.UserRepository,
@@ -471,6 +547,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		ghnService:                   registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionService:    paymentTransactionSvc,
 		stateTransferService:         stateTransferService,
+		notificationService:          notificationService,
 	}
 }
 
@@ -780,4 +857,22 @@ func (p *preOrderService) lookupPreOrderWithLimitedProductAndUser(ctx context.Co
 	}
 
 	return preOrder, variant.Product.Limited, user, nil
+}
+
+func (p *preOrderService) sendNotification(ctx context.Context, notiStatus notiBuilder.PreOrderNotificationType, preOrder *model.PreOrder, actionBy *model.User) error {
+	//This contains many payloads to different receivers
+	payloads, err := notiBuilder.BuildPreOrderNotifications(ctx, *p.config, p.db, notiStatus, preOrder, actionBy)
+	if err != nil {
+		zap.L().Debug("no notification builder for order status", zap.Error(err))
+		return nil
+	}
+
+	for _, pl := range payloads {
+		_, err = p.notificationService.CreateAndPublishNotification(ctx, &pl)
+		if err != nil {
+			zap.L().Error("Failed to send notification", zap.Error(err))
+			return err
+		}
+	}
+	return nil
 }

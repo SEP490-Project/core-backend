@@ -80,6 +80,18 @@ func (s *PreOrderContext) GenerateActionNote(user *model.User, reason *string) *
 		}
 		note.ActionType = enum.PreOrderStatusReceived
 		note.Reason = *reason
+	case enum.PreOrderStatusRefundRequest:
+		if !utils.NotEmptyOrNil(reason) {
+			reason = ptr.String("Pre-order being request refund by User")
+		}
+		note.ActionType = enum.PreOrderStatusRefundRequest
+		note.Reason = *reason
+	case enum.PreOrderStatusRefunded:
+		if !utils.NotEmptyOrNil(reason) {
+			reason = ptr.String("Pre-order being refunded by Staff")
+		}
+		note.ActionType = enum.PreOrderStatusRefunded
+		note.Reason = *reason
 	}
 	return note
 }
