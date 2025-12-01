@@ -89,9 +89,10 @@ const (
 	PreOrderNotifyCompensated         PreOrderNotificationType = "COMPENSATED"
 	PreOrderNotifyReceived            PreOrderNotificationType = "RECEIVED"
 
-	PreOrderNotifyRefund         PreOrderNotificationType = "REFUND"
-	PreOrderNotifyRefundRequest  PreOrderNotificationType = "REFUND_REQUEST"
-	PreOrderNotifyObligateRefund PreOrderNotificationType = "OBLIGATE_REFUND"
+	PreOrderNotifyRefund           PreOrderNotificationType = "REFUND"
+	PreOrderNotifyRefundRequest    PreOrderNotificationType = "REFUND_REQUEST"
+	PreOrderNotifyObligateRefund   PreOrderNotificationType = "OBLIGATE_REFUND"
+	PreOrderNotifyCompensateDenied PreOrderNotificationType = "COMPENSATE_DENIED"
 )
 
 func (status PreOrderNotificationType) String() string {

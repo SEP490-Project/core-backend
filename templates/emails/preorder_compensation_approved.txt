@@ -1,7 +1,8 @@
 Hi {{.CustomerName}},
 
 Good news — your compensation request for pre-order {{.PreOrderCode}} has been approved.
-
+Bank Account Transferred: {{.BankAccount}} - {{.BankName}} - {{.BankAccountHolder}}</p>
+Amount Approved: {{.ApprovedAmount}}
 Proof: {{.ImageURL}}
 
 View details: {{.PreOrderLink}}
@@ -9,4 +10,3 @@ View details: {{.PreOrderLink}}
 Thanks,
 Support Team
 © {{.Year}}
-

@@ -8,15 +8,13 @@ import (
 	"core-backend/internal/domain/enum"
 	"errors"
 	"fmt"
+	"github.com/aws/smithy-go/ptr"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -416,63 +414,55 @@ func (p *PreOrderHandler) MarkPreOrderAsReceived(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/{id}/compensation [post]
 func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
-	idParam := c.Param("id")
-	preOrderID, err := uuid.Parse(idParam)
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "id")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid preOrder ID", http.StatusBadRequest))
 		return
 	}
 
-	actionBy, err := extractUserID(c)
+	// --- User ---
+	updatedBy, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to parse form: "+err.Error(), http.StatusBadRequest))
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
 		return
 	}
 
-	// Get required reason
-	reason := strings.TrimSpace(c.PostForm("reason"))
-	if reason == "" {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required", http.StatusBadRequest))
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
-	// Get required file
-	fileHeader, err := c.FormFile("file")
-	if err != nil || fileHeader == nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required", http.StatusBadRequest))
-		return
-	}
-
-	// Save and upload file
-	userTmpDir := "/tmp/uploads"
-	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
-		return
-	}
-
-	timestamp := time.Now().Format("20060102_150405")
-	newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
-
-	if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
-		_ = os.Remove(finalPath)
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
-		return
-	}
-	defer func(path string) { _ = os.Remove(path) }(finalPath)
-
-	fileURL, err := p.fileService.UploadFile(c.Request.Context(), actionBy.String(), finalPath, newFileName)
+	// --- Extract required fields ---
+	reasonPtr, err := extractRequiredFormField(c, "reason")
 	if err != nil {
-		_ = os.Remove(finalPath)
-		zap.L().Error("failed to upload compensation file", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
 		return
 	}
 
+	fileHeader, err := extractRequiredFile(c, "file")
+	if err != nil {
+		return
+	}
+
+	fileURLPtr, err := p.handleFileUpload(c, updatedBy, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// --- Begin transaction ---
 	ctx := c.Request.Context()
-	if err := p.preOrderService.RequestCompensation(ctx, preOrderID, actionBy, &reason, &fileURL); err != nil {
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	if err := p.preOrderService.RequestCompensation(ctx, preOrderID, updatedBy, reasonPtr, fileURLPtr); err != nil {
 		zap.L().Error("failed to request preorder compensation", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to request compensation: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
 		return
 	}
 
@@ -486,84 +476,91 @@ func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 //	@Tags			Preorders[Staff].States
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			orderID		path		string	true	"PreOrder ID (UUID)"
-//	@Param			isApproved	formData	string	true	"true|false"
-//	@Param			reason		formData	string	false	"Reason (optional)"
-//	@Param			file		formData	file	false	"Confirmation file"
+//	@Param			preOrderID	path	string	true  "PreOrder ID (UUID)"
+//	@Param			isApproved	formData	string	true  "true|false"
+//	@Param			reason		formData	string	false "Reason (optional)"
+//	@Param			file		formData	file	false "Evidence file"
 //	@Success		200			{object}	responses.APIResponse
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		401			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/preorders/staff/{orderID}/compensation [post]
+//	@Router			/api/v1/preorders/staff/{preOrderID}/compensation [post]
 func (p *PreOrderHandler) ProcessCompensation(c *gin.Context) {
-	idParam := c.Param("orderID")
-	preOrderID, err := uuid.Parse(idParam)
+
+	// --- Path param ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid preOrder ID", http.StatusBadRequest))
 		return
 	}
 
+	// --- User info ---
 	updatedBy, err := extractUserID(c)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
 		return
 	}
 
+	// --- Parse multipart ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	// --- Extract isApproved ---
 	isApprovedStr := strings.TrimSpace(c.PostForm("isApproved"))
 	if isApprovedStr == "" {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("isApproved form field is required", http.StatusBadRequest))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("isApproved is required", http.StatusBadRequest))
 		return
 	}
 	isApproved := strings.EqualFold(isApprovedStr, "true") || isApprovedStr == "1"
-	reason := strings.TrimSpace(c.PostForm("reason"))
 
+	// --- Extract reason (optional unless rejecting) ---
+	reason := strings.TrimSpace(c.PostForm("reason"))
 	if !isApproved && reason == "" {
-		resp := responses.ErrorResponse("reason cannot be left empty when rejecting", http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, resp)
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason cannot be empty when rejecting", http.StatusBadRequest))
 		return
 	}
 
-	var fileURL string
-	fileHeader, err := c.FormFile("file")
-	if (err != nil || fileHeader == nil) && isApproved {
+	// --- File handling ---
+	var fileURLPtr *string
+
+	fileHeader, _ := c.FormFile("file")
+	if isApproved && fileHeader == nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("file is required when approving", http.StatusBadRequest))
 		return
-	} else if err == nil && fileHeader != nil {
-		userTmpDir := "/tmp/uploads"
-		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
-			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
-			return
-		}
+	}
 
-		timestamp := time.Now().Format("20060102_150405")
-		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
-
-		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
-			_ = os.Remove(finalPath)
-			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
-			return
-		}
-		defer func(path string) { _ = os.Remove(path) }(finalPath)
-
-		fileURL, err = p.fileService.UploadFile(c.Request.Context(), updatedBy.String(), finalPath, newFileName)
+	if fileHeader != nil {
+		fileURLPtr, err = p.handleFileUpload(c, updatedBy, fileHeader)
 		if err != nil {
-			_ = os.Remove(finalPath)
-			zap.L().Error("failed to upload confirmation file", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to upload file: "+err.Error(), http.StatusInternalServerError))
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 			return
 		}
 	}
 
+	// Convert nil to empty string for service call consistency
+	var fileURL string
+	if fileURLPtr != nil {
+		fileURL = *fileURLPtr
+	}
+
+	// --- Perform service call ---
 	ctx := c.Request.Context()
-	if err := p.preOrderService.ProcessCompensation(ctx, preOrderID, updatedBy, isApproved, &reason, &fileURL); err != nil {
+	err = p.preOrderService.ProcessCompensation(ctx, preOrderID, updatedBy, isApproved, &reason, &fileURL)
+	if err != nil {
 		zap.L().Error("failed to process preorder compensation", zap.Error(err))
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to process compensation: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.SuccessResponse("Compensation processed successfully", ptr.Int(http.StatusOK), map[string]any{"file_url": fileURL}))
+	c.JSON(http.StatusOK,
+		responses.SuccessResponse(
+			"Compensation processed successfully",
+			ptr.Int(http.StatusOK),
+			map[string]any{"file_url": fileURL},
+		),
+	)
 }
 
 // MarkPreOrderAsReceivedByStaff godoc
@@ -914,42 +911,6 @@ func (p *PreOrderHandler) MarkPreOrderAsDelivered(c *gin.Context) {
 	_ = uow.Commit()
 	resp := responses.SuccessResponse("Mark PreOrder as \"Delivered\" successfully", ptr.Int(http.StatusOK), nil)
 	c.JSON(http.StatusOK, resp)
-}
-
-// CompensateRequest godoc
-//
-//	@Summary
-//	@Tags			Preorders.States
-//	@Accept			json
-//	@Produce		json
-//	@Param			orderID	path		string				true	"Order ID"
-//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
-//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/preorders/{orderID}/compensation [POST]
-func (p *PreOrderHandler) CompensateRequest(c *gin.Context) {
-
-}
-
-// CompensateApproved godoc
-//
-//	@Summary
-//	@Tags			Preorders.States
-//	@Accept			json
-//	@Produce		json
-//	@Param			orderID	path		string				true	"Order ID"
-//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
-//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/preorders/staff/{orderID}/compensation [POST]
-func (p *PreOrderHandler) CompensateApproved(c *gin.Context) {
-
 }
 
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Compensation Approved</title>
+    <title>Preorder Compensation Denied</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -23,11 +23,11 @@
         .header {
             text-align: center;
             padding-bottom: 20px;
-            border-bottom: 2px solid #28a745; /* green for success */
+            border-bottom: 2px solid #dc3545;
             margin-bottom: 30px;
         }
         .header h1 {
-            color: #28a745;
+            color: #dc3545;
             margin: 0;
             font-size: 24px;
         }
@@ -35,17 +35,17 @@
             margin: 20px 0;
         }
         .details {
-            background-color: #d4edda;
+            background-color: #f8d7da;
             padding: 15px;
             border-radius: 4px;
             margin: 15px 0;
-            border: 1px dashed #c3e6cb;
+            border: 1px dashed #f5c6cb;
         }
         .details p {
             margin: 8px 0;
         }
         .details strong {
-            color: #155724;
+            color: #721c24;
         }
         .footer {
             margin-top: 30px;
@@ -60,32 +60,29 @@
 <body>
 <div class="email-container">
     <div class="header">
-        <h1>✅ Compensation Approved</h1>
+        <h1>❌ Preorder Compensation Denied</h1>
     </div>
 
     <div class="content">
         <p>Hello {{.CustomerName}},</p>
         <p>
-            Good news! Your compensation request for your order has been reviewed and approved.
+            We have carefully reviewed your compensation request related to your preorder.
+            Unfortunately, after evaluation, we are unable to approve your request.
         </p>
 
         <div class="details">
-            <p><strong>Order Number:</strong> {{.OrderCode}}</p>
-            <p><strong>Bank Account Transferred:</strong>{{.BankAccount}} - {{.BankName}} - {{.BankAccountHolder}}</p>
-            <p><strong>Approved Amount:</strong> {{.ApprovedAmount}}</p>
-            <p><strong>Reason:</strong> {{.Reason}}</p>
-            <p>
-                <strong>Attached Images:</strong>
-                <img src="{{.ImageURL}}" alt="image" style="max-width:300px; max-height:300px; width:auto; height:auto;" />
-            </p>
+            <p><strong>Preorder Code:</strong> {{.PreOrderCode}}</p>
+            <p><strong>Reason for Denial:</strong> {{.DenialReason}}</p>
+            <p><strong>Requested Compensation Amount:</strong> {{.RequestedAmount}}</p>
         </div>
 
         <p>
-            The payment bill should be attached above. If there are any issues or if you have further questions, please do not hesitate to contact our support team.
+            If you believe there is missing information or you would like further clarification,
+            please feel free to contact our support team. We are always ready to assist you.
         </p>
 
         <p>
-            Thank you for your patience and cooperation.
+            Thank you for your understanding and patience.
         </p>
     </div>
 
