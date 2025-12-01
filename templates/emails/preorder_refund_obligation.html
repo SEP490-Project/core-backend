@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Preorder Refund Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            color: #007bff;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            color: #333;
+            line-height: 1.6;
+        }
+        .details {
+            background: #cce5ff;
+            border: 1px solid #b8daff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .details p {
+            margin: 6px 0;
+            color: #004085;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+        }
+        img.attachment {
+            margin-top: 10px;
+            max-width: 100%;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="email-container">
+    <div class="header">
+        <h1>Preorder Refund Notification</h1>
+    </div>
+
+    <div class="content">
+        <p>Hello {{.CustomerName}},</p>
+
+        <p>
+            This is to inform you that your preorder has been refunded following a staff-initiated cancellation.
+            We apologize for any inconvenience this may cause and appreciate your understanding.
+        </p>
+
+        <div class="details">
+            <p><strong>Preorder Code:</strong> {{.PreOrderCode}}</p>
+            <p><strong>Refund Amount:</strong> {{.RefundAmount}}</p>
+            <p><strong>Refund Method:</strong> {{.RefundMethod}}</p>
+            <p><strong>Refunded At:</strong> {{.RefundedAt}}</p>
+            <p>
+                <strong>Evidence Attached:</strong>
+                <img src="{{.EvidenceImageURL}}" alt="Evidence" style="max-width:300px; max-height:300px; width:auto; height:auto;" />
+            </p>
+            <p><strong>Reason:</strong> {{.Reason}}</p>
+        </div>
+
+        <p>
+            If you have any questions regarding this refund or require further assistance, please contact our support team.
+        </p>
+
+        <p>
+            Thank you for your patience and understanding.
+        </p>
+    </div>
+
+    <div class="footer">
+        <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
+        <p>Please do not reply to this automated email.</p>
+    </div>
+</div>
+
+</body>
+</html>

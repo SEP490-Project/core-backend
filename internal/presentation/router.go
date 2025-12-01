@@ -332,8 +332,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			preOrderGroup.GET("", preOrderHandler.GetAllPreorders)
 			preOrderGroup.PATCH(":id/state", stateHandler.UpdatePreOrderState)
 			// Customer actions
-			preOrderGroup.PATCH("/:id/received", preOrderHandler.MarkPreOrderAsReceived)
+			preOrderGroup.POST("/:id/received", preOrderHandler.MarkPreOrderAsReceived)
 			preOrderGroup.POST("/:id/compensation", preOrderHandler.RequestCompensation)
+			preOrderGroup.POST("/refund/:preOrderID", preOrderHandler.PreOrderRefundRequest)
+			preOrderGroup.POST("/self-delivering/:id/received", preOrderHandler.MarkPreOrderAsReceived)
 		}
 
 		// Staffs
@@ -341,9 +343,14 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		staffPreOrderGroup.Use(r.middlewareRegistry.Auth.RequireRole(sales, admin))
 		{
 			staffPreOrderGroup.GET("", preOrderHandler.GetStaffAvailablePreOrdersWithPagination)
-			staffPreOrderGroup.POST("/:orderID/censorship", preOrderHandler.PreOrderCensorship)
+			staffPreOrderGroup.POST("/:preOrderID/approve", preOrderHandler.PreOrderApprove)
+			staffPreOrderGroup.POST("/refund/:preOrderID/approve", preOrderHandler.ApprovePreOrderRefund)
+			staffPreOrderGroup.POST("/:preOrderID/obligate-refund", preOrderHandler.PreOrderObligateRefund)
 			// Staff: process compensation requests for preorders
-			staffPreOrderGroup.POST("/:orderID/compensation", preOrderHandler.ProcessCompensation)
+			staffPreOrderGroup.POST("/:preOrderID/compensation", preOrderHandler.ProcessCompensation)
+			staffPreOrderGroup.POST("/:preOrderID/received", preOrderHandler.MarkPreOrderAsReceivedByStaff)
+			staffPreOrderGroup.POST("/:preOrderID/delivered", preOrderHandler.MarkPreOrderAsDelivered)
+			staffPreOrderGroup.POST("/self-delivering/:preOrderID/delivered", preOrderHandler.MarkPreOrderAsDelivered)
 		}
 
 		// FUTURE ROUTES FOR OTHER RESOURCES CAN BE ADDED HERE

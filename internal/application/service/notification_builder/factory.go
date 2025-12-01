@@ -88,6 +88,10 @@ const (
 	PreOrderNotifyCompensateRequested PreOrderNotificationType = "COMPENSATE_REQUEST"
 	PreOrderNotifyCompensated         PreOrderNotificationType = "COMPENSATED"
 	PreOrderNotifyReceived            PreOrderNotificationType = "RECEIVED"
+
+	PreOrderNotifyRefund         PreOrderNotificationType = "REFUND"
+	PreOrderNotifyRefundRequest  PreOrderNotificationType = "REFUND_REQUEST"
+	PreOrderNotifyObligateRefund PreOrderNotificationType = "OBLIGATE_REFUND"
 )
 
 func (status PreOrderNotificationType) String() string {
@@ -99,7 +103,7 @@ func BuildPreOrderNotifications(ctx context.Context, cfg config.AppConfig, db *g
 	if !exists || builder == nil {
 		return []requests.PublishNotificationRequest{}, fmt.Errorf("notification_builder: no builder for preorder status %s", status.String())
 	}
-	return builder(ctx, preorder, user)
+	return builder(ctx, cfg, db, status, preorder, user)
 }
 
 //------- Payment Notification Builder Factory -------//

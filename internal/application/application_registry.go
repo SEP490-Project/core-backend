@@ -184,7 +184,7 @@ func NewApplicationRegistry(
 		ClickTrackingService:          clickTrackingService,
 		AffiliateLinkAnalyticsService: affiliateLinkAnalyticsService,
 		PaymentTransactionService:     paymentTransactionService,
-		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, stateTransferService),
+		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, stateTransferService, notificationService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		SalesStaffAnalyticsService:    service.NewSalesStaffAnalyticsService(databaseRegistry.SalesStaffAnalyticsRepository),
 		ContentStaffAnalyticsService:  service.NewContentStaffAnalyticsService(databaseRegistry.ContentStaffAnalyticsRepository),

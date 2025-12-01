@@ -126,6 +126,7 @@ func buildRefundRequestedNotification(ctx context.Context, _ config.AppConfig, d
 		emailSubject := "You have new refund request need to be done"
 		emailTemplateName := "refund_request_announcement"
 		staffEmailPayload := EmailNotificationPayload{
+			CustomReceiver:    &staff.Email,
 			EmailSubject:      &emailSubject,
 			EmailTemplateName: &emailTemplateName,
 			EmailTemplateData: map[string]interface{}{
