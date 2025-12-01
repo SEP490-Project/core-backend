@@ -87,7 +87,7 @@ otel:
 # RabbitMQ configuration
 rabbitmq:
   url: ""
-  host: my-vps
+  host: "154.26.132.131"
   port: 5672
   username: "admin"
   password: "170504"
@@ -159,7 +159,7 @@ gmail_smtp:
 
 # Firebase Cloud Messaging configuration
 firebase_fcm:
-  service_account_path: "C:/Users/HP/Downloads/firebase_service_account.json" # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
+  service_account_path: "C:/Users/0100882620/Desktop/Personal/firebase_service_account.json" # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
   project_id: "b-showsell" # Set via FIREBASE_PROJECT_ID env var
 
 # Notification settings

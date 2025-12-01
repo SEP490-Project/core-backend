@@ -26,4 +26,10 @@ type PreOrderService interface {
 
 	//Job to check and expire pre-orders (total count, failed count, upcomming)
 	PreOrderOpeningChecker(ctx context.Context) (int, int, int)
+
+	RefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason *string) error
+
+	//Staff
+	ObligateRefund(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error
+	ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error
 }

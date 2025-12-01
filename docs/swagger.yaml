@@ -1617,6 +1617,76 @@ definitions:
       premiere_date:
         type: string
     type: object
+  model.Order:
+    properties:
+      action_notes:
+        items:
+          $ref: '#/definitions/model.OrderActionNote'
+        type: array
+      address_line2:
+        type: string
+      city:
+        type: string
+      confirmation_image:
+        type: string
+      created_at:
+        type: string
+      district_name:
+        type: string
+      email:
+        type: string
+      full_name:
+        description: Copied shipping address fields (migration moved from a foreign
+          key to flat columns)
+        type: string
+      ghn_district_id:
+        type: integer
+      ghn_order_code:
+        type: string
+      ghn_province_id:
+        type: integer
+      ghn_ward_code:
+        type: string
+      id:
+        type: string
+      is_self_picked_up:
+        type: boolean
+      order_items:
+        items:
+          $ref: '#/definitions/model.OrderItem'
+        type: array
+      order_type:
+        type: string
+      payment_bin:
+        type: string
+      payment_id:
+        description: Transient fields populated by repository (not persisted)
+        type: string
+      phone_number:
+        type: string
+      province_name:
+        type: string
+      shipping_fee:
+        type: integer
+      staff_resource:
+        type: string
+      status:
+        $ref: '#/definitions/enum.OrderStatus'
+      street:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      user_note:
+        type: string
+      user_resource:
+        type: string
+      ward_name:
+        type: string
+    type: object
   model.OrderActionNote:
     properties:
       action_type:
@@ -1634,12 +1704,20 @@ definitions:
     type: object
   model.OrderItem:
     properties:
+      brand_id:
+        type: string
       capacity:
         type: number
       capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      category:
+        $ref: '#/definitions/model.ProductCategory'
+      category_id:
         type: string
       container_type:
         $ref: '#/definitions/enum.ContainerType'
+      description:
+        type: string
       dispenser_type:
         $ref: '#/definitions/enum.DispenserType'
       expiry_date:
@@ -1658,6 +1736,11 @@ definitions:
         type: string
       order_id:
         type: string
+      product_name:
+        description: product fields
+        type: string
+      product_type:
+        type: string
       product_variant:
         allOf:
         - $ref: '#/definitions/model.ProductVariant'
@@ -1668,17 +1751,12 @@ definitions:
         type: number
       unit_price:
         type: number
-      updated_at:
-        description: |-
-          ItemStatus            enum.OrderStatus    `json:"status" gorm:"column:item_status;not null;"`
-          CreatedAt time.Time      `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-        type: string
       uses:
         type: string
       variant_id:
         type: string
       weight:
-        description: DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index"`
+        description: in grams
         type: integer
       width:
         description: in centimeters
@@ -2957,6 +3035,10 @@ definitions:
           type: string
         minItems: 1
         type: array
+      custom_receivers:
+        description: Email-specific fields (used when EMAIL channel is included)
+        example: abc@gmail.com
+        type: string
       data:
         additionalProperties:
           type: string
@@ -2968,7 +3050,6 @@ definitions:
         minLength: 1
         type: string
       email_subject:
-        description: Email-specific fields (used when EMAIL channel is included)
         example: Test Email Subject
         maxLength: 255
         minLength: 1
@@ -3703,6 +3784,18 @@ definitions:
     properties:
       avatar_url:
         example: https://example.com/avatar.jpg
+        type: string
+      bank_account:
+        example: "123456789"
+        maxLength: 50
+        type: string
+      bank_account_holder:
+        example: Trần Dần
+        maxLength: 100
+        type: string
+      bank_name:
+        example: Techcombank
+        maxLength: 100
         type: string
       date_of_birth:
         example: "1990-01-01"
@@ -5542,6 +5635,107 @@ definitions:
       user_id:
         type: string
     type: object
+  responses.OrderItemBrandResponse:
+    properties:
+      address:
+        type: string
+      contact_email:
+        type: string
+      contact_phone:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      representative_email:
+        type: string
+      representative_name:
+        type: string
+      representative_role:
+        type: string
+      tax_number:
+        type: string
+      website:
+        type: string
+    type: object
+  responses.OrderItemCategoryResponse:
+    properties:
+      child_categories:
+        items:
+          $ref: '#/definitions/responses.OrderItemCategoryResponse'
+        type: array
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      parent_category:
+        $ref: '#/definitions/responses.OrderItemCategoryResponse'
+    type: object
+  responses.OrderItemResponse:
+    properties:
+      brand:
+        allOf:
+        - $ref: '#/definitions/responses.OrderItemBrandResponse'
+        description: Relationships
+      capacity:
+        type: number
+      capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      category:
+        $ref: '#/definitions/responses.OrderItemCategoryResponse'
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      description:
+        type: string
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      expiry_date:
+        type: string
+      height:
+        type: integer
+      id:
+        type: string
+      instructions:
+        type: string
+      length:
+        type: integer
+      limited_properties:
+        $ref: '#/definitions/responses.OrderLimitedProperties'
+      manufacturing_date:
+        type: string
+      product_name:
+        description: product fields
+        type: string
+      product_type:
+        type: string
+      quantity:
+        type: integer
+      subtotal:
+        type: number
+      unit_price:
+        type: number
+      uses:
+        type: string
+      weight:
+        type: integer
+      width:
+        type: integer
+    type: object
+  responses.OrderLimitedProperties:
+    properties:
+      availability_end_date:
+        type: string
+      availability_start_date:
+        type: string
+      premiere_date:
+        type: string
+    type: object
   responses.OrderResponse:
     properties:
       action_notes:
@@ -5576,7 +5770,7 @@ definitions:
         type: boolean
       order_items:
         items:
-          $ref: '#/definitions/model.OrderItem'
+          $ref: '#/definitions/responses.OrderItemResponse'
         type: array
       order_type:
         type: string
@@ -14832,7 +15026,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/responses.OrderResponse'
+                    $ref: '#/definitions/model.Order'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -14973,7 +15167,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create an order -> calculate delivery fee -> create payment transaction
+      description: Create a limited order
       parameters:
       - description: Place and pay payload
         in: body
@@ -15176,7 +15370,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/responses.OrderResponse'
+                    $ref: '#/definitions/model.Order'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'
@@ -15194,57 +15388,6 @@ paths:
       summary: Get staff-available orders with pagination
       tags:
       - Orders[Staff]
-  /api/v1/orders/staff/{orderID}/censorship:
-    post:
-      consumes:
-      - application/json
-      description: Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM`
-        or `action=CANCEL`. If cancelling, provide optional `reason` query param.
-      parameters:
-      - description: Order ID
-        in: path
-        name: orderID
-        required: true
-        type: string
-      - description: Action (CONFIRM|CANCEL)
-        in: query
-        name: action
-        required: true
-        type: string
-      - description: Cancel reason (required when action=CANCEL)
-        in: body
-        name: reason
-        schema:
-          $ref: '#/definitions/handler.CensorOrderRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.OrderResponse'
-                  type: array
-                pagination:
-                  $ref: '#/definitions/responses.Pagination'
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Censor an order (confirm or cancel)
-      tags:
-      - Orders[Staff].States
   /api/v1/orders/staff/{orderID}/compensation:
     post:
       consumes:
@@ -15294,11 +15437,62 @@ paths:
       summary: Process compensation (staff)
       tags:
       - Orders[Staff].States
+  /api/v1/orders/staff/{orderID}/confirmation:
+    post:
+      consumes:
+      - application/json
+      description: Change order state to CONFIRMED or CANCELLED. Use query param `action=CONFIRM`
+        or `action=CANCEL`. If cancelling, provide optional `reason` query param.
+      parameters:
+      - description: Order ID
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Action (CONFIRM|CANCEL)
+        in: query
+        name: action
+        required: true
+        type: string
+      - description: Cancel reason (required when action=CANCEL)
+        in: body
+        name: reason
+        schema:
+          $ref: '#/definitions/handler.CensorOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Order'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Censor an order (confirm or cancel)
+      tags:
+      - Orders[Staff].States
   /api/v1/orders/staff/{orderID}/obligate-refund:
     post:
       consumes:
       - multipart/form-data
-      description: Upload proof image
+      description: Force early refund, skip REFUND_REQUEST
       parameters:
       - description: Order ID (UUID)
         in: path
@@ -15343,7 +15537,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Force early refund, skip REFUND_REQUEST
+      summary: CANCEL PAID ITEM
       tags:
       - Orders[Staff].States
   /api/v1/orders/staff/{orderID}/refund/approve:
@@ -15592,7 +15786,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/responses.OrderResponse'
+                    $ref: '#/definitions/model.Order'
                   type: array
                 pagination:
                   $ref: '#/definitions/responses.Pagination'

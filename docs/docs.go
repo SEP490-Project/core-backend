@@ -12066,7 +12066,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/responses.OrderResponse"
+                                                "$ref": "#/definitions/model.Order"
                                             }
                                         },
                                         "pagination": {
@@ -12164,7 +12164,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create an order -\u003e calculate delivery fee -\u003e create payment transaction",
+                "description": "Create a limited order",
                 "consumes": [
                     "application/json"
                 ],
@@ -12422,7 +12422,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/responses.OrderResponse"
+                                                "$ref": "#/definitions/model.Order"
                                             }
                                         },
                                         "pagination": {
@@ -12711,7 +12711,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/responses.OrderResponse"
+                                                "$ref": "#/definitions/model.Order"
                                             }
                                         },
                                         "pagination": {
@@ -12874,88 +12874,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/orders/staff/{orderID}/censorship": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Change order state to CONFIRMED or CANCELLED. Use query param ` + "`" + `action=CONFIRM` + "`" + ` or ` + "`" + `action=CANCEL` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders[Staff].States"
-                ],
-                "summary": "Censor an order (confirm or cancel)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID",
-                        "name": "orderID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Action (CONFIRM|CANCEL)",
-                        "name": "action",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "description": "Cancel reason (required when action=CANCEL)",
-                        "name": "reason",
-                        "in": "body",
-                        "schema": {
-                            "$ref": "#/definitions/handler.CensorOrderRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.OrderResponse"
-                                            }
-                                        },
-                                        "pagination": {
-                                            "$ref": "#/definitions/responses.Pagination"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/orders/staff/{orderID}/compensation": {
             "post": {
                 "security": [
@@ -13030,6 +12948,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/orders/staff/{orderID}/confirmation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change order state to CONFIRMED or CANCELLED. Use query param ` + "`" + `action=CONFIRM` + "`" + ` or ` + "`" + `action=CANCEL` + "`" + `. If cancelling, provide optional ` + "`" + `reason` + "`" + ` query param.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders[Staff].States"
+                ],
+                "summary": "Censor an order (confirm or cancel)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Action (CONFIRM|CANCEL)",
+                        "name": "action",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel reason (required when action=CANCEL)",
+                        "name": "reason",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CensorOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Order"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/orders/staff/{orderID}/obligate-refund": {
             "post": {
                 "security": [
@@ -13037,7 +13037,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Upload proof image",
+                "description": "Force early refund, skip REFUND_REQUEST",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -13047,7 +13047,7 @@ const docTemplate = `{
                 "tags": [
                     "Orders[Staff].States"
                 ],
-                "summary": "Force early refund, skip REFUND_REQUEST",
+                "summary": "CANCEL PAID ITEM",
                 "parameters": [
                     {
                         "type": "string",
@@ -20665,6 +20665,109 @@ const docTemplate = `{
                 }
             }
         },
+        "model.Order": {
+            "type": "object",
+            "properties": {
+                "action_notes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderActionNote"
+                    }
+                },
+                "address_line2": {
+                    "type": "string"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "confirmation_image": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "district_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "description": "Copied shipping address fields (migration moved from a foreign key to flat columns)",
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer"
+                },
+                "ghn_order_code": {
+                    "type": "string"
+                },
+                "ghn_province_id": {
+                    "type": "integer"
+                },
+                "ghn_ward_code": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_self_picked_up": {
+                    "type": "boolean"
+                },
+                "order_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.OrderItem"
+                    }
+                },
+                "order_type": {
+                    "type": "string"
+                },
+                "payment_bin": {
+                    "type": "string"
+                },
+                "payment_id": {
+                    "description": "Transient fields populated by repository (not persisted)",
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "province_name": {
+                    "type": "string"
+                },
+                "shipping_fee": {
+                    "type": "integer"
+                },
+                "staff_resource": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.OrderStatus"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_note": {
+                    "type": "string"
+                },
+                "user_resource": {
+                    "type": "string"
+                },
+                "ward_name": {
+                    "type": "string"
+                }
+            }
+        },
         "model.OrderActionNote": {
             "type": "object",
             "properties": {
@@ -20691,14 +20794,26 @@ const docTemplate = `{
         "model.OrderItem": {
             "type": "object",
             "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
                 "capacity": {
                     "type": "number"
                 },
                 "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "category": {
+                    "$ref": "#/definitions/model.ProductCategory"
+                },
+                "category_id": {
                     "type": "string"
                 },
                 "container_type": {
                     "$ref": "#/definitions/enum.ContainerType"
+                },
+                "description": {
+                    "type": "string"
                 },
                 "dispenser_type": {
                     "$ref": "#/definitions/enum.DispenserType"
@@ -20726,6 +20841,13 @@ const docTemplate = `{
                 "order_id": {
                     "type": "string"
                 },
+                "product_name": {
+                    "description": "product fields",
+                    "type": "string"
+                },
+                "product_type": {
+                    "type": "string"
+                },
                 "product_variant": {
                     "description": "Relationships",
                     "allOf": [
@@ -20743,10 +20865,6 @@ const docTemplate = `{
                 "unit_price": {
                     "type": "number"
                 },
-                "updated_at": {
-                    "description": "ItemStatus            enum.OrderStatus    ` + "`" + `json:\"status\" gorm:\"column:item_status;not null;\"` + "`" + `\nCreatedAt time.Time      ` + "`" + `json:\"created_at\" gorm:\"column:created_at;autoCreateTime\"` + "`" + `",
-                    "type": "string"
-                },
                 "uses": {
                     "type": "string"
                 },
@@ -20754,7 +20872,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "description": "DeletedAt gorm.DeletedAt ` + "`" + `json:\"deleted_at\" gorm:\"column:deleted_at;index\"` + "`" + `",
+                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
@@ -22544,6 +22662,11 @@ const docTemplate = `{
                         "IN_APP"
                     ]
                 },
+                "custom_receivers": {
+                    "description": "Email-specific fields (used when EMAIL channel is included)",
+                    "type": "string",
+                    "example": "abc@gmail.com"
+                },
                 "data": {
                     "type": "object",
                     "additionalProperties": {
@@ -22559,7 +22682,6 @@ const docTemplate = `{
                     "minLength": 1
                 },
                 "email_subject": {
-                    "description": "Email-specific fields (used when EMAIL channel is included)",
                     "type": "string",
                     "maxLength": 255,
                     "minLength": 1,
@@ -23537,6 +23659,21 @@ const docTemplate = `{
                 "avatar_url": {
                     "type": "string",
                     "example": "https://example.com/avatar.jpg"
+                },
+                "bank_account": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "123456789"
+                },
+                "bank_account_holder": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Trần Dần"
+                },
+                "bank_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "example": "Techcombank"
                 },
                 "date_of_birth": {
                     "type": "string",
@@ -26216,6 +26353,161 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.OrderItemBrandResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "contact_email": {
+                    "type": "string"
+                },
+                "contact_phone": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "representative_email": {
+                    "type": "string"
+                },
+                "representative_name": {
+                    "type": "string"
+                },
+                "representative_role": {
+                    "type": "string"
+                },
+                "tax_number": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.OrderItemCategoryResponse": {
+            "type": "object",
+            "properties": {
+                "child_categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.OrderItemCategoryResponse"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category": {
+                    "$ref": "#/definitions/responses.OrderItemCategoryResponse"
+                }
+            }
+        },
+        "responses.OrderItemResponse": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.OrderItemBrandResponse"
+                        }
+                    ]
+                },
+                "capacity": {
+                    "type": "number"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "category": {
+                    "$ref": "#/definitions/responses.OrderItemCategoryResponse"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "expiry_date": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "length": {
+                    "type": "integer"
+                },
+                "limited_properties": {
+                    "$ref": "#/definitions/responses.OrderLimitedProperties"
+                },
+                "manufacturing_date": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "description": "product fields",
+                    "type": "string"
+                },
+                "product_type": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "unit_price": {
+                    "type": "number"
+                },
+                "uses": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.OrderLimitedProperties": {
+            "type": "object",
+            "properties": {
+                "availability_end_date": {
+                    "type": "string"
+                },
+                "availability_start_date": {
+                    "type": "string"
+                },
+                "premiere_date": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.OrderResponse": {
             "type": "object",
             "properties": {
@@ -26267,7 +26559,7 @@ const docTemplate = `{
                 "order_items": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/model.OrderItem"
+                        "$ref": "#/definitions/responses.OrderItemResponse"
                     }
                 },
                 "order_type": {

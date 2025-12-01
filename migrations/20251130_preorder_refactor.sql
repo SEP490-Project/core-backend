@@ -17,3 +17,6 @@ ALTER TABLE public.pre_orders
 
     ADD CONSTRAINT pre_orders_category_id_fkey
         FOREIGN KEY (category_id) REFERENCES product_categories(id) ON DELETE SET NULL;
+
+    ALTER TYPE public.pre_order_status ADD VALUE 'REFUND_REQUEST';
+    ALTER TYPE public.pre_order_status ADD VALUE 'REFUNDED';
