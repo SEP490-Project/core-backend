@@ -7,7 +7,10 @@ Good news! Your compensation request for your order has been reviewed and approv
 
 Approved Request Details:
 ------------------------
-Order Number: {{.OrderCode}}
+Order Number: {{if .OrderCode}}{{.OrderCode}}{{else if .PreOrderCode}}{{.PreOrderCode}}{{else if .OrderID}}{{.OrderID}}{{end}}
+{{- if or .BankAccount .BankName .BankAccountHolder }}
+Bank Account Transferred: {{- if .BankAccount}}{{.BankAccount}}{{end}}{{- if and .BankName .BankAccount}} - {{end}}{{- if .BankName}}{{.BankName}}{{end}}{{- if and .BankAccountHolder (or .BankAccount .BankName)}} - {{end}}{{- if .BankAccountHolder}}{{.BankAccountHolder}}{{end}}
+{{- end}}
 Approved Amount: {{.ApprovedAmount}}
 Reason: {{.Reason}}
 Attached Images: {{.ImageURL}}

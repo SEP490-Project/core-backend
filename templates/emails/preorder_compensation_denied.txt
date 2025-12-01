@@ -1,0 +1,20 @@
+Preorder Compensation Denied
+============================
+
+Hello {{.CustomerName}},
+
+We have carefully reviewed your compensation request related to your preorder. Unfortunately, after evaluation, we are unable to approve your request.
+
+Request Details:
+----------------
+Preorder Code: {{.PreOrderCode}}
+Reason for Denial: {{.DenialReason}}
+Requested Compensation Amount: {{.RequestedAmount}}
+
+If you believe there is missing information or you would like further clarification, please feel free to contact our support team. We are always ready to assist you.
+
+Thank you for your understanding and patience.
+
+---
+© {{.Year}} Your Company. All rights reserved.
+This is an automated message. Please do not reply to this email.
