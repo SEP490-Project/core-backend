@@ -28,22 +28,36 @@ type CampaignInfoResponse struct {
 
 // CampaignDetailsResponse represents the details of a campaign.
 type CampaignDetailsResponse struct {
-	ID                  string                  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ContractID          string                  `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ContractTitle       string                  `json:"contract_title" example:"Q2 Marketing Contract"`
-	ContractNumber      string                  `json:"contract_number" example:"contract_20251017_AD"`
-	Name                string                  `json:"name" example:"Summer Sale Campaign"`
-	Description         *string                 `json:"description" example:"A campaign for the summer sale."`
-	StartDate           string                  `json:"start_date" example:"2023-06-01 00:00:00"`
-	EndDate             string                  `json:"end_date" example:"2023-08-31 23:59:59"`
-	Status              string                  `json:"status" example:"RUNNING"`
-	Type                string                  `json:"type" example:"ADVERTISING"`
-	RejectReason        *string                 `json:"reject_reason,omitempty" example:"Insufficient budget allocated."`
-	Milestones          []CampaignMilestoneInfo `json:"milestones"`
-	NumberOfTasks       int                     `json:"number_of_tasks" example:"25"`
-	PercentageCompleted float64                 `json:"percentage_completed" example:"60.5"`
-	CreatedAt           string                  `json:"created_at" example:"2023-06-01 00:00:00"`
-	UpdatedAt           string                  `json:"updated_at" example:"2023-06-15 12:00:00"`
+	ID                  string                     `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractID          string                     `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ContractTitle       string                     `json:"contract_title" example:"Q2 Marketing Contract"`
+	ContractNumber      string                     `json:"contract_number" example:"contract_20251017_AD"`
+	Name                string                     `json:"name" example:"Summer Sale Campaign"`
+	Description         *string                    `json:"description" example:"A campaign for the summer sale."`
+	StartDate           string                     `json:"start_date" example:"2023-06-01 00:00:00"`
+	EndDate             string                     `json:"end_date" example:"2023-08-31 23:59:59"`
+	Status              string                     `json:"status" example:"RUNNING"`
+	Type                string                     `json:"type" example:"ADVERTISING"`
+	RejectReason        *string                    `json:"reject_reason,omitempty" example:"Insufficient budget allocated."`
+	Milestones          []CampaignMilestoneInfo    `json:"milestones"`
+	NumberOfTasks       int                        `json:"number_of_tasks" example:"25"`
+	PercentageCompleted float64                    `json:"percentage_completed" example:"60.5"`
+	MetricsComparison   *CampaignMetricsComparison `json:"metrics_comparison,omitempty"`
+	CreatedAt           string                     `json:"created_at" example:"2023-06-01 00:00:00"`
+	UpdatedAt           string                     `json:"updated_at" example:"2023-06-15 12:00:00"`
+}
+
+type CampaignMetricsComparison struct {
+	ExpectedMetrics  map[string]float64       `json:"expected_metrics"`
+	RealisticMetrics map[string]float64       `json:"realistic_metrics"`
+	Items            []CampaignItemComparison `json:"items"`
+}
+
+type CampaignItemComparison struct {
+	ItemID           int8               `json:"item_id"` // ID from ScopeOfWork
+	ItemName         string             `json:"item_name"`
+	ExpectedMetrics  []any              `json:"expected_metrics"` // Using interface{} to avoid circular dependency if KPIGoal is in dtos
+	RealisticMetrics map[string]float64 `json:"realistic_metrics"`
 }
 
 // CampaignMilestoneInfo represents the details of milestone within a campaign.

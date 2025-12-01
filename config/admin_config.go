@@ -41,7 +41,9 @@ type AdminConfig struct {
 	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
 	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
 	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled"`
-	TikTokStatusPollerIntervalSeconds   int    `mapstructure:"tiktok_status_poller_interval_seconds"`
+	TikTokStatusPollerIntervalMinutes   int    `mapstructure:"tiktok_status_poller_interval_minutes"`
+	SocialMetricsPollerEnabled          bool   `mapstructure:"social_metrics_poller_enabled"`
+	SocialMetricsPollerIntervalMinutes  int    `mapstructure:"social_metrics_poller_interval_minutes"`
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
@@ -120,6 +122,9 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 
 	adminViper.SetDefault("tiktok_status_poller_enabled", true)
 	adminViper.SetDefault("tiktok_status_poller_interval_seconds", 30)
+
+	adminViper.SetDefault("social_metrics_poller_enabled", true)
+	adminViper.SetDefault("social_metrics_poller_interval_minutes", 10)
 
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
 	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)
