@@ -1,0 +1,15 @@
+Hi {{.CustomerName}},
+
+We've received your compensation request for pre-order {{.PreOrderCode}}.
+
+Reason: {{.Reason}}
+Proof: {{.ImageURL}}
+
+We'll review this and update you via email.
+
+View details: {{.PreOrderLink}}
+
+Thanks,
+Support Team
+© {{.Year}}
+

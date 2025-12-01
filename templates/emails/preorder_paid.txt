@@ -1,0 +1,13 @@
+Hi {{.CustomerName}},
+
+Payment for your pre-order {{.PreOrderCode}} ({{.ProductName}}) has been received.
+
+Amount: {{.TotalAmount}}
+Paid at: {{.CreatedAt}}
+
+View your pre-order: {{.PreOrderLink}}
+
+Thanks,
+Your Company
+© {{.Year}}
+

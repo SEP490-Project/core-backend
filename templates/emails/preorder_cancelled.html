@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pre-order Cancelled</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; }
+        .email-container { background-color: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { text-align: center; padding-bottom: 20px; border-bottom: 2px solid #dc3545; margin-bottom: 30px; }
+        .header h1 { color: #dc3545; margin: 0; font-size: 22px; }
+        .details { background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0; border: 1px dashed #ced4da; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="header">
+        <h1>Pre-order Cancelled</h1>
+    </div>
+    <div class="content">
+        <p>Hello {{.CustomerName}},</p>
+        <p>We're sorry to inform you that your pre-order has been cancelled.</p>
+
+        <div class="details">
+            <p><strong>Pre-order:</strong> {{.PreOrderCode}}</p>
+            <p><strong>Product:</strong> {{.ProductName}}</p>
+        </div>
+
+        <p>If you think this is a mistake, please contact our support team.</p>
+    </div>
+    <div class="footer">
+        <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
+    </div>
+</div>
+</body>
+</html>
+
