@@ -23,6 +23,17 @@
         <p>Your compensation request for pre-order <strong>{{.PreOrderCode}}</strong> has been approved.</p>
 
         <div class="details">
+            {{- if or .BankAccount .BankName .BankAccountHolder }}
+            <p><strong>Bank Account Transferred:</strong>
+                {{- if .BankAccount }}{{.BankAccount}}{{end -}}
+                {{- if and .BankName .BankAccount }} - {{end -}}
+                {{- if .BankName }}{{.BankName}}{{end -}}
+                {{- if and .BankAccountHolder (or .BankAccount .BankName) }} - {{end -}}
+                {{- if .BankAccountHolder }}{{.BankAccountHolder}}{{end -}}
+            </p>
+            {{- end }}
+
+            <p><strong>Amount:</strong> {{.Amount}}</p>
             {{if .ImageURL}}<p><strong>Proof:</strong> <a href="{{.ImageURL}}">View attachment</a></p>{{end}}
         </div>
 
@@ -35,4 +46,3 @@
 </div>
 </body>
 </html>
-

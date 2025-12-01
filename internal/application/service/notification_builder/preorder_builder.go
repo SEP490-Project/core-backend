@@ -23,9 +23,10 @@ var notificationPreOrderBuilders = map[PreOrderNotificationType]func(ctx context
 	PreOrderNotifyCompensated:         buildPreorderCompensatedNotification,
 	PreOrderNotifyCancelled:           buildPreorderCancelledNotification,
 
-	PreOrderNotifyRefund:         buildPreorderRefundedNotification,
-	PreOrderNotifyRefundRequest:  buildPreorderRefundRequestNotification,
-	PreOrderNotifyObligateRefund: buildPreorderObligateRefundedNotification,
+	PreOrderNotifyRefund:           buildPreorderRefundedNotification,
+	PreOrderNotifyRefundRequest:    buildPreorderRefundRequestNotification,
+	PreOrderNotifyObligateRefund:   buildPreorderObligateRefundedNotification,
+	PreOrderNotifyCompensateDenied: buildPreorderCompensateRejectedNotification,
 }
 
 // helper to build a user-facing preorder link
@@ -132,27 +133,18 @@ func buildPreorderReceivedNotification(ctx context.Context, cfg config.AppConfig
 }
 
 func buildPreorderCompensateRequestedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	var resp []requests.PublishNotificationRequest
 	emailSubject := "Compensation Request Received"
 	template := "preorder_compensation_received"
-	// guard latest action note
-	var reason string
-	if note := po.GetLatestActionNote(); note != nil {
-		reason = note.Reason
-	}
-	var imageURL any
-	if po.UserResource != nil && *po.UserResource != "" {
-		imageURL = *po.UserResource
-	} else {
-		imageURL = nil
-	}
 	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &template,
 		EmailTemplateData: map[string]interface{}{
-			"PreOrderCode": po.ID.String(),
 			"CustomerName": po.FullName,
-			"Reason":       reason,
-			"ImageURL":     imageURL,
+			"PreOrderCode": po.ID.String(),
+			"Reason":       po.GetLatestActionNote().Reason,
+			"ImageURL":     po.UserResource,
 			"PreOrderLink": preorderLink(po.ID),
 			"Year":         time.Now().Year(),
 		},
@@ -160,6 +152,62 @@ func buildPreorderCompensateRequestedNotification(ctx context.Context, cfg confi
 	pushPayload := PushNotificationPayload{
 		Title: "Compensation Request Received",
 		Body:  "We have received your request and will process it.",
+		Data:  pushDataForPreOrder(po),
+	}
+	resp = append(resp, buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload))
+
+	// Announce PUSH to all SaleStaff
+	var saleStaffs []model.User
+	if err := db.Where("role = ?", enum.UserRoleSalesStaff.String()).Find(&saleStaffs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch sale staffs: %w", err)
+	}
+	for _, staff := range saleStaffs {
+		staffPushPayload := PushNotificationPayload{
+			Title: "There are new Compensation Request need to be resolve!",
+			Body:  fmt.Sprintf("A new compensation request has been made for PreOrder %s.", po.ID.String()),
+			Data:  pushDataForPreOrder(po),
+		}
+		emailSubject := "New Compensation Request"
+		emailTemplateName := "compensation_staff_announcement"
+		staffEmailPayload := EmailNotificationPayload{
+			EmailSubject:      &(emailSubject),
+			EmailTemplateName: &(emailTemplateName),
+			EmailTemplateData: map[string]interface{}{
+				"StaffName":       staff.FullName,
+				"CustomerName":    po.FullName,
+				"RequestTitle":    "PreOrder Code:",
+				"RequestCode":     po.ID,
+				"Reason":          po.GetLatestActionNote().Reason,
+				"RequestedAmount": fmt.Sprintf("%d VND", int(po.TotalAmount)),
+				"CreatedAt":       po.GetLatestActionNote().CreatedAt,
+				"ImageURL":        po.UserResource,
+				"ReviewURL":       "https://bshowsell.site",
+				"Year":            time.Now().Year(),
+			},
+		}
+		resp = append(resp, buildNotificationRequest(staff.ID, channelEmailPush, staffEmailPayload, staffPushPayload))
+	}
+	return resp, nil
+}
+
+func buildPreorderCompensateRejectedNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, po *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	emailSubject := "Compensation Request Denied"
+	template := "preorder_compensation_denied"
+	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
+		EmailSubject:      &emailSubject,
+		EmailTemplateName: &template,
+		EmailTemplateData: map[string]interface{}{
+			"CustomerName":    po.FullName,
+			"PreOrderCode":    po.ID.String(),
+			"DenialReason":    po.GetLatestActionNote().Reason,
+			"RequestedAmount": po.TotalAmount,
+			"Year":            time.Now().Year(),
+		},
+	}
+	pushPayload := PushNotificationPayload{
+		Title: "Compensation Request Denied",
+		Body:  "Your compensation request has been denied.",
 		Data:  pushDataForPreOrder(po),
 	}
 	return []requests.PublishNotificationRequest{buildNotificationRequest(po.UserID, channelEmailPush, emailPayload, pushPayload)}, nil
@@ -175,13 +223,19 @@ func buildPreorderCompensatedNotification(ctx context.Context, cfg config.AppCon
 		imageURL = nil
 	}
 	emailPayload := EmailNotificationPayload{
+		CustomReceiver:    &po.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &template,
 		EmailTemplateData: map[string]interface{}{
-			"PreOrderCode": po.ID.String(),
-			"ImageURL":     imageURL,
-			"PreOrderLink": preorderLink(po.ID),
-			"Year":         time.Now().Year(),
+			"PreOrderCode":      po.ID.String(),
+			"ImageURL":          imageURL,
+			"PreOrderLink":      preorderLink(po.ID),
+			"BankAccount":       po.BankAccount,
+			"BankName":          po.BankName,
+			"BankAccountHolder": po.BankAccountHolder,
+			"ApprovedAmount":    po.TotalAmount,
+			"Reason":            po.GetLatestActionNote().Reason,
+			"Year":              time.Now().Year(),
 		},
 	}
 	pushPayload := PushNotificationPayload{

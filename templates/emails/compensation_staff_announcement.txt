@@ -10,7 +10,7 @@ Request Details:
 ----------------
 StaffName: {{.StaffName}}
 Customer Name: {{.CustomerName}}
-Order Code: {{.OrderCode}}
+{{.RequestTitle}}: {{.RequestCode}}
 Reason Provided: {{.Reason}}
 Requested Amount: {{.RequestedAmount}}
 Submitted At: {{.CreatedAt}}
