@@ -11,7 +11,7 @@ import (
 )
 
 type PreOrderService interface {
-	PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*model.PreOrder, error)
+	PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork, userID uuid.UUID) (*model.PreOrder, error)
 	GetPreOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string, status []string) ([]responses.PreOrderResponse, int, error)
 	PayForPreservationSlot(ctx context.Context, preOrderID uuid.UUID, returnURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error)
 

@@ -17,7 +17,6 @@ import (
 	"core-backend/internal/domain/state/milestonesm"
 	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/domain/state/paymenttransactionsm"
-	"core-backend/internal/domain/state/preordersm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -88,34 +87,56 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		return err
 	}
 
-	ctxState := &preordersm.PreOrderContext{
-		State:          preordersm.NewPreOrderState(preOrder.Status),
-		PreOrder:       preOrder,
-		LimitedProduct: limitedProduct,
-		ActionBy:       actionUser,
-	}
-	nextState := preordersm.NewPreOrderState(targetState)
-	if err := ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("PreOrder state transition validation failed", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+	// check condition and move preOrder to next state
+	err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, actionUser, targetState, reason)
+	if err != nil {
 		return err
 	}
-	preOrder.AddActionNote(*ctxState.GenerateActionNote(actionUser, reason))
 
-	// Special case: proof of delivery file is required when moving to Delivered/Received
+	// proof of delivery file is required when moving to Delivered/Received
+	err = preOrderFileAssurance(preOrder, targetState, fileURL)
+	if err != nil {
+		return err
+	}
+
+	if err := t.preOrderRepository.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+		return errors.New("failed to update PreOrder state: " + err.Error())
+	}
+
+	// notification
+	go func() {
+		ctxBg := context.Background()
+		preorderNotiStatus, err := ConvertPreOrderToNotificationType(preOrder)
+		if err != nil {
+			zap.L().Error("error when convert preOrder to NotificationType", zap.Error(err))
+		}
+		payloads, err := notification_builder.BuildPreOrderNotifications(ctxBg, *t.config, t.uow.DB(), preorderNotiStatus, preOrder, actionUser)
+		if err != nil {
+			zap.L().Error("no notification builder for preorder status", zap.Error(err))
+		}
+		for _, p := range payloads {
+			_, err = t.notificationService.CreateAndPublishNotification(ctxBg, &p)
+			if err != nil {
+				zap.L().Error("Failed to send notification", zap.Error(err))
+			}
+		}
+	}()
+	return nil
+}
+
+// preOrderFileAssurance (Special case): proof of delivery file is required when moving to Delivered/Received
+func preOrderFileAssurance(preOrder *model.PreOrder, targetState enum.PreOrderStatus, fileURL *string) error {
 	isSelfPick := preOrder.IsSelfPickedUp
 	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
 	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
 	if (isSelfPick && isStatusReceived) || (!isSelfPick && isStatusDelivered) {
 		if fileURL == nil || *fileURL == "" {
 			errMsg := fmt.Sprintf("proof of delivery file is required when transitioning to %s", targetState.String())
-			zap.L().Error(errMsg, zap.String("preorder_id", preOrderID.String()))
+			zap.L().Error(errMsg, zap.String("preorder_id", preOrder.ID.String()))
 			return errors.New(errMsg)
 		}
 		preOrder.ConfirmationImage = fileURL
-	}
-	if err := t.preOrderRepository.Update(ctx, preOrder); err != nil {
-		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("failed to update PreOrder state: " + err.Error())
 	}
 	return nil
 }
@@ -663,7 +684,8 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 
 	case enum.PaymentTransactionReferenceTypePreOrder:
 		var preorder *model.PreOrder
-		preorder, err = preorderRepo.GetByID(ctx, transaction.ReferenceID, nil)
+		includes := []string{"ProductVariant", "ProductVariant.Product", "ProductVariant.Product.Limited"}
+		preorder, err = preorderRepo.GetByID(ctx, transaction.ReferenceID, includes)
 		if err != nil {
 			zap.L().Error("Failed to load pre-order",
 				zap.String("preorder_id", transaction.ReferenceID.String()),
@@ -801,14 +823,12 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		payloads, err := notification_builder.BuildOrderNotifications(ctx, *t.config, t.uow.DB(), orderNotiStatus, order, updatedBy)
 		if err != nil {
 			zap.L().Debug("no notification builder for order status", zap.Error(err))
-			return nil
 		}
 
 		for _, p := range payloads {
 			_, err = t.notificationService.CreateAndPublishNotification(ctx, &p)
 			if err != nil {
 				zap.L().Error("Failed to send notification", zap.Error(err))
-				return err
 			}
 		}
 		return nil
@@ -1057,32 +1077,24 @@ func (t stateTransferService) handlePreOrderSideEffect(
 	if preorder == nil {
 		return errors.New("pre-order is nil")
 	}
+
+	preorderRepo := uow.PreOrder()
+	var newStatus enum.PreOrderStatus
+
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		// mark preorder as pre-ordered (payment succeeded)
-		//preorder.Status = enum.PreOrderStatusPaid
-		zap.L().Info("Payment completed for PreOrder -> Change status to: " + preorder.Status.String())
-		err := t.MovePreOrderToState(ctx, preorder.ID, enum.PreOrderStatusPaid, updatedBy, nil, nil)
-		if err != nil {
-			return err
-		}
-
-		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
-			zap.L().Error("Failed to update preorder status to PAID",
-				zap.String("preorder_id", preorder.ID.String()),
-				zap.Error(err))
-			return errors.New("failed to update preorder status: " + err.Error())
-		}
-		zap.L().Info("Preorder marked as PAID", zap.String("preorder_id", preorder.ID.String()))
-		return err
+		newStatus = enum.PreOrderStatusPaid
+		zap.L().Info("Updating PreOrder STATUS to Paid (payment completed)",
+			zap.String("preorder_id", preorder.ID.String()))
 
 	case enum.PaymentTransactionStatusFailed, enum.PaymentTransactionStatusCancelled, enum.PaymentTransactionStatusExpired:
 		// revert stock (restore) and mark preorder cancelled
 		// attempt to load variant and restore stock
+		newStatus = enum.PreOrderStatusCancelled
 		variantRepo := uow.ProductVariant()
 		variant, err := variantRepo.GetByID(ctx, preorder.VariantID, nil)
 		if err != nil {
-			// log and continue; still update preorder status so system reflects payment failure
 			zap.L().Error("Failed to load variant to restore stock", zap.String("variant_id", preorder.VariantID.String()), zap.Error(err))
 		} else if variant != nil {
 			if variant.CurrentStock == nil {
@@ -1100,23 +1112,76 @@ func (t stateTransferService) handlePreOrderSideEffect(
 			}
 		}
 
-		err = t.MovePreOrderToState(ctx, preorder.ID, enum.PreOrderStatusCancelled, updatedBy, nil, nil)
-		if err != nil {
-			return err
-		}
-		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
-			zap.L().Error("Failed to update preorder status to CANCELLED",
-				zap.String("preorder_id", preorder.ID.String()), zap.Error(err))
-			return errors.New("failed to update preorder status: " + err.Error())
-		}
-		zap.L().Info("Preorder cancelled due to payment failure/expiry", zap.String("preorder_id", preorder.ID.String()))
-		return nil
-
 	default:
-		// For other statuses (PENDING etc.) we don't change preorder
 		zap.L().Debug("No preorder side-effect for transaction status", zap.String("transaction_status", string(transactionStatus)))
 		return nil
 	}
+
+	// Build SystemUser
+	user := &model.User{
+		ID:       uuid.UUID{},
+		FullName: t.adminConfig.SystemName,
+		Email:    t.adminConfig.SystemEmail,
+	}
+
+	limitedProduct := preorder.ProductVariant.Product.Limited
+	err := MovePreOrderStateUsingFSM(preorder, limitedProduct, user, newStatus, nil)
+	if err != nil {
+		zap.L().Error("Order state transition validation failed",
+			zap.String("order_id", preorder.ID.String()),
+			zap.String("from", string(preorder.Status)),
+			zap.String("to", string(newStatus)),
+			zap.Error(err))
+		return err
+	}
+
+	if err := preorderRepo.Update(ctx, preorder); err != nil {
+		zap.L().Error("Failed to update order status",
+			zap.String("order_id", preorder.ID.String()),
+			zap.String("new_status", string(newStatus)),
+			zap.Error(err))
+		return errors.New("failed to update order status: " + err.Error())
+	}
+
+	zap.L().Info("Order status updated successfully",
+		zap.String("order_id", preorder.ID.String()),
+		zap.String("new_status", string(newStatus)))
+
+	//Send notifications asynchronously
+	go func() {
+		ctxBg := context.Background()
+
+		actionBy, _ := t.userRepository.GetByID(ctxBg, updatedBy, nil)
+
+		preorderNotiStatus, err := ConvertPreOrderToNotificationType(preorder)
+		if err != nil {
+			zap.L().Warn("ConvertToNotificationType failed", zap.Error(err))
+			return
+		}
+
+		payloads, err := notification_builder.BuildPreOrderNotifications(
+			ctxBg,
+			*t.config,
+			t.uow.DB(),
+			preorderNotiStatus,
+			preorder,
+			actionBy,
+		)
+		if err != nil {
+			zap.L().Debug("no notification builder for order status", zap.Error(err))
+			return
+		}
+
+		for _, p := range payloads {
+			_, err = t.notificationService.CreateAndPublishNotification(ctxBg, &p)
+			if err != nil {
+				zap.L().Error("Failed to send notification async", zap.Error(err))
+			}
+		}
+	}()
+
+	return nil
+
 }
 
 // handleOrderStatusSideEffect: handler side effect of OrderStatus itself
@@ -1292,5 +1357,33 @@ func ConvertToNotificationType(order *model.Order) (notification_builder.OrderNo
 		return notification_builder.OrderNotifyAwaitingPickUp, nil
 	default:
 		return "", fmt.Errorf("unrecognized order status: %s", status)
+	}
+}
+
+func ConvertPreOrderToNotificationType(preorder *model.PreOrder) (notification_builder.PreOrderNotificationType, error) {
+	status := preorder.Status
+	switch status {
+	case enum.PreOrderStatusPending:
+		return notification_builder.PreOrderNotifyPending, nil
+	case enum.PreOrderStatusPaid:
+		return notification_builder.PreOrderNotifyPaid, nil
+	case enum.PreOrderStatusPreOrdered:
+		return notification_builder.PreOrderNotifyPreOrdered, nil
+	case enum.PreOrderStatusAwaitingPickup:
+		return notification_builder.PreOrderNotifyAwaitingPickup, nil
+	case enum.PreOrderStatusInTransit:
+		return notification_builder.PreOrderNotifyInTransit, nil
+	case enum.PreOrderStatusDelivered:
+		return notification_builder.PreOrderNotifyDelivered, nil
+	case enum.PreOrderStatusReceived:
+		return notification_builder.PreOrderNotifyReceived, nil
+	case enum.PreOrderStatusCompensateRequest:
+		return notification_builder.PreOrderNotifyCompensated, nil
+	case enum.PreOrderStatusCompensated:
+		return notification_builder.PreOrderNotifyCompensated, nil
+	case enum.PreOrderStatusCancelled:
+		return notification_builder.PreOrderNotifyCancelled, nil
+	default:
+		return "", fmt.Errorf("unrecognized preorder status: %s", status)
 	}
 }
