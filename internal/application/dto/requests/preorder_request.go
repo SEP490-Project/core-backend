@@ -23,7 +23,7 @@ type PreOrderRequest struct {
 	UserNote     *string   `json:"user_note,omitempty" validate:"omitempty" example:"Please deliver between 9 AM and 5 PM."`
 }
 
-func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {
+func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {
 
 	// Build attributes description JSON
 	var attrs []map[string]any
@@ -85,8 +85,17 @@ func (p PreOrderRequest) ToModel(address model.ShippingAddress, variant model.Pr
 		UpdatedAt:             now,
 		IsSelfPickedUp:        p.IsSelfPickup,
 		UserNote:              p.UserNote,
-		//User:                  nil,
-		//ProductVariant:        nil,
+
+		BankAccount:       *user.BankAccount,
+		BankName:          *user.BankName,
+		BankAccountHolder: *user.BankAccountHolder,
+
+		// product info
+		ProductName: variant.Product.Name,
+		Description: variant.Product.Description,
+		Type:        variant.Product.Type.String(),
+		BrandID:     variant.Product.BrandID,
+		CategoryID:  variant.Product.CategoryID,
 	}
 }
 
