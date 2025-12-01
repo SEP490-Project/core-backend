@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"fmt"
 	"gorm.io/gorm"
