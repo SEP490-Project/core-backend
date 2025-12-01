@@ -151,6 +151,15 @@ func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, ac
 		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return errors.New("failed to update PreOrder state: " + err.Error())
 	}
+
+	// Notification
+	go func() {
+		err = p.sendNotification(context.Background(), notiBuilder.PreOrderNotifyCompensateRequested, preOrder, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+
 	return nil
 }
 
@@ -159,6 +168,8 @@ func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, ac
 	if err != nil {
 		return err
 	}
+	var notiStatus notiBuilder.PreOrderNotificationType
+
 	if isApproved {
 		err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusCompensated, reason)
 		if err != nil {
@@ -168,6 +179,7 @@ func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, ac
 			return errors.New("file can not be empty if the compensate request being approved")
 		}
 		preOrder.StaffResource = fileURL
+		notiStatus = notiBuilder.PreOrderNotifyCompensated
 	} else {
 		err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusDelivered, reason)
 		if err != nil {
@@ -176,12 +188,22 @@ func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, ac
 		if fileURL != nil {
 			preOrder.StaffResource = fileURL
 		}
+		notiStatus = notiBuilder.PreOrderNotifyCompensateDenied
 	}
 
 	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
 		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 		return errors.New("failed to update PreOrder state: " + err.Error())
 	}
+
+	// Notification
+	go func() {
+		err = p.sendNotification(context.Background(), notiStatus, preOrder, user)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
+	}()
+
 	return nil
 }
 
