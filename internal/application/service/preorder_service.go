@@ -5,7 +5,7 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
-	responses "core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -53,7 +53,7 @@ func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID,
 }
 
 func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
-	preOrder, _, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, ac
 		}
 	}
 
-	err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusCompensateRequest, reason)
+	err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusCompensateRequest, reason)
 	if err != nil {
 		return err
 	}
@@ -80,12 +80,12 @@ func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, ac
 }
 
 func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error {
-	preOrder, _, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
+	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
 	if err != nil {
 		return err
 	}
 	if isApproved {
-		err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusCompensated, reason)
+		err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusCompensated, reason)
 		if err != nil {
 			return err
 		}
@@ -94,7 +94,7 @@ func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, ac
 		}
 		preOrder.StaffResource = fileURL
 	} else {
-		err = MovePreOrderStateUsingFSM(preOrder, user, enum.PreOrderStatusDelivered, reason)
+		err = MovePreOrderStateUsingFSM(preOrder, limitedProduct, user, enum.PreOrderStatusDelivered, reason)
 		if err != nil {
 			return err
 		}
@@ -161,13 +161,22 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	return totalProcessed, failed, upCommingItems
 }
 
-func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*model.PreOrder, error) {
+func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork, userID uuid.UUID) (*model.PreOrder, error) {
 	var preOrder *model.PreOrder
 	now := time.Now()
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Validate user bank account
+		creator, err := uow.Users().GetByID(ctx, userID, nil)
+		if err != nil {
+			return err
+		}
+		if creator.BankAccount == nil || creator.BankName == nil || creator.BankAccountHolder == nil {
+			return fmt.Errorf("user bank information is incomplete, please update your bank details before placing a pre-order")
+		}
+
 		//1. validate variant and stocks/products
-		includes := []string{"Product", "Product.Limited"}
+		includes := []string{"Product", "Product.Limited", "Product.Brand", "Product.Category"}
 		variant, err := uow.ProductVariant().GetByID(ctx, request.VariantID, includes)
 		if err != nil {
 			return fmt.Errorf("variant %w not found", err)
@@ -180,8 +189,24 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 			premiereDate := variant.Product.Limited.PremiereDate
 			startDate := variant.Product.Limited.AvailabilityStartDate
 			endDate := variant.Product.Limited.AvailabilityEndDate
-			isPreOrderable := now.After(premiereDate) && now.Before(startDate) && now.Before(endDate)
+			//isPreOrderable := now.After(premiereDate) && now.Before(startDate) && now.Before(endDate)
+			// PREORDER RANGE: [premiereDate, startDate)
+			isPreOrderable := !now.Before(premiereDate) && now.Before(startDate)
+
 			if !isPreOrderable {
+				// not ready
+				if now.Before(premiereDate) {
+					remaining := premiereDate.Sub(now)
+					return fmt.Errorf("the product is not ready to preorder, time remaining: %s", remaining)
+				}
+
+				// already overdue
+				if now.After(endDate) || now.Equal(endDate) {
+					return fmt.Errorf(
+						"the product is overdue to preorder, last available date was %s",
+						endDate.Format("2006-01-02 15:04:05"))
+				}
+
 				return fmt.Errorf("product is not available for pre-order at this time")
 			}
 
@@ -209,7 +234,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// 2. Build persistent model -> minus stock, create pre-order record
 		// 2.1 build pre-order model
-		preOrder = requests.PreOrderRequest{}.ToModel(*address, *variant, now)
+		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now)
 		// 2.2 minus 1 stock
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")
@@ -710,16 +735,16 @@ func (p preOrderService) GetStaffAvailablePreOrdersWithPagination(
 	return resList, int(total), nil
 }
 
-func MovePreOrderStateUsingFSM(preorder *model.PreOrder, user *model.User, newStatus enum.PreOrderStatus, reason *string) error {
+func MovePreOrderStateUsingFSM(preorder *model.PreOrder, lp *model.LimitedProduct, user *model.User, newStatus enum.PreOrderStatus, reason *string) error {
 	ctxState := &preordersm.PreOrderContext{
-		State:    preordersm.NewPreOrderState(preorder.Status),
-		PreOrder: preorder,
-		ActionBy: user,
+		State:          preordersm.NewPreOrderState(preorder.Status),
+		PreOrder:       preorder,
+		LimitedProduct: lp,
+		ActionBy:       user,
 	}
 	nextState := preordersm.NewPreOrderState(newStatus)
-
 	if err := ctxState.State.Next(ctxState, nextState); err != nil {
-		zap.L().Error("Order state transition validation failed", zap.Error(err))
+		zap.L().Error("PreOrder state transition validation failed", zap.Error(err))
 		return fmt.Errorf("state transition not allowed: %w", err)
 	}
 	preorder.AddActionNote(*ctxState.GenerateActionNote(user, reason))

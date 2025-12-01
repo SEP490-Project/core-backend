@@ -47,13 +47,6 @@ func pushDataForOrder(order *model.Order) map[string]string {
 	return map[string]string{"data": orderLink(order.ID)}
 }
 
-// common channel sets
-var (
-	channelEmail     = []string{"EMAIL"}
-	channelEmailPush = []string{"EMAIL", "PUSH"}
-	channelPush      = []string{"PUSH"}
-)
-
 func buildOrderPaidNotification(ctx context.Context, cfg config.AppConfig, db *gorm.DB, order *model.Order, actionBy *model.User) ([]requests.PublishNotificationRequest, error) {
 	var resp []requests.PublishNotificationRequest
 	totalFeeString := fmt.Sprintf(
