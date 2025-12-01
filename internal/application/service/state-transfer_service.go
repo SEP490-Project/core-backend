@@ -1201,6 +1201,8 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	}
 	orderRepo := uow.Order()
 
+	//note := transactionCtx.GenerateActionNote(updatedBy, reason)
+
 	switch nextStatus {
 	case enum.OrderStatusConfirmed:
 		zap.L().Info("Order confirmation")
