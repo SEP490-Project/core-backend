@@ -1,6 +1,10 @@
 package dtos
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 // ScopeOfWork defines the scope of work for different contract types
 // This contains a general purpose delierables field that can hold different types of deliverables,
@@ -68,40 +72,46 @@ type CoProducingDeliverable struct {
 // region: ================ Sub-structures for Deliverables =================
 
 type AdvertisedItem struct {
-	ID                  *int8     `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
-	Name                string    `json:"name" example:"Product A" validate:"max=255"`
-	Description         string    `json:"description,omitempty" example:"This is product A" validate:"omitempty,max=1000"`
-	MaterialURL         []string  `json:"material_url" example:"https://example.com/image1.jpg,https://example.com/image2.jpg" validate:"dive,url"`
-	Tagline             string    `json:"tagline" example:"Best product ever" validate:"max=255"`
-	Platform            string    `json:"platform" example:"FACEBOOK" validate:"required,oneof=FACEBOOK TIKTOK WEBSITE"`
-	HashTag             []string  `json:"hash_tag" example:"#bestproduct #awesome" validate:"dive,max=100"`
-	CreativeNotes       string    `json:"creative_notes,omitempty" example:"Use bright colors and upbeat music" validate:"omitempty,max=1000"`
-	ContentRequirements []string  `json:"content_requirements,omitempty" example:"Include product demo and customer testimonials" validate:"omitempty,dive,max=1000"`
-	Metrics             []KPIGoal `json:"metrics,omitempty" validate:"dive"`
+	ID                  *int8       `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
+	Name                string      `json:"name" example:"Product A" validate:"max=255"`
+	Description         string      `json:"description,omitempty" example:"This is product A" validate:"omitempty,max=1000"`
+	MaterialURL         []string    `json:"material_url" example:"https://example.com/image1.jpg,https://example.com/image2.jpg" validate:"dive,url"`
+	Tagline             string      `json:"tagline" example:"Best product ever" validate:"max=255"`
+	Platform            string      `json:"platform" example:"FACEBOOK" validate:"required,oneof=FACEBOOK TIKTOK WEBSITE"`
+	HashTag             []string    `json:"hash_tag" example:"#bestproduct #awesome" validate:"dive,max=100"`
+	CreativeNotes       string      `json:"creative_notes,omitempty" example:"Use bright colors and upbeat music" validate:"omitempty,max=1000"`
+	ContentRequirements []string    `json:"content_requirements,omitempty" example:"Include product demo and customer testimonials" validate:"omitempty,dive,max=1000"`
+	Metrics             []KPIGoal   `json:"metrics,omitempty" validate:"dive"`
+	TaskIDs             []uuid.UUID `json:"task_ids,omitempty"`
+	ContentIDs          []uuid.UUID `json:"content_ids,omitempty"`
 }
 
 type BrandAmbassadorEvent struct {
-	ID                  *int8     `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
-	Name                string    `json:"name" example:"Launch Event" validate:"max=255"`
-	Location            string    `json:"location" example:"Jakarta Convention Center" validate:"max=512"`
-	Date                string    `json:"date" example:"2023-10-01 15:00:00" validate:"datetime=2006-01-02 15:04:05"`
-	ExpectedDuration    string    `json:"expected_duration" example:"3H" validate:"omitempty,max=100"`
-	Activities          []string  `json:"activities" example:"Product demonstration, Q&A session" validate:"omitempty,max=1000"`
-	RepresentationRules []string  `json:"representation_rules,omitempty" example:"Must wear formal attire with long leggings" validate:"omitempty,dive,max=1000"`
-	KPIs                []KPIGoal `json:"kpis,omitempty" validate:"dive"`
+	ID                  *int8       `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
+	Name                string      `json:"name" example:"Launch Event" validate:"max=255"`
+	Location            string      `json:"location" example:"Jakarta Convention Center" validate:"max=512"`
+	Date                string      `json:"date" example:"2023-10-01 15:00:00" validate:"datetime=2006-01-02 15:04:05"`
+	ExpectedDuration    string      `json:"expected_duration" example:"3H" validate:"omitempty,max=100"`
+	Activities          []string    `json:"activities" example:"Product demonstration, Q&A session" validate:"omitempty,max=1000"`
+	RepresentationRules []string    `json:"representation_rules,omitempty" example:"Must wear formal attire with long leggings" validate:"omitempty,dive,max=1000"`
+	KPIs                []KPIGoal   `json:"kpis,omitempty" validate:"dive"`
+	TaskIDs             []uuid.UUID `json:"task_ids,omitempty"`
 }
 
 type CoProducingProduct struct {
-	ID          *int8     `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
-	Name        string    `json:"name" example:"Product A" validate:"max=255"`
-	Description string    `json:"description,omitempty" example:"This is product A" validate:"omitempty,max=1000"`
-	Materials   []string  `json:"material" example:"https://example.com/image1.jpg,https://example.com/image2.jpg" validate:"dive,url"`
-	KPIs        []KPIGoal `json:"kpis,omitempty" validate:"dive"`
+	ID          *int8       `json:"id,omitempty" example:"1" validate:"omitempty,gt=0"`
+	Name        string      `json:"name" example:"Product A" validate:"max=255"`
+	Description string      `json:"description,omitempty" example:"This is product A" validate:"omitempty,max=1000"`
+	Materials   []string    `json:"material" example:"https://example.com/image1.jpg,https://example.com/image2.jpg" validate:"dive,url"`
+	KPIs        []KPIGoal   `json:"kpis,omitempty" validate:"dive"`
+	TaskIDs     []uuid.UUID `json:"task_ids,omitempty"`
+	ProductIDs  []uuid.UUID `json:"product_ids,omitempty"`
 }
 
 type CoProducingConcept struct {
 	ProductID int8 `json:"product_id" example:"1" validate:"omitempty,gt=0"`
 	AdvertisedItem
+	ProductIDs []uuid.UUID `json:"product_ids,omitempty"`
 }
 
 type KPIGoal struct {

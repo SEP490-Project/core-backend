@@ -66,6 +66,10 @@ payos_expiry_check_enabled: false # Enable/disable PayOS expired payment link ca
 payos_expiry_check_interval_minutes: 1 # Interval in minutes for PayOS expiry check cron job
 preorder_opening_check_enabled: true # Enable/disable preorder opening check
 preorder_opening_check_interval_minutes: 1 # Interval in minutes for preorder opening check cron
+tiktok_status_poller_enabled: true
+tiktok_status_poller_interval_minutes: 1
+social_metrics_poller_enabled: true
+social_metrics_poller_interval_minutes: 1
 
 # Order - PreOrder
 censorship_interval_minutes: 5

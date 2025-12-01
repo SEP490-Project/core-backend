@@ -97,6 +97,23 @@ topology:
             exponentialMultiply: 1.5
           dlq:
             enabled: true
+    - name: exchange.campaign
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.campaign.create
+          routingKey: campaign.create
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          retry:
+            enabled: true
+            ttlMs: 60000
+            maxAttempts: 3
+            exponentialMultiply: 1.5
+          dlq:
+            enabled: true
     - name: exchange.video_upload
       type: topic
       durable: true
@@ -275,6 +292,16 @@ producers:
       maxAttempts: 3
       backoffMs: 2000
       exponentialMultiply: 2.0
+  - name: campaign-create-producer
+    exchange: exchange.campaign
+    routingKey: campaign.create
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
 
 consumers:
   - name: notification-email-consumer
@@ -343,6 +370,13 @@ consumers:
     backoffMs: 5000
   - name: content-publish-all-consumer
     queue: queue.content.publish_all
+    prefetch: 1
+    concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  - name: campaign-create-consumer
+    queue: queue.campaign.create
     prefetch: 1
     concurrency: 1
     autoAck: false
