@@ -6,7 +6,6 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
-	"core-backend/internal/domain/model"
 	"fmt"
 	"net/http"
 	"os"
@@ -136,6 +135,12 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 		return
 	}
 
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
 	ctx := c.Request.Context()
 	uow := p.unitOfWork.Begin(ctx)
 	defer func() {
@@ -145,7 +150,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 	}()
 
 	//1. Preserve order
-	preorder, err := p.preOrderService.PreserverOrder(ctx, req, uow)
+	preorder, err := p.preOrderService.PreserverOrder(ctx, req, uow, userID)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to create preorder: "+err.Error(), http.StatusBadRequest))
@@ -325,12 +330,12 @@ func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	// uow := p.unitOfWork.Begin(ctx)
-	// defer func() {
-	// 	if uow.InTransaction() {
-	// 		_ = uow.Rollback()
-	// 	}
-	// }()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
 
 	// Perform state transfer using stateTransferService
 	preOrderID, err := uuid.Parse(preOrderIDStr)
@@ -340,34 +345,10 @@ func (p *PreOrderHandler) PreOrderCensorship(c *gin.Context) {
 	}
 
 	// Perform state transfer using stateTransferService (non-transactional here)
-	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil, nil); err != nil {
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, reasonPtr, nil); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to update preorder: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
 		return
-	}
-
-	// Begin a UnitOfWork transaction only for appending the action note
-	uow := p.unitOfWork.Begin(ctx)
-	defer func() {
-		if uow.InTransaction() {
-			_ = uow.Rollback()
-		}
-	}()
-
-	// Append action note
-	preOrder, err := uow.PreOrder().GetByID(ctx, preOrderID, nil)
-	if err == nil && preOrder != nil {
-		note := model.PreOrderActionNote{
-			UserID:     updatedBy,
-			UserName:   "", // optional: populate if available in context
-			UserEmail:  "",
-			ActionType: targetStatus,
-			Reason:     "",
-		}
-		if reasonPtr != nil {
-			note.Reason = *reasonPtr
-		}
-		preOrder.AddActionNote(note)
-		_ = uow.PreOrder().Update(ctx, preOrder)
 	}
 
 	_ = uow.Commit()

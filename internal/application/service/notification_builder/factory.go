@@ -9,6 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
+// common channel sets
+var (
+	channelEmail     = []string{"EMAIL"}
+	channelEmailPush = []string{"EMAIL", "PUSH"}
+	channelPush      = []string{"PUSH"}
+)
+
 // Notification payload helper types used by builders
 type EmailNotificationPayload struct {
 	CustomReceiver    *string
@@ -63,6 +70,36 @@ func BuildOrderNotifications(
 		return []requests.PublishNotificationRequest{}, fmt.Errorf("notification_builder: no builder for order status %s", status.String())
 	}
 	return builder(ctx, cfg, db, order, user)
+}
+
+//------- Payment Notification Builder Factory -------//
+
+// ------- PreOrder Notification Builder Factory -------//
+type PreOrderNotificationType string
+
+const (
+	PreOrderNotifyPending             PreOrderNotificationType = "PENDING"
+	PreOrderNotifyPaid                PreOrderNotificationType = "PAID"
+	PreOrderNotifyCancelled           PreOrderNotificationType = "CANCELLED"
+	PreOrderNotifyPreOrdered          PreOrderNotificationType = "PRE_ORDERED"
+	PreOrderNotifyAwaitingPickup      PreOrderNotificationType = "AWAITING_PICKUP"
+	PreOrderNotifyInTransit           PreOrderNotificationType = "IN_TRANSIT"
+	PreOrderNotifyDelivered           PreOrderNotificationType = "DELIVERED"
+	PreOrderNotifyCompensateRequested PreOrderNotificationType = "COMPENSATE_REQUEST"
+	PreOrderNotifyCompensated         PreOrderNotificationType = "COMPENSATED"
+	PreOrderNotifyReceived            PreOrderNotificationType = "RECEIVED"
+)
+
+func (status PreOrderNotificationType) String() string {
+	return string(status)
+}
+
+func BuildPreOrderNotifications(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, preorder *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error) {
+	builder, exists := notificationPreOrderBuilders[status]
+	if !exists || builder == nil {
+		return []requests.PublishNotificationRequest{}, fmt.Errorf("notification_builder: no builder for preorder status %s", status.String())
+	}
+	return builder(ctx, preorder, user)
 }
 
 //------- Payment Notification Builder Factory -------//

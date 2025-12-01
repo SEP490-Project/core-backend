@@ -1,0 +1,12 @@
+Hi {{.CustomerName}},
+
+Good news — your compensation request for pre-order {{.PreOrderCode}} has been approved.
+
+Proof: {{.ImageURL}}
+
+View details: {{.PreOrderLink}}
+
+Thanks,
+Support Team
+© {{.Year}}
+

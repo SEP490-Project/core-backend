@@ -936,10 +936,8 @@ func (s *NotificationService) validateUserExists(ctx context.Context, userID uui
 	}, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			zap.L().Warn("User not found", zap.String("user_id", userID.String()))
 			return nil, errors.New("user not found")
 		}
-		zap.L().Error("Failed to fetch user", zap.String("user_id", userID.String()), zap.Error(err))
 		return nil, errors.New("failed to fetch user")
 	}
 	return user, nil

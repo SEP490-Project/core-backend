@@ -1,0 +1,10 @@
+Hi {{.CustomerName}},
+
+We regret to inform you that your pre-order {{.PreOrderCode}} ({{.ProductName}}) has been cancelled.
+
+If you need help, contact support.
+
+Regards,
+Your Company
+© {{.Year}}
+
