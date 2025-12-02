@@ -98,6 +98,21 @@ type TikTokPostInfo struct {
 	IsAIGC                bool                     `json:"is_aigc"`                  // True if contetn is AI Generated Content
 }
 
+type TikTokVideoMetricsResponse struct {
+	Data struct {
+		Videos []TikTokVideoMetric `json:"videos"`
+	} `json:"data"`
+	Error TikTokErrorResponse `json:"error"`
+}
+
+type TikTokVideoMetric struct {
+	ID           string `json:"id"`
+	ViewCount    int    `json:"view_count"`
+	LikeCount    int    `json:"like_count"`
+	CommentCount int    `json:"comment_count"`
+	ShareCount   int    `json:"share_count"`
+}
+
 type TikTokSourceInfo struct {
 	Source          TikTokSourceOption `json:"source"`                      // "FILE_UPLOAD" or "PULL_FROM_URL"
 	VideoURL        *string            `json:"video_url,omitempty"`         // For PULL_FROM_URL

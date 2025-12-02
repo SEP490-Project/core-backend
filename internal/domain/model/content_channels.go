@@ -34,6 +34,11 @@ type ContentChannel struct {
 	AffiliateLink *AffiliateLink `json:"-" gorm:"foreignKey:ContentID;references:ContentID"`
 }
 
+type ContentChannelMetrics struct {
+	Current     map[string]float64 `json:"current"`      // Latest fetched values
+	LastFetched map[string]float64 `json:"last_fetched"` // Values from previous fetch
+}
+
 func (ContentChannel) TableName() string { return "content_channels" }
 
 func (cc *ContentChannel) BeforeCreate(tx *gorm.DB) error {

@@ -16,6 +16,7 @@ type CronJobRegistry struct {
 	PayOSExpiryCheckJob     CronJob
 	PreOrderOpeningCheckJob CronJob
 	TikTokStatusPollerJob   CronJob // Added for application layer
+	SocialMetricsPollerJob  CronJob // Added for application layer
 	CronScheduler           *cron.Cron
 	jobs                    map[string]CronJob
 }

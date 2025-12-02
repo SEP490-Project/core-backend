@@ -234,5 +234,19 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		)
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("tiktok_status_poller_job", tiktokPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.TikTokStatusPollerJob = tiktokPollerJob
+
+		// Register Social Metrics Poller Job
+		socialMetricsPollerJob := jobs.NewSocialMetricsPollerJob(
+			r.InfrastructureRegistry.DB,
+			r.DatabaseRegistry.ContentChannelRepository,
+			r.DatabaseRegistry.KPIMetricsRepository,
+			r.ChannelService,
+			r.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
+			r.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("social_metrics_poller_job", socialMetricsPollerJob)
+		r.InfrastructureRegistry.CronJobsRegistry.SocialMetricsPollerJob = socialMetricsPollerJob
 	}
 }
