@@ -36,6 +36,8 @@ func NewOrderState(status enum.OrderStatus) OrderState {
 		return &ReceivedState{}
 	case enum.OrderStatusCancelled:
 		return &CancelledState{}
+	case enum.OrderStatusAwaitingPickUp:
+		return &AwaitingPickUpState{}
 	default:
 		return nil
 	}

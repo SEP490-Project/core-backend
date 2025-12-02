@@ -92,6 +92,12 @@ func (s *OrderContext) GenerateActionNote(user *model.User, reason *string) *mod
 		}
 		note.ActionType = enum.OrderStatusCompensated
 		note.Reason = *reason
+	case enum.OrderStatusAwaitingPickUp:
+		if !utils.NotEmptyOrNil(reason) {
+			reason = ptr.String("Order are ready to picked up by User")
+		}
+		note.ActionType = enum.OrderStatusAwaitingPickUp
+		note.Reason = *reason
 	default:
 		msg := fmt.Sprintf("Unhandled state for generating action note: %s", s.State.Name())
 
