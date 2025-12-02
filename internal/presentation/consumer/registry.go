@@ -21,6 +21,7 @@ type ConsumerRegistry struct {
 	ClickEventConsumer            *ClickEventConsumer
 	ContentPublishConsumer        *ContentPublishConsumer
 	ContentPublishAllConsumer     *ContentPublishAllConsumer
+	CampaignCreateConsumer        *CampaignCreateConsumer
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
@@ -42,6 +43,7 @@ func NewConsumerRegistry(
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
 		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry.ContentPublishingService),
+		CampaignCreateConsumer:        NewCampaignCreateConsumer(appRegistry),
 	}
 
 	zap.L().Info("Consumer registry initialized successfully")

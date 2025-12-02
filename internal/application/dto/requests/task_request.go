@@ -39,13 +39,14 @@ type TaskFilterRequest struct {
 
 // CreateTaskRequest represents the payload for creating a new task.
 type CreateTaskRequest struct {
-	MilestoneID  string  `json:"milestone_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name         string  `json:"name" validate:"required,max=255" example:"Design Social Media Posts"`
-	Description  any     `json:"description" validate:"required"` // JSON format
-	Deadline     string  `json:"deadline" validate:"required,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
-	Type         string  `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
-	Status       string  `json:"status" validate:"required,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
-	AssignedToID *string `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	MilestoneID       string  `json:"milestone_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name              string  `json:"name" validate:"required,max=255" example:"Design Social Media Posts"`
+	Description       any     `json:"description" validate:"required"` // JSON format
+	Deadline          string  `json:"deadline" validate:"required,datetime=2006-01-02 15:04:05" example:"2023-10-15 17:00:00"`
+	Type              string  `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"CONTENT"`
+	Status            string  `json:"status" validate:"required,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
+	AssignedToID      *string `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ScopeOfWorkItemID *string `json:"scope_of_work_item_id" validate:"omitempty,max=50" example:"1"`
 
 	CreatedByID string `json:"-" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
@@ -55,6 +56,9 @@ func (ctr CreateTaskRequest) ToModel() (*model.Task, error) {
 	convertedModel := &model.Task{
 		ID:   uuid.New(),
 		Name: ctr.Name,
+	}
+	if ctr.ScopeOfWorkItemID != nil {
+		convertedModel.ScopeOfWorkItemID = ctr.ScopeOfWorkItemID
 	}
 	if rawDescription, err := json.Marshal(ctr.Description); err == nil {
 		convertedModel.Description = rawDescription

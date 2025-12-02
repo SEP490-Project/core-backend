@@ -10,19 +10,20 @@ import (
 )
 
 type Task struct {
-	ID           uuid.UUID       `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
-	MilestoneID  uuid.UUID       `json:"milestone_id" gorm:"type:uuid;column:milestone_id;not null"`
-	Name         string          `json:"name" gorm:"column:name;not null"`
-	Description  datatypes.JSON  `json:"description" gorm:"column:description;type:jsonb"`
-	Deadline     time.Time       `json:"deadline" gorm:"column:deadline;not null"`
-	Type         enum.TaskType   `json:"type" gorm:"column:type;not null;check:type in ('PRODUCT', 'CONTENT', 'EVENT', 'OTHER')"`
-	Status       enum.TaskStatus `json:"status" gorm:"column:status;not null;check:status in ('TODO', 'IN_PROGRESS', 'CANCELLED', 'RECAP', 'DONE')"`
-	AssignedToID *uuid.UUID      `json:"assigned_to" gorm:"type:uuid;column:assigned_to"`
-	CreatedAt    time.Time       `json:"created_at" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt    time.Time       `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt    gorm.DeletedAt  `json:"deleted_at" gorm:"index;column:deleted_at"`
-	CreatedByID  uuid.UUID       `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
-	UpdatedByID  *uuid.UUID      `json:"updated_by" gorm:"type:uuid;column:updated_by"`
+	ID                uuid.UUID       `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	MilestoneID       uuid.UUID       `json:"milestone_id" gorm:"type:uuid;column:milestone_id;not null"`
+	Name              string          `json:"name" gorm:"column:name;not null"`
+	Description       datatypes.JSON  `json:"description" gorm:"column:description;type:jsonb"`
+	Deadline          time.Time       `json:"deadline" gorm:"column:deadline;not null"`
+	Type              enum.TaskType   `json:"type" gorm:"column:type;not null;check:type in ('PRODUCT', 'CONTENT', 'EVENT', 'OTHER')"`
+	Status            enum.TaskStatus `json:"status" gorm:"column:status;not null;check:status in ('TODO', 'IN_PROGRESS', 'CANCELLED', 'RECAP', 'DONE')"`
+	AssignedToID      *uuid.UUID      `json:"assigned_to" gorm:"type:uuid;column:assigned_to"`
+	ScopeOfWorkItemID *string         `json:"scope_of_work_item_id" gorm:"type:varchar(50);column:scope_of_work_item_id"`
+	CreatedAt         time.Time       `json:"created_at" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt         time.Time       `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt         gorm.DeletedAt  `json:"deleted_at" gorm:"index;column:deleted_at"`
+	CreatedByID       uuid.UUID       `json:"created_by" gorm:"type:uuid;column:created_by;not null"`
+	UpdatedByID       *uuid.UUID      `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 
 	// Relationships
 	AssignedStaff *User      `json:"-" gorm:"foreignKey:AssignedToID"`

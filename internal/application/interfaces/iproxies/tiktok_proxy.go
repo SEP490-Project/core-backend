@@ -39,6 +39,13 @@ type TikTokProxy interface {
 
 	// endregion
 
+	// region: ======== Metrics Methods ========
+
+	// GetVideoMetrics retrieves metrics for a specific video
+	GetVideoMetrics(ctx context.Context, videoID string, accessToken string) (*dtos.TikTokVideoMetricsResponse, error)
+
+	// endregion
+
 	ValidateContentRequest(
 		ctx context.Context, accessToken string, req *dtos.TikTokVideoInitRequest, creatorInfo *dtos.TikTokCreatorInfo,
 	) []error

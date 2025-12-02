@@ -10,10 +10,12 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -23,8 +25,13 @@ import (
 )
 
 type CampaignService struct {
-	campaignRepo irepository.GenericRepository[model.Campaign]
-	contractRepo irepository.GenericRepository[model.Contract]
+	campaignRepo       irepository.GenericRepository[model.Campaign]
+	contractRepo       irepository.GenericRepository[model.Contract]
+	orderRepo          irepository.OrderRepository
+	preOrderRepo       irepository.PreOrderRepository
+	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
+	affiliateLinkRepo  irepository.AffiliateLinkRepository
+	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
 }
 
 // SetRejectReason implements iservice.CampaignService.
@@ -240,7 +247,7 @@ func (c *CampaignService) DeleteCampaign(ctx context.Context, id uuid.UUID) erro
 	zap.L().Info("Deleting campaign", zap.String("id", id.String()))
 
 	if exists, err := c.campaignRepo.ExistsByID(ctx, id); err != nil {
-		zap.L().Error("Campaign not found", zap.String("id", id.String()), zap.Error(err))
+		zap.L().Error("Failed to check if campaign exists", zap.String("id", id.String()), zap.Error(err))
 		return err
 	} else if !exists {
 		zap.L().Warn("Campaign not found", zap.String("id", id.String()))
@@ -281,7 +288,157 @@ func (c *CampaignService) GetCampaignDetailsByID(ctx context.Context, id uuid.UU
 		return nil, err
 	}
 
-	return responses.CampaignDetailsResponse{}.ToCampaignDetailsResponse(campaign), nil
+	response := responses.CampaignDetailsResponse{}.ToCampaignDetailsResponse(campaign)
+
+	// Calculate metrics
+	if campaign.Contract != nil {
+		metrics, err := c.calculateMetricsComparison(ctx, campaign.Contract)
+		if err != nil {
+			zap.L().Error("Failed to calculate metrics comparison", zap.Error(err))
+			// Don't fail the request
+		} else {
+			response.MetricsComparison = metrics
+		}
+	}
+
+	return response, nil
+}
+
+func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contract *model.Contract) (*responses.CampaignMetricsComparison, error) {
+	var sow dtos.ScopeOfWork
+	if err := json.Unmarshal(contract.ScopeOfWork, &sow); err != nil {
+		return nil, err
+	}
+
+	comparison := &responses.CampaignMetricsComparison{
+		ExpectedMetrics:  make(map[string]float64),
+		RealisticMetrics: make(map[string]float64),
+		Items:            make([]responses.CampaignItemComparison, 0),
+	}
+
+	// Helper to process items
+	processItem := func(id *int8, name string, metrics []dtos.KPIGoal, productIDs []uuid.UUID, contentIDs []uuid.UUID, trackingLink string) {
+		if id == nil {
+			return
+		}
+
+		itemComp := responses.CampaignItemComparison{
+			ItemID:           *id,
+			ItemName:         name,
+			ExpectedMetrics:  make([]any, len(metrics)),
+			RealisticMetrics: make(map[string]float64),
+		}
+
+		// Expected Metrics
+		for i, m := range metrics {
+			itemComp.ExpectedMetrics[i] = m
+			val, _ := strconv.ParseFloat(m.Target, 64)
+			comparison.ExpectedMetrics[m.Metric] += val
+		}
+
+		// Realistic Metrics
+		// 1. Products
+		if len(productIDs) > 0 {
+			// Query Orders
+			orders, _, _ := c.orderRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Joins("JOIN order_items ON order_items.order_id = orders.id").
+					Where("order_items.product_id IN ?", productIDs).
+					Where("orders.status = ?", enum.OrderStatusReceived).
+					Where("orders.order_type = ?", string(enum.ProductTypeLimited))
+			}, nil, 10000, 1)
+
+			var revenue float64
+			for _, o := range orders {
+				revenue += o.TotalAmount
+			}
+			itemComp.RealisticMetrics["revenue"] += revenue
+			itemComp.RealisticMetrics["units_sold"] += float64(len(orders))
+
+			// Query PreOrders
+			preOrders, _, _ := c.preOrderRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Joins("JOIN product_variants ON product_variants.id = pre_orders.variant_id").
+					Where("product_variants.product_id IN ?", productIDs).
+					Where("pre_orders.status = ?", enum.PreOrderStatusPaid)
+			}, nil, 10000, 1)
+
+			var preOrderRevenue float64
+			for _, po := range preOrders {
+				preOrderRevenue += po.TotalAmount
+			}
+			itemComp.RealisticMetrics["revenue"] += preOrderRevenue
+		}
+
+		// 2. Content
+		if len(contentIDs) > 0 {
+			contentChannels, _, _ := c.contentChannelRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("content_id IN ?", contentIDs)
+			}, nil, 1000, 1)
+
+			for _, cc := range contentChannels {
+				var metrics model.ContentChannelMetrics
+				if err := json.Unmarshal(cc.Metrics, &metrics); err == nil {
+					for k, v := range metrics.Current {
+						itemComp.RealisticMetrics[k] += v
+					}
+				}
+			}
+		}
+
+		// 3. Affiliate
+		if trackingLink != "" {
+			// Find AffiliateLink by tracking URL
+			affiliateLinks, _, _ := c.affiliateLinkRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("tracking_url = ?", trackingLink)
+			}, nil, 1, 1)
+
+			if len(affiliateLinks) > 0 {
+				linkID := affiliateLinks[0].ID
+				// Query KPI Metrics
+				kpis, _, _ := c.kpiMetricsRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+					return db.Where("reference_id = ?", linkID).
+						Where("reference_type = ?", enum.KPIReferenceTypeAffiliateLink)
+				}, nil, 100, 1)
+
+				for _, kpi := range kpis {
+					itemComp.RealisticMetrics[string(kpi.Type)] += kpi.Value
+				}
+			}
+		}
+
+		// Aggregate item realistic metrics to total
+		for k, v := range itemComp.RealisticMetrics {
+			comparison.RealisticMetrics[k] += v
+		}
+
+		comparison.Items = append(comparison.Items, itemComp)
+	}
+
+	// Iterate Deliverables
+	if sow.Deliverables.AdvertisedItems != nil {
+		for _, item := range sow.Deliverables.AdvertisedItems {
+			processItem(item.ID, item.Name, item.KPIs, nil, item.ContentIDs, sow.Deliverables.TrackingLink)
+		}
+	}
+
+	if sow.Deliverables.Events != nil {
+		for _, item := range sow.Deliverables.Events {
+			processItem(item.ID, item.Name, item.KPIs, nil, nil, "")
+		}
+	}
+
+	if sow.Deliverables.Products != nil {
+		for _, item := range sow.Deliverables.Products {
+			processItem(item.ID, item.Name, item.KPIs, item.ProductIDs, nil, "")
+		}
+	}
+
+	if sow.Deliverables.Concepts != nil {
+		for _, item := range sow.Deliverables.Concepts {
+			processItem(item.ID, item.Name, item.KPIs, item.ProductIDs, item.ContentIDs, "")
+		}
+	}
+
+	return comparison, nil
 }
 
 // GetCampaignsByFilter implements iservice.CampaignService.
@@ -340,6 +497,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 	taskRepo := uow.Tasks()
 
 	contractID, _ := uuid.Parse(request.ContractID)
+	var contract *model.Contract
 	existCampaignFunc := func(ctx context.Context) error {
 		existFilterQuery := func(db *gorm.DB) *gorm.DB {
 			return db.Where("contract_id = ?", contractID)
@@ -355,7 +513,8 @@ func (c *CampaignService) CreateCampaignFromContract(
 		return nil
 	}
 	contractStatusFunc := func(ctx context.Context) error {
-		contract, err := c.contractRepo.GetByID(ctx, contractID, nil)
+		var err error
+		contract, err = c.contractRepo.GetByID(ctx, contractID, nil)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				zap.L().Warn("Contract not found", zap.String("contract_id", request.ContractID))
@@ -386,6 +545,19 @@ func (c *CampaignService) CreateCampaignFromContract(
 	creatingMilestoneModels := creatingCampaignModel.Milestones
 	creatingCampaignModel.Milestones = nil
 	creatingCampaignModel.Status = enum.CampaignDraft
+
+	// Map tasks to SOW items (Best Effort)
+	if contract != nil {
+		if err = helper.MapTasksToScopeOfWork(contract, creatingMilestoneModels); err != nil {
+			zap.L().Warn("Failed to map tasks to SOW", zap.Error(err))
+		} else {
+			// Update contract SOW in DB
+			if err = c.contractRepo.Update(ctx, contract); err != nil {
+				zap.L().Error("Failed to update contract SOW", zap.Error(err))
+			}
+		}
+	}
+
 	if err = campaignRepo.Add(ctx, creatingCampaignModel); err != nil {
 		zap.L().Error("Failed to add campaign to repository", zap.Error(err))
 		return nil, err
@@ -405,7 +577,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 		}
 	}
 
-	creatingTaskModels := utils.FlatMapMapper(creatingCampaignModel.Milestones, func(m *model.Milestone) []*model.Task { return m.Tasks })
+	creatingTaskModels := utils.FlatMapMapper(creatingMilestoneModels, func(m *model.Milestone) []*model.Task { return m.Tasks })
 	if totalTasksCount > 0 {
 		rowsAffected, err = taskRepo.BulkAdd(ctx, creatingTaskModels, 0)
 		if err != nil {
@@ -1041,11 +1213,15 @@ func (c *CampaignService) extractCoProducingStructure(
 // endregion
 
 func NewCampaignService(
-	campaignRepo irepository.GenericRepository[model.Campaign],
-	contractRepo irepository.GenericRepository[model.Contract],
+	dbReg *gormrepository.DatabaseRegistry,
 ) iservice.CampaignService {
 	return &CampaignService{
-		campaignRepo: campaignRepo,
-		contractRepo: contractRepo,
+		campaignRepo:       dbReg.CampaignRepository,
+		contractRepo:       dbReg.ContractRepository,
+		orderRepo:          dbReg.OrderRepository,
+		preOrderRepo:       dbReg.PreOrderRepository,
+		contentChannelRepo: dbReg.ContentChannelRepository,
+		affiliateLinkRepo:  dbReg.AffiliateLinkRepository,
+		kpiMetricsRepo:     dbReg.KPIMetricsRepository,
 	}
 }

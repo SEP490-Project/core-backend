@@ -10,8 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -496,7 +499,7 @@ func buildAdvertisingTaskDescription(item dtos.AdvertisedItem) map[string]any {
 		"platform":           item.Platform,
 		"hashtags":           item.HashTag,
 		"material_urls":      item.MaterialURL,
-		"kpi_goals":          item.Metrics,
+		"kpi_goals":          item.KPIs,
 		"tagline":            item.Tagline,
 		"creative_notes":     item.CreativeNotes,
 	}
@@ -529,7 +532,7 @@ func buildCoProducingConceptTaskDescription(
 		"related_product_id":       concept.ProductID,
 		"related_product_name":     productName,
 		"materials":                concept.MaterialURL,
-		"kpi_goals":                concept.Metrics,
+		"kpi_goals":                concept.KPIs,
 		"platform":                 concept.Platform,
 		"hashtags":                 concept.HashTag,
 	}
@@ -600,6 +603,204 @@ func ExtractProductNames(products []dtos.CoProducingProduct) []string {
 		names[i] = product.Name
 	}
 	return names
+}
+
+// MapTasksToScopeOfWork maps tasks to SOW items based on name matching using a scoring system
+func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milestone) error {
+	var sow dtos.ScopeOfWork
+	if err := json.Unmarshal(contract.ScopeOfWork, &sow); err != nil {
+		return err
+	}
+
+	// 1. Collect all SOW items as candidates
+	type sowItemCandidate struct {
+		ID         *int8
+		Name       string
+		Type       string // "AdvertisedItem", "Event", "Product", "Concept"
+		Platform   string
+		TaskIDs    *[]uuid.UUID
+		ProductIDs *[]uuid.UUID
+		ContentIDs *[]uuid.UUID
+	}
+	var candidates []sowItemCandidate
+
+	addCandidate := func(id *int8, name, itemType, platform string, tIDs, pIDs, cIDs *[]uuid.UUID) {
+		if id != nil {
+			candidates = append(candidates, sowItemCandidate{id, name, itemType, platform, tIDs, pIDs, cIDs})
+		}
+	}
+
+	switch contract.Type {
+	case enum.ContractTypeAdvertising, enum.ContractTypeAffiliate:
+		for i := range sow.Deliverables.AdvertisedItems {
+			item := &sow.Deliverables.AdvertisedItems[i]
+			addCandidate(item.ID, item.Name, "AdvertisedItem", item.Platform, &item.TaskIDs, nil, &item.ContentIDs)
+		}
+
+	case enum.ContractTypeAmbassador:
+		for i := range sow.Deliverables.Events {
+			item := &sow.Deliverables.Events[i]
+			addCandidate(item.ID, item.Name, "Event", "", &item.TaskIDs, nil, nil)
+		}
+
+	case enum.ContractTypeCoProduce:
+		for i := range sow.Deliverables.Products {
+			item := &sow.Deliverables.Products[i]
+			addCandidate(item.ID, item.Name, "Product", "", &item.TaskIDs, &item.ProductIDs, nil)
+		}
+		for i := range sow.Deliverables.Concepts {
+			item := &sow.Deliverables.Concepts[i]
+			addCandidate(item.ID, item.Name, "Concept", item.Platform, &item.TaskIDs, &item.ProductIDs, nil)
+		}
+	}
+
+	// 2. Iterate through all tasks and find the best SOW item match
+	for _, m := range milestones {
+		for _, t := range m.Tasks {
+			// If already assigned manually, ensure consistency and skip matching
+			if t.ScopeOfWorkItemID != nil {
+				idStr := *t.ScopeOfWorkItemID
+				for _, cand := range candidates {
+					if fmt.Sprintf("%d", *cand.ID) == idStr {
+						// Ensure ID is in cand.TaskIDs
+						found := slices.Contains(*cand.TaskIDs, t.ID)
+						if !found {
+							*cand.TaskIDs = append(*cand.TaskIDs, t.ID)
+						}
+						// Update Product/Content IDs for manually assigned tasks
+						updateRelatedIDs(t, cand.ProductIDs, cand.ContentIDs)
+					}
+				}
+				continue
+			}
+
+			// Single Item Rule: If there is only one candidate, assign all unassigned tasks to it
+			if len(candidates) == 1 {
+				cand := &candidates[0]
+				idStr := fmt.Sprintf("%d", *cand.ID)
+				t.ScopeOfWorkItemID = &idStr
+				*cand.TaskIDs = append(*cand.TaskIDs, t.ID)
+				updateRelatedIDs(t, cand.ProductIDs, cand.ContentIDs)
+				continue
+			}
+
+			// Find best match among candidates
+			var bestMatch *sowItemCandidate
+			bestScore := 0
+
+			for i := range candidates {
+				cand := &candidates[i]
+				score := calculateMatchScore(t, cand.Name, cand.Type, cand.Platform)
+				if score > bestScore {
+					bestScore = score
+					bestMatch = cand
+				}
+			}
+
+			// Threshold for assignment (e.g., 40 points)
+			if bestMatch != nil && bestScore >= 40 {
+				idStr := fmt.Sprintf("%d", *bestMatch.ID)
+				t.ScopeOfWorkItemID = &idStr
+
+				// Add to TaskIDs
+				*bestMatch.TaskIDs = append(*bestMatch.TaskIDs, t.ID)
+
+				// Update Product/Content IDs
+				updateRelatedIDs(t, bestMatch.ProductIDs, bestMatch.ContentIDs)
+			}
+		}
+	}
+
+	// Marshal back
+	newSOW, err := json.Marshal(sow)
+	if err != nil {
+		return err
+	}
+	contract.ScopeOfWork = newSOW
+	return nil
+}
+
+// updateRelatedIDs updates ProductIDs and ContentIDs lists if the task has them
+func updateRelatedIDs(t *model.Task, productIDs *[]uuid.UUID, contentIDs *[]uuid.UUID) {
+	// Update ProductIDs
+	if productIDs != nil && t.Product != nil {
+		foundP := slices.Contains(*productIDs, t.Product.ID)
+		if !foundP {
+			*productIDs = append(*productIDs, t.Product.ID)
+		}
+	}
+
+	// Update ContentIDs
+	if contentIDs != nil && len(t.Contents) > 0 {
+		for _, content := range t.Contents {
+			foundC := slices.Contains(*contentIDs, content.ID)
+			if !foundC {
+				*contentIDs = append(*contentIDs, content.ID)
+			}
+		}
+	}
+}
+
+// calculateMatchScore returns a score from 0-100 indicating how well the task name matches the item name
+func calculateMatchScore(task *model.Task, itemName, itemType, platform string) int {
+	taskName := task.Name
+	tName := strings.ToLower(strings.TrimSpace(taskName))
+	iName := strings.ToLower(strings.TrimSpace(itemName))
+
+	score := 0
+
+	if tName == "" || iName == "" {
+		return 0
+	}
+
+	// 1. Exact Match
+	if tName == iName {
+		score = 100
+	} else if strings.Contains(tName, iName) {
+		// 2. Containment (Task Name contains Item Name)
+		score = 80
+	} else if strings.Contains(iName, tName) {
+		// 3. Reverse Containment (Item Name contains Task Name)
+		score = 60
+	} else {
+		// 4. Word Overlap
+		tWords := strings.Fields(tName)
+		iWords := strings.Fields(iName)
+		if len(tWords) > 0 && len(iWords) > 0 {
+			matches := 0
+			for _, tw := range tWords {
+				if slices.Contains(iWords, tw) {
+					matches++
+				}
+			}
+
+			maxLen := max(len(iWords), len(tWords))
+
+			overlapScore := min(int((float64(matches)/float64(maxLen))*100), 50)
+			score = overlapScore
+		}
+	}
+
+	// 5. Heuristics Bonus
+	// Type Matching
+	if itemType == "Event" && task.Type == enum.TaskTypeEvent {
+		score += 20
+	}
+	if itemType == "Product" && task.Type == enum.TaskTypeProduct {
+		score += 20
+	}
+	if (itemType == "AdvertisedItem" || itemType == "Concept") && task.Type == enum.TaskTypeContent {
+		score += 10
+	}
+
+	// Platform Matching
+	if platform != "" {
+		if strings.Contains(tName, strings.ToLower(platform)) {
+			score += 20
+		}
+	}
+
+	return score
 }
 
 // endregion
