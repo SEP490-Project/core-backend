@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
@@ -498,7 +499,7 @@ func buildAdvertisingTaskDescription(item dtos.AdvertisedItem) map[string]any {
 		"platform":           item.Platform,
 		"hashtags":           item.HashTag,
 		"material_urls":      item.MaterialURL,
-		"kpi_goals":          item.Metrics,
+		"kpi_goals":          item.KPIs,
 		"tagline":            item.Tagline,
 		"creative_notes":     item.CreativeNotes,
 	}
@@ -531,7 +532,7 @@ func buildCoProducingConceptTaskDescription(
 		"related_product_id":       concept.ProductID,
 		"related_product_name":     productName,
 		"materials":                concept.MaterialURL,
-		"kpi_goals":                concept.Metrics,
+		"kpi_goals":                concept.KPIs,
 		"platform":                 concept.Platform,
 		"hashtags":                 concept.HashTag,
 	}
@@ -662,13 +663,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 				for _, cand := range candidates {
 					if fmt.Sprintf("%d", *cand.ID) == idStr {
 						// Ensure ID is in cand.TaskIDs
-						found := false
-						for _, tid := range *cand.TaskIDs {
-							if tid == t.ID {
-								found = true
-								break
-							}
-						}
+						found := slices.Contains(*cand.TaskIDs, t.ID)
 						if !found {
 							*cand.TaskIDs = append(*cand.TaskIDs, t.ID)
 						}
@@ -729,13 +724,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 func updateRelatedIDs(t *model.Task, productIDs *[]uuid.UUID, contentIDs *[]uuid.UUID) {
 	// Update ProductIDs
 	if productIDs != nil && t.Product != nil {
-		foundP := false
-		for _, pid := range *productIDs {
-			if pid == t.Product.ID {
-				foundP = true
-				break
-			}
-		}
+		foundP := slices.Contains(*productIDs, t.Product.ID)
 		if !foundP {
 			*productIDs = append(*productIDs, t.Product.ID)
 		}
@@ -744,13 +733,7 @@ func updateRelatedIDs(t *model.Task, productIDs *[]uuid.UUID, contentIDs *[]uuid
 	// Update ContentIDs
 	if contentIDs != nil && len(t.Contents) > 0 {
 		for _, content := range t.Contents {
-			foundC := false
-			for _, cid := range *contentIDs {
-				if cid == content.ID {
-					foundC = true
-					break
-				}
-			}
+			foundC := slices.Contains(*contentIDs, content.ID)
 			if !foundC {
 				*contentIDs = append(*contentIDs, content.ID)
 			}
@@ -786,23 +769,14 @@ func calculateMatchScore(task *model.Task, itemName, itemType, platform string) 
 		if len(tWords) > 0 && len(iWords) > 0 {
 			matches := 0
 			for _, tw := range tWords {
-				for _, iw := range iWords {
-					if tw == iw {
-						matches++
-						break
-					}
+				if slices.Contains(iWords, tw) {
+					matches++
 				}
 			}
 
-			maxLen := len(tWords)
-			if len(iWords) > maxLen {
-				maxLen = len(iWords)
-			}
+			maxLen := max(len(iWords), len(tWords))
 
-			overlapScore := int((float64(matches) / float64(maxLen)) * 100)
-			if overlapScore > 50 {
-				overlapScore = 50
-			}
+			overlapScore := min(int((float64(matches)/float64(maxLen))*100), 50)
 			score = overlapScore
 		}
 	}

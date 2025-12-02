@@ -416,7 +416,7 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 	// Iterate Deliverables
 	if sow.Deliverables.AdvertisedItems != nil {
 		for _, item := range sow.Deliverables.AdvertisedItems {
-			processItem(item.ID, item.Name, item.Metrics, nil, item.ContentIDs, sow.Deliverables.TrackingLink)
+			processItem(item.ID, item.Name, item.KPIs, nil, item.ContentIDs, sow.Deliverables.TrackingLink)
 		}
 	}
 
@@ -434,7 +434,7 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 
 	if sow.Deliverables.Concepts != nil {
 		for _, item := range sow.Deliverables.Concepts {
-			processItem(item.ID, item.Name, item.Metrics, item.ProductIDs, item.ContentIDs, "")
+			processItem(item.ID, item.Name, item.KPIs, item.ProductIDs, item.ContentIDs, "")
 		}
 	}
 
@@ -548,11 +548,11 @@ func (c *CampaignService) CreateCampaignFromContract(
 
 	// Map tasks to SOW items (Best Effort)
 	if contract != nil {
-		if err := helper.MapTasksToScopeOfWork(contract, creatingMilestoneModels); err != nil {
+		if err = helper.MapTasksToScopeOfWork(contract, creatingMilestoneModels); err != nil {
 			zap.L().Warn("Failed to map tasks to SOW", zap.Error(err))
 		} else {
 			// Update contract SOW in DB
-			if err := c.contractRepo.Update(ctx, contract); err != nil {
+			if err = c.contractRepo.Update(ctx, contract); err != nil {
 				zap.L().Error("Failed to update contract SOW", zap.Error(err))
 			}
 		}

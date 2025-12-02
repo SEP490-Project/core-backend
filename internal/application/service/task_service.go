@@ -109,7 +109,7 @@ func (t *TaskService) CreateTask(ctx context.Context, uow irepository.UnitOfWork
 	}
 
 	// Link to ScopeOfWork
-	if err := t.linkTaskToScopeOfWork(ctx, uow, creatingTask, createRequest.ScopeOfWorkItemID); err != nil {
+	if err = t.linkTaskToScopeOfWork(ctx, uow, creatingTask, createRequest.ScopeOfWorkItemID); err != nil {
 		zap.L().Warn("Failed to link task to scope of work", zap.Error(err))
 		// We don't fail the request, just log warning
 	}
@@ -289,9 +289,9 @@ func (t *TaskService) linkTaskToScopeOfWork(ctx context.Context, uow irepository
 	}
 
 	// Iterate AdvertisedItems (CONTENT)
-	if sow.Deliverables.AdvertisingDeliverable.AdvertisedItems != nil {
-		for i := range sow.Deliverables.AdvertisingDeliverable.AdvertisedItems {
-			item := &sow.Deliverables.AdvertisingDeliverable.AdvertisedItems[i]
+	if sow.Deliverables.AdvertisedItems != nil {
+		for i := range sow.Deliverables.AdvertisedItems {
+			item := &sow.Deliverables.AdvertisedItems[i]
 			if checkMatch(item.ID, item.Name, enum.TaskTypeContent) {
 				item.TaskIDs = append(item.TaskIDs, task.ID)
 				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
@@ -302,9 +302,9 @@ func (t *TaskService) linkTaskToScopeOfWork(ctx context.Context, uow irepository
 	}
 
 	// Iterate Events (EVENT)
-	if sow.Deliverables.BrandAmbassadorDeliverable.Events != nil {
-		for i := range sow.Deliverables.BrandAmbassadorDeliverable.Events {
-			item := &sow.Deliverables.BrandAmbassadorDeliverable.Events[i]
+	if sow.Deliverables.Events != nil {
+		for i := range sow.Deliverables.Events {
+			item := &sow.Deliverables.Events[i]
 			if checkMatch(item.ID, item.Name, enum.TaskTypeEvent) {
 				item.TaskIDs = append(item.TaskIDs, task.ID)
 				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
@@ -315,9 +315,9 @@ func (t *TaskService) linkTaskToScopeOfWork(ctx context.Context, uow irepository
 	}
 
 	// Iterate Products (PRODUCT)
-	if sow.Deliverables.CoProducingDeliverable.Products != nil {
-		for i := range sow.Deliverables.CoProducingDeliverable.Products {
-			item := &sow.Deliverables.CoProducingDeliverable.Products[i]
+	if sow.Deliverables.Products != nil {
+		for i := range sow.Deliverables.Products {
+			item := &sow.Deliverables.Products[i]
 			if checkMatch(item.ID, item.Name, enum.TaskTypeProduct) {
 				item.TaskIDs = append(item.TaskIDs, task.ID)
 				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
@@ -328,9 +328,9 @@ func (t *TaskService) linkTaskToScopeOfWork(ctx context.Context, uow irepository
 	}
 
 	// Iterate Concepts (CONTENT)
-	if sow.Deliverables.CoProducingDeliverable.Concepts != nil {
-		for i := range sow.Deliverables.CoProducingDeliverable.Concepts {
-			item := &sow.Deliverables.CoProducingDeliverable.Concepts[i]
+	if sow.Deliverables.Concepts != nil {
+		for i := range sow.Deliverables.Concepts {
+			item := &sow.Deliverables.Concepts[i]
 			if checkMatch(item.ID, item.Name, enum.TaskTypeContent) {
 				item.TaskIDs = append(item.TaskIDs, task.ID)
 				task.ScopeOfWorkItemID = utils.PtrOrNil(fmt.Sprintf("%d", *item.ID))
