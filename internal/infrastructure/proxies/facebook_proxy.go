@@ -447,6 +447,89 @@ func (f *FacebookProxy) GetUploadStatus(ctx context.Context, uploadSessionID str
 	return statusResp.FileOffset, nil
 }
 
+// GetPostMetrics implements iproxies.FacebookProxy.
+func (f *FacebookProxy) GetPostMetrics(ctx context.Context, postID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPostMetricsResponse, error) {
+	zap.L().Info("FacebookProxy - GetPostMetrics called", zap.String("post_id", postID))
+
+	queryParams := map[string]string{
+		"metric":       strings.Join(metrics, ","),
+		"access_token": accessToken,
+	}
+	if period != "" {
+		queryParams["period"] = string(period)
+	}
+
+	url, err := utils.AddQueryParams(fmt.Sprintf("%s/insights", postID), queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook post metrics", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	var metricsResp dtos.FacebookPostMetricsResponse
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &metricsResp); err != nil {
+		zap.L().Error("Failed to get Facebook post metrics", zap.Error(err))
+		return nil, fmt.Errorf("failed to get post metrics: %w", err)
+	}
+
+	return &metricsResp, nil
+}
+
+// GetPageInsights implements iproxies.FacebookProxy.
+func (f *FacebookProxy) GetPageInsights(ctx context.Context, pageID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPageInsightsResponse, error) {
+	zap.L().Info("FacebookProxy - GetPageInsights called", zap.String("page_id", pageID))
+
+	queryParams := map[string]string{
+		"metric":       strings.Join(metrics, ","),
+		"access_token": accessToken,
+	}
+	if period != "" {
+		queryParams["period"] = string(period)
+	}
+
+	url, err := utils.AddQueryParams(fmt.Sprintf("%s/insights", pageID), queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook page insights", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	var insightsResp dtos.FacebookPageInsightsResponse
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &insightsResp); err != nil {
+		zap.L().Error("Failed to get Facebook page insights", zap.Error(err))
+		return nil, fmt.Errorf("failed to get page insights: %w", err)
+	}
+
+	return &insightsResp, nil
+}
+
+// GetVideoInsights implements iproxies.FacebookProxy.
+func (f *FacebookProxy) GetVideoInsights(ctx context.Context, videoID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookVideoInsightsResponse, error) {
+	zap.L().Info("FacebookProxy - GetVideoInsights called", zap.String("video_id", videoID))
+
+	queryParams := map[string]string{
+		"access_token": accessToken,
+	}
+	if len(metrics) > 0 {
+		queryParams["metric"] = strings.Join(metrics, ",")
+	}
+	if period != "" {
+		queryParams["period"] = string(period)
+	}
+
+	url, err := utils.AddQueryParams(fmt.Sprintf("%s/video_insights", videoID), queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook video insights", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	var insightsResp dtos.FacebookVideoInsightsResponse
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &insightsResp); err != nil {
+		zap.L().Error("Failed to get Facebook video insights", zap.Error(err))
+		return nil, fmt.Errorf("failed to get video insights: %w", err)
+	}
+
+	return &insightsResp, nil
+}
+
 func NewFacebookProxy(httpClient *http.Client, config *config.AppConfig) iproxies.FacebookProxy {
 	facebookConfig := config.Social.Facebook
 	baseURL := fmt.Sprintf("%s/v%s/", facebookConfig.BaseURL, facebookConfig.APIVersion)

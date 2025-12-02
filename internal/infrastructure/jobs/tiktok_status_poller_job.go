@@ -11,13 +11,17 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+)
+
+const (
+	DefaultPublishError string = "TikTok video publish failed"
+	PublishIDMarker     string = "v_pub_url"
 )
 
 type TikTokStatusPollerJob struct {
@@ -28,9 +32,10 @@ type TikTokStatusPollerJob struct {
 	channelService     iservice.ChannelService
 	uow                irepository.UnitOfWork
 	cronScheduler      *cron.Cron
-	intervalSeconds    int
+	cronExpr           string
 	enabled            bool
 	lastRunTime        time.Time
+	entryID            cron.EntryID
 }
 
 func NewTikTokStatusPollerJob(
@@ -43,9 +48,9 @@ func NewTikTokStatusPollerJob(
 	cronScheduler *cron.Cron,
 	adminConfig *config.AdminConfig,
 ) CronJob {
-	intervalSeconds := adminConfig.TikTokStatusPollerIntervalSeconds
-	if intervalSeconds <= 0 {
-		intervalSeconds = 30 // Default to 30 seconds if not set
+	intervalSeconds := adminConfig.TikTokStatusPollerCronExpr
+	if intervalSeconds == "" {
+		intervalSeconds = "*/30 * * * * *" // Default to 30 seconds if not set
 	}
 
 	return &TikTokStatusPollerJob{
@@ -56,7 +61,7 @@ func NewTikTokStatusPollerJob(
 		channelService:     channelService,
 		uow:                uow,
 		cronScheduler:      cronScheduler,
-		intervalSeconds:    intervalSeconds,
+		cronExpr:           intervalSeconds,
 		enabled:            adminConfig.TikTokStatusPollerEnabled,
 		lastRunTime:        time.Now(),
 	}
@@ -71,18 +76,16 @@ func (j *TikTokStatusPollerJob) Initialize() error {
 
 	zap.L().Debug("Initializing TikTok Status Poller Job...")
 
-	// Generate cron expression (e.g., "*/30 * * * *" for every 30 seconds)
-	cronExpr := fmt.Sprintf("*/%d * * * *", j.intervalSeconds)
 	zap.L().Info("Scheduling TikTok Status Poller Job",
-		zap.String("cron_expression", cronExpr),
-		zap.Int("interval_seconds", j.intervalSeconds))
+		zap.String("cron_expression", j.cronExpr))
 
 	// Schedule the job
-	_, err := j.cronScheduler.AddFunc(cronExpr, func() {
+	entryID, err := j.cronScheduler.AddFunc(j.cronExpr, func() {
 		if j.enabled {
 			j.Run()
 		}
 	})
+	j.entryID = entryID
 
 	if err != nil {
 		zap.L().Error("Failed to schedule TikTok Status Poller Job", zap.Error(err))
@@ -110,8 +113,8 @@ func (j *TikTokStatusPollerJob) Run() {
 			return db.
 				Joins("JOIN channels ON channels.id = content_channels.channel_id").
 				Where("channels.code = ?", "TIKTOK").
-				Where("content_channels.auto_post_status = ?", enum.AutoPostStatusPending).
-				Where("content_channels.external_post_id IS NOT NULL AND content_channels.external_post_id != ''")
+				Where("content_channels.auto_post_status = ? OR content_channels.external_post_id ILIKE ?",
+					enum.AutoPostStatusPending, "%v_pub_url%")
 		},
 		[]string{"Channel", "Content"},
 		0, 0) // No pagination - get all pending
@@ -135,14 +138,6 @@ func (j *TikTokStatusPollerJob) Run() {
 
 	for _, cc := range contentChannels {
 		// Extract publish_id from ExternalPostID
-		publishID := extractPublishID(cc.ExternalPostID)
-		if publishID == "" {
-			zap.L().Warn("ContentChannel has no publish_id in ExternalPostID",
-				zap.String("content_channel_id", cc.ID.String()),
-				zap.String("external_post_id", utils.DerefPtr(cc.ExternalPostID, "")))
-			continue
-		}
-
 		// Get decrypted access token
 		accessToken, err := j.channelService.GetDecryptedToken(ctx, cc.Channel.Name)
 		if err != nil {
@@ -153,11 +148,11 @@ func (j *TikTokStatusPollerJob) Run() {
 		}
 
 		// Check post status via TikTok API
-		statusResp, err := j.tiktokProxy.CheckPostStatus(ctx, publishID, accessToken)
+		statusResp, err := j.tiktokProxy.CheckPostStatus(ctx, *cc.ExternalPostID, accessToken)
 		if err != nil {
 			zap.L().Error("Failed to check TikTok post status",
 				zap.String("content_channel_id", cc.ID.String()),
-				zap.String("publish_id", publishID),
+				zap.String("publish_id", utils.DerefPtr(cc.ExternalPostID, "UNKNOWN")),
 				zap.Error(err))
 			continue
 		}
@@ -174,9 +169,9 @@ func (j *TikTokStatusPollerJob) Run() {
 
 		// Track completion stats
 		switch statusResp.Data.Status {
-		case "PUBLISH_COMPLETE":
+		case dtos.TikTokVideoPostStatusPublishComplete:
 			completedCount++
-		case "FAILED":
+		case dtos.TikTokVideoPostStatusFailed:
 			failedCount++
 		}
 	}
@@ -202,13 +197,31 @@ func (j *TikTokStatusPollerJob) GetLastRunTime() time.Time {
 	return j.lastRunTime
 }
 
+// Restart implements CronJob.
+func (j *TikTokStatusPollerJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting TikTok Status Poller Job due to config change")
+
+	// Update config
+	j.enabled = adminConfig.TikTokStatusPollerEnabled
+	j.cronExpr = adminConfig.TikTokStatusPollerCronExpr
+
+	// Remove existing job if it exists
+	if j.entryID != 0 {
+		j.cronScheduler.Remove(j.entryID)
+		j.entryID = 0
+	}
+
+	// Re-initialize
+	return j.Initialize()
+}
+
 // updateContentChannelStatus updates the ContentChannel based on TikTok status response
 func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 	ctx context.Context,
 	cc *model.ContentChannel,
 	statusResp *dtos.TikTokPostStatusResponse,
 ) error {
-	status := string(statusResp.Data.Status)
+	status := statusResp.Data.Status
 	postID := statusResp.Data.PubliclyAvailablePostID
 	failReason := statusResp.Data.FailReason
 
@@ -217,20 +230,19 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
-			panic(r)
+			zap.L().Error("Panic recovered in updateContentChannelStatus", zap.Any("recover", r))
 		}
 	}()
 
 	ccRepo := uow.ContentChannels()
 
 	switch status {
-	case "PUBLISH_COMPLETE":
+	case dtos.TikTokVideoPostStatusPublishComplete:
 		// Update to POSTED with final post URL
 		cc.AutoPostStatus = enum.AutoPostStatusPosted
 		if len(postID) > 0 {
 			// Update ExternalPostID with the final TikTok post ID
-			// cc.ExternalPostID = postID[0]
-			cc.ExternalPostID = utils.PtrOrNil(fmt.Sprintf("%d", postID[0]))
+			cc.ExternalPostID = utils.PtrOrNil(fmt.Sprintf("%d", postID[len(postID)-1]))
 		}
 		cc.LastError = nil
 		cc.PublishedAt = utils.PtrOrNil(time.Now())
@@ -239,31 +251,33 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 			zap.String("content_channel_id", cc.ID.String()),
 			zap.Any("post_id", postID))
 
-	case "FAILED":
+	case dtos.TikTokVideoPostStatusFailed:
 		// Update to FAILED with error message
 		cc.AutoPostStatus = enum.AutoPostStatusFailed
 		if failReason != nil {
 			cc.LastError = failReason
 		} else {
-			defaultError := "TikTok video upload failed"
-			cc.LastError = &defaultError
+			cc.LastError = utils.PtrOrNil(DefaultPublishError)
 		}
 
 		zap.L().Warn("TikTok post failed",
 			zap.String("content_channel_id", cc.ID.String()),
 			zap.String("fail_reason", utils.DerefPtr(failReason, "unknown")))
 
-	case "PROCESSING_UPLOAD", "PROCESSING_DOWNLOAD", "PROCESSING_PUBLISH":
+	// case "PROCESSING_UPLOAD", "PROCESSING_DOWNLOAD", "PROCESSING_PUBLISH":
+	case dtos.TikTokVideoPostStatusProcessingUpload,
+		dtos.TikTokVideoPostStatusProcessingDownload,
+		dtos.TikTokVideoPostStatusSendToUserInbox:
 		// Still processing - no update needed
 		zap.L().Debug("TikTok post still processing",
 			zap.String("content_channel_id", cc.ID.String()),
-			zap.String("status", status))
+			zap.String("status", string(status)))
 		return nil // No database update needed
 
 	default:
 		zap.L().Warn("Unknown TikTok post status",
 			zap.String("content_channel_id", cc.ID.String()),
-			zap.String("status", status))
+			zap.String("status", string(status)))
 		return nil // No database update needed
 	}
 
@@ -337,21 +351,3 @@ func (j *TikTokStatusPollerJob) updateContentStatusIfAllPosted(
 }
 
 // Helper functions
-
-func extractPublishID(externalPostID *string) string {
-	if externalPostID == nil || *externalPostID == "" {
-		return ""
-	}
-
-	// ExternalPostID from InitVideoPost contains publish_id
-	// Expected format: "publish_id: <id>" or just the ID
-	id := *externalPostID
-	if strings.Contains(id, "publish_id:") {
-		parts := strings.Split(id, "publish_id:")
-		if len(parts) >= 2 {
-			return strings.TrimSpace(parts[1])
-		}
-	}
-
-	return id // Assume the entire value is the publish_id
-}
