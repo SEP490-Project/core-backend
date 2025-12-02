@@ -5347,6 +5347,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/campaigns/async": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new campaign asynchronously via RabbitMQ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Campaigns"
+                ],
+                "summary": "Create Campaign Async",
+                "parameters": [
+                    {
+                        "description": "Campaign creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Campaign creation request accepted",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/campaigns/brand/profile": {
             "get": {
                 "security": [
@@ -17252,6 +17303,32 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/test/migrate-sow-ids": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Populates task_ids, product_ids, content_ids in ScopeOfWork based on existing data",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Migrate ScopeOfWork IDs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {}
+                    }
+                }
+            }
+        },
         "/api/v1/test/tiktok/exchange-code-for-token": {
             "get": {
                 "security": [
@@ -18421,6 +18498,12 @@ const docTemplate = `{
                 "platform"
             ],
             "properties": {
+                "content_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "content_requirements": {
                     "type": "array",
                     "items": {
@@ -18487,6 +18570,12 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255,
                     "example": "Best product ever"
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -18567,6 +18656,12 @@ const docTemplate = `{
                     "example": [
                         "Must wear formal attire with long leggings"
                     ]
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -18627,6 +18722,12 @@ const docTemplate = `{
                 "platform"
             ],
             "properties": {
+                "content_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "content_requirements": {
                     "type": "array",
                     "items": {
@@ -18693,10 +18794,22 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 1
                 },
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "tagline": {
                     "type": "string",
                     "maxLength": 255,
                     "example": "Best product ever"
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -18732,6 +18845,18 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 255,
                     "example": "Product A"
+                },
+                "product_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "task_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -22012,6 +22137,11 @@ const docTemplate = `{
                     "maxLength": 255,
                     "example": "Design Social Media Posts"
                 },
+                "scope_of_work_item_id": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "1"
+                },
                 "status": {
                     "type": "string",
                     "enum": [
@@ -24591,6 +24721,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
+                "metrics_comparison": {
+                    "$ref": "#/definitions/responses.CampaignMetricsComparison"
+                },
                 "milestones": {
                     "type": "array",
                     "items": {
@@ -24711,6 +24844,55 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2023-06-15 12:00:00"
+                }
+            }
+        },
+        "responses.CampaignItemComparison": {
+            "type": "object",
+            "properties": {
+                "expected_metrics": {
+                    "description": "Using interface{} to avoid circular dependency if KPIGoal is in dtos",
+                    "type": "array",
+                    "items": {}
+                },
+                "item_id": {
+                    "description": "ID from ScopeOfWork",
+                    "type": "integer"
+                },
+                "item_name": {
+                    "type": "string"
+                },
+                "realistic_metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                }
+            }
+        },
+        "responses.CampaignMetricsComparison": {
+            "type": "object",
+            "properties": {
+                "expected_metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.CampaignItemComparison"
+                    }
+                },
+                "realistic_metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
                 }
             }
         },

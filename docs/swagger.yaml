@@ -1,6 +1,10 @@
 definitions:
   dtos.AdvertisedItem:
     properties:
+      content_ids:
+        items:
+          type: string
+        type: array
       content_requirements:
         example:
         - Include product demo and customer testimonials
@@ -50,6 +54,10 @@ definitions:
         example: Best product ever
         maxLength: 255
         type: string
+      task_ids:
+        items:
+          type: string
+        type: array
     required:
     - platform
     type: object
@@ -108,6 +116,10 @@ definitions:
         items:
           type: string
         type: array
+      task_ids:
+        items:
+          type: string
+        type: array
     type: object
   dtos.BreachOfContract:
     properties:
@@ -148,6 +160,10 @@ definitions:
     type: object
   dtos.CoProducingConcept:
     properties:
+      content_ids:
+        items:
+          type: string
+        type: array
       content_requirements:
         example:
         - Include product demo and customer testimonials
@@ -196,10 +212,18 @@ definitions:
       product_id:
         example: 1
         type: integer
+      product_ids:
+        items:
+          type: string
+        type: array
       tagline:
         example: Best product ever
         maxLength: 255
         type: string
+      task_ids:
+        items:
+          type: string
+        type: array
     required:
     - platform
     type: object
@@ -227,6 +251,14 @@ definitions:
         example: Product A
         maxLength: 255
         type: string
+      product_ids:
+        items:
+          type: string
+        type: array
+      task_ids:
+        items:
+          type: string
+        type: array
     type: object
   dtos.Deliverable:
     properties:
@@ -2576,6 +2608,10 @@ definitions:
         example: Design Social Media Posts
         maxLength: 255
         type: string
+      scope_of_work_item_id:
+        example: "1"
+        maxLength: 50
+        type: string
       status:
         enum:
         - TODO
@@ -4421,6 +4457,8 @@ definitions:
       id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
+      metrics_comparison:
+        $ref: '#/definitions/responses.CampaignMetricsComparison'
       milestones:
         items:
           $ref: '#/definitions/responses.CampaignMilestoneInfo'
@@ -4508,6 +4546,41 @@ definitions:
       updated_at:
         example: "2023-06-15 12:00:00"
         type: string
+    type: object
+  responses.CampaignItemComparison:
+    properties:
+      expected_metrics:
+        description: Using interface{} to avoid circular dependency if KPIGoal is
+          in dtos
+        items: {}
+        type: array
+      item_id:
+        description: ID from ScopeOfWork
+        type: integer
+      item_name:
+        type: string
+      realistic_metrics:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+    type: object
+  responses.CampaignMetricsComparison:
+    properties:
+      expected_metrics:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      items:
+        items:
+          $ref: '#/definitions/responses.CampaignItemComparison'
+        type: array
+      realistic_metrics:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
     type: object
   responses.CampaignMilestoneInfo:
     properties:
@@ -10581,6 +10654,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Suggest Campaign from Contract
+      tags:
+      - Campaigns
+  /api/v1/campaigns/async:
+    post:
+      consumes:
+      - application/json
+      description: Create a new campaign asynchronously via RabbitMQ
+      parameters:
+      - description: Campaign creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Campaign creation request accepted
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Campaign Async
       tags:
       - Campaigns
   /api/v1/campaigns/brand/{brand_id}:
@@ -18290,6 +18395,23 @@ paths:
       summary: Get Tasks by Profile
       tags:
       - Tasks
+  /api/v1/test/migrate-sow-ids:
+    post:
+      consumes:
+      - application/json
+      description: Populates task_ids, product_ids, content_ids in ScopeOfWork based
+        on existing data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema: {}
+      security:
+      - BearerAuth: []
+      summary: Migrate ScopeOfWork IDs
+      tags:
+      - Test
   /api/v1/test/tiktok/exchange-code-for-token:
     get:
       consumes:
