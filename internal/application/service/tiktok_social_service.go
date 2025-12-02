@@ -230,7 +230,7 @@ func (t *TikTokSocialService) GetTikTokCreatorInfo(ctx context.Context) (*dtos.T
 	zap.L().Info("TikTokSocialService - GetTikTokCreatorInfo called")
 
 	// 1. Get TikTok Access Token from channel service
-	accessToken, err := t.getTikTokAccessToken(ctx)
+	accessToken, err := t.GetTikTokAccessToken(ctx)
 	if err != nil {
 		zap.L().Error("Failed to get TikTok access token", zap.Error(err))
 		return nil, err
@@ -250,7 +250,7 @@ func (t *TikTokSocialService) GetTikTokSystemUserProfile(ctx context.Context) (*
 	zap.L().Info("TikTokSocialService - GetTikTokSystemUserProfile called")
 
 	// 1. Get TikTok Access Token from channel service
-	accessToken, err := t.getTikTokAccessToken(ctx)
+	accessToken, err := t.GetTikTokAccessToken(ctx)
 	if err != nil {
 		zap.L().Error("Failed to get TikTok access token", zap.Error(err))
 		return nil, err
@@ -316,18 +316,18 @@ func (t *TikTokSocialService) generateTikTokChannelAccessToken(ctx context.Conte
 	return nil
 }
 
-func (t *TikTokSocialService) getTikTokAccessToken(ctx context.Context) (string, error) {
+func (t *TikTokSocialService) GetTikTokAccessToken(ctx context.Context) (string, error) {
 	zap.L().Info("TikTokSocialService - getTikTokAccessToken called")
 
 	// Get TikTok token Pair from channel service
 	accessToken, refreshToken, err := t.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
 	if err != nil {
 		switch err {
-		case ErrTikTokRefreshExpired:
+		case iservice.ErrRefreshExpired:
 			zap.L().Warn("TikTok refresh token expired, need to re-authenticate")
 			return "", errors.New("tiktok refresh token expired")
 
-		case ErrTikTokAccessExpired:
+		case iservice.ErrAccessExpired:
 			zap.L().Info("TikTok access token expired, refreshing using refresh token")
 			// Refresh the access token
 			uow := t.unitOfWork.Begin(ctx)
