@@ -81,7 +81,7 @@ type AdvertisedItem struct {
 	HashTag             []string    `json:"hash_tag" example:"#bestproduct #awesome" validate:"dive,max=100"`
 	CreativeNotes       string      `json:"creative_notes,omitempty" example:"Use bright colors and upbeat music" validate:"omitempty,max=1000"`
 	ContentRequirements []string    `json:"content_requirements,omitempty" example:"Include product demo and customer testimonials" validate:"omitempty,dive,max=1000"`
-	Metrics             []KPIGoal   `json:"metrics,omitempty" validate:"dive"`
+	KPIs                []KPIGoal   `json:"kpis,omitempty" validate:"dive"`
 	TaskIDs             []uuid.UUID `json:"task_ids,omitempty"`
 	ContentIDs          []uuid.UUID `json:"content_ids,omitempty"`
 }

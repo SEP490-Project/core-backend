@@ -68,9 +68,9 @@ payos_expiry_check_interval_minutes: 1 # Interval in minutes for PayOS expiry ch
 preorder_opening_check_enabled: true # Enable/disable preorder opening check
 preorder_opening_check_interval_minutes: 1 # Interval in minutes for preorder opening check cron
 tiktok_status_poller_enabled: true
-tiktok_status_poller_interval_minutes: 1
+tiktok_status_poller_cron_expr: "*/30 * * * * *" # Every 30 seconds
 social_metrics_poller_enabled: true
-social_metrics_poller_interval_minutes: 1
+social_metrics_poller_interval_cron_expr: "*/30 * * * *" # Every 30 minutes
 
 # Order - PreOrder
 censorship_interval_minutes: 5
