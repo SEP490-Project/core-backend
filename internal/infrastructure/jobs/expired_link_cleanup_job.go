@@ -19,6 +19,7 @@ type ExpiredLinkCleanupJob struct {
 	CronScheduler     *cron.Cron
 	lastRunTime       time.Time
 	adminConfig       *config.AdminConfig
+	entryID           cron.EntryID
 }
 
 func NewExpiredLinkCleanupJob(
@@ -53,11 +54,12 @@ func (j *ExpiredLinkCleanupJob) Initialize() error {
 		zap.String("schedule", "Daily at midnight"))
 
 	// Schedule the job
-	_, err := j.CronScheduler.AddFunc(cronExpr, func() {
-		if !j.adminConfig.ExpiredContractCleanupEnabled {
+	entryID, err := j.CronScheduler.AddFunc(cronExpr, func() {
+		if j.adminConfig.ExpiredContractCleanupEnabled {
 			j.Run()
 		}
 	})
+	j.entryID = entryID
 
 	if err != nil {
 		zap.L().Error("Failed to schedule Expired Link Cleanup Job", zap.Error(err))
@@ -160,4 +162,21 @@ func (j *ExpiredLinkCleanupJob) IsEnabled() bool {
 // SetEnabled implements CronJob.
 func (j *ExpiredLinkCleanupJob) SetEnabled(enabled bool) {
 	j.adminConfig.ExpiredContractCleanupEnabled = enabled
+}
+
+// Restart implements CronJob.
+func (j *ExpiredLinkCleanupJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting Expired Link Cleanup Job due to config change")
+
+	// Update config
+	j.adminConfig = adminConfig
+
+	// Remove existing job if it exists
+	if j.entryID != 0 {
+		j.CronScheduler.Remove(j.entryID)
+		j.entryID = 0
+	}
+
+	// Re-initialize
+	return j.Initialize()
 }

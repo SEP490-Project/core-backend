@@ -165,7 +165,7 @@ func NewApplicationRegistry(
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          stateTransferService,
 		ContractService:               service.NewContractService(databaseRegistry),
-		CampaignService:               service.NewCampaignService(databaseRegistry.CampaignRepository, databaseRegistry.ContractRepository),
+		CampaignService:               service.NewCampaignService(databaseRegistry),
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
@@ -234,5 +234,19 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		)
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("tiktok_status_poller_job", tiktokPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.TikTokStatusPollerJob = tiktokPollerJob
+
+		// Register Social Metrics Poller Job
+		socialMetricsPollerJob := jobs.NewSocialMetricsPollerJob(
+			r.InfrastructureRegistry.DB,
+			r.DatabaseRegistry.ContentChannelRepository,
+			r.DatabaseRegistry.KPIMetricsRepository,
+			r.ChannelService,
+			r.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
+			r.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			&r.configs.AdminConfig,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("social_metrics_poller_job", socialMetricsPollerJob)
+		r.InfrastructureRegistry.CronJobsRegistry.SocialMetricsPollerJob = socialMetricsPollerJob
 	}
 }

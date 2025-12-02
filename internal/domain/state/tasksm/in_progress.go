@@ -12,7 +12,7 @@ func (i *InProgressState) Name() enum.TaskStatus { return enum.TaskStatusInProgr
 func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 
 	if _, ok := i.AllowedTransitions()[next.Name()]; ok {
-		if next.Name() == enum.TaskStatusRecap {
+		if next.Name() == enum.TaskStatusDone {
 			prdStatusCheck := ctx.IsAllProductsActive()
 			contentStatusCheck := ctx.IsAllContentsPosted()
 
@@ -35,7 +35,6 @@ func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 
 func (i *InProgressState) AllowedTransitions() map[enum.TaskStatus]struct{} {
 	return map[enum.TaskStatus]struct{}{
-		enum.TaskStatusRecap:     {},
 		enum.TaskStatusCancelled: {},
 	}
 }

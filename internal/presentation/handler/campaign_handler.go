@@ -1,17 +1,20 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/pkg/utils"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"go.uber.org/zap"
 )
 
 type CampaignHandler struct {
@@ -19,12 +22,14 @@ type CampaignHandler struct {
 	stateTransferService iservice.StateTransferService
 	uow                  irepository.UnitOfWork
 	validartor           *validator.Validate
+	rabbitmq             *rabbitmq.RabbitMQ
 }
 
 func NewCampaignHandler(
 	campaignService iservice.CampaignService,
 	stateTransferService iservice.StateTransferService,
 	uow irepository.UnitOfWork,
+	rabbitmq *rabbitmq.RabbitMQ,
 ) *CampaignHandler {
 	validator := validator.New()
 	validator.RegisterStructValidation(requests.ValidateCreateCampaignRequest, requests.CreateCampaignRequest{})
@@ -34,6 +39,7 @@ func NewCampaignHandler(
 		stateTransferService: stateTransferService,
 		uow:                  uow,
 		validartor:           validator,
+		rabbitmq:             rabbitmq,
 	}
 }
 
@@ -260,6 +266,59 @@ func (h *CampaignHandler) GetCampaignsByFilter(c *gin.Context) {
 		},
 	)
 	c.JSON(http.StatusOK, paginationResponse)
+}
+
+// CreateAsync godoc
+//
+//	@Summary		Create Campaign Async
+//	@Description	Create a new campaign asynchronously via RabbitMQ
+//	@Tags			Campaigns
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		requests.CreateCampaignRequest	true	"Campaign creation request"
+//	@Success		202		{object}	responses.APIResponse			"Campaign creation request accepted"
+//	@Failure		400		{object}	responses.APIResponse			"Invalid request"
+//	@Failure		500		{object}	responses.APIResponse			"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/campaigns/async [post]
+func (h *CampaignHandler) CreateAsync(c *gin.Context) {
+	var req requests.CreateCampaignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	if err := h.validartor.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized", http.StatusUnauthorized))
+		return
+	}
+
+	// Publish to RabbitMQ
+	producer, err := h.rabbitmq.GetProducer("campaign-create-producer")
+	if err != nil {
+		zap.L().Error("Failed to get producer", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Internal server error", http.StatusInternalServerError))
+		return
+	}
+
+	message := consumers.CampaignCreateMessage{
+		Data:   req,
+		UserID: userID,
+	}
+
+	if err := producer.PublishJSON(c.Request.Context(), message); err != nil {
+		zap.L().Error("Failed to publish message", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to queue request", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusAccepted, responses.SuccessResponse("Campaign creation request accepted", nil, nil))
 }
 
 // DeleteCampaign godoc

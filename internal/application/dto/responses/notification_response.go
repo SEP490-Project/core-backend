@@ -18,8 +18,8 @@ type NotificationResponse struct {
 	DeliveryAttempts []model.DeliveryAttempt   `json:"delivery_attempts"`
 	RecipientInfo    model.JSONBRecipientInfo  `json:"recipient_info"`
 	ContentData      model.JSONBContentData    `json:"content_data"`
-	PlatformConfig   model.JSONBPlatformConfig `json:"platform_config,omitempty"`
-	ErrorDetails     model.JSONBErrorDetails   `json:"error_details,omitempty"`
+	PlatformConfig   model.JSONBPlatformConfig `json:"platform_config"`
+	ErrorDetails     model.JSONBErrorDetails   `json:"error_details"`
 	CreatedAt        *time.Time                `json:"created_at,omitempty"`
 	UpdatedAt        *time.Time                `json:"updated_at,omitempty"`
 }

@@ -63,6 +63,7 @@ type FacebookUserProfile struct {
 			URL string `json:"url"`
 		} `json:"data"`
 	} `json:"picture"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (userProfile *FacebookUserProfileResponse) ToMetadata() *model.FacebookOAuthMetadata {
@@ -74,4 +75,39 @@ func (userProfile *FacebookUserProfileResponse) ToMetadata() *model.FacebookOAut
 		Birthday:  userProfile.Birthday,
 		UpdatedAt: time.Now(),
 	}
+}
+
+type FacebookPostMetricsResponse struct {
+	Data []FacebookMetricData `json:"data"`
+}
+
+type FacebookPageInsightsResponse struct {
+	Data []FacebookMetricData `json:"data"`
+}
+
+type FacebookMetricData struct {
+	Name        string                `json:"name"`
+	Period      string                `json:"period"`
+	Values      []FacebookMetricValue `json:"values"`
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	ID          string                `json:"id"`
+}
+
+type FacebookMetricValue struct {
+	Value   any    `json:"value"` // Can be int or map[string]int
+	EndTime string `json:"end_time"`
+}
+
+type FacebookInsightsPeriod string
+
+const (
+	FacebookInsightsPeriodDay      FacebookInsightsPeriod = "day"
+	FacebookInsightsPeriodWeek     FacebookInsightsPeriod = "week"
+	FacebookInsightsPeriodDays28   FacebookInsightsPeriod = "days_28"
+	FacebookInsightsPeriodLifetime FacebookInsightsPeriod = "lifetime"
+)
+
+type FacebookVideoInsightsResponse struct {
+	Data []FacebookMetricData `json:"data"`
 }

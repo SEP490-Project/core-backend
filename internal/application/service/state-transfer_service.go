@@ -1019,7 +1019,7 @@ func (t stateTransferService) handleOrderSideEffect(
 		return err
 	}
 	//order.Status = newStatus
-	if err := orderRepo.Update(ctx, order); err != nil {
+	if err = orderRepo.Update(ctx, order); err != nil {
 		zap.L().Error("Failed to update order status",
 			zap.String("order_id", order.ID.String()),
 			zap.String("new_status", string(newStatus)),
