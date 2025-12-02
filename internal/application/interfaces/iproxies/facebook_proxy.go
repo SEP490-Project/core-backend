@@ -65,4 +65,17 @@ type FacebookProxy interface {
 	GetUploadStatus(ctx context.Context, uploadSessionID string, userAccessToken string) (int64, error)
 
 	// endregion
+
+	// region: ======== Metrics Methods ========
+
+	// GetPostMetrics retrieves metrics for a specific post
+	GetPostMetrics(ctx context.Context, postID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPostMetricsResponse, error)
+
+	// GetPageInsights retrieves insights for a page
+	GetPageInsights(ctx context.Context, pageID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPageInsightsResponse, error)
+
+	// GetVideoInsights retrieves insights for a video
+	GetVideoInsights(ctx context.Context, videoID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookVideoInsightsResponse, error)
+
+	// endregion
 }

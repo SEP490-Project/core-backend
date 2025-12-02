@@ -385,4 +385,53 @@ func (t *TikTokProxy) getUserProfile(ctx context.Context, accessToken string, fi
 	return &userProfile, nil
 }
 
+// GetVideoMetrics implements iproxies.TikTokProxy.
+func (t *TikTokProxy) GetVideoMetrics(ctx context.Context, videoID string, accessToken string) (*dtos.TikTokVideoMetricsResponse, error) {
+	zap.L().Info("TikTokProxy - GetVideoMetrics called", zap.String("video_id", videoID))
+
+	// Use Video Query API
+	// https://developers.tiktok.com/doc/tiktok-api-v2-video-query/
+	path := "video/query/"
+
+	// Fields to request
+	fields := []string{
+		"id",
+		"view_count",
+		"like_count",
+		"comment_count",
+		"share_count",
+	}
+	var err error
+	path, err = utils.AddQueryParam(path, "fields", strings.Join(fields, ","))
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting TikTok video metrics", zap.Error(err))
+		return nil, err
+	}
+
+	formData := map[string]any{
+		"filters": map[string]any{
+			"video_ids": []string{videoID},
+		},
+	}
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+		"Content-Type":  "application/json",
+	}
+
+	var metricsResp dtos.TikTokVideoMetricsResponse
+	// Note: TikTok Video Query is a POST request
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, formData, &metricsResp); err != nil {
+		zap.L().Error("Failed to get TikTok video metrics", zap.Error(err))
+		return nil, fmt.Errorf("failed to get video metrics: %w", err)
+	}
+
+	if !metricsResp.Error.Code.IsSuccess() {
+		zap.L().Error("TikTok API returned error", zap.Any("error", metricsResp.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", metricsResp.Error.Code, metricsResp.Error.Message)
+	}
+
+	return &metricsResp, nil
+}
+
 // endregion
