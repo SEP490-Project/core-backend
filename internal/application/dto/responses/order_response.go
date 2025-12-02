@@ -51,6 +51,14 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 	if o == nil {
 		return nil
 	}
+
+	var orderItems []OrderItemResponse
+	if len(o.OrderItems) == 0 {
+		orderItems = nil
+	} else {
+		orderItems = OrderItemResponse{}.ToResponseList(o.OrderItems)
+	}
+
 	resp := &OrderResponse{
 		ID:          o.ID,
 		UserID:      o.UserID,
@@ -85,7 +93,7 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		OrderType:         o.OrderType,
 		Payment:           nil,
 		GHNOrderCode:      o.GHNOrderCode,
-		OrderItems:        OrderItemResponse{}.ToResponseList(o.OrderItems),
+		OrderItems:        orderItems,
 	}
 	if pt != nil {
 		resp.Payment = PaymentTransactionResponse{}.ToResponse(pt)
@@ -210,15 +218,55 @@ func (OrderItemCategoryResponse) ToResponse(category *model.ProductCategory) *Or
 }
 
 func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
+	if oi == nil {
+		return nil
+	}
+
+	// safe derefs for pointer enum fields
+	var capacityUnit enum.CapacityUnit
+	if oi.CapacityUnit != nil {
+		capacityUnit = *oi.CapacityUnit
+	}
+	var containerType enum.ContainerType
+	if oi.ContainerType != nil {
+		containerType = *oi.ContainerType
+	}
+	var dispenserType enum.DispenserType
+	if oi.DispenserType != nil {
+		dispenserType = *oi.DispenserType
+	}
+
+	// Limited properties only if Variant and Product are present
+	var limitedProps *OrderLimitedProperties
+	if oi.Variant.ID != uuid.Nil && oi.Variant.Product != nil {
+		limitedProps = OrderLimitedProperties{}.ToResponse(oi.Variant.Product.Limited)
+	}
+
+	// Images only if Variant present
+	var itemImages []OrderItemImage
+	if oi.Variant.ID != uuid.Nil {
+		itemImages = OrderItemImage{}.ToResponseList(oi.Variant.Images)
+	}
+
+	// Brand and Category only if present
+	var brandResp *OrderItemBrandResponse
+	if oi.Brand != nil {
+		brandResp = OrderItemBrandResponse{}.ToResponse(oi.Brand)
+	}
+	var categoryResp *OrderItemCategoryResponse
+	if oi.Category != nil {
+		categoryResp = OrderItemCategoryResponse{}.ToResponse(oi.Category)
+	}
+
 	return &OrderItemResponse{
 		ID:                    oi.ID,
 		Quantity:              oi.Quantity,
 		Subtotal:              oi.Subtotal,
 		UnitPrice:             oi.UnitPrice,
 		Capacity:              oi.Capacity,
-		CapacityUnit:          *oi.CapacityUnit,
-		ContainerType:         *oi.ContainerType,
-		DispenserType:         *oi.DispenserType,
+		CapacityUnit:          capacityUnit,
+		ContainerType:         containerType,
+		DispenserType:         dispenserType,
 		Uses:                  oi.Uses,
 		ManufactureDate:       oi.ManufactureDate,
 		ExpiryDate:            oi.ExpiryDate,
@@ -230,11 +278,11 @@ func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
 		ProductName:           oi.ProductName,
 		Description:           oi.Description,
 		Type:                  oi.Type,
-		LimitedProperties:     OrderLimitedProperties{}.ToResponse(oi.Variant.Product.Limited),
+		LimitedProperties:     limitedProps,
 		AttributesDescription: oi.AttributesDescription,
-		ItemImages:            OrderItemImage{}.ToResponseList(oi.Variant.Images),
-		Brand:                 OrderItemBrandResponse{}.ToResponse(oi.Brand),
-		Category:              OrderItemCategoryResponse{}.ToResponse(oi.Category),
+		ItemImages:            itemImages,
+		Brand:                 brandResp,
+		Category:              categoryResp,
 	}
 }
 
