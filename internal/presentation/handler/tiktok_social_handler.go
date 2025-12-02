@@ -6,7 +6,6 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/application/service"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/crypto"
 	"core-backend/pkg/utils"
@@ -206,9 +205,9 @@ func (h *TikTokSocialHandler) GetCreatorInfo(c *gin.Context) {
 	creatorInfo, err := h.tiktokSocialService.GetTikTokCreatorInfo(c.Request.Context())
 	if err != nil {
 		switch err {
-		case service.ErrTikTokRefreshExpired:
+		case iservice.ErrRefreshExpired:
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
-		case service.ErrTikTokNoStoredToken:
+		case iservice.ErrNoStoredToken:
 			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
 		default:
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok creator info: "+err.Error(), http.StatusInternalServerError))
@@ -237,9 +236,9 @@ func (h *TikTokSocialHandler) GetSystemUserProfile(c *gin.Context) {
 	systemUserProfile, err := h.tiktokSocialService.GetTikTokSystemUserProfile(c.Request.Context())
 	if err != nil {
 		switch err {
-		case service.ErrTikTokRefreshExpired:
+		case iservice.ErrRefreshExpired:
 			c.JSON(http.StatusForbidden, responses.ErrorResponse("TikTok refresh token expired", http.StatusForbidden))
-		case service.ErrTikTokNoStoredToken:
+		case iservice.ErrNoStoredToken:
 			c.JSON(http.StatusNotFound, responses.ErrorResponse("No TikTok token found, please authenticate first", http.StatusNotFound))
 		default:
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get TikTok system user profile: "+err.Error(), http.StatusInternalServerError))
