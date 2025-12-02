@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type KPIMetrics struct {
@@ -19,7 +20,7 @@ type KPIMetrics struct {
 
 func (KPIMetrics) TableName() string { return "kpi_metrics" }
 
-func (k *KPIMetrics) BeforeCreate() error {
+func (k *KPIMetrics) BeforeCreate(tx *gorm.DB) error {
 	if k.ID == uuid.Nil {
 		k.ID = uuid.New()
 	}
