@@ -41,7 +41,9 @@ type AdminConfig struct {
 	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
 	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
 	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled"`
-	TikTokStatusPollerIntervalSeconds   int    `mapstructure:"tiktok_status_poller_interval_seconds"`
+	TikTokStatusPollerCronExpr          string `mapstructure:"tiktok_status_poller_cron_expr"`
+	SocialMetricsPollerEnabled          bool   `mapstructure:"social_metrics_poller_enabled"`
+	SocialMetricsPollerIntervalCronExpr string `mapstructure:"social_metrics_poller_interval_cron_expr"`
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
@@ -50,14 +52,12 @@ type AdminConfig struct {
 	// This is used to determine when to send notifications for expiring OAuth tokens
 
 	// ========= Facebook =========
-	FacebookExpiryThresholdNotifications int    `mapstructure:"facebook_expiry_threshold_notifications"` // in days
-	FacebookVideoUploadChunkSizeInMB     int    `mapstructure:"facebook_video_upload_chunk_size_in_mb"`
-	FacebookVideoUploadMaxRetries        int    `mapstructure:"facebook_video_upload_max_retries"`
-	FacebookWebhookSecret                string `mapstructure:"facebook_webhook_secret"`
+	FacebookExpiryThresholdNotifications int `mapstructure:"facebook_expiry_threshold_notifications"` // in days
+	FacebookVideoUploadChunkSizeInMB     int `mapstructure:"facebook_video_upload_chunk_size_in_mb"`
+	FacebookVideoUploadMaxRetries        int `mapstructure:"facebook_video_upload_max_retries"`
 
 	// ========= TikTok =========
-	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
-	TikTokWebhookSecret                string `mapstructure:"tiktok_webhook_secret"`
+	TikTokExpiryThresholdNotifications int `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
 
 	// ======== General ========
 	SystemEmail string `mapstructure:"system_email"`
@@ -120,6 +120,9 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 
 	adminViper.SetDefault("tiktok_status_poller_enabled", true)
 	adminViper.SetDefault("tiktok_status_poller_interval_seconds", 30)
+
+	adminViper.SetDefault("social_metrics_poller_enabled", true)
+	adminViper.SetDefault("social_metrics_poller_interval_minutes", 10)
 
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
 	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)

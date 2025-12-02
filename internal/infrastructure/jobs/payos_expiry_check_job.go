@@ -17,6 +17,7 @@ type PayOSExpiryCheckJob struct {
 	intervalMinutes           int
 	enabled                   bool
 	lastRunTime               time.Time
+	entryID                   cron.EntryID
 }
 
 func NewPayOSExpiryCheckJob(
@@ -53,11 +54,12 @@ func (j *PayOSExpiryCheckJob) Initialize() error {
 		zap.Int("interval_minutes", j.intervalMinutes))
 
 	// Schedule the job
-	_, err := j.cronScheduler.AddFunc(cronExpr, func() {
+	entryID, err := j.cronScheduler.AddFunc(cronExpr, func() {
 		if j.enabled {
 			j.Run()
 		}
 	})
+	j.entryID = entryID
 
 	if err != nil {
 		zap.L().Error("Failed to schedule PayOS Expiry Check Job", zap.Error(err))
@@ -108,4 +110,26 @@ func (j *PayOSExpiryCheckJob) SetEnabled(enabled bool) {
 // GetLastRunTime implements CronJob.
 func (j *PayOSExpiryCheckJob) GetLastRunTime() time.Time {
 	return j.lastRunTime
+}
+
+// Restart implements CronJob.
+func (j *PayOSExpiryCheckJob) Restart(adminConfig *config.AdminConfig) error {
+	zap.L().Info("Restarting PayOS Expiry Check Job due to config change")
+
+	// Update config
+	j.enabled = adminConfig.PayOSExpiryCheckEnabled
+	intervalMinutes := adminConfig.PayOSExpiryCheckIntervalMinutes
+	if intervalMinutes <= 0 {
+		intervalMinutes = 30
+	}
+	j.intervalMinutes = intervalMinutes
+
+	// Remove existing job if it exists
+	if j.entryID != 0 {
+		j.cronScheduler.Remove(j.entryID)
+		j.entryID = 0
+	}
+
+	// Re-initialize
+	return j.Initialize()
 }

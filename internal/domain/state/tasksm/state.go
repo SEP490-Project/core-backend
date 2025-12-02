@@ -23,8 +23,6 @@ func NewTaskState(status enum.TaskStatus) TaskState {
 		return &ToDoState{}
 	case enum.TaskStatusInProgress:
 		return &InProgressState{}
-	case enum.TaskStatusRecap:
-		return &RecapState{}
 	case enum.TaskStatusDone:
 		return &DoneState{}
 	case enum.TaskStatusCancelled:
