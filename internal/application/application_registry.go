@@ -238,9 +238,11 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		// Register Social Metrics Poller Job
 		socialMetricsPollerJob := jobs.NewSocialMetricsPollerJob(
 			r.InfrastructureRegistry.DB,
+			r.InfrastructureRegistry.UnitOfWork,
 			r.DatabaseRegistry.ContentChannelRepository,
 			r.DatabaseRegistry.KPIMetricsRepository,
 			r.ChannelService,
+			r.TikTokSocialService,
 			r.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
 			r.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
 			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,

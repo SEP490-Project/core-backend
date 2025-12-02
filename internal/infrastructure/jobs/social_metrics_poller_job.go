@@ -10,6 +10,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -23,24 +24,28 @@ import (
 )
 
 type SocialMetricsPollerJob struct {
-	db                 *gorm.DB
-	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
-	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
-	channelService     iservice.ChannelService
-	facebookProxy      iproxies.FacebookProxy
-	tiktokProxy        iproxies.TikTokProxy
-	cronScheduler      *cron.Cron
-	lastRunTime        time.Time
-	cronExpr           string
-	enabled            bool
-	entryID            cron.EntryID
+	db                  *gorm.DB
+	unitOfWork          irepository.UnitOfWork
+	contentChannelRepo  irepository.GenericRepository[model.ContentChannel]
+	kpiMetricsRepo      irepository.GenericRepository[model.KPIMetrics]
+	channelService      iservice.ChannelService
+	tiktokSocialService iservice.TikTokSocialService
+	facebookProxy       iproxies.FacebookProxy
+	tiktokProxy         iproxies.TikTokProxy
+	cronScheduler       *cron.Cron
+	lastRunTime         time.Time
+	cronExpr            string
+	enabled             bool
+	entryID             cron.EntryID
 }
 
 func NewSocialMetricsPollerJob(
 	db *gorm.DB,
+	unitOfWork irepository.UnitOfWork,
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel],
 	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
 	channelService iservice.ChannelService,
+	tiktokSocialService iservice.TikTokSocialService,
 	facebookProxy iproxies.FacebookProxy,
 	tiktokProxy iproxies.TikTokProxy,
 	cronScheduler *cron.Cron,
@@ -52,15 +57,17 @@ func NewSocialMetricsPollerJob(
 	}
 
 	return &SocialMetricsPollerJob{
-		db:                 db,
-		contentChannelRepo: contentChannelRepo,
-		kpiMetricsRepo:     kpiMetricsRepo,
-		channelService:     channelService,
-		facebookProxy:      facebookProxy,
-		tiktokProxy:        tiktokProxy,
-		cronScheduler:      cronScheduler,
-		cronExpr:           cronExpr,
-		enabled:            adminConfig.SocialMetricsPollerEnabled,
+		db:                  db,
+		unitOfWork:          unitOfWork,
+		contentChannelRepo:  contentChannelRepo,
+		kpiMetricsRepo:      kpiMetricsRepo,
+		channelService:      channelService,
+		tiktokSocialService: tiktokSocialService,
+		facebookProxy:       facebookProxy,
+		tiktokProxy:         tiktokProxy,
+		cronScheduler:       cronScheduler,
+		cronExpr:            cronExpr,
+		enabled:             adminConfig.SocialMetricsPollerEnabled,
 	}
 }
 
@@ -134,6 +141,10 @@ func (j *SocialMetricsPollerJob) Run() {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
+	// Token cache for this run
+	tokenCache := make(map[string][2]string)
+	var cacheMu sync.RWMutex
+
 	// Limit concurrency to avoid rate limits
 	sem := make(chan struct{}, 5) // Max 5 concurrent requests
 
@@ -145,7 +156,7 @@ func (j *SocialMetricsPollerJob) Run() {
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
-			updated, err := j.processContentChannel(ctx, cc)
+			updated, err := j.processContentChannel(ctx, cc, tokenCache, &cacheMu)
 			if err != nil {
 				zap.L().Error("Failed to process content channel", zap.String("id", cc.ID.String()), zap.Error(err))
 				return
@@ -171,6 +182,7 @@ func (j *SocialMetricsPollerJob) Run() {
 	}
 
 	j.lastRunTime = time.Now()
+
 	zap.L().Info("SocialMetricsPollerJob execution completed")
 }
 
@@ -184,15 +196,53 @@ func (j *SocialMetricsPollerJob) fetchActiveContentChannels(ctx context.Context)
 	return channels, err
 }
 
-func (j *SocialMetricsPollerJob) processContentChannel(ctx context.Context, cc *model.ContentChannel) (bool, error) {
+func (j *SocialMetricsPollerJob) processContentChannel(ctx context.Context, cc *model.ContentChannel, tokenCache map[string][2]string, cacheMu *sync.RWMutex) (bool, error) {
 	if cc.Channel == nil {
 		return false, fmt.Errorf("channel is nil for content channel %s", cc.ID)
 	}
 
 	// Get access token
-	accessToken, err := j.channelService.GetDecryptedToken(ctx, cc.Channel.Name)
-	if err != nil {
-		return false, fmt.Errorf("failed to get access token: %w", err)
+	var accessToken, refreshToken string
+	var err error
+
+	cacheMu.RLock()
+	tokens, ok := tokenCache[cc.Channel.Name]
+	cacheMu.RUnlock()
+
+	if ok && tokens[0] != "" {
+		accessToken = tokens[0]
+		// refreshToken = tokens[1] // Not used currently as we don't retry on API failure yet
+	} else {
+		accessToken, refreshToken, err = j.channelService.GetDecryptedTokenPair(ctx, cc.Channel.Name)
+		if err != nil {
+			switch err {
+			case iservice.ErrAccessExpired:
+				// Try to refresh token if refresh token exists, currently only TikTok uses refresh tokens
+				if refreshToken != "" && strings.HasPrefix(strings.ToUpper(cc.Channel.Code), "TIKTOK") {
+					zap.L().Info("TikTok Access token expired, refreshing using refresh token")
+
+					accessToken, refreshToken, err = j.refreshTikTokChannelRefreshToken(ctx, refreshToken)
+					if err != nil {
+						zap.L().Error("Failed to refresh TikTok access token", zap.Error(err))
+						return false, err
+					}
+				}
+
+			case iservice.ErrRefreshExpired, iservice.ErrNoStoredToken:
+				zap.L().Warn("No valid token found for channel, skipping refreshing token",
+					zap.String("channel_name", cc.Channel.Name),
+					zap.String("error", err.Error()))
+
+			default:
+				zap.L().Warn("Failed to get access token",
+					zap.String("channel_name", cc.Channel.Name),
+					zap.String("error", err.Error()))
+			}
+		}
+
+		cacheMu.Lock()
+		tokenCache[cc.Channel.Name] = [2]string{accessToken, refreshToken}
+		cacheMu.Unlock()
 	}
 
 	var newMetrics map[string]float64
@@ -366,9 +416,10 @@ func (j *SocialMetricsPollerJob) updateContentChannelMetrics(ctx context.Context
 func (j *SocialMetricsPollerJob) getCampaignID(ctx context.Context, contentID uuid.UUID) (uuid.UUID, error) {
 	// Content -> Task -> Milestone -> Campaign
 	var content model.Content
-	if err := j.db.WithContext(ctx).
-		Preload("Task.Milestone").
-		Where("id = ?", contentID).
+	if err := j.db.WithContext(ctx).Model(new(model.Content)).
+		Joins("JOIN tasks ON contents.task_id = tasks.id").
+		Joins("JOIN milestones ON tasks.milestone_id = milestones.id").
+		Where("contents.id = ?", contentID).
 		First(&content).Error; err != nil {
 		return uuid.Nil, err
 	}
@@ -473,4 +524,46 @@ func (j *SocialMetricsPollerJob) aggregateCampaignMetrics(ctx context.Context, c
 	}
 
 	return nil
+}
+
+func (j *SocialMetricsPollerJob) refreshTikTokChannelRefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
+	// Refresh the access token
+	tokenResp, err := j.tiktokProxy.RefreshAccessToken(ctx, refreshToken)
+	if err != nil {
+		zap.L().Error("Failed to refresh access token", zap.Error(err))
+		return "", "", errors.New("failed to refresh TikTok access token")
+	}
+
+	// Update the stored tokens
+	accessExpiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	refreshExpiresAt := time.Now().Add(time.Duration(tokenResp.RefreshExpiresIn) * time.Second)
+
+	uow := j.unitOfWork.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			_ = uow.Rollback()
+			zap.L().Error("Panic recovered in refreshTikTokChannelRefreshToken", zap.Any("recover", r))
+		}
+	}()
+	err = j.channelService.UpdateChannelToken(ctx, uow, "TIKTOK",
+		"", "", tokenResp.AccessToken, &tokenResp.RefreshToken, &accessExpiresAt, &refreshExpiresAt)
+	if err != nil {
+		uow.Rollback()
+		zap.L().Error("Failed to update TikTok tokens", zap.Error(err))
+		return "", "", errors.New("failed to update TikTok credentials")
+	}
+
+	if err = uow.Commit(); err != nil {
+		uow.Rollback()
+		return "", "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	var accessToken string
+	accessToken, refreshToken, err = j.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
+	if err != nil {
+		zap.L().Error("Failed to get TikTok access token after refresh", zap.Error(err))
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }

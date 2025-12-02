@@ -21,12 +21,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	ErrTikTokRefreshExpired = errors.New("tiktok refresh token has expired")
-	ErrTikTokAccessExpired  = errors.New("tiktok access token has expired")
-	ErrTikTokNoStoredToken  = errors.New("no stored tiktok token found for channel")
-)
-
 type channelService struct {
 	channelRepo        irepository.GenericRepository[model.Channel]
 	tokenEncryptionKey []byte
@@ -410,11 +404,11 @@ func (c *channelService) GetDecryptedTokenPair(ctx context.Context, channelName 
 
 	if channel.HashedAccessToken == nil {
 		zap.L().Warn("No stored access token for channel", zap.String("channel_name", channelName))
-		return "", "", ErrTikTokNoStoredToken
+		return "", "", iservice.ErrNoStoredToken
 	}
 	if channel.RefreshTokenExpiresAt != nil && time.Until(*channel.RefreshTokenExpiresAt) <= 0 {
 		zap.L().Warn("Refresh token has expired", zap.String("channel_name", channelName))
-		return "", "", ErrTikTokRefreshExpired
+		return "", "", iservice.ErrRefreshExpired
 	}
 
 	// Check if using Vault backend
@@ -430,10 +424,10 @@ func (c *channelService) GetDecryptedTokenPair(ctx context.Context, channelName 
 			return "", "", errors.New("failed to retrieve token from Vault")
 		}
 
-		refreshToken, ok := secret["refresh_token"].(string)
-		if !ok {
-			return "", "", errors.New("no refresh token in Vault")
-		}
+		refreshToken, _ := secret["refresh_token"].(string)
+		// if !ok {
+		// 	return "", "", errors.New("no refresh token in Vault")
+		// }
 		accessToken, ok := secret["access_token"].(string)
 		if !ok {
 			return "", "", errors.New("no access token in Vault")
@@ -441,29 +435,32 @@ func (c *channelService) GetDecryptedTokenPair(ctx context.Context, channelName 
 
 		if channel.AccessTokenExpiresAt != nil && time.Until(*channel.AccessTokenExpiresAt) <= 0 {
 			zap.L().Warn("Access token has expired, need to refresh immediately to continue", zap.String("channel_name", channelName))
-			return "", refreshToken, ErrTikTokAccessExpired
+			return "", refreshToken, iservice.ErrAccessExpired
 		}
 
 		return accessToken, refreshToken, nil
 	}
 
 	// Database backend: decrypt token
-	if channel.HashedRefreshToken == nil || channel.HashedAccessToken == nil {
-		return "", "", errors.New("no refresh or access token stored for channel")
+	if channel.HashedRefreshToken == nil && channel.HashedAccessToken == nil {
+		return "", "", errors.New("no refresh anh access token stored for channel")
 	}
 
-	decryptedRefreshToken, err := crypto.DecryptToken(*channel.HashedRefreshToken, c.tokenEncryptionKey)
-	if err != nil {
-		return "", "", errors.New("failed to decrypt refresh token")
+	var decryptedRefreshToken, decryptedAccessToken string
+	if channel.HashedRefreshToken != nil {
+		decryptedRefreshToken, err = crypto.DecryptToken(*channel.HashedRefreshToken, c.tokenEncryptionKey)
+		if err != nil {
+			return "", "", errors.New("failed to decrypt refresh token")
+		}
 	}
-	decryptedAccessToken, err := crypto.DecryptToken(*channel.HashedAccessToken, c.tokenEncryptionKey)
+	decryptedAccessToken, err = crypto.DecryptToken(*channel.HashedAccessToken, c.tokenEncryptionKey)
 	if err != nil {
 		return "", "", errors.New("failed to decrypt access token")
 	}
 
 	if channel.AccessTokenExpiresAt != nil && time.Until(*channel.AccessTokenExpiresAt) <= 0 {
 		zap.L().Warn("Access token has expired, need to refresh immediately to continue", zap.String("channel_name", channelName))
-		return "", decryptedRefreshToken, ErrTikTokAccessExpired
+		return "", decryptedRefreshToken, iservice.ErrAccessExpired
 	}
 
 	return decryptedAccessToken, decryptedRefreshToken, nil
