@@ -48,7 +48,7 @@ func (j *PayOSExpiryCheckJob) Initialize() error {
 	zap.L().Debug("Initializing PayOS Expiry Check Job...")
 
 	// Generate cron expression (e.g., "*/30 * * * *" for every 30 minutes)
-	cronExpr := fmt.Sprintf("*/%d * * * *", j.intervalMinutes)
+	cronExpr := fmt.Sprintf("0 */%d * * * *", j.intervalMinutes)
 	zap.L().Info("Scheduling PayOS Expiry Check Job",
 		zap.String("cron_expression", cronExpr),
 		zap.Int("interval_minutes", j.intervalMinutes))

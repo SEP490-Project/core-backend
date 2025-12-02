@@ -47,7 +47,7 @@ func (p *preOrderOpeningCheckJob) Initialize() error {
 	}
 	zap.L().Debug("Initializing Pre-Order Opening Check Job...")
 	// Generate cron expression (e.g., "*/30 * * * *" for every 30 minutes)
-	cronExpr := fmt.Sprintf("*/%d * * * *", p.intervalMinutes)
+	cronExpr := fmt.Sprintf("0 */%d * * * *", p.intervalMinutes)
 	zap.L().Info("Scheduling Pre-Order Opening Check Job",
 		zap.String("cron_expression", cronExpr),
 		zap.Int("interval_minutes", p.intervalMinutes))

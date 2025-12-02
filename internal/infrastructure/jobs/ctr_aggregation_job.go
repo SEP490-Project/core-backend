@@ -57,7 +57,7 @@ func (j *CTRAggregationJob) Initialize() error {
 	zap.L().Debug("Initializing CTR Aggregation Job...")
 
 	// Generate cron expression (e.g., "*/5 * * * *" for every 5 minutes)
-	cronExpr := fmt.Sprintf("*/%d * * * *", j.intervalMinutes)
+	cronExpr := fmt.Sprintf("0 */%d * * * *", j.intervalMinutes)
 	zap.L().Info("Scheduling CTR Aggregation Job",
 		zap.String("cron_expression", cronExpr),
 		zap.Int("interval_minutes", j.intervalMinutes))

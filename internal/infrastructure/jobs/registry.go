@@ -23,7 +23,7 @@ type CronJobRegistry struct {
 
 func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adminConfig *config.AdminConfig) *CronJobRegistry {
 	registry := &CronJobRegistry{
-		CronScheduler: cron.New(),
+		CronScheduler: cron.New(cron.WithSeconds()),
 		jobs:          make(map[string]CronJob),
 	}
 

@@ -47,7 +47,7 @@ func (j *ExpiredLinkCleanupJob) Initialize() error {
 
 	cronExpr := j.adminConfig.ExpiredContractCleanupCronExpr
 	if cronExpr == "" {
-		cronExpr = "0 0 * * *" // Default to daily at midnight if not set
+		cronExpr = "0 0 0 * * *" // Default to daily at midnight if not set
 	}
 	zap.L().Info("Scheduling Expired Link Cleanup Job",
 		zap.String("cron_expression", cronExpr),
