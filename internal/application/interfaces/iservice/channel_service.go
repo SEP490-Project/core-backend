@@ -5,9 +5,16 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+var (
+	ErrRefreshExpired = errors.New("channel refresh token has expired")
+	ErrAccessExpired  = errors.New("channel access token has expired")
+	ErrNoStoredToken  = errors.New("no stored tiktok token found for channel")
 )
 
 type ChannelService interface {

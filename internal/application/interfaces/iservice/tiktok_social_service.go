@@ -21,4 +21,8 @@ type TikTokSocialService interface {
 	GetTikTokCreatorInfo(ctx context.Context) (*dtos.TikTokCreatorInfoResponse, error)
 
 	GetTikTokSystemUserProfile(ctx context.Context) (*dtos.TikTokUserProfileResponse, error)
+
+	// GetTikTokAccessToken retrieves the TikTok access token for the system user
+	// This method will automatically refresh access token if it is expired and refresh token is available
+	GetTikTokAccessToken(ctx context.Context) (string, error)
 }
