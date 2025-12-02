@@ -11,13 +11,12 @@ const (
 	TaskStatusToDo       TaskStatus = "TODO"
 	TaskStatusInProgress TaskStatus = "IN_PROGRESS"
 	TaskStatusCancelled  TaskStatus = "CANCELLED"
-	TaskStatusRecap      TaskStatus = "RECAP"
 	TaskStatusDone       TaskStatus = "DONE"
 )
 
 func (ts TaskStatus) IsValid() bool {
 	switch ts {
-	case TaskStatusToDo, TaskStatusInProgress, TaskStatusCancelled, TaskStatusRecap, TaskStatusDone:
+	case TaskStatusToDo, TaskStatusInProgress, TaskStatusCancelled, TaskStatusDone:
 		return true
 	}
 	return false
