@@ -156,8 +156,22 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 	}
 
 	// load items
+	if len(orderIDs) == 0 {
+		// no order items to load
+		return orders, total, nil
+	}
+
 	var items []model.OrderItem
-	if err := r.db.WithContext(ctx).Model(&model.OrderItem{}).Where("order_id IN ?", orderIDs).Find(&items).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Model(&model.OrderItem{}).
+		Preload("Brand").
+		Preload("Category").
+		Preload("Variant").
+		Preload("Variant.Images").
+		Preload("Variant.Product").
+		Preload("Variant.Product.Limited").
+		Where("order_id IN ?", orderIDs).
+		Find(&items).Error; err != nil {
 		zap.L().Error("Failed to load order items for orders", zap.Error(err))
 		return nil, 0, err
 	}
