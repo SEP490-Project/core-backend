@@ -118,7 +118,7 @@ type StaffPreOrdersQuery struct {
 	// example: 10
 	Limit int `form:"limit" example:"10"`
 
-	// Search term to filter by orderID/paymentID/paymentBin
+	// Search term to filter by orderID
 	// in: query
 	// example: "ORDER123"
 	Search string `form:"search" example:"ORDER123"`
