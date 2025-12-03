@@ -22,8 +22,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/aws/smithy-go/ptr"
@@ -402,163 +400,95 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 	return preOrder, nil
 }
 
-func (p preOrderService) GetPreOrdersByUserIDWithPagination(userID uuid.UUID, limit, page int, search string, statuses []string) ([]responses.PreOrderResponse, int, error) {
-	ctx := context.Background()
+func (s *preOrderService) GetPreOrdersByUserIDWithPagination(
+	ctx context.Context,
+	userID uuid.UUID,
+	limit, page int,
+	search string,
+	statuses []string,
+	createdFrom, createdTo string,
+) ([]responses.PreOrderResponse, int, error) {
 
-	pageNum := page
-	pageSize := limit
-	if pageNum < 1 {
-		pageNum = 1
+	// -------------------------------
+	// Pagination
+	// -------------------------------
+	if page <= 0 {
+		page = 1
 	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	offset := (pageNum - 1) * pageSize
-
-	// Normalize/validate statuses if provided
-	var validStatuses []enum.PreOrderStatus
-	if len(statuses) > 0 {
-		for _, s := range statuses {
-			s = strings.TrimSpace(s)
-			if s == "" {
-				continue
-			}
-			st := enum.PreOrderStatus(s)
-			if st.IsValid() {
-				validStatuses = append(validStatuses, st)
-			}
-		}
+	if limit <= 0 {
+		limit = 10
+	} else if limit > 100 {
+		limit = 100
 	}
 
-	// Base filter with user, optional joins for searching by product name/full name, and optional status
+	includes := []string{
+		"ProductVariant.Images",
+		"Brand",
+		"Category",
+	}
+
+	// ---- FILTER ----
 	filter := func(db *gorm.DB) *gorm.DB {
-		db = db.Where("pre_orders.user_id = ?", userID)
-		if len(validStatuses) > 0 {
-			// build slice of strings for SQL IN
-			vals := make([]string, 0, len(validStatuses))
-			for _, v := range validStatuses {
-				vals = append(vals, string(v))
-			}
-			db = db.Where("pre_orders.status IN ?", vals)
+		q := db.Where("user_id = ?", userID)
+
+		if len(statuses) > 0 {
+			q = q.Where("status IN ?", statuses)
 		}
+
 		if search != "" {
-			// join product tables for searching by product name
-			db = db.Joins("LEFT JOIN product_variants pv ON pv.id = pre_orders.variant_id").
-				Joins("LEFT JOIN products p ON p.id = pv.product_id").
-				Where("p.name ILIKE ? OR pre_orders.full_name ILIKE ?", "%"+search+"%", "%"+search+"%")
+			like := "%" + search + "%"
+			q = q.Where("(product_name ILIKE ? OR email ILIKE ? OR full_name ILIKE ?)", like, like, like)
 		}
-		return db.Order("pre_orders.created_at DESC").Order("pre_orders.id")
-	}
 
-	includes := []string{"ProductVariant", "ProductVariant.Product", "ProductVariant.Product.Limited", "ProductVariant.Images"}
-
-	// 1) fetch paged IDs first
-	var ids []uuid.UUID
-	if err := p.preOrderRepository.DB().
-		WithContext(ctx).
-		Model(&model.PreOrder{}).
-		Scopes(filter).
-		Select("pre_orders.id").
-		Limit(pageSize).
-		Offset(offset).
-		Pluck("pre_orders.id", &ids).Error; err != nil {
-		zap.L().Error("Failed to fetch preorder IDs", zap.Error(err))
-		return nil, 0, err
-	}
-
-	if len(ids) == 0 {
-		return []responses.PreOrderResponse{}, 0, nil
-	}
-
-	// 2) count total with same criteria but without pagination
-	countScope := func(db *gorm.DB) *gorm.DB {
-		db = db.Where("pre_orders.user_id = ?", userID)
-		if len(validStatuses) > 0 {
-			vals := make([]string, 0, len(validStatuses))
-			for _, v := range validStatuses {
-				vals = append(vals, string(v))
-			}
-			db = db.Where("pre_orders.status IN ?", vals)
+		if createdFrom != "" {
+			q = q.Where("created_at >= ?", createdFrom)
 		}
-		if search != "" {
-			db = db.Joins("LEFT JOIN product_variants pv ON pv.id = pre_orders.variant_id").
-				Joins("LEFT JOIN products p ON p.id = pv.product_id").
-				Where("p.name ILIKE ? OR pre_orders.full_name ILIKE ?", "%"+search+"%", "%"+search+"%")
+
+		if createdTo != "" {
+			q = q.Where("created_at <= ?", createdTo)
 		}
-		return db
+
+		return q.Order("created_at DESC")
 	}
 
-	var total int64
-	if err := p.preOrderRepository.DB().
-		WithContext(ctx).
-		Model(&model.PreOrder{}).
-		Scopes(countScope).
-		Count(&total).Error; err != nil {
-		zap.L().Error("Failed to count preorders", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// 3) final fetch with includes by IDs to avoid duplication
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("pre_orders.id IN ?", ids).
-			Order("pre_orders.created_at DESC")
-	}
-
-	preorders, _, err := p.preOrderRepository.GetAll(ctx, finalFilter, includes, 0, 0)
+	// ---- LẤY DATA ----
+	preOrders, total, err := s.preOrderRepository.GetAll(ctx, filter, includes, limit, page)
 	if err != nil {
-		zap.L().Error("Failed to fetch preorders with includes", zap.Error(err))
 		return nil, 0, err
 	}
 
-	// Load payment transactions referencing these preorders (non-fatal)
-	var transactions []model.PaymentTransaction
-	if p.paymentTransactionRepository != nil && p.paymentTransactionRepository.DB() != nil {
-		if err := p.paymentTransactionRepository.DB().WithContext(ctx).
-			Model(&model.PaymentTransaction{}).
-			Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypePreOrder, ids).
-			Find(&transactions).Error; err != nil {
-			zap.L().Warn("Failed to fetch payment transactions for preorders, continuing without payments", zap.Error(err))
-			transactions = nil
-		}
+	// ---- TỐI ƯU: lấy tất cả PaymentTransaction newest bằng 1 query ----
+	ids := make([]uuid.UUID, 0, len(preOrders))
+	for _, po := range preOrders {
+		ids = append(ids, po.ID)
 	}
 
-	// Choose latest transaction per preorder by UpdatedAt
-	paymentsMap := make(map[uuid.UUID]model.PaymentTransaction)
-	for _, tx := range transactions {
-		existing, ok := paymentsMap[tx.ReferenceID]
-		if !ok || tx.UpdatedAt.After(existing.UpdatedAt) {
-			paymentsMap[tx.ReferenceID] = tx
-		}
+	var payments []model.PaymentTransaction
+
+	if len(ids) > 0 {
+		s.db.
+			Raw(`
+                SELECT DISTINCT ON (reference_id) *
+                FROM payment_transactions
+                WHERE reference_id IN ?
+                ORDER BY reference_id, created_at DESC
+            `, ids).
+			Scan(&payments)
 	}
 
-	// Map to response DTOs
-	resList := make([]responses.PreOrderResponse, 0, len(preorders))
-	for i := range preorders {
-		pr := preorders[i]
-		resp := responses.PreOrderResponse{}
-		resp.PreOrder = pr
-		if pt, ok := paymentsMap[pr.ID]; ok {
-			// build response manually to avoid method call confusion
-			resp.PaymentTx = responses.PaymentTransactionResponse{
-				ID:              pt.ID,
-				ReferenceID:     pt.ReferenceID.String(),
-				ReferenceType:   pt.ReferenceType.String(),
-				Amount:          utils.ToString(pt.Amount),
-				Method:          pt.Method,
-				Status:          string(pt.Status),
-				TransactionDate: utils.FormatLocalTime(&pt.TransactionDate, utils.TimeFormat),
-				GatewayRef:      pt.GatewayRef,
-				GatewayID:       pt.GatewayID,
-				UpdatedAt:       utils.FormatLocalTime(&pt.UpdatedAt, utils.TimeFormat),
-			}
-		}
-		resList = append(resList, resp)
+	// ---- MAP payments vào preorder ----
+	pmMap := map[uuid.UUID]*model.PaymentTransaction{}
+	for _, pm := range payments {
+		pmCopy := pm
+		pmMap[pm.ReferenceID] = &pmCopy
 	}
 
-	return resList, int(total), nil
+	resp := make([]responses.PreOrderResponse, 0, len(preOrders))
+	for _, po := range preOrders {
+		resp = append(resp, responses.PreOrderResponse{}.ToPreOrderResponse(po, pmMap[po.ID]))
+	}
+
+	return resp, int(total), nil
 }
 
 func (p preOrderService) PayForPreservationSlot(ctx context.Context, preOrderID uuid.UUID, returnURL, cancelURL string, unitOfWork irepository.UnitOfWork) (*responses.PayOSLinkResponse, error) {
@@ -701,182 +631,157 @@ func toPaymentItemRequestWithTotalPrice(preOrder model.PreOrder) ([]requests.Pay
 }
 
 // GetStaffAvailablePreOrdersWithPagination returns preorders for staff with same filtering/search as staff orders
-func (p preOrderService) GetStaffAvailablePreOrdersWithPagination(
+func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 	limit, page int,
 	search, fullName, phone, provinceID, districtID, wardCode string,
 	statuses []string,
 ) ([]responses.PreOrderResponse, int, error) {
+
 	ctx := context.Background()
 
-	// --- Pagination defaults ---
-	if page < 1 {
+	// build filter
+	filter := func(db *gorm.DB) *gorm.DB {
+		q := db
+
+		if search != "" {
+			like := "%" + search + "%"
+			q = q.Where("(product_name ILIKE ? OR email ILIKE ? OR full_name ILIKE ?)", like, like, like)
+		}
+
+		if fullName != "" {
+			q = q.Where("full_name ILIKE ?", "%"+fullName+"%")
+		}
+
+		if phone != "" {
+			q = q.Where("phone_number ILIKE ?", "%"+phone+"%")
+		}
+
+		if provinceID != "" {
+			q = q.Where("ghn_province_id = ?", provinceID)
+		}
+
+		if districtID != "" {
+			q = q.Where("ghn_district_id = ?", districtID)
+		}
+
+		if wardCode != "" {
+			q = q.Where("ghn_ward_code = ?", wardCode)
+		}
+
+		if len(statuses) > 0 {
+			q = q.Where("status IN ?", statuses)
+		}
+
+		return q
+	}
+
+	includes := []string{
+		"ProductVariant.Images",
+		"Brand",
+		"Category",
+	}
+
+	poRows, total, err := s.GetPreOrdersWithPayment(ctx, filter, includes, limit, page)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// build DTO response
+	responsesList := make([]responses.PreOrderResponse, 0, len(poRows))
+
+	for _, r := range poRows {
+
+		var pm *model.PaymentTransaction
+		if r.PaymentID != nil {
+			pm = &model.PaymentTransaction{
+				ID:        *r.PaymentID,
+				Amount:    r.PaymentAmount,
+				Method:    *r.PaymentMethod,
+				Status:    enum.PaymentTransactionStatus(*r.PaymentStatus),
+				CreatedAt: *r.PaymentCreatedAt,
+			}
+		}
+
+		responsesList = append(responsesList,
+			responses.PreOrderResponse{}.ToPreOrderResponse(r.PreOrder, pm),
+		)
+	}
+
+	return responsesList, total, nil
+}
+
+type PreOrderWithPayment struct {
+	model.PreOrder
+
+	PaymentID        *uuid.UUID `gorm:"column:pm_id"`
+	PaymentAmount    *float64   `gorm:"column:pm_amount"`
+	PaymentMethod    *string    `gorm:"column:pm_method"`
+	PaymentStatus    *string    `gorm:"column:pm_status"`
+	PaymentCreatedAt *time.Time `gorm:"column:pm_created_at"`
+}
+
+func (s preOrderService) GetPreOrdersWithPayment(
+	ctx context.Context,
+	filter func(*gorm.DB) *gorm.DB,
+	includes []string,
+	limit, page int,
+) ([]PreOrderWithPayment, int, error) {
+
+	var total int64
+
+	// Step 1: count BEFORE JOIN (avoid inflated count)
+	countDB := s.db.WithContext(ctx).Model(&model.PreOrder{})
+	if filter != nil {
+		countDB = filter(countDB)
+	}
+	if err := countDB.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Step 2: full JOIN query
+	db := s.db.WithContext(ctx).
+		Table("pre_orders AS po").
+		Select(`
+            po.*,
+            pm.id AS pm_id,
+            pm.amount AS pm_amount,
+            pm.method AS pm_method,
+            pm.status AS pm_status,
+            pm.created_at AS pm_created_at
+        `).
+		Joins(`
+            LEFT JOIN payment_transactions pm 
+            ON pm.reference_id = po.id 
+            AND pm.reference_type = ?
+        `, enum.PaymentTransactionReferenceTypePreOrder)
+
+	if filter != nil {
+		db = filter(db)
+	}
+
+	// Preload relationships (must attach Model)
+	db = db.Model(&model.PreOrder{})
+
+	db = db.Order("po.created_at DESC")
+
+	for _, inc := range includes {
+		db = db.Preload(inc)
+	}
+
+	if page <= 0 {
 		page = 1
 	}
-	if limit <= 0 {
-		limit = 10
-	} else if limit > 100 {
-		limit = 100
-	}
-	offset := (page - 1) * limit
 
-	// --- Normalize statuses ---
-	var validStatuses []enum.PreOrderStatus
-	for _, s := range statuses {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		st := enum.PreOrderStatus(s)
-		if st.IsValid() {
-			validStatuses = append(validStatuses, st)
-		}
+	if limit > 0 {
+		db = db.Limit(limit).Offset((page - 1) * limit)
 	}
 
-	// --- Prefetch preorder IDs matching transactions ---
-	var txMatchedPreorderIDs []uuid.UUID
-	if strings.TrimSpace(search) != "" && p.paymentTransactionRepository != nil && p.paymentTransactionRepository.DB() != nil {
-		like := "%" + search + "%"
-		if err := p.paymentTransactionRepository.DB().WithContext(ctx).
-			Model(&model.PaymentTransaction{}).
-			Where("reference_type = ? AND (id::text ILIKE ? OR payos_metadata->>'bin' ILIKE ?)",
-				enum.PaymentTransactionReferenceTypePreOrder, like, like).
-			Distinct().Pluck("reference_id", &txMatchedPreorderIDs).Error; err != nil {
-			zap.L().Warn("failed to lookup transactions for staff preorders search", zap.Error(err))
-			txMatchedPreorderIDs = nil
-		}
-	}
-
-	// --- Build filter scope ---
-	filter := func(db *gorm.DB) *gorm.DB {
-		// Status
-		if len(validStatuses) > 0 {
-			vals := make([]string, 0, len(validStatuses))
-			for _, v := range validStatuses {
-				vals = append(vals, string(v))
-			}
-			db = db.Where("pre_orders.status IN ? AND pre_orders.status <> ?", vals, enum.PreOrderStatusPending)
-		} else {
-			db = db.Where("pre_orders.status <> ?", enum.PreOrderStatusPending)
-		}
-
-		// Search by preorder id, full name, or tx matches
-		if strings.TrimSpace(search) != "" {
-			like := "%" + search + "%"
-			if len(txMatchedPreorderIDs) > 0 {
-				db = db.Where("(pre_orders.id::text ILIKE ? OR pre_orders.full_name ILIKE ? OR pre_orders.id IN (?))",
-					like, like, txMatchedPreorderIDs)
-			} else {
-				db = db.Where("(pre_orders.id::text ILIKE ? OR pre_orders.full_name ILIKE ?)", like, like)
-			}
-		}
-
-		// Other filters
-		if fullName != "" {
-			db = db.Where("pre_orders.full_name ILIKE ?", "%"+fullName+"%")
-		}
-		if phone != "" {
-			db = db.Where("pre_orders.phone_number ILIKE ?", "%"+phone+"%")
-		}
-		if provinceID != "" {
-			if pid, err := strconv.Atoi(provinceID); err == nil {
-				db = db.Where("pre_orders.ghn_province_id = ?", pid)
-			}
-		}
-		if districtID != "" {
-			if did, err := strconv.Atoi(districtID); err == nil {
-				db = db.Where("pre_orders.ghn_district_id = ?", did)
-			}
-		}
-		if wardCode != "" {
-			db = db.Where("pre_orders.ghn_ward_code = ?", wardCode)
-		}
-
-		return db
-	}
-
-	// --- Step 1: Get paged IDs safely ---
-	var ids []uuid.UUID
-	if err := p.preOrderRepository.DB().WithContext(ctx).
-		Model(&model.PreOrder{}).
-		Scopes(filter).
-		Order("pre_orders.created_at DESC").
-		Order("pre_orders.id").
-		Limit(limit).
-		Offset(offset).
-		Pluck("pre_orders.id", &ids).Error; err != nil {
-		zap.L().Error("failed to fetch staff preorder ids", zap.Error(err))
+	var rows []PreOrderWithPayment
+	if err := db.Find(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if len(ids) == 0 {
-		return []responses.PreOrderResponse{}, 0, nil
-	}
-
-	// --- Step 2: Count total ---
-	var total int64
-	if err := p.preOrderRepository.DB().WithContext(ctx).
-		Model(&model.PreOrder{}).
-		Scopes(filter).
-		Count(&total).Error; err != nil {
-		zap.L().Error("failed to count staff preorders", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// --- Step 3: Load full models with includes ---
-	includes := []string{"ProductVariant", "ProductVariant.Product"}
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("pre_orders.id IN ?", ids).Order("pre_orders.created_at DESC")
-	}
-
-	preorders, _, err := p.preOrderRepository.GetAll(ctx, finalFilter, includes, 0, 0)
-	if err != nil {
-		zap.L().Error("failed to fetch staff preorders with includes", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// --- Step 4: Map latest payment transaction ---
-	var transactions []model.PaymentTransaction
-	if p.paymentTransactionRepository != nil && p.paymentTransactionRepository.DB() != nil {
-		if err := p.paymentTransactionRepository.DB().WithContext(ctx).
-			Model(&model.PaymentTransaction{}).
-			Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypePreOrder, ids).
-			Find(&transactions).Error; err != nil {
-			zap.L().Warn("failed to fetch payment transactions, continuing without payments", zap.Error(err))
-			transactions = nil
-		}
-	}
-
-	paymentsMap := make(map[uuid.UUID]model.PaymentTransaction)
-	for _, tx := range transactions {
-		existing, ok := paymentsMap[tx.ReferenceID]
-		if !ok || tx.UpdatedAt.After(existing.UpdatedAt) {
-			paymentsMap[tx.ReferenceID] = tx
-		}
-	}
-
-	// --- Step 5: Map to response DTOs ---
-	resList := make([]responses.PreOrderResponse, 0, len(preorders))
-	for i := range preorders {
-		pr := preorders[i]
-		resp := responses.PreOrderResponse{PreOrder: pr}
-		if pt, ok := paymentsMap[pr.ID]; ok {
-			resp.PaymentTx = responses.PaymentTransactionResponse{
-				ID:              pt.ID,
-				ReferenceID:     pt.ReferenceID.String(),
-				ReferenceType:   pt.ReferenceType.String(),
-				Amount:          utils.ToString(pt.Amount),
-				Method:          pt.Method,
-				Status:          string(pt.Status),
-				TransactionDate: utils.FormatLocalTime(&pt.TransactionDate, utils.TimeFormat),
-				GatewayRef:      pt.GatewayRef,
-				GatewayID:       pt.GatewayID,
-				UpdatedAt:       utils.FormatLocalTime(&pt.UpdatedAt, utils.TimeFormat),
-			}
-		}
-		resList = append(resList, resp)
-	}
-
-	return resList, int(total), nil
+	return rows, int(total), nil
 }
 
 func MovePreOrderStateUsingFSM(preorder *model.PreOrder, lp *model.LimitedProduct, user *model.User, newStatus enum.PreOrderStatus, reason *string) error {
