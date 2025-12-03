@@ -97,6 +97,12 @@ func (j *TikTokStatusPollerJob) Initialize() error {
 
 // Run implements CronJob.
 func (j *TikTokStatusPollerJob) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Panic recovered in TikTok Status Poller Job", zap.Any("recover", r))
+		}
+	}()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 

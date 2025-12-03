@@ -96,7 +96,7 @@ func (OrderResponse) ToResponse(o *model.Order, pt *model.PaymentTransaction) *O
 		OrderItems:        orderItems,
 	}
 	if pt != nil {
-		resp.Payment = PaymentTransactionResponse{}.ToResponse(pt)
+		resp.Payment = PaymentTransactionResponse{}.ToResponse(pt, nil)
 	}
 	return resp
 }
