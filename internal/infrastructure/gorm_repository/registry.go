@@ -37,7 +37,7 @@ type DatabaseRegistry struct {
 	//Orders & Payment
 	OrderRepository              irepository.OrderRepository
 	OrderItemRepository          irepository.GenericRepository[model.OrderItem]
-	PaymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
+	PaymentTransactionRepository irepository.PaymentTransactionRepository
 
 	//PreOrders
 	PreOrderRepository irepository.PreOrderRepository
@@ -80,7 +80,7 @@ type DatabaseRegistry struct {
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
-		GormDatabase:                 		  db,
+		GormDatabase:                         db,
 		UserRepository:                       NewGenericRepository[model.User](db),
 		LoggedSessionRepository:              NewGenericRepository[model.LoggedSession](db),
 		ProductRepository:                    NewGenericRepository[model.Product](db),
@@ -104,7 +104,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		TagRepository:                        NewTagRepository(db),
 		OrderRepository:                      NewOrderRepository(db),
 		OrderItemRepository:                  NewGenericRepository[model.OrderItem](db),
-		PaymentTransactionRepository:         NewGenericRepository[model.PaymentTransaction](db),
+		PaymentTransactionRepository:         NewPaymentTransactionRepository(db),
 		NotificationRepository:               NewNotificationRepository(db),
 		DeviceTokenRepository:                NewDeviceTokenRepository(db),
 		ShippingAddressRepository:            NewGenericRepository[model.ShippingAddress](db),
