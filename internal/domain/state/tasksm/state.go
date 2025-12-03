@@ -63,7 +63,7 @@ func (c *TaskContext) IsAllProductsActive() bool {
 }
 
 func (c *TaskContext) IsAllContentsPosted() bool {
-	if c.Contents == nil || len(c.Contents) == 0 {
+	if len(c.Contents) == 0 {
 		return false
 	}
 

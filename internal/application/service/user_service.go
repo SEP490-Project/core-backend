@@ -355,10 +355,10 @@ func (s *userService) UpdateProfile(
 				zap.String("username", *updateRequest.FullName))
 			return nil, errors.New("username already exists")
 		}
-		updatingUserModel.Username = *updateRequest.FullName
+		updatingUserModel.Username = *updateRequest.Username
 	}
 
-	if err = userRepo.Update(ctx, user); err != nil {
+	if err = userRepo.Update(ctx, updatingUserModel); err != nil {
 		zap.L().Error("Failed to update user profile",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
