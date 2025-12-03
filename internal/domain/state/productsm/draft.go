@@ -16,7 +16,7 @@ func (s DraftState) Next(ctx *ProductContext, next ProductState) error {
 		if err := s.statePrerequisite(ctx, next); err != nil {
 			return err
 		}
-		ctx.State = next
+		ctx.ForwardState(next)
 		return nil
 	}
 	return fmt.Errorf("invalid transition: %s -> %s", s.Name(), next.Name())

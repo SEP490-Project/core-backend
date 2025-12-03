@@ -34,6 +34,7 @@ type orderService struct {
 	payOSProxy                   iproxies.PayOSProxy
 	shippingAddressRepository    irepository.GenericRepository[model.ShippingAddress]
 	userRepository               irepository.GenericRepository[model.User]
+	preOrderRepository           irepository.GenericRepository[model.PreOrder]
 	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 	notificationService          iservice.NotificationService
@@ -140,6 +141,7 @@ func (o *orderService) ProcessCompensation(ctx context.Context, orderID, actionB
 }
 
 func (o *orderService) RequestEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, requestTime time.Time) error {
+	_ = requestTime
 	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
 		return err
@@ -444,6 +446,76 @@ func categorizeVariant(variant model.ProductVariant) int {
 	}
 }
 
+// validateAndGetRemainingOrder returns remaining allowed pre-order slots for a user+variant.
+// It sums quantities in the DB (excluding CANCELLED) to avoid loading all records.
+// This will forbid to create new one if there are transaction existed
+func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID, variantID string, maximumOrder int) (int, error) {
+	//Calculate total pre-ordered quantity (only count successful pre-order statuses)
+	if maximumOrder <= 0 {
+		return 0, fmt.Errorf("invalid maximumOrder: %d", maximumOrder)
+	}
+
+	// Consider only pre-order statuses that represent an active/successful reservation
+	includePreOrderStatuses := []enum.PreOrderStatus{
+		enum.PreOrderStatusPaid,
+		enum.PreOrderStatusPreOrdered,
+		enum.PreOrderStatusAwaitingPickup,
+		enum.PreOrderStatusInTransit,
+		enum.PreOrderStatusDelivered,
+		enum.PreOrderStatusReceived,
+	}
+	preorderFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND variant_id = ? AND status IN (?)", userID, variantID, includePreOrderStatuses)
+	}
+	preorders, _, err := o.preOrderRepository.GetAll(ctx, preorderFilter, []string{}, 0, 0)
+	if err != nil {
+		return 0, err
+	}
+
+	totalHadBought := 0
+	for _, preorder := range preorders {
+		totalHadBought += preorder.Quantity
+	}
+
+	remaining := maximumOrder - int(totalHadBought)
+	if remaining <= 0 {
+		return 0, fmt.Errorf("you have reached the maximum number of orders allowed for this product variant")
+	}
+
+	// Count only successful/active orders (exclude CANCELLED/REFUNDED/COMPENSATED)
+	includeOrderStatuses := []enum.OrderStatus{
+		enum.OrderStatusPaid,
+		enum.OrderStatusConfirmed,
+		enum.OrderStatusShipped,
+		enum.OrderStatusInTransit,
+		enum.OrderStatusDelivered,
+		enum.OrderStatusReceived,
+		enum.OrderStatusAwaitingPickUp,
+	}
+	orderFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND status IN (?)", userID, includeOrderStatuses)
+	}
+
+	orders, _, err := o.orderRepository.GetAll(ctx, orderFilter, nil, 0, 0)
+	if err != nil {
+		return 0, err
+	}
+	for _, order := range orders {
+		for _, item := range order.OrderItems {
+			if item.VariantID.String() == variantID {
+				totalHadBought += item.Quantity
+			}
+		}
+	}
+
+	remaining = maximumOrder - int(totalHadBought)
+	if remaining <= 0 {
+		return 0, fmt.Errorf("you have reached the maximum number of orders allowed for this product variant")
+	}
+
+	return remaining, nil
+}
+
 func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request requests.OrderRequest, shippingPrice int, isOrderLimited bool, unitOfWork irepository.UnitOfWork) (*model.Order, error) {
 	now := time.Now()
 	var persistedOrder *model.Order
@@ -463,6 +535,31 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 
 		var prevItemCategory *int = nil
 		for _, item := range request.Items {
+
+			if isOrderLimited {
+				//check if there are pending orders => request user to execute it
+				filter := func(db *gorm.DB) *gorm.DB {
+					return db.
+						Table("order_items").
+						Joins("JOIN orders ON orders.id = order_items.order_id").
+						Joins("JOIN product_variants pv ON pv.id = order_items.variant_id").
+						Where("orders.status = ? AND order_items.variant_id = ? AND orders.user_id = ?", enum.OrderStatusPending, item.VariantID, userID)
+				}
+
+				// don't need includes when using joins
+				orderItems, total, err := o.orderItemRepository.GetAll(ctx, filter, nil, 0, 0)
+				if err != nil {
+					return err
+				}
+				if total > 0 || len(orderItems) > 0 {
+					var existedOrderId string
+					for _, i := range orderItems {
+						existedOrderId += "," + i.ID.String()
+					}
+					return fmt.Errorf("you have pending orders (order IDs: %s) for this product variant. Please complete or cancel them before placing a new pre-order", existedOrderId[1:])
+				}
+			}
+
 			//check variantID:
 			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product", "Product.Limited"}
 			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
@@ -471,6 +568,8 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				return errors.New("product Variant not found")
 			} else if variant == nil {
 				return errors.New("product Variant not found")
+			} else if err := ValidateVariantForPreOrder(*variant); err != nil {
+				return err
 			}
 
 			if variant.Product != nil && variant.Product.Type == enum.ProductTypeLimited {
@@ -498,6 +597,17 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 			}
 			//update prevItemCategory
 			prevItemCategory = &currentItemCategory
+
+			// Validate maximum order quantity for LIMITED products
+			if isOrderLimited {
+				remaining, err := o.validateAndGetRemainingOrder(ctx, userID.String(), item.VariantID.String(), variant.Product.Limited.AchievableQuantity)
+				if err != nil {
+					return err
+				}
+				if item.Quantity > remaining {
+					return fmt.Errorf("you can only order up to %d more units of product: %s (id = %s)", remaining, variant.Product.Name, variant.ID.String())
+				}
+			}
 
 			//Build persisted order item
 			//Also subtract items stock for LIMITED products
@@ -830,6 +940,7 @@ func NewOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.DatabaseR
 		orderItemRepository:          dbRegistry.OrderItemRepository,
 		shippingAddressRepository:    dbRegistry.ShippingAddressRepository,
 		userRepository:               dbRegistry.UserRepository,
+		preOrderRepository:           dbRegistry.PreOrderRepository,
 		payOSProxy:                   registry.ProxiesRegistry.PayOSProxy,
 		ghnProxy:                     registry.ProxiesRegistry.GHNProxy,
 		paymentTransactionRepository: dbRegistry.PaymentTransactionRepository,
