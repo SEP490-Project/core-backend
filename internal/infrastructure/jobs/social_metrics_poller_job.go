@@ -121,6 +121,12 @@ func (j *SocialMetricsPollerJob) SetEnabled(enabled bool) {
 
 // Run executes the job logic
 func (j *SocialMetricsPollerJob) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.L().Error("Panic recovered in SocialMetricsPollerJob Run", zap.Any("recover", r))
+		}
+	}()
+
 	ctx := context.Background()
 	zap.L().Info("Starting SocialMetricsPollerJob execution")
 
