@@ -258,8 +258,39 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	return totalProcessed, failed, upCommingItems
 }
 
+// validateAndGetRemainingOrder returns remaining allowed pre-order slots for a user+variant.
+// It sums quantities in the DB (excluding CANCELLED) to avoid loading all records.
+func (p preOrderService) validateAndGetRemainingOrder(ctx context.Context, userID, variantID string, maximumOrder int) (int, error) {
+	if maximumOrder <= 0 {
+		return 0, fmt.Errorf("invalid maximumOrder: %d", maximumOrder)
+	}
+
+	var orderedSlot int64
+	exclude := []enum.PreOrderStatus{
+		enum.PreOrderStatusCancelled,
+		enum.PreOrderStatusRefunded,
+		enum.PreOrderStatusCompensated,
+	}
+	err := p.preOrderRepository.DB().
+		WithContext(ctx).
+		Model(&model.PreOrder{}).
+		Where("user_id = ? AND variant_id = ? AND status NOT IN (?)", userID, variantID, exclude).
+		Select("COALESCE(SUM(quantity), 0)").
+		Scan(&orderedSlot).Error
+	if err != nil {
+		return 0, err
+	}
+
+	remaining := maximumOrder - int(orderedSlot)
+	if remaining <= 0 {
+		return 0, fmt.Errorf("you have reached the maximum number of pre-orders allowed for this product variant")
+	}
+	return remaining, nil
+}
+
 func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork, userID uuid.UUID) (*model.PreOrder, error) {
 	var preOrder *model.PreOrder
+	var remainedPreservableItem int
 	now := time.Now()
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -283,13 +314,24 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// Check if this preorderable?
 		if variant.Product.Limited != nil {
+			// check if user already bought it
+			limitItemQuantity := variant.Product.Limited.AchievableQuantity
+			remainedPreservableItem, err = p.validateAndGetRemainingOrder(ctx, userID.String(), variant.ID.String(), limitItemQuantity)
+			if err != nil {
+				return err
+			}
+			//Check if can user buy this remained Item?
+			if request.Quantity > remainedPreservableItem {
+				return fmt.Errorf("you can only preorder %d more of this product variant", remainedPreservableItem)
+			}
+
+			// check date's validity
 			premiereDate := variant.Product.Limited.PremiereDate
 			startDate := variant.Product.Limited.AvailabilityStartDate
 			endDate := variant.Product.Limited.AvailabilityEndDate
 			//isPreOrderable := now.After(premiereDate) && now.Before(startDate) && now.Before(endDate)
 			// PREORDER RANGE: [premiereDate, startDate)
 			isPreOrderable := !now.Before(premiereDate) && now.Before(startDate)
-
 			if !isPreOrderable {
 				// not ready
 				if now.Before(premiereDate) {
@@ -331,7 +373,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// 2. Build persistent model -> minus stock, create pre-order record
 		// 2.1 build pre-order model
-		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now)
+		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now, remainedPreservableItem)
 		// 2.2 minus 1 stock
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")

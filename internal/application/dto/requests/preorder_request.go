@@ -21,9 +21,10 @@ type PreOrderRequest struct {
 	SuccessURL   string    `json:"success_url" validate:"omitempty,url" example:"https://example.com/success"`
 	IsSelfPickup bool      `json:"is_self_pickup" validate:"bool" example:"false"`
 	UserNote     *string   `json:"user_note,omitempty" validate:"omitempty" example:"Please deliver between 9 AM and 5 PM."`
+	Quantity     int       `json:"quantity" validate:"required,min=1" example:"1"`
 }
 
-func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress, variant model.ProductVariant, now time.Time) *model.PreOrder {
+func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress, variant model.ProductVariant, now time.Time, quantity int) *model.PreOrder {
 
 	// Build attributes description JSON
 	var attrs []map[string]any
@@ -52,7 +53,7 @@ func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress,
 	return &model.PreOrder{
 		UserID:                address.UserID,
 		VariantID:             variant.ID,
-		Quantity:              1,
+		Quantity:              quantity,
 		UnitPrice:             variant.Price,
 		TotalAmount:           variant.Price,
 		FullName:              address.FullName,
