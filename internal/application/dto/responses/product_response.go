@@ -91,16 +91,14 @@ type ProductDetailResponse struct {
 	Name             string                   `json:"name"`
 	Price            float64                  `json:"price"`
 	Type             enum.ProductType         `json:"type"`
+	LimitedAttribute *LimitedProductResponse  `json:"limited_product"`
 	Variants         []ProductVariantResponse `json:"variants,omitempty"`
 	CreatedAt        string                   `json:"created_at"` // FE parse về Date
-	LimitedAttribute *LimitedProductResponse  `json:"limited_product,omitempty"`
 	Concept          *model.Concept           `json:"concept,omitempty"`
 }
 
 type LimitedProductResponse struct {
-	MaxStock              int    `json:"max_stock"`
-	IsFreeShipping        bool   `json:"is_free_shipping"`
-	PreOrderLimit         int    `json:"bought_limit"`
+	AchievableQuantity    int    `json:"achievable_quantity"`
 	PremiereDate          string `json:"premiere_date"`
 	AvailabilityStartDate string `json:"availability_start_date"`
 	AvailabilityEndDate   string `json:"availability_end_date"`
@@ -108,6 +106,7 @@ type LimitedProductResponse struct {
 
 func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
 	return &LimitedProductResponse{
+		AchievableQuantity:    m.AchievableQuantity,
 		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
 		AvailabilityStartDate: utils.FormatLocalTime(&m.AvailabilityStartDate, ""),
 		AvailabilityEndDate:   utils.FormatLocalTime(&m.AvailabilityEndDate, ""),
@@ -217,9 +216,9 @@ type ProductVariantResponse struct {
 	Height          int                         `json:"height"` // in centimeters
 	Length          int                         `json:"length"` // in centimeters
 	Width           int                         `json:"width"`  //
-	Story           datatypes.JSON              `json:"story,omitempty" swaggerignore:"true"`
-	Attributes      []ProductAttributesResponse `json:"attributes,omitempty"`
-	Images          []VariantImageResponse      `json:"images,omitempty"`
+	Story           datatypes.JSON              `json:"story" swaggerignore:"true"`
+	Attributes      []ProductAttributesResponse `json:"attributes"`
+	Images          []VariantImageResponse      `json:"images"`
 }
 
 // ProductAttributesResponse represents the attributes of a product variant.
