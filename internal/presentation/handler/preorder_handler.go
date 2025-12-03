@@ -31,17 +31,19 @@ type PreOrderHandler struct {
 // GetAllPreorders godoc
 //
 //	@Summary		Get paginated preorders by current user
-//	@Description	Returns user's preorders with pagination, optional status filter and search by product name or receiver name
+//	@Description	Returns user's preorders with pagination, optional status filter, search by product name or receiver name, and date range
 //	@Tags			Preorders
 //	@Accept			json
 //	@Produce		json
-//	@Param			page	query		int		false	"Page number (default: 1)"
-//	@Param			limit	query		int		false	"Items per page (default: 10, max: 100)"
-//	@Param			search	query		string	false	"Search by product name or receiver full name"
-//	@Param			status	query		string	false	"Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
+//	@Param			page		query		int		false	"Page number (default: 1)"
+//	@Param			limit		query		int		false	"Items per page (default: 10, max: 100)"
+//	@Param			search		query		string	false	"Search by product name or receiver full name"
+//	@Param			status		query		[]enum.PreOrderStatus false "example:"PAID"`
+//	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
+//	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders [get]
 func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
@@ -69,8 +71,10 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 	statusParam := c.DefaultQuery("status", "")
+	createdFrom := c.DefaultQuery("createdFrom", "")
+	createdTo := c.DefaultQuery("createdTo", "")
 
-	// parse comma-separated statuses into slice
+	// Parse comma-separated statuses into slice
 	var statuses []string
 	if strings.TrimSpace(statusParam) != "" {
 		parts := strings.Split(statusParam, ",")
@@ -82,7 +86,9 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 		}
 	}
 
-	items, total, err := p.preOrderService.GetPreOrdersByUserIDWithPagination(userID, limit, page, search, statuses)
+	// Call the service with the new parameters
+	ctx := c.Request.Context()
+	items, total, err := p.preOrderService.GetPreOrdersByUserIDWithPagination(ctx, userID, limit, page, search, statuses, createdFrom, createdTo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to fetch preorders: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -186,7 +192,7 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 // GetStaffAvailablePreOrdersWithPagination handles staff-facing GET requests to list preorders with same query fields as orders
 //
 //	@Summary		Get staff-available preorders with pagination
-//	@Description	Retrieve paginated preorders for staff, filterable by status and search (id/payment id/bin) and address fields.
+//	@Description	Retrieve paginated preorders for staff, filterable by status and search (id) and address fields.
 //	@Tags			Preorders
 //	@Accept			json
 //	@Produce		json
