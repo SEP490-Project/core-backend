@@ -35,6 +35,7 @@ func (i *InProgressState) Next(ctx *TaskContext, next TaskState) error {
 
 func (i *InProgressState) AllowedTransitions() map[enum.TaskStatus]struct{} {
 	return map[enum.TaskStatus]struct{}{
+		enum.TaskStatusDone:      {},
 		enum.TaskStatusCancelled: {},
 	}
 }

@@ -12,9 +12,9 @@ import (
 
 // UpdateProfileRequest represents profile update request
 type UpdateProfileRequest struct {
-	Username          *string                        `json:"username" validate:"omitempty,min=3,max=50,alphanum" example:"new_username"`
+	Username          *string                        `json:"username" validate:"omitempty,min=3,max=50" example:"new_username"`
 	FullName          *string                        `json:"full_name" validate:"omitempty,min=3,max=100" example:"John Doe"`
-	Phone             *string                        `json:"phone" validate:"omitempty,e164" example:"+1234567890"`
+	Phone             *string                        `json:"phone" validate:"omitempty" example:"+1234567890"`
 	DateOfBirth       *time.Time                     `json:"date_of_birth" validate:"omitempty" example:"1990-01-01"`
 	AvatarURL         *string                        `json:"avatar_url" validate:"omitempty,url" example:"https://example.com/avatar.jpg"`
 	BankAccount       *string                        `json:"bank_account" validate:"omitempty,max=50" example:"123456789"`
@@ -44,10 +44,7 @@ type UpdateAddressProfileRequest struct {
 // Skipping Username as it is required to check for uniqueness in the database separately
 func (upr UpdateProfileRequest) ToExistingProfile(
 	userModel *model.User,
-) (
-	profile *model.User,
-	modifyingAddresses []model.ShippingAddress,
-) {
+) (*model.User, []model.ShippingAddress) {
 	if userModel == nil {
 		zap.L().Warn("UpdateProfileRequest.ToExistingProfile: model is nil")
 		return nil, nil
@@ -73,6 +70,8 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 	if upr.BankAccountHolder != nil {
 		userModel.BankAccountHolder = upr.BankAccountHolder
 	}
+
+	modifyingAddresses := make([]model.ShippingAddress, 0)
 	if len(upr.ShippingAddress) > 0 {
 		// Create existing addresses map for quick lookup
 		addressesMap := make(map[uuid.UUID]*model.ShippingAddress)
@@ -121,7 +120,7 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 		}
 	}
 
-	return
+	return userModel, modifyingAddresses
 }
 
 // ToExistingModel converts UpdateAddressProfileRequest to existing model

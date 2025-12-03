@@ -49,7 +49,7 @@ type UnitOfWork interface {
 	//Orders & Payment
 	Order() OrderRepository
 	OrderItem() GenericRepository[model.OrderItem]
-	PaymentTransaction() GenericRepository[model.PaymentTransaction]
+	PaymentTransaction() PaymentTransactionRepository
 
 	//PreOrders
 	PreOrder() PreOrderRepository

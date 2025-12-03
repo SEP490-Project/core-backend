@@ -163,6 +163,7 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 		taskCtx := &tasksm.TaskContext{
 			State:    tasksm.NewTaskState(task.Status),
 			Products: task.Product,
+			Contents: task.Contents,
 		}
 
 		//3. Init target State
