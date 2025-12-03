@@ -67,7 +67,7 @@ type LimitedProductAttributes struct {
 	PremiereDate          *string `json:"premiere_date" validate:"required" example:"2023-10-01T10:00:00"`
 	AvailabilityStartDate *string `json:"availability_start_date" validate:"required" example:"2023-10-01T10:00"`
 	AvailabilityEndDate   *string `json:"availability_end_date" validate:"required" example:"2023-10-31T10:00"`
-	AchievableQuantity    *int    `json:"achievable_quantity" validate:"required,min=1" example:""`
+	AchievableQuantity    *int    `json:"achievable_quantity" validate:"required,min=1" example:"1"`
 
 	ConceptID *uuid.UUID `json:"concept_id" validate:"omitempty,uuid" example:"770e8400-e29b-41d4-a716-446655440000"`
 }

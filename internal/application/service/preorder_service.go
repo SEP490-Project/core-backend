@@ -265,23 +265,26 @@ func (p preOrderService) validateAndGetRemainingOrder(ctx context.Context, userI
 		return 0, fmt.Errorf("invalid maximumOrder: %d", maximumOrder)
 	}
 
-	var orderedSlot int64
 	exclude := []enum.PreOrderStatus{
 		enum.PreOrderStatusCancelled,
 		enum.PreOrderStatusRefunded,
 		enum.PreOrderStatusCompensated,
 	}
-	err := p.preOrderRepository.DB().
-		WithContext(ctx).
-		Model(&model.PreOrder{}).
-		Where("user_id = ? AND variant_id = ? AND status NOT IN (?)", userID, variantID, exclude).
-		Select("COALESCE(SUM(quantity), 0)").
-		Scan(&orderedSlot).Error
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND variant_id = ? AND status NOT IN (?)", userID, variantID, exclude)
+	}
+	preorders, _, err := p.preOrderRepository.GetAll(ctx, filter, []string{}, 0, 0)
 	if err != nil {
 		return 0, err
 	}
 
-	remaining := maximumOrder - int(orderedSlot)
+	totalHadBought := 0
+	for _, preorder := range preorders {
+		totalHadBought += preorder.Quantity
+	}
+
+	remaining := maximumOrder - int(totalHadBought)
 	if remaining <= 0 {
 		return 0, fmt.Errorf("you have reached the maximum number of pre-orders allowed for this product variant")
 	}
@@ -308,7 +311,7 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 		variant, err := uow.ProductVariant().GetByID(ctx, request.VariantID, includes)
 		if err != nil {
 			return fmt.Errorf("variant %w not found", err)
-		} else if err = validateVariantForPreOrder(*variant); err != nil {
+		} else if err = ValidateVariantForPreOrder(*variant); err != nil {
 			return err
 		}
 
@@ -616,7 +619,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 }
 
 // ----------------------------Validator-----------------------------//
-func validateVariantForPreOrder(variant model.ProductVariant) error {
+func ValidateVariantForPreOrder(variant model.ProductVariant) error {
 	//validate if product type is limited
 	if variant.Product != nil && variant.Product.Type != enum.ProductTypeLimited {
 		return fmt.Errorf("invalid product type for pre-order")
