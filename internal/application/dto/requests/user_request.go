@@ -44,10 +44,7 @@ type UpdateAddressProfileRequest struct {
 // Skipping Username as it is required to check for uniqueness in the database separately
 func (upr UpdateProfileRequest) ToExistingProfile(
 	userModel *model.User,
-) (
-	profile *model.User,
-	modifyingAddresses []model.ShippingAddress,
-) {
+) (*model.User, []model.ShippingAddress) {
 	if userModel == nil {
 		zap.L().Warn("UpdateProfileRequest.ToExistingProfile: model is nil")
 		return nil, nil
@@ -73,6 +70,8 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 	if upr.BankAccountHolder != nil {
 		userModel.BankAccountHolder = upr.BankAccountHolder
 	}
+
+	modifyingAddresses := make([]model.ShippingAddress, 0)
 	if len(upr.ShippingAddress) > 0 {
 		// Create existing addresses map for quick lookup
 		addressesMap := make(map[uuid.UUID]*model.ShippingAddress)
@@ -121,7 +120,7 @@ func (upr UpdateProfileRequest) ToExistingProfile(
 		}
 	}
 
-	return
+	return userModel, modifyingAddresses
 }
 
 // ToExistingModel converts UpdateAddressProfileRequest to existing model
