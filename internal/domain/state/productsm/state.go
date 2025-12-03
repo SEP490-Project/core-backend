@@ -34,3 +34,8 @@ func NewProductState(status enum.ProductStatus) ProductState {
 		return nil
 	}
 }
+
+func (s *ProductContext) ForwardState(next ProductState) {
+	s.State = next
+	s.Product.Status = next.Name()
+}

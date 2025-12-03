@@ -213,17 +213,30 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 }
 
 func (t stateTransferService) MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {
-	includes := []string{"Variants", "Limited"}
+	// Use unit-of-work transaction so we can persist both product and its task atomically
+	trx := t.uow.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			_ = trx.Rollback()
+			zap.L().Error("panic recovered in MoveProductToState", zap.Any("recover", r))
+		}
+	}()
 
-	product, err := t.productRepository.GetByID(ctx, productID, includes)
-	product.UpdatedByID = &updatedBy
+	productRepo := trx.Products()
+	taskRepo := trx.Tasks()
+	// Make sure we load the Task relation so we can update it
+	includes := []string{"Variants", "Limited", "Task"}
 
+	product, err := productRepo.GetByID(ctx, productID, includes)
 	if err != nil {
+		_ = trx.Rollback()
 		zap.L().Error("Failed to load Product from DB",
 			zap.String("product ID", productID.String()),
 			zap.Error(err))
 		return errors.New("Unable to find Product: " + err.Error())
 	}
+	// Set updatedBy AFTER successful fetch
+	product.UpdatedByID = &updatedBy
 
 	// load current product context
 	productCtx := &productsm.ProductContext{
@@ -234,6 +247,7 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	// init next product State
 	nextProductState := productsm.NewProductState(targetState)
 	if nextProductState == nil {
+		_ = trx.Rollback()
 		zap.L().Error("Invalid target state",
 			zap.String("target_state", targetState.String()))
 		return errors.New("invalid target state")
@@ -241,6 +255,7 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 
 	//4. Forward state
 	if err := productCtx.State.Next(productCtx, nextProductState); err != nil {
+		_ = trx.Rollback()
 		zap.L().Error("State transition failed",
 			zap.String("user_id", productID.String()),
 			zap.String("from", productCtx.State.Name().String()),
@@ -253,14 +268,36 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	product.Status = targetState
 	if targetState == enum.ProductStatusActived {
 		product.IsActive = true
+		if product.Task != nil {
+			product.Task.Status = enum.TaskStatusDone
+			product.Task.UpdatedByID = &updatedBy
+			if err := taskRepo.Update(ctx, product.Task); err != nil {
+				_ = trx.Rollback()
+				zap.L().Error("Failed to update related task state in DB",
+					zap.String("product_id", productID.String()),
+					zap.String("task_id", product.Task.ID.String()),
+					zap.Error(err))
+				return errors.New("Failed to update related task state in DB: " + err.Error())
+			}
+		}
 	}
 
-	if err := t.productRepository.Update(ctx, product); err != nil {
+	if err := productRepo.Update(ctx, product); err != nil {
+		_ = trx.Rollback()
 		zap.L().Error("Failed to update product state in DB",
 			zap.String("user_id", productID.String()),
 			zap.String("new_state", targetState.String()),
 			zap.Error(err))
 		return errors.New("Failed to update product state in DB: " + err.Error())
+	}
+
+	// If a Task was attached and modified, persist it explicitly through task repository
+	if product.Task != nil {
+	}
+
+	if err := trx.Commit(); err != nil {
+		zap.L().Error("Failed to commit transaction in MoveProductToState", zap.Error(err))
+		return errors.New("transaction commit failed: " + err.Error())
 	}
 
 	return nil
@@ -1196,6 +1233,10 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	reason *string, //optional
 ) error {
 	var err error
+	// Silence unused parameter warnings in some branches
+	_ = transactionCtx
+	_ = updatedBy
+	_ = reason
 
 	if order == nil {
 		return errors.New("order is nil")
