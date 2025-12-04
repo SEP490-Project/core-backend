@@ -798,17 +798,13 @@ func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
 	{
 		// Protected routes (Admin and Sales Staff can view analytics)
 		protectedGroup := analyticsGroup.Group("")
-		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, sales))
 		{
-			protectedGroup.GET("/dashboard", salesAnalyticsHandler.GetDashboard)
-			protectedGroup.GET("/orders", salesAnalyticsHandler.GetOrdersOverview)
-			protectedGroup.GET("/pre-orders", salesAnalyticsHandler.GetPreOrdersOverview)
-			protectedGroup.GET("/revenue", salesAnalyticsHandler.GetRevenueBySource)
-			protectedGroup.GET("/brands", salesAnalyticsHandler.GetTopBrands)
-			protectedGroup.GET("/products", salesAnalyticsHandler.GetTopProducts)
-			protectedGroup.GET("/trend", salesAnalyticsHandler.GetRevenueTrend)
-			protectedGroup.GET("/payments", salesAnalyticsHandler.GetPaymentStatus)
+			protectedGroup.GET("/financials/dashboard", salesAnalyticsHandler.GetFinancialsDashboard)
+			protectedGroup.GET("/orders/dashboard", salesAnalyticsHandler.GetOrdersDashboard)
+			protectedGroup.GET("/financials/trend", salesAnalyticsHandler.GetRevenueTrend)
+			protectedGroup.GET("/orders/trend", salesAnalyticsHandler.GetOrdersTrend)
+			protectedGroup.GET("/financials/growth", salesAnalyticsHandler.GetRevenueGrowth)
 		}
 	}
 }

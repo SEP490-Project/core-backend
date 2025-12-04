@@ -1,282 +1,212 @@
 package handler
 
 import (
+	"net/http"
+
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
-	"net/http"
+	"core-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
-// SalesStaffAnalyticsHandler handles Sales Staff analytics endpoints
 type SalesStaffAnalyticsHandler struct {
 	service iservice.SalesStaffAnalyticsService
 }
 
-// NewSalesStaffAnalyticsHandler creates a new Sales Staff analytics handler
 func NewSalesStaffAnalyticsHandler(service iservice.SalesStaffAnalyticsService) *SalesStaffAnalyticsHandler {
-	return &SalesStaffAnalyticsHandler{service: service}
+	return &SalesStaffAnalyticsHandler{
+		service: service,
+	}
 }
 
-// GetDashboard returns the complete Sales Staff dashboard
+// GetFinancialsDashboard godoc
 //
-//	@Summary		Get Sales Staff Dashboard
-//	@Description	Returns comprehensive sales dashboard with overview metrics, orders breakdown, revenue by source, top brands, top products, recent orders, and revenue trend
-//	@Tags			Sales Staff Analytics
+//	@Summary		Get Sales Staff Financials Dashboard
+//	@Description	Get aggregated financial metrics, charts, and top lists
+//	@Tags			SalesStaffAnalytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			year	query		int	false	"Year (defaults to current year)"	minimum(2000)	maximum(2100)	example(2025)
-//	@Param			month	query		int	false	"Month (defaults to current month)"	minimum(1)		maximum(12)		example(11)
-//	@Success		200		{object}	responses.APIResponse{data=responses.SalesStaffDashboardResponse}
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		401		{object}	responses.APIResponse
-//	@Failure		403		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/dashboard [get]
-func (h *SalesStaffAnalyticsHandler) GetDashboard(c *gin.Context) {
-	var req requests.SalesStaffDashboardRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
-
-	result, err := h.service.GetDashboard(c.Request.Context(), &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get dashboard", http.StatusInternalServerError))
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.SuccessResponse("Sales Staff dashboard retrieved successfully", nil, result))
-}
-
-// GetOrdersOverview returns orders statistics by type and status
-//
-//	@Summary		Get Orders Overview
-//	@Description	Returns orders statistics broken down by order type (STANDARD, LIMITED) and status
-//	@Tags			Sales Staff Analytics
-//	@Accept			json
-//	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"	format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"		format(date-time)
-//	@Param			order_type	query		string	false	"Filter by order type"			Enums(STANDARD, LIMITED)
-//	@Success		200			{object}	responses.APIResponse{data=responses.OrdersBreakdown}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/orders [get]
-func (h *SalesStaffAnalyticsHandler) GetOrdersOverview(c *gin.Context) {
-	var req requests.OrdersOverviewRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
-
-	result, err := h.service.GetOrdersOverview(c.Request.Context(), &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get orders overview", http.StatusInternalServerError))
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.SuccessResponse("Orders overview retrieved successfully", nil, result))
-}
-
-// GetPreOrdersOverview returns pre-orders statistics
-//
-//	@Summary		Get Pre-Orders Overview
-//	@Description	Returns pre-orders statistics including counts by status
-//	@Tags			Sales Staff Analytics
-//	@Accept			json
-//	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"	format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"		format(date-time)
-//	@Success		200			{object}	responses.APIResponse{data=responses.PreOrderStats}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/pre-orders [get]
-func (h *SalesStaffAnalyticsHandler) GetPreOrdersOverview(c *gin.Context) {
-	var req requests.PreOrdersOverviewRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
-
-	result, err := h.service.GetPreOrdersOverview(c.Request.Context(), &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get pre-orders overview", http.StatusInternalServerError))
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.SuccessResponse("Pre-orders overview retrieved successfully", nil, result))
-}
-
-// GetRevenueBySource returns revenue breakdown by source
-//
-//	@Summary		Get Revenue by Source
-//	@Description	Returns revenue breakdown by source (standard products, limited products, advertising, affiliate, ambassador, co-producing)
-//	@Tags			Sales Staff Analytics
-//	@Accept			json
-//	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"	format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"		format(date-time)
-//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueBySource}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/revenue [get]
-func (h *SalesStaffAnalyticsHandler) GetRevenueBySource(c *gin.Context) {
-	var req requests.RevenueBySourceRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
-
-	result, err := h.service.GetRevenueBySource(c.Request.Context(), &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get revenue by source", http.StatusInternalServerError))
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.SuccessResponse("Revenue by source retrieved successfully", nil, result))
-}
-
-// GetTopBrands returns top brands by revenue
-//
-//	@Summary		Get Top Brands
-//	@Description	Returns top brands ranked by total revenue
-//	@Tags			Sales Staff Analytics
-//	@Accept			json
-//	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"				format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"					format(date-time)
-//	@Param			limit		query		int		false	"Number of results (default: 10, max: 50)"	minimum(1)	maximum(50)	default(10)
-//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandSalesMetric}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/brands [get]
-func (h *SalesStaffAnalyticsHandler) GetTopBrands(c *gin.Context) {
-	var req requests.TopBrandsRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
-		return
-	}
-
-	result, err := h.service.GetTopBrands(c.Request.Context(), &req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get top brands", http.StatusInternalServerError))
-		return
-	}
-
-	c.JSON(http.StatusOK, responses.SuccessResponse("Top brands retrieved successfully", nil, result))
-}
-
-// GetTopProducts returns top products by revenue
-//
-//	@Summary		Get Top Products
-//	@Description	Returns top products ranked by revenue
-//	@Tags			Sales Staff Analytics
-//	@Accept			json
-//	@Produce		json
-//	@Param			start_date		query		string	false	"Start date (RFC3339 format)"				format(date-time)
-//	@Param			end_date		query		string	false	"End date (RFC3339 format)"					format(date-time)
-//	@Param			product_type	query		string	false	"Filter by product type"					Enums(STANDARD, LIMITED)
-//	@Param			limit			query		int		false	"Number of results (default: 10, max: 50)"	minimum(1)	maximum(50)	default(10)
-//	@Success		200				{object}	responses.APIResponse{data=[]responses.ProductSalesMetric}
+//	@Param			from_date		query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date			query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			limit			query		int		false	"Limit for top lists (default 5)"
+//	@Param			period_gap		query		string	false	"Period Gap (day, week, month, quarter, year)"			enums(day, week, month, quarter, year)
+//	@Param			compare_with	query		string	false	"Compare With (previous day/week/month/quarter/year)"	enums(day, week, month, quarter, year)
+//	@Success		200				{object}	responses.APIResponse{data=responses.FinancialsDashboardResponse}
 //	@Failure		400				{object}	responses.APIResponse
-//	@Failure		401				{object}	responses.APIResponse
-//	@Failure		403				{object}	responses.APIResponse
 //	@Failure		500				{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/products [get]
-func (h *SalesStaffAnalyticsHandler) GetTopProducts(c *gin.Context) {
-	var req requests.TopProductsRequest
+//	@Router			/api/v1/analytics/sales/financials/dashboard [get]
+func (h *SalesStaffAnalyticsHandler) GetFinancialsDashboard(c *gin.Context) {
+	var req requests.SalesDashboardFilter
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
 		return
 	}
 
-	result, err := h.service.GetTopProducts(c.Request.Context(), &req)
+	ctx := c.Request.Context()
+	result, err := h.service.GetFinancialsDashboard(ctx, h.getDefaultFilterRequest(&req))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get top products", http.StatusInternalServerError))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.SuccessResponse("Top products retrieved successfully", nil, result))
+	c.JSON(http.StatusOK, responses.SuccessResponse("Financials dashboard retrieved successfully", nil, result))
 }
 
-// GetRevenueTrend returns revenue time-series data
+// GetOrdersDashboard godoc
 //
-//	@Summary		Get Revenue Trend
-//	@Description	Returns revenue time-series data with configurable granularity (DAY, WEEK, MONTH)
-//	@Tags			Sales Staff Analytics
+//	@Summary		Get Sales Staff Orders Dashboard
+//	@Description	Get aggregated order metrics, charts, and top lists
+//	@Tags			SalesStaffAnalytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"	format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"		format(date-time)
-//	@Param			granularity	query		string	false	"Time bucket granularity"		Enums(DAY, WEEK, MONTH)	default(DAY)
-//	@Success		200			{object}	responses.APIResponse{data=[]responses.RevenueTrendPoint}
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			limit		query		int		false	"Limit for top lists (default 5)"
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
+//	@Success		200			{object}	responses.APIResponse{data=responses.OrdersDashboardResponse}
 //	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/trend [get]
-func (h *SalesStaffAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
-	var req requests.RevenueGrowthRequest
+//	@Router			/api/v1/analytics/sales/orders/dashboard [get]
+func (h *SalesStaffAnalyticsHandler) GetOrdersDashboard(c *gin.Context) {
+	var req requests.SalesDashboardFilter
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
 		return
 	}
 
-	result, err := h.service.GetRevenueTrend(c.Request.Context(), &req)
+	ctx := c.Request.Context()
+	result, err := h.service.GetOrdersDashboard(ctx, h.getDefaultFilterRequest(&req))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get revenue trend", http.StatusInternalServerError))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Orders dashboard retrieved successfully", nil, result))
+}
+
+// GetRevenueTrend godoc
+//
+//	@Summary		Get Revenue Trend
+//	@Description	Get revenue trend charts
+//	@Tags			SalesStaffAnalytics
+//	@Accept			json
+//	@Produce		json
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
+//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueTrendCharts}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/trend [get]
+func (h *SalesStaffAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
+	var req requests.SalesDashboardFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	result, err := h.service.GetRevenueTrend(ctx, h.getDefaultFilterRequest(&req))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 		return
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Revenue trend retrieved successfully", nil, result))
 }
 
-// GetPaymentStatus returns contract payment status overview
+// GetOrdersTrend godoc
 //
-//	@Summary		Get Payment Status
-//	@Description	Returns contract payment status overview with counts and amounts
-//	@Tags			Sales Staff Analytics
+//	@Summary		Get Orders Trend
+//	@Description	Get orders trend charts
+//	@Tags			SalesStaffAnalytics
 //	@Accept			json
 //	@Produce		json
-//	@Param			start_date	query		string	false	"Start date (RFC3339 format)"		format(date-time)
-//	@Param			end_date	query		string	false	"End date (RFC3339 format)"			format(date-time)
-//	@Param			contract_id	query		string	false	"Filter by specific contract ID"	format(uuid)
-//	@Success		200			{object}	responses.APIResponse{data=responses.PaymentStatusOverview}
+//	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
+//	@Success		200			{object}	responses.APIResponse{data=responses.OrdersTrendCharts}
 //	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		403			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/analytics/sales/payments [get]
-func (h *SalesStaffAnalyticsHandler) GetPaymentStatus(c *gin.Context) {
-	var req requests.PaymentStatusRequest
+//	@Router			/api/v1/analytics/sales/orders/trend [get]
+func (h *SalesStaffAnalyticsHandler) GetOrdersTrend(c *gin.Context) {
+	var req requests.SalesDashboardFilter
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request parameters", http.StatusBadRequest))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
 		return
 	}
 
-	result, err := h.service.GetPaymentStatus(c.Request.Context(), &req)
+	ctx := c.Request.Context()
+	result, err := h.service.GetOrdersTrend(ctx, h.getDefaultFilterRequest(&req))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get payment status", http.StatusInternalServerError))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.SuccessResponse("Payment status retrieved successfully", nil, result))
+	c.JSON(http.StatusOK, responses.SuccessResponse("Orders trend retrieved successfully", nil, result))
+}
+
+// GetRevenueGrowth godoc
+//
+//	@Summary		Get Revenue Growth
+//	@Description	Get revenue growth percentage
+//	@Tags			SalesStaffAnalytics
+//	@Accept			json
+//	@Produce		json
+//	@Param			compare_with	query		string	false	"Compare With (previous day/week/month/quarter/year)"	enums(day, week, month, quarter, year)
+//	@Success		200				{object}	responses.APIResponse{data=float64}
+//	@Failure		400				{object}	responses.APIResponse
+//	@Failure		500				{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/sales/financials/growth [get]
+func (h *SalesStaffAnalyticsHandler) GetRevenueGrowth(c *gin.Context) {
+	var req requests.SalesDashboardFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters", http.StatusBadRequest))
+		return
+	}
+	// Override irrelevant fields
+	req.FromDateStr = nil
+	req.ToDateStr = nil
+	req.Limit = 0
+	req.PeriodGap = ""
+
+	ctx := c.Request.Context()
+	result, err := h.service.GetRevenueGrowth(ctx, h.getDefaultFilterRequest(&req))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Revenue growth retrieved successfully", nil, result))
+}
+
+func (h *SalesStaffAnalyticsHandler) getDefaultFilterRequest(filter *requests.SalesDashboardFilter) *requests.SalesDashboardFilter {
+	if filter == nil {
+		return nil
+	}
+
+	if filter.Limit <= 0 {
+		filter.Limit = 5
+	}
+	if filter.FromDateStr != nil && *filter.FromDateStr != "" {
+		filter.FromDate = utils.BestEffortParseLocalTime(*filter.FromDateStr)
+	}
+	if filter.ToDateStr != nil && *filter.ToDateStr != "" {
+		filter.ToDate = utils.BestEffortParseLocalTime(*filter.ToDateStr)
+	}
+	if filter.PeriodGap == "" {
+		filter.PeriodGap = "month"
+	}
+	if filter.CompareWith == "" {
+		filter.CompareWith = "month"
+	}
+
+	return filter
 }

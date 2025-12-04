@@ -14,7 +14,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/ordersm"
 	"core-backend/internal/infrastructure"
-	"core-backend/internal/infrastructure/gorm_repository"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"

@@ -2,37 +2,45 @@ package irepository
 
 import (
 	"context"
-	"core-backend/internal/application/dto/dtos"
 	"time"
 
-	"github.com/google/uuid"
+	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/enum"
 )
 
-// SalesStaffAnalyticsRepository defines the interface for sales staff analytics data access
 type SalesStaffAnalyticsRepository interface {
-	// Orders
-	GetOrdersCountByType(ctx context.Context, orderType string, startDate, endDate *time.Time) (int64, error)
-	GetOrdersRevenueByType(ctx context.Context, orderType string, startDate, endDate *time.Time) (float64, error)
-	GetOrdersCountByStatus(ctx context.Context, orderType, status string, startDate, endDate *time.Time) (int64, error)
+	// Financials Tab
+	// Row 1: Summary Metrics (Revenue, Growth, AOV, Conversion, Returning Customers)
+	GetFinancialsSummary(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (*responses.FinancialsSummary, error)
 
-	// PreOrders
-	GetPreOrdersCount(ctx context.Context, startDate, endDate *time.Time) (int64, error)
-	GetPreOrdersRevenue(ctx context.Context, startDate, endDate *time.Time) (float64, error)
-	GetPreOrdersCountByStatus(ctx context.Context, status string, startDate, endDate *time.Time) (int64, error)
+	GetTotalSoldRevenue(ctx context.Context, from, to time.Time, orderStatuses []enum.OrderStatus, preOrderStatuses []enum.PreOrderStatus) (float64, error)
 
-	// Revenue by Contract Type
-	GetContractRevenueByType(ctx context.Context, contractType string, startDate, endDate *time.Time) (float64, error)
+	// Row 2: Revenue Breakdown (By Product Type, By Category)
+	GetRevenueBreakdown(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (byProduct []responses.RevenueByProductType, byCategory []responses.RevenueByCategory, err error)
 
-	// Top Performers
-	GetTopBrandsByRevenue(ctx context.Context, limit int, startDate, endDate *time.Time) ([]dtos.BrandRevenueResult, error)
-	GetTopProductsByRevenue(ctx context.Context, productType string, limit int, startDate, endDate *time.Time) ([]dtos.ProductRevenueResult, error)
+	// Row 3: Revenue Trend
+	GetRevenueTrend(ctx context.Context, from, to time.Time, periodGap string, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error)
 
-	// Trends
-	GetRevenueTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.RevenueTrendResult, error)
+	// Row 4: Top Selling by Revenue
+	GetTopSellingByRevenue(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) (products, categories, brands []responses.TopEntity, err error)
 
-	// Recent Activity
-	GetRecentOrders(ctx context.Context, limit int) ([]dtos.RecentOrderResult, error)
+	// Orders Tab
+	// Row 1: Summary Metrics (Counts, Rates)
+	// Note: Rates require checking Cancelled/Refunded statuses vs Total
+	GetOrdersSummary(ctx context.Context, from, to time.Time) (*responses.OrdersSummary, error)
 
-	// Payment Status
-	GetPaymentStatusCounts(ctx context.Context, contractID *uuid.UUID, startDate, endDate *time.Time) (*dtos.PaymentStatusResult, error)
+	// Row 2: Status Distribution (Pie Charts)
+	GetOrderStatusDistribution(ctx context.Context, from, to time.Time) (orders, preOrders responses.OrderStatusDistribution, err error)
+
+	// Row 3: Orders Trend
+	GetOrdersTrend(ctx context.Context, from, to time.Time, periodGap string) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error)
+
+	// Row 4: Top Selling by Volume (Count)
+	GetTopSellingByVolume(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) (products, categories, brands []responses.TopEntity, err error)
+
+	// Row 5: Latest Orders
+	GetLatestOrders(ctx context.Context, from, to time.Time, limit int) ([]responses.LatestOrder, error)
+
+	// Helper
+	GetFirstOrderDate(ctx context.Context) (*time.Time, error)
 }

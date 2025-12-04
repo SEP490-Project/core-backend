@@ -99,12 +99,12 @@ func (j *TikTokStatusPollerJob) Initialize() error {
 func (j *TikTokStatusPollerJob) Run() {
 	defer func() {
 		if r := recover(); r != nil {
-			zap.L().Error("Panic recovered in TikTok Status Poller Job", zap.Any("recover", r))
+			zap.L().Error("Panic recovered in TikTok Status Poller Job, disabling job to negate further panics", zap.Any("recover", r))
+			j.SetEnabled(false)
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	j.lastRunTime = time.Now()
 
@@ -154,6 +154,13 @@ func (j *TikTokStatusPollerJob) Run() {
 		}
 
 		// Check post status via TikTok API
+		if cc.ExternalPostID == nil {
+			zap.L().Warn("Content channel has nil ExternalPostID, skipping",
+				zap.String("content_channel_id", cc.ID.String()),
+				zap.String("channel_name", cc.Channel.Name),
+				zap.String("content_id", cc.ContentID.String()))
+			continue
+		}
 		statusResp, err := j.tiktokProxy.CheckPostStatus(ctx, *cc.ExternalPostID, accessToken)
 		if err != nil {
 			zap.L().Error("Failed to check TikTok post status",
