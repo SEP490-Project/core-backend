@@ -123,7 +123,8 @@ func (j *SocialMetricsPollerJob) SetEnabled(enabled bool) {
 func (j *SocialMetricsPollerJob) Run() {
 	defer func() {
 		if r := recover(); r != nil {
-			zap.L().Error("Panic recovered in SocialMetricsPollerJob Run", zap.Any("recover", r))
+			zap.L().Error("Panic recovered in SocialMetricsPollerJob Run, disabling job to negate further panics", zap.Any("recover", r))
+			j.SetEnabled(false)
 		}
 	}()
 

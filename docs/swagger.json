@@ -3172,14 +3172,14 @@
                 }
             }
         },
-        "/api/v1/analytics/sales/brands": {
+        "/api/v1/analytics/sales/financials/dashboard": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns top brands ranked by total revenue",
+                "description": "Get aggregated financial metrics, charts, and top lists",
                 "consumes": [
                     "application/json"
                 ],
@@ -3187,474 +3187,52 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Sales Staff Analytics"
+                    "SalesStaffAnalytics"
                 ],
-                "summary": "Get Top Brands",
+                "summary": "Get Sales Staff Financials Dashboard",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
                         "in": "query"
                     },
                     {
-                        "maximum": 50,
-                        "minimum": 1,
                         "type": "integer",
-                        "default": 10,
-                        "description": "Number of results (default: 10, max: 50)",
+                        "description": "Limit for top lists (default 5)",
                         "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.BrandSalesMetric"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/sales/dashboard": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns comprehensive sales dashboard with overview metrics, orders breakdown, revenue by source, top brands, top products, recent orders, and revenue trend",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Sales Staff Analytics"
-                ],
-                "summary": "Get Sales Staff Dashboard",
-                "parameters": [
-                    {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "example": 2025,
-                        "description": "Year (defaults to current year)",
-                        "name": "year",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 12,
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 11,
-                        "description": "Month (defaults to current month)",
-                        "name": "month",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.SalesStaffDashboardResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/sales/orders": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns orders statistics broken down by order type (STANDARD, LIMITED) and status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Sales Staff Analytics"
-                ],
-                "summary": "Get Orders Overview",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
                         "in": "query"
                     },
                     {
                         "enum": [
-                            "STANDARD",
-                            "LIMITED"
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
                         ],
                         "type": "string",
-                        "description": "Filter by order type",
-                        "name": "order_type",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.OrdersBreakdown"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/sales/payments": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns contract payment status overview with counts and amounts",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Sales Staff Analytics"
-                ],
-                "summary": "Get Payment Status",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "Filter by specific contract ID",
-                        "name": "contract_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.PaymentStatusOverview"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/sales/pre-orders": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns pre-orders statistics including counts by status",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Sales Staff Analytics"
-                ],
-                "summary": "Get Pre-Orders Overview",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.PreOrderStats"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/sales/products": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns top products ranked by revenue",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Sales Staff Analytics"
-                ],
-                "summary": "Get Top Products",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
+                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "name": "period_gap",
                         "in": "query"
                     },
                     {
                         "enum": [
-                            "STANDARD",
-                            "LIMITED"
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
                         ],
                         "type": "string",
-                        "description": "Filter by product type",
-                        "name": "product_type",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Number of results (default: 10, max: 50)",
-                        "name": "limit",
+                        "description": "Compare With (previous day/week/month/quarter/year)",
+                        "name": "compare_with",
                         "in": "query"
                     }
                 ],
@@ -3670,10 +3248,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.ProductSalesMetric"
-                                            }
+                                            "$ref": "#/definitions/responses.FinancialsDashboardResponse"
                                         }
                                     }
                                 }
@@ -3682,18 +3257,6 @@
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3707,14 +3270,14 @@
                 }
             }
         },
-        "/api/v1/analytics/sales/revenue": {
+        "/api/v1/analytics/sales/financials/growth": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns revenue breakdown by source (standard products, limited products, advertising, affiliate, ambassador, co-producing)",
+                "description": "Get revenue growth percentage",
                 "consumes": [
                     "application/json"
                 ],
@@ -3722,22 +3285,21 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Sales Staff Analytics"
+                    "SalesStaffAnalytics"
                 ],
-                "summary": "Get Revenue by Source",
+                "summary": "Get Revenue Growth",
                 "parameters": [
                     {
+                        "enum": [
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
+                        ],
                         "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
+                        "description": "Compare With (previous day/week/month/quarter/year)",
+                        "name": "compare_with",
                         "in": "query"
                     }
                 ],
@@ -3753,7 +3315,8 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.RevenueBySource"
+                                            "type": "number",
+                                            "format": "float64"
                                         }
                                     }
                                 }
@@ -3762,18 +3325,6 @@
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -3787,14 +3338,14 @@
                 }
             }
         },
-        "/api/v1/analytics/sales/trend": {
+        "/api/v1/analytics/sales/financials/trend": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns revenue time-series data with configurable granularity (DAY, WEEK, MONTH)",
+                "description": "Get revenue trend charts",
                 "consumes": [
                     "application/json"
                 ],
@@ -3802,34 +3353,33 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Sales Staff Analytics"
+                    "SalesStaffAnalytics"
                 ],
                 "summary": "Get Revenue Trend",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
                         "in": "query"
                     },
                     {
                         "enum": [
-                            "DAY",
-                            "WEEK",
-                            "MONTH"
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
                         ],
                         "type": "string",
-                        "default": "DAY",
-                        "description": "Time bucket granularity",
-                        "name": "granularity",
+                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "name": "period_gap",
                         "in": "query"
                     }
                 ],
@@ -3845,10 +3395,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.RevenueTrendPoint"
-                                            }
+                                            "$ref": "#/definitions/responses.RevenueTrendCharts"
                                         }
                                     }
                                 }
@@ -3861,14 +3408,166 @@
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/orders/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get aggregated order metrics, charts, and top lists",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SalesStaffAnalytics"
+                ],
+                "summary": "Get Sales Staff Orders Dashboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit for top lists (default 5)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
+                        ],
+                        "type": "string",
+                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "name": "period_gap",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.OrdersDashboardResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/sales/orders/trend": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get orders trend charts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SalesStaffAnalytics"
+                ],
+                "summary": "Get Orders Trend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "From Date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To Date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "day",
+                            "week",
+                            "month",
+                            "quarter",
+                            "year"
+                        ],
+                        "type": "string",
+                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "name": "period_gap",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.OrdersTrendCharts"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -14124,9 +13823,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Preorders"
+                    "Preorders.States"
                 ],
-                "summary": "Create a PreOrder (reserve stock)",
+                "summary": "1. Create a PreOrder (reserve stock)",
                 "parameters": [
                     {
                         "description": "PreOrder payload",
@@ -14141,6 +13840,134 @@
                 "responses": {
                     "201": {
                         "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/refund/{preOrderID}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Customer Request a refund (Available before staff confirm)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cancel reason",
+                        "name": "reason",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.OrderResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/self-delivering/{id}/received": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a preorder as received by the customer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "4 .1 Mark preorder as received (customer)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -14257,6 +14084,8 @@
                                 "PAID",
                                 "PRE_ORDERED",
                                 "CANCELLED",
+                                "REFUND_REQUEST",
+                                "REFUNDED",
                                 "AWAITING_PICKUP",
                                 "IN_TRANSIT",
                                 "DELIVERED",
@@ -14322,14 +14151,154 @@
                 }
             }
         },
-        "/api/v1/preorders/staff/{orderID}/censorship": {
+        "/api/v1/preorders/staff/refund/{preOrderID}/approve": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Change preOrder state to PRE_ORDERED or CANCELLED. Use query param `action=PRE_ORDERED` or `action=CANCELLED`. If cancelling, provide optional `reason` query param.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "3 Staff approve PREORDER refund request (REFUNDED_REQUEST -\u003e REFUNDED)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Additional reason",
+                        "name": "reason",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Evidence file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.OrderResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/definitions/responses.Pagination"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/self-delivering/{preOrderID}/delivered": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark self-delivering preorder as delivered by staff",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "3.1-[Self-Delivery] Mark preorder as delivered (Staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Evidence file",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/{preOrderID}/approve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change preOrder state to PRE_ORDERED or REFUNDED. Use query param `action=PRE_ORDERED` or `action=REFUNDED`. If cancelling, provide optional `reason` query param.",
                 "consumes": [
                     "application/json"
                 ],
@@ -14339,12 +14308,12 @@
                 "tags": [
                     "Preorders.States"
                 ],
-                "summary": "Censor an PREORDER (confirm or cancel)",
+                "summary": "Staff Censor an PREORDER (move to PRE_ORDERED or REFUNDED)",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "Order ID",
-                        "name": "orderID",
+                        "name": "preOrderID",
                         "in": "path",
                         "required": true
                     },
@@ -14404,7 +14373,7 @@
                 }
             }
         },
-        "/api/v1/preorders/staff/{orderID}/compensation": {
+        "/api/v1/preorders/staff/{preOrderID}/compensation": {
             "post": {
                 "security": [
                     {
@@ -14426,7 +14395,7 @@
                     {
                         "type": "string",
                         "description": "PreOrder ID (UUID)",
-                        "name": "orderID",
+                        "name": "preOrderID",
                         "in": "path",
                         "required": true
                     },
@@ -14445,9 +14414,140 @@
                     },
                     {
                         "type": "file",
-                        "description": "Confirmation file",
+                        "description": "Evidence file",
                         "name": "file",
                         "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/{preOrderID}/obligate-refund": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change preOrder state to REFUNDED. Requires reason and evidence file.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "Staff actively cancel PREORDER (move to REFUNDED)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cancel reason",
+                        "name": "reason",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Evidence file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/preorders/staff/{preOrderID}/received": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark self-pickup preorder as RECEIVED by staff",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders.States"
+                ],
+                "summary": "3.2-[Self-Pick-Up]-END Mark preorder as RECEIVED (Staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Evidence file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -14516,61 +14616,6 @@
                         "description": "Evidence file",
                         "name": "file",
                         "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/preorders/{id}/received": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mark a preorder as received by the customer",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Preorders.States"
-                ],
-                "summary": "Mark preorder as received (customer)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "PreOrder ID (UUID)",
-                        "name": "id",
-                        "in": "path",
                         "required": true
                     }
                 ],
@@ -18529,6 +18574,12 @@
                     "type": "integer",
                     "example": 1
                 },
+                "kpis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
                 "material_url": {
                     "type": "array",
                     "items": {
@@ -18538,12 +18589,6 @@
                         "https://example.com/image1.jpg",
                         "https://example.com/image2.jpg"
                     ]
-                },
-                "metrics": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dtos.KPIGoal"
-                    }
                 },
                 "name": {
                     "type": "string",
@@ -18753,6 +18798,12 @@
                     "type": "integer",
                     "example": 1
                 },
+                "kpis": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dtos.KPIGoal"
+                    }
+                },
                 "material_url": {
                     "type": "array",
                     "items": {
@@ -18762,12 +18813,6 @@
                         "https://example.com/image1.jpg",
                         "https://example.com/image2.jpg"
                     ]
-                },
-                "metrics": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dtos.KPIGoal"
-                    }
                 },
                 "name": {
                     "type": "string",
@@ -20410,6 +20455,8 @@
                 "PAID",
                 "PRE_ORDERED",
                 "CANCELLED",
+                "REFUND_REQUEST",
+                "REFUNDED",
                 "AWAITING_PICKUP",
                 "IN_TRANSIT",
                 "DELIVERED",
@@ -20422,6 +20469,8 @@
                 "PreOrderStatusPaid",
                 "PreOrderStatusPreOrdered",
                 "PreOrderStatusCancelled",
+                "PreOrderStatusRefundRequest",
+                "PreOrderStatusRefunded",
                 "PreOrderStatusAwaitingPickup",
                 "PreOrderStatusInTransit",
                 "PreOrderStatusDelivered",
@@ -20870,6 +20919,16 @@
                     "type": "number"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_bank_account": {
+                    "description": "Bank Info",
+                    "type": "string"
+                },
+                "user_bank_account_holder": {
+                    "type": "string"
+                },
+                "user_bank_name": {
                     "type": "string"
                 },
                 "user_id": {
@@ -23931,6 +23990,20 @@
                 }
             }
         },
+        "responses.AOVMetrics": {
+            "type": "object",
+            "properties": {
+                "combined": {
+                    "type": "number"
+                },
+                "orders": {
+                    "type": "number"
+                },
+                "pre_orders": {
+                    "type": "number"
+                }
+            }
+        },
         "responses.APIResponse": {
             "type": "object",
             "properties": {
@@ -26320,6 +26393,83 @@
                 }
             }
         },
+        "responses.FinancialsDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "revenue_by_category": {
+                    "description": "Column Chart",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueByCategory"
+                    }
+                },
+                "revenue_by_product_type": {
+                    "description": "Pie Chart",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.RevenueByProductType"
+                    }
+                },
+                "revenue_trend": {
+                    "description": "Line Charts",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.RevenueTrendCharts"
+                        }
+                    ]
+                },
+                "summary": {
+                    "$ref": "#/definitions/responses.FinancialsSummary"
+                },
+                "top_lists": {
+                    "$ref": "#/definitions/responses.FinancialsTopLists"
+                }
+            }
+        },
+        "responses.FinancialsSummary": {
+            "type": "object",
+            "properties": {
+                "average_order_value": {
+                    "$ref": "#/definitions/responses.AOVMetrics"
+                },
+                "limited_product_conversion_rate": {
+                    "type": "number"
+                },
+                "returning_customer_count": {
+                    "type": "integer"
+                },
+                "revenue_growth": {
+                    "description": "Compared to previous period",
+                    "type": "number"
+                },
+                "total_sold_revenue": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.FinancialsTopLists": {
+            "type": "object",
+            "properties": {
+                "top_brands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                },
+                "top_categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                },
+                "top_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                }
+            }
+        },
         "responses.GrowthTrendPoint": {
             "type": "object",
             "properties": {
@@ -26337,6 +26487,30 @@
                 },
                 "revenue": {
                     "type": "number"
+                }
+            }
+        },
+        "responses.LatestOrder": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "type": {
+                    "description": "ORDER or PRE_ORDER",
+                    "type": "string"
                 }
             }
         },
@@ -26592,16 +26766,25 @@
                 }
             }
         },
+        "responses.OrderItemImage": {
+            "type": "object",
+            "properties": {
+                "alt_text": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_primary": {
+                    "type": "boolean"
+                }
+            }
+        },
         "responses.OrderItemResponse": {
             "type": "object",
             "properties": {
                 "brand": {
-                    "description": "Relationships",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.OrderItemBrandResponse"
-                        }
-                    ]
+                    "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
                 "capacity": {
                     "type": "number"
@@ -26629,6 +26812,13 @@
                 },
                 "id": {
                     "type": "string"
+                },
+                "images": {
+                    "description": "Relationships",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.OrderItemImage"
+                    }
                 },
                 "instructions": {
                     "type": "string"
@@ -26693,6 +26883,15 @@
                     }
                 },
                 "address_line2": {
+                    "type": "string"
+                },
+                "bank_account": {
+                    "type": "string"
+                },
+                "bank_account_holder": {
+                    "type": "string"
+                },
+                "bank_name": {
                     "type": "string"
                 },
                 "city": {
@@ -26781,55 +26980,109 @@
                 }
             }
         },
-        "responses.OrderTypeStats": {
+        "responses.OrderStatusDistribution": {
             "type": "object",
             "properties": {
-                "cancelled_count": {
-                    "description": "Status = CANCELLED",
+                "cancelled": {
                     "type": "integer"
                 },
-                "completed_count": {
-                    "description": "Status = RECEIVED",
+                "completed": {
                     "type": "integer"
                 },
-                "pending_count": {
-                    "description": "Status in progress",
+                "pending": {
                     "type": "integer"
                 },
-                "total_count": {
+                "refunded": {
                     "type": "integer"
-                },
-                "total_revenue": {
-                    "type": "number"
                 }
             }
         },
-        "responses.OrdersBreakdown": {
+        "responses.OrdersDashboardResponse": {
             "type": "object",
             "properties": {
-                "limited_orders": {
-                    "description": "Order type = LIMITED",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.OrderTypeStats"
-                        }
-                    ]
+                "latest_orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.LatestOrder"
+                    }
                 },
-                "pre_orders": {
-                    "description": "From pre_orders table",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.PreOrderStats"
-                        }
-                    ]
+                "orders_pie_chart": {
+                    "$ref": "#/definitions/responses.OrderStatusDistribution"
                 },
-                "standard_orders": {
-                    "description": "Order type = STANDARD",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.OrderTypeStats"
+                "orders_trend": {
+                    "$ref": "#/definitions/responses.OrdersTrendCharts"
+                },
+                "pre_orders_pie_chart": {
+                    "$ref": "#/definitions/responses.OrderStatusDistribution"
+                },
+                "summary": {
+                    "$ref": "#/definitions/responses.OrdersSummary"
+                },
+                "top_lists": {
+                    "$ref": "#/definitions/responses.OrdersTopLists"
+                }
+            }
+        },
+        "responses.OrdersSummary": {
+            "type": "object",
+            "properties": {
+                "cancellation_rate": {
+                    "type": "number"
+                },
+                "refund_rate": {
+                    "type": "number"
+                },
+                "total_orders": {
+                    "type": "integer"
+                },
+                "total_pre_orders": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.OrdersTopLists": {
+            "type": "object",
+            "properties": {
+                "top_brands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                },
+                "top_categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                },
+                "top_products": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.TopEntity"
+                    }
+                }
+            }
+        },
+        "responses.OrdersTrendCharts": {
+            "type": "object",
+            "properties": {
+                "orders_vs_pre_orders": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
                         }
-                    ]
+                    }
+                },
+                "standard_vs_limited": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
+                        }
+                    }
                 }
             }
         },
@@ -27024,35 +27277,6 @@
                 }
             }
         },
-        "responses.PaymentStatusOverview": {
-            "type": "object",
-            "properties": {
-                "overdue_amount": {
-                    "type": "number"
-                },
-                "overdue_payments": {
-                    "type": "integer"
-                },
-                "paid_amount": {
-                    "type": "number"
-                },
-                "paid_payments": {
-                    "type": "integer"
-                },
-                "pending_amount": {
-                    "type": "number"
-                },
-                "pending_payments": {
-                    "type": "integer"
-                },
-                "total_amount": {
-                    "type": "number"
-                },
-                "total_payments": {
-                    "type": "integer"
-                }
-            }
-        },
         "responses.PaymentTransactionPaginationResponse": {
             "type": "object",
             "properties": {
@@ -27106,6 +27330,7 @@
                     "type": "string",
                     "example": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
                 },
+                "reference_info": {},
                 "reference_type": {
                     "type": "string",
                     "example": "ORDER"
@@ -27198,7 +27423,6 @@
             "type": "object",
             "properties": {
                 "action_notes": {
-                    "description": "Action notes for pre-order (JSONB)",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/model.PreOrderActionNote"
@@ -27207,11 +27431,20 @@
                 "address_line2": {
                     "type": "string"
                 },
+                "brand_id": {
+                    "type": "string"
+                },
                 "capacity": {
                     "description": "The same as orderItem",
                     "type": "number"
                 },
                 "capacity_unit": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/model.ProductCategory"
+                },
+                "category_id": {
                     "type": "string"
                 },
                 "city": {
@@ -27227,6 +27460,9 @@
                     "type": "string"
                 },
                 "deleted_at": {
+                    "type": "string"
+                },
+                "description": {
                     "type": "string"
                 },
                 "dispenser_type": {
@@ -27287,6 +27523,13 @@
                 "phone_number": {
                     "type": "string"
                 },
+                "product_name": {
+                    "description": "product fields",
+                    "type": "string"
+                },
+                "product_type": {
+                    "type": "string"
+                },
                 "province_name": {
                     "type": "string"
                 },
@@ -27309,6 +27552,16 @@
                     "type": "number"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_bank_account": {
+                    "description": "Bank Info",
+                    "type": "string"
+                },
+                "user_bank_account_holder": {
+                    "type": "string"
+                },
+                "user_bank_name": {
                     "type": "string"
                 },
                 "user_id": {
@@ -27336,27 +27589,6 @@
                 "width": {
                     "description": "in centimeters",
                     "type": "integer"
-                }
-            }
-        },
-        "responses.PreOrderStats": {
-            "type": "object",
-            "properties": {
-                "cancelled_count": {
-                    "type": "integer"
-                },
-                "pending_count": {
-                    "type": "integer"
-                },
-                "received_count": {
-                    "description": "Status = RECEIVED",
-                    "type": "integer"
-                },
-                "total_count": {
-                    "type": "integer"
-                },
-                "total_revenue": {
-                    "type": "number"
                 }
             }
         },
@@ -27584,33 +27816,6 @@
                     "items": {
                         "$ref": "#/definitions/responses.ProductVariantResponse"
                     }
-                }
-            }
-        },
-        "responses.ProductSalesMetric": {
-            "type": "object",
-            "properties": {
-                "brand_name": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
-                },
-                "product_name": {
-                    "type": "string"
-                },
-                "product_type": {
-                    "description": "STANDARD or LIMITED",
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "integer"
-                },
-                "total_revenue": {
-                    "type": "number"
-                },
-                "units_sold": {
-                    "type": "integer"
                 }
             }
         },
@@ -27853,61 +28058,28 @@
                 }
             }
         },
-        "responses.RecentOrderItem": {
+        "responses.RevenueByCategory": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "category_name": {
                     "type": "string"
                 },
-                "customer_name": {
-                    "type": "string"
-                },
-                "item_count": {
-                    "type": "integer"
-                },
-                "order_id": {
-                    "type": "string"
-                },
-                "order_type": {
-                    "description": "STANDARD or LIMITED",
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "total_amount": {
+                "revenue": {
                     "type": "number"
                 }
             }
         },
-        "responses.RevenueBySource": {
+        "responses.RevenueByProductType": {
             "type": "object",
             "properties": {
-                "advertising_revenue": {
-                    "description": "Contract payments for ADVERTISING",
+                "percentage": {
                     "type": "number"
                 },
-                "affiliate_revenue": {
-                    "description": "Contract payments for AFFILIATE",
-                    "type": "number"
+                "product_type": {
+                    "description": "STANDARD, LIMITED",
+                    "type": "string"
                 },
-                "ambassador_revenue": {
-                    "description": "Contract payments for AMBASSADOR",
-                    "type": "number"
-                },
-                "co_producing_revenue": {
-                    "description": "Contract payments for CO_PRODUCING",
-                    "type": "number"
-                },
-                "limited_product_revenue": {
-                    "description": "Orders with order_type = LIMITED + pre_orders",
-                    "type": "number"
-                },
-                "standard_product_revenue": {
-                    "description": "Orders with order_type = STANDARD",
-                    "type": "number"
-                },
-                "total_revenue": {
+                "revenue": {
                     "type": "number"
                 }
             }
@@ -27941,6 +28113,29 @@
                 }
             }
         },
+        "responses.RevenueTrendCharts": {
+            "type": "object",
+            "properties": {
+                "orders_vs_pre_orders": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
+                        }
+                    }
+                },
+                "standard_vs_limited": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
+                        }
+                    }
+                }
+            }
+        },
         "responses.RevenueTrendPoint": {
             "type": "object",
             "properties": {
@@ -27958,89 +28153,18 @@
                 }
             }
         },
-        "responses.SalesOverviewMetrics": {
+        "responses.SalesTimeSeriesPoint": {
             "type": "object",
             "properties": {
-                "average_order_value": {
-                    "description": "Average order value",
+                "time": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "e.g., \"ORDER\", \"PRE_ORDER\", \"STANDARD\", \"LIMITED\"",
+                    "type": "string"
+                },
+                "value": {
                     "type": "number"
-                },
-                "completed_orders": {
-                    "description": "Orders with status RECEIVED",
-                    "type": "integer"
-                },
-                "contract_revenue": {
-                    "description": "Revenue from contract payments",
-                    "type": "number"
-                },
-                "order_growth": {
-                    "description": "Percentage change in order count",
-                    "type": "number"
-                },
-                "order_revenue": {
-                    "description": "Revenue from orders only",
-                    "type": "number"
-                },
-                "pending_orders": {
-                    "description": "Orders pending fulfillment",
-                    "type": "integer"
-                },
-                "revenue_growth": {
-                    "description": "Percentage change from previous period",
-                    "type": "number"
-                },
-                "total_orders": {
-                    "description": "Total order count",
-                    "type": "integer"
-                },
-                "total_pre_orders": {
-                    "description": "Total pre-order count",
-                    "type": "integer"
-                },
-                "total_revenue": {
-                    "description": "Total revenue from all sources",
-                    "type": "number"
-                }
-            }
-        },
-        "responses.SalesStaffDashboardResponse": {
-            "type": "object",
-            "properties": {
-                "orders_breakdown": {
-                    "$ref": "#/definitions/responses.OrdersBreakdown"
-                },
-                "overview": {
-                    "$ref": "#/definitions/responses.SalesOverviewMetrics"
-                },
-                "period": {
-                    "$ref": "#/definitions/responses.PeriodInfo"
-                },
-                "recent_orders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.RecentOrderItem"
-                    }
-                },
-                "revenue_by_source": {
-                    "$ref": "#/definitions/responses.RevenueBySource"
-                },
-                "revenue_trend": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.RevenueTrendPoint"
-                    }
-                },
-                "top_brands": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.BrandSalesMetric"
-                    }
-                },
-                "top_products": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ProductSalesMetric"
-                    }
                 }
             }
         },
@@ -28576,6 +28700,21 @@
                 },
                 "unique_users": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.TopEntity": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "description": "Revenue or Count",
+                    "type": "number"
                 }
             }
         },

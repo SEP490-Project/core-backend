@@ -7,8 +7,9 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"fmt"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 var notificationPreOrderBuilders = map[PreOrderNotificationType]func(ctx context.Context, cfg config.AppConfig, db *gorm.DB, status PreOrderNotificationType, preorder *model.PreOrder, user *model.User) ([]requests.PublishNotificationRequest, error){
