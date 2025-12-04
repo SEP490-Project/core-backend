@@ -3,8 +3,9 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"gorm.io/datatypes"
 	"time"
+
+	"gorm.io/datatypes"
 
 	"github.com/google/uuid"
 )

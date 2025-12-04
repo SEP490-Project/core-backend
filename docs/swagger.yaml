@@ -28,16 +28,16 @@ definitions:
       id:
         example: 1
         type: integer
+      kpis:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
       material_url:
         example:
         - https://example.com/image1.jpg
         - https://example.com/image2.jpg
         items:
           type: string
-        type: array
-      metrics:
-        items:
-          $ref: '#/definitions/dtos.KPIGoal'
         type: array
       name:
         example: Product A
@@ -187,16 +187,16 @@ definitions:
       id:
         example: 1
         type: integer
+      kpis:
+        items:
+          $ref: '#/definitions/dtos.KPIGoal'
+        type: array
       material_url:
         example:
         - https://example.com/image1.jpg
         - https://example.com/image2.jpg
         items:
           type: string
-        type: array
-      metrics:
-        items:
-          $ref: '#/definitions/dtos.KPIGoal'
         type: array
       name:
         example: Product A
@@ -1377,6 +1377,8 @@ definitions:
     - PAID
     - PRE_ORDERED
     - CANCELLED
+    - REFUND_REQUEST
+    - REFUNDED
     - AWAITING_PICKUP
     - IN_TRANSIT
     - DELIVERED
@@ -1389,6 +1391,8 @@ definitions:
     - PreOrderStatusPaid
     - PreOrderStatusPreOrdered
     - PreOrderStatusCancelled
+    - PreOrderStatusRefundRequest
+    - PreOrderStatusRefunded
     - PreOrderStatusAwaitingPickup
     - PreOrderStatusInTransit
     - PreOrderStatusDelivered
@@ -1709,6 +1713,13 @@ definitions:
       total_amount:
         type: number
       updated_at:
+        type: string
+      user_bank_account:
+        description: Bank Info
+        type: string
+      user_bank_account_holder:
+        type: string
+      user_bank_name:
         type: string
       user_id:
         type: string
@@ -3931,6 +3942,15 @@ definitions:
       push_enabled:
         type: boolean
     type: object
+  responses.AOVMetrics:
+    properties:
+      combined:
+        type: number
+      orders:
+        type: number
+      pre_orders:
+        type: number
+    type: object
   responses.APIResponse:
     properties:
       data: {}
@@ -5566,6 +5586,56 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.FinancialsDashboardResponse:
+    properties:
+      revenue_by_category:
+        description: Column Chart
+        items:
+          $ref: '#/definitions/responses.RevenueByCategory'
+        type: array
+      revenue_by_product_type:
+        description: Pie Chart
+        items:
+          $ref: '#/definitions/responses.RevenueByProductType'
+        type: array
+      revenue_trend:
+        allOf:
+        - $ref: '#/definitions/responses.RevenueTrendCharts'
+        description: Line Charts
+      summary:
+        $ref: '#/definitions/responses.FinancialsSummary'
+      top_lists:
+        $ref: '#/definitions/responses.FinancialsTopLists'
+    type: object
+  responses.FinancialsSummary:
+    properties:
+      average_order_value:
+        $ref: '#/definitions/responses.AOVMetrics'
+      limited_product_conversion_rate:
+        type: number
+      returning_customer_count:
+        type: integer
+      revenue_growth:
+        description: Compared to previous period
+        type: number
+      total_sold_revenue:
+        type: number
+    type: object
+  responses.FinancialsTopLists:
+    properties:
+      top_brands:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+      top_categories:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+      top_products:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+    type: object
   responses.GrowthTrendPoint:
     properties:
       date:
@@ -5578,6 +5648,22 @@ definitions:
         type: integer
       revenue:
         type: number
+    type: object
+  responses.LatestOrder:
+    properties:
+      created_at:
+        type: string
+      customer_name:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      total_amount:
+        type: number
+      type:
+        description: ORDER or PRE_ORDER
+        type: string
     type: object
   responses.LoginResponse:
     properties:
@@ -5750,12 +5836,19 @@ definitions:
       parent_category:
         $ref: '#/definitions/responses.OrderItemCategoryResponse'
     type: object
+  responses.OrderItemImage:
+    properties:
+      alt_text:
+        type: string
+      image_url:
+        type: string
+      is_primary:
+        type: boolean
+    type: object
   responses.OrderItemResponse:
     properties:
       brand:
-        allOf:
-        - $ref: '#/definitions/responses.OrderItemBrandResponse'
-        description: Relationships
+        $ref: '#/definitions/responses.OrderItemBrandResponse'
       capacity:
         type: number
       capacity_unit:
@@ -5774,6 +5867,11 @@ definitions:
         type: integer
       id:
         type: string
+      images:
+        description: Relationships
+        items:
+          $ref: '#/definitions/responses.OrderItemImage'
+        type: array
       instructions:
         type: string
       length:
@@ -5816,6 +5914,12 @@ definitions:
           $ref: '#/definitions/model.OrderActionNote'
         type: array
       address_line2:
+        type: string
+      bank_account:
+        type: string
+      bank_account_holder:
+        type: string
+      bank_name:
         type: string
       city:
         type: string
@@ -5874,36 +5978,74 @@ definitions:
       ward_name:
         type: string
     type: object
-  responses.OrderTypeStats:
+  responses.OrderStatusDistribution:
     properties:
-      cancelled_count:
-        description: Status = CANCELLED
+      cancelled:
         type: integer
-      completed_count:
-        description: Status = RECEIVED
+      completed:
         type: integer
-      pending_count:
-        description: Status in progress
+      pending:
         type: integer
-      total_count:
+      refunded:
         type: integer
-      total_revenue:
-        type: number
     type: object
-  responses.OrdersBreakdown:
+  responses.OrdersDashboardResponse:
     properties:
-      limited_orders:
-        allOf:
-        - $ref: '#/definitions/responses.OrderTypeStats'
-        description: Order type = LIMITED
-      pre_orders:
-        allOf:
-        - $ref: '#/definitions/responses.PreOrderStats'
-        description: From pre_orders table
-      standard_orders:
-        allOf:
-        - $ref: '#/definitions/responses.OrderTypeStats'
-        description: Order type = STANDARD
+      latest_orders:
+        items:
+          $ref: '#/definitions/responses.LatestOrder'
+        type: array
+      orders_pie_chart:
+        $ref: '#/definitions/responses.OrderStatusDistribution'
+      orders_trend:
+        $ref: '#/definitions/responses.OrdersTrendCharts'
+      pre_orders_pie_chart:
+        $ref: '#/definitions/responses.OrderStatusDistribution'
+      summary:
+        $ref: '#/definitions/responses.OrdersSummary'
+      top_lists:
+        $ref: '#/definitions/responses.OrdersTopLists'
+    type: object
+  responses.OrdersSummary:
+    properties:
+      cancellation_rate:
+        type: number
+      refund_rate:
+        type: number
+      total_orders:
+        type: integer
+      total_pre_orders:
+        type: integer
+    type: object
+  responses.OrdersTopLists:
+    properties:
+      top_brands:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+      top_categories:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+      top_products:
+        items:
+          $ref: '#/definitions/responses.TopEntity'
+        type: array
+    type: object
+  responses.OrdersTrendCharts:
+    properties:
+      orders_vs_pre_orders:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+          type: array
+        type: object
+      standard_vs_limited:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+          type: array
+        type: object
     type: object
   responses.OverviewMetrics:
     properties:
@@ -6031,25 +6173,6 @@ definitions:
           type: object
         type: array
     type: object
-  responses.PaymentStatusOverview:
-    properties:
-      overdue_amount:
-        type: number
-      overdue_payments:
-        type: integer
-      paid_amount:
-        type: number
-      paid_payments:
-        type: integer
-      pending_amount:
-        type: number
-      pending_payments:
-        type: integer
-      total_amount:
-        type: number
-      total_payments:
-        type: integer
-    type: object
   responses.PaymentTransactionPaginationResponse:
     properties:
       data:
@@ -6087,6 +6210,7 @@ definitions:
       reference_id:
         example: a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6
         type: string
+      reference_info: {}
       reference_type:
         example: ORDER
         type: string
@@ -6150,16 +6274,21 @@ definitions:
   responses.PreOrderResponse:
     properties:
       action_notes:
-        description: Action notes for pre-order (JSONB)
         items:
           $ref: '#/definitions/model.PreOrderActionNote'
         type: array
       address_line2:
         type: string
+      brand_id:
+        type: string
       capacity:
         description: The same as orderItem
         type: number
       capacity_unit:
+        type: string
+      category:
+        $ref: '#/definitions/model.ProductCategory'
+      category_id:
         type: string
       city:
         type: string
@@ -6170,6 +6299,8 @@ definitions:
       created_at:
         type: string
       deleted_at:
+        type: string
+      description:
         type: string
       dispenser_type:
         $ref: '#/definitions/enum.DispenserType'
@@ -6211,6 +6342,11 @@ definitions:
         $ref: '#/definitions/responses.PaymentTransactionResponse'
       phone_number:
         type: string
+      product_name:
+        description: product fields
+        type: string
+      product_type:
+        type: string
       province_name:
         type: string
       quantity:
@@ -6226,6 +6362,13 @@ definitions:
       unit_price:
         type: number
       updated_at:
+        type: string
+      user_bank_account:
+        description: Bank Info
+        type: string
+      user_bank_account_holder:
+        type: string
+      user_bank_name:
         type: string
       user_id:
         type: string
@@ -6245,20 +6388,6 @@ definitions:
       width:
         description: in centimeters
         type: integer
-    type: object
-  responses.PreOrderStats:
-    properties:
-      cancelled_count:
-        type: integer
-      pending_count:
-        type: integer
-      received_count:
-        description: Status = RECEIVED
-        type: integer
-      total_count:
-        type: integer
-      total_revenue:
-        type: number
     type: object
   responses.ProductAttributesResponse:
     properties:
@@ -6410,24 +6539,6 @@ definitions:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
         type: array
-    type: object
-  responses.ProductSalesMetric:
-    properties:
-      brand_name:
-        type: string
-      product_id:
-        type: string
-      product_name:
-        type: string
-      product_type:
-        description: STANDARD or LIMITED
-        type: string
-      rank:
-        type: integer
-      total_revenue:
-        type: number
-      units_sold:
-        type: integer
     type: object
   responses.ProductVariantResponse:
     properties:
@@ -6588,45 +6699,21 @@ definitions:
       updated_at:
         type: string
     type: object
-  responses.RecentOrderItem:
+  responses.RevenueByCategory:
     properties:
-      created_at:
+      category_name:
         type: string
-      customer_name:
-        type: string
-      item_count:
-        type: integer
-      order_id:
-        type: string
-      order_type:
-        description: STANDARD or LIMITED
-        type: string
-      status:
-        type: string
-      total_amount:
+      revenue:
         type: number
     type: object
-  responses.RevenueBySource:
+  responses.RevenueByProductType:
     properties:
-      advertising_revenue:
-        description: Contract payments for ADVERTISING
+      percentage:
         type: number
-      affiliate_revenue:
-        description: Contract payments for AFFILIATE
-        type: number
-      ambassador_revenue:
-        description: Contract payments for AMBASSADOR
-        type: number
-      co_producing_revenue:
-        description: Contract payments for CO_PRODUCING
-        type: number
-      limited_product_revenue:
-        description: Orders with order_type = LIMITED + pre_orders
-        type: number
-      standard_product_revenue:
-        description: Orders with order_type = STANDARD
-        type: number
-      total_revenue:
+      product_type:
+        description: STANDARD, LIMITED
+        type: string
+      revenue:
         type: number
     type: object
   responses.RevenueByTypeResponse:
@@ -6650,6 +6737,21 @@ definitions:
         example: 140000000
         type: number
     type: object
+  responses.RevenueTrendCharts:
+    properties:
+      orders_vs_pre_orders:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+          type: array
+        type: object
+      standard_vs_limited:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+          type: array
+        type: object
+    type: object
   responses.RevenueTrendPoint:
     properties:
       average_order_value:
@@ -6661,65 +6763,15 @@ definitions:
       revenue:
         type: number
     type: object
-  responses.SalesOverviewMetrics:
+  responses.SalesTimeSeriesPoint:
     properties:
-      average_order_value:
-        description: Average order value
+      time:
+        type: string
+      type:
+        description: e.g., "ORDER", "PRE_ORDER", "STANDARD", "LIMITED"
+        type: string
+      value:
         type: number
-      completed_orders:
-        description: Orders with status RECEIVED
-        type: integer
-      contract_revenue:
-        description: Revenue from contract payments
-        type: number
-      order_growth:
-        description: Percentage change in order count
-        type: number
-      order_revenue:
-        description: Revenue from orders only
-        type: number
-      pending_orders:
-        description: Orders pending fulfillment
-        type: integer
-      revenue_growth:
-        description: Percentage change from previous period
-        type: number
-      total_orders:
-        description: Total order count
-        type: integer
-      total_pre_orders:
-        description: Total pre-order count
-        type: integer
-      total_revenue:
-        description: Total revenue from all sources
-        type: number
-    type: object
-  responses.SalesStaffDashboardResponse:
-    properties:
-      orders_breakdown:
-        $ref: '#/definitions/responses.OrdersBreakdown'
-      overview:
-        $ref: '#/definitions/responses.SalesOverviewMetrics'
-      period:
-        $ref: '#/definitions/responses.PeriodInfo'
-      recent_orders:
-        items:
-          $ref: '#/definitions/responses.RecentOrderItem'
-        type: array
-      revenue_by_source:
-        $ref: '#/definitions/responses.RevenueBySource'
-      revenue_trend:
-        items:
-          $ref: '#/definitions/responses.RevenueTrendPoint'
-        type: array
-      top_brands:
-        items:
-          $ref: '#/definitions/responses.BrandSalesMetric'
-        type: array
-      top_products:
-        items:
-          $ref: '#/definitions/responses.ProductSalesMetric'
-        type: array
     type: object
   responses.SessionInfo:
     properties:
@@ -7096,6 +7148,16 @@ definitions:
         type: string
       unique_users:
         type: integer
+    type: object
+  responses.TopEntity:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      value:
+        description: Revenue or Count
+        type: number
     type: object
   responses.TopPerformerResponse:
     properties:
@@ -9438,360 +9500,43 @@ paths:
       summary: Get campaigns approaching deadline
       tags:
       - Analytics/MarketingStaffs
-  /api/v1/analytics/sales/brands:
+  /api/v1/analytics/sales/financials/dashboard:
     get:
       consumes:
       - application/json
-      description: Returns top brands ranked by total revenue
+      description: Get aggregated financial metrics, charts, and top lists
       parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
+      - description: From Date (YYYY-MM-DD)
         in: query
-        name: start_date
+        name: from_date
         type: string
-      - description: End date (RFC3339 format)
-        format: date-time
+      - description: To Date (YYYY-MM-DD)
         in: query
-        name: end_date
+        name: to_date
         type: string
-      - default: 10
-        description: 'Number of results (default: 10, max: 50)'
+      - description: Limit for top lists (default 5)
         in: query
-        maximum: 50
-        minimum: 1
         name: limit
         type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.BrandSalesMetric'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Top Brands
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/dashboard:
-    get:
-      consumes:
-      - application/json
-      description: Returns comprehensive sales dashboard with overview metrics, orders
-        breakdown, revenue by source, top brands, top products, recent orders, and
-        revenue trend
-      parameters:
-      - description: Year (defaults to current year)
-        example: 2025
-        in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        type: integer
-      - description: Month (defaults to current month)
-        example: 11
-        in: query
-        maximum: 12
-        minimum: 1
-        name: month
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.SalesStaffDashboardResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Sales Staff Dashboard
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/orders:
-    get:
-      consumes:
-      - application/json
-      description: Returns orders statistics broken down by order type (STANDARD,
-        LIMITED) and status
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - description: Filter by order type
+      - description: Period Gap (day, week, month, quarter, year)
         enum:
-        - STANDARD
-        - LIMITED
+        - day
+        - week
+        - month
+        - quarter
+        - year
         in: query
-        name: order_type
+        name: period_gap
         type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.OrdersBreakdown'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Orders Overview
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/payments:
-    get:
-      consumes:
-      - application/json
-      description: Returns contract payment status overview with counts and amounts
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - description: Filter by specific contract ID
-        format: uuid
-        in: query
-        name: contract_id
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.PaymentStatusOverview'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Payment Status
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/pre-orders:
-    get:
-      consumes:
-      - application/json
-      description: Returns pre-orders statistics including counts by status
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.PreOrderStats'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Pre-Orders Overview
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/products:
-    get:
-      consumes:
-      - application/json
-      description: Returns top products ranked by revenue
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - description: Filter by product type
+      - description: Compare With (previous day/week/month/quarter/year)
         enum:
-        - STANDARD
-        - LIMITED
+        - day
+        - week
+        - month
+        - quarter
+        - year
         in: query
-        name: product_type
-        type: string
-      - default: 10
-        description: 'Number of results (default: 10, max: 50)'
-        in: query
-        maximum: 50
-        minimum: 1
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ProductSalesMetric'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Top Products
-      tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/revenue:
-    get:
-      consumes:
-      - application/json
-      description: Returns revenue breakdown by source (standard products, limited
-        products, advertising, affiliate, ambassador, co-producing)
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
+        name: compare_with
         type: string
       produces:
       - application/json
@@ -9803,18 +9548,10 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.RevenueBySource'
+                  $ref: '#/definitions/responses.FinancialsDashboardResponse'
               type: object
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "500":
@@ -9823,34 +9560,24 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Get Revenue by Source
+      summary: Get Sales Staff Financials Dashboard
       tags:
-      - Sales Staff Analytics
-  /api/v1/analytics/sales/trend:
+      - SalesStaffAnalytics
+  /api/v1/analytics/sales/financials/growth:
     get:
       consumes:
       - application/json
-      description: Returns revenue time-series data with configurable granularity
-        (DAY, WEEK, MONTH)
+      description: Get revenue growth percentage
       parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - default: DAY
-        description: Time bucket granularity
+      - description: Compare With (previous day/week/month/quarter/year)
         enum:
-        - DAY
-        - WEEK
-        - MONTH
+        - day
+        - week
+        - month
+        - quarter
+        - year
         in: query
-        name: granularity
+        name: compare_with
         type: string
       produces:
       - application/json
@@ -9862,20 +9589,60 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/responses.RevenueTrendPoint'
-                  type: array
+                  format: float64
+                  type: number
               type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
+      security:
+      - BearerAuth: []
+      summary: Get Revenue Growth
+      tags:
+      - SalesStaffAnalytics
+  /api/v1/analytics/sales/financials/trend:
+    get:
+      consumes:
+      - application/json
+      description: Get revenue trend charts
+      parameters:
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Period Gap (day, week, month, quarter, year)
+        enum:
+        - day
+        - week
+        - month
+        - quarter
+        - year
+        in: query
+        name: period_gap
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RevenueTrendCharts'
+              type: object
+        "400":
+          description: Bad Request
           schema:
             $ref: '#/definitions/responses.APIResponse'
         "500":
@@ -9886,7 +9653,109 @@ paths:
       - BearerAuth: []
       summary: Get Revenue Trend
       tags:
-      - Sales Staff Analytics
+      - SalesStaffAnalytics
+  /api/v1/analytics/sales/orders/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregated order metrics, charts, and top lists
+      parameters:
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Limit for top lists (default 5)
+        in: query
+        name: limit
+        type: integer
+      - description: Period Gap (day, week, month, quarter, year)
+        enum:
+        - day
+        - week
+        - month
+        - quarter
+        - year
+        in: query
+        name: period_gap
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.OrdersDashboardResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Sales Staff Orders Dashboard
+      tags:
+      - SalesStaffAnalytics
+  /api/v1/analytics/sales/orders/trend:
+    get:
+      consumes:
+      - application/json
+      description: Get orders trend charts
+      parameters:
+      - description: From Date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To Date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Period Gap (day, week, month, quarter, year)
+        enum:
+        - day
+        - week
+        - month
+        - quarter
+        - year
+        in: query
+        name: period_gap
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.OrdersTrendCharts'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Orders Trend
+      tags:
+      - SalesStaffAnalytics
   /api/v1/auth/change-password:
     post:
       consumes:
@@ -16523,9 +16392,9 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Create a PreOrder (reserve stock)
+      summary: 1. Create a PreOrder (reserve stock)
       tags:
-      - Preorders
+      - Preorders.States
   /api/v1/preorders/{id}/compensation:
     post:
       consumes:
@@ -16571,8 +16440,80 @@ paths:
       summary: Request compensation for a preorder (customer)
       tags:
       - Preorders.States
-  /api/v1/preorders/{id}/received:
+  /api/v1/preorders/{id}/state:
     patch:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Pre-Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Target state: ''PENDING'', ''PAID'', ''PRE_ORDERED'', ''STOCK_READY'',
+          ''STOCK_PREPARING'', ''AWAITING_PICKUP'', ''IN_TRANSIT'', ''DELIVERED'',
+          ''RECEIVED'''
+        in: formData
+        name: state
+        required: true
+        type: string
+      - description: Proof images (multiple)
+        in: formData
+        name: files
+        type: file
+      produces:
+      - application/json
+      responses: {}
+      security:
+      - BearerAuth: []
+      tags:
+      - Preorders
+  /api/v1/preorders/refund/{preOrderID}:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Order ID
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      - description: Cancel reason
+        in: formData
+        name: reason
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.OrderResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Customer Request a refund (Available before staff confirm)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/self-delivering/{id}/received:
+    post:
       consumes:
       - application/json
       description: Mark a preorder as received by the customer
@@ -16603,37 +16544,9 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Mark preorder as received (customer)
+      summary: 4 .1 Mark preorder as received (customer)
       tags:
       - Preorders.States
-  /api/v1/preorders/{id}/state:
-    patch:
-      consumes:
-      - multipart/form-data
-      parameters:
-      - description: Pre-Order ID (UUID)
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: 'Target state: ''PENDING'', ''PAID'', ''PRE_ORDERED'', ''STOCK_READY'',
-          ''STOCK_PREPARING'', ''AWAITING_PICKUP'', ''IN_TRANSIT'', ''DELIVERED'',
-          ''RECEIVED'''
-        in: formData
-        name: state
-        required: true
-        type: string
-      - description: Proof images (multiple)
-        in: formData
-        name: files
-        type: file
-      produces:
-      - application/json
-      responses: {}
-      security:
-      - BearerAuth: []
-      tags:
-      - Preorders
   /api/v1/preorders/staff:
     get:
       consumes:
@@ -16725,6 +16638,8 @@ paths:
           - PAID
           - PRE_ORDERED
           - CANCELLED
+          - REFUND_REQUEST
+          - REFUNDED
           - AWAITING_PICKUP
           - IN_TRANSIT
           - DELIVERED
@@ -16771,17 +16686,17 @@ paths:
       summary: Get staff-available preorders with pagination
       tags:
       - Preorders
-  /api/v1/preorders/staff/{orderID}/censorship:
+  /api/v1/preorders/staff/{preOrderID}/approve:
     post:
       consumes:
       - application/json
-      description: Change preOrder state to PRE_ORDERED or CANCELLED. Use query param
-        `action=PRE_ORDERED` or `action=CANCELLED`. If cancelling, provide optional
+      description: Change preOrder state to PRE_ORDERED or REFUNDED. Use query param
+        `action=PRE_ORDERED` or `action=REFUNDED`. If cancelling, provide optional
         `reason` query param.
       parameters:
       - description: Order ID
         in: path
-        name: orderID
+        name: preOrderID
         required: true
         type: string
       - description: Action (CONFIRM|CANCEL)
@@ -16820,10 +16735,10 @@ paths:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Censor an PREORDER (confirm or cancel)
+      summary: Staff Censor an PREORDER (move to PRE_ORDERED or REFUNDED)
       tags:
       - Preorders.States
-  /api/v1/preorders/staff/{orderID}/compensation:
+  /api/v1/preorders/staff/{preOrderID}/compensation:
     post:
       consumes:
       - multipart/form-data
@@ -16831,7 +16746,7 @@ paths:
       parameters:
       - description: PreOrder ID (UUID)
         in: path
-        name: orderID
+        name: preOrderID
         required: true
         type: string
       - description: true|false
@@ -16843,7 +16758,7 @@ paths:
         in: formData
         name: reason
         type: string
-      - description: Confirmation file
+      - description: Evidence file
         in: formData
         name: file
         type: file
@@ -16871,6 +16786,179 @@ paths:
       summary: Process compensation for a preorder (staff)
       tags:
       - Preorders[Staff].States
+  /api/v1/preorders/staff/{preOrderID}/obligate-refund:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Change preOrder state to REFUNDED. Requires reason and evidence
+        file.
+      parameters:
+      - description: Order ID
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      - description: Cancel reason
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Staff actively cancel PREORDER (move to REFUNDED)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/staff/{preOrderID}/received:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Mark self-pickup preorder as RECEIVED by staff
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 3.2-[Self-Pick-Up]-END Mark preorder as RECEIVED (Staff)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/staff/refund/{preOrderID}/approve:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Order ID
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      - description: Additional reason
+        in: formData
+        name: reason
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.OrderResponse'
+                  type: array
+                pagination:
+                  $ref: '#/definitions/responses.Pagination'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 3 Staff approve PREORDER refund request (REFUNDED_REQUEST -> REFUNDED)
+      tags:
+      - Preorders.States
+  /api/v1/preorders/staff/self-delivering/{preOrderID}/delivered:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Mark self-delivering preorder as delivered by staff
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      - description: Evidence file
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: 3.1-[Self-Delivery] Mark preorder as delivered (Staff)
+      tags:
+      - Preorders.States
   /api/v1/products:
     get:
       consumes:

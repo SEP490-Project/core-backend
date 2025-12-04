@@ -8,13 +8,14 @@ import (
 	"core-backend/internal/domain/enum"
 	"errors"
 	"fmt"
-	"github.com/aws/smithy-go/ptr"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/aws/smithy-go/ptr"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -277,11 +278,11 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 //	@Accept			json
 //	@Produce		json
 //	@Param			preOrderID	path		string				true	"Order ID"
-//	@Param			action	query		string				true	"Action (CONFIRM|CANCEL)"
-//	@Param			reason	body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
+//	@Param			action		query		string				true	"Action (CONFIRM|CANCEL)"
+//	@Param			reason		body		CensorOrderRequest	false	"Cancel reason (required when action=CANCEL)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure		401			{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/staff/{preOrderID}/approve [POST]
 func (p *PreOrderHandler) PreOrderApprove(c *gin.Context) {
@@ -476,10 +477,10 @@ func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 //	@Tags			Preorders[Staff].States
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			preOrderID	path	string	true  "PreOrder ID (UUID)"
-//	@Param			isApproved	formData	string	true  "true|false"
-//	@Param			reason		formData	string	false "Reason (optional)"
-//	@Param			file		formData	file	false "Evidence file"
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Param			isApproved	formData	string	true	"true|false"
+//	@Param			reason		formData	string	false	"Reason (optional)"
+//	@Param			file		formData	file	false	"Evidence file"
 //	@Success		200			{object}	responses.APIResponse
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		401			{object}	responses.APIResponse
@@ -571,11 +572,11 @@ func (p *PreOrderHandler) ProcessCompensation(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
-//	@Param			file	formData	file	true	"Evidence file"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		400	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			file		formData	file	true	"Evidence file"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/staff/{preOrderID}/received [post]
 func (p *PreOrderHandler) MarkPreOrderAsReceivedByStaff(c *gin.Context) {
@@ -640,10 +641,10 @@ func (p *PreOrderHandler) MarkPreOrderAsReceivedByStaff(c *gin.Context) {
 //	@Param			preOrderID	path		string	true	"Order ID"
 //	@Param			reason		formData	string	true	"Cancel reason"
 //	@Param			file		formData	file	true	"Evidence file"
-//	@Success		200		{object}	responses.APIResponse
-//	@Failure		400		{object}	responses.APIResponse
-//	@Failure		401		{object}	responses.APIResponse
-//	@Failure		500		{object}	responses.APIResponse
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/staff/{preOrderID}/obligate-refund [post]
 func (p *PreOrderHandler) PreOrderObligateRefund(c *gin.Context) {
@@ -708,17 +709,17 @@ func (p *PreOrderHandler) PreOrderObligateRefund(c *gin.Context) {
 
 // PreOrderRefundRequest godoc
 //
-//	@Summary		Customer Request a refund (Available before staff confirm)
-//	@Tags			Preorders.States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			preOrderID	path		string	true	"Order ID"
-//	@Param			reason		formData	string	true	"Cancel reason"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/preorders/refund/{preOrderID} [POST]
+//	@Summary	Customer Request a refund (Available before staff confirm)
+//	@Tags		Preorders.States
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		preOrderID	path		string	true	"Order ID"
+//	@Param		reason		formData	string	true	"Cancel reason"
+//	@Success	200			{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure	401			{object}	responses.APIResponse	"Unauthorized"
+//	@Failure	500			{object}	responses.APIResponse
+//	@Security	BearerAuth
+//	@Router		/api/v1/preorders/refund/{preOrderID} [POST]
 func (p *PreOrderHandler) PreOrderRefundRequest(c *gin.Context) {
 	// --- Path ID ---
 	preOrderID, err := parseUUIDParam(c, "preOrderID")
@@ -771,18 +772,18 @@ func (p *PreOrderHandler) PreOrderRefundRequest(c *gin.Context) {
 
 // ApprovePreOrderRefund godoc
 //
-//	@Summary		3 Staff approve PREORDER refund request (REFUNDED_REQUEST -> REFUNDED)
-//	@Tags			Preorders.States
-//	@Accept			multipart/form-data
-//	@Produce		json
-//	@Param			preOrderID	path		string	true	"Order ID"
-//	@Param			reason		formData	string	false	"Additional reason"
-//	@Param			file		formData	file	true	"Evidence file"
-//	@Success		200		{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
-//	@Failure		401		{object}	responses.APIResponse	"Unauthorized"
-//	@Failure		500		{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/preorders/staff/refund/{preOrderID}/approve [POST]
+//	@Summary	3 Staff approve PREORDER refund request (REFUNDED_REQUEST -> REFUNDED)
+//	@Tags		Preorders.States
+//	@Accept		multipart/form-data
+//	@Produce	json
+//	@Param		preOrderID	path		string	true	"Order ID"
+//	@Param		reason		formData	string	false	"Additional reason"
+//	@Param		file		formData	file	true	"Evidence file"
+//	@Success	200			{object}	responses.APIResponse{data=[]responses.OrderResponse,pagination=responses.Pagination}
+//	@Failure	401			{object}	responses.APIResponse	"Unauthorized"
+//	@Failure	500			{object}	responses.APIResponse
+//	@Security	BearerAuth
+//	@Router		/api/v1/preorders/staff/refund/{preOrderID}/approve [POST]
 func (p *PreOrderHandler) ApprovePreOrderRefund(c *gin.Context) {
 	// --- Path ID ---
 	preOrderID, err := parseUUIDParam(c, "preOrderID")
@@ -853,11 +854,11 @@ func (p *PreOrderHandler) ApprovePreOrderRefund(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
-//	@Param			file	formData	file	false	"Evidence file"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		400	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			file		formData	file	false	"Evidence file"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/preorders/staff/self-delivering/{preOrderID}/delivered [post]
 func (p *PreOrderHandler) MarkPreOrderAsDelivered(c *gin.Context) {
