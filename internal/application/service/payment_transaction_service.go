@@ -45,46 +45,6 @@ func (s *paymentTransactionService) GetPaymentTransactionByFilter(ctx context.Co
 	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByFilter called",
 		zap.Any("request", filter))
 
-	// filterQuery := func(db *gorm.DB) *gorm.DB {
-	// 	if filter.OrderCode != nil {
-	// 		db = db.Where("payos_metadata->>'order_code' = ?", strconv.FormatInt(int64(*filter.OrderCode), 10))
-	// 	}
-	// 	if filter.ReferenceID != nil {
-	// 		db = db.Where("reference_id = ?", filter.ReferenceID)
-	// 	}
-	// 	if filter.ReferenceType != nil {
-	// 		db = db.Where("reference_type = ?", filter.ReferenceType.String())
-	// 	}
-	// 	if filter.PayerID != nil {
-	// 		db = db.Where("payer_id = ?", filter.PayerID)
-	// 	}
-	// 	if filter.Status != nil {
-	// 		db = db.Where("status = ?", filter.Status.String())
-	// 	}
-	// 	if filter.TransactionFromDate != nil {
-	// 		fromDate := utils.ParseLocalTimeWithFallback(*filter.TransactionFromDate, utils.DateFormat)
-	// 		if fromDate != nil {
-	// 			db = db.Where("transaction_date >= ?", fromDate)
-	// 		}
-	// 	}
-	// 	if filter.TransactionToDate != nil {
-	// 		toDate := utils.ParseLocalTimeWithFallback(*filter.TransactionToDate, utils.DateFormat)
-	// 		if toDate != nil {
-	// 			db = db.Where("transaction_date <= ?", toDate)
-	// 		}
-	// 	}
-
-	// 	db = db.Order(helper.ConvertToSortString(filter.PaginationRequest))
-	// 	return db
-	// }
-
-	// transactions, total, err := s.paymentTransactionRepo.GetAll(ctx, filterQuery, nil, filter.Limit, filter.Page)
-	// if err != nil {
-	// 	zap.L().Error("Failed to fetch payment transactions", zap.Error(err))
-	// 	return nil, 0, fmt.Errorf("failed to fetch transactions: %w", err)
-	// }
-
-	// return responses.PaymentTransactionResponse{}.ToResponseList(transactions), total, nil
 	return s.paymentTransactionRepo.GetPaymentTransactionByFilter(ctx, filter)
 }
 
@@ -93,20 +53,8 @@ func (s *paymentTransactionService) GetPaymentTransactionByID(ctx context.Contex
 	zap.L().Info("PaymentTransactionService - GetPaymentTransactionByID called",
 		zap.String("id", transactionID.String()))
 
-	transaction, err := s.paymentTransactionRepo.GetByID(ctx, transactionID, nil)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			zap.L().Warn("Payment transaction not found", zap.String("id", transactionID.String()))
-			return nil, errors.New("payment transaction not found")
-		}
-		zap.L().Error("Failed to fetch payment transaction", zap.Error(err))
-		return nil, fmt.Errorf("failed to fetch transaction: %w", err)
-	} else if transaction == nil {
-		zap.L().Warn("Payment transaction not found", zap.String("id", transactionID.String()))
-		return nil, errors.New("payment transaction not found")
-	}
+	return s.paymentTransactionRepo.GetPaymentTransactionByID(ctx, transactionID)
 
-	return responses.PaymentTransactionResponse{}.ToResponse(transaction, nil), nil
 }
 
 // GetPaymentTransactionByOrderCode implements iservice.PaymentTransactionService.
