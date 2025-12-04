@@ -1,6 +1,10 @@
 package responses
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // =============================================================================
 // ADMIN ANALYTICS RESPONSE DTOs
@@ -146,4 +150,22 @@ type SystemHealthResponse struct {
 	AverageResponseMs int64   `json:"average_response_ms"`
 	ErrorRate         float64 `json:"error_rate"` // Percentage in last hour
 	Uptime            string  `json:"uptime"`
+}
+
+// RevenueTrendPoint represents a single point in revenue time-series
+type RevenueTrendPoint struct {
+	Date              time.Time `json:"date"`
+	Revenue           float64   `json:"revenue"`
+	OrderCount        int64     `json:"order_count"`
+	AverageOrderValue float64   `json:"average_order_value"`
+}
+
+// BrandSalesMetric represents sales metrics for a brand
+type BrandSalesMetric struct {
+	BrandID      uuid.UUID `json:"brand_id"`
+	BrandName    string    `json:"brand_name"`
+	TotalRevenue float64   `json:"total_revenue"`
+	OrderCount   int64     `json:"order_count"`
+	ProductCount int       `json:"product_count"` // Number of products sold
+	Rank         int       `json:"rank"`
 }

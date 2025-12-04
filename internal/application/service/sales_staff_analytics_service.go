@@ -2,463 +2,379 @@ package service
 
 import (
 	"context"
+	"sort"
+	"strings"
+	"time"
+
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
-	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/constant"
 	"core-backend/pkg/utils"
-	"sync"
-	"time"
 
 	"go.uber.org/zap"
 )
 
-type salesStaffAnalyticsService struct {
-	analyticsRepo irepository.SalesStaffAnalyticsRepository
+type SalesStaffAnalyticsService struct {
+	repo irepository.SalesStaffAnalyticsRepository
 }
 
-// NewSalesStaffAnalyticsService creates a new sales staff analytics service
 func NewSalesStaffAnalyticsService(
-	analyticsRepo irepository.SalesStaffAnalyticsRepository,
+	repo irepository.SalesStaffAnalyticsRepository,
 ) iservice.SalesStaffAnalyticsService {
-	return &salesStaffAnalyticsService{
-		analyticsRepo: analyticsRepo,
+	return &SalesStaffAnalyticsService{
+		repo: repo,
 	}
 }
 
-// GetDashboard returns the complete Sales Staff dashboard
-func (s *salesStaffAnalyticsService) GetDashboard(ctx context.Context, req *requests.SalesStaffDashboardRequest) (*responses.SalesStaffDashboardResponse, error) {
-	startDate, endDate := req.GetDateRange()
+func (s *SalesStaffAnalyticsService) GetFinancialsDashboard(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.FinancialsDashboardResponse, error) {
+	var response responses.FinancialsDashboardResponse
 
-	var mu sync.Mutex
-	dashboard := &responses.SalesStaffDashboardResponse{
-		Period: responses.PeriodInfo{
-			StartDate: startDate,
-			EndDate:   endDate,
-		},
+	// Default dates
+	from, to, err := s.getDateRange(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 5
 	}
 
-	// Execute queries in parallel
-	err := utils.RunParallel(ctx, 7,
-		// Query 1: Overview metrics
+	// Statuses
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	// Parallel execution
+	err = utils.RunParallel(ctx, 5,
 		func(ctx context.Context) error {
-			overview, err := s.getOverviewMetrics(ctx, &startDate, &endDate)
+			var summary *responses.FinancialsSummary
+			summary, err = s.repo.GetFinancialsSummary(ctx, from, to, completedOrders, completedPreOrders)
 			if err != nil {
-				zap.L().Warn("Failed to get overview metrics", zap.Error(err))
-				return nil // Don't fail entire dashboard
+				return err
 			}
-			mu.Lock()
-			dashboard.Overview = *overview
-			mu.Unlock()
+			// Calculate Growth Rate (requires previous period)
+			prevFrom, prevTo := s.getPreviousPeriod(from, to)
+			var prevSummary *responses.FinancialsSummary
+			prevSummary, err = s.repo.GetFinancialsSummary(ctx, prevFrom, prevTo, completedOrders, completedPreOrders)
+			if err == nil && prevSummary.TotalSoldRevenue > 0 {
+				summary.RevenueGrowth = ((summary.TotalSoldRevenue - prevSummary.TotalSoldRevenue) / prevSummary.TotalSoldRevenue) * 100
+			}
+
+			response.Summary = *summary
 			return nil
 		},
-
-		// Query 2: Orders breakdown
 		func(ctx context.Context) error {
-			breakdown, err := s.GetOrdersOverview(ctx, &requests.OrdersOverviewRequest{
-				StartDate: &startDate,
-				EndDate:   &endDate,
-			})
+			var byProd []responses.RevenueByProductType
+			var byCat []responses.RevenueByCategory
+			byProd, byCat, err = s.repo.GetRevenueBreakdown(ctx, from, to, completedOrders, completedPreOrders)
 			if err != nil {
-				zap.L().Warn("Failed to get orders breakdown", zap.Error(err))
-				return nil
+				return err
 			}
-			mu.Lock()
-			dashboard.OrdersBreakdown = *breakdown
-			mu.Unlock()
+			response.RevenueByProduct = byProd
+			response.RevenueByCategory = byCat
 			return nil
 		},
-
-		// Query 3: Revenue by source
 		func(ctx context.Context) error {
-			revenue, err := s.GetRevenueBySource(ctx, &requests.RevenueBySourceRequest{
-				StartDate: &startDate,
-				EndDate:   &endDate,
-			})
+			var revenueTrend *responses.RevenueTrendCharts
+			revenueTrend, err = s.GetRevenueTrend(ctx, req)
 			if err != nil {
-				zap.L().Warn("Failed to get revenue by source", zap.Error(err))
-				return nil
+				return err
 			}
-			mu.Lock()
-			dashboard.RevenueBySource = *revenue
-			mu.Unlock()
+			response.RevenueTrend = *revenueTrend
+
 			return nil
 		},
-
-		// Query 4: Top brands
 		func(ctx context.Context) error {
-			brands, err := s.GetTopBrands(ctx, &requests.TopBrandsRequest{
-				StartDate: &startDate,
-				EndDate:   &endDate,
-				Limit:     5,
-			})
+			var prods, cats, brands []responses.TopEntity
+			prods, cats, brands, err = s.repo.GetTopSellingByRevenue(ctx, from, to, completedOrders, completedPreOrders, limit)
 			if err != nil {
-				zap.L().Warn("Failed to get top brands", zap.Error(err))
-				return nil
+				return err
 			}
-			mu.Lock()
-			dashboard.TopBrands = brands
-			mu.Unlock()
-			return nil
-		},
-
-		// Query 5: Top products
-		func(ctx context.Context) error {
-			products, err := s.GetTopProducts(ctx, &requests.TopProductsRequest{
-				StartDate: &startDate,
-				EndDate:   &endDate,
-				Limit:     5,
-			})
-			if err != nil {
-				zap.L().Warn("Failed to get top products", zap.Error(err))
-				return nil
+			response.TopLists = responses.FinancialsTopLists{
+				TopProducts:   prods,
+				TopCategories: cats,
+				TopBrands:     brands,
 			}
-			mu.Lock()
-			dashboard.TopProducts = products
-			mu.Unlock()
-			return nil
-		},
-
-		// Query 6: Recent orders
-		func(ctx context.Context) error {
-			recent, err := s.analyticsRepo.GetRecentOrders(ctx, 10)
-			if err != nil {
-				zap.L().Warn("Failed to get recent orders", zap.Error(err))
-				return nil
-			}
-			recentItems := make([]responses.RecentOrderItem, len(recent))
-			for i, r := range recent {
-				recentItems[i] = responses.RecentOrderItem{
-					OrderID:      r.OrderID,
-					CustomerName: r.CustomerName,
-					TotalAmount:  r.TotalAmount,
-					Status:       r.Status,
-					OrderType:    r.OrderType,
-					ItemCount:    r.ItemCount,
-					CreatedAt:    r.CreatedAt,
-				}
-			}
-			mu.Lock()
-			dashboard.RecentOrders = recentItems
-			mu.Unlock()
-			return nil
-		},
-
-		// Query 7: Revenue trend
-		func(ctx context.Context) error {
-			trend, err := s.GetRevenueTrend(ctx, &requests.RevenueGrowthRequest{
-				StartDate:   &startDate,
-				EndDate:     &endDate,
-				Granularity: "DAY",
-			})
-			if err != nil {
-				zap.L().Warn("Failed to get revenue trend", zap.Error(err))
-				return nil
-			}
-			mu.Lock()
-			dashboard.RevenueTrend = trend
-			mu.Unlock()
 			return nil
 		},
 	)
 
 	if err != nil {
-		zap.L().Error("Dashboard parallel query failed", zap.Error(err))
+		return nil, err
 	}
 
-	return dashboard, nil
+	return &response, nil
 }
 
-// getOverviewMetrics returns high-level overview metrics
-func (s *salesStaffAnalyticsService) getOverviewMetrics(ctx context.Context, startDate, endDate *time.Time) (*responses.SalesOverviewMetrics, error) {
-	overview := &responses.SalesOverviewMetrics{}
+func (s *SalesStaffAnalyticsService) GetOrdersDashboard(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.OrdersDashboardResponse, error) {
+	var response responses.OrdersDashboardResponse
 
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 10,
+	from, to, err := s.getDateRange(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+
+	// Statuses for Top Selling by Volume (usually completed orders)
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	err = utils.RunParallel(ctx, 5,
 		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, "", startDate, endDate)
-			mu.Lock()
-			overview.OrderRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			var contractRevenue float64
-			for _, ct := range []string{"ADVERTISING", "AFFILIATE", "AMBASSADOR", "CO_PRODUCING"} {
-				r, _ := s.analyticsRepo.GetContractRevenueByType(ctx, ct, startDate, endDate)
-				contractRevenue += r
+			var summary *responses.OrdersSummary
+			summary, err = s.repo.GetOrdersSummary(ctx, from, to)
+			if err != nil {
+				return err
 			}
-			mu.Lock()
-			overview.ContractRevenue = contractRevenue
-			mu.Unlock()
+			response.Summary = *summary
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, "", startDate, endDate)
-			mu.Lock()
-			overview.TotalOrders = count
-			mu.Unlock()
+			var ordersDist, preOrdersDist responses.OrderStatusDistribution
+			ordersDist, preOrdersDist, err = s.repo.GetOrderStatusDistribution(ctx, from, to)
+			if err != nil {
+				return err
+			}
+			response.OrdersPieChart = ordersDist
+			response.PreOrdersPieChart = preOrdersDist
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetPreOrdersCount(ctx, startDate, endDate)
-			mu.Lock()
-			overview.TotalPreOrders = count
-			mu.Unlock()
+			var orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint
+			orders, preOrders, standard, limited, err = s.repo.GetOrdersTrend(ctx, from, to, req.PeriodGap)
+			if err != nil {
+				return err
+			}
+			// Sort limited trend
+			sort.Slice(limited, func(i, j int) bool {
+				return limited[i].Time.Before(limited[j].Time)
+			})
+
+			response.OrdersTrend = responses.OrdersTrendCharts{
+				OrdersVsPreOrders: map[string][]responses.SalesTimeSeriesPoint{
+					"ORDER":     orders,
+					"PRE_ORDER": preOrders,
+				},
+				StandardVsLimited: map[string][]responses.SalesTimeSeriesPoint{
+					"STANDARD": standard,
+					"LIMITED":  limited,
+				},
+			}
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", enum.OrderStatusReceived.String(), startDate, endDate)
-			mu.Lock()
-			overview.CompletedOrders = count
-			mu.Unlock()
+			var prods, cats, brands []responses.TopEntity
+			prods, cats, brands, err = s.repo.GetTopSellingByVolume(ctx, from, to, completedOrders, completedPreOrders, limit)
+			if err != nil {
+				return err
+			}
+			response.TopLists = responses.OrdersTopLists{
+				TopProducts:   prods,
+				TopCategories: cats,
+				TopBrands:     brands,
+			}
 			return nil
 		},
 		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, "", enum.OrderStatusPending.String(), startDate, endDate)
-			mu.Lock()
-			overview.PendingOrders = count
-			mu.Unlock()
+			var latest []responses.LatestOrder
+			latest, err = s.repo.GetLatestOrders(ctx, from, to, limit)
+			if err != nil {
+				return err
+			}
+			response.LatestOrders = latest
 			return nil
 		},
 	)
 
-	overview.TotalRevenue = overview.OrderRevenue + overview.ContractRevenue
-	if overview.TotalOrders > 0 {
-		overview.AverageOrderValue = overview.OrderRevenue / float64(overview.TotalOrders)
+	if err != nil {
+		return nil, err
 	}
 
-	return overview, nil
+	return &response, nil
 }
 
-// GetOrdersOverview returns orders statistics by type and status
-func (s *salesStaffAnalyticsService) GetOrdersOverview(ctx context.Context, req *requests.OrdersOverviewRequest) (*responses.OrdersBreakdown, error) {
-	breakdown := &responses.OrdersBreakdown{}
+// Specific Card APIs
 
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 6,
-		// Standard orders
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
-			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
-			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusReceived.String(), req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusPending.String(), req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeStandard.String(), enum.OrderStatusCancelled.String(), req.StartDate, req.EndDate)
+func (s *SalesStaffAnalyticsService) GetRevenueTrend(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.RevenueTrendCharts, error) {
+	from, to, err := s.getDateRange(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
-			mu.Lock()
-			breakdown.StandardOrders = responses.OrderTypeStats{
-				TotalCount:     count,
-				TotalRevenue:   revenue,
-				CompletedCount: completed,
-				PendingCount:   pending,
-				CancelledCount: cancelled,
-			}
-			mu.Unlock()
-			return nil
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	orders, preOrders, standard, limited, err := s.repo.GetRevenueTrend(ctx, from, to, req.PeriodGap, completedOrders, completedPreOrders)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort limited trend
+	sort.Slice(limited, func(i, j int) bool {
+		return limited[i].Time.Before(limited[j].Time)
+	})
+
+	return &responses.RevenueTrendCharts{
+		OrdersVsPreOrders: map[string][]responses.SalesTimeSeriesPoint{
+			"ORDER":     orders,
+			"PRE_ORDER": preOrders,
 		},
-
-		// Limited orders
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetOrdersCountByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
-			revenue, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
-			completed, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusReceived.String(), req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusPending.String(), req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetOrdersCountByStatus(ctx, enum.ProductTypeLimited.String(), enum.OrderStatusCancelled.String(), req.StartDate, req.EndDate)
-
-			mu.Lock()
-			breakdown.LimitedOrders = responses.OrderTypeStats{
-				TotalCount:     count,
-				TotalRevenue:   revenue,
-				CompletedCount: completed,
-				PendingCount:   pending,
-				CancelledCount: cancelled,
-			}
-			mu.Unlock()
-			return nil
+		StandardVsLimited: map[string][]responses.SalesTimeSeriesPoint{
+			"STANDARD": standard,
+			"LIMITED":  limited,
 		},
-
-		// Pre-orders
-		func(ctx context.Context) error {
-			count, _ := s.analyticsRepo.GetPreOrdersCount(ctx, req.StartDate, req.EndDate)
-			revenue, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
-			received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusReceived.String(), req.StartDate, req.EndDate)
-			pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusPending.String(), req.StartDate, req.EndDate)
-			cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusCancelled.String(), req.StartDate, req.EndDate)
-
-			mu.Lock()
-			breakdown.PreOrders = responses.PreOrderStats{
-				TotalCount:     count,
-				TotalRevenue:   revenue,
-				ReceivedCount:  received,
-				PendingCount:   pending,
-				CancelledCount: cancelled,
-			}
-			mu.Unlock()
-			return nil
-		},
-	)
-
-	return breakdown, nil
-}
-
-// GetPreOrdersOverview returns pre-orders statistics
-func (s *salesStaffAnalyticsService) GetPreOrdersOverview(ctx context.Context, req *requests.PreOrdersOverviewRequest) (*responses.PreOrderStats, error) {
-	count, _ := s.analyticsRepo.GetPreOrdersCount(ctx, req.StartDate, req.EndDate)
-	revenue, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
-	received, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusReceived.String(), req.StartDate, req.EndDate)
-	pending, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusPending.String(), req.StartDate, req.EndDate)
-	cancelled, _ := s.analyticsRepo.GetPreOrdersCountByStatus(ctx, enum.PreOrderStatusCancelled.String(), req.StartDate, req.EndDate)
-
-	return &responses.PreOrderStats{
-		TotalCount:     count,
-		TotalRevenue:   revenue,
-		ReceivedCount:  received,
-		PendingCount:   pending,
-		CancelledCount: cancelled,
 	}, nil
 }
 
-// GetRevenueBySource returns revenue breakdown by source
-func (s *salesStaffAnalyticsService) GetRevenueBySource(ctx context.Context, req *requests.RevenueBySourceRequest) (*responses.RevenueBySource, error) {
-	revenue := &responses.RevenueBySource{}
+func (s *SalesStaffAnalyticsService) GetOrdersTrend(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.OrdersTrendCharts, error) {
+	from, to, err := s.getDateRange(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
-	var mu sync.Mutex
-	_ = utils.RunParallel(ctx, 6,
+	orders, preOrders, standard, limited, err := s.repo.GetOrdersTrend(ctx, from, to, req.PeriodGap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort limited trend
+	sort.Slice(limited, func(i, j int) bool {
+		return limited[i].Time.Before(limited[j].Time)
+	})
+
+	return &responses.OrdersTrendCharts{
+		OrdersVsPreOrders: map[string][]responses.SalesTimeSeriesPoint{
+			"ORDER":     orders,
+			"PRE_ORDER": preOrders,
+		},
+		StandardVsLimited: map[string][]responses.SalesTimeSeriesPoint{
+			"STANDARD": standard,
+			"LIMITED":  limited,
+		},
+	}, nil
+}
+
+func (s *SalesStaffAnalyticsService) GetRevenueGrowth(ctx context.Context, req *requests.SalesDashboardFilter) (float64, error) {
+	from, to, err := s.getDateRange(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+	completedOrders := constant.ValidCompletedOrderStatus
+	completedPreOrders := constant.ValidCompletedPreOrderStatus
+
+	var currentSoldRevenue, previousSoldRevenue float64
+	err = utils.RunParallel(ctx, 2,
 		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeStandard.String(), req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.StandardProductRevenue = r
-			mu.Unlock()
+			currentSoldRevenue, err = s.repo.GetTotalSoldRevenue(ctx, from, to, completedOrders, completedPreOrders)
 			return nil
 		},
 		func(ctx context.Context) error {
-			limitedOrders, _ := s.analyticsRepo.GetOrdersRevenueByType(ctx, enum.ProductTypeLimited.String(), req.StartDate, req.EndDate)
-			preOrders, _ := s.analyticsRepo.GetPreOrdersRevenue(ctx, req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.LimitedProductRevenue = limitedOrders + preOrders
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetContractRevenueByType(ctx, "ADVERTISING", req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.AdvertisingRevenue = r
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetContractRevenueByType(ctx, "AFFILIATE", req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.AffiliateRevenue = r
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetContractRevenueByType(ctx, "AMBASSADOR", req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.AmbassadorRevenue = r
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			r, _ := s.analyticsRepo.GetContractRevenueByType(ctx, "CO_PRODUCING", req.StartDate, req.EndDate)
-			mu.Lock()
-			revenue.CoProducingRevenue = r
-			mu.Unlock()
+			prevFrom, prevTo := s.getPreviousPeriod(from, to)
+			previousSoldRevenue, err = s.repo.GetTotalSoldRevenue(ctx, prevFrom, prevTo, completedOrders, completedPreOrders)
 			return nil
 		},
 	)
-
-	revenue.TotalRevenue = revenue.StandardProductRevenue + revenue.LimitedProductRevenue +
-		revenue.AdvertisingRevenue + revenue.AffiliateRevenue +
-		revenue.AmbassadorRevenue + revenue.CoProducingRevenue
-
-	return revenue, nil
-}
-
-// GetTopBrands returns top brands by revenue
-func (s *salesStaffAnalyticsService) GetTopBrands(ctx context.Context, req *requests.TopBrandsRequest) ([]responses.BrandSalesMetric, error) {
-	results, err := s.analyticsRepo.GetTopBrandsByRevenue(ctx, req.GetLimit(), req.StartDate, req.EndDate)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	brands := make([]responses.BrandSalesMetric, len(results))
-	for i, r := range results {
-		brands[i] = responses.BrandSalesMetric{
-			BrandID:      r.BrandID,
-			BrandName:    r.BrandName,
-			TotalRevenue: r.TotalRevenue,
-			OrderCount:   r.OrderCount,
-			ProductCount: r.ProductCount,
-			Rank:         i + 1,
+	zap.L().Debug("Revenue Growth Calculation",
+		zap.Float64("currentSoldRevenue", currentSoldRevenue),
+		zap.Float64("previousSoldRevenue", previousSoldRevenue),
+		zap.Float64("growthPercentage", (currentSoldRevenue-previousSoldRevenue)/previousSoldRevenue),
+	)
+	if previousSoldRevenue == 0 && currentSoldRevenue > 0 {
+		return 100, nil
+	} else if previousSoldRevenue > 0 {
+		return ((currentSoldRevenue - previousSoldRevenue) / previousSoldRevenue) * 100, nil
+	}
+
+	return 0, nil
+}
+
+// Helper methods
+
+func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requests.SalesDashboardFilter) (time.Time, time.Time, error) {
+	now := time.Now()
+
+	// 1. If both provided, use them
+	if req.FromDate != nil && req.ToDate != nil {
+		return *req.FromDate, *req.ToDate, nil
+	}
+
+	// 2. If only FromDate provided, ToDate = Now
+	if req.FromDate != nil {
+		return *req.FromDate, now, nil
+	}
+
+	// 3. If only ToDate provided, or neither provided, calculate Start based on End (or Now) and PeriodGap
+	end := now
+	if req.ToDate != nil {
+		end = *req.ToDate
+	}
+
+	var start time.Time
+	if req.PeriodGap != "" {
+		periodGap := strings.ToLower(req.PeriodGap)
+
+		switch periodGap {
+		case "day":
+			// Within a month
+			start = end.AddDate(0, -1, 0)
+		case "week":
+			// Within 2 months
+			start = end.AddDate(0, -2, 0)
+		case "month":
+			// Within 6 months
+			start = end.AddDate(0, -6, 0)
+		case "quarter":
+			// Within 2 years
+			start = end.AddDate(-2, 0, 0)
+		case "year":
+			// All time (max 3 years)
+			firstOrder, err := s.repo.GetFirstOrderDate(ctx)
+			if err != nil {
+				return time.Time{}, time.Time{}, err
+			}
+			start = *firstOrder
+			// Max 3 years back
+			limitStart := end.AddDate(-3, 0, 0)
+			if start.Before(limitStart) {
+				start = limitStart
+			}
+		default:
+			// Default fallback (e.g. 1 month)
+			start = end.AddDate(0, -1, 0)
 		}
 	}
-	return brands, nil
-}
+	if req.CompareWith != "" {
+		switch strings.ToLower(req.CompareWith) {
+		case "day":
+			start = end.AddDate(0, 0, -1)
+		case "week":
+			start = end.AddDate(0, 0, -7)
+		case "month":
+			start = end.AddDate(0, -1, 0)
+		case "quarter":
+			start = end.AddDate(0, -3, 0)
+		case "year":
+			start = end.AddDate(-1, 0, 0)
+		default: // Default fallback (e.g. 1 month)
+			start = end.AddDate(0, -1, 0)
 
-// GetTopProducts returns top products by revenue
-func (s *salesStaffAnalyticsService) GetTopProducts(ctx context.Context, req *requests.TopProductsRequest) ([]responses.ProductSalesMetric, error) {
-	productType := ""
-	if req.ProductType != nil {
-		productType = *req.ProductType
-	}
-
-	results, err := s.analyticsRepo.GetTopProductsByRevenue(ctx, productType, req.GetLimit(), req.StartDate, req.EndDate)
-	if err != nil {
-		return nil, err
-	}
-
-	products := make([]responses.ProductSalesMetric, len(results))
-	for i, r := range results {
-		products[i] = responses.ProductSalesMetric{
-			ProductID:    r.ProductID,
-			ProductName:  r.ProductName,
-			BrandName:    r.BrandName,
-			ProductType:  r.ProductType,
-			TotalRevenue: r.TotalRevenue,
-			UnitsSold:    r.UnitsSold,
-			Rank:         i + 1,
 		}
 	}
-	return products, nil
+
+	return start, end, nil
 }
 
-// GetRevenueTrend returns revenue time-series data
-func (s *salesStaffAnalyticsService) GetRevenueTrend(ctx context.Context, req *requests.RevenueGrowthRequest) ([]responses.RevenueTrendPoint, error) {
-	results, err := s.analyticsRepo.GetRevenueTrend(ctx, req.GetGranularity(), req.StartDate, req.EndDate)
-	if err != nil {
-		return nil, err
-	}
-
-	trend := make([]responses.RevenueTrendPoint, len(results))
-	for i, r := range results {
-		trend[i] = responses.RevenueTrendPoint{
-			Date:              r.Date,
-			Revenue:           r.Revenue,
-			OrderCount:        r.OrderCount,
-			AverageOrderValue: r.AverageOrderValue,
-		}
-	}
-	return trend, nil
-}
-
-// GetPaymentStatus returns contract payment status overview
-func (s *salesStaffAnalyticsService) GetPaymentStatus(ctx context.Context, req *requests.PaymentStatusRequest) (*responses.PaymentStatusOverview, error) {
-	result, err := s.analyticsRepo.GetPaymentStatusCounts(ctx, req.ContractID, req.StartDate, req.EndDate)
-	if err != nil {
-		return nil, err
-	}
-
-	return &responses.PaymentStatusOverview{
-		TotalPayments:   result.TotalPayments,
-		PaidPayments:    result.PaidPayments,
-		PendingPayments: result.PendingPayments,
-		OverduePayments: result.OverduePayments,
-		TotalAmount:     result.TotalAmount,
-		PaidAmount:      result.PaidAmount,
-		PendingAmount:   result.PendingAmount,
-		OverdueAmount:   result.OverdueAmount,
-	}, nil
+func (s *SalesStaffAnalyticsService) getPreviousPeriod(from, to time.Time) (time.Time, time.Time) {
+	duration := to.Sub(from)
+	prevTo := from.Add(-time.Second)
+	prevFrom := prevTo.Add(-duration)
+	return prevFrom, prevTo
 }

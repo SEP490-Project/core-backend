@@ -48,6 +48,14 @@ type DashboardContractsResult struct {
 	PendingAmount   float64
 }
 
+// RevenueTrendResult represents revenue trend query result
+type RevenueTrendResult struct {
+	Date              time.Time
+	Revenue           float64
+	OrderCount        int64
+	AverageOrderValue float64
+}
+
 // DashboardCampaignsResult represents consolidated campaigns metrics from a single query
 type DashboardCampaignsResult struct {
 	TotalCampaigns int64
