@@ -33,9 +33,9 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 	var validStatuses []string
 	for _, s := range statuses {
 		s = strings.TrimSpace(s)
-		if s == "" || s == string(enum.OrderStatusPending) {
-			continue
-		}
+		// if s == "" || s == string(enum.OrderStatusPending) {
+		// 	continue
+		// }
 		st := enum.OrderStatus(s)
 		if st.IsValid() {
 			validStatuses = append(validStatuses, string(st))
