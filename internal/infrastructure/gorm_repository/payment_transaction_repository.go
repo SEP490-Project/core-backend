@@ -87,6 +87,7 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 
 		}
 	}
+
 	OrdersMap, _ = p.GetReferenceOrderByIDs(ctx, OrderIDs)
 	PreOrdersMap, _ = p.GetReferencePreOrderByIDs(ctx, PreOrderIDs)
 	ContractPaymentsMap, _ = p.GetReferenceContractPaymentByIDs(ctx, ContractPaymentIDs)
