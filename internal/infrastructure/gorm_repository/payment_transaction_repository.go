@@ -87,15 +87,90 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 
 		}
 	}
+<<<<<<< HEAD
 	OrdersMap, _ = p.GetReferenceOrderByIDs(ctx, OrderIDs)
 	PreOrdersMap, _ = p.GetReferencePreOrderByIDs(ctx, PreOrderIDs)
 	ContractPaymentsMap, _ = p.GetReferenceContractPaymentByIDs(ctx, ContractPaymentIDs)
+=======
+
+	if len(OrderIDs) > 0 {
+		var orderInfo []model.Order
+		orderQuery := p.db.WithContext(ctx).
+			Model(new(model.Order)).
+			Preload("OrderItems").
+			Select(
+				"orders.id",
+				"orders.user_id",
+				"orders.full_name",
+				"orders.phone_number",
+				"orders.email",
+				"orders.user_bank_account",
+				"orders.user_bank_name",
+				"orders.user_bank_account_holder",
+			).
+			Where("orders.id IN ?", OrderIDs)
+		if err := orderQuery.Find(&orderInfo).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, order := range orderInfo {
+			OrdersMap[order.ID] = &order
+		}
+	}
+	if len(PreOrderIDs) > 0 {
+		var preOrderInfo []model.PreOrder
+		preOrderQuery := p.db.WithContext(ctx).
+			Model(new(model.PreOrder)).
+			Select(
+				"pre_orders.id",
+				"pre_orders.user_id",
+				"pre_orders.full_name",
+				"pre_orders.phone_number",
+				"pre_orders.email",
+				"pre_orders.user_bank_account",
+				"pre_orders.user_bank_name",
+				"pre_orders.user_bank_account_holder",
+				"pre_orders.variant_id",
+				"pre_orders.product_name",
+				"pre_orders.quantity",
+				"pre_orders.unit_price",
+				"pre_orders.total_amount",
+			).
+			Where("pre_orders.id IN ?", PreOrderIDs)
+		if err := preOrderQuery.Find(&preOrderInfo).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, preOrder := range preOrderInfo {
+			PreOrdersMap[preOrder.ID] = &preOrder
+		}
+	}
+
+	if len(ContractPaymentIDs) > 0 {
+		var contractPaymentInfo []model.ContractPayment
+		contractPaymentQuery := p.db.WithContext(ctx).
+			Model(new(model.ContractPayment)).
+			Joins("Contract").
+			Joins("Contract.Brand").
+			Select(
+				"contract_payments.id",
+				"contract_payments.contract_id",
+				"contract_payments.is_deposit",
+			).
+			Where("contract_payments.id IN ?", ContractPaymentIDs)
+		if err := contractPaymentQuery.Find(&contractPaymentInfo).Error; err != nil {
+			return nil, 0, err
+		}
+		for _, contractPayment := range contractPaymentInfo {
+			ContractPaymentsMap[contractPayment.ID] = &contractPayment
+		}
+	}
+>>>>>>> 9a816cd (Feat/transaction reference info 20251203 (#200))
 
 	paymentResponses := make([]responses.PaymentTransactionResponse, len(paymentTransactions))
 	for i, pt := range paymentTransactions {
 		var additionalInfo any
 		switch pt.ReferenceType {
 		case enum.PaymentTransactionReferenceTypeOrder:
+<<<<<<< HEAD
 			if order, ok := OrdersMap[pt.ReferenceID]; ok && order != nil {
 				additionalInfo = responses.PaymentTransactionReferenceOrder{}.FromOrderModel(order)
 			}
@@ -107,6 +182,13 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 			if contractPayment, ok := ContractPaymentsMap[pt.ReferenceID]; ok && ContractPaymentsMap[pt.ReferenceID] != nil {
 				additionalInfo = responses.PaymentTransactionReferenceContractPayment{}.FromContractPaymentModel(contractPayment)
 			}
+=======
+			additionalInfo = responses.PaymentTransactionReferenceOrder{}.FromOrderModel(OrdersMap[pt.ReferenceID])
+		case enum.PaymentTransactionReferenceTypePreOrder:
+			additionalInfo = responses.PaymentTransactionReferencePreOrder{}.FromPreOrderModel(PreOrdersMap[pt.ReferenceID])
+		case enum.PaymentTransactionReferenceTypeContractPayment:
+			additionalInfo = responses.PaymentTransactionReferenceContractPayment{}.FromContractPaymentModel(ContractPaymentsMap[pt.ReferenceID])
+>>>>>>> 9a816cd (Feat/transaction reference info 20251203 (#200))
 		}
 
 		paymentResponses[i] = *responses.PaymentTransactionResponse{}.ToResponse(&pt, additionalInfo)
@@ -116,6 +198,7 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 
 // GetPaymentTransactionByID implements irepository.PaymentTransactionRepository.
 func (p *paymentTransactionRepository) GetPaymentTransactionByID(ctx context.Context, ID uuid.UUID) (*responses.PaymentTransactionResponse, error) {
+<<<<<<< HEAD
 	db := p.db.WithContext(ctx)
 	var paymentTransaction model.PaymentTransaction
 
@@ -150,6 +233,9 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByID(ctx context.Con
 
 	paymentResponse := *responses.PaymentTransactionResponse{}.ToResponse(&paymentTransaction, additionalInfo)
 	return &paymentResponse, nil
+=======
+	panic("unimplemented")
+>>>>>>> 9a816cd (Feat/transaction reference info 20251203 (#200))
 }
 
 func (p *paymentTransactionRepository) applyFilter(query *gorm.DB, filter *requests.PaymentTransactionFilterRequest) *gorm.DB {
@@ -189,6 +275,7 @@ func (p *paymentTransactionRepository) applyFilter(query *gorm.DB, filter *reque
 
 	return query
 }
+<<<<<<< HEAD
 
 func (p *paymentTransactionRepository) GetReferenceOrderByIDs(ctx context.Context, orderIDs []uuid.UUID) (map[uuid.UUID]*model.Order, error) {
 	var ordersMap = make(map[uuid.UUID]*model.Order)
@@ -279,3 +366,5 @@ func (p *paymentTransactionRepository) GetReferenceContractPaymentByIDs(ctx cont
 	}
 	return contractPaymentsMap, nil
 }
+=======
+>>>>>>> 9a816cd (Feat/transaction reference info 20251203 (#200))
