@@ -118,7 +118,7 @@ type StaffPreOrdersQuery struct {
 	// example: 10
 	Limit int `form:"limit" example:"10"`
 
-	// Search term to filter by orderID
+	// Search term to filter by orderID/paymentID/paymentBin
 	// in: query
 	// example: "ORDER123"
 	Search string `form:"search" example:"ORDER123"`
@@ -152,9 +152,4 @@ type StaffPreOrdersQuery struct {
 	// in: query
 	// example: "01234"
 	WardCode string `form:"ward_code" example:"01234"`
-
-	// Order type filter
-	// in: query
-	// example: "STANDARD"
-	OrderType enum.ProductType `form:"order_type" example:"STANDARD"`
 }

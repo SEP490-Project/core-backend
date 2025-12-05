@@ -31,9 +31,10 @@ import (
 )
 
 type preOrderService struct {
-	config                       *config.AppConfig
-	db                           *gorm.DB
-	preOrderRepository           irepository.GenericRepository[model.PreOrder]
+	config *config.AppConfig
+	db     *gorm.DB
+	// preOrderRepository           irepository.GenericRepository[model.PreOrder]
+	preOrderRepository           irepository.PreOrderRepository
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	userRepository               irepository.GenericRepository[model.User]
 	variantRepository            irepository.GenericRepository[model.ProductVariant]
@@ -644,8 +645,41 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 		q := db
 
 		if search != "" {
-			like := "%" + search + "%"
-			q = q.Where("(product_name ILIKE ? OR email ILIKE ? OR full_name ILIKE ?)", like, like, like)
+			isUUID := false
+			if _, err := uuid.Parse(search); err == nil {
+				isUUID = true
+			}
+			if isUUID {
+				q = q.Where(`
+					(
+						pre_orders.id = ?
+						OR EXISTS (
+							SELECT 1
+							FROM payment_transactions pt
+							WHERE pt.reference_id = pre_orders.id
+							  AND pt.reference_type = ?
+							  AND pt.id = ?
+						)
+					)
+				`, search, enum.PaymentTransactionReferenceTypePreOrder, search)
+			} else {
+				like := "%" + search + "%"
+				q = q.Where(`
+					(
+						pre_orders.id::text ILIKE ?
+						OR EXISTS (
+							SELECT 1
+							FROM payment_transactions pt
+							WHERE pt.reference_id = pre_orders.id
+							  AND pt.reference_type = ?
+							  AND (
+									pt.id::text ILIKE ?
+									OR pt.payos_metadata->>'bin' ILIKE ?
+							  )
+						)
+					)
+				`, like, enum.PaymentTransactionReferenceTypePreOrder, like, like)
+			}
 		}
 
 		if fullName != "" {
