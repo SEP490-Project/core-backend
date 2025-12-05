@@ -494,7 +494,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 
 	campaignRepo := uow.Campaigns()
 	milstoneRepo := uow.Milestones()
-	taskRepo := uow.Tasks()
+	// taskRepo := uow.Tasks()
 
 	contractID, _ := uuid.Parse(request.ContractID)
 	var contract *model.Contract
@@ -537,7 +537,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 		return nil, err
 	}
 
-	creatingCampaignModel, totalTasksCount, err := request.ToModel(userID)
+	creatingCampaignModel, _, err := request.ToModel(userID)
 	if err != nil {
 		zap.L().Error("Failed to convert request to model", zap.Error(err))
 		return nil, err
@@ -552,7 +552,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 			zap.L().Warn("Failed to map tasks to SOW", zap.Error(err))
 		} else {
 			// Update contract SOW in DB
-			if err = c.contractRepo.Update(ctx, contract); err != nil {
+			if err = uow.Contracts().Update(ctx, contract); err != nil {
 				zap.L().Error("Failed to update contract SOW", zap.Error(err))
 			}
 		}
@@ -573,20 +573,6 @@ func (c *CampaignService) CreateCampaignFromContract(
 		if rowsAffected != int64(len(creatingMilestoneModels)) {
 			zap.L().Warn("Not all milestones were added",
 				zap.Int64("expected", int64(len(creatingMilestoneModels))),
-				zap.Int64("actual", rowsAffected))
-		}
-	}
-
-	creatingTaskModels := utils.FlatMapMapper(creatingMilestoneModels, func(m *model.Milestone) []*model.Task { return m.Tasks })
-	if totalTasksCount > 0 {
-		rowsAffected, err = taskRepo.BulkAdd(ctx, creatingTaskModels, 0)
-		if err != nil {
-			zap.L().Error("Failed to bulk add tasks", zap.Error(err))
-			return nil, err
-		}
-		if rowsAffected != int64(len(creatingTaskModels)) {
-			zap.L().Warn("Not all tasks were added",
-				zap.Int64("expected", int64(len(creatingTaskModels))),
 				zap.Int64("actual", rowsAffected))
 		}
 	}
