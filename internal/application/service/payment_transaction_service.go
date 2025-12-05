@@ -54,7 +54,6 @@ func (s *paymentTransactionService) GetPaymentTransactionByID(ctx context.Contex
 		zap.String("id", transactionID.String()))
 
 	return s.paymentTransactionRepo.GetPaymentTransactionByID(ctx, transactionID)
-
 }
 
 // GetPaymentTransactionByOrderCode implements iservice.PaymentTransactionService.
