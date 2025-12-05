@@ -55,10 +55,10 @@ func (s *SalesStaffAnalyticsService) GetFinancialsDashboard(ctx context.Context,
 			}
 			// Calculate Growth Rate (requires previous period)
 			prevFrom, prevTo := s.getPreviousPeriod(from, to)
-			var prevSummary *responses.FinancialsSummary
-			prevSummary, err = s.repo.GetFinancialsSummary(ctx, prevFrom, prevTo, completedOrders, completedPreOrders)
-			if err == nil && prevSummary.TotalSoldRevenue > 0 {
-				summary.RevenueGrowth = ((summary.TotalSoldRevenue - prevSummary.TotalSoldRevenue) / prevSummary.TotalSoldRevenue) * 100
+			var previousSoldRevenue float64
+			previousSoldRevenue, err = s.repo.GetTotalSoldRevenue(ctx, prevFrom, prevTo, completedOrders, completedPreOrders)
+			if err == nil && previousSoldRevenue > 0 {
+				summary.RevenueGrowth = ((summary.TotalSoldRevenue - previousSoldRevenue) / previousSoldRevenue) * 100
 			}
 
 			response.Summary = *summary
@@ -76,18 +76,17 @@ func (s *SalesStaffAnalyticsService) GetFinancialsDashboard(ctx context.Context,
 			return nil
 		},
 		func(ctx context.Context) error {
-			var revenueTrend *responses.RevenueTrendCharts
-			revenueTrend, err = s.GetRevenueTrend(ctx, req)
+			var revenueTrend map[string][]responses.SalesTimeSeriesPoint
+			revenueTrend, err = s.repo.GetRevenueTrend(ctx, from, to, req.PeriodGap, completedOrders, completedPreOrders)
 			if err != nil {
 				return err
 			}
-			response.RevenueTrend = *revenueTrend
-
+			response.RevenueTrend = revenueTrend
 			return nil
 		},
 		func(ctx context.Context) error {
 			var prods, cats, brands []responses.TopEntity
-			prods, cats, brands, err = s.repo.GetTopSellingByRevenue(ctx, from, to, completedOrders, completedPreOrders, limit)
+			prods, cats, brands, err = s.repo.GetTopSellingByRevenue(ctx, from, to, completedOrders, completedPreOrders, limit, req.SortBy, req.SortOrder)
 			if err != nil {
 				return err
 			}
@@ -168,7 +167,7 @@ func (s *SalesStaffAnalyticsService) GetOrdersDashboard(ctx context.Context, req
 		},
 		func(ctx context.Context) error {
 			var prods, cats, brands []responses.TopEntity
-			prods, cats, brands, err = s.repo.GetTopSellingByVolume(ctx, from, to, completedOrders, completedPreOrders, limit)
+			prods, cats, brands, err = s.repo.GetTopSellingByVolume(ctx, from, to, completedOrders, completedPreOrders, limit, req.SortBy, req.SortOrder)
 			if err != nil {
 				return err
 			}
@@ -199,7 +198,7 @@ func (s *SalesStaffAnalyticsService) GetOrdersDashboard(ctx context.Context, req
 
 // Specific Card APIs
 
-func (s *SalesStaffAnalyticsService) GetRevenueTrend(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.RevenueTrendCharts, error) {
+func (s *SalesStaffAnalyticsService) GetRevenueTrend(ctx context.Context, req *requests.SalesDashboardFilter) (map[string][]responses.SalesTimeSeriesPoint, error) {
 	from, to, err := s.getDateRange(ctx, req)
 	if err != nil {
 		return nil, err
@@ -208,26 +207,7 @@ func (s *SalesStaffAnalyticsService) GetRevenueTrend(ctx context.Context, req *r
 	completedOrders := constant.ValidCompletedOrderStatus
 	completedPreOrders := constant.ValidCompletedPreOrderStatus
 
-	orders, preOrders, standard, limited, err := s.repo.GetRevenueTrend(ctx, from, to, req.PeriodGap, completedOrders, completedPreOrders)
-	if err != nil {
-		return nil, err
-	}
-
-	// Sort limited trend
-	sort.Slice(limited, func(i, j int) bool {
-		return limited[i].Time.Before(limited[j].Time)
-	})
-
-	return &responses.RevenueTrendCharts{
-		OrdersVsPreOrders: map[string][]responses.SalesTimeSeriesPoint{
-			"ORDER":     orders,
-			"PRE_ORDER": preOrders,
-		},
-		StandardVsLimited: map[string][]responses.SalesTimeSeriesPoint{
-			"STANDARD": standard,
-			"LIMITED":  limited,
-		},
-	}, nil
+	return s.repo.GetRevenueTrend(ctx, from, to, req.PeriodGap, completedOrders, completedPreOrders)
 }
 
 func (s *SalesStaffAnalyticsService) GetOrdersTrend(ctx context.Context, req *requests.SalesDashboardFilter) (*responses.OrdersTrendCharts, error) {
@@ -346,6 +326,10 @@ func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requ
 			if start.Before(limitStart) {
 				start = limitStart
 			}
+		case "all":
+			start = time.Time{} // Zero time
+			end = time.Now()
+
 		default:
 			// Default fallback (e.g. 1 month)
 			start = end.AddDate(0, -1, 0)

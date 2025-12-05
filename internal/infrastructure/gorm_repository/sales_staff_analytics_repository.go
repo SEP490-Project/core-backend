@@ -2,6 +2,7 @@ package gormrepository
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"core-backend/internal/application/dto/responses"
@@ -9,6 +10,7 @@ import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 
 	"gorm.io/gorm"
 )
@@ -30,45 +32,47 @@ func NewSalesStaffAnalyticsRepository(db *gorm.DB) irepository.SalesStaffAnalyti
 func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (*responses.FinancialsSummary, error) {
 	var result responses.FinancialsSummary
 
-	// 1. Total Sold Revenue (Orders + PreOrders)
-	// 2. AOV (Combined, Orders, PreOrders)
-	// 3. Returning Customer Count
-	// 4. Limited Product Conversion Rate
-
 	// We can use a CTE to gather base stats
 	// Note: Growth rate needs previous period data, which is better handled in service or by querying previous period here.
 	// For simplicity and performance, let's calculate current period metrics here.
 
+	// =========================================================================
+	// QUERY 1: Financials & Basic Counts (Revenue, AOV, Limited Counts)
+	// =========================================================================
 	type BaseStats struct {
-		TotalRevenue      float64
-		OrderRevenue      float64
-		PreOrderRevenue   float64
-		TotalCount        int64
-		OrderCount        int64
-		PreOrderCount     int64
-		LimitedCount      int64 // PreOrders + Limited Orders
-		TotalLimitedCount int64 // All PreOrders + All Limited Orders (regardless of status? No, usually conversion rate is based on orders placed)
+		TotalRevenue         float64
+		TotalStandardRevenue float64
+		TotalLimitedRevenue  float64
+		OrderRevenue         float64
+		PreOrderRevenue      float64
+		TotalCount           int64
+		OrderCount           int64
+		PreOrderCount        int64
+		LimitedCount         int64 // PreOrders + Limited Orders
 	}
 
-	// Query for current period
-	// We need to be careful with "Limited Product Conversion Rate".
-	// Definition: limited product orders/pre-orders / total orders/pre-orders
-	// This sounds like "Share of Limited Products" rather than "Conversion Rate" (which usually implies visits -> orders).
-	// Based on the requirement: "Limited Product Conversion Rate (To show if Limited Product attract more customers or not) - limited product orders/pre-orders / total orders/pre-orders"
-	// So it is indeed the share.
+	var stats BaseStats
+	var returningCount, newCount int64
+	var totalRefund float64
 
-	// Returning Customer: Customer who have 2 or more orders/pre-orders within time range.
-
-	query := `
+	err := utils.RunParallel(ctx, 3,
+		func(ctx context.Context) error {
+			query := `
 		WITH valid_orders AS (
 			SELECT user_id, total_amount, order_type, 'ORDER' as source
 			FROM orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		valid_pre_orders AS (
 			SELECT user_id, total_amount, 'LIMITED' as order_type, 'PRE_ORDER' as source
 			FROM pre_orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		combined AS (
 			SELECT * FROM valid_orders
@@ -82,6 +86,8 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 		)
 		SELECT
 			COALESCE(SUM(total_amount), 0) as total_revenue,
+			COALESCE(SUM(CASE WHEN order_type = 'STANDARD' THEN total_amount ELSE 0 END), 0) as total_standard_revenue,
+			COALESCE(SUM(CASE WHEN order_type = 'LIMITED' OR source = 'PRE_ORDER' THEN total_amount ELSE 0 END), 0) as total_limited_revenue,
 			COALESCE(SUM(CASE WHEN source = 'ORDER' THEN total_amount ELSE 0 END), 0) as order_revenue,
 			COALESCE(SUM(CASE WHEN source = 'PRE_ORDER' THEN total_amount ELSE 0 END), 0) as pre_order_revenue,
 			COUNT(*) as total_count,
@@ -90,46 +96,104 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 			COUNT(CASE WHEN order_type = 'LIMITED' OR source = 'PRE_ORDER' THEN 1 END) as limited_count
 		FROM combined;
 	`
-
-	var stats BaseStats
-	if err := r.db.WithContext(ctx).Raw(query,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-	).Scan(&stats).Error; err != nil {
-		return nil, err
-	}
-
-	// Returning customers
-	var returningCount int64
-	returningQuery := `
-		WITH valid_orders AS (
-			SELECT user_id
+			return r.db.WithContext(ctx).Raw(query,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+			).Scan(&stats).Error
+		},
+		func(ctx context.Context) error {
+			returningQuery := `
+    WITH valid_orders AS (
+        SELECT user_id, created_at
+        FROM orders
+        WHERE status IN ? 
+            AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+            AND deleted_at IS NULL
+    ),
+    valid_pre_orders AS (
+        SELECT user_id, created_at
+        FROM pre_orders
+        WHERE status IN ? 
+            AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+            AND deleted_at IS NULL
+    ),
+    combined AS (
+        SELECT user_id, created_at FROM valid_orders
+        UNION ALL
+        SELECT user_id, created_at FROM valid_pre_orders
+    ),
+    user_stats AS (
+        SELECT 
+            user_id,
+            MIN(created_at) as first_seen_date,
+            COUNT(CASE 
+                WHEN (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?) THEN 1 
+            END) as tx_in_period
+        FROM combined
+        GROUP BY user_id
+    )
+    SELECT 
+        COUNT(CASE 
+            WHEN tx_in_period > 0 AND first_seen_date < ? THEN 1 
+        END) as returning_count,
+        COUNT(CASE 
+            WHEN tx_in_period > 0 AND first_seen_date >= ? THEN 1 
+        END) as new_count
+    FROM user_stats
+`
+			return r.db.WithContext(ctx).Raw(returningQuery,
+				// valid_orders
+				completedOrderStatuses, to, to, to,
+				// valid_pre_orders
+				completedPreOrderStatuses, to, to, to,
+				// tx_in_period
+				from, from, from,
+				// final selection
+				from, from,
+			).Row().Scan(&returningCount, &newCount)
+		},
+		func(ctx context.Context) error {
+			refundQuery := `
+		WITH refunded_orders AS (
+			SELECT total_amount
 			FROM orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
-		valid_pre_orders AS (
-			SELECT user_id
+		refunded_pre_orders AS (
+			SELECT total_amount
 			FROM pre_orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
-		combined AS (
-			SELECT user_id FROM valid_orders
+		combined_refunds AS (
+			SELECT total_amount FROM refunded_orders
 			UNION ALL
-			SELECT user_id FROM valid_pre_orders
+			SELECT total_amount FROM refunded_pre_orders
 		)
-		SELECT COUNT(*) FROM (
-			SELECT user_id FROM combined GROUP BY user_id HAVING COUNT(*) >= 2
-		) as sub
+		SELECT COALESCE(SUM(total_amount), 0) FROM combined_refunds
 	`
-	if err := r.db.WithContext(ctx).Raw(returningQuery,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-	).Scan(&returningCount).Error; err != nil {
+			return r.db.WithContext(ctx).Raw(refundQuery,
+				constant.ValidRefundedOrderStatus, from, from, from, to, to, to,
+				constant.ValidRefundedPreOrderStatus, from, from, from, to, to, to,
+			).Scan(&totalRefund).Error
+		},
+	)
+
+	if err != nil {
 		return nil, err
 	}
 
 	result.TotalSoldRevenue = stats.TotalRevenue
+	result.TotalStandardRevenue = stats.TotalStandardRevenue
+	result.TotalLimitedRevenue = stats.TotalLimitedRevenue
+	result.TotalRefund = totalRefund
 	result.ReturningCustomerCount = returningCount
+	result.NewCustomerCount = newCount
 
 	// AOV
 	if stats.TotalCount > 0 {
@@ -142,11 +206,6 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 		result.AverageOrderValue.PreOrders = stats.PreOrderRevenue / float64(stats.PreOrderCount)
 	}
 
-	// Limited Conversion Rate (Share)
-	if stats.TotalCount > 0 {
-		result.LimitedProductConversionRate = float64(stats.LimitedCount) / float64(stats.TotalCount)
-	}
-
 	return &result, nil
 }
 
@@ -155,12 +214,18 @@ func (r *SalesStaffAnalyticsRepository) GetTotalSoldRevenue(ctx context.Context,
 		WITH valid_orders AS (
 			SELECT user_id, total_amount, order_type, 'ORDER' as source
 			FROM orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		valid_pre_orders AS (
 			SELECT user_id, total_amount, 'LIMITED' as order_type, 'PRE_ORDER' as source
 			FROM pre_orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		combined AS (
 			SELECT * FROM valid_orders
@@ -173,8 +238,8 @@ func (r *SalesStaffAnalyticsRepository) GetTotalSoldRevenue(ctx context.Context,
 
 	var totalRevenue float64
 	if err := r.db.WithContext(ctx).Raw(totalSoldRevenueQuery,
-		orderStatuses, from, to,
-		preOrderStatuses, from, to,
+		orderStatuses, from, from, from, to, to, to,
+		preOrderStatuses, from, from, from, to, to, to,
 	).Scan(&totalRevenue).Error; err != nil {
 		return 0, err
 	}
@@ -186,53 +251,67 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueBreakdown(ctx context.Context,
 	var byProduct []responses.RevenueByProductType
 	var byCategory []responses.RevenueByCategory
 
-	// 1. By Product Type (Standard vs Limited)
-	// Standard = Orders with type STANDARD
-	// Limited = Orders with type LIMITED + PreOrders
-	queryProduct := `
+	err := utils.RunParallel(ctx, 2,
+		func(ctx context.Context) error {
+			// 1. By Product Type (Standard vs Limited)
+			// Standard = Orders with type STANDARD
+			// Limited = Orders with type LIMITED + PreOrders
+			queryProduct := `
 		WITH standard_rev AS (
 			SELECT COALESCE(SUM(total_amount), 0) as rev
 			FROM orders
-			WHERE order_type = 'STANDARD' AND status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE order_type = ? AND status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		limited_order_rev AS (
 			SELECT COALESCE(SUM(total_amount), 0) as rev
 			FROM orders
-			WHERE order_type = 'LIMITED' AND status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE order_type = ? AND status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		),
 		pre_order_rev AS (
 			SELECT COALESCE(SUM(total_amount), 0) as rev
 			FROM pre_orders
-			WHERE status IN ? AND created_at >= ? AND created_at <= ? AND deleted_at IS NULL
+			WHERE status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+				AND deleted_at IS NULL
 		)
 		SELECT 'STANDARD' as product_type, rev as revenue FROM standard_rev
 		UNION ALL
 		SELECT 'LIMITED' as product_type, (SELECT rev FROM limited_order_rev) + (SELECT rev FROM pre_order_rev) as revenue
 	`
-	if err := r.db.WithContext(ctx).Raw(queryProduct,
-		completedOrderStatuses, from, to,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-	).Scan(&byProduct).Error; err != nil {
-		return nil, nil, err
-	}
+			err := r.db.WithContext(ctx).Raw(queryProduct,
+				enum.ProductTypeStandard, completedOrderStatuses, from, from, from, to, to, to,
+				enum.ProductTypeLimited, completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+			).Scan(&byProduct).Error
 
-	// Calculate percentages
-	var totalRev float64
-	for _, p := range byProduct {
-		totalRev += p.Revenue
-	}
-	if totalRev > 0 {
-		for i := range byProduct {
-			byProduct[i].Percentage = (byProduct[i].Revenue / totalRev) * 100
-		}
-	}
+			if err == nil {
+				// Calculate percentages
+				var totalRev float64
+				for _, p := range byProduct {
+					totalRev += p.Revenue
+				}
+				if totalRev > 0 {
+					for i := range byProduct {
+						byProduct[i].Percentage = (byProduct[i].Revenue / totalRev) * 100
+					}
+				}
+			}
 
-	// 2. By Category (First Level)
-	// Need to join order_items -> product_variants -> products -> product_categories
-	// For PreOrders: pre_order -> product -> category
-	// Note: Orders have order_items. PreOrders have product_id directly.
-	queryCategory := `
+			return err
+		},
+		func(ctx context.Context) error {
+			// 2. By Category (First Level)
+			// Need to join order_items -> product_variants -> products -> product_categories
+			// For PreOrders: pre_order -> product -> category
+			// Note: Orders have order_items. PreOrders have product_id directly.
+			queryCategory := `
 		WITH order_revenue AS (
 			SELECT c.name as category_name, SUM(oi.unit_price * oi.quantity) as revenue
 			FROM orders o
@@ -240,7 +319,10 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueBreakdown(ctx context.Context,
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN product_categories c ON p.category_id = c.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY c.name
 		),
 		pre_order_revenue AS (
@@ -249,7 +331,10 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueBreakdown(ctx context.Context,
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN product_categories c ON p.category_id = c.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ? 
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY c.name
 		)
 		SELECT category_name, SUM(revenue) as revenue
@@ -261,20 +346,43 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueBreakdown(ctx context.Context,
 		GROUP BY category_name
 		ORDER BY revenue DESC
 	`
-	if err := r.db.WithContext(ctx).Raw(queryCategory,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-	).Scan(&byCategory).Error; err != nil {
+			err := r.db.WithContext(ctx).Raw(queryCategory,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+			).Scan(&byCategory).Error
+
+			if err == nil {
+				// Calculate percentages
+				var totalRev float64
+				for _, p := range byCategory {
+					totalRev += p.Revenue
+				}
+				if totalRev > 0 {
+					for i := range byCategory {
+						byCategory[i].Percentage = (byCategory[i].Revenue / totalRev) * 100
+					}
+				}
+			}
+			return err
+		},
+	)
+
+	if err != nil {
 		return nil, nil, err
 	}
 
 	return byProduct, byCategory, nil
 }
 
-func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, from, to time.Time, periodGap string, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error) {
+func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, from, to time.Time, periodGap string, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (map[string][]responses.SalesTimeSeriesPoint, error) {
+	result := make(map[string][]responses.SalesTimeSeriesPoint)
+
 	// Determine interval based on range
 	var interval string
-	if periodGap != "" {
+	isAll := false
+	if periodGap == "all" {
+		isAll = true
+	} else if periodGap != "" {
 		interval = periodGap
 	} else {
 		duration := to.Sub(from)
@@ -290,84 +398,130 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, fro
 	// Helper to generate series
 	generateSeries := func(sourceType, orderType string, statuses any, table string) ([]responses.SalesTimeSeriesPoint, error) {
 		var points []responses.SalesTimeSeriesPoint
-		// Use generate_series to ensure all time points are present
-		q := `
-			WITH dates AS (
-				SELECT generate_series(
-					date_trunc(?, ?::timestamp),
-					date_trunc(?, ?::timestamp),
-					?::interval
-				) as date
-			)
-			SELECT 
-				dates.date as time, 
-				COALESCE(SUM(t.total_amount), 0) as value, 
-				? as type
-			FROM dates
-			LEFT JOIN ` + table + ` t ON date_trunc(?, t.created_at) = dates.date
-				AND t.status IN ? 
-				AND t.created_at >= ? AND t.created_at <= ?
-				AND t.deleted_at IS NULL
-		`
-		args := []any{interval, from, interval, to, "1 " + interval, sourceType, interval, statuses, from, to}
+		var q string
+		var args []any
+
+		if isAll {
+			q = `
+				SELECT 
+					? as time, 
+					COALESCE(SUM(t.total_amount), 0) as value, 
+					? as type
+				FROM ` + table + ` t
+				WHERE t.status IN ? 
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at >= ?)
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at <= ?)
+					AND t.deleted_at IS NULL
+			`
+			args = []any{from, sourceType, statuses, from, from, from, to, to, to}
+		} else {
+			q = `
+				WITH dates AS (
+					SELECT generate_series(
+						date_trunc(?, ?::timestamp),
+						date_trunc(?, ?::timestamp),
+						?::interval
+					) as date
+				)
+				SELECT 
+					dates.date as time, 
+					COALESCE(SUM(t.total_amount), 0) as value, 
+					? as type
+				FROM dates
+				LEFT JOIN ` + table + ` t ON date_trunc(?, t.created_at) = dates.date
+					AND t.status IN ? 
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at >= ?)
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at <= ?)
+					AND t.deleted_at IS NULL
+			`
+			args = []any{interval, from, interval, to, "1 " + interval, sourceType, interval, statuses, from, from, from, to, to, to}
+		}
 
 		if orderType != "" {
 			q += " AND t.order_type = ?"
 			args = append(args, orderType)
 		}
 
-		q += " GROUP BY dates.date ORDER BY dates.date"
+		if !isAll {
+			q += " GROUP BY dates.date ORDER BY dates.date"
+		}
 
-		if err = r.db.WithContext(ctx).Raw(q, args...).Scan(&points).Error; err != nil {
+		if err := r.db.WithContext(ctx).Raw(q, args...).Scan(&points).Error; err != nil {
 			return nil, err
 		}
 		return points, nil
 	}
 
-	// Orders vs PreOrders
-	orders, err = generateSeries("ORDER", "", completedOrderStatuses, "orders")
+	var standardOrders, limitedOrders, preOrders []responses.SalesTimeSeriesPoint
+
+	err := utils.RunParallel(ctx, 3,
+		func(ctx context.Context) error {
+			var err error
+			standardOrders, err = generateSeries("STANDARD", "STANDARD", completedOrderStatuses, "orders")
+			return err
+		},
+		func(ctx context.Context) error {
+			var err error
+			limitedOrders, err = generateSeries("LIMITED", "LIMITED", completedOrderStatuses, "orders")
+			return err
+		},
+		func(ctx context.Context) error {
+			var err error
+			preOrders, err = generateSeries("PRE_ORDER", "", completedPreOrderStatuses, "pre_orders")
+			return err
+		},
+	)
 	if err != nil {
-		return
-	}
-	preOrders, err = generateSeries("PRE_ORDER", "", completedPreOrderStatuses, "pre_orders")
-	if err != nil {
-		return
+		return nil, err
 	}
 
-	// Standard vs Limited
-	// Standard = Orders(STANDARD)
-	standard, err = generateSeries("STANDARD", "STANDARD", completedOrderStatuses, "orders")
-	if err != nil {
-		return
+	// Helper to merge points
+	mergePoints := func(p1, p2 []responses.SalesTimeSeriesPoint, typeName string) []responses.SalesTimeSeriesPoint {
+		m := make(map[time.Time]float64)
+		for _, p := range p1 {
+			m[p.Time] += p.Value
+		}
+		for _, p := range p2 {
+			m[p.Time] += p.Value
+		}
+
+		var merged []responses.SalesTimeSeriesPoint
+		for t, v := range m {
+			merged = append(merged, responses.SalesTimeSeriesPoint{Time: t, Value: v, Type: typeName})
+		}
+		slices.SortFunc(merged, func(a, b responses.SalesTimeSeriesPoint) int {
+			return a.Time.Compare(b.Time)
+		})
+		return merged
 	}
 
-	// Limited = Orders(LIMITED) + PreOrders
-	var limitedOrders []responses.SalesTimeSeriesPoint
-	limitedOrders, err = generateSeries("LIMITED", "LIMITED", completedOrderStatuses, "orders")
-	if err != nil {
-		return
-	}
+	// 1. STANDARD Series
+	result["STANDARD"] = standardOrders
 
-	// Merge Limited Orders + PreOrders
-	limitedMap := make(map[time.Time]float64)
-	for _, p := range limitedOrders {
-		limitedMap[p.Time] = p.Value
-	}
-	for _, p := range preOrders {
-		limitedMap[p.Time] += p.Value
-	}
+	// 2. LIMITED Series (Limited Orders + PreOrders)
+	result["LIMITED"] = mergePoints(limitedOrders, preOrders, "LIMITED")
 
-	for t, v := range limitedMap {
-		limited = append(limited, responses.SalesTimeSeriesPoint{Time: t, Value: v, Type: "LIMITED"})
-	}
-	// Sort limited? Map iteration is random.
-	// Ideally we should sort, but for now let's rely on frontend or sort in service.
+	// 3. ALL Series (Standard + Limited)
+	result["ALL"] = mergePoints(result["STANDARD"], result["LIMITED"], "ALL")
 
-	return
+	return result, nil
 }
 
-func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) ([]responses.TopEntity, []responses.TopEntity, []responses.TopEntity, error) {
+func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int, sortBy string, sortOrder string) ([]responses.TopEntity, []responses.TopEntity, []responses.TopEntity, error) {
 	var products, categories, brands []responses.TopEntity
+
+	// Determine Order By
+	orderBy := "value DESC"
+	if sortBy == "name" {
+		orderBy = "name"
+	} else {
+		orderBy = "value"
+	}
+	if sortOrder == "asc" {
+		orderBy += " ASC"
+	} else {
+		orderBy += " DESC"
+	}
 
 	// Top Products
 	queryProducts := `
@@ -377,7 +531,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			JOIN order_items oi ON o.id = oi.order_id
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY pv.product_id, p.name
 		),
 		pre_order_sales AS (
@@ -385,7 +542,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			FROM pre_orders po
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY pv.product_id, p.name
 		)
 		SELECT product_id as id, name, SUM(revenue) as value
@@ -395,16 +555,9 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY product_id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryProducts,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&products).Error; err != nil {
-		return nil, nil, nil, err
-	}
 
 	// Top Categories
 	queryCategories := `
@@ -434,16 +587,9 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryCategories,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&categories).Error; err != nil {
-		return nil, nil, nil, err
-	}
 
 	// Top Brands
 	queryBrands := `
@@ -454,7 +600,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN brands b ON p.brand_id = b.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY b.id, b.name
 		),
 		pre_order_sales AS (
@@ -463,7 +612,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN brands b ON p.brand_id = b.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY b.id, b.name
 		)
 		SELECT id, name, SUM(revenue) as value
@@ -473,14 +625,35 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryBrands,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&brands).Error; err != nil {
+
+	err := utils.RunParallel(ctx, 3,
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryProducts,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+				limit,
+			).Scan(&products).Error
+		},
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryCategories,
+				completedOrderStatuses, from, to,
+				completedPreOrderStatuses, from, to,
+				limit,
+			).Scan(&categories).Error
+		},
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryBrands,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+				limit,
+			).Scan(&brands).Error
+		},
+	)
+
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -494,40 +667,92 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByRevenue(ctx context.Conte
 func (r *SalesStaffAnalyticsRepository) GetOrdersSummary(ctx context.Context, from, to time.Time) (*responses.OrdersSummary, error) {
 	var result responses.OrdersSummary
 
-	// Total Orders, Total PreOrders
-	// Cancellation Rate, Refund Rate (Orders only)
-
-	query := `
-		SELECT
-			COUNT(*) as total_orders,
-			COUNT(CASE WHEN status = 'CANCELLED' THEN 1 END) as cancelled_orders,
-			COUNT(CASE WHEN status = 'REFUNDED' OR status = 'COMPENSATED' THEN 1 END) as refunded_orders
-		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL
-	`
+	// 1. Orders Stats
 	var orderStats struct {
 		TotalOrders     int64
+		PendingOrders   int64
+		CompletedOrders int64
 		CancelledOrders int64
 		RefundedOrders  int64
 	}
-	if err := r.db.WithContext(ctx).Raw(query, from, to).Scan(&orderStats).Error; err != nil {
-		return nil, err
+
+	// 2. PreOrders Stats
+	var preOrderStats struct {
+		TotalOrders     int64
+		PendingOrders   int64
+		CompletedOrders int64
+		CancelledOrders int64
+		RefundedOrders  int64
 	}
 
-	var preOrderCount int64
-	if err := r.db.WithContext(ctx).Model(&model.PreOrder{}). // Assuming model exists, or use Table
-									Table("pre_orders").
-									Where("created_at >= ? AND created_at <= ? AND deleted_at IS NULL", from, to).
-									Count(&preOrderCount).Error; err != nil {
+	err := utils.RunParallel(ctx, 2,
+		func(ctx context.Context) error {
+			queryOrders := `
+				SELECT
+					COUNT(*) as total_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as completed_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as pending_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as cancelled_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as refunded_orders
+				FROM orders
+				WHERE (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+					AND deleted_at IS NULL
+			`
+			err := r.db.WithContext(ctx).Raw(queryOrders,
+				constant.ValidCompletedOrderStatus, constant.ValidPendingOrderStatus,
+				constant.ValidCancelledOrderStatus, constant.ValidRefundedOrderStatus,
+				from, from, from, to, to, to,
+			).Scan(&orderStats).Error
+
+			if err == nil {
+				result.Order.Total = orderStats.TotalOrders
+				result.Order.Pending = orderStats.PendingOrders
+				result.Order.Completed = orderStats.CompletedOrders
+				result.Order.Cancelled = orderStats.CancelledOrders
+				result.Order.Refunded = orderStats.RefundedOrders
+				if orderStats.TotalOrders > 0 {
+					result.Order.CancellationRate = (float64(orderStats.CancelledOrders) / float64(orderStats.TotalOrders)) * 100
+					result.Order.RefundRate = (float64(orderStats.RefundedOrders) / float64(orderStats.TotalOrders)) * 100
+				}
+			}
+			return err
+		},
+		func(ctx context.Context) error {
+			queryPreOrders := `
+				SELECT
+					COUNT(*) as total_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as completed_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as pending_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as cancelled_orders,
+					COUNT(CASE WHEN status IN ? THEN 1 END) as refunded_orders
+				FROM pre_orders
+				WHERE (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+					AND deleted_at IS NULL
+			`
+			err := r.db.WithContext(ctx).Raw(queryPreOrders,
+				constant.ValidCompletedPreOrderStatus, constant.ValidPendingPreOrderStatus,
+				constant.ValidCancelledPreOrderStatus, constant.ValidRefundedPreOrderStatus,
+				from, from, from, to, to, to,
+			).Scan(&preOrderStats).Error
+
+			if err == nil {
+				result.PreOrder.Total = preOrderStats.TotalOrders
+				result.PreOrder.Pending = preOrderStats.PendingOrders
+				result.PreOrder.Completed = preOrderStats.CompletedOrders
+				result.PreOrder.Cancelled = preOrderStats.CancelledOrders
+				result.PreOrder.Refunded = preOrderStats.RefundedOrders
+				if preOrderStats.TotalOrders > 0 {
+					result.PreOrder.CancellationRate = (float64(preOrderStats.CancelledOrders) / float64(preOrderStats.TotalOrders)) * 100
+					result.PreOrder.RefundRate = (float64(preOrderStats.RefundedOrders) / float64(preOrderStats.TotalOrders)) * 100
+				}
+			}
+			return err
+		},
+	)
+	if err != nil {
 		return nil, err
-	}
-
-	result.TotalOrders = orderStats.TotalOrders
-	result.TotalPreOrders = preOrderCount
-
-	if orderStats.TotalOrders > 0 {
-		result.CancellationRate = (float64(orderStats.CancelledOrders) / float64(orderStats.TotalOrders)) * 100
-		result.RefundRate = (float64(orderStats.RefundedOrders) / float64(orderStats.TotalOrders)) * 100
 	}
 
 	return &result, nil
@@ -553,27 +778,42 @@ func (r *SalesStaffAnalyticsRepository) GetOrderStatusDistribution(ctx context.C
 	// 	WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL
 	// `
 
-	if err := r.db.WithContext(ctx).Raw(
-		"SELECT "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as pending, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as completed, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as cancelled, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as refunded "+
-			"FROM orders WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL",
-		constant.ValidPendingOrderStatus, constant.ValidCompletedOrderStatus, constant.ValidCancelledOrderStatus, constant.ValidRefundedOrderStatus, from, to,
-	).Scan(&ordersDist).Error; err != nil {
-		return ordersDist, preOrdersDist, err
-	}
+	err := utils.RunParallel(ctx, 2,
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(`
+		SELECT 
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as pending,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as completed,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as cancelled,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as refunded
+		FROM orders 
+		WHERE deleted_at IS NULL
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+		`,
+				constant.ValidPendingOrderStatus, constant.ValidCompletedOrderStatus, constant.ValidCancelledOrderStatus,
+				constant.ValidRefundedOrderStatus, from, from, from, to, to, to,
+			).Scan(&ordersDist).Error
+		},
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(`
+		SELECT 
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as pending,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as completed,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as cancelled,
+			SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as refunded
+		FROM pre_orders 
+		WHERE deleted_at IS NULL
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+		`,
+				constant.ValidPendingPreOrderStatus, constant.ValidCompletedPreOrderStatus, constant.ValidCancelledPreOrderStatus,
+				constant.ValidRefundedPreOrderStatus, from, from, from, to, to, to,
+			).Scan(&preOrdersDist).Error
+		},
+	)
 
-	if err := r.db.WithContext(ctx).Raw(
-		"SELECT "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as pending, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as completed, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as cancelled, "+
-			"SUM(CASE WHEN status IN ? THEN 1 ELSE 0 END) as refunded "+
-			"FROM pre_orders WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL",
-		constant.ValidPendingPreOrderStatus, constant.ValidCompletedPreOrderStatus, constant.ValidCancelledPreOrderStatus, constant.ValidRefundedPreOrderStatus, from, to,
-	).Scan(&preOrdersDist).Error; err != nil {
+	if err != nil {
 		return ordersDist, preOrdersDist, err
 	}
 
@@ -581,7 +821,6 @@ func (r *SalesStaffAnalyticsRepository) GetOrderStatusDistribution(ctx context.C
 }
 
 func (r *SalesStaffAnalyticsRepository) GetOrdersTrend(ctx context.Context, from, to time.Time, periodGap string) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error) {
-	// Similar to RevenueTrend but COUNT(*) instead of SUM(total_amount)
 	var interval string
 	if periodGap != "" {
 		interval = periodGap
@@ -612,10 +851,11 @@ func (r *SalesStaffAnalyticsRepository) GetOrdersTrend(ctx context.Context, from
 				? as type
 			FROM dates
 			LEFT JOIN ` + table + ` t ON date_trunc(?, t.created_at) = dates.date
-				AND t.created_at >= ? AND t.created_at <= ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at <= ?)
 				AND t.deleted_at IS NULL
 		`
-		args := []any{interval, from, interval, to, "1 " + interval, sourceType, interval, from, to}
+		args := []any{interval, from, interval, to, "1 " + interval, sourceType, interval, from, from, from, to, to, to}
 
 		if orderType != "" {
 			q += " AND t.order_type = ?"
@@ -630,21 +870,30 @@ func (r *SalesStaffAnalyticsRepository) GetOrdersTrend(ctx context.Context, from
 		return points, nil
 	}
 
-	orders, err = generateSeries("ORDER", "", "orders")
-	if err != nil {
-		return
-	}
-	preOrders, err = generateSeries("PRE_ORDER", "", "pre_orders")
-	if err != nil {
-		return
-	}
-	standard, err = generateSeries("STANDARD", "STANDARD", "orders")
-	if err != nil {
-		return
-	}
-
 	var limitedOrders []responses.SalesTimeSeriesPoint
-	limitedOrders, err = generateSeries("LIMITED", "LIMITED", "orders")
+
+	err = utils.RunParallel(ctx, 4,
+		func(ctx context.Context) error {
+			var e error
+			orders, e = generateSeries("ORDER", "", "orders")
+			return e
+		},
+		func(ctx context.Context) error {
+			var e error
+			preOrders, e = generateSeries("PRE_ORDER", "", "pre_orders")
+			return e
+		},
+		func(ctx context.Context) error {
+			var e error
+			standard, e = generateSeries("STANDARD", "STANDARD", "orders")
+			return e
+		},
+		func(ctx context.Context) error {
+			var e error
+			limitedOrders, e = generateSeries("LIMITED", "LIMITED", "orders")
+			return e
+		},
+	)
 	if err != nil {
 		return
 	}
@@ -664,16 +913,21 @@ func (r *SalesStaffAnalyticsRepository) GetOrdersTrend(ctx context.Context, from
 	return
 }
 
-func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) ([]responses.TopEntity, []responses.TopEntity, []responses.TopEntity, error) {
-	// Similar to Revenue but COUNT(*) or SUM(quantity)
-	// Let's use SUM(quantity) for products, and COUNT(*) for orders in categories/brands?
-	// Requirement says "Top Selling Product Name By No. Orders".
-	// "No. Orders" usually means count of orders containing the product, or sum of quantity?
-	// "By No. Orders" implies count of orders. But "Top Selling" usually implies quantity.
-	// Let's use SUM(quantity) for products, as it's more accurate for "Selling".
-	// For Categories/Brands, SUM(quantity) is also good.
-
+func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int, sortBy string, sortOrder string) ([]responses.TopEntity, []responses.TopEntity, []responses.TopEntity, error) {
 	var products, categories, brands []responses.TopEntity
+
+	// Determine Order By
+	orderBy := "value DESC"
+	if sortBy == "name" {
+		orderBy = "name"
+	} else {
+		orderBy = "value"
+	}
+	if sortOrder == "asc" {
+		orderBy += " ASC"
+	} else {
+		orderBy += " DESC"
+	}
 
 	// Top Products
 	queryProducts := `
@@ -683,7 +937,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			JOIN order_items oi ON o.id = oi.order_id
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY pv.product_id, p.name
 		),
 		pre_order_sales AS (
@@ -691,7 +948,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			FROM pre_orders po
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY pv.product_id, p.name
 		)
 		SELECT product_id as id, name, SUM(volume) as value
@@ -701,16 +961,9 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY product_id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryProducts,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&products).Error; err != nil {
-		return nil, nil, nil, err
-	}
 
 	// Top Categories
 	queryCategories := `
@@ -721,7 +974,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN product_categories c ON p.category_id = c.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status in ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY c.id, c.name
 		),
 		pre_order_sales AS (
@@ -730,7 +986,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN product_categories c ON p.category_id = c.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY c.id, c.name
 		)
 		SELECT id, name, SUM(volume) as value
@@ -740,16 +999,9 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryCategories,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&categories).Error; err != nil {
-		return nil, nil, nil, err
-	}
 
 	// Top Brands
 	queryBrands := `
@@ -760,7 +1012,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			JOIN product_variants pv ON oi.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN brands b ON p.brand_id = b.id
-			WHERE o.status IN ? AND o.created_at >= ? AND o.created_at <= ? AND o.deleted_at IS NULL
+			WHERE o.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
 			GROUP BY b.id, b.name
 		),
 		pre_order_sales AS (
@@ -769,7 +1024,10 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			JOIN product_variants pv ON po.variant_id = pv.id
 			JOIN products p ON pv.product_id = p.id
 			JOIN brands b ON p.brand_id = b.id
-			WHERE po.status IN ? AND po.created_at >= ? AND po.created_at <= ? AND po.deleted_at IS NULL
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
 			GROUP BY b.id, b.name
 		)
 		SELECT id, name, SUM(volume) as value
@@ -779,14 +1037,35 @@ func (r *SalesStaffAnalyticsRepository) GetTopSellingByVolume(ctx context.Contex
 			SELECT * FROM pre_order_sales
 		) as combined
 		GROUP BY id, name
-		ORDER BY value DESC
+		ORDER BY ` + orderBy + `
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(queryBrands,
-		completedOrderStatuses, from, to,
-		completedPreOrderStatuses, from, to,
-		limit,
-	).Scan(&brands).Error; err != nil {
+
+	err := utils.RunParallel(ctx, 3,
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryProducts,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+				limit,
+			).Scan(&products).Error
+		},
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryCategories,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+				limit,
+			).Scan(&categories).Error
+		},
+		func(ctx context.Context) error {
+			return r.db.WithContext(ctx).Raw(queryBrands,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+				limit,
+			).Scan(&brands).Error
+		},
+	)
+
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -800,15 +1079,25 @@ func (r *SalesStaffAnalyticsRepository) GetLatestOrders(ctx context.Context, fro
 	query := `
 		SELECT id, full_name as customer_name, total_amount, status::varchar(50), 'ORDER' as type, created_at
 		FROM orders
-		WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL AND status in ?
+		WHERE status in ?
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+			AND deleted_at IS NULL
 		UNION ALL
-		SELECT id, full_name as customer_name, total_amount, status::varchar(50), 'PRE_ORDER' as type, created_at
+		SELECT id, full_name as customer_name, total_amount as price, status::varchar(50), 'PRE_ORDER' as type, created_at
 		FROM pre_orders
-		WHERE created_at >= ? AND created_at <= ? AND deleted_at IS NULL AND status in ?
+		WHERE status in ?
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
+			AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at <= ?)
+			AND deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT ?
 	`
-	if err := r.db.WithContext(ctx).Raw(query, from, to, constant.ValidPendingOrderStatus, from, to, constant.ValidPendingPreOrderStatus, limit).Scan(&orders).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(query,
+		constant.ValidPendingOrderStatus, from, from, from, to, to, to,
+		constant.ValidPendingPreOrderStatus, from, from, from, to, to, to,
+		limit,
+	).Scan(&orders).Error; err != nil {
 		return nil, err
 	}
 	return orders, nil
