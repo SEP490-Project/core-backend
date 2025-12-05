@@ -13740,7 +13740,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns user's preorders with pagination, optional status filter and search by product name or receiver name",
+                "description": "Returns user's preorders with pagination, optional status filter, search by product name or receiver name, and date range",
                 "consumes": [
                     "application/json"
                 ],
@@ -13771,9 +13771,39 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)",
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "PRE_ORDERED",
+                                "CANCELLED",
+                                "REFUND_REQUEST",
+                                "REFUNDED",
+                                "AWAITING_PICKUP",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "COMPENSATE_REQUEST",
+                                "COMPENSATED",
+                                "RECEIVED"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "example:",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (YYYY-MM-DD)",
+                        "name": "createdFrom",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (YYYY-MM-DD)",
+                        "name": "createdTo",
                         "in": "query"
                     }
                 ],
@@ -14007,7 +14037,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve paginated preorders for staff, filterable by status and search (id/payment id/bin) and address fields.",
+                "description": "Retrieve paginated preorders for staff, filterable by status and search (id) and address fields.",
                 "consumes": [
                     "application/json"
                 ],
@@ -14038,21 +14068,6 @@ const docTemplate = `{
                         "example": 10,
                         "description": "Number of items per page (default: 10, max: 100)\nin: query\nexample: 10",
                         "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "STANDARD",
-                            "LIMITED"
-                        ],
-                        "type": "string",
-                        "example": "STANDARD",
-                        "x-enum-varnames": [
-                            "ProductTypeStandard",
-                            "ProductTypeLimited"
-                        ],
-                        "description": "Order type filter\nin: query\nexample: \"STANDARD\"",
-                        "name": "order_type",
                         "in": "query"
                     },
                     {
@@ -20818,6 +20833,9 @@ const docTemplate = `{
         "model.LimitedProduct": {
             "type": "object",
             "properties": {
+                "achievable_quantity": {
+                    "type": "integer"
+                },
                 "availability_end_date": {
                     "type": "string"
                 },
@@ -22532,11 +22550,17 @@ const docTemplate = `{
         "requests.LimitedProductAttributes": {
             "type": "object",
             "required": [
+                "achievable_quantity",
                 "availability_end_date",
                 "availability_start_date",
                 "premiere_date"
             ],
             "properties": {
+                "achievable_quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
                 "availability_end_date": {
                     "type": "string",
                     "example": "2023-10-31T10:00"
@@ -22743,6 +22767,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "address_id",
+                "quantity",
                 "variant_id"
             ],
             "properties": {
@@ -22757,6 +22782,11 @@ const docTemplate = `{
                 "is_self_pickup": {
                     "type": "boolean",
                     "example": false
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
                 },
                 "success_url": {
                     "type": "string",
@@ -27438,21 +27468,18 @@ const docTemplate = `{
                 "address_line2": {
                     "type": "string"
                 },
-                "brand_id": {
-                    "type": "string"
+                "brand": {
+                    "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
                 "capacity": {
-                    "description": "The same as orderItem",
+                    "description": "Variant Info",
                     "type": "number"
                 },
                 "capacity_unit": {
                     "type": "string"
                 },
                 "category": {
-                    "$ref": "#/definitions/model.ProductCategory"
-                },
-                "category_id": {
-                    "type": "string"
+                    "$ref": "#/definitions/responses.OrderItemCategoryResponse"
                 },
                 "city": {
                     "type": "string"
@@ -27467,6 +27494,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleted_at": {
+                    "description": "convert gorm.DeletedAt to *time.Time",
                     "type": "string"
                 },
                 "description": {
@@ -27485,7 +27513,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "full_name": {
-                    "description": "The same as order which Copied shipping address fields",
+                    "description": "Shipping Info",
                     "type": "string"
                 },
                 "ghn_district_id": {
@@ -27498,11 +27526,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "height": {
-                    "description": "in centimeters",
                     "type": "integer"
                 },
                 "id": {
                     "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.OrderItemImage"
+                    }
                 },
                 "instructions": {
                     "type": "string"
@@ -27511,7 +27544,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "length": {
-                    "description": "in centimeters",
                     "type": "integer"
                 },
                 "manufacturing_date": {
@@ -27520,18 +27552,11 @@ const docTemplate = `{
                 "paymentTx": {
                     "$ref": "#/definitions/responses.PaymentTransactionResponse"
                 },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
                 "phone_number": {
                     "type": "string"
                 },
                 "product_name": {
-                    "description": "product fields",
+                    "description": "Product Info",
                     "type": "string"
                 },
                 "product_type": {
@@ -27547,7 +27572,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/enum.PreOrderStatus"
+                    "type": "string"
                 },
                 "street": {
                     "type": "string"
@@ -27590,11 +27615,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
-                    "description": "in centimeters",
                     "type": "integer"
                 }
             }

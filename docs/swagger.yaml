@@ -1639,6 +1639,8 @@ definitions:
     type: object
   model.LimitedProduct:
     properties:
+      achievable_quantity:
+        type: integer
       availability_end_date:
         type: string
       availability_start_date:
@@ -2860,6 +2862,10 @@ definitions:
     type: object
   requests.LimitedProductAttributes:
     properties:
+      achievable_quantity:
+        example: 1
+        minimum: 1
+        type: integer
       availability_end_date:
         example: 2023-10-31T10:00
         type: string
@@ -2873,6 +2879,7 @@ definitions:
         example: 2023-10-01T10:00:00
         type: string
     required:
+    - achievable_quantity
     - availability_end_date
     - availability_start_date
     - premiere_date
@@ -3014,6 +3021,10 @@ definitions:
       is_self_pickup:
         example: false
         type: boolean
+      quantity:
+        example: 1
+        minimum: 1
+        type: integer
       success_url:
         example: https://example.com/success
         type: string
@@ -3025,6 +3036,7 @@ definitions:
         type: string
     required:
     - address_id
+    - quantity
     - variant_id
     type: object
   requests.PublishEmailRequest:
@@ -6279,17 +6291,15 @@ definitions:
         type: array
       address_line2:
         type: string
-      brand_id:
-        type: string
+      brand:
+        $ref: '#/definitions/responses.OrderItemBrandResponse'
       capacity:
-        description: The same as orderItem
+        description: Variant Info
         type: number
       capacity_unit:
         type: string
       category:
-        $ref: '#/definitions/model.ProductCategory'
-      category_id:
-        type: string
+        $ref: '#/definitions/responses.OrderItemCategoryResponse'
       city:
         type: string
       confirmation_image:
@@ -6299,6 +6309,7 @@ definitions:
       created_at:
         type: string
       deleted_at:
+        description: convert gorm.DeletedAt to *time.Time
         type: string
       description:
         type: string
@@ -6311,7 +6322,7 @@ definitions:
       expiry_date:
         type: string
       full_name:
-        description: The same as order which Copied shipping address fields
+        description: Shipping Info
         type: string
       ghn_district_id:
         type: integer
@@ -6320,30 +6331,27 @@ definitions:
       ghn_ward_code:
         type: string
       height:
-        description: in centimeters
         type: integer
       id:
         type: string
+      images:
+        items:
+          $ref: '#/definitions/responses.OrderItemImage'
+        type: array
       instructions:
         type: string
       is_self_picked_up:
         type: boolean
       length:
-        description: in centimeters
         type: integer
       manufacturing_date:
-        type: string
-      payment_bin:
-        type: string
-      payment_id:
-        description: Transient fields populated by repository (not persisted)
         type: string
       paymentTx:
         $ref: '#/definitions/responses.PaymentTransactionResponse'
       phone_number:
         type: string
       product_name:
-        description: product fields
+        description: Product Info
         type: string
       product_type:
         type: string
@@ -6354,7 +6362,7 @@ definitions:
       staff_resource:
         type: string
       status:
-        $ref: '#/definitions/enum.PreOrderStatus'
+        type: string
       street:
         type: string
       total_amount:
@@ -6383,10 +6391,8 @@ definitions:
       ward_name:
         type: string
       weight:
-        description: in grams
         type: integer
       width:
-        description: in centimeters
         type: integer
     type: object
   responses.ProductAttributesResponse:
@@ -16310,8 +16316,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Returns user's preorders with pagination, optional status filter
-        and search by product name or receiver name
+      description: Returns user's preorders with pagination, optional status filter,
+        search by product name or receiver name, and date range
       parameters:
       - description: 'Page number (default: 1)'
         in: query
@@ -16325,10 +16331,33 @@ paths:
         in: query
         name: search
         type: string
-      - description: Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING,
-          AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)
+      - collectionFormat: csv
+        description: 'example:'
         in: query
+        items:
+          enum:
+          - PENDING
+          - PAID
+          - PRE_ORDERED
+          - CANCELLED
+          - REFUND_REQUEST
+          - REFUNDED
+          - AWAITING_PICKUP
+          - IN_TRANSIT
+          - DELIVERED
+          - COMPENSATE_REQUEST
+          - COMPENSATED
+          - RECEIVED
+          type: string
         name: status
+        type: array
+      - description: Filter by start date (YYYY-MM-DD)
+        in: query
+        name: createdFrom
+        type: string
+      - description: Filter by end date (YYYY-MM-DD)
+        in: query
+        name: createdTo
         type: string
       produces:
       - application/json
@@ -16552,7 +16581,7 @@ paths:
       consumes:
       - application/json
       description: Retrieve paginated preorders for staff, filterable by status and
-        search (id/payment id/bin) and address fields.
+        search (id) and address fields.
       parameters:
       - description: |-
           GHN district id
@@ -16578,20 +16607,6 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: |-
-          Order type filter
-          in: query
-          example: "STANDARD"
-        enum:
-        - STANDARD
-        - LIMITED
-        example: STANDARD
-        in: query
-        name: order_type
-        type: string
-        x-enum-varnames:
-        - ProductTypeStandard
-        - ProductTypeLimited
       - description: |-
           Page number (default: 1)
           in: query
