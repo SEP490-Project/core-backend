@@ -3218,14 +3218,35 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "name",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "Sort By (name, value)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort Order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "day",
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     },
@@ -3382,10 +3403,11 @@ const docTemplate = `{
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -3402,7 +3424,13 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.RevenueTrendCharts"
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -3463,14 +3491,35 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "name",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "Sort By (name, value)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort Order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "day",
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -3546,10 +3595,11 @@ const docTemplate = `{
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -13740,7 +13790,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns user's preorders with pagination, optional status filter and search by product name or receiver name",
+                "description": "Returns user's preorders with pagination, optional status filter, search by product name or receiver name, and date range",
                 "consumes": [
                     "application/json"
                 ],
@@ -13771,9 +13821,39 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by status (PENDING, PAID, PRE_ORDERED, STOCK_READY, STOCK_PREPARING, AWAITING_PICKUP, CANCELLED, IN_TRANSIT, DELIVERED, RECEIVED)",
+                        "type": "array",
+                        "items": {
+                            "enum": [
+                                "PENDING",
+                                "PAID",
+                                "PRE_ORDERED",
+                                "CANCELLED",
+                                "REFUND_REQUEST",
+                                "REFUNDED",
+                                "AWAITING_PICKUP",
+                                "IN_TRANSIT",
+                                "DELIVERED",
+                                "COMPENSATE_REQUEST",
+                                "COMPENSATED",
+                                "RECEIVED"
+                            ],
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "example:",
                         "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by start date (YYYY-MM-DD)",
+                        "name": "createdFrom",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by end date (YYYY-MM-DD)",
+                        "name": "createdTo",
                         "in": "query"
                     }
                 ],
@@ -14007,7 +14087,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retrieve paginated preorders for staff, filterable by status and search (id/payment id/bin) and address fields.",
+                "description": "Retrieve paginated preorders for staff, filterable by status and search (id) and address fields.",
                 "consumes": [
                     "application/json"
                 ],
@@ -14079,7 +14159,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by orderID\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -20818,6 +20898,9 @@ const docTemplate = `{
         "model.LimitedProduct": {
             "type": "object",
             "properties": {
+                "achievable_quantity": {
+                    "type": "integer"
+                },
                 "availability_end_date": {
                     "type": "string"
                 },
@@ -22532,11 +22615,17 @@ const docTemplate = `{
         "requests.LimitedProductAttributes": {
             "type": "object",
             "required": [
+                "achievable_quantity",
                 "availability_end_date",
                 "availability_start_date",
                 "premiere_date"
             ],
             "properties": {
+                "achievable_quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
                 "availability_end_date": {
                     "type": "string",
                     "example": "2023-10-31T10:00"
@@ -22743,6 +22832,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "address_id",
+                "quantity",
                 "variant_id"
             ],
             "properties": {
@@ -22757,6 +22847,11 @@ const docTemplate = `{
                 "is_self_pickup": {
                     "type": "boolean",
                     "example": false
+                },
+                "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
                 },
                 "success_url": {
                     "type": "string",
@@ -26419,11 +26514,13 @@ const docTemplate = `{
                 },
                 "revenue_trend": {
                     "description": "Line Charts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.RevenueTrendCharts"
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
                         }
-                    ]
+                    }
                 },
                 "summary": {
                     "$ref": "#/definitions/responses.FinancialsSummary"
@@ -26439,14 +26536,23 @@ const docTemplate = `{
                 "average_order_value": {
                     "$ref": "#/definitions/responses.AOVMetrics"
                 },
-                "limited_product_conversion_rate": {
+                "limited_revenue": {
                     "type": "number"
+                },
+                "new_customer_count": {
+                    "type": "integer"
                 },
                 "returning_customer_count": {
                     "type": "integer"
                 },
                 "revenue_growth": {
                     "description": "Compared to previous period",
+                    "type": "number"
+                },
+                "standard_revenue": {
+                    "type": "number"
+                },
+                "total_refund": {
                     "type": "number"
                 },
                 "total_sold_revenue": {
@@ -26508,6 +26614,9 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "price": {
+                    "type": "number"
                 },
                 "status": {
                     "type": "string"
@@ -26987,6 +27096,32 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.OrderStatsSummary": {
+            "type": "object",
+            "properties": {
+                "cancellation_rate": {
+                    "type": "number"
+                },
+                "cancelled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "refund_rate": {
+                    "type": "number"
+                },
+                "refunded": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.OrderStatusDistribution": {
             "type": "object",
             "properties": {
@@ -27033,17 +27168,11 @@ const docTemplate = `{
         "responses.OrdersSummary": {
             "type": "object",
             "properties": {
-                "cancellation_rate": {
-                    "type": "number"
+                "order": {
+                    "$ref": "#/definitions/responses.OrderStatsSummary"
                 },
-                "refund_rate": {
-                    "type": "number"
-                },
-                "total_orders": {
-                    "type": "integer"
-                },
-                "total_pre_orders": {
-                    "type": "integer"
+                "pre_order": {
+                    "$ref": "#/definitions/responses.OrderStatsSummary"
                 }
             }
         },
@@ -27438,21 +27567,18 @@ const docTemplate = `{
                 "address_line2": {
                     "type": "string"
                 },
-                "brand_id": {
-                    "type": "string"
+                "brand": {
+                    "$ref": "#/definitions/responses.OrderItemBrandResponse"
                 },
                 "capacity": {
-                    "description": "The same as orderItem",
+                    "description": "Variant Info",
                     "type": "number"
                 },
                 "capacity_unit": {
                     "type": "string"
                 },
                 "category": {
-                    "$ref": "#/definitions/model.ProductCategory"
-                },
-                "category_id": {
-                    "type": "string"
+                    "$ref": "#/definitions/responses.OrderItemCategoryResponse"
                 },
                 "city": {
                     "type": "string"
@@ -27467,6 +27593,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "deleted_at": {
+                    "description": "convert gorm.DeletedAt to *time.Time",
                     "type": "string"
                 },
                 "description": {
@@ -27485,7 +27612,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "full_name": {
-                    "description": "The same as order which Copied shipping address fields",
+                    "description": "Shipping Info",
                     "type": "string"
                 },
                 "ghn_district_id": {
@@ -27498,11 +27625,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "height": {
-                    "description": "in centimeters",
                     "type": "integer"
                 },
                 "id": {
                     "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.OrderItemImage"
+                    }
                 },
                 "instructions": {
                     "type": "string"
@@ -27511,7 +27643,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "length": {
-                    "description": "in centimeters",
                     "type": "integer"
                 },
                 "manufacturing_date": {
@@ -27520,18 +27651,11 @@ const docTemplate = `{
                 "paymentTx": {
                     "$ref": "#/definitions/responses.PaymentTransactionResponse"
                 },
-                "payment_bin": {
-                    "type": "string"
-                },
-                "payment_id": {
-                    "description": "Transient fields populated by repository (not persisted)",
-                    "type": "string"
-                },
                 "phone_number": {
                     "type": "string"
                 },
                 "product_name": {
-                    "description": "product fields",
+                    "description": "Product Info",
                     "type": "string"
                 },
                 "product_type": {
@@ -27547,7 +27671,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/enum.PreOrderStatus"
+                    "type": "string"
                 },
                 "street": {
                     "type": "string"
@@ -27590,11 +27714,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "weight": {
-                    "description": "in grams",
                     "type": "integer"
                 },
                 "width": {
-                    "description": "in centimeters",
                     "type": "integer"
                 }
             }
@@ -28071,6 +28193,9 @@ const docTemplate = `{
                 "category_name": {
                     "type": "string"
                 },
+                "percentage": {
+                    "type": "number"
+                },
                 "revenue": {
                     "type": "number"
                 }
@@ -28117,29 +28242,6 @@ const docTemplate = `{
                 "total_revenue": {
                     "type": "number",
                     "example": 140000000
-                }
-            }
-        },
-        "responses.RevenueTrendCharts": {
-            "type": "object",
-            "properties": {
-                "orders_vs_pre_orders": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
-                        }
-                    }
-                },
-                "standard_vs_limited": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
-                        }
-                    }
                 }
             }
         },
