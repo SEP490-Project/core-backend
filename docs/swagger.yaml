@@ -5611,9 +5611,12 @@ definitions:
           $ref: '#/definitions/responses.RevenueByProductType'
         type: array
       revenue_trend:
-        allOf:
-        - $ref: '#/definitions/responses.RevenueTrendCharts'
+        additionalProperties:
+          items:
+            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+          type: array
         description: Line Charts
+        type: object
       summary:
         $ref: '#/definitions/responses.FinancialsSummary'
       top_lists:
@@ -5623,12 +5626,18 @@ definitions:
     properties:
       average_order_value:
         $ref: '#/definitions/responses.AOVMetrics'
-      limited_product_conversion_rate:
+      limited_revenue:
         type: number
+      new_customer_count:
+        type: integer
       returning_customer_count:
         type: integer
       revenue_growth:
         description: Compared to previous period
+        type: number
+      standard_revenue:
+        type: number
+      total_refund:
         type: number
       total_sold_revenue:
         type: number
@@ -5990,6 +5999,23 @@ definitions:
       ward_name:
         type: string
     type: object
+  responses.OrderStatsSummary:
+    properties:
+      cancellation_rate:
+        type: number
+      cancelled:
+        type: integer
+      completed:
+        type: integer
+      pending:
+        type: integer
+      refund_rate:
+        type: number
+      refunded:
+        type: integer
+      total:
+        type: integer
+    type: object
   responses.OrderStatusDistribution:
     properties:
       cancelled:
@@ -6020,14 +6046,10 @@ definitions:
     type: object
   responses.OrdersSummary:
     properties:
-      cancellation_rate:
-        type: number
-      refund_rate:
-        type: number
-      total_orders:
-        type: integer
-      total_pre_orders:
-        type: integer
+      order:
+        $ref: '#/definitions/responses.OrderStatsSummary'
+      pre_order:
+        $ref: '#/definitions/responses.OrderStatsSummary'
     type: object
   responses.OrdersTopLists:
     properties:
@@ -6709,6 +6731,8 @@ definitions:
     properties:
       category_name:
         type: string
+      percentage:
+        type: number
       revenue:
         type: number
     type: object
@@ -6742,21 +6766,6 @@ definitions:
       total_revenue:
         example: 140000000
         type: number
-    type: object
-  responses.RevenueTrendCharts:
-    properties:
-      orders_vs_pre_orders:
-        additionalProperties:
-          items:
-            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
-          type: array
-        type: object
-      standard_vs_limited:
-        additionalProperties:
-          items:
-            $ref: '#/definitions/responses.SalesTimeSeriesPoint'
-          type: array
-        type: object
     type: object
   responses.RevenueTrendPoint:
     properties:
@@ -9524,13 +9533,28 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Period Gap (day, week, month, quarter, year)
+      - description: Sort By (name, value)
+        enum:
+        - name
+        - value
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort Order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: Period Gap (day, week, month, quarter, year, all)
         enum:
         - day
         - week
         - month
         - quarter
         - year
+        - all
         in: query
         name: period_gap
         type: string
@@ -9625,13 +9649,14 @@ paths:
         in: query
         name: to_date
         type: string
-      - description: Period Gap (day, week, month, quarter, year)
+      - description: Period Gap (day, week, month, quarter, year, all)
         enum:
         - day
         - week
         - month
         - quarter
         - year
+        - all
         in: query
         name: period_gap
         type: string
@@ -9645,7 +9670,11 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.RevenueTrendCharts'
+                  additionalProperties:
+                    items:
+                      $ref: '#/definitions/responses.SalesTimeSeriesPoint'
+                    type: array
+                  type: object
               type: object
         "400":
           description: Bad Request
@@ -9678,13 +9707,28 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Period Gap (day, week, month, quarter, year)
+      - description: Sort By (name, value)
+        enum:
+        - name
+        - value
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort Order (asc, desc)
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: Period Gap (day, week, month, quarter, year, all)
         enum:
         - day
         - week
         - month
         - quarter
         - year
+        - all
         in: query
         name: period_gap
         type: string
@@ -9727,13 +9771,14 @@ paths:
         in: query
         name: to_date
         type: string
-      - description: Period Gap (day, week, month, quarter, year)
+      - description: Period Gap (day, week, month, quarter, year, all)
         enum:
         - day
         - week
         - month
         - quarter
         - year
+        - all
         in: query
         name: period_gap
         type: string
@@ -16632,7 +16677,7 @@ paths:
         name: province_id
         type: string
       - description: |-
-          Search term to filter by orderID/paymentID/paymentBin
+          Search term to filter by orderID
           in: query
           example: "ORDER123"
         example: ORDER123

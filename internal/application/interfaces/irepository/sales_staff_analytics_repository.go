@@ -19,10 +19,10 @@ type SalesStaffAnalyticsRepository interface {
 	GetRevenueBreakdown(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (byProduct []responses.RevenueByProductType, byCategory []responses.RevenueByCategory, err error)
 
 	// Row 3: Revenue Trend
-	GetRevenueTrend(ctx context.Context, from, to time.Time, periodGap string, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error)
+	GetRevenueTrend(ctx context.Context, from, to time.Time, periodGap string, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus) (map[string][]responses.SalesTimeSeriesPoint, error)
 
 	// Row 4: Top Selling by Revenue
-	GetTopSellingByRevenue(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) (products, categories, brands []responses.TopEntity, err error)
+	GetTopSellingByRevenue(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int, sortBy, sortOrder string) (products, categories, brands []responses.TopEntity, err error)
 
 	// Orders Tab
 	// Row 1: Summary Metrics (Counts, Rates)
@@ -36,7 +36,7 @@ type SalesStaffAnalyticsRepository interface {
 	GetOrdersTrend(ctx context.Context, from, to time.Time, periodGap string) (orders, preOrders, standard, limited []responses.SalesTimeSeriesPoint, err error)
 
 	// Row 4: Top Selling by Volume (Count)
-	GetTopSellingByVolume(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int) (products, categories, brands []responses.TopEntity, err error)
+	GetTopSellingByVolume(ctx context.Context, from, to time.Time, completedOrderStatuses []enum.OrderStatus, completedPreOrderStatuses []enum.PreOrderStatus, limit int, sortBy, sortOrder string) (products, categories, brands []responses.TopEntity, err error)
 
 	// Row 5: Latest Orders
 	GetLatestOrders(ctx context.Context, from, to time.Time, limit int) ([]responses.LatestOrder, error)
