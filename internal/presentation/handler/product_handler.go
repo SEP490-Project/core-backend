@@ -11,8 +11,10 @@ import (
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -424,6 +426,125 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 
 	resp := responses.SuccessResponse("Create standard product successfully", ptr.Int(http.StatusCreated), product)
 	c.JSON(http.StatusCreated, resp)
+}
+
+// AddProductReview godoc
+//
+// @Summary Add a review for a product
+// @Description Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.
+// @Tags Products.Reviews
+// @Accept multipart/form-data
+// @Produce json
+// @Param productId path string true "Product ID"
+// @Param variant_id formData string false "Variant ID (UUID)"
+// @Param order_id formData string false "Order ID (UUID)"
+// @Param pre_order_id formData string false "PreOrder ID (UUID)"
+// @Param rating formData int true "Rating (1-5)"
+// @Param comment formData string false "Comment"
+// @Param assets formData file false "Asset file (image)"
+// @Success 201 {object} responses.ProductReviewResponse
+// @Failure 400 {object} responses.APIResponse
+// @Failure 401 {object} responses.APIResponse
+// @Failure 500 {object} responses.APIResponse
+// @Security BearerAuth
+// @Router /api/v1/products/{productID}/reviews [post]
+func (h *ProductHandler) AddProductReview(c *gin.Context) {
+	// Build request DTO from form values
+	var req requests.AddProductReviewRequest
+	// --- Path ID ---
+	productID, err := parseUUIDParam(c, "productID")
+	if err != nil {
+		return
+	}
+	productIDStr := productID.String()
+	req.ProductID = &productIDStr
+
+	// extract authenticated user
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// --- Parse multipart form ---
+	if err := parseMultipart(c, 32<<20); err != nil {
+		return
+	}
+
+	req.VariantID, err = extractRequiredFormField(c, "variant_id")
+	if err != nil {
+		return
+	}
+	req.OrderItemID, err = extractRequiredFormField(c, "order_id")
+	if err != nil {
+		return
+	}
+	req.PreOrderID, err = extractRequiredFormField(c, "pre_order_id")
+	if err != nil {
+		return
+	}
+	req.Comment, err = extractRequiredFormField(c, "comment")
+	if err != nil {
+		return
+	}
+
+	ratingStr, err := extractRequiredFormField(c, "rating")
+	if err != nil {
+		return
+	}
+
+	if *ratingStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("rating is required", http.StatusBadRequest))
+		return
+	}
+	ratingVal, err := strconv.Atoi(*ratingStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid rating value", http.StatusBadRequest))
+		return
+	}
+	req.Rating = ratingVal
+	// assets_url will be populated after upload (if any)
+
+	// validate request using centralized validation processor
+	if err := h.validator.Struct(&req); err != nil {
+		resp := processValidationError(err)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	// handle optional file upload (form field name: "assets")
+	fileHeader, ferr := extractOptionalFile(c, "assets")
+	if ferr != nil {
+		return
+	}
+
+	var uploadedURL *string
+	if fileHeader != nil {
+		uploadedURL, err = h.handleFileUpload(c, userID, fileHeader)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
+			return
+		}
+		req.AssetsURL = uploadedURL
+	}
+
+	// call service
+	revResp, svcErr := h.productService.AddProductReview(userID, req)
+	if svcErr != nil {
+		// map common errors to proper status codes
+		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+			return
+		}
+		if strings.Contains(strings.ToLower(svcErr.Error()), "unauthor") || strings.Contains(strings.ToLower(svcErr.Error()), "own") {
+			c.JSON(http.StatusForbidden, responses.ErrorResponse(svcErr.Error(), http.StatusForbidden))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusCreated, responses.SuccessResponse("review created", ptr.Int(http.StatusCreated), revResp))
 }
 
 // CreateLimitedProduct godoc
@@ -1287,4 +1408,30 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 
 	resp := responses.SuccessResponse("Limited variant updated successfully", ptr.Int(http.StatusOK), updatedVariant)
 	c.JSON(http.StatusOK, resp)
+}
+
+// handleFileUpload lưu file tạm, upload lên storage và trả về URL
+func (p *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
+	// --- Tmp path ---
+	tmpDir := os.TempDir()
+	newFileName := uuid.New().String() + filepath.Ext(fileHeader.Filename)
+	localPath := filepath.Join(tmpDir, newFileName)
+
+	// --- Save file tạm ---
+	if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
+		return nil, fmt.Errorf("failed to save uploaded file: %w", err)
+	}
+	defer os.Remove(localPath)
+
+	// --- Upload file lên S3 / storage ---
+	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	if fileURL == "" {
+		return nil, errors.New("uploaded file URL is empty")
+	}
+
+	return &fileURL, nil
 }

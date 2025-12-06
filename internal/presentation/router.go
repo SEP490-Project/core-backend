@@ -137,6 +137,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			productsGroup.GET("/:id", productHandler.GetProductDetail)
 
+			// Reviews: authenticated users can add reviews
+			requireAuthGroup := productsGroup.Group("")
+			requireAuthGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+			{
+				requireAuthGroup.POST("/:productId/reviews", productHandler.AddProductReview)
+			}
+
 			// Protected (Sales, Brand, Admin)
 			protectedProducts := productsGroup.Group("")
 			protectedProducts.Use(r.middlewareRegistry.Auth.RequireRole(sales, brand, admin))
