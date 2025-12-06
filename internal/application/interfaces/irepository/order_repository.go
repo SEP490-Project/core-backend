@@ -2,6 +2,7 @@ package irepository
 
 import (
 	"context"
+	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 )
 
@@ -13,4 +14,5 @@ type OrderRepository interface {
 	// GetOrdersWithFiltersWithPagination allows searching by GHN order code or Order ID,
 	// filter by created date range (createdFrom, createdTo as YYYY-MM-DD) and by status.
 	GetOrdersWithFiltersWithPagination(ctx context.Context, limit, page int, search, status, createdFrom, createdTo, fullName, phone, provinceID, districtID, wardCode, orderType string) ([]model.Order, int, error)
+	GetOrderCountsAndTotalRevenueByOrderType(ctx context.Context, orderType enum.ProductType, status []enum.OrderStatus) (count int64, totalRevenue float64, err error)
 }
