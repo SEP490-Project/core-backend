@@ -2669,6 +2669,12 @@ definitions:
         maxLength: 255
         minLength: 3
         type: string
+      scope_of_work_item_id:
+        description: |-
+          ScopeOFWorkItemID is a composite ID in the format: "{CONTRACT_ID}|{CONTRACT_TYPE}|{SOW_ITEM_ID}"
+          If only contain ScopeOfWorkItem Item number, then there will be logic to aggregate them when created.
+        example: 550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1
+        type: string
       type:
         enum:
         - PRODUCT
@@ -4740,6 +4746,7 @@ definitions:
         type: string
       contract_type:
         type: string
+      scope_of_work_deliverables: {}
       suggested_campaign:
         $ref: '#/definitions/responses.SuggestedCampaign'
     type: object
@@ -6921,6 +6928,9 @@ definitions:
         type: object
       name:
         example: Create social media post
+        type: string
+      scope_of_work_item_id:
+        example: SOW-12345
         type: string
       type:
         allOf:
