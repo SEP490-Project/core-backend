@@ -31,9 +31,10 @@ import (
 )
 
 type preOrderService struct {
-	config                       *config.AppConfig
-	db                           *gorm.DB
-	preOrderRepository           irepository.GenericRepository[model.PreOrder]
+	config *config.AppConfig
+	db     *gorm.DB
+	// preOrderRepository           irepository.GenericRepository[model.PreOrder]
+	preOrderRepository           irepository.PreOrderRepository
 	paymentTransactionRepository irepository.GenericRepository[model.PaymentTransaction]
 	userRepository               irepository.GenericRepository[model.User]
 	variantRepository            irepository.GenericRepository[model.ProductVariant]
@@ -644,8 +645,41 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 		q := db
 
 		if search != "" {
-			like := "%" + search + "%"
-			q = q.Where("(product_name ILIKE ? OR email ILIKE ? OR full_name ILIKE ?)", like, like, like)
+			isUUID := false
+			if _, err := uuid.Parse(search); err == nil {
+				isUUID = true
+			}
+			if isUUID {
+				q = q.Where(`
+					(
+						pre_orders.id = ?
+						OR EXISTS (
+							SELECT 1
+							FROM payment_transactions pt
+							WHERE pt.reference_id = pre_orders.id
+							  AND pt.reference_type = ?
+							  AND pt.id = ?
+						)
+					)
+				`, search, enum.PaymentTransactionReferenceTypePreOrder, search)
+			} else {
+				like := "%" + search + "%"
+				q = q.Where(`
+					(
+						pre_orders.id::text ILIKE ?
+						OR EXISTS (
+							SELECT 1
+							FROM payment_transactions pt
+							WHERE pt.reference_id = pre_orders.id
+							  AND pt.reference_type = ?
+							  AND (
+									pt.id::text ILIKE ?
+									OR pt.payos_metadata->>'bin' ILIKE ?
+							  )
+						)
+					)
+				`, like, enum.PaymentTransactionReferenceTypePreOrder, like, like)
+			}
 		}
 
 		if fullName != "" {
@@ -668,8 +702,11 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 			q = q.Where("ghn_ward_code = ?", wardCode)
 		}
 
+		// if len(statuses) > 0 {
+		// 	q = q.Where("status IN ?", statuses)
+		// }
 		if len(statuses) > 0 {
-			q = q.Where("status IN ?", statuses)
+			q = q.Where("pre_orders.status IN ?", statuses)
 		}
 
 		return q
@@ -740,9 +777,9 @@ func (s preOrderService) GetPreOrdersWithPayment(
 
 	// Step 2: full JOIN query
 	db := s.db.WithContext(ctx).
-		Table("pre_orders AS po").
+		Table("pre_orders").
 		Select(`
-            po.*,
+            pre_orders.*,
             pm.id AS pm_id,
             pm.amount AS pm_amount,
             pm.method AS pm_method,
@@ -751,7 +788,7 @@ func (s preOrderService) GetPreOrdersWithPayment(
         `).
 		Joins(`
             LEFT JOIN payment_transactions pm 
-            ON pm.reference_id = po.id 
+            ON pm.reference_id = pre_orders.id 
             AND pm.reference_type = ?
         `, enum.PaymentTransactionReferenceTypePreOrder)
 
@@ -762,7 +799,7 @@ func (s preOrderService) GetPreOrdersWithPayment(
 	// Preload relationships (must attach Model)
 	db = db.Model(&model.PreOrder{})
 
-	db = db.Order("po.created_at DESC")
+	db = db.Order("pre_orders.created_at DESC")
 
 	for _, inc := range includes {
 		db = db.Preload(inc)

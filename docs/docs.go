@@ -14121,21 +14121,6 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
-                        "enum": [
-                            "STANDARD",
-                            "LIMITED"
-                        ],
-                        "type": "string",
-                        "example": "STANDARD",
-                        "x-enum-varnames": [
-                            "ProductTypeStandard",
-                            "ProductTypeLimited"
-                        ],
-                        "description": "Order type filter\nin: query\nexample: \"STANDARD\"",
-                        "name": "order_type",
-                        "in": "query"
-                    },
-                    {
                         "type": "integer",
                         "example": 1,
                         "description": "Page number (default: 1)\nin: query\nexample: 1",
