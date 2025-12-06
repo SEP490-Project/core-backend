@@ -26,7 +26,7 @@ type UnitOfWork interface {
 	Tasks() TaskRepository
 	Channels() GenericRepository[model.Channel]
 	Contents() GenericRepository[model.Content]
-	ContentChannels() GenericRepository[model.ContentChannel]
+	ContentChannels() ContentChannelsRepository
 	Blogs() GenericRepository[model.Blog]
 	Tags() TagRepository
 

@@ -23,7 +23,7 @@ type DatabaseRegistry struct {
 	TaskRepository            irepository.TaskRepository
 	ChannelRepository         irepository.GenericRepository[model.Channel]
 	ContentRepository         irepository.GenericRepository[model.Content]
-	ContentChannelRepository  irepository.GenericRepository[model.ContentChannel]
+	ContentChannelRepository  irepository.ContentChannelsRepository
 	BlogRepository            irepository.GenericRepository[model.Blog]
 	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
 	AdminConfigRepository     irepository.GenericRepository[model.Config]
@@ -99,7 +99,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		VariantAttributeRepository:           NewGenericRepository[model.VariantAttribute](db),
 		ChannelRepository:                    NewGenericRepository[model.Channel](db),
 		ContentRepository:                    NewGenericRepository[model.Content](db),
-		ContentChannelRepository:             NewGenericRepository[model.ContentChannel](db),
+		ContentChannelRepository:             NewContentChannelsRepository(db),
 		BlogRepository:                       NewGenericRepository[model.Blog](db),
 		TagRepository:                        NewTagRepository(db),
 		OrderRepository:                      NewOrderRepository(db),
