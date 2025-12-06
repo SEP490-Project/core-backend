@@ -9,10 +9,11 @@ import (
 
 // SuggestedTask represents a suggested task extracted from contract deliverables
 type SuggestedTask struct {
-	Name        string         `json:"name" example:"Create social media post"`
-	Description map[string]any `json:"description_json,omitempty"`
-	Deadline    time.Time      `json:"deadline" example:"2024-12-31T23:59:59Z"`
-	Type        enum.TaskType  `json:"type" example:"CONTENT"`
+	Name              string         `json:"name" example:"Create social media post"`
+	Description       map[string]any `json:"description_json,omitempty"`
+	Deadline          time.Time      `json:"deadline" example:"2024-12-31T23:59:59Z"`
+	Type              enum.TaskType  `json:"type" example:"CONTENT"`
+	ScopeOfWorkItemID *string        `json:"scope_of_work_item_id,omitempty" example:"SOW-12345"`
 }
 
 // SuggestedMilestone represents a suggested milestone with its tasks
@@ -35,7 +36,8 @@ type SuggestedCampaign struct {
 
 // CampaignSuggestionResponse represents the response for campaign suggestion from a contract
 type CampaignSuggestionResponse struct {
-	ContractID        uuid.UUID          `json:"contract_id"`
-	ContractType      string             `json:"contract_type"`
-	SuggestedCampaign *SuggestedCampaign `json:"suggested_campaign"`
+	ContractID              uuid.UUID          `json:"contract_id"`
+	ContractType            string             `json:"contract_type"`
+	SuggestedCampaign       *SuggestedCampaign `json:"suggested_campaign"`
+	ScopeOfWorkDeliverables any                `json:"scope_of_work_deliverables,omitempty"`
 }

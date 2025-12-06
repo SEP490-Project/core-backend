@@ -216,8 +216,9 @@ func (c *channelService) UpdateChannelToken(ctx context.Context, uow irepository
 	if c.config.UseVault && c.vaultService != nil {
 		// Store vault path reference in database (not the actual token)
 		vaultPath := fmt.Sprintf("%s/%s/%s", c.config.VaultPathPrefix, channelName, externalID)
-		channel.HashedAccessToken = &vaultPath
-		channel.HashedRefreshToken = nil // Not needed for vault backend
+		channel.VaultPath = &vaultPath
+		// channel.HashedAccessToken = &vaultPath
+		// channel.HashedRefreshToken = nil // Not needed for vault backend
 
 		data := map[string]any{
 			"access_token": accessToken,
@@ -236,30 +237,29 @@ func (c *channelService) UpdateChannelToken(ctx context.Context, uow irepository
 
 		zap.L().Info("ChannelService - UpdateChannelToken - Token stored in Vault",
 			zap.String("channel", channelName), zap.String("vault_path", vaultPath))
-	} else {
-		// Store in database with encryption (default)
-		encryptedAccessToken, err := crypto.EncryptToken(accessToken, c.tokenEncryptionKey)
-		if err != nil {
-			zap.L().Error("ChannelService - UpdateChannelToken - Failed to encrypt access token", zap.Error(err))
-			return errors.New("failed to encrypt access token")
-		}
-
-		var encryptedRefreshToken *string
-		if refreshToken != nil && *refreshToken != "" {
-			encrypted, err := crypto.EncryptToken(*refreshToken, c.tokenEncryptionKey)
-			if err != nil {
-				zap.L().Error("ChannelService - UpdateChannelToken - Failed to encrypt refresh token", zap.Error(err))
-				return errors.New("failed to encrypt refresh token")
-			}
-			encryptedRefreshToken = &encrypted
-		}
-
-		channel.HashedAccessToken = &encryptedAccessToken
-		channel.HashedRefreshToken = encryptedRefreshToken
-
-		zap.L().Info("ChannelService - UpdateChannelToken - Token stored in database (encrypted)",
-			zap.String("channel", channelName))
 	}
+	// Store in database with encryption (default)
+	encryptedAccessToken, err := crypto.EncryptToken(accessToken, c.tokenEncryptionKey)
+	if err != nil {
+		zap.L().Error("ChannelService - UpdateChannelToken - Failed to encrypt access token", zap.Error(err))
+		return errors.New("failed to encrypt access token")
+	}
+
+	var encryptedRefreshToken *string
+	if refreshToken != nil && *refreshToken != "" {
+		encrypted, err := crypto.EncryptToken(*refreshToken, c.tokenEncryptionKey)
+		if err != nil {
+			zap.L().Error("ChannelService - UpdateChannelToken - Failed to encrypt refresh token", zap.Error(err))
+			return errors.New("failed to encrypt refresh token")
+		}
+		encryptedRefreshToken = &encrypted
+	}
+
+	channel.HashedAccessToken = &encryptedAccessToken
+	channel.HashedRefreshToken = encryptedRefreshToken
+
+	zap.L().Info("ChannelService - UpdateChannelToken - Token stored in database (encrypted)",
+		zap.String("channel", channelName))
 
 	return c.channelRepo.Update(ctx, channel)
 }
@@ -278,9 +278,9 @@ func (c *channelService) GetDecryptedToken(ctx context.Context, channelName stri
 	}
 
 	// Check if using Vault backend
-	if c.config.UseVault && c.vaultService != nil {
+	if c.config.UseVault && c.vaultService != nil && channel.VaultPath != nil {
 		// HashedAccessToken contains vault path, not encrypted token
-		vaultPath := *channel.HashedAccessToken
+		vaultPath := *channel.VaultPath
 		zap.L().Debug("ChannelService - GetDecryptedToken - Using Vault backend",
 			zap.String("vault_path", vaultPath))
 
@@ -320,12 +320,12 @@ func (c *channelService) GetDecryptedRefreshToken(ctx context.Context, channelNa
 	}
 
 	// Check if using Vault backend
-	if c.config.UseVault && c.vaultService != nil {
+	if c.config.UseVault && c.vaultService != nil && channel.VaultPath != nil {
 		if channel.HashedAccessToken == nil {
 			return "", errors.New("no vault path stored for channel")
 		}
 
-		vaultPath := *channel.HashedAccessToken
+		vaultPath := *channel.VaultPath
 		var secret map[string]any
 		secret, err = c.vaultService.GetSecret(ctx, vaultPath)
 		if err != nil {
