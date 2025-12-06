@@ -11,19 +11,22 @@ import (
 // =============================================================================
 
 type FinancialsDashboardResponse struct {
-	Summary           FinancialsSummary      `json:"summary"`
-	RevenueByProduct  []RevenueByProductType `json:"revenue_by_product_type"` // Pie Chart
-	RevenueByCategory []RevenueByCategory    `json:"revenue_by_category"`     // Column Chart
-	RevenueTrend      RevenueTrendCharts     `json:"revenue_trend"`           // Line Charts
-	TopLists          FinancialsTopLists     `json:"top_lists"`
+	Summary           FinancialsSummary                 `json:"summary"`
+	RevenueByProduct  []RevenueByProductType            `json:"revenue_by_product_type"` // Pie Chart
+	RevenueByCategory []RevenueByCategory               `json:"revenue_by_category"`     // Column Chart
+	RevenueTrend      map[string][]SalesTimeSeriesPoint `json:"revenue_trend"`           // Line Charts
+	TopLists          FinancialsTopLists                `json:"top_lists"`
 }
 
 type FinancialsSummary struct {
-	TotalSoldRevenue             float64    `json:"total_sold_revenue"`
-	RevenueGrowth                float64    `json:"revenue_growth"` // Compared to previous period
-	AverageOrderValue            AOVMetrics `json:"average_order_value"`
-	LimitedProductConversionRate float64    `json:"limited_product_conversion_rate"`
-	ReturningCustomerCount       int64      `json:"returning_customer_count"`
+	TotalSoldRevenue       float64    `json:"total_sold_revenue"`
+	TotalStandardRevenue   float64    `json:"standard_revenue"`
+	TotalLimitedRevenue    float64    `json:"limited_revenue"`
+	TotalRefund            float64    `json:"total_refund"`
+	RevenueGrowth          float64    `json:"revenue_growth"` // Compared to previous period
+	AverageOrderValue      AOVMetrics `json:"average_order_value"`
+	ReturningCustomerCount int64      `json:"returning_customer_count"`
+	NewCustomerCount       int64      `json:"new_customer_count"`
 }
 
 type AOVMetrics struct {
@@ -41,12 +44,10 @@ type RevenueByProductType struct {
 type RevenueByCategory struct {
 	CategoryName string  `json:"category_name"`
 	Revenue      float64 `json:"revenue"`
+	Percentage   float64 `json:"percentage"`
 }
 
-type RevenueTrendCharts struct {
-	OrdersVsPreOrders map[string][]SalesTimeSeriesPoint `json:"orders_vs_pre_orders"`
-	StandardVsLimited map[string][]SalesTimeSeriesPoint `json:"standard_vs_limited"`
-}
+// RevenueTrendCharts removed in favor of map[string][]SalesTimeSeriesPoint
 
 type FinancialsTopLists struct {
 	TopProducts   []TopEntity `json:"top_products"`
@@ -68,8 +69,13 @@ type OrdersDashboardResponse struct {
 }
 
 type OrdersSummary struct {
-	TotalOrders      int64   `json:"total_orders"`
-	TotalPreOrders   int64   `json:"total_pre_orders"`
+	Order    OrderStatsSummary `json:"order"`
+	PreOrder OrderStatsSummary `json:"pre_order"`
+}
+
+type OrderStatsSummary struct {
+	OrderStatusDistribution
+	Total            int64   `json:"total"`
 	CancellationRate float64 `json:"cancellation_rate"`
 	RefundRate       float64 `json:"refund_rate"`
 }

@@ -3,9 +3,10 @@ package responses
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
-	"time"
 )
 
 type PreOrderResponse struct {

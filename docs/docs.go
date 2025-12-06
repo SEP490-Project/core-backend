@@ -3218,14 +3218,35 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "name",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "Sort By (name, value)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort Order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "day",
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     },
@@ -3382,10 +3403,11 @@ const docTemplate = `{
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -3402,7 +3424,13 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.RevenueTrendCharts"
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -3463,14 +3491,35 @@ const docTemplate = `{
                     },
                     {
                         "enum": [
+                            "name",
+                            "value"
+                        ],
+                        "type": "string",
+                        "description": "Sort By (name, value)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "description": "Sort Order (asc, desc)",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
                             "day",
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -3546,10 +3595,11 @@ const docTemplate = `{
                             "week",
                             "month",
                             "quarter",
-                            "year"
+                            "year",
+                            "all"
                         ],
                         "type": "string",
-                        "description": "Period Gap (day, week, month, quarter, year)",
+                        "description": "Period Gap (day, week, month, quarter, year, all)",
                         "name": "period_gap",
                         "in": "query"
                     }
@@ -14094,7 +14144,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by orderID\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },
@@ -26449,11 +26499,13 @@ const docTemplate = `{
                 },
                 "revenue_trend": {
                     "description": "Line Charts",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/responses.RevenueTrendCharts"
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
                         }
-                    ]
+                    }
                 },
                 "summary": {
                     "$ref": "#/definitions/responses.FinancialsSummary"
@@ -26469,14 +26521,23 @@ const docTemplate = `{
                 "average_order_value": {
                     "$ref": "#/definitions/responses.AOVMetrics"
                 },
-                "limited_product_conversion_rate": {
+                "limited_revenue": {
                     "type": "number"
+                },
+                "new_customer_count": {
+                    "type": "integer"
                 },
                 "returning_customer_count": {
                     "type": "integer"
                 },
                 "revenue_growth": {
                     "description": "Compared to previous period",
+                    "type": "number"
+                },
+                "standard_revenue": {
+                    "type": "number"
+                },
+                "total_refund": {
                     "type": "number"
                 },
                 "total_sold_revenue": {
@@ -27017,6 +27078,32 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.OrderStatsSummary": {
+            "type": "object",
+            "properties": {
+                "cancellation_rate": {
+                    "type": "number"
+                },
+                "cancelled": {
+                    "type": "integer"
+                },
+                "completed": {
+                    "type": "integer"
+                },
+                "pending": {
+                    "type": "integer"
+                },
+                "refund_rate": {
+                    "type": "number"
+                },
+                "refunded": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.OrderStatusDistribution": {
             "type": "object",
             "properties": {
@@ -27063,17 +27150,11 @@ const docTemplate = `{
         "responses.OrdersSummary": {
             "type": "object",
             "properties": {
-                "cancellation_rate": {
-                    "type": "number"
+                "order": {
+                    "$ref": "#/definitions/responses.OrderStatsSummary"
                 },
-                "refund_rate": {
-                    "type": "number"
-                },
-                "total_orders": {
-                    "type": "integer"
-                },
-                "total_pre_orders": {
-                    "type": "integer"
+                "pre_order": {
+                    "$ref": "#/definitions/responses.OrderStatsSummary"
                 }
             }
         },
@@ -28094,6 +28175,9 @@ const docTemplate = `{
                 "category_name": {
                     "type": "string"
                 },
+                "percentage": {
+                    "type": "number"
+                },
                 "revenue": {
                     "type": "number"
                 }
@@ -28140,29 +28224,6 @@ const docTemplate = `{
                 "total_revenue": {
                     "type": "number",
                     "example": 140000000
-                }
-            }
-        },
-        "responses.RevenueTrendCharts": {
-            "type": "object",
-            "properties": {
-                "orders_vs_pre_orders": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
-                        }
-                    }
-                },
-                "standard_vs_limited": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/definitions/responses.SalesTimeSeriesPoint"
-                        }
-                    }
                 }
             }
         },
