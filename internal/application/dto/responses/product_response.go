@@ -4,7 +4,8 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-
+	"encoding/json"
+	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -95,6 +96,7 @@ type ProductDetailResponse struct {
 	Variants         []ProductVariantResponse `json:"variants,omitempty"`
 	CreatedAt        string                   `json:"created_at"` // FE parse về Date
 	Concept          *model.Concept           `json:"concept,omitempty"`
+	Reviews          []ProductReviewResponse  `json:"reviews,omitempty"`
 }
 
 type LimitedProductResponse struct {
@@ -104,7 +106,10 @@ type LimitedProductResponse struct {
 	AvailabilityEndDate   string `json:"availability_end_date"`
 }
 
-func (l LimitedProductResponse) ToLimitedProductResponse(m model.LimitedProduct) *LimitedProductResponse {
+func (l LimitedProductResponse) ToLimitedProductResponse(m *model.LimitedProduct) *LimitedProductResponse {
+	if m == nil {
+		return nil
+	}
 	return &LimitedProductResponse{
 		AchievableQuantity:    m.AchievableQuantity,
 		PremiereDate:          utils.FormatLocalTime(&m.PremiereDate, ""),
@@ -155,12 +160,100 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 	}
 
 	if m.Limited != nil {
-		d.LimitedAttribute = LimitedProductResponse{}.ToLimitedProductResponse(*m.Limited)
+		d.LimitedAttribute = LimitedProductResponse{}.ToLimitedProductResponse(m.Limited)
 		d.Concept = m.Limited.Concept
 	}
 
+	// Map reviews if preloaded
+	d.Reviews = ProductReviewResponse{}.ToResponseList(m.Reviews)
 	return &d
+}
 
+type ProductReviewResponse struct {
+	ID                 uuid.UUID        `json:"id"`
+	ProductID          uuid.UUID        `json:"product_id"`
+	VariantID          *uuid.UUID       `json:"variant_id,omitempty"`
+	ProductVariantName string           `json:"product_variant_name"`
+	UserID             *uuid.UUID       `json:"user_id,omitempty"`
+	UserName           *string          `json:"user_name,omitempty"`
+	RatingStars        int              `json:"rating_stars"`
+	Comment            string           `json:"comment,omitempty"`
+	AssetsURL          *string          `json:"assets_url,omitempty"`
+	CreatedAt          string           `json:"created_at"`
+	OrderAt            string           `json:"order_at"`
+	Type               enum.ProductType `json:"type"`
+}
+
+func (ProductReviewResponse) ToResponse(m *model.ProductReview) *ProductReviewResponse {
+	timelayout := "2006-01-02 15:04:05"
+	var (
+		orderAt            string
+		userName           *string
+		prdType            enum.ProductType
+		productVariantName string
+	)
+	if o := m.OrderItem; o != nil && o.Order != nil {
+		orderAt = o.Order.CreatedAt.Format(timelayout)
+		userName = &o.Order.FullName
+		if v := o.Variant; v.Product != nil {
+			prdType = v.Product.Type
+
+			nameFmt := "%s - (Ingredient: %s)"
+			var ingredientConcat string
+
+			rawJson := m.OrderItem.AttributesDescription
+			if rawJson != nil {
+				var attrs []map[string]interface{}
+				if err := json.Unmarshal(*rawJson, &attrs); err != nil {
+					ingredientConcat = ""
+				}
+
+				for _, item := range attrs {
+					var tmp string
+					if ingredient, ok := item["ingredient"].(string); ok {
+						if ingredient != "" {
+							tmp = ingredient
+						}
+					}
+					ingredientValue, okValue := item["value"].(int)
+					ingredientUnit, okUnit := item["unit"].(string)
+					if okValue && okUnit {
+						tmp += fmt.Sprintf(" :%d %s", ingredientValue, ingredientUnit)
+					}
+					ingredientConcat += tmp + ", "
+				}
+			}
+			// Remove trailing comma and space
+			if len(ingredientConcat) >= 2 {
+				ingredientConcat = ingredientConcat[:len(ingredientConcat)-2]
+			}
+			productVariantName = fmt.Sprintf(nameFmt, v.Product.Name, ingredientConcat)
+		}
+
+	}
+	return &ProductReviewResponse{
+		ID:                 m.ID,
+		ProductID:          m.ProductID,
+		VariantID:          m.VariantID,
+		ProductVariantName: productVariantName,
+		UserID:             m.UserID,
+		UserName:           userName,
+		RatingStars:        m.RatingStars,
+		Comment:            *m.Comment,
+		AssetsURL:          m.AssetsURL,
+		CreatedAt:          m.CreatedAt.Format(timelayout),
+		OrderAt:            orderAt,
+		Type:               prdType,
+	}
+}
+
+func (ProductReviewResponse) ToResponseList(m []model.ProductReview) []ProductReviewResponse {
+	reviews := make([]ProductReviewResponse, 0, len(m))
+	for i := range m {
+		review := ProductReviewResponse{}.ToResponse(&m[i])
+		reviews = append(reviews, *review)
+	}
+	return reviews
 }
 
 func primaryProductImageURL(p *model.Product) *[]string {
@@ -380,15 +473,21 @@ type ProductResponseV2 struct {
 	Description  string             `json:"description"`
 	Name         string             `json:"name"`
 	//Price        float64                   `json:"price"`
-	Type      enum.ProductType          `json:"type"`
-	Category  ProductCategoryResponse   `json:"category"`
-	Variants  []*ProductVariantResponse `json:"variants,omitempty"`
-	CreatedBy *UserListResponse         `json:"created_by"`
-	UpdatedBy *UserListResponse         `json:"updated_by"`
+	Type             enum.ProductType          `json:"type"`
+	LimitedAttribute *LimitedProductResponse   `json:"limited_product"`
+	Category         ProductCategoryResponse   `json:"category"`
+	Variants         []*ProductVariantResponse `json:"variants,omitempty"`
+	CreatedBy        *UserListResponse         `json:"created_by"`
+	UpdatedBy        *UserListResponse         `json:"updated_by"`
 }
 
 // ToProductResponseV2 converts a Product model to a ProductResponse DTO.
 func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductResponseV2 {
+	var limitedResp *LimitedProductResponse
+	if m.Limited != nil {
+		limitedResp = LimitedProductResponse{}.ToLimitedProductResponse(m.Limited)
+	}
+
 	return &ProductResponseV2{
 		ID:      m.ID,
 		BrandID: *m.BrandID,
@@ -398,10 +497,11 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 		BrandLogoURL: utils.IfNotNil(m.Brand, func(b *model.Brand) *string { return b.LogoURL }),
 
 		// Basic
-		Name:        m.Name,
-		Description: utils.IfNotNil(m.Description, func(s *string) string { return *s }),
-		Type:        m.Type,
-		IsActive:    m.IsActive,
+		Name:             m.Name,
+		Description:      utils.IfNotNil(m.Description, func(s *string) string { return *s }),
+		Type:             m.Type,
+		LimitedAttribute: limitedResp,
+		IsActive:         m.IsActive,
 
 		CreatedAt: utils.FormatLocalTime(&m.CreatedAt, ""),
 		UpdatedAt: utils.FormatLocalTime(&m.UpdatedAt, ""),
@@ -447,23 +547,30 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 
 // ProductResponseV2Partial represents a partial response structure for a product.
 type ProductResponseV2Partial struct {
-	ID           uuid.UUID                  `json:"id"`
-	BrandID      uuid.UUID                  `json:"brand_id"`
-	BrandLogoURL *string                    `json:"brand_logo_url,omitempty"`
-	BrandName    string                     `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string                  `json:"thumbnail_url,omitempty"` // optional
-	Category     ProductCategoryResponse    `json:"category"`
-	Description  string                     `json:"description"`
-	Name         string                     `json:"name"`
-	Price        float64                    `json:"price"`
-	Type         enum.ProductType           `json:"type"`
-	Variants     *[]*ProductVariantResponse `json:"variants,omitempty"`
+	ID               uuid.UUID                  `json:"id"`
+	BrandID          uuid.UUID                  `json:"brand_id"`
+	BrandLogoURL     *string                    `json:"brand_logo_url,omitempty"`
+	BrandName        string                     `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL     *[]string                  `json:"thumbnail_url,omitempty"` // optional
+	Category         ProductCategoryResponse    `json:"category"`
+	Description      string                     `json:"description"`
+	Name             string                     `json:"name"`
+	Price            float64                    `json:"price"`
+	Type             enum.ProductType           `json:"type"`
+	LimitedAttribute *LimitedProductResponse    `json:"limited_product"`
+	Variants         *[]*ProductVariantResponse `json:"variants,omitempty"`
 }
 
 func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *ProductResponseV2Partial {
 	if pr == nil {
 		pr = &ProductResponseV2Partial{}
 	}
+
+	var limitedResp *LimitedProductResponse
+	if m.Limited != nil {
+		limitedResp = LimitedProductResponse{}.ToLimitedProductResponse(m.Limited)
+	}
+	pr.LimitedAttribute = limitedResp
 
 	// IDs & Brand
 	pr.ID = m.ID

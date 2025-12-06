@@ -76,6 +76,8 @@ type DatabaseRegistry struct {
 	AdminAnalyticsRepository irepository.AdminAnalyticsRepository
 
 	FileRepository irepository.GenericRepository[model.File]
+	// Reviews
+	ReviewRepository irepository.GenericRepository[model.ProductReview]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -122,5 +124,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		BrandPartnerAnalyticsRepository:      NewBrandPartnerAnalyticsRepository(db),
 		AdminAnalyticsRepository:             NewAdminAnalyticsRepository(db),
 		FileRepository:                       NewGenericRepository[model.File](db),
+		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
 	}
 }
