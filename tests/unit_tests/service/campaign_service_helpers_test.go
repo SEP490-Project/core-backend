@@ -12,6 +12,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/tests/testhelpers"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -332,7 +333,7 @@ func TestTransformAdvertisedItemToTask(t *testing.T) {
 	}
 	deadline := testhelpers.DateOnly(2025, 2, 15)
 
-	task := helper.TransformAdvertisedItemToTask(item, deadline)
+	task := helper.TransformAdvertisedItemToTask(item, uuid.Nil, deadline)
 
 	assert.NotEmpty(t, task.Name)
 	assert.Contains(t, task.Name, "Product A")
@@ -351,7 +352,7 @@ func TestTransformEventToTask(t *testing.T) {
 		Location: "Jakarta Convention Center",
 	}
 
-	task := helper.TransformEventToTask(event)
+	task := helper.TransformEventToTask(event, uuid.Nil)
 
 	assert.NotEmpty(t, task.Name)
 	assert.Contains(t, task.Name, "Launch Event")
@@ -370,7 +371,7 @@ func TestTransformProductToCreationTask(t *testing.T) {
 	}
 	deadline := testhelpers.DateOnly(2025, 2, 15)
 
-	task := helper.TransformProductToCreationTask(product, deadline)
+	task := helper.TransformProductToCreationTask(product, uuid.Nil, deadline)
 
 	assert.NotEmpty(t, task.Name)
 	assert.Contains(t, task.Name, "Smartwatch Pro")
@@ -393,7 +394,7 @@ func TestTransformConceptToTask(t *testing.T) {
 	productName := "Smartwatch Pro"
 	deadline := testhelpers.DateOnly(2025, 2, 15)
 
-	task := helper.TransformConceptToTask(concept, productName, deadline)
+	task := helper.TransformConceptToTask(concept, uuid.Nil, productName, deadline)
 
 	assert.NotEmpty(t, task.Name)
 	assert.Contains(t, task.Name, "Urban Lifestyle Campaign")
@@ -424,7 +425,7 @@ func TestExtractProductCreationTasks(t *testing.T) {
 
 	deadline := testhelpers.DateOnly(2025, 3, 31)
 
-	tasks := helper.ExtractProductCreationTasks(products, deadline)
+	tasks := helper.ExtractProductCreationTasks(products, &model.Contract{}, deadline)
 
 	assert.Equal(t, 3, len(tasks), "Should create one task per product")
 
