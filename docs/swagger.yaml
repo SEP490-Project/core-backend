@@ -16653,20 +16653,6 @@ paths:
         name: limit
         type: integer
       - description: |-
-          Order type filter
-          in: query
-          example: "STANDARD"
-        enum:
-        - STANDARD
-        - LIMITED
-        example: STANDARD
-        in: query
-        name: order_type
-        type: string
-        x-enum-varnames:
-        - ProductTypeStandard
-        - ProductTypeLimited
-      - description: |-
           Page number (default: 1)
           in: query
           example: 1

@@ -41,10 +41,15 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 	args := make([]any, 0)
 
 	// exclude PENDING by default to match staff view behavior
-	whereClauses = append(whereClauses, "pre_orders.status <> ?")
-	args = append(args, enum.PreOrderStatusPending)
+	// whereClauses = append(whereClauses, "pre_orders.status <> ?")
+	// args = append(args, enum.PreOrderStatusPending)
 
-	if validStatus != nil && *validStatus != enum.PreOrderStatusPending {
+	// if validStatus != nil && *validStatus != enum.PreOrderStatusPending {
+	// 	whereClauses = append(whereClauses, "pre_orders.status = ?")
+	// 	args = append(args, *validStatus)
+	// }
+
+	if validStatus != nil {
 		whereClauses = append(whereClauses, "pre_orders.status = ?")
 		args = append(args, *validStatus)
 	}
