@@ -136,6 +136,19 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 	return preorders, total, nil
 }
 
+func (r *PreOrderRepository) GetPreOrderCountsAndTotalAmountByStatuses(ctx context.Context, statuses []enum.PreOrderStatus) (count int64, totalAmount float64, err error) {
+	db := r.db.WithContext(ctx).Model(&model.PreOrder{})
+	query := db.
+		Where("status IN ?", statuses).
+		Select("COUNT(*) AS preorder_count, COALESCE(SUM(total_amount), 0) AS total_amount")
+
+	if err = query.Row().Scan(&count, &totalAmount); err != nil {
+		zap.L().Error("Failed to get preorder counts and total amount by statuses", zap.Error(err))
+		return 0, 0, err
+	}
+	return count, totalAmount, nil
+}
+
 func NewPreOrderRepository(db *gorm.DB) irepository.PreOrderRepository {
 	return &PreOrderRepository{genericRepository: &genericRepository[model.PreOrder]{db: db}}
 }

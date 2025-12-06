@@ -3,6 +3,7 @@ package helper
 import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
@@ -157,30 +158,38 @@ func ExtractTotalCostFromFinancialTerms(contract *model.Contract) (float64, erro
 
 // TransformAdvertisedItemToTask converts an advertised item to a suggested task
 func TransformAdvertisedItemToTask(
-	item dtos.AdvertisedItem,
-	deadline time.Time,
+	item dtos.AdvertisedItem, contractID uuid.UUID, deadline time.Time,
 ) responses.SuggestedTask {
 	description := buildAdvertisingTaskDescription(item)
+	var scopeOfWorkID *string
+	if item.ID != nil {
+		scopeOfWorkID = utils.PtrOrNil(fmt.Sprintf("%s|%s|%d", contractID.String(), constant.ScopeOfWorkIDTypeAdvertise, *item.ID))
+	}
 
 	return responses.SuggestedTask{
-		Name:        fmt.Sprintf("Create content: %s on %s", item.Name, item.Platform),
-		Description: description,
-		Type:        enum.TaskTypeContent,
-		Deadline:    deadline,
+		Name:              fmt.Sprintf("Create content: %s on %s", item.Name, item.Platform),
+		Description:       description,
+		Type:              enum.TaskTypeContent,
+		Deadline:          deadline,
+		ScopeOfWorkItemID: scopeOfWorkID,
 	}
 }
 
 // TransformEventToTask converts a brand ambassador event to a task
-func TransformEventToTask(event dtos.BrandAmbassadorEvent) responses.SuggestedTask {
+func TransformEventToTask(event dtos.BrandAmbassadorEvent, contractID uuid.UUID) responses.SuggestedTask {
 	description := buildBrandAmbassadorTaskDescription(event)
-
 	eventDate, _ := time.Parse(utils.TimeFormat, event.Date)
+	var scopeOfWorkID *string
+	if event.ID != nil {
+		scopeOfWorkID = utils.PtrOrNil(fmt.Sprintf("%s|%s|%d", contractID.String(), constant.ScopeOfWorkIDTypeEvent, *event.ID))
+	}
 
 	return responses.SuggestedTask{
-		Name:        fmt.Sprintf("Event: %s", event.Name),
-		Description: description,
-		Type:        enum.TaskTypeEvent,
-		Deadline:    eventDate,
+		Name:              fmt.Sprintf("Event: %s", event.Name),
+		Description:       description,
+		Type:              enum.TaskTypeEvent,
+		Deadline:          eventDate,
+		ScopeOfWorkItemID: scopeOfWorkID,
 	}
 }
 
@@ -188,31 +197,43 @@ func TransformEventToTask(event dtos.BrandAmbassadorEvent) responses.SuggestedTa
 // Note: Concepts in CoProducing are stored separately with ProductID links
 func TransformConceptToTask(
 	concept dtos.CoProducingConcept,
+	contractID uuid.UUID,
 	productName string,
 	deadline time.Time,
 ) responses.SuggestedTask {
 	description := buildCoProducingConceptTaskDescription(concept, productName)
+	var scopeOfWorkID *string
+	if concept.ID != nil {
+		scopeOfWorkID = utils.PtrOrNil(fmt.Sprintf("%s|%s|%d", contractID.String(), constant.ScopeOfWorkIDTypeConcept, *concept.ID))
+	}
 
 	return responses.SuggestedTask{
-		Name:        fmt.Sprintf("Marketing Concept: %s for %s", concept.Name, productName),
-		Description: description,
-		Type:        enum.TaskTypeContent,
-		Deadline:    deadline,
+		Name:              fmt.Sprintf("Marketing Concept: %s for %s", concept.Name, productName),
+		Description:       description,
+		Type:              enum.TaskTypeContent,
+		Deadline:          deadline,
+		ScopeOfWorkItemID: scopeOfWorkID,
 	}
 }
 
 // TransformProductToCreationTask converts a co-producing product to a creation task
 func TransformProductToCreationTask(
 	product dtos.CoProducingProduct,
+	contractID uuid.UUID,
 	deadline time.Time,
 ) responses.SuggestedTask {
 	description := buildProductCreationTaskDescription(product)
+	var scopeOfWorkID *string
+	if product.ID != nil {
+		scopeOfWorkID = utils.PtrOrNil(fmt.Sprintf("%s|%s|%d", contractID.String(), constant.ScopeOfWorkIDTypeProduct, *product.ID))
+	}
 
 	return responses.SuggestedTask{
-		Name:        fmt.Sprintf("Create Product: %s", product.Name),
-		Description: description,
-		Type:        enum.TaskTypeProduct,
-		Deadline:    deadline,
+		Name:              fmt.Sprintf("Create Product: %s", product.Name),
+		Description:       description,
+		Type:              enum.TaskTypeProduct,
+		Deadline:          deadline,
+		ScopeOfWorkItemID: scopeOfWorkID,
 	}
 }
 
@@ -223,12 +244,13 @@ func TransformProductToCreationTask(
 // ExtractProductCreationTasks extracts product creation tasks from products
 func ExtractProductCreationTasks(
 	products []dtos.CoProducingProduct,
+	contract *model.Contract,
 	deadline time.Time,
 ) []responses.SuggestedTask {
 	tasks := make([]responses.SuggestedTask, 0, len(products))
 
 	for _, product := range products {
-		task := TransformProductToCreationTask(product, deadline)
+		task := TransformProductToCreationTask(product, contract.ID, deadline)
 		tasks = append(tasks, task)
 	}
 
@@ -240,6 +262,7 @@ func ExtractProductCreationTasks(
 func ExtractConceptTasks(
 	concepts []dtos.CoProducingConcept,
 	products []dtos.CoProducingProduct,
+	contract *model.Contract,
 	deadline time.Time,
 ) []responses.SuggestedTask {
 	// Create product lookup map
@@ -257,7 +280,7 @@ func ExtractConceptTasks(
 			productName = "Unknown Product"
 		}
 
-		task := TransformConceptToTask(concept, productName, deadline)
+		task := TransformConceptToTask(concept, contract.ID, productName, deadline)
 		tasks = append(tasks, task)
 	}
 
@@ -659,7 +682,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 		for _, t := range m.Tasks {
 			// If already assigned manually, ensure consistency and skip matching
 			if t.ScopeOfWorkItemID != nil {
-				idStr := *t.ScopeOfWorkItemID
+				idStr := strings.Split(*t.ScopeOfWorkItemID, "|")[2] // Extract SOW item ID part
 				for _, cand := range candidates {
 					if fmt.Sprintf("%d", *cand.ID) == idStr {
 						// Ensure ID is in cand.TaskIDs
@@ -677,7 +700,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 			// Single Item Rule: If there is only one candidate, assign all unassigned tasks to it
 			if len(candidates) == 1 {
 				cand := &candidates[0]
-				idStr := fmt.Sprintf("%d", *cand.ID)
+				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), contract.Type.String(), *cand.ID)
 				t.ScopeOfWorkItemID = &idStr
 				*cand.TaskIDs = append(*cand.TaskIDs, t.ID)
 				updateRelatedIDs(t, cand.ProductIDs, cand.ContentIDs)
@@ -699,7 +722,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 
 			// Threshold for assignment (e.g., 40 points)
 			if bestMatch != nil && bestScore >= 40 {
-				idStr := fmt.Sprintf("%d", *bestMatch.ID)
+				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), contract.Type.String(), *bestMatch.ID)
 				t.ScopeOfWorkItemID = &idStr
 
 				// Add to TaskIDs

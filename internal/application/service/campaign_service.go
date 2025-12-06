@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
@@ -16,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,7 +31,7 @@ type CampaignService struct {
 	contractRepo       irepository.GenericRepository[model.Contract]
 	orderRepo          irepository.OrderRepository
 	preOrderRepo       irepository.PreOrderRepository
-	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
+	contentChannelRepo irepository.ContentChannelsRepository
 	affiliateLinkRepo  irepository.AffiliateLinkRepository
 	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
 }
@@ -339,45 +341,34 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 		// Realistic Metrics
 		// 1. Products
 		if len(productIDs) > 0 {
-			// Query Orders
-			orders, _, _ := c.orderRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Joins("JOIN order_items ON order_items.order_id = orders.id").
-					Where("order_items.product_id IN ?", productIDs).
-					Where("orders.status = ?", enum.OrderStatusReceived).
-					Where("orders.order_type = ?", string(enum.ProductTypeLimited))
-			}, nil, 10000, 1)
-
-			var revenue float64
-			for _, o := range orders {
-				revenue += o.TotalAmount
+			var orderCount, preOrderCount int64
+			var orderRevenue, preOrderRevenue float64
+			err := utils.RunParallel(ctx, 2,
+				func(ctx context.Context) error {
+					var tempErr error
+					orderCount, orderRevenue, tempErr = c.orderRepo.GetOrderCountsAndTotalRevenueByOrderType(ctx, enum.ProductTypeLimited, constant.ValidCompletedOrderStatus)
+					return tempErr
+				},
+				func(ctx context.Context) error {
+					var tempErr error
+					preOrderCount, preOrderRevenue, tempErr = c.preOrderRepo.GetPreOrderCountsAndTotalAmountByStatuses(ctx, constant.ValidCompletedPreOrderStatus)
+					return tempErr
+				},
+			)
+			if err != nil {
+				zap.L().Error("Failed to get order counts and total revenue by order type", zap.Error(err))
+			} else {
+				itemComp.RealisticMetrics[strings.ToLower(enum.KPIValueTypeRevenue.String())] += orderRevenue + preOrderRevenue
+				itemComp.RealisticMetrics[strings.ToLower(enum.KPIValueTypeUnitsSold.String())] += float64(orderCount + preOrderCount)
 			}
-			itemComp.RealisticMetrics["revenue"] += revenue
-			itemComp.RealisticMetrics["units_sold"] += float64(len(orders))
-
-			// Query PreOrders
-			preOrders, _, _ := c.preOrderRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Joins("JOIN product_variants ON product_variants.id = pre_orders.variant_id").
-					Where("product_variants.product_id IN ?", productIDs).
-					Where("pre_orders.status = ?", enum.PreOrderStatusPaid)
-			}, nil, 10000, 1)
-
-			var preOrderRevenue float64
-			for _, po := range preOrders {
-				preOrderRevenue += po.TotalAmount
-			}
-			itemComp.RealisticMetrics["revenue"] += preOrderRevenue
 		}
 
 		// 2. Content
 		if len(contentIDs) > 0 {
-			contentChannels, _, _ := c.contentChannelRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Where("content_id IN ?", contentIDs)
-			}, nil, 1000, 1)
-
-			for _, cc := range contentChannels {
-				var metrics model.ContentChannelMetrics
-				if err := json.Unmarshal(cc.Metrics, &metrics); err == nil {
-					for k, v := range metrics.Current {
+			contentMetrics, err := c.contentChannelRepo.GetMetricsByContentIDs(ctx, contentIDs)
+			if err == nil {
+				for _, cm := range contentMetrics {
+					for k, v := range cm.CurrentMapped {
 						itemComp.RealisticMetrics[k] += v
 					}
 				}
@@ -537,7 +528,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 		return nil, err
 	}
 
-	creatingCampaignModel, _, err := request.ToModel(userID)
+	creatingCampaignModel, _, err := request.ToModel(userID, contract)
 	if err != nil {
 		zap.L().Error("Failed to convert request to model", zap.Error(err))
 		return nil, err
@@ -600,7 +591,7 @@ func (c *CampaignService) CreateInternalCampaign(
 	milstoneRepo := uow.Milestones()
 	taskRepo := uow.Tasks()
 
-	creatingCampaignModel, totalTasksCount, err := request.ToModel(createdBy)
+	creatingCampaignModel, totalTasksCount, err := request.ToModel(createdBy, nil)
 	if err != nil {
 		zap.L().Error("Failed to convert request to model", zap.Error(err))
 		return nil, err
@@ -750,9 +741,10 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	}
 
 	response := &responses.CampaignSuggestionResponse{
-		ContractID:        contractID,
-		ContractType:      string(contract.Type),
-		SuggestedCampaign: suggestedCampaign,
+		ContractID:              contractID,
+		ContractType:            string(contract.Type),
+		SuggestedCampaign:       suggestedCampaign,
+		ScopeOfWorkDeliverables: scopeOfWorks.Deliverables,
 	}
 
 	zap.L().Info("Successfully suggested campaign from contract",
@@ -796,7 +788,7 @@ func (c *CampaignService) extractAdvertisingTasks(
 	err = utils.RunParallel(ctx, 2,
 		// Extract tasks
 		func(ctx context.Context) error {
-			suggestedTasks, tasksErr = c.extractAdvertisingTasksAsync(ctx, deliverables, contract.StartDate)
+			suggestedTasks, tasksErr = c.extractAdvertisingTasksAsync(ctx, contract, deliverables, contract.StartDate)
 			return tasksErr
 		},
 		// Extract milestones
@@ -834,6 +826,7 @@ func (c *CampaignService) extractAdvertisingTasks(
 // extractAdvertisingTasksAsync extracts tasks from advertised items with item-level parallelization
 func (c *CampaignService) extractAdvertisingTasksAsync(
 	_ context.Context,
+	contract *model.Contract,
 	deliverables *dtos.AdvertisingDeliverable,
 	contractStartDate time.Time,
 ) ([]responses.SuggestedTask, error) {
@@ -852,7 +845,7 @@ func (c *CampaignService) extractAdvertisingTasksAsync(
 			defer wg.Done()
 
 			// Use contract start date as initial deadline (will be refined by milestone assignment)
-			task := helper.TransformAdvertisedItemToTask(advertisedItem, contractStartDate)
+			task := helper.TransformAdvertisedItemToTask(advertisedItem, contract.ID, contractStartDate)
 			tasks[idx] = task
 		}(i, item)
 	}
@@ -989,7 +982,7 @@ func (c *CampaignService) extractAffiliateTasks(
 	// Extract content creation tasks (all go to first milestone)
 	contentTasks := make([]responses.SuggestedTask, 0, len(deliverables.AdvertisedItems))
 	for _, item := range deliverables.AdvertisedItems {
-		task := helper.TransformAdvertisedItemToTask(item, dueDates[0])
+		task := helper.TransformAdvertisedItemToTask(item, contract.ID, dueDates[0])
 
 		// Add tracking link to task description
 		task.Description["tracking_link"] = deliverables.TrackingLink
@@ -1087,7 +1080,7 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 	// Extract event tasks
 	eventTasks := make([]responses.SuggestedTask, 0, len(deliverables.Events))
 	for _, event := range deliverables.Events {
-		task := helper.TransformEventToTask(event)
+		task := helper.TransformEventToTask(event, contract.ID)
 		eventTasks = append(eventTasks, task)
 	}
 
@@ -1160,8 +1153,8 @@ func (c *CampaignService) extractCoProducingStructure(
 	// Extract all product creation tasks and concept tasks from deliverables
 	// Use first milestone due date as deadline for all development tasks
 	firstMilestoneDueDate := milestoneDueDates[0]
-	productTasks := helper.ExtractProductCreationTasks(deliverables.Products, firstMilestoneDueDate)
-	conceptTasks := helper.ExtractConceptTasks(deliverables.Concepts, deliverables.Products, firstMilestoneDueDate)
+	productTasks := helper.ExtractProductCreationTasks(deliverables.Products, contract, firstMilestoneDueDate)
+	conceptTasks := helper.ExtractConceptTasks(deliverables.Concepts, deliverables.Products, contract, firstMilestoneDueDate)
 
 	// Combine all development tasks
 	allDevelopmentTasks := append(productTasks, conceptTasks...)

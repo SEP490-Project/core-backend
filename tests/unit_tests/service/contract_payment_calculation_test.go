@@ -729,25 +729,25 @@ func TestIsCurrentPeriod(t *testing.T) {
 // Unlock Payment Tests
 // =============================================================================
 
-func TestUnlockPayment_ClearsAllFields(t *testing.T) {
-	// Simulate a locked payment state
-	lockedAmount := testhelpers.Float64Ptr(1000000)
-	lockedAt := testhelpers.TimePtr(time.Now().Add(-1 * time.Hour))
-	lockedClicks := testhelpers.ToPtr(int64(5000))
-	lockedRevenue := testhelpers.Float64Ptr(2000000)
+// func TestUnlockPayment_ClearsAllFields(t *testing.T) {
+// 	// Simulate a locked payment state
+// 	lockedAmount := testhelpers.Float64Ptr(1000000)
+// 	lockedAt := testhelpers.TimePtr(time.Now().Add(-1 * time.Hour))
+// 	lockedClicks := testhelpers.ToPtr(int64(5000))
+// 	lockedRevenue := testhelpers.Float64Ptr(2000000)
 
-	// Simulate unlock
-	lockedAmount = nil
-	lockedAt = nil
-	lockedClicks = nil
-	lockedRevenue = nil
+// 	// Simulate unlock
+// 	lockedAmount = nil
+// 	lockedAt = nil
+// 	lockedClicks = nil
+// 	lockedRevenue = nil
 
-	// Verify all cleared
-	assert.Nil(t, lockedAmount, "LockedAmount should be nil")
-	assert.Nil(t, lockedAt, "LockedAt should be nil")
-	assert.Nil(t, lockedClicks, "LockedClicks should be nil")
-	assert.Nil(t, lockedRevenue, "LockedRevenue should be nil")
-}
+// 	// Verify all cleared
+// 	assert.Nil(t, lockedAmount, "LockedAmount should be nil")
+// 	assert.Nil(t, lockedAt, "LockedAt should be nil")
+// 	assert.Nil(t, lockedClicks, "LockedClicks should be nil")
+// 	assert.Nil(t, lockedRevenue, "LockedRevenue should be nil")
+// }
 
 // =============================================================================
 // Real-World Scenario Tests

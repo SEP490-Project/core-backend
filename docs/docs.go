@@ -22339,6 +22339,11 @@ const docTemplate = `{
                     "minLength": 3,
                     "example": "Design Banner Ads"
                 },
+                "scope_of_work_item_id": {
+                    "description": "ScopeOFWorkItemID is a composite ID in the format: \"{CONTRACT_ID}|{CONTRACT_TYPE}|{SOW_ITEM_ID}\"\nIf only contain ScopeOfWorkItem Item number, then there will be logic to aggregate them when created.",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1"
+                },
                 "type": {
                     "type": "string",
                     "enum": [
@@ -25232,6 +25237,7 @@ const docTemplate = `{
                 "contract_type": {
                     "type": "string"
                 },
+                "scope_of_work_deliverables": {},
                 "suggested_campaign": {
                     "$ref": "#/definitions/responses.SuggestedCampaign"
                 }
@@ -28449,6 +28455,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Create social media post"
+                },
+                "scope_of_work_item_id": {
+                    "type": "string",
+                    "example": "SOW-12345"
                 },
                 "type": {
                     "allOf": [

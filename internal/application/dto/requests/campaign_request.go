@@ -3,9 +3,11 @@ package requests
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -98,10 +100,14 @@ type CreateTaskCampaignRequest struct {
 	Deadline     time.Time `json:"deadline" validate:"required" example:"2023-06-10T00:00:00Z"`
 	Type         string    `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"PRODUCT"`
 	AssignedToID *string   `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+
+	// ScopeOFWorkItemID is a composite ID in the format: "{CONTRACT_ID}|{CONTRACT_TYPE}|{SOW_ITEM_ID}"
+	// If only contain ScopeOfWorkItem Item number, then there will be logic to aggregate them when created.
+	ScopeOfWorkItemID *string `json:"scope_of_work_item_id" example:"550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1"`
 }
 
 // ToModel converts the CreateCampaignRequest to a Campaign model.
-func (ccr *CreateCampaignRequest) ToModel(userID uuid.UUID) (modelResult *model.Campaign, totalTasksCount int, err error) {
+func (ccr *CreateCampaignRequest) ToModel(userID uuid.UUID, contract *model.Contract) (modelResult *model.Campaign, totalTasksCount int, err error) {
 	contractID := uuid.Nil
 	if ccr.ContractID != "" {
 		contractID, err = uuid.Parse(ccr.ContractID)
@@ -128,7 +134,7 @@ func (ccr *CreateCampaignRequest) ToModel(userID uuid.UUID) (modelResult *model.
 		CreatedByID: userID,
 	}
 
-	modelResult.Milestones, totalTasksCount, err = ccr.ToMilestoneModels(userID, modelResult.ID)
+	modelResult.Milestones, totalTasksCount, err = ccr.ToMilestoneModels(userID, modelResult.ID, contract)
 	if err != nil {
 		zap.L().Error("Failed to convert milestones", zap.Error(err))
 		return nil, 0, err
@@ -138,7 +144,7 @@ func (ccr *CreateCampaignRequest) ToModel(userID uuid.UUID) (modelResult *model.
 }
 
 // ToMilestoneModels converts the milestones in the CreateCampaignRequest to Milestone models.
-func (ccr *CreateCampaignRequest) ToMilestoneModels(userID uuid.UUID, campaignID uuid.UUID) ([]*model.Milestone, int, error) {
+func (ccr *CreateCampaignRequest) ToMilestoneModels(userID uuid.UUID, campaignID uuid.UUID, contract *model.Contract) ([]*model.Milestone, int, error) {
 	milestoneRequest := ccr.Milestones
 	milestoneLen := len(milestoneRequest)
 	if milestoneLen == 0 {
@@ -170,7 +176,7 @@ func (ccr *CreateCampaignRequest) ToMilestoneModels(userID uuid.UUID, campaignID
 				BehindSchedule:       false,
 				CreatedByID:          userID,
 			}
-			taskModels, err := ccr.ToTaskModels(userID, milestone.ID, &milestoneReq)
+			taskModels, err := ccr.ToTaskModels(userID, milestone.ID, &milestoneReq, contract)
 			if err != nil {
 				zap.L().Error("Failed to convert tasks for milestone", zap.Int("index", i), zap.Error(err))
 			} else {
@@ -193,6 +199,7 @@ func (ccr *CreateCampaignRequest) ToTaskModels(
 	userID uuid.UUID,
 	milestoneID uuid.UUID,
 	milestoneRequest *CreateMilestoneCampaignRequest,
+	contract *model.Contract,
 ) ([]*model.Task, error) {
 	taskRequests := milestoneRequest.Tasks
 	taskLen := len(taskRequests)
@@ -203,16 +210,25 @@ func (ccr *CreateCampaignRequest) ToTaskModels(
 	taskModels := make([]*model.Task, 0, taskLen)
 
 	for _, tr := range taskRequests {
+		// Handle ScopeOfWorkItemID formatting
+		// ScopeOfWorkItemID is a composite ID in the format: "{CONTRACT_ID}|{CONTRACT_TYPE}|{SOW_ITEM_ID}"
+		// If ScopeOfWorkItemID from request only contain the SOW_ITEM_ID, then aggregate them here.
+		scopeOfWorkID := tr.ScopeOfWorkItemID
+		if scopeOfWorkID != nil && strings.Count(*tr.ScopeOfWorkItemID, "|") != 2 {
+			scopeOfWorkID = utils.PtrOrNil(fmt.Sprintf("%s|%s|%d", contract.ID.String(), contract.Type.String(), scopeOfWorkID))
+		}
+
 		taskModel := &model.Task{
-			ID:           uuid.New(),
-			MilestoneID:  milestoneID,
-			Name:         tr.Name,
-			Description:  nil,
-			Deadline:     tr.Deadline,
-			Type:         enum.TaskTypeOther,  // Default
-			Status:       enum.TaskStatusToDo, // Default
-			AssignedToID: nil,
-			CreatedByID:  userID,
+			ID:                uuid.New(),
+			MilestoneID:       milestoneID,
+			Name:              tr.Name,
+			Description:       nil,
+			Deadline:          tr.Deadline,
+			Type:              enum.TaskTypeOther,  // Default
+			Status:            enum.TaskStatusToDo, // Default
+			AssignedToID:      nil,
+			ScopeOfWorkItemID: scopeOfWorkID,
+			CreatedByID:       userID,
 		}
 
 		if tr.Description != nil {
