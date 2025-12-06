@@ -32,14 +32,31 @@ type Product struct {
 	Variants []ProductVariant `json:"product_variants" gorm:"foreignKey:ProductID"`
 	Task     *Task            `json:"task" gorm:"foreignKey:TaskID" swaggerignore:"true"`
 	Limited  *LimitedProduct  `json:"limited" gorm:"foreignKey:Id;references:ID"`
+	// Reviews relationship
+	Reviews []ProductReview `json:"reviews,omitempty" gorm:"foreignKey:ProductID"`
 }
 
 func (Product) TableName() string { return "products" }
 
 func (p *Product) BeforeCreate(tx *gorm.DB) (err error) {
+	_ = tx
 	if p.ID == uuid.Nil {
 		p.ID = uuid.New()
 	}
 
 	return nil
+}
+
+// AverageRating computes the average rating and total count of reviews for the product
+func (p *Product) AverageRating() (avg float64, count int) {
+	if len(p.Reviews) == 0 {
+		return 0, 0
+	}
+	total := 0
+	for _, r := range p.Reviews {
+		total += r.RatingStars
+	}
+	count = len(p.Reviews)
+	avg = float64(total) / float64(count)
+	return avg, count
 }

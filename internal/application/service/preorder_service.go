@@ -380,8 +380,8 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")
 		}
-		variant.CurrentStock = ptr.Int(*variant.CurrentStock - 1)
-		variant.PreOrderCount = ptr.Int(*variant.PreOrderCount + 1)
+		variant.CurrentStock = ptr.Int(*variant.CurrentStock - request.Quantity)
+		variant.PreOrderCount = ptr.Int(*variant.PreOrderCount + request.Quantity)
 		err = uow.ProductVariant().Update(ctx, variant)
 		if err != nil {
 			return fmt.Errorf("failed to update variant stock: %w", err)

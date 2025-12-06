@@ -929,61 +929,6 @@ func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepositor
 	}
 }
 
-// ---- Extract Path Param as UUID ----
-
-func parseUUIDParam(c *gin.Context, key string) (uuid.UUID, error) {
-	raw := c.Param(key)
-	if raw == "" {
-		msg := key + " is required"
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
-		return uuid.Nil, errors.New(msg)
-	}
-
-	id, err := uuid.Parse(raw)
-	if err != nil {
-		msg := "invalid " + key + ": " + err.Error()
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
-		return uuid.Nil, errors.New("invalid " + key + ": " + err.Error())
-	}
-
-	return id, nil
-}
-
-// ---- Ensure multipart form is parsed ----
-
-func parseMultipart(c *gin.Context, maxSize int64) error {
-	if err := c.Request.ParseMultipartForm(maxSize); err != nil {
-		msg := "failed to parse multipart form: " + err.Error()
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
-		return errors.New("failed to parse multipart form: " + err.Error())
-	}
-	return nil
-}
-
-// ---- Extract required form field ----
-
-func extractRequiredFormField(c *gin.Context, key string) (*string, error) {
-	value := c.PostForm(key)
-	if value == "" {
-		msg := key + " is required"
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
-		return nil, errors.New(key + " is required")
-	}
-	return &value, nil
-}
-
-// ---- Extract required file ----
-
-func extractRequiredFile(c *gin.Context, key string) (*multipart.FileHeader, error) {
-	fileHeader, err := c.FormFile(key)
-	if err != nil || fileHeader == nil {
-		msg := key + " file is required"
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse(msg, http.StatusBadRequest))
-		return nil, errors.New(key + " file is required")
-	}
-	return fileHeader, nil
-}
-
 // handleFileUpload lưu file tạm, upload lên storage và trả về URL
 func (p *PreOrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
 	// --- Tmp path ---

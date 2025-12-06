@@ -18,6 +18,8 @@ type ProductService interface {
 	GetProductsPaginationV2(page, limit int, search, categoryID, brandID string, userID string, productType string, productStatuses []string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error)
 	GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error)
 	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
+	// Reviews
+	AddProductReview(userID uuid.UUID, req requests.AddProductReviewRequest) (*responses.ProductReviewResponse, error)
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)
 	GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error)
 	GetTop5NewestProducts() (*responses.ProductResponseTop5Newest, error)

@@ -568,8 +568,11 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				return errors.New("product Variant not found")
 			} else if variant == nil {
 				return errors.New("product Variant not found")
-			} else if err := ValidateVariantForPreOrder(*variant); err != nil {
-				return err
+			}
+
+			//validate if product is active
+			if !variant.Product.IsActive {
+				return fmt.Errorf("product is not available, please contact admin to activate it")
 			}
 
 			if variant.Product != nil && variant.Product.Type == enum.ProductTypeLimited {
@@ -581,6 +584,8 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 					return fmt.Errorf("product %s (id = %s) is not yet available for order", variant.Product.Name, variant.Product.ID.String())
 				} else if now.After(limitedInfo.AvailabilityEndDate) {
 					return fmt.Errorf("product %s (id = %s) is no longer available for order", variant.Product.Name, variant.Product.ID.String())
+				} else if *variant.CurrentStock <= 0 {
+					return fmt.Errorf("product %s (id = %s) is out of stock", variant.Product.Name, variant.Product.ID.String())
 				}
 			}
 
