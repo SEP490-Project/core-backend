@@ -7,8 +7,11 @@ import (
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +19,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
@@ -144,49 +146,50 @@ func (j *SocialMetricsPollerJob) Run() {
 	}
 
 	// 2. Process each channel (fetch metrics)
-	affectedCampaignIDs := make(map[uuid.UUID]bool)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
+	// affectedCampaignIDs := make(map[uuid.UUID]bool)
+	// var mu sync.Mutex
 	// Token cache for this run
 	tokenCache := make(map[string][2]string)
 	var cacheMu sync.RWMutex
 
-	// Limit concurrency to avoid rate limits
-	sem := make(chan struct{}, 5) // Max 5 concurrent requests
-
+	funcSlice := make([]func(context.Context) error, 0)
 	for i := range channels {
 		cc := &channels[i]
-		wg.Add(1)
-		go func(cc *model.ContentChannel) {
-			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
-
-			updated, err := j.processContentChannel(ctx, cc, tokenCache, &cacheMu)
+		// 1. Logic for fetching metrics of each content channels
+		tempFunc := func(ctx context.Context) error {
+			// var updated bool
+			_, err = j.processContentChannel(ctx, cc, tokenCache, &cacheMu)
 			if err != nil {
 				zap.L().Error("Failed to process content channel", zap.String("id", cc.ID.String()), zap.Error(err))
-				return
+				return err
 			}
+			// if updated {
+			// 	campaignID, err := j.getCampaignID(ctx, cc.ContentID)
+			// 	if err == nil {
+			// 		mu.Lock()
+			// 		affectedCampaignIDs[campaignID] = true
+			// 		mu.Unlock()
+			// 	}
+			// }
+			return nil
+		}
+		// TODO: 2. Logic for fetching metrics of channel page
 
-			if updated {
-				campaignID, err := j.getCampaignID(ctx, cc.ContentID)
-				if err == nil {
-					mu.Lock()
-					affectedCampaignIDs[campaignID] = true
-					mu.Unlock()
-				}
-			}
-		}(cc)
+		funcSlice = append(funcSlice, tempFunc)
 	}
-	wg.Wait()
+
+	err = utils.RunParallel(ctx, 5, funcSlice...)
+	if err != nil {
+		zap.L().Error("Failed to process content channels", zap.Error(err))
+		return
+	}
 
 	// 3. Aggregate metrics for affected campaigns
-	for campaignID := range affectedCampaignIDs {
-		if err := j.aggregateCampaignMetrics(ctx, campaignID); err != nil {
-			zap.L().Error("Failed to aggregate campaign metrics", zap.String("campaign_id", campaignID.String()), zap.Error(err))
-		}
-	}
+	// for campaignID := range affectedCampaignIDs {
+	// 	if err := j.aggregateCampaignMetrics(ctx, campaignID); err != nil {
+	// 		zap.L().Error("Failed to aggregate campaign metrics", zap.String("campaign_id", campaignID.String()), zap.Error(err))
+	// 	}
+	// }
 
 	j.lastRunTime = time.Now()
 
@@ -218,7 +221,6 @@ func (j *SocialMetricsPollerJob) processContentChannel(ctx context.Context, cc *
 
 	if ok && tokens[0] != "" {
 		accessToken = tokens[0]
-		// refreshToken = tokens[1] // Not used currently as we don't retry on API failure yet
 	} else {
 		accessToken, refreshToken, err = j.channelService.GetDecryptedTokenPair(ctx, cc.Channel.Name)
 		if err != nil {
@@ -252,14 +254,15 @@ func (j *SocialMetricsPollerJob) processContentChannel(ctx context.Context, cc *
 		cacheMu.Unlock()
 	}
 
-	var newMetrics map[string]float64
+	var fetchedMetrics map[string]any
+	var mappedMetrics map[string]float64
 
 	// Determine platform and fetch metrics
 	// Check Channel Name or Code prefix
 	if strings.HasPrefix(strings.ToUpper(cc.Channel.Code), "FB") || strings.HasPrefix(strings.ToUpper(cc.Channel.Name), "FACEBOOK") {
-		newMetrics, err = j.fetchFacebookMetrics(ctx, cc, accessToken)
+		fetchedMetrics, mappedMetrics, err = j.fetchFacebookMetrics(ctx, cc, accessToken)
 	} else if strings.HasPrefix(strings.ToUpper(cc.Channel.Code), "TT") || strings.HasPrefix(strings.ToUpper(cc.Channel.Name), "TIKTOK") {
-		newMetrics, err = j.fetchTikTokMetrics(ctx, cc, accessToken)
+		fetchedMetrics, mappedMetrics, err = j.fetchTikTokMetrics(ctx, cc, accessToken)
 	} else {
 		// Try to guess from ExternalPostType
 		if cc.ExternalPostType != nil {
@@ -271,26 +274,18 @@ func (j *SocialMetricsPollerJob) processContentChannel(ctx context.Context, cc *
 		}
 		return false, nil // Unknown platform
 	}
-
-	if err != nil {
+	if err != nil || fetchedMetrics == nil || mappedMetrics == nil {
 		return false, err
 	}
 
-	if newMetrics == nil {
-		return false, nil
-	}
-
 	// Update Metrics in DB
-	return j.updateContentChannelMetrics(ctx, cc, newMetrics)
+	return j.updateContentChannelMetrics(ctx, cc, fetchedMetrics, mappedMetrics)
 }
 
-func (j *SocialMetricsPollerJob) fetchFacebookMetrics(ctx context.Context, cc *model.ContentChannel, accessToken string) (map[string]float64, error) {
+func (j *SocialMetricsPollerJob) fetchFacebookMetrics(ctx context.Context, cc *model.ContentChannel, accessToken string) (fetchedMetrics map[string]any, mappedMetrics map[string]float64, err error) {
 	if cc.ExternalPostID == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
-
-	metrics := make(map[string]float64)
-	var err error
 
 	// Determine content type and fetch appropriate metrics
 	// Default to Post metrics if type is unknown or standard post
@@ -302,96 +297,105 @@ func (j *SocialMetricsPollerJob) fetchFacebookMetrics(ctx context.Context, cc *m
 		}
 	}
 
+	fetchedMetrics = make(map[string]any)
+	mappedMetrics = make(map[string]float64)
 	if isVideo {
 		// Video/Reel Metrics
 		videoMetrics := []string{
-			"post_video_likes_by_reaction_type",
-			"post_video_avg_time_watched",
-			"post_video_social_actions",
-			"post_video_view_time",
-			"post_impressions_unique",
-			"blue_reels_play_count",
-			"fb_reels_total_plays",
-			"fb_reels_replay_count",
-			"post_video_followers",
-			// "post_video_retention_graph", // Graph data, not scalar, skipping for now
+			constant.FacebookVideoMetrics.PostVideoLikesByReactionType,
+			constant.FacebookVideoMetrics.PostVideoAvgTimeWatched,
+			constant.FacebookVideoMetrics.PostVideoSocialActions,
+			constant.FacebookVideoMetrics.PostVideoViewTime,
+			constant.FacebookVideoMetrics.PostImpressionsUnique,
+			constant.FacebookVideoMetrics.BlueReelsPlayCount,
+			constant.FacebookVideoMetrics.FbReelsTotalPlays,
+			constant.FacebookVideoMetrics.FbReelsReplayCount,
+			constant.FacebookVideoMetrics.PostVideoFollowers,
+			// constant.FacebookVideoMetrics.PostVideoRetentionGraph, // Graph data, not scalar, skipping for now
 		}
 
 		var resp *dtos.FacebookVideoInsightsResponse
 		resp, err = j.facebookProxy.GetVideoInsights(ctx, *cc.ExternalPostID, accessToken, videoMetrics, dtos.FacebookInsightsPeriodLifetime)
 		if err == nil && resp != nil {
-			j.processFacebookMetricData(resp.Data, metrics)
+			j.processFacebookMetricData(resp.Data, mappedMetrics, fetchedMetrics)
 		}
 	} else {
 		// Standard Post Metrics
 		postMetrics := []string{
-			"post_clicks",
-			"post_reactions_by_type_total",
-			"post_media_view",
+			constant.FacebookPostMetrics.PostClicks,
+			constant.FacebookPostMetrics.PostReactionsByTypeTotal,
+			constant.FacebookPostMetrics.PostActivityByActionType,
+			constant.FacebookPostMetrics.PostMediaView,
 		}
 
 		var resp *dtos.FacebookPostMetricsResponse
 		resp, err = j.facebookProxy.GetPostMetrics(ctx, *cc.ExternalPostID, accessToken, postMetrics, dtos.FacebookInsightsPeriodLifetime)
 		if err == nil && resp != nil {
-			j.processFacebookMetricData(resp.Data, metrics)
+			j.processFacebookMetricData(resp.Data, mappedMetrics, fetchedMetrics)
 		}
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return metrics, nil
+	return fetchedMetrics, mappedMetrics, nil
 }
 
-func (j *SocialMetricsPollerJob) processFacebookMetricData(data []dtos.FacebookMetricData, metrics map[string]float64) {
+func (j *SocialMetricsPollerJob) processFacebookMetricData(data []dtos.FacebookMetricData, mappedMetrics map[string]float64, fetchedMetrics map[string]any) {
 	for _, d := range data {
+		fetchedMetrics[d.Name] = d.Values
 		if len(d.Values) > 0 {
-			val := d.Values[0].Value
-			switch v := val.(type) {
-			case float64:
-				metrics[d.Name] = v
-			case int:
-				metrics[d.Name] = float64(v)
-			case map[string]any:
-				// Sum up values if it's a breakdown (e.g. reactions)
-				var total float64
-				for _, subVal := range v {
-					if f, ok := subVal.(float64); ok {
-						total += f
-					}
-				}
-				metrics[d.Name] = total
+			mappedFetchedMetrics := helper.MapFacebookMetricsToKPIField(d.Name, d.Values[0].Value)
+			zap.L().Debug("Fetched Facebook metric",
+				zap.String("metric_name", d.Name),
+				zap.Any("values", d.Values[0].Value),
+				zap.Any("mapped_fetched_metrics", mappedFetchedMetrics))
+			for k, v := range mappedFetchedMetrics {
+				mappedMetrics[k] += v
 			}
+			// zap.L().Debug("Processed Facebook metric", zap.Any("mapped_fetched_metrics", mappedFetchedMetrics), zap.Any("mapped_metrics", mappedMetrics))
 		}
 	}
 }
 
-func (j *SocialMetricsPollerJob) fetchTikTokMetrics(ctx context.Context, cc *model.ContentChannel, accessToken string) (map[string]float64, error) {
+func (j *SocialMetricsPollerJob) fetchTikTokMetrics(ctx context.Context, cc *model.ContentChannel, accessToken string) (fetchedMetrics map[string]any, mappedMetrics map[string]float64, err error) {
 	if cc.ExternalPostID == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	metricsResp, err := j.tiktokProxy.GetVideoMetrics(ctx, *cc.ExternalPostID, accessToken)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(metricsResp.Data.Videos) == 0 {
-		return nil, fmt.Errorf("video not found")
+		return nil, nil, fmt.Errorf("video not found")
 	}
 
+	fetchedMetrics = make(map[string]any)
+	mappedMetrics = make(map[string]float64)
 	video := metricsResp.Data.Videos[0]
-	metrics := make(map[string]float64)
-	metrics["view_count"] = float64(video.ViewCount)
-	metrics["like_count"] = float64(video.LikeCount)
-	metrics["comment_count"] = float64(video.CommentCount)
-	metrics["share_count"] = float64(video.ShareCount)
+	fetchedMetrics["view_count"] = video.ViewCount
+	fetchedMetrics["like_count"] = video.LikeCount
+	fetchedMetrics["comment_count"] = video.CommentCount
+	fetchedMetrics["share_count"] = video.ShareCount
 
-	return metrics, nil
+	for k, v := range fetchedMetrics {
+		if vInt, ok := v.(int); ok {
+			mappedFields := helper.MapTikTokMetricsToKPIField(k, float64(vInt))
+			zap.L().Debug("fetched tiktok metric", zap.String("metric_name", k), zap.Any("value", v), zap.Any("mapped_fields", mappedFields))
+			for mf, mv := range mappedFields {
+				mappedMetrics[mf] += mv
+			}
+		}
+
+	}
+
+	return fetchedMetrics, mappedMetrics, nil
 }
 
-func (j *SocialMetricsPollerJob) updateContentChannelMetrics(ctx context.Context, cc *model.ContentChannel, newMetrics map[string]float64) (bool, error) {
+func (j *SocialMetricsPollerJob) updateContentChannelMetrics(ctx context.Context, cc *model.ContentChannel, fetchedMetrics map[string]any, mappedMetrics map[string]float64) (bool, error) {
 	// Parse existing metrics
 	var currentMetrics model.ContentChannelMetrics
 	if len(cc.Metrics) > 0 {
@@ -402,8 +406,10 @@ func (j *SocialMetricsPollerJob) updateContentChannelMetrics(ctx context.Context
 	}
 
 	// Update LastFetched with previous Current
-	currentMetrics.LastFetched = currentMetrics.Current
-	currentMetrics.Current = newMetrics
+	currentMetrics.LastFetched = currentMetrics.CurrentFetched
+	currentMetrics.LastMapped = currentMetrics.CurrentMapped
+	currentMetrics.CurrentFetched = fetchedMetrics
+	currentMetrics.CurrentMapped = mappedMetrics
 
 	// Marshal back
 	metricsJSON, err := json.Marshal(currentMetrics)
@@ -420,7 +426,7 @@ func (j *SocialMetricsPollerJob) updateContentChannelMetrics(ctx context.Context
 	return true, nil
 }
 
-func (j *SocialMetricsPollerJob) getCampaignID(ctx context.Context, contentID uuid.UUID) (uuid.UUID, error) {
+/* func (j *SocialMetricsPollerJob) getCampaignID(ctx context.Context, contentID uuid.UUID) (uuid.UUID, error) {
 	// Content -> Task -> Milestone -> Campaign
 	var content model.Content
 	if err := j.db.WithContext(ctx).Model(new(model.Content)).
@@ -441,7 +447,6 @@ func (j *SocialMetricsPollerJob) getCampaignID(ctx context.Context, contentID uu
 func (j *SocialMetricsPollerJob) aggregateCampaignMetrics(ctx context.Context, campaignID uuid.UUID) error {
 	// 1. Get all contents for this campaign
 	// Query: Campaign -> Milestone -> Task -> Content -> ContentChannel
-
 	type Result struct {
 		Metrics datatypes.JSON
 	}
@@ -531,7 +536,7 @@ func (j *SocialMetricsPollerJob) aggregateCampaignMetrics(ctx context.Context, c
 	}
 
 	return nil
-}
+} */
 
 func (j *SocialMetricsPollerJob) refreshTikTokChannelRefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
 	// Refresh the access token
