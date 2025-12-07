@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 // DeviceTokenService implements device token management operations
@@ -25,15 +26,18 @@ func NewDeviceTokenService(deviceTokenRepo irepository.DeviceTokenRepository) *D
 }
 
 // RegisterToken registers a new device token or updates if it exists
-func (s *DeviceTokenService) RegisterToken(ctx context.Context, userID uuid.UUID, token string, platform enum.PlatformType) error {
+func (s *DeviceTokenService) RegisterToken(ctx context.Context, userID uuid.UUID, sessionID *uuid.UUID, token string, platform enum.PlatformType) error {
 	// Validate platform
 	if !platform.IsValid() {
 		return errors.New("invalid platform type")
 	}
 
-	// Check if token already exists
-	existing, err := s.deviceTokenRepo.FindByToken(ctx, token)
-	if err != nil {
+	// Check if token already exists (including soft-deleted)
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped().Where("token = ?", token)
+	}
+	existing, err := s.deviceTokenRepo.GetByCondition(ctx, query, nil)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		zap.L().Error("Failed to check existing device token",
 			zap.String("token", token),
 			zap.Error(err))
@@ -51,11 +55,17 @@ func (s *DeviceTokenService) RegisterToken(ctx context.Context, userID uuid.UUID
 			return errors.New("device token already registered to another user")
 		}
 
+		// Restore if deleted
+		if existing.DeletedAt.Valid {
+			existing.DeletedAt = gorm.DeletedAt{}
+		}
+
 		// Update last used timestamp and ensure valid
 		now := time.Now()
 		existing.LastUsedAt = &now
 		existing.IsValid = true
 		existing.Platform = platform
+		existing.LoggedSessionID = sessionID
 
 		if err := s.deviceTokenRepo.Update(ctx, existing); err != nil {
 			zap.L().Error("Failed to update device token",
@@ -73,11 +83,12 @@ func (s *DeviceTokenService) RegisterToken(ctx context.Context, userID uuid.UUID
 	// Create new device token
 	now := time.Now()
 	deviceToken := &model.DeviceToken{
-		UserID:     userID,
-		Token:      token,
-		Platform:   platform,
-		IsValid:    true,
-		LastUsedAt: &now,
+		UserID:          userID,
+		LoggedSessionID: sessionID,
+		Token:           token,
+		Platform:        platform,
+		IsValid:         true,
+		LastUsedAt:      &now,
 	}
 
 	if err := s.deviceTokenRepo.Add(ctx, deviceToken); err != nil {
@@ -218,4 +229,58 @@ func (s *DeviceTokenService) CleanupInvalidTokens(ctx context.Context) (int64, e
 		zap.Int64("count", count),
 		zap.Time("cutoff_date", cutoffDate))
 	return count, nil
+}
+
+// DeleteTokenByToken deletes a device token by its token string
+func (s *DeviceTokenService) DeleteTokenByToken(ctx context.Context, token string) error {
+	existing, err := s.deviceTokenRepo.FindByToken(ctx, token)
+	if err != nil {
+		zap.L().Error("Failed to find device token for deletion",
+			zap.String("token", token),
+			zap.Error(err))
+		return err
+	}
+	if existing == nil {
+		return nil
+	}
+
+	if err := s.deviceTokenRepo.Delete(ctx, existing); err != nil {
+		zap.L().Error("Failed to delete device token",
+			zap.String("token_id", existing.ID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	zap.L().Info("Device token deleted successfully",
+		zap.String("token_id", existing.ID.String()))
+	return nil
+}
+
+// DeleteTokensBySessionID deletes all device tokens associated with a session
+func (s *DeviceTokenService) DeleteTokensBySessionID(ctx context.Context, sessionID uuid.UUID) error {
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Where("logged_session_id = ?", sessionID)
+	}
+
+	tokens, _, err := s.deviceTokenRepo.GetAll(ctx, query, nil, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to get device tokens by session ID",
+			zap.String("session_id", sessionID.String()),
+			zap.Error(err))
+		return err
+	}
+
+	for _, token := range tokens {
+		if err := s.deviceTokenRepo.Delete(ctx, &token); err != nil {
+			zap.L().Error("Failed to delete device token",
+				zap.String("token_id", token.ID.String()),
+				zap.Error(err))
+			// Continue deleting other tokens
+		}
+	}
+
+	zap.L().Info("Device tokens deleted by session ID",
+		zap.String("session_id", sessionID.String()),
+		zap.Int("count", len(tokens)))
+	return nil
 }
