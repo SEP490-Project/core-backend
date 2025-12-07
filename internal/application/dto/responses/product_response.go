@@ -547,15 +547,15 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 
 // ProductResponseV2Partial represents a partial response structure for a product.
 type ProductResponseV2Partial struct {
-	ID               uuid.UUID                  `json:"id"`
-	BrandID          uuid.UUID                  `json:"brand_id"`
-	BrandLogoURL     *string                    `json:"brand_logo_url,omitempty"`
-	BrandName        string                     `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL     *[]string                  `json:"thumbnail_url,omitempty"` // optional
-	Category         ProductCategoryResponse    `json:"category"`
-	Description      string                     `json:"description"`
-	Name             string                     `json:"name"`
-	Price            float64                    `json:"price"`
+	ID           uuid.UUID               `json:"id"`
+	BrandID      uuid.UUID               `json:"brand_id"`
+	BrandLogoURL *string                 `json:"brand_logo_url,omitempty"`
+	BrandName    string                  `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL *[]string               `json:"thumbnail_url,omitempty"` // optional
+	Category     ProductCategoryResponse `json:"category"`
+	Description  string                  `json:"description"`
+	Name         string                  `json:"name"`
+	//Price            float64                    `json:"price"`
 	Type             enum.ProductType           `json:"type"`
 	LimitedAttribute *LimitedProductResponse    `json:"limited_product"`
 	Variants         *[]*ProductVariantResponse `json:"variants,omitempty"`
