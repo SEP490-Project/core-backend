@@ -897,7 +897,7 @@ func (c *CampaignService) extractAdvertisingMilestonesAsync(
 		depositPercent = float64(*contract.DepositPercent)
 	}
 
-	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+	basePayment, _ := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
 
 	// Create milestones
 	milestones := make([]responses.SuggestedMilestone, len(dueDates))
@@ -965,7 +965,7 @@ func (c *CampaignService) extractAffiliateTasks(
 		depositPercent = float64(*contract.DepositPercent)
 	}
 
-	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+	basePayment, _ := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
 
 	// Create milestones
 	milestones := make([]responses.SuggestedMilestone, len(dueDates))
@@ -1062,7 +1062,7 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 		depositPercent = float64(*contract.DepositPercent)
 	}
 
-	basePayment := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
+	basePayment, _ := helper.CalculateBasePaymentPerPeriod(totalCost, depositPercent, len(dueDates))
 
 	// Create milestones
 	milestones := make([]responses.SuggestedMilestone, len(dueDates))
