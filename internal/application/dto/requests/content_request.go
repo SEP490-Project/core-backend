@@ -1,6 +1,13 @@
 package requests
 
-import "github.com/google/uuid"
+import (
+	"core-backend/pkg/utils"
+	"regexp"
+	"strings"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+)
 
 // CreateContentRequest DTO for creating new content
 type CreateContentRequest struct {
@@ -9,10 +16,19 @@ type CreateContentRequest struct {
 	Description     *string        `json:"description,omitempty" validate:"omitempty,max=1000"`
 	Body            any            `json:"body" validate:"required"`
 	Type            string         `json:"type" validate:"required,oneof=POST VIDEO"`
-	AffiliateLink   *string        `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
 	AIGeneratedText *string        `json:"ai_generated_text,omitempty"`
 	Channels        []uuid.UUID    `json:"channels" validate:"required,min=1,dive,uuid"`
 	BlogFields      *BlogFieldsDTO `json:"blog_fields,omitempty"`
+
+	// Optional affiliateLink fields. Has three stages:
+	// 1. If AffiliateLinkID is provided, it indicates an existing affiliate link to be associated.
+	// 2. If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.
+	//	  Check in the Body field for usage of the new affiliate link.
+	// 3. If neither is provided, no affiliate link is associated. However, if content associlated with contract of type AFFILIATE,
+	// 	  forcefully created an affiliate link record. If the Body does not contains affiliate link,
+	//	  then automatically added it at the end of the body.
+	AffiliateLink   *string    `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
+	AffiliateLinkID *uuid.UUID `json:"affiliate_link_id,omitempty" validate:"omitempty,uuid"`
 }
 
 // UpdateContentRequest DTO for updating existing content
@@ -21,7 +37,6 @@ type UpdateContentRequest struct {
 	Description     *string        `json:"description,omitempty" validate:"omitempty,max=1000"`
 	Body            *any           `json:"body,omitempty"`
 	Type            *string        `json:"type,omitempty" validate:"omitempty,oneof=POST VIDEO"`
-	AffiliateLink   *string        `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
 	AIGeneratedText *string        `json:"ai_generated_text,omitempty"`
 	Channels        []uuid.UUID    `json:"channels,omitempty" validate:"omitempty,dive,uuid"`
 	BlogFields      *BlogFieldsDTO `json:"blog_fields,omitempty"`
@@ -60,4 +75,18 @@ type ContentFilterRequest struct {
 	Search     *string `form:"search" validate:"omitempty,max=500" example:"summer sale"`
 	FromDate   *string `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
 	ToDate     *string `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
+}
+
+func ValidateCreateContentRequest(sl validator.StructLevel) {
+	request := sl.Current().Interface().(CreateContentRequest)
+
+	affiliateLinkRegex := regexp.MustCompile(`https?://[^\s]+/r/[^\s]+`)
+	if request.AffiliateLink != nil && !affiliateLinkRegex.MatchString(*request.AffiliateLink) {
+		sl.ReportError(*request.AffiliateLink, "affiliate_link", "AffiliateLink", "affiliate_link.regex", affiliateLinkRegex.String())
+	}
+
+	bodyStr := utils.ToString(request.Body)
+	if request.AffiliateLink != nil && !strings.Contains(bodyStr, *request.AffiliateLink) {
+		sl.ReportError(request.Body, "body", "Body", "affiliate_link.body", *request.AffiliateLink)
+	}
 }
