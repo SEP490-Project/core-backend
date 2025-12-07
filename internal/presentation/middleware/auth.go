@@ -69,6 +69,7 @@ func (a *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		c.Set("email", claims.Email)
 		c.Set("roles", claims.Roles)
 		c.Set("claims", claims)
+		c.Set("session_id", claims.SessionID)
 
 		// Add user ID to request context
 		currentContext := c.Request.Context()
@@ -106,6 +107,7 @@ func (a *AuthMiddleware) OptionalAuth() gin.HandlerFunc {
 		c.Set("username", claims.Username)
 		c.Set("email", claims.Email)
 		c.Set("roles", claims.Roles)
+		c.Set("session_id", claims.SessionID)
 		c.Set("claims", claims)
 
 		// Add user ID to request context
@@ -159,6 +161,7 @@ func (a *AuthMiddleware) RequireRole(roles ...string) gin.HandlerFunc {
 		c.Set("email", claims.Email)
 		c.Set("roles", claims.Roles)
 		c.Set("claims", claims)
+		c.Set("session_id", claims.SessionID)
 
 		// Add user ID to request context
 		currentContext := c.Request.Context()

@@ -6,9 +6,9 @@ import (
 )
 
 type JWTService interface {
-	GenerateAccessToken(userID, username, email, role string, expiration time.Duration) (string, error)
+	GenerateAccessToken(userID, sessionID, username, email, role string, expiration time.Duration) (string, error)
 	GenerateRefreshToken() (string, error)
 	HashRefreshToken(refreshToken string) string
 	ValidateAccessToken(tokenString string) (*model.JWTClaims, error)
-	GenerateTokenPair(userID, username, email, role string) (accessToken, refreshToken string, err error)
+	GenerateTokenPair(userID, sessionID, username, email, role string) (accessToken, refreshToken string, err error)
 }

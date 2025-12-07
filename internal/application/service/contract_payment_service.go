@@ -356,13 +356,26 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			return nil, err
 		}
 
+		depositPercent := float64(0)
+		if contract.DepositPercent != nil {
+			depositPercent = float64(*contract.DepositPercent)
+		}
+
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(affiliateFinancialTerms.TotalCost), depositPercent, len(paymentResults))
+
+		// Devided equally the payment amount per period based on the total cost
+		// The performance cost will be calculated later during the payment link creation phase
 		for _, paymentResult := range paymentResults {
 			periodStart := paymentResult.PeriodStart
 			periodEnd := paymentResult.PeriodEnd
+			paymentResult.Note = fmt.Sprintf(`%s
+			Base Payment: %.2f VND for contract number %s.
+			Further performance cost will be calculated during the payment link creation phase`,
+				paymentResult.Note, basePayment, *contract.ContractNumber)
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
-				InstallmentPercentage: 0, // Will be calculated later based on actual performance
-				Amount:                0,
+				InstallmentPercentage: percent,
+				Amount:                basePayment,
 				DueDate:               paymentResult.DueDate,
 				PeriodStart:           &periodStart,
 				PeriodEnd:             &periodEnd,
@@ -401,13 +414,26 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			return nil, err
 		}
 
+		depositPercent := float64(0)
+		if contract.DepositPercent != nil {
+			depositPercent = float64(*contract.DepositPercent)
+		}
+
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(coProducingFinancialTerms.TotalCost), depositPercent, len(paymentResults))
+
+		// Devided equally the payment amount per period based on the total cost
+		// The revenue distribution will be calculated later during the payment link creation phase
 		for _, paymentResult := range paymentResults {
 			periodStart := paymentResult.PeriodStart
 			periodEnd := paymentResult.PeriodEnd
+			paymentResult.Note = fmt.Sprintf(`%s
+			Base Payment: %.2f VND for contract number %s.
+			Further revenue distribution will be calculated during the payment link creation phase.`,
+				paymentResult.Note, basePayment, *contract.ContractNumber)
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
-				InstallmentPercentage: 0, // Will be calculated later based on profit distribution
-				Amount:                0,
+				InstallmentPercentage: percent,
+				Amount:                basePayment,
 				DueDate:               paymentResult.DueDate,
 				PeriodStart:           &periodStart,
 				PeriodEnd:             &periodEnd,

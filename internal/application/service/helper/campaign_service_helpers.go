@@ -112,15 +112,15 @@ func CalculateBasePaymentPerPeriod(
 	totalCost float64,
 	depositPercent float64,
 	numberOfPeriods int,
-) float64 {
+) (baseAmount, amountPercent float64) {
 	if numberOfPeriods == 0 {
-		return 0
+		return 0, 0
 	}
 
 	depositAmount := totalCost * (depositPercent / 100.0)
 	remainingCost := totalCost - depositAmount
 
-	return remainingCost / float64(numberOfPeriods)
+	return remainingCost / float64(numberOfPeriods), (remainingCost / totalCost) * 100.0 / float64(numberOfPeriods)
 }
 
 // ExtractTotalCostFromFinancialTerms extracts TotalCost from FinancialTerms JSONB

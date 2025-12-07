@@ -14144,7 +14144,7 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "example": "ORDER123",
-                        "description": "Search term to filter by orderID\nin: query\nexample: \"ORDER123\"",
+                        "description": "Search term to filter by orderID/paymentID/paymentBin\nin: query\nexample: \"ORDER123\"",
                         "name": "search",
                         "in": "query"
                     },

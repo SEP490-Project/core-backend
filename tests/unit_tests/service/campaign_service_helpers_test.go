@@ -308,7 +308,7 @@ func TestCalculateBasePaymentPerPeriod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := helper.CalculateBasePaymentPerPeriod(
+			result, _ := helper.CalculateBasePaymentPerPeriod(
 				tt.totalCost,
 				tt.depositPercent,
 				tt.numberOfPeriods,

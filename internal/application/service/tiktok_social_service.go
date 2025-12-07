@@ -144,9 +144,13 @@ func (t *TikTokSocialService) HandleOAuthLogin(ctx context.Context, uow ireposit
 		}
 	}
 
+	// Generate Session ID
+	sessionID := uuid.New()
+
 	// 5. Generate internal JWT tokens
 	accessToken, refreshToken, err := t.jwtService.GenerateTokenPair(
 		user.ID.String(),
+		sessionID.String(),
 		user.Username,
 		user.Email,
 		string(user.Role),
@@ -160,6 +164,7 @@ func (t *TikTokSocialService) HandleOAuthLogin(ctx context.Context, uow ireposit
 	refreshTokenHash := t.jwtService.HashRefreshToken(refreshToken)
 	refreshTokenExpiry := time.Now().Add(time.Duration(t.config.JWT.RefreshExpiryHours) * time.Hour)
 	session := &model.LoggedSession{
+		ID:                sessionID,
 		UserID:            user.ID,
 		RefreshTokenHash:  refreshTokenHash,
 		DeviceFingerprint: deviceFingerprint,
