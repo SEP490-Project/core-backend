@@ -60,8 +60,14 @@ func (h *DeviceTokenHandler) Register(c *gin.Context) {
 		return
 	}
 
+	var sessionID uuid.UUID
+	sessionID, err = extractSessionID(c)
+	if err != nil {
+		zap.L().Warn("Failed to extract session ID from context", zap.Error(err))
+	}
+
 	// Register device token
-	if err = h.deviceTokenService.RegisterToken(c.Request.Context(), userID, req.Token, req.Platform); err != nil {
+	if err = h.deviceTokenService.RegisterToken(c.Request.Context(), userID, &sessionID, req.Token, req.Platform); err != nil {
 		zap.L().Error("Failed to register device token",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))

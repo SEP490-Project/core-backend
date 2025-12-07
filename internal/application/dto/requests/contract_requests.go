@@ -579,7 +579,7 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 	if contract.DepositAmount == nil && contract.DepositPercent == nil {
 		sl.ReportError(contract.DepositAmount, "deposit_amount", "DepositAmount", "depositinfo", "at least one of deposit_amount or deposit_percent must be provided")
 	}
-	if *contract.DepositPercent > 50 {
+	if utils.DerefPtr(contract.DepositPercent, 0) > 50 {
 		sl.ReportError(contract.DepositPercent, "deposit_percent", "DepositPercent", "maxdepositpercent", "deposit_percent cannot exceed 50%")
 	}
 

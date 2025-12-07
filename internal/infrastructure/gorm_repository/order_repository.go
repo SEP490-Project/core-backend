@@ -33,9 +33,9 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 	var validStatuses []string
 	for _, s := range statuses {
 		s = strings.TrimSpace(s)
-		if s == "" || s == string(enum.OrderStatusPending) {
-			continue
-		}
+		// if s == "" || s == string(enum.OrderStatusPending) {
+		// 	continue
+		// }
 		st := enum.OrderStatus(s)
 		if st.IsValid() {
 			validStatuses = append(validStatuses, string(st))
@@ -518,6 +518,20 @@ func (r *OrderRepository) GetOrdersWithFiltersWithPagination(
 	}
 
 	return orders, total, nil
+}
+
+func (r *OrderRepository) GetOrderCountsAndTotalRevenueByOrderType(ctx context.Context, orderType enum.ProductType, status []enum.OrderStatus) (count int64, totalRevenue float64, err error) {
+	db := r.db.WithContext(ctx).Model(&model.Order{})
+	query := db.
+		Where("order_type = ?", orderType).
+		Where("status IN ?", status).
+		Select("COUNT(*) AS order_count, COALESCE(SUM(total_amount), 0) AS total_revenue")
+
+	if err = query.Row().Scan(&count, &totalRevenue); err != nil {
+		zap.L().Error("Failed to get order counts and total revenue by order type", zap.Error(err))
+		return 0, 0, err
+	}
+	return count, totalRevenue, nil
 }
 
 func NewOrderRepository(db *gorm.DB) irepository.OrderRepository {

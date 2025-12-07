@@ -29,6 +29,16 @@ func RunParallel(ctx context.Context, limit int, funcs ...func(ctx context.Conte
 	wg.Add(len(funcs))
 	for _, f := range funcs {
 		go func(fn func(ctx context.Context) error) {
+			defer func() {
+				if r := recover(); r != nil {
+					select {
+					case errCh <- fmt.Errorf("panic: %v", r):
+						cancel() // cancel others
+					default:
+					}
+				}
+			}()
+
 			defer wg.Done()
 			select {
 			case <-ctx.Done():
