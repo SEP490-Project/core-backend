@@ -36,12 +36,12 @@ type PreOrderHandler struct {
 //	@Tags			Preorders
 //	@Accept			json
 //	@Produce		json
-//	@Param			page		query		int		false	"Page number (default: 1)"
-//	@Param			limit		query		int		false	"Items per page (default: 10, max: 100)"
-//	@Param			search		query		string	false	"Search by product name or receiver full name"
-//	@Param			status		query		[]enum.PreOrderStatus false "example:"PAID"`
-//	@Param			createdFrom	query		string	false	"Filter by start date (YYYY-MM-DD)"
-//	@Param			createdTo	query		string	false	"Filter by end date (YYYY-MM-DD)"
+//	@Param			page		query		int						false	"Page number (default: 1)"
+//	@Param			limit		query		int						false	"Items per page (default: 10, max: 100)"
+//	@Param			search		query		string					false	"Search by product name or receiver full name"
+//	@Param			status		query		[]enum.PreOrderStatus	false	"example:"PAID"`
+//	@Param			createdFrom	query		string					false	"Filter by start date (YYYY-MM-DD)"
+//	@Param			createdTo	query		string					false	"Filter by end date (YYYY-MM-DD)"
 //	@Success		200			{object}	responses.APIResponse{data=[]responses.PreOrderResponse,pagination=responses.Pagination}
 //	@Failure		401			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse

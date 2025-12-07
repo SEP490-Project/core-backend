@@ -24,6 +24,7 @@ type ContentChannel struct {
 	PublishedAt      *time.Time             `json:"published_at" gorm:"column:published_at"`
 	LastError        *string                `json:"last_error" gorm:"type:text;column:last_error"`
 	Metrics          datatypes.JSON         `json:"metrics" gorm:"type:jsonb;column:metrics"`
+	Metadata         datatypes.JSON         `json:"metadata" gorm:"type:jsonb;column:metadata"`
 
 	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;autoUpdateTime"`
@@ -35,8 +36,10 @@ type ContentChannel struct {
 }
 
 type ContentChannelMetrics struct {
-	Current     map[string]float64 `json:"current"`      // Latest fetched values
-	LastFetched map[string]float64 `json:"last_fetched"` // Values from previous fetch
+	CurrentFetched map[string]any     `json:"current_fetched"` // Latest fetched values
+	CurrentMapped  map[string]float64 `json:"current_mapped"`  // Mapped metrics for KPIs
+	LastFetched    map[string]any     `json:"last_fetched"`    // Values from previous fetch
+	LastMapped     map[string]float64 `json:"last_mapped"`     // Mapped metrics from previous fetch
 }
 
 func (ContentChannel) TableName() string { return "content_channels" }

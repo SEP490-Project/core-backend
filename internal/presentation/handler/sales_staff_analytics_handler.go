@@ -31,7 +31,9 @@ func NewSalesStaffAnalyticsHandler(service iservice.SalesStaffAnalyticsService) 
 //	@Param			from_date		query		string	false	"From Date (YYYY-MM-DD)"
 //	@Param			to_date			query		string	false	"To Date (YYYY-MM-DD)"
 //	@Param			limit			query		int		false	"Limit for top lists (default 5)"
-//	@Param			period_gap		query		string	false	"Period Gap (day, week, month, quarter, year)"			enums(day, week, month, quarter, year)
+//	@Param			sort_by			query		string	false	"Sort By (name, value)"									enums(name, value)
+//	@Param			sort_order		query		string	false	"Sort Order (asc, desc)"								enums(asc, desc)
+//	@Param			period_gap		query		string	false	"Period Gap (day, week, month, quarter, year, all)"		enums(day, week, month, quarter, year, all)
 //	@Param			compare_with	query		string	false	"Compare With (previous day/week/month/quarter/year)"	enums(day, week, month, quarter, year)
 //	@Success		200				{object}	responses.APIResponse{data=responses.FinancialsDashboardResponse}
 //	@Failure		400				{object}	responses.APIResponse
@@ -65,7 +67,9 @@ func (h *SalesStaffAnalyticsHandler) GetFinancialsDashboard(c *gin.Context) {
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
 //	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
 //	@Param			limit		query		int		false	"Limit for top lists (default 5)"
-//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
+//	@Param			sort_by		query		string	false	"Sort By (name, value)"								enums(name, value)
+//	@Param			sort_order	query		string	false	"Sort Order (asc, desc)"							enums(asc, desc)
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year, all)"	enums(day, week, month, quarter, year, all)
 //	@Success		200			{object}	responses.APIResponse{data=responses.OrdersDashboardResponse}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
@@ -97,8 +101,8 @@ func (h *SalesStaffAnalyticsHandler) GetOrdersDashboard(c *gin.Context) {
 //	@Produce		json
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
 //	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
-//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
-//	@Success		200			{object}	responses.APIResponse{data=responses.RevenueTrendCharts}
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year, all)"	enums(day, week, month, quarter, year, all)
+//	@Success		200			{object}	responses.APIResponse{data=map[string][]responses.SalesTimeSeriesPoint}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
@@ -129,7 +133,7 @@ func (h *SalesStaffAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 //	@Produce		json
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
 //	@Param			to_date		query		string	false	"To Date (YYYY-MM-DD)"
-//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year)"	enums(day, week, month, quarter, year)
+//	@Param			period_gap	query		string	false	"Period Gap (day, week, month, quarter, year, all)"	enums(day, week, month, quarter, year, all)
 //	@Success		200			{object}	responses.APIResponse{data=responses.OrdersTrendCharts}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse

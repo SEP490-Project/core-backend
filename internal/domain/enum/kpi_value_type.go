@@ -8,18 +8,20 @@ import (
 type KPIValueType string
 
 const (
-	KPIValueTypeReach       KPIValueType = "REACH"
-	KPIValueTypeImpressions KPIValueType = "IMPRESSIONS"
-	KPIValueTypeLikes       KPIValueType = "LIKES"
-	KPIValueTypeComments    KPIValueType = "COMMENTS"
-	KPIValueTypeShares      KPIValueType = "SHARES"
-	KPIValueTypeCTR         KPIValueType = "CTR"
-	KPIValueTypeEngagement  KPIValueType = "ENGAGEMENT"
+	KPIValueTypeReach        KPIValueType = "REACH"
+	KPIValueTypeLikes        KPIValueType = "LIKES"
+	KPIValueTypeImpressions  KPIValueType = "IMPRESSIONS"
+	KPIValueTypeComments     KPIValueType = "COMMENTS"
+	KPIValueTypeShares       KPIValueType = "SHARES"
+	KPIValueTypeEngagement   KPIValueType = "ENGAGEMENT"
+	KPIValueTypeClickThrough KPIValueType = "CLICK_THROUGH"
+	KPIValueTypeUnitsSold    KPIValueType = "UNITS_SOLD"
+	KPIValueTypeRevenue      KPIValueType = "REVENUE"
 )
 
 func (vt KPIValueType) IsValid() bool {
 	switch vt {
-	case KPIValueTypeReach, KPIValueTypeImpressions, KPIValueTypeLikes, KPIValueTypeComments, KPIValueTypeShares, KPIValueTypeCTR, KPIValueTypeEngagement:
+	case KPIValueTypeReach, KPIValueTypeLikes, KPIValueTypeImpressions, KPIValueTypeComments, KPIValueTypeShares, KPIValueTypeEngagement, KPIValueTypeClickThrough:
 		return true
 	}
 	return false

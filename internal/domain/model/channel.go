@@ -17,6 +17,7 @@ type Channel struct {
 	// OAuth fields
 	ExternalID            *string    `json:"external_id" gorm:"type:varchar(255);column:external_id"`
 	AccountName           *string    `json:"account_name" gorm:"type:varchar(255);column:account_name"`
+	VaultPath             *string    `json:"vault_path" gorm:"type:text;column:vault_path"`
 	HashedAccessToken     *string    `json:"-" gorm:"type:text;column:hashed_access_token"`
 	HashedRefreshToken    *string    `json:"-" gorm:"type:text;column:hashed_refresh_token"`
 	AccessTokenExpiresAt  *time.Time `json:"access_token_expires_at" gorm:"column:access_token_expires_at"`

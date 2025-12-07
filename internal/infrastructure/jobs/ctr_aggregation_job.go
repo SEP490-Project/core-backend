@@ -139,7 +139,7 @@ func (j *CTRAggregationJob) Run() {
 		metric := &model.KPIMetrics{
 			ReferenceID:   linkID,
 			ReferenceType: enum.KPIReferenceTypeAffiliateLink,
-			Type:          enum.KPIValueTypeCTR,
+			Type:          enum.KPIValueTypeClickThrough,
 			Value:         float64(clickCount),
 			RecordedDate:  time.Now(),
 		}
