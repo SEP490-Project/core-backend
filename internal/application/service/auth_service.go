@@ -101,9 +101,28 @@ func (s *authService) Login(ctx context.Context, request *requests.LoginRequest,
 	zap.L().Debug("Password verification successful",
 		zap.String("user_id", user.ID.String()))
 
+	// Determine Session ID
+	var sessionID uuid.UUID
+	var session *model.LoggedSession
+	refreshTokenExpiry := time.Now().Add(time.Duration(config.GetAppConfig().JWT.RefreshExpiryHours) * time.Hour)
+
+	// Check for existing active session for this device
+	query := func(db *gorm.DB) *gorm.DB {
+		return db.Where("user_id = ? AND device_fingerprint = ? AND is_revoked = ? AND expiry_at > ?",
+			user.ID, deviceFingerprint, false, time.Now())
+	}
+	existingSession, err := s.loggedSessionRepository.GetByCondition(ctx, query, nil)
+	if err == nil && existingSession != nil {
+		sessionID = existingSession.ID
+		session = existingSession
+	} else {
+		sessionID = uuid.New()
+	}
+
 	// Generate token pair
 	accessToken, refreshToken, err := s.jwtService.GenerateTokenPair(
 		user.ID.String(),
+		sessionID.String(),
 		user.Username,
 		user.Email,
 		string(user.Role),
@@ -121,26 +140,43 @@ func (s *authService) Login(ctx context.Context, request *requests.LoginRequest,
 	// Hash the refresh token for storage
 	refreshTokenHash := s.jwtService.HashRefreshToken(refreshToken)
 
-	// Create session record
-	refreshTokenExpiry := time.Now().Add(time.Duration(config.GetAppConfig().JWT.RefreshExpiryHours) * time.Hour)
-	session := &model.LoggedSession{
-		UserID:            user.ID,
-		RefreshTokenHash:  refreshTokenHash,
-		DeviceFingerprint: deviceFingerprint,
-		ExpiryAt:          &refreshTokenExpiry,
-		IsRevoked:         false,
-	}
+	if session != nil {
+		// Update existing session
+		session.RefreshTokenHash = refreshTokenHash
+		session.ExpiryAt = &refreshTokenExpiry
+		now := time.Now()
+		session.LastUsedAt = &now
 
-	if err := s.loggedSessionRepository.Add(ctx, session); err != nil {
-		zap.L().Error("Failed to create session during login",
+		if err := s.loggedSessionRepository.Update(ctx, session); err != nil {
+			zap.L().Error("Failed to update session during login",
+				zap.String("user_id", user.ID.String()),
+				zap.Error(err))
+			return nil, errors.New("failed to update session")
+		}
+		zap.L().Info("Session updated successfully",
 			zap.String("user_id", user.ID.String()),
-			zap.Error(err))
-		return nil, errors.New("failed to create session")
-	}
+			zap.String("session_id", session.ID.String()))
+	} else {
+		// Create new session
+		session = &model.LoggedSession{
+			ID:                sessionID,
+			UserID:            user.ID,
+			RefreshTokenHash:  refreshTokenHash,
+			DeviceFingerprint: deviceFingerprint,
+			ExpiryAt:          &refreshTokenExpiry,
+			IsRevoked:         false,
+		}
 
-	zap.L().Info("Session created successfully",
-		zap.String("user_id", user.ID.String()),
-		zap.String("session_id", session.ID.String()))
+		if err := s.loggedSessionRepository.Add(ctx, session); err != nil {
+			zap.L().Error("Failed to create session during login",
+				zap.String("user_id", user.ID.String()),
+				zap.Error(err))
+			return nil, errors.New("failed to create session")
+		}
+		zap.L().Info("Session created successfully",
+			zap.String("user_id", user.ID.String()),
+			zap.String("session_id", session.ID.String()))
+	}
 
 	// Update user last login
 	now := time.Now()
@@ -165,7 +201,7 @@ func (s *authService) Login(ctx context.Context, request *requests.LoginRequest,
 		deviceTokenRegistered = true
 		go func() {
 			bgCtx := context.Background()
-			if err := s.deviceTokenService.RegisterToken(bgCtx, user.ID, *request.DeviceToken, *request.Platform); err != nil {
+			if err := s.deviceTokenService.RegisterToken(bgCtx, user.ID, &session.ID, *request.DeviceToken, *request.Platform); err != nil {
 				zap.L().Warn("Failed to register device token during login",
 					zap.String("user_id", user.ID.String()),
 					zap.Error(err))
@@ -198,7 +234,8 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 	query := func(db *gorm.DB) *gorm.DB {
 		return db.Where("refresh_token_hash = ?", refreshTokenHash)
 	}
-	session, err := s.loggedSessionRepository.GetByCondition(ctx, query, nil)
+	// Preload User to avoid extra DB call
+	session, err := s.loggedSessionRepository.GetByCondition(ctx, query, []string{"User"})
 	if err != nil {
 		zap.L().Error("Failed to retrieve session during token refresh",
 			zap.Error(err))
@@ -231,12 +268,11 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 		return nil, errors.New("invalid device fingerprint")
 	}
 
-	// Get user details
-	user, err := s.userRepository.GetByID(ctx, session.UserID, nil)
-	if err != nil || user == nil {
-		zap.L().Error("Failed to retrieve user during token refresh",
-			zap.String("user_id", session.UserID.String()),
-			zap.Error(err))
+	// Get user details from preloaded session
+	user := &session.User
+	if user.ID == uuid.Nil {
+		zap.L().Error("Failed to retrieve user from session during token refresh",
+			zap.String("user_id", session.UserID.String()))
 		return nil, errors.New("user not found")
 	}
 	if !user.IsActive {
@@ -248,6 +284,7 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 	// Generate new token pair
 	newAccessToken, newRefreshToken, err := s.jwtService.GenerateTokenPair(
 		user.ID.String(),
+		session.ID.String(),
 		user.Username,
 		user.Email,
 		string(user.Role),
@@ -269,6 +306,9 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 	expiryAt := now.Add(time.Duration(config.GetAppConfig().JWT.RefreshExpiryHours) * time.Hour)
 	session.ExpiryAt = &expiryAt
 	session.LastUsedAt = &now
+
+	// Clear User association to prevent accidental updates to User table
+	session.User = model.User{}
 
 	if err := s.loggedSessionRepository.Update(ctx, session); err != nil {
 		zap.L().Error("Failed to update session during token refresh",
@@ -414,6 +454,18 @@ func (s *authService) Logout(ctx context.Context, request *requests.LogoutReques
 	zap.L().Info("User logout successful",
 		zap.String("session_id", session.ID.String()),
 		zap.String("user_id", session.UserID.String()))
+
+	// Delete device token if provided
+	go func() {
+		bgCtx := context.Background()
+
+		// Delete tokens associated with this session
+		if err := s.deviceTokenService.DeleteTokensBySessionID(bgCtx, session.ID); err != nil {
+			zap.L().Warn("Failed to delete device tokens by session ID",
+				zap.String("session_id", session.ID.String()),
+				zap.Error(err))
+		}
+	}()
 
 	return &responses.LogoutResponse{
 		Message: "Logged out successfully",

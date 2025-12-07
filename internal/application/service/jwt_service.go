@@ -2,6 +2,7 @@ package service
 
 import (
 	"core-backend/config"
+	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/model"
 	"crypto/rand"
 	"crypto/rsa"
@@ -20,7 +21,7 @@ type JWTService struct {
 	privateKey *rsa.PrivateKey
 }
 
-func NewJwtService(config *config.AppConfig) *JWTService {
+func NewJwtService(config *config.AppConfig) iservice.JWTService {
 	if config.GetPublicKey() == nil || config.GetPrivateKey() == nil {
 		panic("Failed to load RSA keys from configuration")
 	}
@@ -31,13 +32,14 @@ func NewJwtService(config *config.AppConfig) *JWTService {
 	}
 }
 
-func (s *JWTService) GenerateAccessToken(userID, username, email, role string, expiration time.Duration) (string, error) {
+func (s *JWTService) GenerateAccessToken(userID, sessionID, username, email, role string, expiration time.Duration) (string, error) {
 	now := time.Now()
 	claims := &model.JWTClaims{
-		UserID:   userID,
-		Roles:    role,
-		Username: username,
-		Email:    email,
+		UserID:    userID,
+		SessionID: sessionID,
+		Roles:     role,
+		Username:  username,
+		Email:     email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -91,16 +93,17 @@ func (s *JWTService) ValidateAccessToken(tokenString string) (*model.JWTClaims, 
 	return claims, nil
 }
 
-func (s *JWTService) GenerateTokenPair(userID, username, email, role string) (accessToken, refreshToken string, err error) {
+func (s *JWTService) GenerateTokenPair(userID, sessionID, username, email, role string) (accessToken, refreshToken string, err error) {
 	zap.L().Debug("Generating token pair for user",
 		zap.String("user_id", userID),
+		zap.String("session_id", sessionID),
 		zap.String("username", username),
 		zap.String("email", email),
 		zap.String("role", string(role)))
 
 	// Generate access token (short-lived)
 	//accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Minute)
-	accessToken, err = s.GenerateAccessToken(userID, username, email, role, 15*time.Hour)
+	accessToken, err = s.GenerateAccessToken(userID, sessionID, username, email, role, 15*time.Hour)
 	if err != nil {
 		zap.L().Error("Failed to generate access token",
 			zap.String("user_id", userID),

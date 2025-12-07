@@ -151,9 +151,13 @@ func (f *FacebookSocialService) HandleOAuthLogin(ctx context.Context, uow irepos
 		}
 	}
 
+	// Generate Session ID
+	sessionID := uuid.New()
+
 	// 5. Generate internal JWT tokens
 	accessToken, refreshToken, err := f.jwtService.GenerateTokenPair(
 		user.ID.String(),
+		sessionID.String(),
 		user.Username,
 		user.Email,
 		string(user.Role),
@@ -167,6 +171,7 @@ func (f *FacebookSocialService) HandleOAuthLogin(ctx context.Context, uow irepos
 	refreshTokenHash := f.jwtService.HashRefreshToken(refreshToken)
 	refreshTokenExpiry := time.Now().Add(time.Duration(f.config.JWT.RefreshExpiryHours) * time.Hour)
 	session := &model.LoggedSession{
+		ID:                sessionID,
 		UserID:            user.ID,
 		RefreshTokenHash:  refreshTokenHash,
 		DeviceFingerprint: deviceFingerprint,
