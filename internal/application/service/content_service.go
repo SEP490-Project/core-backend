@@ -28,10 +28,10 @@ type ContentService struct {
 	contentRepo          irepository.GenericRepository[model.Content]
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
-	channelRepo          irepository.GenericRepository[model.Channel]
 	taskRepo             irepository.TaskRepository
 	uow                  irepository.UnitOfWork
 	affiliateLinkService iservice.AffiliateLinkService
+	channelService       iservice.ChannelService
 }
 
 func NewContentService(
@@ -39,16 +39,17 @@ func NewContentService(
 	databaseReg *gormrepository.DatabaseRegistry,
 	uow irepository.UnitOfWork,
 	affiliateLinkService iservice.AffiliateLinkService,
+	channelService iservice.ChannelService,
 ) iservice.ContentService {
 	return &ContentService{
 		config:               config,
 		contentRepo:          databaseReg.ContentRepository,
 		blogRepo:             databaseReg.BlogRepository,
 		contentChannelRepo:   databaseReg.ContentChannelRepository,
-		channelRepo:          databaseReg.ChannelRepository,
 		taskRepo:             databaseReg.TaskRepository,
 		uow:                  uow,
 		affiliateLinkService: affiliateLinkService,
+		channelService:       channelService,
 	}
 }
 
@@ -83,14 +84,13 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 
 	// Create content entity
 	content := &model.Content{
-		ID:          uuid.New(),
-		TaskID:      req.TaskID,
-		Title:       req.Title,
-		Description: req.Description,
-		Body:        rawBody,
-		Type:        enum.ContentType(req.Type),
-		Status:      enum.ContentStatusDraft,
-		// AffiliateLink:   req.AffiliateLink,
+		ID:              uuid.New(),
+		TaskID:          req.TaskID,
+		Title:           req.Title,
+		Description:     req.Description,
+		Body:            rawBody,
+		Type:            enum.ContentType(req.Type),
+		Status:          enum.ContentStatusDraft,
 		AIGeneratedText: req.AIGeneratedText,
 	}
 
@@ -166,12 +166,15 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 	}
 
 	// Automatically create affiliate links for content channels if contract has tracking link
+	// and no affiliate link info provided in the request
 	// This is a best-effort operation - failures are logged but don't fail content creation
-	if err := s.createAffiliateLinkIfNeeded(ctx, content, req.Channels); err != nil {
-		zap.L().Warn("Failed to create affiliate links for content",
-			zap.String("content_id", content.ID.String()),
-			zap.Error(err))
-		// Don't fail content creation if affiliate link creation fails
+	if req.AffiliateLinkID == nil && req.AffiliateLink == nil {
+		if err := s.createAffiliateLinkIfNeeded(ctx, content, req.Channels); err != nil {
+			zap.L().Warn("Failed to create affiliate links for content",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			// Don't fail content creation if affiliate link creation fails
+		}
 	}
 
 	zap.L().Info("Content created successfully", zap.String("content_id", content.ID.String()))
@@ -746,7 +749,8 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 		}
 
 		// Use CreateOrGet to ensure idempotency (no duplicates)
-		affiliateLink, err := s.affiliateLinkService.CreateOrGet(ctx, affiliateReq)
+		var affiliateLink *responses.AffiliateLinkResponse
+		affiliateLink, err = s.affiliateLinkService.CreateOrGet(ctx, affiliateReq)
 		if err != nil {
 			zap.L().Error("Failed to create affiliate link for content channel",
 				zap.String("content_id", content.ID.String()),
@@ -762,6 +766,31 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 			zap.String("hash", affiliateLink.Hash),
 			zap.String("content_id", content.ID.String()),
 			zap.String("channel_id", channelID.String()))
+	}
+
+	// NOTE: Currently, content have a 1-N relationship with Channels. However, the current Frontend implementation only
+	// pass one channel per content creation. In that case, it is possible to append the affiliate link at the end of the body
+	// in the content model.
+	// Further on, if multiple channels are supported on the frontend, it is necessary to revisit how to handlC:q
+	// affiliate links in the content body.
+	builder, err := tiptap.FromJSON(content.Body)
+	if err == nil {
+		builder.AddLinkParagraph("Shop now", trackingLink)
+		var newBody []byte
+		newBody, err = builder.Build()
+		if err != nil {
+			zap.L().Error("Failed to build new body with affiliate link",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+		}
+
+		content.Body = newBody
+		if err := s.contentRepo.Update(ctx, content); err != nil {
+			zap.L().Error("Failed to update content body after affiliate link creation",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			// Don't fail content creation if affiliate link creation fails
+		}
 	}
 
 	return nil
