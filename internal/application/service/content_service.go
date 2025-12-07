@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/tiptap"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
@@ -103,8 +104,8 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 				}
 			}
 		case enum.ContentTypePost.String():
-			var parsedTipTap *utils.TiptapParseResult
-			parsedTipTap, err = utils.ParseTiptapJSON(rawBody)
+			var parsedTipTap *tiptap.TiptapParseResult
+			parsedTipTap, err = tiptap.ParseTiptapJSON(rawBody)
 			minText := min(100, len(parsedTipTap.PlainText))
 			if err == nil {
 				content.Description = utils.PtrOrNil(parsedTipTap.PlainText[:minText])
