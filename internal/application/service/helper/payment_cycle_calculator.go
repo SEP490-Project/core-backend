@@ -68,11 +68,8 @@ func CalculateMonthlyPaymentDates(
 	calcDueDate := func(base time.Time) time.Time {
 		// Compute last day of month to avoid invalid dates like 31 Feb
 		lastDay := time.Date(base.Year(), base.Month()+1, 0, 0, 0, 0, 0, loc).Day()
-		day := paymentDay
-		if day > lastDay {
-			//Clamp payment day to last day of month
-			day = lastDay
-		}
+		// Clamp payment day to last day of month
+		day := min(paymentDay, lastDay)
 		return time.Date(base.Year(), base.Month(), day, 0, 0, 0, 0, loc)
 	}
 
@@ -93,6 +90,10 @@ func CalculateMonthlyPaymentDates(
 		due = calcDueDate(current)
 	}
 
+	for due.After(endDate) {
+		// If the first due date is already after endDate, no payments are needed
+	}
+
 	for !due.After(endDate) {
 		// Calculate period boundaries for this month
 		periodStart := time.Date(current.Year(), current.Month(), 1, 0, 0, 0, 0, loc)
@@ -110,19 +111,25 @@ func CalculateMonthlyPaymentDates(
 	}
 
 	if len(results) > 0 {
-		lastDue := results[len(results)-1].DueDate
-		if lastDue.Before(endDate) {
-			if results[len(results)-1].DueDate.Format("2006-01-02") != endDate.Format("2006-01-02") {
-				// Final payment period: from last period end to contract end
-				lastPeriodEnd := results[len(results)-1].PeriodEnd
-				results = append(results, PaymentDateResult{
-					DueDate:     endDate,
-					PeriodStart: lastPeriodEnd,
-					PeriodEnd:   endDate.AddDate(0, 0, 1), // Day after contract end
-					Note:        fmt.Sprintf("Final payment for contract end: %s", endDate.Format("02/01/2006")),
-				})
-			}
+		lastPeriodEnd := results[len(results)-1].PeriodEnd
+		if lastPeriodEnd.Before(endDate) {
+			// Final payment period: from last period end to contract end
+			results = append(results, PaymentDateResult{
+				DueDate:     endDate,
+				PeriodStart: lastPeriodEnd,
+				PeriodEnd:   endDate.AddDate(0, 0, 1), // Day after contract end
+				Note:        fmt.Sprintf("Final payment for contract end: %s", endDate.Format("02/01/2006")),
+			})
 		}
+	} else {
+		// If no monthly payments were generated (e.g. short contract or skipped first month),
+		// add a single payment at the end date
+		results = append(results, PaymentDateResult{
+			DueDate:     endDate,
+			PeriodStart: startDate,
+			PeriodEnd:   endDate.AddDate(0, 0, 1),
+			Note:        fmt.Sprintf("Final payment for contract end: %s", endDate.Format("02/01/2006")),
+		})
 	}
 
 	return results, nil
@@ -152,7 +159,7 @@ func CalculateQuarterlyPaymentDates(
 	var results []PaymentDateResult
 	loc := contractStartDate.Location()
 
-	for i, quarter := range sortedQuarters {
+	for _, quarter := range sortedQuarters {
 		dueDate := time.Date(int(quarter.Year), time.Month(quarter.Month), int(quarter.Day), 0, 0, 0, 0, loc)
 
 		// Only include if due date is within contract period
@@ -166,8 +173,8 @@ func CalculateQuarterlyPaymentDates(
 		periodStart := time.Date(dueDate.Year(), quarterMonth, 1, 0, 0, 0, 0, loc)
 		periodEnd := periodStart.AddDate(0, 3, 0) // First day of next quarter
 
-		// Adjust period start for first payment if contract started mid-quarter
-		if i == 0 && contractStartDate.After(periodStart) {
+		// Adjust period start for first payment to ensure no gaps from contract start
+		if len(results) == 0 {
 			periodStart = contractStartDate
 		}
 
@@ -182,16 +189,27 @@ func CalculateQuarterlyPaymentDates(
 
 	// Add final payment if last quarterly date is before contract end
 	// Frontend already handles this and returns contract end date similar to this function
-	// if len(results) > 0 {
-	// 	lastPaymentDate := results[len(results)-1].DueDate
-	// 	if lastPaymentDate.Before(contractEndDate) && !lastPaymentDate.Equal(contractEndDate) {
-	// 		note := fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat))
-	// 		results = append(results, PaymentDateResult{
-	// 			DueDate: contractEndDate,
-	// 			Note:    note,
-	// 		})
-	// 	}
-	// }
+	if len(results) > 0 {
+		lastPeriodEnd := results[len(results)-1].PeriodEnd
+		if lastPeriodEnd.Before(contractEndDate) {
+			// Final period: from last period end to contract end
+			note := fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat))
+			results = append(results, PaymentDateResult{
+				DueDate:     contractEndDate,
+				PeriodStart: lastPeriodEnd,
+				PeriodEnd:   contractEndDate.AddDate(0, 0, 1),
+				Note:        note,
+			})
+		}
+	} else {
+		// If no quarterly payments were generated, add a single payment at the end date
+		results = append(results, PaymentDateResult{
+			DueDate:     contractEndDate,
+			PeriodStart: contractStartDate,
+			PeriodEnd:   contractEndDate.AddDate(0, 0, 1),
+			Note:        fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format(utils.DateFormat)),
+		})
+	}
 
 	return results, nil
 }
@@ -223,11 +241,7 @@ func CalculateAnnualPaymentDates(
 	if firstPaymentDate.Before(contractStartDate) {
 		year++
 		maxDay = time.Date(year, month+1, 0, 0, 0, 0, 0, loc).Day()
-		if paymentDate.Day() > maxDay {
-			day = maxDay
-		} else {
-			day = paymentDate.Day()
-		}
+		day = min(paymentDate.Day(), maxDay)
 		firstPaymentDate = time.Date(year, month, day, 0, 0, 0, 0, loc)
 	}
 
@@ -237,6 +251,11 @@ func CalculateAnnualPaymentDates(
 		// Calculate annual period boundaries
 		periodStart := time.Date(currentDate.Year(), 1, 1, 0, 0, 0, 0, loc)
 		periodEnd := time.Date(currentDate.Year()+1, 1, 1, 0, 0, 0, 0, loc)
+
+		// Adjust period start for first payment to ensure no gaps from contract start
+		if len(results) == 0 {
+			periodStart = contractStartDate
+		}
 
 		results = append(results, PaymentDateResult{
 			DueDate:     currentDate,
@@ -248,18 +267,14 @@ func CalculateAnnualPaymentDates(
 		// Clamp next year's day to last day of month
 		nextYear := currentDate.Year() + 1
 		maxDayNext := time.Date(nextYear, month+1, 0, 0, 0, 0, 0, loc).Day()
-		nextDay := paymentDate.Day()
-		if nextDay > maxDayNext {
-			nextDay = maxDayNext
-		}
+		nextDay := min(paymentDate.Day(), maxDayNext)
 		currentDate = time.Date(nextYear, month, nextDay, 0, 0, 0, 0, loc)
 	}
 
 	if len(results) > 0 {
-		lastPaymentDate := results[len(results)-1].DueDate
-		if lastPaymentDate.Before(contractEndDate) && !lastPaymentDate.Equal(contractEndDate) {
+		lastPeriodEnd := results[len(results)-1].PeriodEnd
+		if lastPeriodEnd.Before(contractEndDate) {
 			// Final period: from last period end to contract end
-			lastPeriodEnd := results[len(results)-1].PeriodEnd
 			results = append(results, PaymentDateResult{
 				DueDate:     contractEndDate,
 				PeriodStart: lastPeriodEnd,
@@ -267,6 +282,14 @@ func CalculateAnnualPaymentDates(
 				Note:        fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format("2006-01-02")),
 			})
 		}
+	} else {
+		// If no annual payments were generated, add a single payment at the end date
+		results = append(results, PaymentDateResult{
+			DueDate:     contractEndDate,
+			PeriodStart: contractStartDate,
+			PeriodEnd:   contractEndDate.AddDate(0, 0, 1),
+			Note:        fmt.Sprintf("Final payment for contract end: %s", contractEndDate.Format("2006-01-02")),
+		})
 	}
 
 	return results, nil
