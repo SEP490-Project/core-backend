@@ -29,6 +29,7 @@ type ContentService struct {
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	taskRepo             irepository.TaskRepository
+	affiliateLinkRepo    irepository.GenericRepository[model.AffiliateLink]
 	uow                  irepository.UnitOfWork
 	affiliateLinkService iservice.AffiliateLinkService
 	channelService       iservice.ChannelService
@@ -47,6 +48,7 @@ func NewContentService(
 		blogRepo:             databaseReg.BlogRepository,
 		contentChannelRepo:   databaseReg.ContentChannelRepository,
 		taskRepo:             databaseReg.TaskRepository,
+		affiliateLinkRepo:    databaseReg.AffiliateLinkRepository,
 		uow:                  uow,
 		affiliateLinkService: affiliateLinkService,
 		channelService:       channelService,
@@ -152,6 +154,26 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			ContentID:      content.ID,
 			ChannelID:      channelID,
 			AutoPostStatus: "PENDING",
+		}
+
+		if req.AffiliateLink != nil || req.AffiliateLinkID != nil {
+			affiliateLinkQuery := func(db *gorm.DB) *gorm.DB {
+				if req.AffiliateLinkID != nil {
+					db = db.Where("id = ?", *req.AffiliateLinkID)
+				}
+				if req.AffiliateLink != nil {
+					db = db.Where("hash = ?", strings.Split(*req.AffiliateLink, "/r/")[1])
+				}
+				return db
+			}
+			if contentChannel.AffiliateLink, err = s.affiliateLinkRepo.GetByCondition(ctx, affiliateLinkQuery, nil); err != nil {
+				zap.L().Error("Failed to retrieve affiliate link for content channel",
+					zap.String("content_id", content.ID.String()),
+					zap.String("channel_id", channelID.String()),
+					zap.Error(err))
+				return nil, errors.New("failed to retrieve affiliate link for content channel")
+			}
+			contentChannel.AffiliateLinkID = &contentChannel.AffiliateLink.ID
 		}
 
 		if err = contentChannelRepo.Add(ctx, contentChannel); err != nil {
