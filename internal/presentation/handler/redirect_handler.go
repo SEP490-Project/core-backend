@@ -154,7 +154,8 @@ func (h *RedirectHandler) Redirect(c *gin.Context) {
 	// Log click event asynchronously (non-blocking)
 	// Failures here should not prevent redirect
 	go func() {
-		if err := h.clickTrackingService.LogClickAsync(c.Request.Context(), clickEvent); err != nil {
+		context := context.Background()
+		if err := h.clickTrackingService.LogClickAsync(context, clickEvent); err != nil {
 			zap.L().Warn("Failed to log click event (non-fatal)",
 				zap.String("hash", hash),
 				zap.String("affiliate_link_id", affiliateLinkID.String()),
