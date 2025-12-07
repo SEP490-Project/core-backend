@@ -257,7 +257,7 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	return totalProcessed, failed, upCommingItems
 }
 
-// validateAndGetRemainingOrder returns remaining allowed pre-order slots for a user+variant.
+// validateAndGetRemainingOrder returns remaining allowed pre-order slots for user to a variant.
 // It sums quantities in the DB (excluding CANCELLED) to avoid loading all records.
 func (p preOrderService) validateAndGetRemainingOrder(ctx context.Context, userID, variantID string, maximumOrder int) (int, error) {
 	if maximumOrder <= 0 {
@@ -292,7 +292,6 @@ func (p preOrderService) validateAndGetRemainingOrder(ctx context.Context, userI
 
 func (p preOrderService) PreserverOrder(ctx context.Context, request requests.PreOrderRequest, unitOfWork irepository.UnitOfWork, userID uuid.UUID) (*model.PreOrder, error) {
 	var preOrder *model.PreOrder
-	var remainedPreservableItem int
 	now := time.Now()
 
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -316,22 +315,37 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// Check if this preorderable?
 		if variant.Product.Limited != nil {
-			// check if user already bought it
-			limitItemQuantity := variant.Product.Limited.AchievableQuantity
-			remainedPreservableItem, err = p.validateAndGetRemainingOrder(ctx, userID.String(), variant.ID.String(), limitItemQuantity)
+			//0. Check current orderable stats
+			if variant.PreOrderLimit == nil || variant.PreOrderCount == nil {
+				zap.L().Debug("Invalid data format: PreOrderLimit or PreOrderCount is nil")
+				return fmt.Errorf("pre-order limit or PreOrderCount is nil")
+			}
+			// 1. general system limit
+			generalRemain := *variant.PreOrderLimit - *variant.PreOrderCount
+			if generalRemain <= 0 {
+				return fmt.Errorf("this product is out of stock for this early order, please kindly wait for the nearest start date")
+			}
+			if request.Quantity > generalRemain {
+				return fmt.Errorf("only %d pre-order slots remaining for this product variant", generalRemain)
+			}
+
+			// 2. user achievable limit
+			achievable := variant.Product.Limited.AchievableQuantity
+			userRemain, err := p.validateAndGetRemainingOrder(ctx, userID.String(), variant.ID.String(), achievable)
 			if err != nil {
 				return err
 			}
-			//Check if can user buy this remained Item?
-			if request.Quantity > remainedPreservableItem {
-				return fmt.Errorf("you can only preorder %d more of this product variant", remainedPreservableItem)
+
+			// 3. calculate actual remaining preservable items
+			actualRemain := min(userRemain, generalRemain)
+			if request.Quantity > actualRemain {
+				return fmt.Errorf("only %d pre-order slots remaining for this product variant", actualRemain)
 			}
 
-			// check date's validity
+			// check preorder time
 			premiereDate := variant.Product.Limited.PremiereDate
 			startDate := variant.Product.Limited.AvailabilityStartDate
 			endDate := variant.Product.Limited.AvailabilityEndDate
-			//isPreOrderable := now.After(premiereDate) && now.Before(startDate) && now.Before(endDate)
 			// PREORDER RANGE: [premiereDate, startDate)
 			isPreOrderable := !now.Before(premiereDate) && now.Before(startDate)
 			if !isPreOrderable {
@@ -350,21 +364,6 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 				return fmt.Errorf("product is not available for pre-order at this time")
 			}
-
-			if variant.PreOrderLimit == variant.PreOrderCount {
-				return fmt.Errorf("pre-order limit reached for this variant")
-			}
-
-			//Check current orderable stats
-			if variant.PreOrderLimit == nil || variant.PreOrderCount == nil {
-				zap.L().Debug("Invalid data format: PreOrderLimit or PreOrderCount is nil")
-				return fmt.Errorf("pre-order limit or PreOrderCount is nil")
-			}
-
-			remainingOrderSlot := *variant.PreOrderLimit - *variant.PreOrderCount
-			if remainingOrderSlot <= 0 {
-				return fmt.Errorf("no remaining pre-order slots for this variant")
-			}
 		}
 
 		//1.1 validate shipping address
@@ -375,8 +374,8 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 
 		// 2. Build persistent model -> minus stock, create pre-order record
 		// 2.1 build pre-order model
-		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now, remainedPreservableItem)
-		// 2.2 minus 1 stock
+		preOrder = requests.PreOrderRequest{}.ToModel(*creator, *address, *variant, now, request.Quantity)
+		// 2.2 minus stock
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")
 		}

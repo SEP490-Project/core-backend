@@ -820,7 +820,6 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 	)
 
 	ctx := context.Background()
-	offset := (page - 1) * limit
 
 	// --- Tạo filter chính ---
 	filter := func(db *gorm.DB) *gorm.DB {
@@ -882,59 +881,39 @@ func (p productService) GetProductsPaginationV2(page, limit int, search, categor
 		"Limited",
 	}
 
-	// === Bước 1: Lấy danh sách ID của page này ===
-	var productIDs []uuid.UUID
-	idFilter := filter
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
 
-	// Query danh sách ID cho trang này
-	err := p.repository.DB().
-		WithContext(ctx).
-		Model(&model.Product{}).
-		Scopes(idFilter).
-		Select("products.id").
-		Limit(limit).
-		Offset(offset).
-		Pluck("products.id", &productIDs).Error
+	products, total, err := p.repository.GetAll(
+		ctx,
+		filter,
+		includes,
+		limit,
+		page,
+	)
+
 	if err != nil {
+		zap.L().Error("Failed to fetch products", zap.Error(err))
 		return nil, 0, err
 	}
 
-	if len(productIDs) == 0 {
-		// Không có dữ liệu ở trang này
-		return []responses.ProductResponseV2{}, 0, nil
-	}
-
-	// === Bước 2: Lấy total record (không preload) ===
-	_, total, err := p.repository.GetAll(ctx, filter, nil, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to count total products", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// === Bước 3: Lấy thực thể kèm quan hệ theo ID ===
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("products.id IN ?", productIDs).Order("products.created_at DESC")
-	}
-
-	products, _, err := p.repository.GetAll(ctx, finalFilter, includes, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to fetch products with includes", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// === Bước 4: Map sang DTO ===
+	// === Map to DTO ===
 	productResponses := make([]responses.ProductResponseV2, 0, len(products))
+
 	for i := range products {
 		resp := responses.ProductResponseV2{}
 		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
 	}
 
-	zap.L().Info("Successfully retrieved products with pagination",
-		zap.Int("returned_count", len(productResponses)),
-		zap.Int("total_count", int(total)),
-		zap.String("search_term", search),
+	zap.L().Info("Retrieved products with pagination",
+		zap.Int("returned", len(productResponses)),
+		zap.Int("total", int(total)),
+		zap.String("search", search),
 	)
-
 	return productResponses, int(total), nil
 }
 
@@ -948,24 +927,22 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 	)
 
 	ctx := context.Background()
-	offset := (page - 1) * limit
 
 	// --- Tạo filter chính ---
 	filter := func(db *gorm.DB) *gorm.DB {
+		// For customer -> is_active = true
+		db = db.Where("products.is_active = ?", true)
 
-		// Nếu filterPreOrder = TRUE → Bỏ hết status, type filter
 		if isPreOrderOnly {
 			return db.
 				Joins("JOIN limited_products lp ON lp.id = products.id").
 				Where("products.type = ?", enum.ProductTypeLimited).
 				Where("lp.availability_start_date > NOW()").
 				Where("products.status = ?", enum.ProductStatusActived).
-				Where("products.is_active = ?", true).
 				Order("products.created_at DESC").Order("products.id")
 		}
 
 		// ---- Normal filters ----
-
 		if search != "" {
 			db = db.Where(`name ILIKE ?`, "%"+search+"%")
 		}
@@ -1007,47 +984,27 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 		"Limited",
 	}
 
-	// === Bước 1: Lấy danh sách ID của page này ===
-	var productIDs []uuid.UUID
-	idFilter := filter
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
 
-	// Query danh sách ID cho trang này
-	err := p.repository.DB().
-		WithContext(ctx).
-		Model(&model.Product{}).
-		Scopes(idFilter).
-		Select("products.id").
-		Limit(limit).
-		Offset(offset).
-		Pluck("products.id", &productIDs).Error
+	products, total, err := p.repository.GetAll(
+		ctx,
+		filter,
+		includes,
+		limit,
+		page,
+	)
+
 	if err != nil {
+		zap.L().Error("Failed to fetch products", zap.Error(err))
 		return nil, 0, err
 	}
 
-	if len(productIDs) == 0 {
-		// Không có dữ liệu ở trang này
-		return []responses.ProductResponseV2Partial{}, 0, nil
-	}
-
-	// === Bước 2: Lấy total record (không preload) ===
-	_, total, err := p.repository.GetAll(ctx, filter, nil, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to count total products", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// === Bước 3: Lấy thực thể kèm quan hệ theo ID ===
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("products.id IN ?", productIDs).Order("products.created_at DESC")
-	}
-
-	products, _, err := p.repository.GetAll(ctx, finalFilter, includes, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to fetch products with includes", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// === Bước 4: Map sang DTO ===
+	// === Map sang DTO ===
 	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
 	for i := range products {
 		resp := responses.ProductResponseV2Partial{}

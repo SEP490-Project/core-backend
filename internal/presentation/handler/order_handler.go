@@ -3,9 +3,12 @@ package handler
 import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iproxies"
+	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -634,65 +637,26 @@ func (h *OrderHandler) MarkAsReceivedAfterPickedUp(c *gin.Context) {
 		return
 	}
 
-	form, err := c.MultipartForm()
+	fileHeader, err := extractRequiredFile(c, "files")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to parse multipart form"})
 		return
 	}
 
-	files := form.File["files"]
-	if len(files) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no files uploaded"})
+	fileURL, err := h.handleFileUpload(c, userID, fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 		return
 	}
-
-	userTmpDir := "/tmp/uploads"
-	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create tmp upload directory"})
-		return
-	}
-
-	var uploadedURLs []string
-	for _, fileHeader := range files {
-		timestamp := time.Now().Format("20060102_150405")
-		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
-		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
-
-		// Save uploaded file temporarily
-		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
-			_ = os.Remove(finalPath)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file: " + fileHeader.Filename})
-			return
-		}
-
-		defer func(path string) { _ = os.Remove(path) }(finalPath)
-
-		// Upload to remote storage (e.g., S3, GCS)
-		userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
-		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
-		if err != nil {
-			_ = os.Remove(finalPath)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
-			return
-		}
-
-		// Cleanup tmp file after upload
-		_ = os.Remove(finalPath)
-		uploadedURLs = append(uploadedURLs, url)
-	}
-
-	// Use the first image as the proof image
-	imageURL := uploadedURLs[0]
 
 	ctx := c.Request.Context()
-	if err := h.orderService.MarkAsReceivedAfterPickedUp(ctx, orderID, userID, imageURL); err != nil {
+	if err := h.orderService.MarkAsReceivedAfterPickedUp(ctx, orderID, userID, *fileURL); err != nil {
 		zap.L().Error("Failed to mark order as received after pickup", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	resp := responses.SuccessResponse("Order marked as received successfully", ptr.Int(http.StatusOK), gin.H{
-		"image_url": imageURL,
+		"image_url": fileURL,
 	})
 	c.JSON(http.StatusOK, resp)
 }
@@ -1197,4 +1161,29 @@ func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
 	})
 	c.JSON(http.StatusOK, resp)
 
+}
+
+func (p *OrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
+	// --- Tmp path ---
+	tmpDir := os.TempDir()
+	newFileName := uuid.New().String() + filepath.Ext(fileHeader.Filename)
+	localPath := filepath.Join(tmpDir, newFileName)
+
+	// --- Save file tạm ---
+	if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
+		return nil, fmt.Errorf("failed to save uploaded file: %w", err)
+	}
+	defer os.Remove(localPath)
+
+	// --- Upload file lên S3 / storage ---
+	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	if fileURL == "" {
+		return nil, errors.New("uploaded file URL is empty")
+	}
+
+	return &fileURL, nil
 }
