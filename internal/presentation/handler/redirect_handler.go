@@ -273,8 +273,8 @@ func (h *RedirectHandler) isValidTrackingURL(trackingURL string) bool {
 
 // sanitizeHash validates and sanitizes hash input to prevent injection attacks (T112)
 func sanitizeHash(hash string) (string, error) {
-	// Hash must be exactly 16 characters (base62: a-z, A-Z, 0-9)
-	hashRegex := regexp.MustCompile(`^[a-zA-Z0-9_]{16}$`)
+	// Ensure hash is exactly 16 non-whitespace characters
+	hashRegex := regexp.MustCompile(`[^\s]{16}`)
 	if !hashRegex.MatchString(hash) {
 		return "", fmt.Errorf("invalid hash format: must be 16 alphanumeric characters")
 	}
