@@ -97,11 +97,17 @@ func NewApplicationRegistry(
 		databaseRegistry.AffiliateLinkRepository,
 		databaseRegistry.ContractRepository,
 	)
+	channelService := service.NewChannelService(
+		databaseRegistry.ChannelRepository,
+		configs,
+		infrastructureRegistry.VaultService,
+	)
 	contentService := service.NewContentService(
 		configs,
 		databaseRegistry,
 		infrastructureRegistry.UnitOfWork,
 		affiliateLinkService,
+		channelService,
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
@@ -109,12 +115,6 @@ func NewApplicationRegistry(
 		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
 		infrastructureRegistry.DB,
-	)
-
-	channelService := service.NewChannelService(
-		databaseRegistry.ChannelRepository,
-		configs,
-		infrastructureRegistry.VaultService,
 	)
 
 	fileService := infraService.NewFileService(
