@@ -449,14 +449,15 @@ func categorizeVariant(variant model.ProductVariant) int {
 // validateAndGetRemainingOrder returns remaining allowed pre-order slots for a user+variant.
 // It sums quantities in the DB (excluding CANCELLED) to avoid loading all records.
 // This will forbid to create new one if there are transaction existed
-func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID, variantID string, maximumOrder int) (int, error) {
-	//Calculate total pre-ordered quantity (only count successful pre-order statuses)
+func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID string, variantID string, maximumOrder int) (int, error) {
 	if maximumOrder <= 0 {
 		return 0, fmt.Errorf("invalid maximumOrder: %d", maximumOrder)
 	}
 
-	// Consider only pre-order statuses that represent an active/successful reservation
-	includePreOrderStatuses := []enum.PreOrderStatus{
+	db := o.preOrderRepository.DB()
+
+	// --- 1. SUM PreOrders ---
+	validPreOrderStatuses := []enum.PreOrderStatus{
 		enum.PreOrderStatusPaid,
 		enum.PreOrderStatusPreOrdered,
 		enum.PreOrderStatusAwaitingPickup,
@@ -464,26 +465,23 @@ func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID, 
 		enum.PreOrderStatusDelivered,
 		enum.PreOrderStatusReceived,
 	}
-	preorderFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("user_id = ? AND variant_id = ? AND status IN (?)", userID, variantID, includePreOrderStatuses)
-	}
-	preorders, _, err := o.preOrderRepository.GetAll(ctx, preorderFilter, []string{}, 0, 0)
+
+	var preorderSum int
+	err := db.
+		Table("pre_orders").
+		Select("COALESCE(SUM(quantity), 0)").
+		Where("user_id = ? AND variant_id = ? AND status IN ?", userID, variantID, validPreOrderStatuses).
+		Scan(&preorderSum).Error
 	if err != nil {
 		return 0, err
 	}
 
-	totalHadBought := 0
-	for _, preorder := range preorders {
-		totalHadBought += preorder.Quantity
-	}
-
-	remaining := maximumOrder - int(totalHadBought)
-	if remaining <= 0 {
+	if preorderSum >= maximumOrder {
 		return 0, fmt.Errorf("you have reached the maximum number of orders allowed for this product variant")
 	}
 
-	// Count only successful/active orders (exclude CANCELLED/REFUNDED/COMPENSATED)
-	includeOrderStatuses := []enum.OrderStatus{
+	// --- 2. SUM OrderItems ---
+	validOrderStatuses := []enum.OrderStatus{
 		enum.OrderStatusPaid,
 		enum.OrderStatusConfirmed,
 		enum.OrderStatusShipped,
@@ -492,23 +490,21 @@ func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID, 
 		enum.OrderStatusReceived,
 		enum.OrderStatusAwaitingPickUp,
 	}
-	orderFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("user_id = ? AND status IN (?)", userID, includeOrderStatuses)
-	}
 
-	orders, _, err := o.orderRepository.GetAll(ctx, orderFilter, nil, 0, 0)
+	var orderSum int
+	err = db.
+		Table("order_items oi").
+		Select("COALESCE(SUM(oi.quantity), 0)").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("o.user_id = ? AND oi.variant_id = ? AND o.status IN ?", userID, variantID, validOrderStatuses).
+		Scan(&orderSum).Error
 	if err != nil {
 		return 0, err
 	}
-	for _, order := range orders {
-		for _, item := range order.OrderItems {
-			if item.VariantID.String() == variantID {
-				totalHadBought += item.Quantity
-			}
-		}
-	}
 
-	remaining = maximumOrder - int(totalHadBought)
+	totalBought := preorderSum + orderSum
+
+	remaining := maximumOrder - totalBought
 	if remaining <= 0 {
 		return 0, fmt.Errorf("you have reached the maximum number of orders allowed for this product variant")
 	}
@@ -551,7 +547,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				if err != nil {
 					return err
 				}
-				if total > 0 || len(orderItems) > 0 {
+				if total > 0 {
 					var existedOrderId string
 					for _, i := range orderItems {
 						existedOrderId += "," + i.ID.String()
@@ -568,6 +564,13 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				return errors.New("product Variant not found")
 			} else if variant == nil {
 				return errors.New("product Variant not found")
+			}
+
+			//backend check to make sure u using the correctAPI:
+			if isOrderLimited && variant.Product.Type != enum.ProductTypeLimited {
+				return fmt.Errorf("product %s (id = %s) is not LIMITED type, please use STANDARD order API", variant.Product.Name, variant.ID.String())
+			} else if !isOrderLimited && variant.Product.Type != enum.ProductTypeStandard {
+				return fmt.Errorf("product %s (id = %s) is not LIMITED type, please use LIMITED order API", variant.Product.Name, variant.ID.String())
 			}
 
 			//validate if product is active
@@ -605,17 +608,31 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 
 			// Validate maximum order quantity for LIMITED products
 			if isOrderLimited {
-				remaining, err := o.validateAndGetRemainingOrder(ctx, userID.String(), item.VariantID.String(), variant.Product.Limited.AchievableQuantity)
+				if variant.MaxStock == nil || variant.CurrentStock == nil {
+					return fmt.Errorf("stock data not found for limited variant: %s", variant.ID.String())
+				}
+				// check order remain quantity
+				generalRemain := *variant.MaxStock - *variant.CurrentStock
+				if generalRemain <= 0 {
+					return fmt.Errorf("this product is out of stock for order")
+				}
+				if item.Quantity > generalRemain {
+					return fmt.Errorf("only %d order slots remaining for this product variant", generalRemain)
+				}
+				// 2. user achievable limit
+				achievable := variant.Product.Limited.AchievableQuantity
+				userRemain, err := o.validateAndGetRemainingOrder(ctx, userID.String(), item.VariantID.String(), achievable)
 				if err != nil {
 					return err
 				}
-				if item.Quantity > remaining {
-					return fmt.Errorf("you can only order up to %d more units of product: %s (id = %s)", remaining, variant.Product.Name, variant.ID.String())
+
+				actualRemain := min(userRemain, generalRemain)
+				if item.Quantity > actualRemain {
+					return fmt.Errorf("you can only order up to %d more units of product: %s (id = %s)", actualRemain, variant.Product.Name, variant.ID.String())
 				}
 			}
 
 			//Build persisted order item
-			//Also subtract items stock for LIMITED products
 			persistedItem := item.ToModel(*variant, now)
 
 			if isOrderLimited {
