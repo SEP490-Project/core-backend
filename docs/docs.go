@@ -15835,6 +15835,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/products/{productID}/reviews": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Reviews"
+                ],
+                "summary": "Add a review for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Variant ID (UUID)",
+                        "name": "variant_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "order_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "pre_order_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rating (1-5)",
+                        "name": "rating",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comment",
+                        "name": "comment",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Asset file (image)",
+                        "name": "assets",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductReviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products/{productId}/variants": {
             "post": {
                 "security": [
@@ -20953,6 +21045,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_review": {
+                    "type": "boolean"
+                },
                 "is_self_picked_up": {
                     "type": "boolean"
                 },
@@ -21195,6 +21290,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/model.ProductVariant"
                     }
                 },
+                "reviews": {
+                    "description": "Reviews relationship",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.ProductReview"
+                    }
+                },
                 "status": {
                     "$ref": "#/definitions/enum.ProductStatus"
                 },
@@ -21236,6 +21338,52 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ProductReview": {
+            "type": "object",
+            "properties": {
+                "assets_url": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_item_id": {
+                    "type": "string"
+                },
+                "pre_order_id": {
+                    "type": "string"
+                },
+                "product": {
+                    "description": "Relations",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Product"
+                        }
+                    ]
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "rating_stars": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "variant_id": {
                     "type": "string"
                 }
             }
@@ -21969,8 +22117,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "affiliate_link": {
+                    "description": "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID is provided, it indicates an existing affiliate link to be associated.\n2. If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.\n\t  Check in the Body field for usage of the new affiliate link.\n3. If neither is provided, no affiliate link is associated. However, if content associlated with contract of type AFFILIATE,\n\t  forcefully created an affiliate link record. If the Body does not contains affiliate link,\n\t  then automatically added it at the end of the body.",
                     "type": "string",
                     "maxLength": 1000
+                },
+                "affiliate_link_id": {
+                    "type": "string"
                 },
                 "ai_generated_text": {
                     "type": "string"
@@ -23412,10 +23564,6 @@ const docTemplate = `{
         "requests.UpdateContentRequest": {
             "type": "object",
             "properties": {
-                "affiliate_link": {
-                    "type": "string",
-                    "maxLength": 1000
-                },
                 "ai_generated_text": {
                     "type": "string"
                 },
@@ -26618,6 +26766,23 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.LimitedProductResponse": {
+            "type": "object",
+            "properties": {
+                "achievable_quantity": {
+                    "type": "integer"
+                },
+                "availability_end_date": {
+                    "type": "string"
+                },
+                "availability_start_date": {
+                    "type": "string"
+                },
+                "premiere_date": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.LoginResponse": {
             "type": "object",
             "properties": {
@@ -27901,6 +28066,9 @@ const docTemplate = `{
                 "is_active": {
                     "type": "boolean"
                 },
+                "limited_product": {
+                    "$ref": "#/definitions/responses.LimitedProductResponse"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -27933,6 +28101,47 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/responses.ProductVariantResponse"
                     }
+                }
+            }
+        },
+        "responses.ProductReviewResponse": {
+            "type": "object",
+            "properties": {
+                "assets_url": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_at": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_variant_name": {
+                    "type": "string"
+                },
+                "rating_stars": {
+                    "type": "integer"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string"
+                },
+                "variant_id": {
+                    "type": "string"
                 }
             }
         },

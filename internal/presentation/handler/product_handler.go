@@ -430,24 +430,24 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 
 // AddProductReview godoc
 //
-// @Summary Add a review for a product
-// @Description Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.
-// @Tags Products.Reviews
-// @Accept multipart/form-data
-// @Produce json
-// @Param productId path string true "Product ID"
-// @Param variant_id formData string false "Variant ID (UUID)"
-// @Param order_id formData string false "Order ID (UUID)"
-// @Param pre_order_id formData string false "PreOrder ID (UUID)"
-// @Param rating formData int true "Rating (1-5)"
-// @Param comment formData string false "Comment"
-// @Param assets formData file false "Asset file (image)"
-// @Success 201 {object} responses.ProductReviewResponse
-// @Failure 400 {object} responses.APIResponse
-// @Failure 401 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/products/{productID}/reviews [post]
+//	@Summary		Add a review for a product
+//	@Description	Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.
+//	@Tags			Products.Reviews
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			productId		path		string	true	"Product ID"
+//	@Param			variant_id		formData	string	false	"Variant ID (UUID)"
+//	@Param			order_id		formData	string	false	"Order ID (UUID)"
+//	@Param			pre_order_id	formData	string	false	"PreOrder ID (UUID)"
+//	@Param			rating			formData	int		true	"Rating (1-5)"
+//	@Param			comment			formData	string	false	"Comment"
+//	@Param			assets			formData	file	false	"Asset file (image)"
+//	@Success		201				{object}	responses.ProductReviewResponse
+//	@Failure		400				{object}	responses.APIResponse
+//	@Failure		401				{object}	responses.APIResponse
+//	@Failure		500				{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/{productID}/reviews [post]
 func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	// Build request DTO from form values
 	var req requests.AddProductReviewRequest

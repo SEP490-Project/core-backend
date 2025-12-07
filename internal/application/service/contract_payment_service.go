@@ -369,8 +369,8 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			periodStart := paymentResult.PeriodStart
 			periodEnd := paymentResult.PeriodEnd
 			paymentResult.Note = fmt.Sprintf(`%s
-			Base Payment: %.2f VND for contract number %s.
-			Further performance cost will be calculated during the payment link creation phase`,
+Base Payment: %.2f VND for contract number %s.
+Further performance cost will be calculated during the payment link creation phase`,
 				paymentResult.Note, basePayment, *contract.ContractNumber)
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
@@ -427,8 +427,8 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			periodStart := paymentResult.PeriodStart
 			periodEnd := paymentResult.PeriodEnd
 			paymentResult.Note = fmt.Sprintf(`%s
-			Base Payment: %.2f VND for contract number %s.
-			Further revenue distribution will be calculated during the payment link creation phase.`,
+Base Payment: %.2f VND for contract number %s.
+Further revenue distribution will be calculated during the payment link creation phase.`,
 				paymentResult.Note, basePayment, *contract.ContractNumber)
 			contractPayment := &model.ContractPayment{
 				ContractID:            contract.ID,
