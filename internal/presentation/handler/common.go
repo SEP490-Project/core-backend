@@ -36,6 +36,23 @@ func extractUserID(c *gin.Context) (userID uuid.UUID, err error) {
 	return
 }
 
+func extractSessionID(c *gin.Context) (sessionID uuid.UUID, err error) {
+	sessionIDData, exists := c.Get("session_id")
+	if !exists {
+		return uuid.Nil, errors.New("session ID not found in context")
+	}
+	sessionIDStr, ok := sessionIDData.(string)
+	if !ok {
+		return uuid.Nil, errors.New("invalid session ID format")
+	}
+	sessionID, err = uuid.Parse(sessionIDStr)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return
+}
+
 // extractRequestID utility extracts the request ID from the Gin context.
 func extractRequestID(c *gin.Context) string {
 	requestIDData, exists := c.Get("request_id")
