@@ -114,7 +114,52 @@ func parseTiptapNode(node any, builder *strings.Builder, result *TiptapParseResu
 		case "text":
 			// Text node: extract plain text (marks like bold/italic ignored for social media)
 			if n.Text != "" {
+				prefix := ""
+				suffix := ""
+				linkSuffix := ""
+
+				// Iterate over marks to determine wrapping and links
+				for _, mark := range n.Marks {
+					switch mark.Type {
+					case "bold":
+						// Optional: Wrap with * for bold
+						prefix += "*"
+						suffix = "*" + suffix
+
+					case "italic":
+						// Optional: Wrap with _ for italic
+						prefix += "_"
+						suffix = "_" + suffix
+
+					case "strike":
+						// Wrap with ~ to indicate crossed out text
+						prefix += "~"
+						suffix = "~" + suffix
+
+					case "code":
+						// Wrap with backticks for code
+						prefix += "`"
+						suffix = "`" + suffix
+
+					case "link":
+						// Extract href to append AT THE END
+						if href, ok := mark.Attrs["href"].(string); ok && href != "" {
+							linkSuffix = fmt.Sprintf(" (%s)", href)
+						}
+					}
+				}
+
+				// 1. Write the Prefix (e.g., " *` ")
+				builder.WriteString(prefix)
+
+				// 2. Write the actual Text
 				builder.WriteString(n.Text)
+
+				// 3. Write the Suffix (mirror of prefix, e.g., " `* ")
+				builder.WriteString(suffix)
+
+				// 4. Append the Link URL (outside the formatting)
+				builder.WriteString(linkSuffix)
 			}
 
 		default:
