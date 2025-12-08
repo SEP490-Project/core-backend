@@ -167,7 +167,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	var deliveryFee *dtos.DeliveryFeeSuccess
 
-	if req.Order.IsSelfPickup == false {
+	if !req.Order.IsSelfPickup {
 		//*1 Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
 		deliveryFee, err = h.ghnProxy.CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx, req.Order.AddressID, req.Order.Items, uow)
 		if err != nil {
@@ -342,8 +342,8 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 		if s == "" {
 			continue
 		}
-		parts := strings.Split(s.String(), ",")
-		for _, p := range parts {
+		parts := strings.SplitSeq(s.String(), ",")
+		for p := range parts {
 			p = strings.TrimSpace(p)
 			if p != "" {
 				statuses = append(statuses, p)
@@ -763,8 +763,7 @@ func (h *OrderHandler) MarkSelfDeliveringOrderAsDelivered(c *gin.Context) {
 		defer func(path string) { _ = os.Remove(path) }(finalPath)
 
 		// Upload to remote storage (e.g., S3, GCS)
-		userID := c.GetString("userID") // assuming userID is stored in context by auth middleware
-		url, err := h.fileService.UploadFile(c.Request.Context(), userID, finalPath, newFileName)
+		url, err := h.fileService.UploadFile(c.Request.Context(), userID.String(), finalPath, newFileName)
 		if err != nil {
 			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file: " + fileHeader.Filename + ", " + err.Error()})
@@ -870,7 +869,7 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 	}
 
 	userTmpDir := "/tmp/uploads"
-	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+	if err = os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
 		return
 	}
@@ -879,7 +878,7 @@ func (h *OrderHandler) ApproveRefund(c *gin.Context) {
 	newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
 	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
 
-	if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+	if err = c.SaveUploadedFile(fileHeader, finalPath); err != nil {
 		_ = os.Remove(finalPath)
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -950,7 +949,7 @@ func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 	}
 
 	userTmpDir := "/tmp/uploads"
-	if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+	if err = os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
 		return
 	}
@@ -959,7 +958,7 @@ func (h *OrderHandler) RequestCompensation(c *gin.Context) {
 	newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
 	finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
 
-	if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+	if err = c.SaveUploadedFile(fileHeader, finalPath); err != nil {
 		_ = os.Remove(finalPath)
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
 		return
@@ -1039,7 +1038,7 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 		return
 	} else {
 		userTmpDir := "/tmp/uploads"
-		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		if err = os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
 			return
 		}
@@ -1048,7 +1047,7 @@ func (h *OrderHandler) ProcessCompensation(c *gin.Context) {
 		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
 		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
 
-		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+		if err = c.SaveUploadedFile(fileHeader, finalPath); err != nil {
 			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
 			return
@@ -1120,7 +1119,7 @@ func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
 		return
 	} else {
 		userTmpDir := "/tmp/uploads"
-		if err := os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
+		if err = os.MkdirAll(userTmpDir, os.ModePerm); err != nil {
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to create tmp upload directory", http.StatusInternalServerError))
 			return
 		}
@@ -1129,7 +1128,7 @@ func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
 		newFileName := fmt.Sprintf("%s_%s", timestamp, fileHeader.Filename)
 		finalPath := fmt.Sprintf("%s/%s", userTmpDir, newFileName)
 
-		if err := c.SaveUploadedFile(fileHeader, finalPath); err != nil {
+		if err = c.SaveUploadedFile(fileHeader, finalPath); err != nil {
 			_ = os.Remove(finalPath)
 			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to save uploaded file: "+err.Error(), http.StatusInternalServerError))
 			return
@@ -1163,7 +1162,7 @@ func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
 
 }
 
-func (p *OrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
+func (h *OrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
 	// --- Tmp path ---
 	tmpDir := os.TempDir()
 	newFileName := uuid.New().String() + filepath.Ext(fileHeader.Filename)
@@ -1176,7 +1175,7 @@ func (p *OrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHe
 	defer os.Remove(localPath)
 
 	// --- Upload file lên S3 / storage ---
-	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
+	fileURL, err := h.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload file: %w", err)
 	}
