@@ -234,7 +234,7 @@ func (s *ContentService) GetByID(ctx context.Context, id uuid.UUID) (*responses.
 		return nil, err
 	}
 
-	return s.mapToContentResponse(content), nil
+	return responses.ContentResponse{}.ToResponse(content, s.config.Server.BaseURL), nil
 }
 
 // Update updates existing content
@@ -630,76 +630,6 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 }
 
 // region: ======== Helper methods ========
-
-// mapToContentResponse maps a model.Content to a responses.ContentResponse
-func (s *ContentService) mapToContentResponse(content *model.Content) *responses.ContentResponse {
-	resp := &responses.ContentResponse{
-		ID:                content.ID,
-		TaskID:            content.TaskID,
-		Title:             content.Title,
-		ThumbnailURL:      content.ThumbnailURL,
-		Description:       content.Description,
-		Body:              content.Body,
-		Type:              content.Type,
-		Status:            content.Status,
-		PublishDate:       content.PublishDate,
-		AIGeneratedText:   content.AIGeneratedText,
-		RejectionFeedback: content.RejectionFeedback,
-		CreatedAt:         utils.FormatLocalTime(content.CreatedAt, ""),
-		UpdatedAt:         utils.FormatLocalTime(content.UpdatedAt, ""),
-		// AffiliateLink:     content.AffiliateLink,
-	}
-
-	if content.Blog != nil {
-		var tags []string
-		if len(content.Blog.Tags) > 0 {
-			tags = utils.MapSlice(content.Blog.Tags, func(tag model.Tag) string { return tag.Name })
-		}
-
-		resp.Blog = &responses.BlogResponse{
-			ContentID: content.Blog.ContentID,
-			AuthorID:  content.Blog.AuthorID,
-			Tags:      tags,
-			Excerpt:   content.Blog.Excerpt,
-			ReadTime:  content.Blog.ReadTime,
-			CreatedAt: utils.FormatLocalTime(content.Blog.CreatedAt, ""),
-			UpdatedAt: utils.FormatLocalTime(content.Blog.UpdatedAt, ""),
-		}
-
-		if content.Blog.Author != nil {
-			resp.Blog.Author = &responses.UserBrief{
-				ID:       content.Blog.Author.ID,
-				Username: content.Blog.Author.Username,
-				Email:    content.Blog.Author.Email,
-			}
-		}
-	}
-
-	if len(content.ContentChannels) > 0 {
-		resp.ContentChannels = make([]responses.ContentChannelBrief, 0)
-		for _, cc := range content.ContentChannels {
-			channelName := ""
-			if cc.Channel != nil {
-				channelName = cc.Channel.Name
-			}
-			ccResp := responses.ContentChannelBrief{
-				ID:             cc.ID,
-				ChannelID:      cc.ChannelID,
-				ChannelName:    channelName,
-				PostDate:       cc.PostDate,
-				AutoPostStatus: string(cc.AutoPostStatus),
-			}
-			if cc.AffiliateLink != nil {
-				// ccResp.AffiliateLink = &cc.AffiliateLink.AffiliateURL
-				ccResp.AffiliateLink = utils.PtrOrNil(s.config.Server.BaseURL + "/r/" + cc.AffiliateLink.Hash)
-			}
-
-			resp.ContentChannels = append(resp.ContentChannels, ccResp)
-		}
-	}
-
-	return resp
-}
 
 // determineWorkflowRoute determines the target status based on selected channels
 func (s *ContentService) determineWorkflowRoute(ctx context.Context, contentID uuid.UUID) (enum.ContentStatus, error) {
