@@ -26,9 +26,10 @@ type AffiliateLink struct {
 	DeletedAt    gorm.DeletedAt           `json:"deleted_at" gorm:"index"`
 
 	// Relationships (use pointers to avoid circular dependencies)
-	Contract *Contract `json:"contract,omitempty" gorm:"foreignKey:ContractID"`
-	Content  *Content  `json:"content,omitempty" gorm:"foreignKey:ContentID"`
-	Channel  *Channel  `json:"channel,omitempty" gorm:"foreignKey:ChannelID"`
+	Contract    *Contract    `json:"contract,omitempty" gorm:"foreignKey:ContractID"`
+	Content     *Content     `json:"content,omitempty" gorm:"foreignKey:ContentID"`
+	Channel     *Channel     `json:"channel,omitempty" gorm:"foreignKey:ChannelID"`
+	ClickEvents []ClickEvent `json:"click_events,omitempty" gorm:"foreignKey:AffiliateLinkID"`
 }
 
 func (AffiliateLink) TableName() string {
