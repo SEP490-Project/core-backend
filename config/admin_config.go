@@ -52,12 +52,14 @@ type AdminConfig struct {
 	// This is used to determine when to send notifications for expiring OAuth tokens
 
 	// ========= Facebook =========
-	FacebookExpiryThresholdNotifications int `mapstructure:"facebook_expiry_threshold_notifications"` // in days
-	FacebookVideoUploadChunkSizeInMB     int `mapstructure:"facebook_video_upload_chunk_size_in_mb"`
-	FacebookVideoUploadMaxRetries        int `mapstructure:"facebook_video_upload_max_retries"`
+	FacebookHomepageURL                  string `mapstructure:"facebook_homepage_url"`
+	FacebookExpiryThresholdNotifications int    `mapstructure:"facebook_expiry_threshold_notifications"` // in days
+	FacebookVideoUploadChunkSizeInMB     int    `mapstructure:"facebook_video_upload_chunk_size_in_mb"`
+	FacebookVideoUploadMaxRetries        int    `mapstructure:"facebook_video_upload_max_retries"`
 
 	// ========= TikTok =========
-	TikTokExpiryThresholdNotifications int `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
+	TikTokHomepageURL                  string `mapstructure:"tiktok_homepage_url"`
+	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
 
 	// ======== General ========
 	SystemEmail string `mapstructure:"system_email"`
@@ -65,6 +67,10 @@ type AdminConfig struct {
 
 	// AI Content Generation
 	ContentGenerationPromptTemplate string `mapstructure:"content_generation_prompt_template" type:"textarea"`
+
+	// Affiliate Links config
+	AffiliateHashLength int    `mapstructure:"affiliate_hash_length"`
+	AffiliateURLFormat  string `mapstructure:"affiliate_url_format"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -124,10 +130,12 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("social_metrics_poller_enabled", true)
 	adminViper.SetDefault("social_metrics_poller_interval_minutes", 10)
 
+	adminViper.SetDefault("facebook_homepage_url", "https://www.facebook.com/")
 	adminViper.SetDefault("facebook_expiry_threshold_notifications", 7)
 	adminViper.SetDefault("facebook_video_upload_chunk_size_in_mb", 50)
 	adminViper.SetDefault("facebook_video_upload_max_retries", 3)
 
+	adminViper.SetDefault("tiktok_homepage_url", "https://www.tiktok.com/")
 	adminViper.SetDefault("tiktok_expiry_threshold_notifications", 7)
 
 	// Webhook secrets (should be set via environment variables for security)
@@ -135,6 +143,9 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("tiktok_webhook_secret", "")
 
 	adminViper.SetDefault("content_generation_prompt_template", "Default prompt template")
+
+	adminViper.SetDefault("affiliate_hash_length", 16)
+	adminViper.SetDefault("affiliate_url_format", "%s/r/%s")
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database
