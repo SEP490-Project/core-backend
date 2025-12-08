@@ -31,6 +31,8 @@ type TaskFilterRequest struct {
 	UpdatedToDate    *string `form:"updated_end_date" json:"updated_end_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-31"`
 	Status           *string `form:"status" json:"status" validate:"omitempty,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
 	Type             *string `form:"type" json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"OTHER"`
+	HasContent       *bool   `form:"has_content" json:"has_content"`
+	HasProduct       *bool   `form:"has_product" json:"has_product"`
 }
 
 // endregion

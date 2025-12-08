@@ -551,3 +551,7 @@ func (config *AppConfig) IsDevelopmentDebugging() bool {
 	return strings.ToLower(config.Server.Environment) == "development" &&
 		strings.ToLower(config.Log.Level) == "debug"
 }
+
+func (config *AppConfig) IsDevelopment() bool {
+	return strings.ToLower(config.Server.Environment) == "development"
+}

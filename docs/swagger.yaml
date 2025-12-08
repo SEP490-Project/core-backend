@@ -2259,13 +2259,13 @@ definitions:
         type: string
       contract_id:
         type: string
+      metadata:
+        additionalProperties: {}
+        type: object
       tracking_url:
         maxLength: 2048
         type: string
     required:
-    - channel_id
-    - content_id
-    - contract_id
     - tracking_url
     type: object
   requests.CreateBrandRequest:
@@ -4220,24 +4220,21 @@ definitions:
     properties:
       channel:
         $ref: '#/definitions/responses.AffiliateLinkChannel'
-      channel_id:
-        type: string
       content:
         $ref: '#/definitions/responses.AffiliateLinkContent'
-      content_id:
-        type: string
       contract:
         allOf:
         - $ref: '#/definitions/responses.ContractSummary'
         description: Optional nested objects (using existing summary types)
-      contract_id:
-        type: string
       created_at:
         type: string
       hash:
         type: string
       id:
         type: string
+      metadata:
+        additionalProperties: {}
+        type: object
       short_url:
         description: e.g., "https://domain.com/r/{hash}"
         type: string
@@ -18345,6 +18342,14 @@ paths:
         in: query
         name: status
         type: string
+      - description: Filter by tasks that have associated content
+        in: query
+        name: has_content
+        type: boolean
+      - description: Filter by tasks that have associated product
+        in: query
+        name: has_product
+        type: boolean
       - description: Filter by task type
         enum:
         - PRODUCT
