@@ -2,6 +2,7 @@ package responses
 
 import (
 	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
 	"encoding/json"
 
@@ -31,8 +32,23 @@ type TaskResponse struct {
 	CampaignID     *string               `json:"campaign_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	CampaignInfo   *CampaignInfoResponse `json:"campaign_details,omitempty"`
 	ContractID     *string               `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	ProductIDs     []string              `json:"product_ids,omitempty" example:"[\"550e8400-e29b-41d4-a716-446655440000\", \"660e8400-e29b-41d4-a716-446655440000\"]"`
-	ContentIDs     []string              `json:"content_ids,omitempty" example:"[\"770e8400-e29b-41d4-a716-446655440000\", \"880e8400-e29b-41d4-a716-446655440000\"]"`
+	BrandInfo      *BrandInfoResponse    `json:"brand_info,omitempty"`
+
+	ProductInfos []ProductInfo `json:"product_ids,omitempty"`
+	ContentInfos []ContentInfo `json:"content_ids,omitempty"`
+}
+
+type ProductInfo struct {
+	ID   uuid.UUID        `json:"id"`
+	Name string           `json:"name"`
+	Type enum.ProductType `json:"type"`
+}
+
+type ContentInfo struct {
+	ID          uuid.UUID        `json:"id"`
+	Title       string           `json:"title"`
+	Description *string          `json:"description,omitempty"`
+	Type        enum.ContentType `json:"type"`
 }
 
 func (TaskResponse) ToResponse(dto *dtos.TaskDetailDTO) *TaskResponse {
@@ -63,11 +79,24 @@ func (TaskResponse) ToResponse(dto *dtos.TaskDetailDTO) *TaskResponse {
 		response.ContractID = utils.PtrOrNil(dto.ContractID.String())
 	}
 
-	if len(dto.ContentIDs) > 0 {
-		response.ContentIDs = utils.MapSlice(dto.ContentIDs, func(id uuid.UUID) string { return id.String() })
+	if len(dto.ProductInfos) > 0 {
+		response.ProductInfos = utils.MapSlice(dto.ProductInfos, func(info dtos.ProductInfo) ProductInfo {
+			return ProductInfo{
+				ID:   info.ID,
+				Name: info.Name,
+				Type: info.Type,
+			}
+		})
 	}
-	if len(dto.ProductIDs) > 0 {
-		response.ProductIDs = utils.MapSlice(dto.ProductIDs, func(id uuid.UUID) string { return id.String() })
+	if len(dto.ContentInfos) > 0 {
+		response.ContentInfos = utils.MapSlice(dto.ContentInfos, func(info dtos.ContentInfo) ContentInfo {
+			return ContentInfo{
+				ID:          info.ID,
+				Title:       info.Title,
+				Description: info.Description,
+				Type:        info.Type,
+			}
+		})
 	}
 
 	if dto.MilestoneInfo != nil {
@@ -88,6 +117,15 @@ func (TaskResponse) ToResponse(dto *dtos.TaskDetailDTO) *TaskResponse {
 				Status:      campaign.Status.String(),
 				Type:        campaign.Type.String(),
 			}
+		}
+	}
+
+	if dto.BrandInfo != nil {
+		response.BrandInfo = &BrandInfoResponse{
+			ID:      dto.BrandInfo.ID,
+			Name:    dto.BrandInfo.Name,
+			LogoURL: dto.BrandInfo.LogoURL,
+			Status:  dto.BrandInfo.Status,
 		}
 	}
 

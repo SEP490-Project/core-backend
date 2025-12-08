@@ -139,9 +139,10 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 // GetDetailTask implements irepository.TaskRepository.
 func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*dtos.TaskDetailDTO, error) {
 	var (
-		data       dtos.TaskDetailDTO
-		contentIDs []uuid.UUID
-		productIDs []uuid.UUID
+		data         dtos.TaskDetailDTO
+		contentInfos []dtos.ContentInfo
+		productInfos []dtos.ProductInfo
+		brandInfo    dtos.BrandInfo
 	)
 
 	findQuery := func(ctx context.Context) error {
@@ -201,23 +202,38 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 		return r.db.WithContext(ctx).
 			Model(&model.Content{}).
 			Where("task_id = ?", taskID).
-			Pluck("id", &contentIDs).
+			Select("id", "title", "description", "type").
+			Find(&contentInfos).
 			Error
 	}
 	productIDsQuery := func(ctx context.Context) error {
 		return r.db.WithContext(ctx).
 			Model(&model.Product{}).
 			Where("task_id = ?", taskID).
-			Pluck("id", &productIDs).
+			Select("id", "name", "type").
+			Find(&productInfos).
+			Error
+	}
+	brandQuery := func(ctx context.Context) error {
+		return r.db.WithContext(ctx).
+			Model(&model.Task{}).
+			Joins("inner join milestones m on m.id = tasks.milestone_id").
+			Joins("inner join campaigns c on c.id = m.campaign_id").
+			Joins("inner join contracts con on con.id = c.contract_id").
+			Joins("inner join brands b on b.id = con.brand_id").
+			Where("tasks.id = ?", taskID).
+			Select("b.id", "b.name", "b.logo_url", "b.status").
+			First(&brandInfo).
 			Error
 	}
 
-	if err := utils.RunParallel(ctx, 0, findQuery, contenIDsQuery, productIDsQuery); err != nil {
+	if err := utils.RunParallel(ctx, 0, findQuery, contenIDsQuery, productIDsQuery, brandQuery); err != nil {
 		return nil, err
 	}
 
-	data.ContentIDs = contentIDs
-	data.ProductIDs = productIDs
+	data.ContentInfos = contentInfos
+	data.ProductInfos = productInfos
+	data.BrandInfo = &brandInfo
 	return &data, nil
 }
 

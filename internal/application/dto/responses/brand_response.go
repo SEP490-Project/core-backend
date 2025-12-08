@@ -6,6 +6,13 @@ import (
 	"core-backend/pkg/utils"
 )
 
+type BrandInfoResponse struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	LogoURL *string `json:"logo_url"`
+	Status  string  `json:"status"`
+}
+
 // BrandResponse represents the response structure for a brand.
 type BrandResponse struct {
 	ID                      string  `json:"id"`
