@@ -752,6 +752,8 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 		"ProductVariant.Images",
 		"Brand",
 		"Category",
+		"ProductVariant.Product",
+		"ProductVariant.Product.Limited",
 	}
 
 	poRows, total, err := s.GetPreOrdersWithPayment(ctx, filter, includes, limit, page)
