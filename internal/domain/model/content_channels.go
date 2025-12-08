@@ -2,6 +2,7 @@ package model
 
 import (
 	"core-backend/internal/domain/enum"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,4 +53,15 @@ func (cc *ContentChannel) BeforeCreate(tx *gorm.DB) error {
 		cc.AutoPostStatus = enum.AutoPostStatusPending
 	}
 	return nil
+}
+
+func (cc ContentChannel) GetMetrics() (*ContentChannelMetrics, error) {
+	var metrics ContentChannelMetrics
+	if len(cc.Metrics) > 0 {
+		if err := json.Unmarshal(cc.Metrics, &metrics); err != nil {
+			return nil, err
+		}
+	}
+
+	return &metrics, nil
 }
