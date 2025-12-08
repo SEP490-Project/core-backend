@@ -11,9 +11,8 @@ import (
 type ProductReview struct {
 	ID          uuid.UUID  `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	ProductID   uuid.UUID  `json:"product_id" gorm:"column:product_id;not null"`
-	VariantID   *uuid.UUID `json:"variant_id,omitempty" gorm:"column:variant_id;type:uuid"`
 	UserID      *uuid.UUID `json:"user_id,omitempty" gorm:"column:user_id;type:uuid"`
-	OrderItemID *uuid.UUID `json:"order_item_id,omitempty" gorm:"column:order_id;type:uuid"`
+	OrderItemID *uuid.UUID `json:"order_item_id,omitempty" gorm:"column:order_item_id;type:uuid"`
 	PreOrderID  *uuid.UUID `json:"pre_order_id,omitempty" gorm:"column:pre_order_id;type:uuid"`
 	RatingStars int        `json:"rating_stars" gorm:"column:rating_stars;not null;check:rating_stars >= 1 AND rating_stars <= 5"`
 	Comment     *string    `json:"comment,omitempty" gorm:"column:comment;type:text"`

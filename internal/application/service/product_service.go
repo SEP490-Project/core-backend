@@ -67,6 +67,7 @@ type productService struct {
 	conceptRepo          irepository.GenericRepository[model.Concept]
 	limitedProductRepo   irepository.GenericRepository[model.LimitedProduct]
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
+	userRepo             irepository.GenericRepository[model.User]
 
 	imageStorage irepository_third_party.S3Storage
 	rabbitmq     *rabbitmq.RabbitMQ
@@ -1004,8 +1005,9 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 		return nil, 0, err
 	}
 
-	// === Map sang DTO ===
+	// === Map to DTO ===
 	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
+
 	for i := range products {
 		resp := responses.ProductResponseV2Partial{}
 		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
@@ -1039,6 +1041,11 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 		"Limited.Concept",
 		// preload reviews for product detail
 		"Reviews",
+		"Reviews.User",
+		"Reviews.OrderItem",
+		"Reviews.OrderItem.Order",
+		"Reviews.OrderItem.Variant.Product",
+		"Reviews.PreOrder.ProductVariant.Product",
 	}
 
 	product, err := p.repository.GetByID(ctx, id, includes)
@@ -1051,6 +1058,36 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 	}
 
 	return res.ToProductDetailResponse(product), nil
+}
+
+func (p *productService) GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error) {
+	ctx := context.Background()
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("product_id = ?", productID)
+	}
+
+	includes := []string{
+		"User",
+		"OrderItem",
+		"OrderItem.Order",
+		"OrderItem.Variant.Product",
+		"PreOrder.ProductVariant.Product",
+	}
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset <= 0 {
+		offset = 1
+	}
+
+	res, total, err := p.reviewRepo.GetAll(ctx, filter, includes, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return responses.ProductReviewResponse{}.ToResponseList(res), int(total), nil
 }
 
 func isStaffRole(role string) bool {
@@ -1468,6 +1505,7 @@ func NewProductService(
 		conceptRepo:          dbRegistry.ConceptRepository,
 		limitedProductRepo:   dbRegistry.LimitedProductRepository,
 		variantAttributeRepo: dbRegistry.VariantAttributeRepository,
+		userRepo:             dbRegistry.UserRepository,
 		imageStorage:         storage3rd.S3Storage,
 		rabbitmq:             rabbitmq,
 	}
@@ -1700,84 +1738,90 @@ func (p productService) UpdateLimitedVariant(ctx context.Context, variantID uuid
 
 func (p productService) AddProductReview(userID uuid.UUID, req requests.AddProductReviewRequest) (*responses.ProductReviewResponse, error) {
 	ctx := context.Background()
-	// Convert request DTO into a persisted model skeleton and validate IDs
-	reviewModel, err := req.ToPersistedModel()
+	reviewModel := &model.ProductReview{
+		RatingStars: req.Rating,
+		Comment:     req.Comment,
+		AssetsURL:   req.AssetsURL,
+		ProductID:   uuid.Nil,
+		UserID:      nil,
+		OrderItemID: nil,
+		PreOrderID:  nil,
+	}
+	refID := req.ReferenceID
+	refTyp := req.Type
+
+	user, err := p.userRepo.GetByID(ctx, userID, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	productID := reviewModel.ProductID
-	variantID := reviewModel.VariantID
-	orderItemID := reviewModel.OrderItemID
-	preOrderID := reviewModel.PreOrderID
-
-	// Validate product existence
-	exists, err := p.repository.ExistsByID(ctx, productID)
-	if err != nil {
-		return nil, err
+	if user == nil {
+		return nil, errors.New("user not found")
 	}
-	if !exists {
-		return nil, errors.New("product not found")
-	}
+	reviewModel.UserID = &user.ID
 
-	// If variantID provided, validate it belongs to product
-	if variantID != nil {
-		v, err := p.variantRepo.GetByID(ctx, *variantID, []string{"Product"})
+	if refTyp == "ORDER" {
+		includes := []string{"Order", "Order.User", "Variant", "Variant.Product"}
+		refUUID, err := uuid.Parse(refID)
 		if err != nil {
 			return nil, err
 		}
-		if v == nil || v.ProductID != productID {
-			return nil, errors.New("variant not found for the product")
+		orderItem, err := p.orderItemRepo.GetByID(ctx, refUUID, includes)
+		if err != nil {
+			return nil, errors.New("order item not found")
 		}
+		reviewModel.OrderItemID = &orderItem.ID
+		if orderItem.Order.Status != enum.OrderStatusReceived {
+			return nil, errors.New("cannot review an order that is not received")
+		}
+
+		if user.ID != orderItem.Order.UserID {
+			return nil, errors.New("user not match the order's owner")
+		} else {
+			reviewModel.UserID = &userID
+		}
+		reviewModel.ProductID = orderItem.Variant.ProductID
+	} else {
+		includes := []string{"ProductVariant", "ProductVariant.Product"}
+		preOrder, err := p.preOrderRepo.GetByID(ctx, refID, includes)
+		if err != nil {
+			return nil, err
+		}
+		if preOrder == nil {
+			return nil, errors.New("preorder not found")
+		}
+		reviewModel.PreOrderID = &preOrder.ID
+
+		if preOrder.Status != enum.PreOrderStatusReceived {
+			return nil, errors.New("cannot review an preorder which status is not 'RECEIVED'")
+		}
+
+		if user.ID != preOrder.UserID {
+			return nil, errors.New("user not match the preOrder's owner")
+		} else {
+			reviewModel.UserID = &userID
+		}
+		reviewModel.ProductID = preOrder.ProductVariant.ProductID
 	}
 
 	// Ensure exactly one of orderItemID or preOrderID is set (ToPersistedModel already enforces this, defend again)
-	if (orderItemID == nil && preOrderID == nil) || (orderItemID != nil && preOrderID != nil) {
+	if (reviewModel.OrderItemID == nil && reviewModel.PreOrderID == nil) || (reviewModel.OrderItemID != nil && reviewModel.PreOrderID != nil) {
 		return nil, errors.New("either order_item_id or pre_order_id must be provided (but not both)")
-	}
-
-	// Verify ownership of order_item/preorder
-	if orderItemID != nil {
-		ordItem, err := p.orderItemRepo.GetByID(ctx, *orderItemID, []string{"Order"})
-		if err != nil {
-			return nil, err
-		}
-		if ordItem == nil {
-			return nil, errors.New("order item not found")
-		}
-		// Some repositories may not preload Order, but we requested it above
-		if ordItem.Order == nil || ordItem.Order.UserID != userID {
-			return nil, errors.New("user does not own the order")
-		}
-	}
-
-	if preOrderID != nil {
-		po, err := p.preOrderRepo.GetByID(ctx, *preOrderID, nil)
-		if err != nil {
-			return nil, err
-		}
-		if po == nil {
-			return nil, errors.New("preorder not found")
-		}
-		if po.UserID != userID {
-			return nil, errors.New("user does not own the preorder")
-		}
 	}
 
 	// Check existing review uniqueness: user+product+order/preorder
 	existsReview, err := p.reviewRepo.Exists(ctx, func(db *gorm.DB) *gorm.DB {
-		q := db.Where("product_id = ?", productID)
 		if userID != uuid.Nil {
-			q = q.Where("user_id = ?", userID)
+			db = db.Where("user_id = ?", userID.String())
 		}
-		if orderItemID != nil {
-			q = q.Where("order_item_id = ?", *orderItemID)
+		if reviewModel.OrderItemID != nil {
+			db = db.Where("order_item_id = ?", reviewModel.OrderItemID.String())
 		}
-		if preOrderID != nil {
-			q = q.Where("pre_order_id = ?", *preOrderID)
+		if reviewModel.PreOrderID != nil {
+			db = db.Where("pre_order_id = ?", reviewModel.PreOrderID.String())
 		}
-		return q
+		return db
 	})
+
 	if err != nil {
 		return nil, err
 	}
