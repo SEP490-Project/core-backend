@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/infrastructure/rabbitmq"
+	customvalidator "core-backend/pkg/custom_validator"
 	"core-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,11 @@ func NewContentHandler(
 	unitOfWork irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 ) *ContentHandler {
+	customValidator := customvalidator.NewValidatorBuilder()
+	customValidator.AddStructValidation(requests.ValidateCreateContentRequest, requests.CreateContentRequest{}).
+		AddTranslation("affiliate_link.regex", "Affiliate link format is invalid. It must start with http:// or https://, have a base path r/, and end with a 16-character alphanumeric hash.").
+		AddTranslation("affiliate_link.body", "Affiliate link must be included in the content body passing an affiliate link in request body")
+
 	return &ContentHandler{
 		contentService:           appReg.ContentService,
 		contentPublishingService: appReg.ContentPublishingService,
@@ -41,7 +47,7 @@ func NewContentHandler(
 		channelService:           appReg.ChannelService,
 		unitOfWork:               unitOfWork,
 		rabbitmq:                 rabbitmq,
-		validator:                validator.New(),
+		validator:                customValidator.Validate,
 	}
 }
 

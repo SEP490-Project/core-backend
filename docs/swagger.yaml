@@ -1687,6 +1687,8 @@ definitions:
         type: string
       id:
         type: string
+      is_review:
+        type: boolean
       is_self_picked_up:
         type: boolean
       order_items:
@@ -1848,6 +1850,11 @@ definitions:
         items:
           $ref: '#/definitions/model.ProductVariant'
         type: array
+      reviews:
+        description: Reviews relationship
+        items:
+          $ref: '#/definitions/model.ProductReview'
+        type: array
       status:
         $ref: '#/definitions/enum.ProductStatus'
       task_id:
@@ -1874,6 +1881,35 @@ definitions:
       parent_category_id:
         type: string
       updated_at:
+        type: string
+    type: object
+  model.ProductReview:
+    properties:
+      assets_url:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_item_id:
+        type: string
+      pre_order_id:
+        type: string
+      product:
+        allOf:
+        - $ref: '#/definitions/model.Product'
+        description: Relations
+      product_id:
+        type: string
+      rating_stars:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      variant_id:
         type: string
     type: object
   model.ProductStory:
@@ -2389,7 +2425,18 @@ definitions:
   requests.CreateContentRequest:
     properties:
       affiliate_link:
+        description: "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID
+          is provided, it indicates an existing affiliate link to be associated.\n2.
+          If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink
+          record is created and probably used in the Body.\n\t  Check in the Body
+          field for usage of the new affiliate link.\n3. If neither is provided, no
+          affiliate link is associated. However, if content associlated with contract
+          of type AFFILIATE,\n\t  forcefully created an affiliate link record. If
+          the Body does not contains affiliate link,\n\t  then automatically added
+          it at the end of the body."
         maxLength: 1000
+        type: string
+      affiliate_link_id:
         type: string
       ai_generated_text:
         type: string
@@ -3459,9 +3506,6 @@ definitions:
     type: object
   requests.UpdateContentRequest:
     properties:
-      affiliate_link:
-        maxLength: 1000
-        type: string
       ai_generated_text:
         type: string
       blog_fields:
@@ -5693,6 +5737,17 @@ definitions:
         description: ORDER or PRE_ORDER
         type: string
     type: object
+  responses.LimitedProductResponse:
+    properties:
+      achievable_quantity:
+        type: integer
+      availability_end_date:
+        type: string
+      availability_start_date:
+        type: string
+      premiere_date:
+        type: string
+    type: object
   responses.LoginResponse:
     properties:
       access_token:
@@ -6553,6 +6608,8 @@ definitions:
         type: string
       is_active:
         type: boolean
+      limited_product:
+        $ref: '#/definitions/responses.LimitedProductResponse'
       name:
         type: string
       status:
@@ -6574,6 +6631,33 @@ definitions:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
         type: array
+    type: object
+  responses.ProductReviewResponse:
+    properties:
+      assets_url:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_at:
+        type: string
+      product_id:
+        type: string
+      product_variant_name:
+        type: string
+      rating_stars:
+        type: integer
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      user_id:
+        type: string
+      user_name:
+        type: string
+      variant_id:
+        type: string
     type: object
   responses.ProductVariantResponse:
     properties:
@@ -17228,6 +17312,67 @@ paths:
       summary: Update Product State
       tags:
       - Products.State
+  /api/v1/products/{productID}/reviews:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Authenticated user can add a review for a product they purchased
+        (order or preorder). Either order_id or pre_order_id must be provided.
+      parameters:
+      - description: Product ID
+        in: path
+        name: productId
+        required: true
+        type: string
+      - description: Variant ID (UUID)
+        in: formData
+        name: variant_id
+        type: string
+      - description: Order ID (UUID)
+        in: formData
+        name: order_id
+        type: string
+      - description: PreOrder ID (UUID)
+        in: formData
+        name: pre_order_id
+        type: string
+      - description: Rating (1-5)
+        in: formData
+        name: rating
+        required: true
+        type: integer
+      - description: Comment
+        in: formData
+        name: comment
+        type: string
+      - description: Asset file (image)
+        in: formData
+        name: assets
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a review for a product
+      tags:
+      - Products.Reviews
   /api/v1/products/{productId}/variants:
     post:
       consumes:

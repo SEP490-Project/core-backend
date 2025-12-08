@@ -14,7 +14,7 @@ representative_bank_account_holder: "TRAN GIANH KHANH"
 representative_company_address: "FPTU Lỏ lỏ"
 
 # Affiliate Link Tracking Configuration
-tracking_link_trusted_domains: |
+tracking_link_trusted_domains: 
   [
     // Major e-commerce platforms
     "shopee.vn", "lazada.vn", "tiki.vn", "sendo.vn",
@@ -39,8 +39,9 @@ tracking_link_trusted_domains: |
 
     // Development/testing (remove in production)
     "localhost", "127.0.0.1", "ngrok.io",
+    "facebook.com", "tiktok.com"
   ]
-bot_signatures: |
+bot_signatures:
   [
     // Common bot user-agent substrings
     "Googlebot", "Bingbot", "Slurp", "DuckDuckBot",
