@@ -432,13 +432,11 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //
 //	@Summary		Add a review for a product
 //	@Description	Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.
-//	@Tags			Products.Reviews
+//	@Tags			Products
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			productId		path		string	true	"Product ID"
-//	@Param			variant_id		formData	string	false	"Variant ID (UUID)"
-//	@Param			order_id		formData	string	false	"Order ID (UUID)"
-//	@Param			pre_order_id	formData	string	false	"PreOrder ID (UUID)"
+//	@Param			reference_id		formData		string	true	"ORDER ITEM/preorder ID (UUID)"
+//	@Param			order_type      formData    string  true    "Order Type (ORDER | PREORDER)" Enums(ORDER,PREORDER)
 //	@Param			rating			formData	int		true	"Rating (1-5)"
 //	@Param			comment			formData	string	false	"Comment"
 //	@Param			assets			formData	file	false	"Asset file (image)"
@@ -447,17 +445,10 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Failure		401				{object}	responses.APIResponse
 //	@Failure		500				{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/products/{productID}/reviews [post]
+//	@Router			/api/v1/products/reviews [post]
 func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	// Build request DTO from form values
 	var req requests.AddProductReviewRequest
-	// --- Path ID ---
-	productID, err := parseUUIDParam(c, "productID")
-	if err != nil {
-		return
-	}
-	productIDStr := productID.String()
-	req.ProductID = &productIDStr
 
 	// extract authenticated user
 	userID, err := extractUserID(c)
@@ -471,18 +462,26 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 		return
 	}
 
-	req.VariantID, err = extractRequiredFormField(c, "variant_id")
+	orderTypeStr, err := extractRequiredFormField(c, "order_type")
 	if err != nil {
 		return
 	}
-	req.OrderItemID, err = extractRequiredFormField(c, "order_id")
+
+	referenceID, err := extractRequiredFormField(c, "reference_id")
 	if err != nil {
 		return
 	}
-	req.PreOrderID, err = extractRequiredFormField(c, "pre_order_id")
-	if err != nil {
+
+	if *orderTypeStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order_type is required", http.StatusBadRequest))
 		return
+	} else if *orderTypeStr == "ORDER" {
+		req.ReferenceID = *referenceID
+	} else if *orderTypeStr == "PREORDER" {
+		req.ReferenceID = *referenceID
 	}
+	req.Type = *orderTypeStr
+
 	req.Comment, err = extractRequiredFormField(c, "comment")
 	if err != nil {
 		return
@@ -503,7 +502,6 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 		return
 	}
 	req.Rating = ratingVal
-	// assets_url will be populated after upload (if any)
 
 	// validate request using centralized validation processor
 	if err := h.validator.Struct(&req); err != nil {
@@ -540,7 +538,7 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 			c.JSON(http.StatusForbidden, responses.ErrorResponse(svcErr.Error(), http.StatusForbidden))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
 		return
 	}
 
@@ -1410,6 +1408,82 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// GetProductReviewPagination godoc
+//
+// @Summary Get paginated reviews for a product
+// @Description Returns product reviews with pagination (limit/offset)
+// @Tags Products
+// @Accept json
+// @Produce json
+// @Param productId path string true "Product ID"
+// @Param limit query int false "Items per page" default(10)
+// @Param offset query int false "Items to skip" default(0)
+// @Success 200 {object} object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
+// @Failure 400 {object} responses.APIResponse
+// @Failure 500 {object} responses.APIResponse
+// @Security BearerAuth
+// @Router /api/v1/products/reviews/{productId} [get]
+func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
+	productIDStr := c.Param("productId")
+	if productIDStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("product id is required", http.StatusBadRequest))
+		return
+	}
+	productID, err := uuid.Parse(productIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid product id", http.StatusBadRequest))
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", "10")
+	offsetStr := c.DefaultQuery("offset", "0")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	reviews, total, svcErr := h.productService.GetProductReviewPagination(productID, limit, offset)
+	if svcErr != nil {
+		// map not found -> 400, otherwise 500
+		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       offset,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    offset < totalPages,
+		HasPrev:    offset > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Product reviews retrieved successfully",
+		http.StatusOK,
+		reviews,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
+}
+
 // handleFileUpload lưu file tạm, upload lên storage và trả về URL
 func (p *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
 	// --- Tmp path ---
@@ -1421,7 +1495,7 @@ func (p *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, file
 	if err := c.SaveUploadedFile(fileHeader, localPath); err != nil {
 		return nil, fmt.Errorf("failed to save uploaded file: %w", err)
 	}
-	defer os.Remove(localPath)
+	defer func() { _ = os.Remove(localPath) }()
 
 	// --- Upload file lên S3 / storage ---
 	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
