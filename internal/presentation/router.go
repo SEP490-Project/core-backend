@@ -127,6 +127,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		{
 			// Public
 			productsGroup.GET("", productHandler.GetAllProducts)
+			productsGroup.GET("/reviews/:productId", productHandler.GetProductReviewPagination)
 
 			// Optional
 			optionalGroup := productsGroup.Group("")
@@ -141,7 +142,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			requireAuthGroup := productsGroup.Group("")
 			requireAuthGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 			{
-				requireAuthGroup.POST("/:variantId/reviews", productHandler.AddProductReview)
+				requireAuthGroup.POST("/reviews", productHandler.AddProductReview)
 			}
 
 			// Protected (Sales, Brand, Admin)

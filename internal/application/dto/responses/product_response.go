@@ -97,7 +97,8 @@ type ProductDetailResponse struct {
 	Variants         []ProductVariantResponse `json:"variants,omitempty"`
 	CreatedAt        string                   `json:"created_at"` // FE parse về Date
 	Concept          *model.Concept           `json:"concept,omitempty"`
-	Reviews          []ProductReviewResponse  `json:"reviews,omitempty"`
+	AverageRating    float64                  `json:"average_rating"`
+	//Reviews          []ProductReviewResponse  `json:"reviews,omitempty"`
 }
 
 type LimitedProductResponse struct {
@@ -166,23 +167,28 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 	}
 
 	// Map reviews if preloaded
-	d.Reviews = ProductReviewResponse{}.ToResponseList(m.Reviews)
+	var avgRating float64
+	count := 0
+	for i := range m.Reviews {
+		avgRating += float64(m.Reviews[i].RatingStars)
+		count++
+	}
+	d.AverageRating = avgRating / float64(count)
 	return &d
 }
 
 type ProductReviewResponse struct {
-	ID                 uuid.UUID        `json:"id"`
-	ProductID          uuid.UUID        `json:"product_id"`
-	VariantID          *uuid.UUID       `json:"variant_id,omitempty"`
-	ProductVariantName string           `json:"product_variant_name"`
-	UserID             *uuid.UUID       `json:"user_id,omitempty"`
-	UserName           *string          `json:"user_name,omitempty"`
-	RatingStars        int              `json:"rating_stars"`
-	Comment            string           `json:"comment,omitempty"`
-	AssetsURL          *string          `json:"assets_url,omitempty"`
-	CreatedAt          string           `json:"created_at"`
-	OrderAt            string           `json:"order_at"`
-	Type               enum.ProductType `json:"type"`
+	ID                 uuid.UUID  `json:"id"`
+	ProductID          uuid.UUID  `json:"product_id"`
+	ProductVariantName string     `json:"product_variant_name"`
+	UserID             *uuid.UUID `json:"user_id,omitempty"`
+	UserName           *string    `json:"user_name,omitempty"`
+	RatingStars        int        `json:"rating_stars"`
+	Comment            *string    `json:"comment,omitempty"`
+	AssetsURL          *string    `json:"assets_url,omitempty"`
+	CreatedAt          string     `json:"created_at"`
+	OrderAt            string     `json:"order_at"`
+	Type               string     `json:"type"`
 }
 
 func (ProductReviewResponse) ToResponse(m *model.ProductReview) *ProductReviewResponse {
@@ -190,14 +196,19 @@ func (ProductReviewResponse) ToResponse(m *model.ProductReview) *ProductReviewRe
 	var (
 		orderAt            string
 		userName           *string
-		prdType            enum.ProductType
+		orderType          string
 		productVariantName string
 	)
+	if m.OrderItemID != nil {
+		orderType = "ORDER"
+	} else {
+		orderType = "PREORDER"
+	}
+
 	if o := m.OrderItem; o != nil && o.Order != nil {
 		orderAt = o.Order.CreatedAt.Format(timelayout)
 		userName = &o.Order.FullName
 		if v := o.Variant; v.Product != nil {
-			prdType = v.Product.Type
 
 			nameFmt := "%s - (Ingredient: %s)"
 			var ingredientConcat string
@@ -235,16 +246,15 @@ func (ProductReviewResponse) ToResponse(m *model.ProductReview) *ProductReviewRe
 	return &ProductReviewResponse{
 		ID:                 m.ID,
 		ProductID:          m.ProductID,
-		VariantID:          m.VariantID,
 		ProductVariantName: productVariantName,
 		UserID:             m.UserID,
 		UserName:           userName,
 		RatingStars:        m.RatingStars,
-		Comment:            *m.Comment,
+		Comment:            m.Comment,
 		AssetsURL:          m.AssetsURL,
 		CreatedAt:          m.CreatedAt.Format(timelayout),
 		OrderAt:            orderAt,
-		Type:               prdType,
+		Type:               orderType,
 	}
 }
 

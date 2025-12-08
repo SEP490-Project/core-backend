@@ -67,9 +67,10 @@ type PreOrdersProps struct {
 	Width  int `json:"width"`
 
 	// Product Info
-	ProductName string  `json:"product_name"`
-	Description *string `json:"description"`
-	Type        string  `json:"product_type"`
+	ProductName       string                  `json:"product_name"`
+	Description       *string                 `json:"description"`
+	Type              string                  `json:"product_type"`
+	LimitedProperties *OrderLimitedProperties `json:"limited_properties"`
 
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
@@ -84,6 +85,8 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 	var brandResp *OrderItemBrandResponse
 	var categoryResp *OrderItemCategoryResponse
 	var itemImages []OrderItemImage
+	var limitedProps *OrderLimitedProperties
+
 	if po.Brand != nil {
 		brandResp = OrderItemBrandResponse{}.ToResponse(po.Brand)
 	}
@@ -97,6 +100,9 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 	var pmResp PaymentTransactionResponse
 	if pm != nil {
 		pmResp = *PaymentTransactionResponse{}.ToResponse(pm, nil)
+	}
+	if po.ProductVariant.Product.Limited != nil {
+		limitedProps = OrderLimitedProperties{}.ToResponse(po.ProductVariant.Product.Limited)
 	}
 
 	return PreOrderResponse{
@@ -145,6 +151,7 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 			ProductName:           po.ProductName,
 			Description:           po.Description,
 			Type:                  po.Type,
+			LimitedProperties:     limitedProps,
 			CreatedAt:             po.CreatedAt,
 			UpdatedAt:             po.UpdatedAt,
 			DeletedAt: func() *time.Time {

@@ -20,6 +20,8 @@ type ProductService interface {
 	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
 	// Reviews
 	AddProductReview(userID uuid.UUID, req requests.AddProductReviewRequest) (*responses.ProductReviewResponse, error)
+	GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error)
+
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)
 	GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error)
 	GetTop5NewestProducts() (*responses.ProductResponseTop5Newest, error)

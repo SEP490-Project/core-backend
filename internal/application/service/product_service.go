@@ -1005,8 +1005,9 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 		return nil, 0, err
 	}
 
-	// === Map sang DTO ===
+	// === Map to DTO ===
 	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
+
 	for i := range products {
 		resp := responses.ProductResponseV2Partial{}
 		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
@@ -1040,6 +1041,11 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 		"Limited.Concept",
 		// preload reviews for product detail
 		"Reviews",
+		"Reviews.User",
+		"Reviews.OrderItem",
+		"Reviews.OrderItem.Order",
+		"Reviews.OrderItem.Variant.Product",
+		"Reviews.PreOrder.ProductVariant.Product",
 	}
 
 	product, err := p.repository.GetByID(ctx, id, includes)
@@ -1052,6 +1058,36 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 	}
 
 	return res.ToProductDetailResponse(product), nil
+}
+
+func (p *productService) GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error) {
+	ctx := context.Background()
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		return db.Where("product_id = ?", productID)
+	}
+
+	includes := []string{
+		"User",
+		"OrderItem",
+		"OrderItem.Order",
+		"OrderItem.Variant.Product",
+		"PreOrder.ProductVariant.Product",
+	}
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if offset <= 0 {
+		offset = 1
+	}
+
+	res, total, err := p.reviewRepo.GetAll(ctx, filter, includes, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return responses.ProductReviewResponse{}.ToResponseList(res), int(total), nil
 }
 
 func isStaffRole(role string) bool {
@@ -1713,27 +1749,30 @@ func (p productService) AddProductReview(userID uuid.UUID, req requests.AddProdu
 	}
 	refID := req.ReferenceID
 	refTyp := req.Type
-	var orderItemID *uuid.UUID
-	var preOrderID *uuid.UUID
 
 	user, err := p.userRepo.GetByID(ctx, userID, nil)
 	if err != nil {
 		return nil, err
 	}
-	if user != nil {
+	if user == nil {
 		return nil, errors.New("user not found")
 	}
+	reviewModel.UserID = &user.ID
 
 	if refTyp == "ORDER" {
 		includes := []string{"Order", "Order.User", "Variant", "Variant.Product"}
-		orderItem, err := p.orderItemRepo.GetByID(ctx, refID, includes)
+		refUUID, err := uuid.Parse(refID)
 		if err != nil {
 			return nil, err
 		}
-		if orderItem == nil {
+		orderItem, err := p.orderItemRepo.GetByID(ctx, refUUID, includes)
+		if err != nil {
 			return nil, errors.New("order item not found")
 		}
 		reviewModel.OrderItemID = &orderItem.ID
+		if orderItem.Order.Status != enum.OrderStatusReceived {
+			return nil, errors.New("cannot review an order that is not received")
+		}
 
 		if user.ID != orderItem.Order.UserID {
 			return nil, errors.New("user not match the order's owner")
@@ -1752,6 +1791,10 @@ func (p productService) AddProductReview(userID uuid.UUID, req requests.AddProdu
 		}
 		reviewModel.PreOrderID = &preOrder.ID
 
+		if preOrder.Status != enum.PreOrderStatusReceived {
+			return nil, errors.New("cannot review an preorder which status is not 'RECEIVED'")
+		}
+
 		if user.ID != preOrder.UserID {
 			return nil, errors.New("user not match the preOrder's owner")
 		} else {
@@ -1761,20 +1804,20 @@ func (p productService) AddProductReview(userID uuid.UUID, req requests.AddProdu
 	}
 
 	// Ensure exactly one of orderItemID or preOrderID is set (ToPersistedModel already enforces this, defend again)
-	if (orderItemID == nil && preOrderID == nil) || (orderItemID != nil && preOrderID != nil) {
+	if (reviewModel.OrderItemID == nil && reviewModel.PreOrderID == nil) || (reviewModel.OrderItemID != nil && reviewModel.PreOrderID != nil) {
 		return nil, errors.New("either order_item_id or pre_order_id must be provided (but not both)")
 	}
 
 	// Check existing review uniqueness: user+product+order/preorder
 	existsReview, err := p.reviewRepo.Exists(ctx, func(db *gorm.DB) *gorm.DB {
 		if userID != uuid.Nil {
-			db = db.Where("user_id = ?", userID)
+			db = db.Where("user_id = ?", userID.String())
 		}
-		if orderItemID != nil {
-			db = db.Where("order_item_id = ?", *orderItemID)
+		if reviewModel.OrderItemID != nil {
+			db = db.Where("order_item_id = ?", reviewModel.OrderItemID.String())
 		}
-		if preOrderID != nil {
-			db = db.Where("pre_order_id = ?", *preOrderID)
+		if reviewModel.PreOrderID != nil {
+			db = db.Where("pre_order_id = ?", reviewModel.PreOrderID.String())
 		}
 		return db
 	})
