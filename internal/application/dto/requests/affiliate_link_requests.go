@@ -4,10 +4,12 @@ import "github.com/google/uuid"
 
 // CreateAffiliateLinkRequest represents the request to create a new affiliate link
 type CreateAffiliateLinkRequest struct {
-	ContractID  uuid.UUID `json:"contract_id" validate:"required,uuid"`
-	ContentID   uuid.UUID `json:"content_id" validate:"required,uuid"`
-	ChannelID   uuid.UUID `json:"channel_id" validate:"required,uuid"`
-	TrackingURL string    `json:"tracking_url" validate:"required,url,max=2048"`
+	ContractID *uuid.UUID `json:"contract_id,omitempty" validate:"omitempty,uuid"`
+	ContentID  *uuid.UUID `json:"content_id,omitempty" validate:"omitempty,uuid"`
+	ChannelID  *uuid.UUID `json:"channel_id,omitempty" validate:"omitempty,uuid"`
+
+	TrackingURL string         `json:"tracking_url" validate:"required,url,max=2048"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 // UpdateAffiliateLinkRequest represents the request to update an affiliate link

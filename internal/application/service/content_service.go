@@ -29,7 +29,7 @@ type ContentService struct {
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	taskRepo             irepository.TaskRepository
-	affiliateLinkRepo    irepository.GenericRepository[model.AffiliateLink]
+	affiliateLinkRepo    irepository.AffiliateLinkRepository
 	uow                  irepository.UnitOfWork
 	affiliateLinkService iservice.AffiliateLinkService
 	channelService       iservice.ChannelService
@@ -65,17 +65,42 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 	tagRepo := uow.Tags()
 	contentChannelRepo := uow.ContentChannels()
 
-	// Validate task exists if provided
+	var affiliateLink *model.AffiliateLink
+
+	validationFuncs := make([]func(ctx context.Context) error, 0)
 	if req.TaskID != nil {
-		_, err := taskRepo.GetByID(ctx, *req.TaskID, nil)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("task not found")
+		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
+			if exists, err := taskRepo.ExistsByID(ctx, *req.TaskID); err != nil {
+				zap.L().Error("Failed to check task existence", zap.Error(err))
+				return err
+			} else if !exists {
+				return errors.New("task not found")
 			}
-			zap.L().Error("Failed to retrieve task", zap.Error(err))
-			return nil, err
-		}
+			return nil
+		})
 	}
+	if req.AffiliateLink != nil || req.AffiliateLinkID != nil {
+		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
+			affiliateLinkQuery := func(db *gorm.DB) *gorm.DB {
+				if req.AffiliateLinkID != nil {
+					db = db.Where("id = ?", *req.AffiliateLinkID)
+				}
+				if req.AffiliateLink != nil {
+					db = db.Where("hash = ?", strings.Split(*req.AffiliateLink, "/r/")[1])
+				}
+				return db
+			}
+			var err error
+			if affiliateLink, err = s.affiliateLinkRepo.GetByCondition(ctx, affiliateLinkQuery, nil); err != nil {
+				zap.L().Error("Failed to retrieve affiliate link for content channel",
+					zap.Error(err))
+				return err
+			}
+
+			return nil
+		})
+	}
+	utils.RunParallel(ctx, 3, validationFuncs...)
 
 	// Start transaction
 	rawBody, err := json.Marshal(req.Body)
@@ -113,6 +138,9 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 				content.Description = utils.PtrOrNil(parsedTipTap.PlainText[:minText])
 			} else {
 				zap.L().Warn("Failed to parse TipTap JSON for description", zap.Error(err))
+			}
+			if parsedTipTap.HasImages {
+				content.ThumbnailURL = utils.PtrOrNil(parsedTipTap.ImageURLs[0])
 			}
 		}
 	}
@@ -156,24 +184,14 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			AutoPostStatus: "PENDING",
 		}
 
-		if req.AffiliateLink != nil || req.AffiliateLinkID != nil {
-			affiliateLinkQuery := func(db *gorm.DB) *gorm.DB {
-				if req.AffiliateLinkID != nil {
-					db = db.Where("id = ?", *req.AffiliateLinkID)
-				}
-				if req.AffiliateLink != nil {
-					db = db.Where("hash = ?", strings.Split(*req.AffiliateLink, "/r/")[1])
-				}
-				return db
-			}
-			if contentChannel.AffiliateLink, err = s.affiliateLinkRepo.GetByCondition(ctx, affiliateLinkQuery, nil); err != nil {
-				zap.L().Error("Failed to retrieve affiliate link for content channel",
-					zap.String("content_id", content.ID.String()),
-					zap.String("channel_id", channelID.String()),
-					zap.Error(err))
-				return nil, errors.New("failed to retrieve affiliate link for content channel")
-			}
-			contentChannel.AffiliateLinkID = &contentChannel.AffiliateLink.ID
+		// NOTE: Similarly, because the current frontend implementations only passed one channel per content creation flow.
+		// Thus, it is possible to just update the created affiliate link with the current content ID and channel ID.
+		// However, in the future, if multiple channels are supported in one content creation flow, it is necessary to revisit
+		// how to handle the affiliate link in the content body.
+		if err = uow.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", affiliateLink.ID)
+		}, map[string]any{"content_id": content.ID, "channel_id": channelID}); err != nil {
+			zap.L().Error("Failed to associate affiliate link with content and channel", zap.Error(err))
 		}
 
 		if err = contentChannelRepo.Add(ctx, contentChannel); err != nil {
@@ -770,9 +788,9 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 	for _, channelID := range channelIDs {
 		affiliateReq := &requests.CreateAffiliateLinkRequest{
 			TrackingURL: trackingLink,
-			ContractID:  contractID,
-			ContentID:   content.ID,
-			ChannelID:   channelID,
+			ContractID:  &contractID,
+			ContentID:   &content.ID,
+			ChannelID:   &channelID,
 		}
 
 		// Use CreateOrGet to ensure idempotency (no duplicates)
@@ -802,7 +820,7 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 	// affiliate links in the content body.
 	builder, err := tiptap.FromJSON(content.Body)
 	if err == nil {
-		builder.AddLinkParagraph("Shop now", affiliateLinkURL)
+		builder.AddLinkParagraph("Check it out ", "right now", affiliateLinkURL)
 		var newBody []byte
 		newBody, err = builder.Build()
 		if err != nil {
@@ -821,6 +839,18 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 	}
 
 	return nil
+}
+
+func (s *ContentService) appendDefaultHomePageURLToContent(body []byte) ([]byte, error) {
+	builder, err := tiptap.FromJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	builder.AddLinkParagraph("Visit our ", "website", s.config.Server.BaseFrontendURL)
+	builder.AddLinkParagraph("Visit our ", "Facebook page", s.config.AdminConfig.FacebookHomepageURL)
+	builder.AddLinkParagraph("Visit our ", "TikTok profile", s.config.AdminConfig.TikTokHomepageURL)
+
+	return builder.Build()
 }
 
 // endregion

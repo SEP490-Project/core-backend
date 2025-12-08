@@ -14,13 +14,11 @@ type AffiliateLinkResponse struct {
 	ID          uuid.UUID                `json:"id"`
 	Hash        string                   `json:"hash"`
 	ShortURL    string                   `json:"short_url"` // e.g., "https://domain.com/r/{hash}"
-	ContractID  uuid.UUID                `json:"contract_id"`
-	ContentID   uuid.UUID                `json:"content_id"`
-	ChannelID   uuid.UUID                `json:"channel_id"`
 	TrackingURL string                   `json:"tracking_url"`
 	Status      enum.AffiliateLinkStatus `json:"status"`
 	CreatedAt   *time.Time               `json:"created_at"`
 	UpdatedAt   *time.Time               `json:"updated_at"`
+	Metadata    map[string]any           `json:"metadata,omitempty"`
 
 	// Optional nested objects (using existing summary types)
 	Contract *ContractSummary      `json:"contract,omitempty"`
@@ -51,9 +49,6 @@ func (AffiliateLinkResponse) ToResponse(link *model.AffiliateLink, baseURL strin
 		ID:          link.ID,
 		Hash:        link.Hash,
 		ShortURL:    fmt.Sprintf("%s/r/%s", baseURL, link.Hash),
-		ContractID:  link.ContractID,
-		ContentID:   link.ContentID,
-		ChannelID:   link.ChannelID,
 		TrackingURL: link.TrackingURL,
 		Status:      link.Status,
 		CreatedAt:   link.CreatedAt,
@@ -61,7 +56,7 @@ func (AffiliateLinkResponse) ToResponse(link *model.AffiliateLink, baseURL strin
 	}
 
 	// Include related entities if preloaded
-	if link.Contract != nil {
+	if link.Contract != nil && link.ContractID != nil {
 		contractNumber := ""
 		if link.Contract.ContractNumber != nil {
 			contractNumber = *link.Contract.ContractNumber
@@ -78,20 +73,23 @@ func (AffiliateLinkResponse) ToResponse(link *model.AffiliateLink, baseURL strin
 			Type:           string(link.Contract.Type),
 			Status:         string(link.Contract.Status),
 		}
+		resp.Metadata["contract_id"] = link.GetContractID().String()
 	}
 
-	if link.Content != nil {
+	if link.Content != nil && link.ContentID != nil {
 		resp.Content = &AffiliateLinkContent{
 			ID:    link.Content.ID,
 			Title: &link.Content.Title,
 		}
+		resp.Metadata["content_id"] = link.GetContentID().String()
 	}
 
-	if link.Channel != nil {
+	if link.Channel != nil && link.ChannelID != nil {
 		resp.Channel = &AffiliateLinkChannel{
 			ID:   link.Channel.ID,
 			Name: &link.Channel.Name,
 		}
+		resp.Metadata["channel_id"] = link.GetChannelID().String()
 	}
 
 	return resp
