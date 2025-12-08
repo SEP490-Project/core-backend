@@ -22,9 +22,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"gorm.io/gorm/clause"
 	"time"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -379,12 +379,15 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 		if variant.CurrentStock == nil {
 			return fmt.Errorf("variant stock is nil")
 		}
-		variant.CurrentStock = ptr.Int(*variant.CurrentStock - request.Quantity)
-		variant.PreOrderCount = ptr.Int(*variant.PreOrderCount + request.Quantity)
-		err = uow.ProductVariant().Update(ctx, variant)
+		_, err = p.AtomicDecreasePreOrder(
+			ctx,
+			variant.ID,
+			request.Quantity,
+		)
 		if err != nil {
-			return fmt.Errorf("failed to update variant stock: %w", err)
+			return fmt.Errorf("failed to reserve stock: %w", err)
 		}
+
 		// 2.3 create pre-order
 		err = uow.PreOrder().Add(ctx, preOrder)
 		if err != nil {
@@ -398,6 +401,38 @@ func (p preOrderService) PreserverOrder(ctx context.Context, request requests.Pr
 	}
 
 	return preOrder, nil
+}
+
+func (p preOrderService) AtomicDecreasePreOrder(
+	ctx context.Context,
+	variantID uuid.UUID,
+	qty int,
+) (*model.ProductVariant, error) {
+
+	var updated model.ProductVariant
+
+	tx := p.db.WithContext(ctx).Model(&model.ProductVariant{}).
+		Where("id = ? AND current_stock >= ?", variantID, qty).
+		Updates(map[string]interface{}{
+			"current_stock":   gorm.Expr("current_stock - ?", qty),
+			"pre_order_count": gorm.Expr("pre_order_count + ?", qty),
+		}).
+		Clauses(clause.Returning{})
+
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+
+	if tx.RowsAffected == 0 {
+		return nil, fmt.Errorf("not enough stock")
+	}
+
+	// fill updated variant
+	if err := tx.Scan(&updated).Error; err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
 }
 
 func (s *preOrderService) GetPreOrdersByUserIDWithPagination(
