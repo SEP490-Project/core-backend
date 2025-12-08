@@ -21886,9 +21886,6 @@ const docTemplate = `{
         "requests.CreateAffiliateLinkRequest": {
             "type": "object",
             "required": [
-                "channel_id",
-                "content_id",
-                "contract_id",
                 "tracking_url"
             ],
             "properties": {
@@ -21900,6 +21897,10 @@ const docTemplate = `{
                 },
                 "contract_id": {
                     "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "tracking_url": {
                     "type": "string",
@@ -24553,14 +24554,8 @@ const docTemplate = `{
                 "channel": {
                     "$ref": "#/definitions/responses.AffiliateLinkChannel"
                 },
-                "channel_id": {
-                    "type": "string"
-                },
                 "content": {
                     "$ref": "#/definitions/responses.AffiliateLinkContent"
-                },
-                "content_id": {
-                    "type": "string"
                 },
                 "contract": {
                     "description": "Optional nested objects (using existing summary types)",
@@ -24570,9 +24565,6 @@ const docTemplate = `{
                         }
                     ]
                 },
-                "contract_id": {
-                    "type": "string"
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -24581,6 +24573,10 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "short_url": {
                     "description": "e.g., \"https://domain.com/r/{hash}\"",
