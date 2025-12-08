@@ -621,12 +621,12 @@ func toPaymentItemRequestWithTotalPrice(preOrder model.PreOrder) ([]requests.Pay
 	variantName := utils.ToTitleCase(preOrder.ProductVariant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)
 	mappedModel := requests.PaymentItemRequest{
 		Name:     variantName,
-		Quantity: 1,
+		Quantity: preOrder.Quantity,
 		Price:    int64(preOrder.UnitPrice),
 	}
 
 	items = append(items, mappedModel)
-	total += int64(preOrder.UnitPrice)
+	total += int64(preOrder.UnitPrice) * int64(preOrder.Quantity)
 	return items, total
 }
 

@@ -612,7 +612,7 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 					return fmt.Errorf("stock data not found for limited variant: %s", variant.ID.String())
 				}
 				// check order remain quantity
-				generalRemain := *variant.MaxStock - *variant.CurrentStock
+				generalRemain := *variant.CurrentStock
 				if generalRemain <= 0 {
 					return fmt.Errorf("this product is out of stock for order")
 				}
