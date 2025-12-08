@@ -1,4 +1,4 @@
-// package ai provides a manager for handling multiple AI service providers
+// Package ai provides a manager for handling multiple AI service providers
 // via different strategies.
 package ai
 
@@ -12,7 +12,7 @@ import (
 	"net/http"
 )
 
-type AIClientManagerImpl struct {
+type aiClientManager struct {
 	strategies map[string]AIStrategy
 	modelMap   map[string]string
 }
@@ -37,13 +37,13 @@ func NewAIClientManager(httpClient *http.Client, aiConfig *config.AIConfig) ipro
 		modelMap[modelConfig.ID] = modelConfig.Provider
 	}
 
-	return &AIClientManagerImpl{
+	return &aiClientManager{
 		strategies: strategies,
 		modelMap:   modelMap,
 	}
 }
 
-func (m *AIClientManagerImpl) GenerateChatCompletion(ctx context.Context, req *requests.ChatRequest) (*responses.ChatResponse, error) {
+func (m *aiClientManager) GenerateChatCompletion(ctx context.Context, req *requests.ChatRequest) (*responses.ChatResponse, error) {
 	// 1. Resolve provider key from model ID
 	providerKey, ok := m.modelMap[req.Model]
 	if !ok {
@@ -63,7 +63,7 @@ func (m *AIClientManagerImpl) GenerateChatCompletion(ctx context.Context, req *r
 	return strategy.Send(ctx, req)
 }
 
-func (m *AIClientManagerImpl) StreamChatCompletion(ctx context.Context, req *requests.ChatRequest) (<-chan *responses.ChatResponse, error) {
+func (m *aiClientManager) StreamChatCompletion(ctx context.Context, req *requests.ChatRequest) (<-chan *responses.ChatResponse, error) {
 	// 1. Resolve provider key from model ID
 	providerKey, ok := m.modelMap[req.Model]
 	if !ok {

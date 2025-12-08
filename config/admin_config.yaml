@@ -89,6 +89,7 @@ tiktok_expiry_threshold_notifications: 7
 system_email: "bshowsell@gmail.com"
 system_name: "BShowSell_System"
 
+
 # AI Content Generation
 content_generation_prompt_template: |
   You are a professional social media content creator.
@@ -136,3 +137,8 @@ content_generation_prompt_template: |
   - Interactive Nodes: "details", "detailsSummary", "detailsContent"
   For Marks components, possible types only include: "bold", "italic", "strike", "underline", "code", "link", "subscript", "superscript", "highlight", "textStyle"
 
+facebook_homepage_url: "https://www.facebook.com/profile.php?id=61584236886843"
+tiktok_homepage_url: "https://www.tiktok.com/@trinhloinhoi007"
+
+affiliate_hash_length: 20
+affiliate_url_format: "{base_url}/f/{hash}"

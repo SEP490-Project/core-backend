@@ -68,6 +68,12 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 		if filter.Type != nil {
 			db = db.Where("tasks.type = ?", *filter.Type)
 		}
+		if filter.HasContent != nil {
+			db = db.Where("(EXISTS (SELECT 1 FROM contents WHERE contents.task_id = tasks.id) = ?)", *filter.HasContent)
+		}
+		if filter.HasProduct != nil {
+			db = db.Where("(EXISTS (SELECT 1 FROM products WHERE products.task_id = tasks.id) = ?)", *filter.HasProduct)
+		}
 
 		sortBy := filter.SortBy
 		if sortBy == "" {

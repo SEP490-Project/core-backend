@@ -27,6 +27,7 @@ type ContentHandler struct {
 	channelService           iservice.ChannelService
 	unitOfWork               irepository.UnitOfWork
 	rabbitmq                 *rabbitmq.RabbitMQ
+	validatorBuilder         *customvalidator.ValidatorBuilder
 	validator                *validator.Validate
 }
 
@@ -47,6 +48,7 @@ func NewContentHandler(
 		channelService:           appReg.ChannelService,
 		unitOfWork:               unitOfWork,
 		rabbitmq:                 rabbitmq,
+		validatorBuilder:         customValidator,
 		validator:                customValidator.Validate,
 	}
 }
@@ -73,8 +75,8 @@ func (h *ContentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	if err := h.validator.Struct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, processValidationError(err))
+	if validationErrs := h.validatorBuilder.Check(&req); validationErrs != nil {
+		c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", validationErrs...))
 		return
 	}
 

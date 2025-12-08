@@ -27,9 +27,17 @@ func NewValkeyCache() *ValkeyCache {
 		zap.Int("db", cfg.DB))
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", cfg.Host, strconv.Itoa(cfg.Port)),
-		Password: cfg.Password,
-		DB:       cfg.DB,
+		Addr:            fmt.Sprintf("%s:%s", cfg.Host, strconv.Itoa(cfg.Port)),
+		Password:        cfg.Password,
+		DB:              cfg.DB,
+		PoolSize:        20,
+		MinIdleConns:    5,
+		ConnMaxLifetime: 10 * time.Minute,
+		ConnMaxIdleTime: 2 * time.Minute,
+		DialTimeout:     5 * time.Second,
+		ReadTimeout:     3 * time.Second,
+		WriteTimeout:    3 * time.Second,
+		MaxRetries:      3,
 	})
 
 	cache := &ValkeyCache{
