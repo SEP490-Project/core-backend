@@ -14,6 +14,7 @@ import (
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/logging"
+	"core-backend/pkg/tiptap"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
@@ -386,7 +387,7 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	pageID := *channel.ExternalID
 
 	// Parse Tiptap content body to extract text and images
-	parseResult, err := utils.ParseTiptapJSON(content.Body)
+	parseResult, err := tiptap.ParseTiptapJSON(content.Body)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to parse content body: %w", err)
 	}
@@ -429,7 +430,7 @@ func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context
 }
 
 // publishSinglePhotoPostToFacebook creates a photo post with a single image on Facebook
-func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult) (string, string, *enum.ExternalPostType, error) {
+func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *tiptap.TiptapParseResult) (string, string, *enum.ExternalPostType, error) {
 	// Photo post with caption using first image
 	publishingRequest := &dtos.FacebookPhotoPostPublishRequest{
 		PageID:                 pageID,
@@ -451,7 +452,7 @@ func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.
 
 // publishMultiPhotoPostToFacebook creates a multi-photo post on Facebook
 func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
-	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *utils.TiptapParseResult,
+	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
 	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
@@ -516,7 +517,7 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 // region: 4. ======== Facebook Publishing Content of Video Types ========
 
 func (s *contentPublishingService) publishVideoPostToFacebook(
-	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *utils.TiptapParseResult,
+	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
 	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)

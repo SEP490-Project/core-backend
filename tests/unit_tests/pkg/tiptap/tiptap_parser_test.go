@@ -1,7 +1,7 @@
-package utils
+package tiptap
 
 import (
-	"core-backend/pkg/utils"
+	"core-backend/pkg/tiptap"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +95,7 @@ func TestParseTiptapJSON(t *testing.T) {
   ]
 }`
 
-	result, err := utils.ParseTiptapJSON([]byte(exampleJSON))
+	result, err := tiptap.ParseTiptapJSON([]byte(exampleJSON))
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
@@ -141,7 +141,7 @@ func TestGetFirstImageURL(t *testing.T) {
   ]
 }`
 
-	url, err := utils.GetFirstImageURL([]byte(jsonWithImage))
+	url, err := tiptap.GetFirstImageURL([]byte(jsonWithImage))
 	assert.NoError(t, err)
 	assert.Equal(t, "https://example.com/image1.jpg", url)
 
@@ -156,7 +156,7 @@ func TestGetFirstImageURL(t *testing.T) {
   ]
 }`
 
-	url, err = utils.GetFirstImageURL([]byte(jsonNoImage))
+	url, err = tiptap.GetFirstImageURL([]byte(jsonNoImage))
 	assert.NoError(t, err)
 	assert.Equal(t, "", url)
 }
@@ -174,7 +174,7 @@ func TestGetPlainTextPreview(t *testing.T) {
   ]
 }`
 
-	preview, err := utils.GetPlainTextPreview([]byte(jsonData), 50)
+	preview, err := tiptap.GetPlainTextPreview([]byte(jsonData), 50)
 	assert.NoError(t, err)
 	assert.LessOrEqual(t, len(preview), 54) // 50 + "..." + tolerance for word boundary
 	assert.Contains(t, preview, "...")
@@ -212,7 +212,7 @@ func TestParseTiptapJSON_OrderedList(t *testing.T) {
   ]
 }`
 
-	result, err := utils.ParseTiptapJSON([]byte(jsonData))
+	result, err := tiptap.ParseTiptapJSON([]byte(jsonData))
 	assert.NoError(t, err)
 	assert.Contains(t, result.PlainText, "1. First item")
 	assert.Contains(t, result.PlainText, "2. Second item")
@@ -233,7 +233,7 @@ func TestParseTiptapJSON_HardBreak(t *testing.T) {
   ]
 }`
 
-	result, err := utils.ParseTiptapJSON([]byte(jsonData))
+	result, err := tiptap.ParseTiptapJSON([]byte(jsonData))
 	assert.NoError(t, err)
 	assert.Contains(t, result.PlainText, "Line 1\nLine 2")
 }
