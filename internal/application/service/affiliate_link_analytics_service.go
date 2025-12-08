@@ -60,7 +60,7 @@ func (s *AffiliateLinkAnalyticsService) GetMetricsByContract(
 	// Get all affiliate links for this contract
 	links, _, err := s.affiliateLinkRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
-			return db.Where("contract_id = ?", req.ContractID)
+			return db.Where("contract_id = ? OR metadata->>'contract_id' = ?", req.ContractID, req.ContractID.String())
 		},
 		[]string{"Channel"}, 0, 0)
 	if err != nil {

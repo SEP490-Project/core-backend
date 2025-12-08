@@ -47,16 +47,32 @@ func (r *affiliateLinkRepository) GetByHash(ctx context.Context, hash string) (*
 func (r *affiliateLinkRepository) GetByTrackingURLAndContext(
 	ctx context.Context,
 	trackingURL string,
-	contractID, contentID, channelID uuid.UUID,
+	contractID, contentID, channelID *uuid.UUID,
 ) (*model.AffiliateLink, error) {
 	var link model.AffiliateLink
-	err := r.db.WithContext(ctx).
+	query := r.db.WithContext(ctx).
 		Where("tracking_url = ?", trackingURL).
-		Where("contract_id = ?", contractID).
-		Where("content_id = ?", contentID).
-		Where("channel_id = ?", channelID).
-		Where("deleted_at IS NULL").
-		First(&link).Error
+		Where("deleted_at IS NULL")
+
+	if contractID != nil {
+		query = query.Where("contract_id = ?", *contractID)
+	} else {
+		query = query.Where("contract_id IS NULL")
+	}
+
+	if contentID != nil {
+		query = query.Where("content_id = ?", *contentID)
+	} else {
+		query = query.Where("content_id IS NULL")
+	}
+
+	if channelID != nil {
+		query = query.Where("channel_id = ?", *channelID)
+	} else {
+		query = query.Where("channel_id IS NULL")
+	}
+
+	err := query.First(&link).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

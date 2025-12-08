@@ -241,6 +241,10 @@ func (h *RedirectHandler) parseUserAgent(userAgent string) (string, string, stri
 // isValidTrackingURL validates the tracking URL to prevent open redirect attacks (T110)
 // Only allows HTTPS URLs from trusted e-commerce domains
 func (h *RedirectHandler) isValidTrackingURL(trackingURL string) bool {
+	if h.appConfigs.IsDevelopment() {
+		return true
+	}
+
 	// Parse URL
 	parsedURL, err := url.Parse(trackingURL)
 	if err != nil {

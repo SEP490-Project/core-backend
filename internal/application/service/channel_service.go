@@ -417,7 +417,7 @@ func (c *channelService) GetDecryptedTokenPair(ctx context.Context, channelName 
 			return "", "", errors.New("no vault path stored for channel")
 		}
 
-		vaultPath := *channel.HashedAccessToken
+		vaultPath := *channel.VaultPath
 		var secret map[string]any
 		secret, err = c.vaultService.GetSecret(ctx, vaultPath)
 		if err != nil {

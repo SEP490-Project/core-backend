@@ -47,7 +47,9 @@ func NewTaskHandler(taskService iservice.TaskService, unitOfWork irepository.Uni
 //	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date-time)
 //	@Param			updated_to_date		query		string								false	"Filter by updated to date"		format(date-time)
 //	@Param			status				query		string								false	"Filter by task status"			Enums(TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
-//	@Param			type				query		string								false	"Filter by task type"			Enums(PRODUCT, CONTENT, EVENT, OTHER)
+//	@Param			has_content			query		bool								false	"Filter by tasks that have associated content"
+//	@Param			has_product			query		bool								false	"Filter by tasks that have associated product"
+//	@Param			type				query		string								false	"Filter by task type"	Enums(PRODUCT, CONTENT, EVENT, OTHER)
 //	@Param			sort_by				query		string								false	"Field to sort by"
 //	@Param			sort_order			query		string								false	"Sort order (asc or desc)"
 //	@Success		200					{object}	responses.PaginationTaskResponse	"Tasks retrieved successfully"

@@ -16,7 +16,7 @@ type AffiliateLinkRepository interface {
 	GetByHash(ctx context.Context, hash string) (*model.AffiliateLink, error)
 
 	// GetByTrackingURLAndContext retrieves an affiliate link by tracking URL and context (contract+content+channel)
-	GetByTrackingURLAndContext(ctx context.Context, trackingURL string, contractID, contentID, channelID uuid.UUID) (*model.AffiliateLink, error)
+	GetByTrackingURLAndContext(ctx context.Context, trackingURL string, contractID, contentID, channelID *uuid.UUID) (*model.AffiliateLink, error)
 
 	// GetActiveLinks retrieves all active affiliate links (status = 'active' and not soft-deleted)
 	GetActiveLinks(ctx context.Context, pageSize, pageNumber int) ([]model.AffiliateLink, int64, error)

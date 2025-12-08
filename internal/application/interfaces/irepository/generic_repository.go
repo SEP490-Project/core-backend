@@ -23,6 +23,9 @@ type GenericRepository[T any] interface {
 	// BulkAdd adds multiple entities to the database in batches of the specified size.
 	// If batchSize is less than or equal to 100, the operations will be performed using the default batch size defined in config.
 	BulkAdd(ctx context.Context, entities []*T, batchSize int) (rowsAffected int64, err error)
+
+	// AddAndGet adds a new entity to the database and retrieves it with all fields populated (e.g., auto-generated fields).
+	AddAndGet(ctx context.Context, entity *T) (*T, error)
 	Update(ctx context.Context, entity *T) error
 	UpdateByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB, updates map[string]any) error
 	Delete(ctx context.Context, entity *T) error
