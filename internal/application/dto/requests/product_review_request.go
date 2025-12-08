@@ -8,7 +8,7 @@ import (
 // AddProductReviewRequest defines the request payload for adding a product review
 type AddProductReviewRequest struct {
 	ReferenceID string  `json:"referenceID" validate:"required"`
-	Type        string  `json:"type" validate:"required,oneof=ORDER PREORDER"`
+	Type        string  `json:"order_type" validate:"required,oneof=ORDER PREORDER"`
 	Rating      int     `json:"rating" validate:"required,min=1,max=5"`
 	Comment     *string `json:"comment"`
 	AssetsURL   *string `json:"assets_url"`

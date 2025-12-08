@@ -425,6 +425,8 @@ func (s *preOrderService) GetPreOrdersByUserIDWithPagination(
 		"ProductVariant.Images",
 		"Brand",
 		"Category",
+		"ProductVariant.Product",
+		"ProductVariant.Product.Limited",
 	}
 
 	// ---- FILTER ----
