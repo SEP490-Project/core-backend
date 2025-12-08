@@ -34,8 +34,9 @@ type TaskDetailDTO struct {
 	ContractID     *uuid.UUID      `json:"contract_id" gorm:"column:contract_id"`
 
 	// Aggregated fields
-	ContentIDs []uuid.UUID `json:"content_ids" gorm:"-"`
-	ProductIDs []uuid.UUID `json:"product_ids" gorm:"-"`
+	ContentInfos []ContentInfo `json:"content_info,omitempty" gorm:"-"`
+	ProductInfos []ProductInfo `json:"product_info,omitempty" gorm:"-"`
+	BrandInfo    *BrandInfo    `json:"brand_info,omitempty" gorm:"-"`
 }
 
 // TaskListDTO represents a summarized view of a task for listing purposes.
@@ -55,4 +56,24 @@ type TaskListDTO struct {
 	CampaignName   *string             `json:"campaign_name,omitempty" gorm:"column:campaign_name"`
 	ContractID     *uuid.UUID          `json:"contract_id" gorm:"column:contract_id"`
 	ChildStatus    *enum.ProductStatus `json:"child_status" gorm:"column:child_status"`
+}
+
+type ProductInfo struct {
+	ID   uuid.UUID        `json:"id"`
+	Name string           `json:"name"`
+	Type enum.ProductType `json:"type"`
+}
+
+type ContentInfo struct {
+	ID          uuid.UUID        `json:"id"`
+	Title       string           `json:"title"`
+	Description *string          `json:"description,omitempty"`
+	Type        enum.ContentType `json:"type"`
+}
+
+type BrandInfo struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	LogoURL *string `json:"logo_url"`
+	Status  string  `json:"status"`
 }
