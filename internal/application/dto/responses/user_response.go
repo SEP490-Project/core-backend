@@ -28,6 +28,11 @@ type UserResponse struct {
 	CurrentLoginDevice []string                   `json:"current_login_device,omitempty" example:"[\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\"]"`
 	NumberOfSessions   int                        `json:"number_of_sessions,omitempty" example:"3"`
 	ShippingAddress    []*ShippingAddressResponse `json:"shipping_address,omitempty"`
+	BankInfo           *struct {
+		BankAccount       *string `json:"bank_account,omitempty"`
+		BankName          *string `json:"bank_name,omitempty"`
+		BankAccountHolder *string `json:"bank_account_holder,omitempty"`
+	} `json:"bank_info,omitempty"`
 }
 
 // ToUserResponse converts User model to UserResponse
@@ -59,6 +64,17 @@ func (ur *UserResponse) ToUserResponse(model *model.User) (userResponse *UserRes
 
 	if model.Brand != nil {
 		userResponse.IsBrandAccount = true
+	}
+
+	if model.BankAccount != nil || model.BankName != nil || model.BankAccountHolder != nil {
+		userResponse.BankInfo = &struct {
+			BankAccount       *string `json:"bank_account,omitempty"`
+			BankName          *string `json:"bank_name,omitempty"`
+			BankAccountHolder *string `json:"bank_account_holder,omitempty"`
+		}{}
+		userResponse.BankInfo.BankAccount = model.BankAccount
+		userResponse.BankInfo.BankName = model.BankName
+		userResponse.BankInfo.BankAccountHolder = model.BankAccountHolder
 	}
 
 	return
