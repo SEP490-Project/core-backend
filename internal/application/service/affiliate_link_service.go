@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -9,6 +10,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -19,10 +21,12 @@ import (
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type affiliateLinkService struct {
+	config            *config.AppConfig
 	affiliateLinkRepo irepository.AffiliateLinkRepository
 	contractRepo      irepository.GenericRepository[model.Contract]
 	contentRepo       irepository.GenericRepository[model.Content]
@@ -37,7 +41,7 @@ func NewAffiliateLinkService(
 	contentRepo irepository.GenericRepository[model.Content],
 	channelRepo irepository.GenericRepository[model.Channel],
 	unitOfWork irepository.UnitOfWork,
-	baseURL string,
+	config *config.AppConfig,
 ) iservice.AffiliateLinkService {
 	return &affiliateLinkService{
 		affiliateLinkRepo: affiliateLinkRepo,
@@ -45,7 +49,8 @@ func NewAffiliateLinkService(
 		contentRepo:       contentRepo,
 		channelRepo:       channelRepo,
 		unitOfWork:        unitOfWork,
-		baseURL:           strings.TrimSuffix(baseURL, "/"),
+		baseURL:           strings.TrimSuffix(config.Server.BaseURL, "/"),
+		config:            config,
 	}
 }
 
@@ -53,11 +58,7 @@ func NewAffiliateLinkService(
 func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.CreateAffiliateLinkRequest) (*responses.AffiliateLinkResponse, error) {
 	startTime := time.Now()
 
-	zap.L().Debug("CreateOrGet affiliate link started",
-		zap.String("contract_id", req.ContractID.String()),
-		zap.String("content_id", req.ContentID.String()),
-		zap.String("channel_id", req.ChannelID.String()),
-		zap.String("tracking_url", req.TrackingURL))
+	zap.L().Debug("CreateOrGet affiliate link started", zap.Any("request", req))
 
 	// Validate that contract, content, and channel exist
 	if err := s.validateReferences(ctx, req.ContractID, req.ContentID, req.ChannelID); err != nil {
@@ -100,9 +101,28 @@ func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.Cr
 	}
 
 	// Generate unique hash
-	hash := s.generateHash(req.TrackingURL, req.ContractID, req.ContentID, req.ChannelID)
+	hash := s.generateHash(req.TrackingURL, req.ContractID, req.ContentID, req.ChannelID, req.Metadata)
 
 	// Create new affiliate link
+	var metadataJSON datatypes.JSON
+	if req.Metadata != nil {
+		metadataJSON, _ = json.Marshal(req.Metadata)
+	} else {
+		newMetadata := make(map[string]string)
+		if req.ContractID != nil {
+			newMetadata["contract_id"] = req.ContractID.String()
+		}
+		if req.ContentID != nil {
+			newMetadata["content_id"] = req.ContentID.String()
+		}
+		if req.ChannelID != nil {
+			newMetadata["channel_id"] = req.ChannelID.String()
+		}
+		if metadataJSON, err = json.Marshal(newMetadata); err != nil {
+			metadataJSON = datatypes.JSON("{}")
+		}
+	}
+
 	link := &model.AffiliateLink{
 		Hash:         hash,
 		ContractID:   req.ContractID,
@@ -111,11 +131,11 @@ func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.Cr
 		TrackingURL:  req.TrackingURL,
 		AffiliateURL: fmt.Sprintf("%s/r/%s", s.baseURL, hash),
 		Status:       enum.AffiliateLinkStatusActive,
+		Metadata:     metadataJSON,
 	}
 
-	uow := s.unitOfWork.Begin(ctx)
-	err = helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		if err = uow.AffiliateLinks().Add(ctx, link); err != nil {
+	err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if link, err = uow.AffiliateLinks().AddAndGet(ctx, link); err != nil {
 			zap.L().Error("Failed to create affiliate link",
 				zap.Error(err),
 				zap.String("hash", hash),
@@ -123,14 +143,16 @@ func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.Cr
 			return fmt.Errorf("failed to create affiliate link: %w", err)
 		}
 
-		if err = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("content_id = ? AND channel_id = ?", req.ContentID, req.ChannelID)
-		}, map[string]any{"affiliate_link_id": link.ID}); err != nil {
-			zap.L().Error("Failed to update content channel after affiliate link creation",
-				zap.String("content_id", req.ContentID.String()),
-				zap.String("channel_id", req.ChannelID.String()),
-				zap.Error(err))
-			return fmt.Errorf("failed to update content channel: %w", err)
+		if req.ContentID != nil && req.ChannelID != nil {
+			if err = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("content_id = ? AND channel_id = ?", req.ContentID, req.ChannelID)
+			}, map[string]any{"affiliate_link_id": link.ID}); err != nil {
+				zap.L().Error("Failed to update content channel after affiliate link creation",
+					zap.String("content_id", req.ContentID.String()),
+					zap.String("channel_id", req.ChannelID.String()),
+					zap.Error(err))
+				return fmt.Errorf("failed to update content channel: %w", err)
+			}
 		}
 
 		return nil
@@ -145,10 +167,6 @@ func (s *affiliateLinkService) CreateOrGet(ctx context.Context, req *requests.Cr
 	zap.L().Info("Created new affiliate link",
 		zap.String("hash", link.Hash),
 		zap.String("link_id", link.ID.String()),
-		zap.String("contract_id", req.ContractID.String()),
-		zap.String("content_id", req.ContentID.String()),
-		zap.String("channel_id", req.ChannelID.String()),
-		zap.String("tracking_url", req.TrackingURL),
 		zap.Duration("duration_ms", duration),
 		zap.String("operation", "affiliate_link_create"))
 
@@ -297,9 +315,29 @@ func (s *affiliateLinkService) MarkAsExpired(ctx context.Context, ids []uuid.UUI
 // region: ============= Helpers methods =============
 
 // generateHash creates a unique base62-encoded SHA-256 hash (16 chars)
-func (s *affiliateLinkService) generateHash(trackingURL string, contractID, contentID, channelID uuid.UUID) string {
+func (s *affiliateLinkService) generateHash(trackingURL string, contractID, contentID, channelID *uuid.UUID, metadata map[string]any) string {
 	// Combine inputs for hashing
-	input := fmt.Sprintf("%s|%s|%s|%s", trackingURL, contractID.String(), contentID.String(), channelID.String())
+	cID := "null"
+	if contractID != nil {
+		cID = contractID.String()
+	}
+	ctID := "null"
+	if contentID != nil {
+		ctID = contentID.String()
+	}
+	chID := "null"
+	if channelID != nil {
+		chID = channelID.String()
+	}
+
+	// Sort metadata keys to ensure consistent hashing
+	metaStr := ""
+	if len(metadata) > 0 {
+		metaBytes, _ := json.Marshal(metadata)
+		metaStr = string(metaBytes)
+	}
+
+	input := fmt.Sprintf("%s|%s|%s|%s|%s", trackingURL, cID, ctID, chID, metaStr)
 
 	// Compute SHA-256 hash
 	hash := sha256.Sum256([]byte(input))
@@ -320,23 +358,34 @@ func (s *affiliateLinkService) generateHash(trackingURL string, contractID, cont
 	return encoded
 }
 
-func (s *affiliateLinkService) validateReferences(ctx context.Context, contractID, contentID, channelID uuid.UUID) error {
-	// Check contract exists
-	if _, err := s.contractRepo.GetByID(ctx, contractID, nil); err != nil {
-		return fmt.Errorf("contract not found: %s", contractID)
+func (s *affiliateLinkService) validateReferences(ctx context.Context, contractID, contentID, channelID *uuid.UUID) error {
+	validateFuncs := make([]func(context.Context) error, 0)
+	if contractID != nil {
+		validateFuncs = append(validateFuncs, func(ctx context.Context) error {
+			if _, err := s.contractRepo.GetByID(ctx, *contractID, nil); err != nil {
+				return fmt.Errorf("contract not found: %s", contractID)
+			}
+			return nil
+		})
+	}
+	if contentID != nil {
+		validateFuncs = append(validateFuncs, func(ctx context.Context) error {
+			if _, err := s.contentRepo.GetByID(ctx, *contentID, nil); err != nil {
+				return fmt.Errorf("content not found: %s", contentID)
+			}
+			return nil
+		})
+	}
+	if channelID != nil {
+		validateFuncs = append(validateFuncs, func(ctx context.Context) error {
+			if _, err := s.channelRepo.GetByID(ctx, *channelID, nil); err != nil {
+				return fmt.Errorf("channel not found: %s", channelID)
+			}
+			return nil
+		})
 	}
 
-	// Check content exists
-	if _, err := s.contentRepo.GetByID(ctx, contentID, nil); err != nil {
-		return fmt.Errorf("content not found: %s", contentID)
-	}
-
-	// Check channel exists
-	if _, err := s.channelRepo.GetByID(ctx, channelID, nil); err != nil {
-		return fmt.Errorf("channel not found: %s", channelID)
-	}
-
-	return nil
+	return utils.RunParallel(ctx, len(validateFuncs), validateFuncs...)
 }
 
 // ValidateContractStatus checks if the contract is still active for the affiliate link
@@ -383,22 +432,26 @@ func (s *affiliateLinkService) ValidateAffiliateLink(ctx context.Context, link *
 		return fmt.Errorf("affiliate link is %s", link.Status)
 	}
 
-	// Validate contract status
-	if err := s.ValidateContractStatus(ctx, link.ContractID); err != nil {
-		zap.L().Debug("Contract validation failed",
-			zap.String("link_id", link.ID.String()),
-			zap.String("contract_id", link.ContractID.String()),
-			zap.Error(err))
-		return fmt.Errorf("contract validation failed: %w", err)
+	// Validate contract status if present
+	if contractID := link.GetContractID(); contractID != nil {
+		if err := s.ValidateContractStatus(ctx, *contractID); err != nil {
+			zap.L().Debug("Contract validation failed",
+				zap.String("link_id", link.ID.String()),
+				zap.String("contract_id", contractID.String()),
+				zap.Error(err))
+			return fmt.Errorf("contract validation failed: %w", err)
+		}
 	}
 
-	// Validate content status
-	if err := s.ValidateContentStatus(ctx, link.ContentID); err != nil {
-		zap.L().Debug("Content validation failed",
-			zap.String("link_id", link.ID.String()),
-			zap.String("content_id", link.ContentID.String()),
-			zap.Error(err))
-		return fmt.Errorf("content validation failed: %w", err)
+	// Validate content status if present
+	if contentID := link.GetContentID(); contentID != nil {
+		if err := s.ValidateContentStatus(ctx, *contentID); err != nil {
+			zap.L().Debug("Content validation failed",
+				zap.String("link_id", link.ID.String()),
+				zap.String("content_id", contentID.String()),
+				zap.Error(err))
+			return fmt.Errorf("content validation failed: %w", err)
+		}
 	}
 
 	return nil
