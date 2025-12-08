@@ -133,6 +133,13 @@ func (r *genericRepository[T]) BulkAdd(ctx context.Context, entities []*T, batch
 	return result.RowsAffected, result.Error
 }
 
+func (r *genericRepository[T]) AddAndGet(ctx context.Context, entity *T) (*T, error) {
+	if err := r.db.WithContext(ctx).Create(entity).Error; err != nil {
+		return nil, err
+	}
+	return entity, nil
+}
+
 // Update updates an existing entity in the database.
 func (r *genericRepository[T]) Update(ctx context.Context, entity *T) error {
 	return r.db.WithContext(ctx).Updates(entity).Error
