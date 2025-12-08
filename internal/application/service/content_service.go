@@ -759,6 +759,10 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 			zap.String("task_id", content.TaskID.String()),
 			zap.Error(err))
 		return nil // Don't fail content creation if tracking link retrieval fails
+	} else if trackingLink == "" || contractID == uuid.Nil {
+		zap.L().Warn("No tracking link found for contract associated with content task",
+			zap.String("task_id", content.TaskID.String()))
+		return nil
 	}
 
 	// Create affiliate links for each channel
