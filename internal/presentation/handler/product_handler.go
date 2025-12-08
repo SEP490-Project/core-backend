@@ -435,10 +435,8 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Tags			Products.Reviews
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			productId		path		string	true	"Product ID"
-//	@Param			variant_id		formData	string	false	"Variant ID (UUID)"
-//	@Param			order_id		formData	string	false	"Order ID (UUID)"
-//	@Param			pre_order_id	formData	string	false	"PreOrder ID (UUID)"
+//	@Param			referenceID		path		string	true	"ORDER ITEM/preorder ID (UUID)"
+//	@Param			order_type      formData    string  true    "Order Type (ORDER | PREORDER)" Enums(ORDER,PREORDER)
 //	@Param			rating			formData	int		true	"Rating (1-5)"
 //	@Param			comment			formData	string	false	"Comment"
 //	@Param			assets			formData	file	false	"Asset file (image)"
@@ -447,17 +445,16 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Failure		401				{object}	responses.APIResponse
 //	@Failure		500				{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/products/{productID}/reviews [post]
+//	@Router			/api/v1/products/{referenceID}/reviews [post]
 func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	// Build request DTO from form values
 	var req requests.AddProductReviewRequest
 	// --- Path ID ---
-	productID, err := parseUUIDParam(c, "productID")
+	referenceID, err := parseUUIDParam(c, "referenceID")
 	if err != nil {
 		return
 	}
-	productIDStr := productID.String()
-	req.ProductID = &productIDStr
+	referenceIDStr := referenceID.String()
 
 	// extract authenticated user
 	userID, err := extractUserID(c)
@@ -471,18 +468,20 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 		return
 	}
 
-	req.VariantID, err = extractRequiredFormField(c, "variant_id")
+	orderTypeStr, err := extractRequiredFormField(c, "order_type")
 	if err != nil {
 		return
 	}
-	req.OrderItemID, err = extractRequiredFormField(c, "order_id")
-	if err != nil {
+
+	if *orderTypeStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("order_type is required", http.StatusBadRequest))
 		return
+	} else if *orderTypeStr == "ORDER" {
+		req.OrderItemID = &referenceIDStr
+	} else if *orderTypeStr == "PREORDER" {
+		req.PreOrderID = &referenceIDStr
 	}
-	req.PreOrderID, err = extractRequiredFormField(c, "pre_order_id")
-	if err != nil {
-		return
-	}
+
 	req.Comment, err = extractRequiredFormField(c, "comment")
 	if err != nil {
 		return
