@@ -22,8 +22,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"gorm.io/gorm/clause"
 	"time"
+
+	"gorm.io/gorm/clause"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -255,6 +256,60 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	}
 
 	return totalProcessed, failed, upCommingItems
+}
+
+func (p *preOrderService) OpeningPreOrderEarly(ctx context.Context, uow irepository.UnitOfWork, productID uuid.UUID, updatedBy uuid.UUID) error {
+	zap.L().Info("Opening pre-orders early for product",
+		zap.String("product_id", productID.String()))
+	currentTime := time.Now().Add(-1 * time.Minute) // backdate 1 minute to avoid timezone issues
+
+	// Update Limited Productd availability_start_date to current time
+	if err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err := uow.LimitedProducts().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", productID)
+		}, map[string]any{"availability_start_date": currentTime, "premiere_date": currentTime}); err != nil {
+			zap.L().Error("Failed to update limited product availability start date", zap.Error(err))
+			return fmt.Errorf("failed to update limited product availability start date: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	upcomingFilter := func(db *gorm.DB) *gorm.DB {
+		return db.Joins("JOIN product_variants pv ON pv.id = pre_orders.variant_id").
+			Joins("JOIN products p ON p.id = pv.product_id").
+			Joins("JOIN limited_products lp ON lp.id = p.id").
+			Where("pre_orders.status = ?", enum.PreOrderStatusPreOrdered).
+			Where("lp.availability_start_date >= ?", currentTime).
+			Where("p.id = ?", productID)
+	}
+	upcomingPreOrders, total, err := p.preOrderRepository.GetAll(ctx, upcomingFilter, []string{}, 0, 0)
+	if err != nil {
+		zap.L().Error("Failed to fetch upcoming pre-orders for opening early", zap.Error(err))
+		return fmt.Errorf("failed to fetch pre-orders for opening checker: %w", err)
+	}
+
+	failedPreOrdersIDs := make([]uuid.UUID, 0)
+	for _, preOrder := range upcomingPreOrders {
+		if preOrder.IsSelfPickedUp {
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
+		} else {
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
+		}
+		if err != nil {
+			zap.L().Error(fmt.Sprintf("Failed to update pre-order status with ID: %s , Detail: %s", preOrder.ID.String(), err.Error()))
+			failedPreOrdersIDs = append(failedPreOrdersIDs, preOrder.ID)
+		}
+	}
+
+	zap.L().Info("Opening pre-orders early completed",
+		zap.Int64("total_pre_orders_processed", total),
+		zap.Int("total_pre_orders_failed", len(failedPreOrdersIDs)),
+		zap.Any("failed_pre_orders_ids", failedPreOrdersIDs),
+		zap.Duration("duration", time.Since(currentTime)))
+
+	return nil
 }
 
 // validateAndGetRemainingOrder returns remaining allowed pre-order slots for user to a variant.
