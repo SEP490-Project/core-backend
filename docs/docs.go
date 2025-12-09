@@ -9348,6 +9348,68 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contracts/{id}/scope-of-work": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve the scope of work associated with a specific contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contracts"
+                ],
+                "summary": "Get scope of work by contract ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Scope of work retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts/{id}/state": {
             "patch": {
                 "security": [
@@ -15172,6 +15234,171 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/products/reviews": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Add a review for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ORDER ITEM/preorder ID (UUID)",
+                        "name": "reference_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "ORDER",
+                            "PREORDER"
+                        ],
+                        "type": "string",
+                        "description": "Order Type (ORDER | PREORDER)",
+                        "name": "order_type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Rating (1-5)",
+                        "name": "rating",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comment",
+                        "name": "comment",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Asset file (image)",
+                        "name": "assets",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductReviewResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/reviews/{productId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns product reviews with pagination (limit/offset)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get paginated reviews for a product",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Items to skip",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductReviewResponse"
+                                    }
+                                },
+                                "limit": {
+                                    "type": "integer"
+                                },
+                                "offset": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products/standard": {
             "post": {
                 "security": [
@@ -15828,98 +16055,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/products/{productID}/reviews": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Authenticated user can add a review for a product they purchased (order or preorder). Either order_id or pre_order_id must be provided.",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Products.Reviews"
-                ],
-                "summary": "Add a review for a product",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Product ID",
-                        "name": "productId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Variant ID (UUID)",
-                        "name": "variant_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "order_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "string",
-                        "description": "PreOrder ID (UUID)",
-                        "name": "pre_order_id",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Rating (1-5)",
-                        "name": "rating",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Comment",
-                        "name": "comment",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Asset file (image)",
-                        "name": "assets",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ProductReviewResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -21394,9 +21529,6 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string"
-                },
-                "variant_id": {
-                    "type": "string"
                 }
             }
         },
@@ -24818,6 +24950,23 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandInfoResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandOverviewMetrics": {
             "type": "object",
             "properties": {
@@ -25584,11 +25733,28 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ContentChannelBrief": {
+        "responses.ContentChannelAffiliateInfo": {
             "type": "object",
             "properties": {
                 "affiliate_link": {
                     "type": "string"
+                },
+                "original_link": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ContentChannelBrief": {
+            "type": "object",
+            "properties": {
+                "affiliate_link": {
+                    "$ref": "#/definitions/responses.ContentChannelAffiliateInfo"
                 },
                 "auto_post_status": {
                     "type": "string"
@@ -25602,8 +25768,44 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "metrics": {
+                    "$ref": "#/definitions/responses.ContentChannelMetric"
+                },
                 "post_date": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.ContentChannelMetric": {
+            "type": "object",
+            "properties": {
+                "fetched": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "mapped": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                }
+            }
+        },
+        "responses.ContentInfo": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ContentType"
                 }
             }
         },
@@ -27806,6 +28008,9 @@ const docTemplate = `{
                 "length": {
                     "type": "integer"
                 },
+                "limited_properties": {
+                    "$ref": "#/definitions/responses.OrderLimitedProperties"
+                },
                 "manufacturing_date": {
                     "type": "string"
                 },
@@ -27927,6 +28132,20 @@ const docTemplate = `{
                 },
                 "update_at": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.ProductInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
                 }
             }
         },
@@ -28140,15 +28359,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "type": {
-                    "$ref": "#/definitions/enum.ProductType"
+                    "type": "string"
                 },
                 "user_id": {
                     "type": "string"
                 },
                 "user_name": {
-                    "type": "string"
-                },
-                "variant_id": {
                     "type": "string"
                 }
             }
@@ -28892,6 +29108,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Sales Staff"
                 },
+                "brand_info": {
+                    "$ref": "#/definitions/responses.BrandInfoResponse"
+                },
                 "campaign_details": {
                     "$ref": "#/definitions/responses.CampaignInfoResponse"
                 },
@@ -28902,12 +29121,8 @@ const docTemplate = `{
                 "content_ids": {
                     "type": "array",
                     "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[\"770e8400-e29b-41d4-a716-446655440000\"",
-                        " \"880e8400-e29b-41d4-a716-446655440000\"]"
-                    ]
+                        "$ref": "#/definitions/responses.ContentInfo"
+                    }
                 },
                 "contract_id": {
                     "type": "string",
@@ -28948,12 +29163,8 @@ const docTemplate = `{
                 "product_ids": {
                     "type": "array",
                     "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[\"550e8400-e29b-41d4-a716-446655440000\"",
-                        " \"660e8400-e29b-41d4-a716-446655440000\"]"
-                    ]
+                        "$ref": "#/definitions/responses.ProductInfo"
+                    }
                 },
                 "status": {
                     "type": "string",
@@ -29288,6 +29499,20 @@ const docTemplate = `{
                 "avatar_url": {
                     "type": "string",
                     "example": "https://example.com/avatar.jpg"
+                },
+                "bank_info": {
+                    "type": "object",
+                    "properties": {
+                        "bank_account": {
+                            "type": "string"
+                        },
+                        "bank_account_holder": {
+                            "type": "string"
+                        },
+                        "bank_name": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "created_at": {
                     "type": "string",
