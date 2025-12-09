@@ -639,21 +639,14 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				oldStock := 0
 				if variant.CurrentStock != nil {
 					oldStock = *variant.CurrentStock
+				} else {
+					return fmt.Errorf("current stock is nil for product: %s (id = %s)", variant.Product.Name, variant.ID.String())
 				}
 				if oldStock-item.Quantity < 0 {
 					return fmt.Errorf("insufficient stock for product: %s (id = %s). Have %d, need %d", variant.Product.Name, variant.ID.String(), oldStock, item.Quantity)
 				}
-				newStock := oldStock - item.Quantity
-				variant.CurrentStock = &newStock
-
-				zap.L().Info("Updating stock for LIMITED product",
-					zap.String("product_variant_id", variant.ID.String()),
-					zap.Int("old_stock", oldStock),
-					zap.Int("new_stock", newStock))
-
-				err = uow.ProductVariant().Update(ctx, variant)
+				err = o.AtomicDecreaseLimitedStock(ctx, variant.ID, item.Quantity)
 				if err != nil {
-					zap.L().Error("ProductVariant().Update", zap.Error(err))
 					return err
 				}
 			}
@@ -695,6 +688,26 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 	}
 
 	return persistedOrder, nil
+}
+
+func (o *orderService) AtomicDecreaseLimitedStock(
+	ctx context.Context,
+	variantID uuid.UUID,
+	qty int,
+) error {
+
+	tx := o.db.WithContext(ctx).Model(&model.ProductVariant{}).
+		Where("id = ? AND current_stock >= ?", variantID, qty).
+		UpdateColumn("current_stock", gorm.Expr("current_stock - ?", qty))
+
+	if tx.Error != nil {
+		return tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return fmt.Errorf("insufficient stock")
+	}
+
+	return nil
 }
 
 // PayOrder handles the payment process in a atomic transaction
