@@ -145,11 +145,10 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 	return helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// Use transactional repositories
 		taskRepo := uow.Tasks()
-		productRepo := uow.Products()
 
 		//1. Load current task from DB
 		// Preload nested product -> task to have back-reference available ("Products.Task")
-		task, err := taskRepo.GetByID(ctx, taskID, []string{"Product", "Product.Task", "Contents", "Contents.Task"})
+		task, err := taskRepo.GetByID(ctx, taskID, []string{"Product", "Product.Task", "Contents", "Contents.Task", "Milestone"})
 		if err != nil {
 			zap.L().Error("Failed to load task from DB",
 				zap.String("task ID", taskID.String()),
@@ -162,6 +161,7 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 		//2. Load task context
 		taskCtx := &tasksm.TaskContext{
 			State:    tasksm.NewTaskState(task.Status),
+			Task:     task,
 			Products: task.Product,
 			Contents: task.Contents,
 		}
@@ -194,22 +194,67 @@ func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.U
 				zap.Error(err))
 			return errors.New("Failed to update task state in DB: " + err.Error())
 		}
+		taskCtx.Task = task // reflect any in-memory changes made by state machine
 
-		//6. Cascade UpdatedByID (and any status changes applied by state machine) to product, if any
-		// Ensure task back-reference present (if not, assign for safety)
-		if taskCtx.Products != nil {
-			if taskCtx.Products.Task == nil {
-				taskCtx.Products.Task = task
-			}
-			taskCtx.Products.UpdatedByID = &updatedBy
-			if err := productRepo.Update(ctx, taskCtx.Products); err != nil {
-				// Log and continue; do not fail whole operation after task updated
-				zap.L().Error("Failed to cascade product update_by", zap.String("task_id", taskID.String()), zap.String("product_id", taskCtx.Products.ID.String()), zap.Error(err))
-			}
+		// 6. Handle side-effects
+		if err := t.handleTaskSideEffects(ctx, uow, taskCtx, task, targetState, updatedBy); err != nil {
+			return err
 		}
 
 		return nil
 	})
+}
+
+func (t *stateTransferService) handleTaskSideEffects(
+	ctx context.Context, uow irepository.UnitOfWork, taskCtx *tasksm.TaskContext, task *model.Task, targetState enum.TaskStatus, updatedBy uuid.UUID,
+) error {
+	//1. Cascade UpdatedByID (and any status changes applied by state machine) to product, if any
+	// Ensure task back-reference present (if not, assign for safety)
+	if taskCtx.Products != nil {
+		if taskCtx.Products.Task == nil {
+			taskCtx.Products.Task = task
+		}
+		taskCtx.Products.UpdatedByID = &updatedBy
+		if err := uow.Products().Update(ctx, taskCtx.Products); err != nil {
+			// Log and continue; do not fail whole operation after task updated
+			zap.L().Error("Failed to cascade product update_by",
+				zap.String("task_id", task.ID.String()),
+				zap.String("product_id", taskCtx.Products.ID.String()),
+				zap.Error(err))
+		}
+	}
+
+	// 2. If the task is moved to "IN_PROGRESS", if milestones are not yet "ON_GOING", move them too
+	if targetState == enum.TaskStatusInProgress {
+		// uow.Milestones().DB().Model(&model.Milestone{}).Raw(`
+		// UPdate milestones m
+		// set status = case when m.status <> ? then ? else m.status end,
+		// inner join tasks t on t.milestone_id = m.id
+		// 	where t.id = ?
+		// `, enum.MilestoneStatusOnGoing, enum.MilestoneStatusOnGoing, task.ID).Scan(&model.Milestone{})
+
+		// UPdate milestones as m
+		// set status = case
+		//     when m.status = 'NOT_STARTED' then 'ON_GOING'
+		//     else m.status
+		//     end
+		// from tasks t
+		// where t.milestone_id = m.id
+		//  and t.id in ('34cd629e-0cb3-4bee-8c04-e94c03d7fbbc', '09797536-a6ef-4241-9c23-b5fa86093885')
+		// and t.status = 'IN_PROGRESS' ;
+		uow.Milestones().DB().Model(&model.Milestone{}).Raw(`
+			UPDATE milestones AS m
+				SET status = CASE
+					WHEN m.status = ? THEN ?
+					ELSE m.status 
+				END
+			FROM tasks t
+			WHERE t.milestone_id = m.id
+				AND t.id = ?
+				and t.status = ?;
+		`, enum.MilestoneStatusNotStarted, enum.MilestoneStatusOnGoing, task.ID, enum.TaskStatusInProgress).Scan(&model.Milestone{})
+	}
+	return nil
 }
 
 func (t stateTransferService) MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error {

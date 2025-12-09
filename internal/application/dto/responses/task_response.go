@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // region: =============== TaskResponse ===============
@@ -53,16 +54,21 @@ type ContentInfo struct {
 
 func (TaskResponse) ToResponse(dto *dtos.TaskDetailDTO) *TaskResponse {
 	response := &TaskResponse{
-		ID:          dto.ID.String(),
-		Name:        dto.Name,
-		Description: dto.Description,
-		Deadline:    utils.FormatLocalTime(&dto.Deadline, ""),
-		Type:        dto.Type.String(),
-		Status:      dto.Status.String(),
-		CreatedAt:   utils.FormatLocalTime(&dto.CreatedAt, ""),
-		UpdatedAt:   utils.FormatLocalTime(&dto.UpdatedAt, ""),
+		ID:        dto.ID.String(),
+		Name:      dto.Name,
+		Deadline:  utils.FormatLocalTime(&dto.Deadline, ""),
+		Type:      dto.Type.String(),
+		Status:    dto.Status.String(),
+		CreatedAt: utils.FormatLocalTime(&dto.CreatedAt, ""),
+		UpdatedAt: utils.FormatLocalTime(&dto.UpdatedAt, ""),
 	}
 
+	if len(dto.Description) > 0 {
+		err := json.Unmarshal(dto.Description, &response.Description)
+		if err != nil {
+			zap.L().Error("Failed to unmarshal description", zap.Error(err))
+		}
+	}
 	if dto.AssignedToID != nil {
 		response.AssignedToID = utils.PtrOrNil(dto.AssignedToID.String())
 		response.AssignedToName = dto.AssignedToName

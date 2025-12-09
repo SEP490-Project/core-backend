@@ -251,6 +251,7 @@ func (b *brandService) CreateBrandWithInActiveUsers(
 		ShippingAddress: []model.ShippingAddress{},
 		Sessions:        []model.LoggedSession{},
 		DateOfBirth:     nil,
+		AvatarURL:       request.LogoURL,
 	}
 	if err := usersRepo.Add(ctx, usersModel); err != nil {
 		zap.L().Error("Failed to create inactive user for brand", zap.Error(err))

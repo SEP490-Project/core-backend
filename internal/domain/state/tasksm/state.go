@@ -1,3 +1,4 @@
+// Package tasksm implements the state pattern for managing task states and their transitions.
 package tasksm
 
 import (
@@ -7,6 +8,7 @@ import (
 
 type TaskContext struct {
 	State    TaskState
+	Task     *model.Task
 	Products *model.Product
 	Contents []*model.Content
 }
@@ -32,11 +34,6 @@ func NewTaskState(status enum.TaskStatus) TaskState {
 	}
 }
 
-func isAllowed(current TaskState, targetState enum.TaskStatus) bool {
-	_, ok := current.AllowedTransitions()[targetState]
-	return ok
-}
-
 func PrintAllowedTransitions(state TaskState) []string {
 	transitions := make([]string, 0, len(state.AllowedTransitions()))
 	for k := range state.AllowedTransitions() {
@@ -45,17 +42,13 @@ func PrintAllowedTransitions(state TaskState) []string {
 	return transitions
 }
 
-// helper
+// region: ================== Helper Methods ===================
+
 func (c *TaskContext) IsAllProductsActive() bool {
 	if c.Products == nil {
 		return false
 	}
 
-	//for _, p := range c.Products {
-	//	if p.Status != enum.ProductStatusActived && p.Status != enum.ProductStatusInactived {
-	//		return false
-	//	}
-	//}
 	if c.Products.Status != enum.ProductStatusActived && c.Products.Status != enum.ProductStatusInactived {
 		return false
 	}
@@ -76,7 +69,7 @@ func (c *TaskContext) IsAllContentsPosted() bool {
 	return true
 }
 
-// UpdateByID related to the precendence's
+// IsCancelAndCascade cascades the cancel status to related products and contents.
 func (c *TaskContext) IsCancelAndCascade(state TaskState) {
 	if state.Name() != enum.TaskStatusCancelled {
 		return
@@ -97,3 +90,5 @@ func (c *TaskContext) IsCancelAndCascade(state TaskState) {
 
 	// Future: cascade to contents if required (business rule not requested yet)
 }
+
+// endregion
