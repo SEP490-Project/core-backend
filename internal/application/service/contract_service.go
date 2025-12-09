@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -507,6 +508,32 @@ func (s *ContractService) ValidateBrandAndContractNumber(ctx context.Context, br
 		zap.String("brand_id", brandID.String()),
 		zap.String("contract_number", contractNumber))
 	return nil
+}
+
+// GetScopeOfWorkByContractID implements iservice.ContractService.
+func (s *ContractService) GetScopeOfWorkByContractID(ctx context.Context, contractID uuid.UUID) (any, error) {
+	zap.L().Info("Fetching scope of work by contract ID", zap.String("contract_id", contractID.String()))
+
+	contract, err := s.contractRepository.GetByID(ctx, contractID, nil)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
+			return nil, errors.New("contract not found")
+		}
+		zap.L().Error("Failed to fetch contract", zap.Error(err))
+		return nil, errors.New("failed to fetch contract")
+	}
+
+	if contract.ScopeOfWork == nil {
+		return nil, nil
+	}
+	var scopeOfWork any
+	if err = json.Unmarshal(contract.ScopeOfWork, &scopeOfWork); err != nil {
+		zap.L().Error("Failed to unmarshal scope of work", zap.Error(err))
+		return nil, errors.New("failed to unmarshal scope of work")
+	}
+
+	return scopeOfWork, nil
 }
 
 func NewContractService(repositoryRegistry *gormrepository.DatabaseRegistry) iservice.ContractService {
