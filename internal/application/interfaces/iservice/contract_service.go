@@ -47,4 +47,6 @@ type ContractService interface {
 
 	// DeleteContractByID soft deletes a contract
 	DeleteContractByID(ctx context.Context, contractID uuid.UUID) error
+
+	GetScopeOfWorkByContractID(ctx context.Context, contractID uuid.UUID) (any, error)
 }

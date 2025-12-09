@@ -587,3 +587,43 @@ func (h *ContractHandler) ApproveContract(c *gin.Context) {
 	responses := responses.SuccessResponse("Contract approved successfully", nil, nil)
 	c.JSON(http.StatusOK, responses)
 }
+
+// GetScopeOfWorkByContractID godoc
+//
+//	@Summary		Get scope of work by contract ID
+//	@Description	Retrieve the scope of work associated with a specific contract
+//	@Tags			Contracts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"Contract ID"	format(uuid)
+//	@Success		200	{object}	responses.APIResponse	"Scope of work retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Invalid contract ID"
+//	@Failure		401	{object}	responses.APIResponse	"Unauthorized"
+//	@Failure		404	{object}	responses.APIResponse	"Contract not found"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contracts/{id}/scope-of-work [get]
+func (h *ContractHandler) GetScopeOfWorkByContractID(c *gin.Context) {
+	contractID, err := extractParamID(c, "id")
+	if err != nil {
+		response := responses.ErrorResponse("Invalid contract ID", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	scopeOfWork, err := h.contractService.GetScopeOfWorkByContractID(c.Request.Context(), contractID)
+	if err != nil {
+		statusCode := http.StatusInternalServerError
+		if err.Error() == "contract not found" {
+			statusCode = http.StatusNotFound
+		}
+
+		zap.L().Error("Failed to get scope of work by contract ID", zap.Error(err))
+		response := responses.ErrorResponse("Failed to get scope of work: "+err.Error(), statusCode)
+		c.JSON(statusCode, response)
+		return
+	}
+
+	response := responses.SuccessResponse("Scope of work retrieved successfully", nil, scopeOfWork)
+	c.JSON(http.StatusOK, response)
+}
