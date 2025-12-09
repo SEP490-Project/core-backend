@@ -435,8 +435,8 @@ func (h *ProductHandler) CreateStandardProduct(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			reference_id		formData		string	true	"ORDER ITEM/preorder ID (UUID)"
-//	@Param			order_type      formData    string  true    "Order Type (ORDER | PREORDER)" Enums(ORDER,PREORDER)
+//	@Param			reference_id	formData	string	true	"ORDER ITEM/preorder ID (UUID)"
+//	@Param			order_type		formData	string	true	"Order Type (ORDER | PREORDER)"	Enums(ORDER,PREORDER)
 //	@Param			rating			formData	int		true	"Rating (1-5)"
 //	@Param			comment			formData	string	false	"Comment"
 //	@Param			assets			formData	file	false	"Asset file (image)"
@@ -1410,19 +1410,19 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 
 // GetProductReviewPagination godoc
 //
-// @Summary Get paginated reviews for a product
-// @Description Returns product reviews with pagination (limit/offset)
-// @Tags Products
-// @Accept json
-// @Produce json
-// @Param productId path string true "Product ID"
-// @Param limit query int false "Items per page" default(10)
-// @Param offset query int false "Items to skip" default(0)
-// @Success 200 {object} object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
-// @Failure 400 {object} responses.APIResponse
-// @Failure 500 {object} responses.APIResponse
-// @Security BearerAuth
-// @Router /api/v1/products/reviews/{productId} [get]
+//	@Summary		Get paginated reviews for a product
+//	@Description	Returns product reviews with pagination (limit/offset)
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			productId	path		string	true	"Product ID"
+//	@Param			limit		query		int		false	"Items per page"	default(10)
+//	@Param			offset		query		int		false	"Items to skip"		default(0)
+//	@Success		200			{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/reviews/{productId} [get]
 func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	productIDStr := c.Param("productId")
 	if productIDStr == "" {
