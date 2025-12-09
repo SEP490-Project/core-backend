@@ -197,18 +197,14 @@ func (bh *BrandHandler) GetBrandsByFilter(c *gin.Context) {
 		return
 	}
 
-	totalPages := int((totalCount + int64(request.Limit) - 1) / int64(request.Limit))
 	paginationResponse := responses.NewPaginationResponse(
 		"Successfully fetched brands",
 		http.StatusOK,
 		brands,
 		responses.Pagination{
-			Page:       request.Page,
-			Limit:      request.Limit,
-			Total:      totalCount,
-			TotalPages: totalPages,
-			HasNext:    request.Page < totalPages,
-			HasPrev:    request.Page > 1,
+			Page:  request.Page,
+			Limit: request.Limit,
+			Total: totalCount,
 		},
 	)
 	c.JSON(http.StatusOK, paginationResponse)

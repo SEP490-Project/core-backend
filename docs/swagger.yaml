@@ -1909,8 +1909,6 @@ definitions:
         type: string
       user_id:
         type: string
-      variant_id:
-        type: string
     type: object
   model.ProductStory:
     properties:
@@ -4387,6 +4385,17 @@ definitions:
       website:
         type: string
     type: object
+  responses.BrandInfoResponse:
+    properties:
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   responses.BrandOverviewMetrics:
     properties:
       active_campaigns:
@@ -4918,10 +4927,21 @@ definitions:
       usage:
         $ref: '#/definitions/responses.Usage'
     type: object
-  responses.ContentChannelBrief:
+  responses.ContentChannelAffiliateInfo:
     properties:
       affiliate_link:
         type: string
+      original_link:
+        type: string
+      status:
+        type: string
+      total_clicks:
+        type: integer
+    type: object
+  responses.ContentChannelBrief:
+    properties:
+      affiliate_link:
+        $ref: '#/definitions/responses.ContentChannelAffiliateInfo'
       auto_post_status:
         type: string
       channel_id:
@@ -4930,8 +4950,32 @@ definitions:
         type: string
       id:
         type: string
+      metrics:
+        $ref: '#/definitions/responses.ContentChannelMetric'
       post_date:
         type: string
+    type: object
+  responses.ContentChannelMetric:
+    properties:
+      fetched:
+        additionalProperties: {}
+        type: object
+      mapped:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+    type: object
+  responses.ContentInfo:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ContentType'
     type: object
   responses.ContentListResponse:
     properties:
@@ -6425,6 +6469,8 @@ definitions:
         type: boolean
       length:
         type: integer
+      limited_properties:
+        $ref: '#/definitions/responses.OrderLimitedProperties'
       manufacturing_date:
         type: string
       paymentTx:
@@ -6507,6 +6553,15 @@ definitions:
         $ref: '#/definitions/responses.ProductCategoryResponse'
       update_at:
         type: string
+    type: object
+  responses.ProductInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ProductType'
     type: object
   responses.ProductOverviewResponse:
     properties:
@@ -6648,12 +6703,10 @@ definitions:
       rating_stars:
         type: integer
       type:
-        $ref: '#/definitions/enum.ProductType'
+        type: string
       user_id:
         type: string
       user_name:
-        type: string
-      variant_id:
         type: string
     type: object
   responses.ProductVariantResponse:
@@ -7164,17 +7217,16 @@ definitions:
       assigned_to_role:
         example: Sales Staff
         type: string
+      brand_info:
+        $ref: '#/definitions/responses.BrandInfoResponse'
       campaign_details:
         $ref: '#/definitions/responses.CampaignInfoResponse'
       campaign_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       content_ids:
-        example:
-        - '["770e8400-e29b-41d4-a716-446655440000"'
-        - ' "880e8400-e29b-41d4-a716-446655440000"]'
         items:
-          type: string
+          $ref: '#/definitions/responses.ContentInfo'
         type: array
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -7204,11 +7256,8 @@ definitions:
         example: Design Homepage
         type: string
       product_ids:
-        example:
-        - '["550e8400-e29b-41d4-a716-446655440000"'
-        - ' "660e8400-e29b-41d4-a716-446655440000"]'
         items:
-          type: string
+          $ref: '#/definitions/responses.ProductInfo'
         type: array
       status:
         example: IN_PROGRESS
@@ -7439,6 +7488,15 @@ definitions:
       avatar_url:
         example: https://example.com/avatar.jpg
         type: string
+      bank_info:
+        properties:
+          bank_account:
+            type: string
+          bank_account_holder:
+            type: string
+          bank_name:
+            type: string
+        type: object
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
@@ -13358,6 +13416,46 @@ paths:
       summary: Approve contract
       tags:
       - Contracts
+  /api/v1/contracts/{id}/scope-of-work:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the scope of work associated with a specific contract
+      parameters:
+      - description: Contract ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Scope of work retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid contract ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Contract not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get scope of work by contract ID
+      tags:
+      - Contracts
   /api/v1/contracts/{id}/state:
     patch:
       consumes:
@@ -17309,67 +17407,6 @@ paths:
       summary: Update Product State
       tags:
       - Products.State
-  /api/v1/products/{productID}/reviews:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Authenticated user can add a review for a product they purchased
-        (order or preorder). Either order_id or pre_order_id must be provided.
-      parameters:
-      - description: Product ID
-        in: path
-        name: productId
-        required: true
-        type: string
-      - description: Variant ID (UUID)
-        in: formData
-        name: variant_id
-        type: string
-      - description: Order ID (UUID)
-        in: formData
-        name: order_id
-        type: string
-      - description: PreOrder ID (UUID)
-        in: formData
-        name: pre_order_id
-        type: string
-      - description: Rating (1-5)
-        in: formData
-        name: rating
-        required: true
-        type: integer
-      - description: Comment
-        in: formData
-        name: comment
-        type: string
-      - description: Asset file (image)
-        in: formData
-        name: assets
-        type: file
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/responses.ProductReviewResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Add a review for a product
-      tags:
-      - Products.Reviews
   /api/v1/products/{productId}/variants:
     post:
       consumes:
@@ -17625,6 +17662,115 @@ paths:
       security:
       - BearerAuth: []
       summary: Publish or unpublish a product
+      tags:
+      - Products
+  /api/v1/products/reviews:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Authenticated user can add a review for a product they purchased
+        (order or preorder). Either order_id or pre_order_id must be provided.
+      parameters:
+      - description: ORDER ITEM/preorder ID (UUID)
+        in: formData
+        name: reference_id
+        required: true
+        type: string
+      - description: Order Type (ORDER | PREORDER)
+        enum:
+        - ORDER
+        - PREORDER
+        in: formData
+        name: order_type
+        required: true
+        type: string
+      - description: Rating (1-5)
+        in: formData
+        name: rating
+        required: true
+        type: integer
+      - description: Comment
+        in: formData
+        name: comment
+        type: string
+      - description: Asset file (image)
+        in: formData
+        name: assets
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a review for a product
+      tags:
+      - Products
+  /api/v1/products/reviews/{productId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns product reviews with pagination (limit/offset)
+      parameters:
+      - description: Product ID
+        in: path
+        name: productId
+        required: true
+        type: string
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Items to skip
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductReviewResponse'
+                type: array
+              limit:
+                type: integer
+              offset:
+                type: integer
+              total:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get paginated reviews for a product
       tags:
       - Products
   /api/v1/products/standard:
