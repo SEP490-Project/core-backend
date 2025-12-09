@@ -17121,6 +17121,41 @@ paths:
       summary: 3.2-[Self-Pick-Up]-END Mark preorder as RECEIVED (Staff)
       tags:
       - Preorders.States
+  /api/v1/preorders/staff/products/{productID}/open-early:
+    patch:
+      consumes:
+      - application/json
+      description: Allows staff to open pre-ordering for a product ahead of schedule.
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: productID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Open PreOrder Early (Staff)
+      tags:
+      - Preorders.States
   /api/v1/preorders/staff/refund/{preOrderID}/approve:
     post:
       consumes:

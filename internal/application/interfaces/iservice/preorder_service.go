@@ -32,4 +32,6 @@ type PreOrderService interface {
 	//Staff
 	ObligateRefund(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error
 	ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error
+
+	OpeningPreOrderEarly(ctx context.Context, uow irepository.UnitOfWork, productID uuid.UUID, updatedBy uuid.UUID) error
 }

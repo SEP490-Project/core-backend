@@ -920,6 +920,41 @@ func (p *PreOrderHandler) MarkPreOrderAsDelivered(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// OpeningPreOrderEarly godoc
+//
+//	@Summary		Open PreOrder Early (Staff)
+//	@Description	Allows staff to open pre-ordering for a product ahead of schedule.
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			productID	path		string	true	"Product ID (UUID)"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/products/{productID}/open-early [patch]
+func (p *PreOrderHandler) OpeningPreOrderEarly(c *gin.Context) {
+	productID, err := parseUUIDParam(c, "productID")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid product ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	if err = p.preOrderService.OpeningPreOrderEarly(c.Request.Context(), p.unitOfWork, productID, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to open pre-order early: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Pre-order opened early successfully", ptr.Int(http.StatusOK), nil))
+}
+
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService:      preOrderService,
