@@ -10,7 +10,7 @@ import (
 // SuggestedTask represents a suggested task extracted from contract deliverables
 type SuggestedTask struct {
 	Name              string         `json:"name" example:"Create social media post"`
-	Description       map[string]any `json:"description_json,omitempty"`
+	Description       map[string]any `json:"description,omitempty"`
 	Deadline          time.Time      `json:"deadline" example:"2024-12-31T23:59:59Z"`
 	Type              enum.TaskType  `json:"type" example:"CONTENT"`
 	ScopeOfWorkItemID *string        `json:"scope_of_work_item_id,omitempty" example:"SOW-12345"`
