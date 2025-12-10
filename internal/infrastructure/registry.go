@@ -22,18 +22,19 @@ import (
 )
 
 type InfrastructureRegistry struct {
-	Config            *config.AppConfig
-	DB                *gorm.DB
-	ThirdPartyStorage *third_party_repository.ThirdPartyStorageRegistry
-	UnitOfWork        irepository.UnitOfWork
-	ValkeyCache       *persistence.ValkeyCache
-	RabbitMQ          *rabbitmq.RabbitMQ
-	VaultService      iservicethirdparty.VaultService
-	EmailService      iservicethirdparty.EmailService
-	FCMService        iservicethirdparty.FCMService
-	ExpoPushService   iservicethirdparty.ExpoPushService
-	HealthMonitor     iservicethirdparty.HealthMonitor
-	ProxiesRegistry   *proxies.ProxiesRegistry
+	Config                    *config.AppConfig
+	DB                        *gorm.DB
+	ThirdPartyStorage         *third_party_repository.ThirdPartyStorageRegistry
+	UnitOfWork                irepository.UnitOfWork
+	ValkeyCache               *persistence.ValkeyCache
+	RabbitMQ                  *rabbitmq.RabbitMQ
+	RabbitMQManagementService *rabbitmq.ManagementService
+	VaultService              iservicethirdparty.VaultService
+	EmailService              iservicethirdparty.EmailService
+	FCMService                iservicethirdparty.FCMService
+	ExpoPushService           iservicethirdparty.ExpoPushService
+	HealthMonitor             iservicethirdparty.HealthMonitor
+	ProxiesRegistry           *proxies.ProxiesRegistry
 
 	//Automatic Trigger
 	schedulers []scheduler.TaskScheduler
@@ -73,6 +74,15 @@ func NewInfrastructureRegistry(
 	} else {
 		registry.RabbitMQ = rabbitMQ
 		zap.L().Info("RabbitMQ initialized successfully")
+
+		// Initialize RabbitMQ Management Service
+		zap.L().Debug("Initializing RabbitMQ Management Service...")
+		registry.RabbitMQManagementService = rabbitmq.NewManagementService(config)
+		if registry.RabbitMQManagementService != nil {
+			zap.L().Info("RabbitMQ Management Service initialized successfully")
+		} else {
+			zap.L().Warn("Failed to initialize RabbitMQ Management Service")
+		}
 	}
 
 	//Initialize Third Party Storage Registry

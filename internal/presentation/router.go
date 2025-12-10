@@ -99,6 +99,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
 		r.setupJobRoutes(v1)
+		r.setupRabbitMQRoutes(v1)
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
 		r.SetupTaskRoutes(v1)
@@ -1041,5 +1042,37 @@ func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
 		jobGroup.POST("/social-metrics-poller", jobHandler.TriggerSocialMetricsPollerJob)
 		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
 		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+	}
+}
+
+func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
+	rabbitMQHandler := r.handlerRegistry.RabbitMQHandler
+	rabbitMQGroup := group.Group("/admin/rabbitmq")
+	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		// Overview and health
+		rabbitMQGroup.GET("/overview", rabbitMQHandler.GetOverview)
+		rabbitMQGroup.GET("/health", rabbitMQHandler.GetHealth)
+
+		// Queues
+		rabbitMQGroup.GET("/queues", rabbitMQHandler.ListQueues)
+		rabbitMQGroup.GET("/queues/grouped", rabbitMQHandler.ListQueueGroups)
+		rabbitMQGroup.GET("/queues/:queueName", rabbitMQHandler.GetQueue)
+		rabbitMQGroup.GET("/queues/:queueName/messages", rabbitMQHandler.GetQueueMessages)
+		rabbitMQGroup.DELETE("/queues/:queueName/purge", rabbitMQHandler.PurgeQueue)
+
+		// Exchanges
+		rabbitMQGroup.GET("/exchanges", rabbitMQHandler.ListExchanges)
+
+		// DLQ operations
+		rabbitMQGroup.POST("/dlq/retry", rabbitMQHandler.RetryDLQ)
+
+		// Shovels (for monitoring DLQ retry operations)
+		rabbitMQGroup.GET("/shovels", rabbitMQHandler.ListShovels)
+		rabbitMQGroup.DELETE("/shovels/:shovelName", rabbitMQHandler.DeleteShovel)
+
+		// Publish message (for testing/debugging)
+		rabbitMQGroup.POST("/publish", rabbitMQHandler.PublishMessage)
 	}
 }
