@@ -14452,6 +14452,238 @@ paths:
       summary: Order Update Webhook
       tags:
       - Webhook
+  /api/v1/jobs/content-metrics-poller:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the content metrics poller job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Content Metrics Poller Job
+      tags:
+      - Jobs
+  /api/v1/jobs/ctr-aggregation:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the CTR aggregation job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger CTR Aggregation Job
+      tags:
+      - Jobs
+  /api/v1/jobs/expired-link-cleanup:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the expired link cleanup job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Expired Link Cleanup Job
+      tags:
+      - Jobs
+  /api/v1/jobs/payos-expiry-check:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the PayOS expiry check job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger PayOS Expiry Check Job
+      tags:
+      - Jobs
+  /api/v1/jobs/pre-order-opening-check:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the pre-order opening check job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Pre-Order Opening Check Job
+      tags:
+      - Jobs
+  /api/v1/jobs/social-metrics-poller:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the social metrics poller job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Social Metrics Poller Job
+      tags:
+      - Jobs
+  /api/v1/jobs/tiktok-status-poller:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger the TikTok status poller job
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger TikTok Status Poller Job
+      tags:
+      - Jobs
+  /api/v1/jobs/trigger-all:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger all registered jobs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger All Jobs
+      tags:
+      - Jobs
   /api/v1/location/address:
     post:
       consumes:
