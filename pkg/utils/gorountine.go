@@ -329,25 +329,25 @@ func pow(x, y float64) float64 {
 //
 //	pool := NewWorkerPool(ctx, 5) // 5 concurrent workers
 //	pool.Start()
-//	
+//
 //	// Submit tasks dynamically
 //	pool.Submit(func(ctx context.Context) error { ... })
 //	pool.Submit(func(ctx context.Context) error { ... })
-//	
+//
 //	// When done submitting
 //	pool.Close()       // Stop accepting new tasks
 //	pool.Wait()        // Wait for all tasks to complete
 //	errors := pool.Errors() // Get all errors
 type WorkerPool struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	taskCh     chan func(context.Context) error
-	wg         sync.WaitGroup
-	errMu      sync.Mutex
-	errors     []error
+	ctx         context.Context
+	cancel      context.CancelFunc
+	taskCh      chan func(context.Context) error
+	wg          sync.WaitGroup
+	errMu       sync.Mutex
+	errors      []error
 	workerCount int
-	closed     bool
-	closeMu    sync.Mutex
+	closed      bool
+	closeMu     sync.Mutex
 }
 
 // NewWorkerPool creates a new worker pool with the specified number of workers.
@@ -455,7 +455,7 @@ func (p *WorkerPool) SubmitWait(task func(context.Context) error) bool {
 func (p *WorkerPool) Close() {
 	p.closeMu.Lock()
 	defer p.closeMu.Unlock()
-	
+
 	if !p.closed {
 		p.closed = true
 		close(p.taskCh)

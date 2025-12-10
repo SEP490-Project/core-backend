@@ -32,6 +32,9 @@ import (
 // - TikTok video list metrics
 // - Rate limiting for Facebook API
 // - Continue-on-failure error handling
+// - Bulk KPI metrics insertion for efficiency
+// - Pre-fetched content channels to avoid N+1 queries
+// - Dynamic worker pool for video insights fetching
 type ContentMetricsPollerJob struct {
 	db                  *gorm.DB
 	unitOfWork          irepository.UnitOfWork
@@ -50,6 +53,151 @@ type ContentMetricsPollerJob struct {
 
 	// Rate limiting for Facebook API (10 req/s, burst 20)
 	fbRateLimiter *rate.Limiter
+}
+
+// metricsCollector aggregates KPI metrics from all goroutines for bulk insertion
+type metricsCollector struct {
+	mu      sync.Mutex
+	metrics []*model.KPIMetrics
+
+	// Channel updates to batch
+	channelUpdates        map[uuid.UUID]*channelMetricsUpdate
+	contentChannelUpdates map[uuid.UUID]*contentChannelMetricsUpdate
+
+	// Aggregated metrics from posts per channel (reactions, comments, shares)
+	// This is used to compute page-level aggregated engagement metrics
+	channelAggregatedMetrics map[uuid.UUID]*channelAggregatedMetrics
+}
+
+// channelAggregatedMetrics holds aggregated metrics from all posts for a channel
+type channelAggregatedMetrics struct {
+	totalReactions int64
+	totalComments  int64
+	totalShares    int64
+	totalViews     int64
+	postsCount     int
+}
+
+type channelMetricsUpdate struct {
+	channel       *model.Channel
+	rawMetrics    map[string]any
+	mappedMetrics map[string]float64
+}
+
+type contentChannelMetricsUpdate struct {
+	contentChannel *model.ContentChannel
+	rawMetrics     map[string]any
+	mappedMetrics  map[string]float64
+}
+
+func newMetricsCollector() *metricsCollector {
+	return &metricsCollector{
+		metrics:                  make([]*model.KPIMetrics, 0, 1000),
+		channelUpdates:           make(map[uuid.UUID]*channelMetricsUpdate),
+		contentChannelUpdates:    make(map[uuid.UUID]*contentChannelMetricsUpdate),
+		channelAggregatedMetrics: make(map[uuid.UUID]*channelAggregatedMetrics),
+	}
+}
+
+// addChannelUpdate adds a channel metrics update to the collector (thread-safe)
+func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics map[string]any, mappedMetrics map[string]float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.channelUpdates[channel.ID] = &channelMetricsUpdate{
+		channel:       channel,
+		rawMetrics:    rawMetrics,
+		mappedMetrics: mappedMetrics,
+	}
+
+	// Also add KPI metrics
+	now := time.Now()
+	for metricName, metricValue := range mappedMetrics {
+		kpiType := enum.KPIValueType(metricName)
+		if !kpiType.IsValid() {
+			continue
+		}
+		c.metrics = append(c.metrics, &model.KPIMetrics{
+			ReferenceID:   channel.ID,
+			ReferenceType: enum.KPIReferenceTypeChannel,
+			Type:          kpiType,
+			Value:         metricValue,
+			RecordedDate:  now,
+		})
+	}
+}
+
+// addContentChannelUpdate adds a content channel metrics update (thread-safe)
+func (c *metricsCollector) addContentChannelUpdate(cc *model.ContentChannel, rawMetrics map[string]any, mappedMetrics map[string]float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.contentChannelUpdates[cc.ID] = &contentChannelMetricsUpdate{
+		contentChannel: cc,
+		rawMetrics:     rawMetrics,
+		mappedMetrics:  mappedMetrics,
+	}
+
+	// Also add KPI metrics
+	now := time.Now()
+	for metricName, metricValue := range mappedMetrics {
+		kpiType := enum.KPIValueType(metricName)
+		if !kpiType.IsValid() {
+			continue
+		}
+		c.metrics = append(c.metrics, &model.KPIMetrics{
+			ReferenceID:   cc.ID,
+			ReferenceType: enum.KPIReferenceTypeContentChannel,
+			Type:          kpiType,
+			Value:         metricValue,
+			RecordedDate:  now,
+		})
+	}
+}
+
+// getMetrics returns all collected KPI metrics
+func (c *metricsCollector) getMetrics() []*model.KPIMetrics {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.metrics
+}
+
+// getChannelUpdates returns all channel updates
+func (c *metricsCollector) getChannelUpdates() map[uuid.UUID]*channelMetricsUpdate {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.channelUpdates
+}
+
+// getContentChannelUpdates returns all content channel updates
+func (c *metricsCollector) getContentChannelUpdates() map[uuid.UUID]*contentChannelMetricsUpdate {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.contentChannelUpdates
+}
+
+// aggregatePostMetricsToChannel adds post metrics to the channel's aggregated totals (thread-safe)
+func (c *metricsCollector) aggregatePostMetricsToChannel(channelID uuid.UUID, reactions, comments, shares, views int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, exists := c.channelAggregatedMetrics[channelID]; !exists {
+		c.channelAggregatedMetrics[channelID] = &channelAggregatedMetrics{}
+	}
+
+	agg := c.channelAggregatedMetrics[channelID]
+	agg.totalReactions += int64(reactions)
+	agg.totalComments += int64(comments)
+	agg.totalShares += int64(shares)
+	agg.totalViews += int64(views)
+	agg.postsCount++
+}
+
+// getChannelAggregatedMetrics returns aggregated metrics for all channels
+func (c *metricsCollector) getChannelAggregatedMetrics() map[uuid.UUID]*channelAggregatedMetrics {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.channelAggregatedMetrics
 }
 
 // NewContentMetricsPollerJob creates a new instance of ContentMetricsPollerJob
@@ -116,9 +264,11 @@ func (j *ContentMetricsPollerJob) Initialize() error {
 
 // Run implements CronJob - main entry point for job execution
 func (j *ContentMetricsPollerJob) Run() {
+	startTime := time.Now()
 	defer func() {
 		if r := recover(); r != nil {
 			zap.L().Error("Panic recovered in ContentMetricsPollerJob, disabling job",
+				zap.Duration("elapsed_time", time.Since(startTime)),
 				zap.Any("recover", r))
 			j.SetEnabled(false)
 		}
@@ -127,7 +277,7 @@ func (j *ContentMetricsPollerJob) Run() {
 	ctx := context.Background()
 	j.lastRunTime = time.Now()
 
-	zap.L().Info("ContentMetricsPollerJob starting...")
+	zap.L().Info("ContentMetricsPollerJob starting...", zap.Time("start_time", startTime))
 
 	// Get active channels by platform
 	fbChannels, tikTokChannels, err := j.getActiveChannels(ctx)
@@ -140,21 +290,39 @@ func (j *ContentMetricsPollerJob) Run() {
 		zap.Int("facebook_channels", len(fbChannels)),
 		zap.Int("tiktok_channels", len(tikTokChannels)))
 
+	// Pre-fetch content channels for all channels to avoid N+1 queries
+	contentChannelMap := j.prefetchContentChannels(ctx, fbChannels, tikTokChannels)
+
+	// Create centralized metrics collector
+	collector := newMetricsCollector()
+
+	// Create worker pool for video insights fetching (5 concurrent workers)
+	videoInsightsPool := utils.NewWorkerPool(ctx, 5)
+	videoInsightsPool.Start()
+
 	// Execute all tasks with continue-on-failure
 	var wg sync.WaitGroup
 	tasks := []struct {
 		name string
-		fn   func(context.Context)
+		fn   func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *utils.WorkerPool)
 	}{
-		{"Facebook Page Metrics", func(ctx context.Context) { j.fetchFacebookPageMetrics(ctx, fbChannels) }},
-		{"Facebook Posts Metrics", func(ctx context.Context) { j.fetchFacebookPostsMetrics(ctx, fbChannels) }},
-		{"TikTok User Metrics", func(ctx context.Context) { j.fetchTikTokUserMetrics(ctx, tikTokChannels) }},
-		{"TikTok Video List Metrics", func(ctx context.Context) { j.fetchTikTokVideoListMetrics(ctx, tikTokChannels) }},
+		{"Facebook Page Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+			j.fetchFacebookPageMetrics(ctx, fbChannels, c)
+		}},
+		{"Facebook Posts Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+			j.fetchFacebookPostsMetrics(ctx, fbChannels, c, ccMap, pool)
+		}},
+		{"TikTok User Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+			j.fetchTikTokUserMetrics(ctx, tikTokChannels, c)
+		}},
+		{"TikTok Video List Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+			j.fetchTikTokVideoListMetrics(ctx, tikTokChannels, c, ccMap)
+		}},
 	}
 
 	for _, task := range tasks {
 		wg.Add(1)
-		go func(taskName string, taskFn func(context.Context)) {
+		go func(taskName string, taskFn func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *utils.WorkerPool)) {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
@@ -165,13 +333,152 @@ func (j *ContentMetricsPollerJob) Run() {
 			}()
 
 			zap.L().Debug("Starting task", zap.String("task", taskName))
-			taskFn(ctx)
+			taskFn(ctx, collector, contentChannelMap, videoInsightsPool)
 			zap.L().Debug("Completed task", zap.String("task", taskName))
 		}(task.name, task.fn)
 	}
 
 	wg.Wait()
-	zap.L().Info("ContentMetricsPollerJob completed")
+
+	// Close worker pool and wait for all video insights tasks to complete
+	videoInsightsPool.Close()
+	videoInsightsPool.Wait()
+
+	if videoInsightsPool.HasErrors() {
+		zap.L().Warn("Some video insights tasks failed",
+			zap.Int("error_count", videoInsightsPool.ErrorCount()))
+	}
+
+	// Bulk persist all collected data
+	j.persistCollectedData(ctx, collector)
+
+	zap.L().Info("ContentMetricsPollerJob completed", zap.Duration("elapsed_time", time.Since(startTime)))
+}
+
+// prefetchContentChannels loads all content channels for given channels in one query
+// Returns map[channelID][externalPostID]*ContentChannel for O(1) lookup
+func (j *ContentMetricsPollerJob) prefetchContentChannels(
+	ctx context.Context,
+	fbChannels, tikTokChannels []model.Channel,
+) map[uuid.UUID]map[string]*model.ContentChannel {
+	result := make(map[uuid.UUID]map[string]*model.ContentChannel)
+
+	// Collect all channel IDs
+	channelIDs := make([]uuid.UUID, 0, len(fbChannels)+len(tikTokChannels))
+	for _, ch := range fbChannels {
+		channelIDs = append(channelIDs, ch.ID)
+	}
+	for _, ch := range tikTokChannels {
+		channelIDs = append(channelIDs, ch.ID)
+	}
+
+	if len(channelIDs) == 0 {
+		return result
+	}
+
+	// Fetch all content channels for these channels in one query
+	contentChannels, _, err := j.contentChannelRepo.GetAll(ctx,
+		func(db *gorm.DB) *gorm.DB {
+			return db.Where("channel_id IN ?", channelIDs).
+				Where("external_post_id IS NOT NULL").
+				Where("external_post_id != ''")
+		},
+		nil, 0, 0) // No pagination, get all
+
+	if err != nil {
+		zap.L().Error("Failed to prefetch content channels", zap.Error(err))
+		return result
+	}
+
+	// Build lookup map
+	for i := range contentChannels {
+		cc := &contentChannels[i]
+		if _, exists := result[cc.ChannelID]; !exists {
+			result[cc.ChannelID] = make(map[string]*model.ContentChannel)
+		}
+		if cc.ExternalPostID != nil {
+			result[cc.ChannelID][*cc.ExternalPostID] = cc
+		}
+	}
+
+	zap.L().Debug("Prefetched content channels",
+		zap.Int("total_channels", len(channelIDs)),
+		zap.Int("content_channels", len(contentChannels)))
+
+	return result
+}
+
+// persistCollectedData bulk inserts KPI metrics and updates channels
+func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, collector *metricsCollector) {
+	startTime := time.Now()
+
+	// 1. Merge aggregated post metrics into channel updates
+	j.mergeAggregatedMetricsIntoChannels(collector)
+
+	// 2. Bulk insert KPI metrics
+	metrics := collector.getMetrics()
+	if len(metrics) > 0 {
+		rowsAffected, err := j.kpiMetricsRepo.BulkAdd(ctx, metrics, 100)
+		if err != nil {
+			zap.L().Error("Failed to bulk insert KPI metrics", zap.Error(err))
+		} else {
+			zap.L().Info("Bulk inserted KPI metrics",
+				zap.Int64("rows_affected", rowsAffected),
+				zap.Int("total_metrics", len(metrics)))
+		}
+	}
+
+	// 3. Update channels with metrics JSONB
+	channelUpdates := collector.getChannelUpdates()
+	for _, update := range channelUpdates {
+		metricsData := map[string]any{
+			"current_fetched": update.rawMetrics,
+			"current_mapped":  update.mappedMetrics,
+			"last_updated_at": time.Now().Format(time.RFC3339),
+		}
+		metricsJSON, err := json.Marshal(metricsData)
+		if err != nil {
+			continue
+		}
+		update.channel.Metrics = datatypes.JSON(metricsJSON)
+		if err := j.channelRepo.Update(ctx, update.channel); err != nil {
+			zap.L().Warn("Failed to update channel metrics",
+				zap.String("channel_id", update.channel.ID.String()),
+				zap.Error(err))
+		}
+	}
+
+	// 4. Update content channels with metrics JSONB
+	contentChannelUpdates := collector.getContentChannelUpdates()
+	for _, update := range contentChannelUpdates {
+		existingMetrics, _ := update.contentChannel.GetMetrics()
+		if existingMetrics == nil {
+			existingMetrics = &model.ContentChannelMetrics{}
+		}
+
+		// Move current to last
+		existingMetrics.LastFetched = existingMetrics.CurrentFetched
+		existingMetrics.LastMapped = existingMetrics.CurrentMapped
+		existingMetrics.CurrentFetched = update.rawMetrics
+		existingMetrics.CurrentMapped = update.mappedMetrics
+
+		metricsJSON, err := json.Marshal(existingMetrics)
+		if err != nil {
+			continue
+		}
+		update.contentChannel.Metrics = datatypes.JSON(metricsJSON)
+		if err := j.contentChannelRepo.Update(ctx, update.contentChannel); err != nil {
+			zap.L().Warn("Failed to update content channel metrics",
+				zap.String("content_channel_id", update.contentChannel.ID.String()),
+				zap.Error(err))
+		}
+	}
+
+	zap.L().Info("Persisted collected data",
+		zap.Int("kpi_metrics", len(metrics)),
+		zap.Int("channel_updates", len(channelUpdates)),
+		zap.Int("content_channel_updates", len(contentChannelUpdates)),
+		zap.Duration("duration", time.Since(startTime)))
 }
 
 // IsEnabled implements CronJob
@@ -238,106 +545,52 @@ func (j *ContentMetricsPollerJob) waitForFBRateLimit(ctx context.Context) error 
 	return j.fbRateLimiter.Wait(ctx)
 }
 
-// persistChannelMetrics updates Channel.Metrics and inserts into kpi_metrics
-func (j *ContentMetricsPollerJob) persistChannelMetrics(
-	ctx context.Context,
-	channel *model.Channel,
-	rawMetrics map[string]any,
-	mappedMetrics map[string]float64,
-) error {
-	// Build metrics JSON for Channel.Metrics
-	metricsData := map[string]any{
-		"current_fetched": rawMetrics,
-		"current_mapped":  mappedMetrics,
-		"last_updated_at": time.Now().Format(time.RFC3339),
-	}
+// mergeAggregatedMetricsIntoChannels merges post-level aggregated metrics into channel updates
+// This is called after all posts are processed to compute page-level totals
+func (j *ContentMetricsPollerJob) mergeAggregatedMetricsIntoChannels(collector *metricsCollector) {
+	aggregatedMetrics := collector.getChannelAggregatedMetrics()
+	channelUpdates := collector.getChannelUpdates()
 
-	metricsJSON, err := json.Marshal(metricsData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal channel metrics: %w", err)
-	}
-
-	// Update channel metrics
-	channel.Metrics = datatypes.JSON(metricsJSON)
-	if err := j.channelRepo.Update(ctx, channel); err != nil {
-		return fmt.Errorf("failed to update channel metrics: %w", err)
-	}
-
-	// Insert into kpi_metrics table
-	return j.persistKPIMetrics(ctx, channel.ID, enum.KPIReferenceTypeChannel, mappedMetrics)
-}
-
-// persistContentChannelMetrics updates ContentChannel.Metrics and inserts into kpi_metrics
-func (j *ContentMetricsPollerJob) persistContentChannelMetrics(
-	ctx context.Context,
-	contentChannel *model.ContentChannel,
-	rawMetrics map[string]any,
-	mappedMetrics map[string]float64,
-) error {
-	// Get existing metrics to preserve history
-	existingMetrics, _ := contentChannel.GetMetrics()
-	if existingMetrics == nil {
-		existingMetrics = &model.ContentChannelMetrics{}
-	}
-
-	// Move current to last
-	existingMetrics.LastFetched = existingMetrics.CurrentFetched
-	existingMetrics.LastMapped = existingMetrics.CurrentMapped
-
-	// Set new current values
-	existingMetrics.CurrentFetched = rawMetrics
-	existingMetrics.CurrentMapped = mappedMetrics
-
-	metricsJSON, err := json.Marshal(existingMetrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal content channel metrics: %w", err)
-	}
-
-	contentChannel.Metrics = datatypes.JSON(metricsJSON)
-	if err := j.contentChannelRepo.Update(ctx, contentChannel); err != nil {
-		return fmt.Errorf("failed to update content channel metrics: %w", err)
-	}
-
-	// Insert into kpi_metrics table
-	return j.persistKPIMetrics(ctx, contentChannel.ID, enum.KPIReferenceTypeContentChannel, mappedMetrics)
-}
-
-// persistKPIMetrics inserts metrics into kpi_metrics table
-func (j *ContentMetricsPollerJob) persistKPIMetrics(
-	ctx context.Context,
-	referenceID uuid.UUID,
-	referenceType enum.KPIReferenceType,
-	metrics map[string]float64,
-) error {
-	now := time.Now()
-
-	for metricName, metricValue := range metrics {
-		// Convert string metric name to KPIValueType enum
-		kpiType := enum.KPIValueType(metricName)
-		if !kpiType.IsValid() {
-			zap.L().Warn("Invalid KPI metric type, skipping",
-				zap.String("metric_name", metricName))
+	for channelID, agg := range aggregatedMetrics {
+		update, exists := channelUpdates[channelID]
+		if !exists {
+			// No channel update exists (shouldn't happen if page metrics were fetched)
 			continue
 		}
 
-		kpiMetric := &model.KPIMetrics{
-			ReferenceID:   referenceID,
-			ReferenceType: referenceType,
-			Type:          kpiType,
-			Value:         metricValue,
-			RecordedDate:  now,
+		// Add aggregated raw metrics
+		update.rawMetrics["total_reactions"] = agg.totalReactions
+		update.rawMetrics["total_comments"] = agg.totalComments
+		update.rawMetrics["total_shares"] = agg.totalShares
+		update.rawMetrics["total_views"] = agg.totalViews
+		update.rawMetrics["posts_count"] = agg.postsCount
+
+		// Add aggregated mapped metrics (for KPI)
+		totalEngagement := float64(agg.totalReactions + agg.totalComments + agg.totalShares)
+		if agg.totalReactions > 0 {
+			update.mappedMetrics[enum.KPIValueTypeLikes.String()] = float64(agg.totalReactions)
+		}
+		if agg.totalComments > 0 {
+			update.mappedMetrics[enum.KPIValueTypeComments.String()] = float64(agg.totalComments)
+		}
+		if agg.totalShares > 0 {
+			update.mappedMetrics[enum.KPIValueTypeShares.String()] = float64(agg.totalShares)
+		}
+		if agg.totalViews > 0 {
+			update.mappedMetrics[enum.KPIValueTypeReach.String()] = float64(agg.totalViews)
+		}
+		if totalEngagement > 0 {
+			update.mappedMetrics[enum.KPIValueTypeEngagement.String()] = totalEngagement
 		}
 
-		if err := j.kpiMetricsRepo.Add(ctx, kpiMetric); err != nil {
-			zap.L().Warn("Failed to insert KPI metric",
-				zap.String("reference_id", referenceID.String()),
-				zap.String("metric_name", metricName),
-				zap.Error(err))
-			// Continue with other metrics even if one fails
-		}
+		zap.L().Debug("Merged aggregated metrics into channel",
+			zap.String("channel_id", channelID.String()),
+			zap.Int64("total_reactions", agg.totalReactions),
+			zap.Int64("total_comments", agg.totalComments),
+			zap.Int64("total_shares", agg.totalShares),
+			zap.Int64("total_views", agg.totalViews),
+			zap.Int("posts_count", agg.postsCount))
 	}
-
-	return nil
 }
 
 // endregion
@@ -345,7 +598,7 @@ func (j *ContentMetricsPollerJob) persistKPIMetrics(
 // region: ======== Facebook Metrics Methods ========
 
 // fetchFacebookPageMetrics fetches page-level metrics for Facebook channels
-func (j *ContentMetricsPollerJob) fetchFacebookPageMetrics(ctx context.Context, channels []model.Channel) {
+func (j *ContentMetricsPollerJob) fetchFacebookPageMetrics(ctx context.Context, channels []model.Channel, collector *metricsCollector) {
 	for i := range channels {
 		channel := &channels[i]
 
@@ -386,29 +639,27 @@ func (j *ContentMetricsPollerJob) fetchFacebookPageMetrics(ctx context.Context, 
 			"followers_count": pageInfo.FollowersCount,
 		}
 
-		// For channel-level metrics, we use a simpler mapping
-		// Followers is the key metric for channels
 		mappedMetrics := map[string]float64{
 			enum.KPIValueTypeFollowers.String(): float64(pageInfo.FollowersCount),
 		}
 
-		// Persist metrics
-		if err := j.persistChannelMetrics(ctx, channel, rawMetrics, mappedMetrics); err != nil {
-			zap.L().Error("Failed to persist Facebook page metrics",
-				zap.String("channel_name", channel.Name),
-				zap.Error(err))
-			continue
-		}
+		// Add to collector (not persisting directly)
+		collector.addChannelUpdate(channel, rawMetrics, mappedMetrics)
 
-		zap.L().Info("Facebook page metrics persisted",
+		zap.L().Debug("Collected Facebook page metrics",
 			zap.String("channel_name", channel.Name),
-			zap.Int("fan_count", pageInfo.FanCount),
 			zap.Int("followers_count", pageInfo.FollowersCount))
 	}
 }
 
 // fetchFacebookPostsMetrics fetches post metrics from Facebook pages
-func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(ctx context.Context, channels []model.Channel) {
+func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(
+	ctx context.Context,
+	channels []model.Channel,
+	collector *metricsCollector,
+	contentChannelMap map[uuid.UUID]map[string]*model.ContentChannel,
+	videoInsightsPool *utils.WorkerPool,
+) {
 	for i := range channels {
 		channel := &channels[i]
 
@@ -424,8 +675,15 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(ctx context.Context,
 			continue
 		}
 
+		// Get pre-fetched content channels for this channel
+		ccMap := contentChannelMap[channel.ID]
+		if ccMap == nil {
+			ccMap = make(map[string]*model.ContentChannel)
+		}
+
 		// Fetch posts with metrics using pagination
-		fields := "id,created_time,message,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target}"
+		// fields := "id,created_time,message,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target}"
+		fields := "id,created_time,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target}"
 		var cursor *string
 
 		postsProcessed := 0
@@ -452,7 +710,7 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(ctx context.Context,
 
 			// Process each post
 			for _, post := range postsResp.Data {
-				j.processPostMetrics(ctx, channel, accessToken, &post)
+				j.processPostMetrics(ctx, channel, accessToken, &post, collector, ccMap, videoInsightsPool)
 				postsProcessed++
 			}
 
@@ -463,7 +721,7 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(ctx context.Context,
 			cursor = &postsResp.Paging.Cursors.After
 		}
 
-		zap.L().Info("Facebook posts metrics processed",
+		zap.L().Debug("Processed Facebook posts",
 			zap.String("channel_name", channel.Name),
 			zap.Int("posts_processed", postsProcessed))
 	}
@@ -471,25 +729,20 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(ctx context.Context,
 
 // processPostMetrics processes metrics for a single Facebook post
 func (j *ContentMetricsPollerJob) processPostMetrics(
-	ctx context.Context,
+	_ context.Context,
 	channel *model.Channel,
 	accessToken string,
 	post *dtos.FacebookPagePost,
+	collector *metricsCollector,
+	ccMap map[string]*model.ContentChannel,
+	videoInsightsPool *utils.WorkerPool,
 ) {
-	// Find matching ContentChannel by ExternalPostID
-	contentChannels, _, err := j.contentChannelRepo.GetAll(ctx,
-		func(db *gorm.DB) *gorm.DB {
-			return db.Where("channel_id = ?", channel.ID).
-				Where("external_post_id = ?", post.ID)
-		},
-		nil, 1, 1)
-
-	if err != nil || len(contentChannels) == 0 {
+	// O(1) lookup from pre-fetched map instead of database query
+	cc, exists := ccMap[post.ID]
+	if !exists {
 		// Post not tracked in our system, skip
 		return
 	}
-
-	cc := &contentChannels[0]
 
 	// Extract metrics from post response
 	rawMetrics := map[string]any{
@@ -541,34 +794,54 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 		}
 	}
 
-	// If video post, fetch video insights
+	// If video post, submit video insights fetch to worker pool
 	if post.Attachments != nil && len(post.Attachments.Data) > 0 {
 		for _, attachment := range post.Attachments.Data {
 			if attachment.MediaType == "video" && attachment.Target != nil {
-				j.fetchAndMergeVideoInsights(ctx, accessToken, attachment.Target.ID, rawMetrics, mappedMetrics)
+				// Capture variables for closure
+				videoID := attachment.Target.ID
+				token := accessToken
+				rawM := rawMetrics
+				mappedM := mappedMetrics
+				contentChannel := cc
+				col := collector
+				chID := channel.ID
+				r, c, s := reactions, comments, shares
+
+				// Submit to worker pool for async processing
+				videoInsightsPool.Submit(func(ctx context.Context) error {
+					views := j.fetchAndMergeVideoInsightsAsync(ctx, token, videoID, rawM, mappedM)
+					// After video insights are fetched, add to collector
+					col.addContentChannelUpdate(contentChannel, rawM, mappedM)
+					// Aggregate post metrics with video views to channel level
+					col.aggregatePostMetricsToChannel(chID, r, c, s, views)
+					return nil
+				})
+				return // Return early, collector will be updated by worker
 			}
 		}
 	}
 
-	// Persist metrics
-	if err := j.persistContentChannelMetrics(ctx, cc, rawMetrics, mappedMetrics); err != nil {
-		zap.L().Error("Failed to persist Facebook post metrics",
-			zap.String("post_id", post.ID),
-			zap.Error(err))
-	}
+	// For non-video posts, add to collector directly
+	collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
+
+	// Aggregate post metrics to channel level (for page-level totals)
+	// Views will be 0 for non-video posts
+	collector.aggregatePostMetricsToChannel(channel.ID, reactions, comments, shares, 0)
 }
 
-// fetchAndMergeVideoInsights fetches video insights and merges into existing metrics
-func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsights(
+// fetchAndMergeVideoInsightsAsync fetches video insights (for use in worker pool)
+// Returns the total video views for aggregation
+func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsightsAsync(
 	ctx context.Context,
 	accessToken string,
 	videoID string,
 	rawMetrics map[string]any,
 	mappedMetrics map[string]float64,
-) {
+) int {
 	// Wait for rate limit
 	if err := j.waitForFBRateLimit(ctx); err != nil {
-		return
+		return 0
 	}
 
 	metrics := []string{"total_video_views", "total_video_impressions"}
@@ -577,13 +850,19 @@ func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsights(
 		zap.L().Warn("Failed to fetch video insights",
 			zap.String("video_id", videoID),
 			zap.Error(err))
-		return
+		return 0
 	}
 
+	var totalViews int
 	for _, data := range insights.Data {
 		if len(data.Values) > 0 {
 			if value, ok := data.Values[0].Value.(float64); ok {
 				rawMetrics[data.Name] = value
+
+				// Track views for aggregation
+				if data.Name == "total_video_views" {
+					totalViews = int(value)
+				}
 
 				// Map video metrics
 				for k, v := range helper.MapFacebookMetricsToKPIField(data.Name, value) {
@@ -596,6 +875,8 @@ func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsights(
 			}
 		}
 	}
+
+	return totalViews
 }
 
 // endregion
@@ -603,7 +884,7 @@ func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsights(
 // region: ======== TikTok Metrics Methods ========
 
 // fetchTikTokUserMetrics fetches user-level metrics for TikTok channels
-func (j *ContentMetricsPollerJob) fetchTikTokUserMetrics(ctx context.Context, channels []model.Channel) {
+func (j *ContentMetricsPollerJob) fetchTikTokUserMetrics(ctx context.Context, channels []model.Channel, collector *metricsCollector) {
 	for i := range channels {
 		channel := &channels[i]
 
@@ -637,22 +918,22 @@ func (j *ContentMetricsPollerJob) fetchTikTokUserMetrics(ctx context.Context, ch
 			enum.KPIValueTypeLikes.String():     float64(utils.DerefPtr(userProfile.Data.User.LikesCount, 0)),
 		}
 
-		// Persist metrics
-		if err := j.persistChannelMetrics(ctx, channel, rawMetrics, mappedMetrics); err != nil {
-			zap.L().Error("Failed to persist TikTok user metrics",
-				zap.String("channel_name", channel.Name),
-				zap.Error(err))
-			continue
-		}
+		// Add to collector (not persisting directly)
+		collector.addChannelUpdate(channel, rawMetrics, mappedMetrics)
 
-		zap.L().Info("TikTok user metrics persisted",
+		zap.L().Debug("Collected TikTok user metrics",
 			zap.String("channel_name", channel.Name),
 			zap.Int64("followers", utils.DerefPtr(userProfile.Data.User.FollowerCount, 0)))
 	}
 }
 
 // fetchTikTokVideoListMetrics fetches video list and metrics for TikTok channels
-func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(ctx context.Context, channels []model.Channel) {
+func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(
+	ctx context.Context,
+	channels []model.Channel,
+	collector *metricsCollector,
+	contentChannelMap map[uuid.UUID]map[string]*model.ContentChannel,
+) {
 	for i := range channels {
 		channel := &channels[i]
 
@@ -662,6 +943,12 @@ func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(ctx context.Contex
 				zap.String("channel_name", channel.Name),
 				zap.Error(err))
 			continue
+		}
+
+		// Get pre-fetched content channels for this channel
+		ccMap := contentChannelMap[channel.ID]
+		if ccMap == nil {
+			ccMap = make(map[string]*model.ContentChannel)
 		}
 
 		// Fetch video list with pagination
@@ -684,7 +971,7 @@ func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(ctx context.Contex
 
 			// Process each video
 			for _, video := range videosResp.Data.Videos {
-				j.processTikTokVideoMetrics(ctx, channel, &video)
+				j.processTikTokVideoMetrics(ctx, channel, &video, collector, ccMap)
 				videosProcessed++
 			}
 
@@ -695,7 +982,7 @@ func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(ctx context.Contex
 			cursor = &videosResp.Data.Cursor
 		}
 
-		zap.L().Info("TikTok videos metrics processed",
+		zap.L().Debug("Processed TikTok videos",
 			zap.String("channel_name", channel.Name),
 			zap.Int("videos_processed", videosProcessed))
 	}
@@ -703,24 +990,18 @@ func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(ctx context.Contex
 
 // processTikTokVideoMetrics processes metrics for a single TikTok video
 func (j *ContentMetricsPollerJob) processTikTokVideoMetrics(
-	ctx context.Context,
-	channel *model.Channel,
+	_ context.Context,
+	_ *model.Channel,
 	video *dtos.TikTokVideoItem,
+	collector *metricsCollector,
+	ccMap map[string]*model.ContentChannel,
 ) {
-	// Find matching ContentChannel by ExternalPostID
-	contentChannels, _, err := j.contentChannelRepo.GetAll(ctx,
-		func(db *gorm.DB) *gorm.DB {
-			return db.Where("channel_id = ?", channel.ID).
-				Where("external_post_id = ?", video.ID)
-		},
-		nil, 1, 1)
-
-	if err != nil || len(contentChannels) == 0 {
+	// O(1) lookup from pre-fetched map instead of database query
+	cc, exists := ccMap[video.ID]
+	if !exists {
 		// Video not tracked in our system, skip
 		return
 	}
-
-	cc := &contentChannels[0]
 
 	// Extract metrics
 	rawMetrics := map[string]any{
@@ -757,12 +1038,8 @@ func (j *ContentMetricsPollerJob) processTikTokVideoMetrics(
 		}
 	}
 
-	// Persist metrics
-	if err := j.persistContentChannelMetrics(ctx, cc, rawMetrics, mappedMetrics); err != nil {
-		zap.L().Error("Failed to persist TikTok video metrics",
-			zap.String("video_id", video.ID),
-			zap.Error(err))
-	}
+	// Add to collector (not persisting directly)
+	collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
 }
 
 // endregion
