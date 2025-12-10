@@ -4387,6 +4387,17 @@ definitions:
       website:
         type: string
     type: object
+  responses.BrandInfoResponse:
+    properties:
+      id:
+        type: string
+      logo_url:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   responses.BrandOverviewMetrics:
     properties:
       active_campaigns:
@@ -4918,10 +4929,21 @@ definitions:
       usage:
         $ref: '#/definitions/responses.Usage'
     type: object
-  responses.ContentChannelBrief:
+  responses.ContentChannelAffiliateInfo:
     properties:
       affiliate_link:
         type: string
+      original_link:
+        type: string
+      status:
+        type: string
+      total_clicks:
+        type: integer
+    type: object
+  responses.ContentChannelBrief:
+    properties:
+      affiliate_link:
+        $ref: '#/definitions/responses.ContentChannelAffiliateInfo'
       auto_post_status:
         type: string
       channel_id:
@@ -4930,8 +4952,32 @@ definitions:
         type: string
       id:
         type: string
+      metrics:
+        $ref: '#/definitions/responses.ContentChannelMetric'
       post_date:
         type: string
+    type: object
+  responses.ContentChannelMetric:
+    properties:
+      fetched:
+        additionalProperties: {}
+        type: object
+      mapped:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+    type: object
+  responses.ContentInfo:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ContentType'
     type: object
   responses.ContentListResponse:
     properties:
@@ -6508,6 +6554,15 @@ definitions:
       update_at:
         type: string
     type: object
+  responses.ProductInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/enum.ProductType'
+    type: object
   responses.ProductOverviewResponse:
     properties:
       brand_id:
@@ -7164,17 +7219,16 @@ definitions:
       assigned_to_role:
         example: Sales Staff
         type: string
+      brand_info:
+        $ref: '#/definitions/responses.BrandInfoResponse'
       campaign_details:
         $ref: '#/definitions/responses.CampaignInfoResponse'
       campaign_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       content_ids:
-        example:
-        - '["770e8400-e29b-41d4-a716-446655440000"'
-        - ' "880e8400-e29b-41d4-a716-446655440000"]'
         items:
-          type: string
+          $ref: '#/definitions/responses.ContentInfo'
         type: array
       contract_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -7204,11 +7258,8 @@ definitions:
         example: Design Homepage
         type: string
       product_ids:
-        example:
-        - '["550e8400-e29b-41d4-a716-446655440000"'
-        - ' "660e8400-e29b-41d4-a716-446655440000"]'
         items:
-          type: string
+          $ref: '#/definitions/responses.ProductInfo'
         type: array
       status:
         example: IN_PROGRESS
@@ -7439,6 +7490,15 @@ definitions:
       avatar_url:
         example: https://example.com/avatar.jpg
         type: string
+      bank_info:
+        properties:
+          bank_account:
+            type: string
+          bank_account_holder:
+            type: string
+          bank_name:
+            type: string
+        type: object
       created_at:
         example: "2023-01-01T00:00:00Z"
         type: string
