@@ -21,7 +21,11 @@ import (
 
 const (
 	DefaultPublishError string = "TikTok video publish failed"
-	PublishIDMarker     string = "v_pub_url"
+	// Upload status values for ContentChannel.Metadata
+	UploadStatusPending    string = "pending"
+	UploadStatusProcessing string = "processing"
+	UploadStatusCompleted  string = "completed"
+	UploadStatusFailed     string = "failed"
 )
 
 type TikTokStatusPollerJob struct {
@@ -112,15 +116,16 @@ func (j *TikTokStatusPollerJob) Run() {
 
 	// Query ContentChannels where:
 	// - Channel code is TIKTOK
-	// - AutoPostStatus is PENDING
-	// - ExternalPostID contains publish_id (indicates async upload initiated)
+	// - AutoPostStatus is IN_PROGRESS
+	// - Metadata->>'upload_id' IS NOT NULL (indicates async upload initiated)
+	// - Metadata->>'upload_status' is 'processing' (not yet completed/failed)
 	contentChannels, _, err := j.contentChannelRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
 			return db.
 				Joins("JOIN channels ON channels.id = content_channels.channel_id").
 				Where("channels.code = ?", "TIKTOK").
-				Where("content_channels.auto_post_status = ? OR content_channels.external_post_id ILIKE ?",
-					enum.AutoPostStatusPending, "%v_pub_url%")
+				Where("content_channels.auto_post_status = ? OR (content_channels.metadata->>'upload_id' IS NOT NULL AND content_channels.metadata->>'upload_status' = ?)",
+					enum.AutoPostStatusInProgress, UploadStatusProcessing)
 		},
 		[]string{"Channel", "Content"},
 		0, 0) // No pagination - get all pending
@@ -154,18 +159,27 @@ func (j *TikTokStatusPollerJob) Run() {
 		}
 
 		// Check post status via TikTok API
-		if cc.ExternalPostID == nil {
-			zap.L().Warn("Content channel has nil ExternalPostID, skipping",
+		// Extract upload_id (publish_id) from metadata instead of ExternalPostID
+		metadata, err := cc.GetMetadata()
+		if err != nil {
+			zap.L().Error("Failed to parse metadata for TikTok content channel",
+				zap.String("content_channel_id", cc.ID.String()),
+				zap.Error(err))
+			continue
+		}
+		if metadata.UploadID == nil || *metadata.UploadID == "" {
+			zap.L().Warn("Content channel has nil or empty upload_id in metadata, skipping",
 				zap.String("content_channel_id", cc.ID.String()),
 				zap.String("channel_name", cc.Channel.Name),
 				zap.String("content_id", cc.ContentID.String()))
 			continue
 		}
-		statusResp, err := j.tiktokProxy.CheckPostStatus(ctx, *cc.ExternalPostID, accessToken)
+
+		statusResp, err := j.tiktokProxy.CheckPostStatus(ctx, *metadata.UploadID, accessToken)
 		if err != nil {
 			zap.L().Error("Failed to check TikTok post status",
 				zap.String("content_channel_id", cc.ID.String()),
-				zap.String("publish_id", utils.DerefPtr(cc.ExternalPostID, "UNKNOWN")),
+				zap.String("upload_id", utils.DerefPtr(metadata.UploadID, "UNKNOWN")),
 				zap.Error(err))
 			continue
 		}
@@ -249,6 +263,12 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 
 	ccRepo := uow.ContentChannels()
 
+	// Get current metadata to preserve upload_id
+	metadata, err := cc.GetMetadata()
+	if err != nil {
+		metadata = &model.ContentChannelMetadata{}
+	}
+
 	switch status {
 	case dtos.TikTokVideoPostStatusPublishComplete:
 		// Update to POSTED with final post URL
@@ -259,6 +279,12 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 		}
 		cc.LastError = nil
 		cc.PublishedAt = utils.PtrOrNil(time.Now())
+
+		// Update metadata status to "completed" (keep upload_id for historical reference)
+		metadata.UploadStatus = utils.PtrOrNil(UploadStatusCompleted)
+		if err := cc.SetMetadata(metadata); err != nil {
+			zap.L().Warn("Failed to update metadata on completion", zap.Error(err))
+		}
 
 		zap.L().Info("TikTok post completed",
 			zap.String("content_channel_id", cc.ID.String()),
@@ -271,6 +297,12 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 			cc.LastError = failReason
 		} else {
 			cc.LastError = utils.PtrOrNil(DefaultPublishError)
+		}
+
+		// Update metadata status to "failed" (keep upload_id for debugging)
+		metadata.UploadStatus = utils.PtrOrNil(UploadStatusFailed)
+		if err := cc.SetMetadata(metadata); err != nil {
+			zap.L().Warn("Failed to update metadata on failure", zap.Error(err))
 		}
 
 		zap.L().Warn("TikTok post failed",
