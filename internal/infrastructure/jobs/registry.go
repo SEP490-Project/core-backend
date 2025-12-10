@@ -11,15 +11,15 @@ import (
 )
 
 type CronJobRegistry struct {
-	CTRAggregationJob        CronJob
-	ExpiredLinkCleanupJob    CronJob
-	PayOSExpiryCheckJob      CronJob
-	PreOrderOpeningCheckJob  CronJob
-	TikTokStatusPollerJob    CronJob // Added for application layer
-	SocialMetricsPollerJob   CronJob // DEPRECATED: Use ContentMetricsPollerJob
-	ContentMetricsPollerJob  CronJob // New consolidated metrics poller
-	CronScheduler            *cron.Cron
-	jobs                     map[string]CronJob
+	CTRAggregationJob       CronJob
+	ExpiredLinkCleanupJob   CronJob
+	PayOSExpiryCheckJob     CronJob
+	PreOrderOpeningCheckJob CronJob
+	TikTokStatusPollerJob   CronJob // Added for application layer
+	SocialMetricsPollerJob  CronJob // DEPRECATED: Use ContentMetricsPollerJob
+	ContentMetricsPollerJob CronJob // New consolidated metrics poller
+	CronScheduler           *cron.Cron
+	jobs                    map[string]CronJob
 }
 
 func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adminConfig *config.AdminConfig) *CronJobRegistry {

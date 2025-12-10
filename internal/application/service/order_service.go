@@ -449,7 +449,7 @@ func categorizeVariant(variant model.ProductVariant) int {
 // validateAndGetRemainingOrder returns remaining allowed pre-order slots for a user+variant.
 // It sums quantities in the DB (excluding CANCELLED) to avoid loading all records.
 // This will forbid to create new one if there are transaction existed
-func (o orderService) validateAndGetRemainingOrder(ctx context.Context, userID string, variantID string, maximumOrder int) (int, error) {
+func (o orderService) validateAndGetRemainingOrder(_ context.Context, userID string, variantID string, maximumOrder int) (int, error) {
 	if maximumOrder <= 0 {
 		return 0, fmt.Errorf("invalid maximumOrder: %d", maximumOrder)
 	}
@@ -543,22 +543,25 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				}
 
 				// don't need includes when using joins
-				orderItems, total, err := o.orderItemRepository.GetAll(ctx, filter, nil, 0, 0)
+				var orderItems []model.OrderItem
+				var total int64
+				orderItems, total, err = o.orderItemRepository.GetAll(ctx, filter, nil, 0, 0)
 				if err != nil {
 					return err
 				}
 				if total > 0 {
-					var existedOrderId string
+					var existedOrderID string
 					for _, i := range orderItems {
-						existedOrderId += "," + i.ID.String()
+						existedOrderID += "," + i.ID.String()
 					}
-					return fmt.Errorf("you have pending orders (order IDs: %s) for this product variant. Please complete or cancel them before placing a new pre-order", existedOrderId[1:])
+					return fmt.Errorf("you have pending orders (order IDs: %s) for this product variant. Please complete or cancel them before placing a new pre-order", existedOrderID[1:])
 				}
 			}
 
 			//check variantID:
 			includes := []string{"AttributeValues", "AttributeValues.Attribute", "Images", "Product", "Product.Limited"}
-			variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
+			var variant *model.ProductVariant
+			variant, err = uow.ProductVariant().GetByID(ctx, item.VariantID, includes)
 			if err != nil {
 				zap.L().Error("ProductVariant().GetByID", zap.Error(err))
 				return errors.New("product Variant not found")
@@ -621,7 +624,8 @@ func (o *orderService) PlaceOrder(ctx context.Context, userID uuid.UUID, request
 				}
 				// 2. user achievable limit
 				achievable := variant.Product.Limited.AchievableQuantity
-				userRemain, err := o.validateAndGetRemainingOrder(ctx, userID.String(), item.VariantID.String(), achievable)
+				var userRemain int
+				userRemain, err = o.validateAndGetRemainingOrder(ctx, userID.String(), item.VariantID.String(), achievable)
 				if err != nil {
 					return err
 				}
