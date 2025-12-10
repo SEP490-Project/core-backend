@@ -48,6 +48,7 @@ type HandlerRegistry struct {
 	FacebookSocialHandler         *FacebookSocialHandler
 	TikTokSocialHandler           *TikTokSocialHandler
 	AIHandler                     *AIHandler
+	JobHandler                    *JobHandler
 	TestHandler                   *TestHandler
 }
 
@@ -92,6 +93,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		FacebookSocialHandler:         NewFacebookSocialHandler(appConfig, applicationReg.FacebookSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		TikTokSocialHandler:           NewTikTokSocialHandler(appConfig, applicationReg.TikTokSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AIHandler:                     NewAIHandler(applicationReg.AIService),
+		JobHandler:                    NewJobHandler(applicationReg.InfrastructureRegistry.CronJobsRegistry),
 		TestHandler:                   NewTestHandler(appConfig, applicationReg),
 	}
 }
