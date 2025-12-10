@@ -44,6 +44,11 @@ type TikTokProxy interface {
 	// GetVideoMetrics retrieves metrics for a specific video
 	GetVideoMetrics(ctx context.Context, videoID string, accessToken string) (*dtos.TikTokVideoMetricsResponse, error)
 
+	// GetUserVideoList retrieves paginated list of videos for the authenticated user with metrics
+	// maxCount specifies maximum videos to return per page (max 20)
+	// cursor is used for pagination (pass nil for first page)
+	GetUserVideoList(ctx context.Context, accessToken string, maxCount int, cursor *int64) (*dtos.TikTokVideoListResponse, error)
+
 	// endregion
 
 	ValidateContentRequest(
