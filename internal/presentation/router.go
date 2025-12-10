@@ -98,6 +98,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContractPaymentRoutes(v1)
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
+		r.setupJobRoutes(v1)
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
 		r.SetupTaskRoutes(v1)
@@ -1023,5 +1024,22 @@ func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
 		aiGroup.POST("/generate", aiHandler.Generate)
 		aiGroup.POST("/generate-content", r.middlewareRegistry.Auth.RequireRole(content, marketing, admin), aiHandler.GenerateContent)
 		aiGroup.GET("/models", aiHandler.GetSupportedModels)
+	}
+}
+
+func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
+	jobHandler := r.handlerRegistry.JobHandler
+	jobGroup := group.Group("/jobs")
+	jobGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	jobGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		jobGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
+		jobGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
+		jobGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
+		jobGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
+		jobGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
+		jobGroup.POST("/social-metrics-poller", jobHandler.TriggerSocialMetricsPollerJob)
+		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
+		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
 	}
 }
