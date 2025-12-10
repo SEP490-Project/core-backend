@@ -434,4 +434,66 @@ func (t *TikTokProxy) GetVideoMetrics(ctx context.Context, videoID string, acces
 	return &metricsResp, nil
 }
 
+// GetUserVideoList implements iproxies.TikTokProxy.
+// Retrieves paginated list of videos for the authenticated user with metrics
+// https://developers.tiktok.com/doc/tiktok-api-v2-video-list/
+func (t *TikTokProxy) GetUserVideoList(ctx context.Context, accessToken string, maxCount int, cursor *int64) (*dtos.TikTokVideoListResponse, error) {
+	zap.L().Info("TikTokProxy - GetUserVideoList called", zap.Int("max_count", maxCount))
+
+	// Use Video List API
+	path := "video/list/"
+
+	// Fields to request for video metrics
+	fields := []string{
+		"id",
+		"create_time",
+		"cover_image_url",
+		"share_url",
+		"video_description",
+		"duration",
+		"title",
+		"like_count",
+		"comment_count",
+		"share_count",
+		"view_count",
+	}
+
+	var err error
+	path, err = utils.AddQueryParam(path, "fields", strings.Join(fields, ","))
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting TikTok video list", zap.Error(err))
+		return nil, err
+	}
+
+	// Build request body
+	reqBody := map[string]any{
+		"max_count": maxCount,
+	}
+	if cursor != nil && *cursor > 0 {
+		reqBody["cursor"] = *cursor
+	}
+
+	headers := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", accessToken),
+		"Content-Type":  "application/json",
+	}
+
+	var videosResp dtos.TikTokVideoListResponse
+	if err := PostGeneric(t.BaseProxy, ctx, path, headers, reqBody, &videosResp); err != nil {
+		zap.L().Error("Failed to get TikTok video list", zap.Error(err))
+		return nil, fmt.Errorf("failed to get video list: %w", err)
+	}
+
+	if !videosResp.Error.Code.IsSuccess() {
+		zap.L().Error("TikTok API returned error", zap.Any("error", videosResp.Error))
+		return nil, fmt.Errorf("TikTok API error: %s - %s", videosResp.Error.Code, videosResp.Error.Message)
+	}
+
+	zap.L().Info("TikTok video list retrieved",
+		zap.Int("video_count", len(videosResp.Data.Videos)),
+		zap.Bool("has_more", videosResp.Data.HasMore))
+
+	return &videosResp, nil
+}
+
 // endregion

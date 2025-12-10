@@ -191,29 +191,35 @@ func (userProfile *TikTokUserProfileResponse) ToMetadata() *model.TikTokOAuthMet
 
 // region: 2. ========= TikTok Videos =========
 
-// TikTokVideos represents the structure of TikTok video data
-// Needed scope: video.list
-type TikTokVideos struct {
-	Videos struct {
-		ID               string `json:"id"`
-		CreateTime       string `json:"create_time"`
-		CoverImageURL    string `json:"cover_image_url"`
-		ShareURL         string `json:"share_url"`
-		VideoDescription string `json:"video_description"`
-		Duration         int64  `json:"duration"`
-		Height           int64  `json:"height"`
-		Width            int64  `json:"width"`
-		Title            string `json:"title"`
-		EmbedHTML        string `json:"embed_html"`
-		EmbedLink        string `json:"embed_link"`
-		LikeCount        int64  `json:"like_count"`
-		CommentCount     int64  `json:"comment_count"`
-		ShareCount       int64  `json:"share_count"`
-		ViewCount        int64  `json:"view_count"`
-	} `json:"videos"`
+// TikTokVideoItem represents a single video from TikTok Video List API
+type TikTokVideoItem struct {
+	ID               string `json:"id"`
+	CreateTime       int64  `json:"create_time"` // Unix timestamp
+	CoverImageURL    string `json:"cover_image_url"`
+	ShareURL         string `json:"share_url"`
+	VideoDescription string `json:"video_description"`
+	Duration         int64  `json:"duration"`
+	Height           int64  `json:"height"`
+	Width            int64  `json:"width"`
+	Title            string `json:"title"`
+	EmbedHTML        string `json:"embed_html"`
+	EmbedLink        string `json:"embed_link"`
+	LikeCount        int64  `json:"like_count"`
+	CommentCount     int64  `json:"comment_count"`
+	ShareCount       int64  `json:"share_count"`
+	ViewCount        int64  `json:"view_count"`
 }
 
-type TikTokVideosResponse TikTokResponseWrapper[TikTokVideos]
+// TikTokVideoListData represents the data returned by TikTok Video List API
+// https://developers.tiktok.com/doc/tiktok-api-v2-video-list/
+type TikTokVideoListData struct {
+	Videos  []TikTokVideoItem `json:"videos"`
+	Cursor  int64             `json:"cursor"`
+	HasMore bool              `json:"has_more"`
+}
+
+// TikTokVideoListResponse is the response type for Video List API
+type TikTokVideoListResponse TikTokResponseWrapper[TikTokVideoListData]
 
 // endregion 2.
 
