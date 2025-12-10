@@ -447,6 +447,63 @@ func (f *FacebookProxy) GetUploadStatus(ctx context.Context, uploadSessionID str
 	return statusResp.FileOffset, nil
 }
 
+// GetPageInfo implements iproxies.FacebookProxy.
+// Retrieves page-level metrics like fan_count, followers_count
+func (f *FacebookProxy) GetPageInfo(ctx context.Context, pageID string, accessToken string, fields []string) (*dtos.FacebookPageInfoResponse, error) {
+	zap.L().Info("FacebookProxy - GetPageInfo called", zap.String("page_id", pageID), zap.Strings("fields", fields))
+
+	queryParams := map[string]string{
+		"access_token": accessToken,
+	}
+	if len(fields) > 0 {
+		queryParams["fields"] = strings.Join(fields, ",")
+	}
+
+	url, err := utils.AddQueryParams(pageID, queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook page info", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	var pageInfoResp dtos.FacebookPageInfoResponse
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &pageInfoResp); err != nil {
+		zap.L().Error("Failed to get Facebook page info", zap.Error(err))
+		return nil, fmt.Errorf("failed to get page info: %w", err)
+	}
+
+	return &pageInfoResp, nil
+}
+
+// GetPagePosts implements iproxies.FacebookProxy.
+// Retrieves paginated list of posts from a Facebook page with engagement metrics
+func (f *FacebookProxy) GetPagePosts(ctx context.Context, pageID string, accessToken string, fields string, cursor *string) (*dtos.FacebookPagePostsResponse, error) {
+	zap.L().Info("FacebookProxy - GetPagePosts called", zap.String("page_id", pageID))
+
+	queryParams := map[string]string{
+		"access_token": accessToken,
+	}
+	if fields != "" {
+		queryParams["fields"] = fields
+	}
+	if cursor != nil && *cursor != "" {
+		queryParams["after"] = *cursor
+	}
+
+	url, err := utils.AddQueryParams(fmt.Sprintf("%s/posts", pageID), queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook page posts", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+
+	var postsResp dtos.FacebookPagePostsResponse
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &postsResp); err != nil {
+		zap.L().Error("Failed to get Facebook page posts", zap.Error(err))
+		return nil, fmt.Errorf("failed to get page posts: %w", err)
+	}
+
+	return &postsResp, nil
+}
+
 // GetPostMetrics implements iproxies.FacebookProxy.
 func (f *FacebookProxy) GetPostMetrics(ctx context.Context, postID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPostMetricsResponse, error) {
 	zap.L().Info("FacebookProxy - GetPostMetrics called", zap.String("post_id", postID))
