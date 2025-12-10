@@ -29,6 +29,7 @@ type UnitOfWork interface {
 	ContentChannels() ContentChannelsRepository
 	Blogs() GenericRepository[model.Blog]
 	Tags() TagRepository
+	WebhookData() GenericRepository[model.WebhookData]
 
 	//Product flow
 	ProductStory() GenericRepository[model.ProductStory]
