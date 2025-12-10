@@ -78,8 +78,8 @@ func (p *PreOrderHandler) GetAllPreorders(c *gin.Context) {
 	// Parse comma-separated statuses into slice
 	var statuses []string
 	if strings.TrimSpace(statusParam) != "" {
-		parts := strings.Split(statusParam, ",")
-		for _, s := range parts {
+		parts := strings.SplitSeq(statusParam, ",")
+		for s := range parts {
 			s = strings.TrimSpace(s)
 			if s != "" {
 				statuses = append(statuses, s)
@@ -234,8 +234,8 @@ func (p *PreOrderHandler) GetStaffAvailablePreOrdersWithPagination(c *gin.Contex
 			continue
 		}
 		// Tách comma-separated
-		parts := strings.Split(s.String(), ",")
-		for _, p := range parts {
+		parts := strings.SplitSeq(s.String(), ",")
+		for p := range parts {
 			p = strings.TrimSpace(p)
 			if p != "" {
 				statuses = append(statuses, p)
@@ -326,7 +326,7 @@ func (p *PreOrderHandler) PreOrderApprove(c *gin.Context) {
 	var reasonPtr *string
 	if targetStatus == enum.PreOrderStatusCancelled {
 		var req CensorOrderRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
+		if err = c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when action=CANCEL: "+err.Error(), http.StatusBadRequest))
 			return
 		}
@@ -436,7 +436,7 @@ func (p *PreOrderHandler) RequestCompensation(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -510,7 +510,7 @@ func (p *PreOrderHandler) ProcessCompensation(c *gin.Context) {
 	}
 
 	// --- Parse multipart ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -601,7 +601,7 @@ func (p *PreOrderHandler) MarkPreOrderAsReceivedByStaff(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -669,7 +669,7 @@ func (p *PreOrderHandler) PreOrderObligateRefund(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -742,7 +742,7 @@ func (p *PreOrderHandler) PreOrderRefundRequest(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -806,7 +806,7 @@ func (p *PreOrderHandler) ApprovePreOrderRefund(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -883,7 +883,7 @@ func (p *PreOrderHandler) MarkPreOrderAsDelivered(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 

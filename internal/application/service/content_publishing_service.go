@@ -520,7 +520,7 @@ func (s *contentPublishingService) publishVideoPostToFacebook(
 	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
-	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
+	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeVideo)
 
 	// Step 1: Extract video info from content body
 	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
@@ -556,162 +556,16 @@ func (s *contentPublishingService) publishVideoPostToFacebook(
 		return "", "", nil, fmt.Errorf("failed to create Facebook video post from URL: %w", err)
 	}
 
+	// Step 3: Update ContentChannel metadata with video ID and upload status
+	updatedMetadata := &model.ContentChannelMetadata{
+		VideoID:      &videoID,
+		Type:         utils.PtrOrNil("video"),
+		UploadStatus: utils.PtrOrNil("completed"),
+	}
+	s.saveUploadMetadataAsync(ctx, contentChannelID, updatedMetadata, enum.ExternalPostTypeVideo)
+
 	return videoID, fmt.Sprintf("https://www.facebook.com/%s/videos/%s", pageID, videoID), utils.PtrOrNil(enum.ExternalPostTypeVideo), nil
 }
-
-/* Deprecated Video publishing logic via resumable upload
-func (s *contentPublishingService) uploadVideoToFacebookResumable(ctx context.Context, accessToken string, content *model.Content, videoS3Key string) (string, string, error) {
- // Step 1: Download video from S3
-	videoReader, fileSize, err := s.s3StreamingStorage.Get(ctx, videoS3Key)
-	if err != nil {
-		zap.L().Error("Failed to download video from S3",
-			zap.String("s3_key", videoS3Key),
-			zap.Error(err))
-		return "", "", fmt.Errorf("failed to download video from S3: %w", err)
-	}
-	defer videoReader.Close()
-
-	zap.L().Info("Video downloaded from S3",
-		zap.String("content_id", content.ID.String()),
-		zap.Int64("file_size", fileSize))
-
-	// Step 2: Initialize video upload with Facebook using Resumable Upload API
-	// Generate filename from content ID
-	fileName := fmt.Sprintf("video_%s.mp4", content.ID.String())
-
-	uploadSessionID, err := s.facebookProxy.InitVideoUpload(ctx, fileName, fileSize, accessToken)
-	if err != nil {
-		return "", "", fmt.Errorf("facebook video init failed: %w", err)
-	}
-
-	zap.L().Info("Facebook video upload session initialized",
-		zap.String("content_id", content.ID.String()),
-		zap.String("upload_session_id", uploadSessionID))
-
-	// Step 3: Upload video in chunks with resume capability
-	// const chunkSize = 50 * 1024 * 1024 // 50MB chunks (recommended by Facebook)
-	// maxRetries := 3
-	chunkSize := s.config.AdminConfig.FacebookVideoUploadChunkSizeInMB * 1024 * 1024
-	maxRetries := s.config.AdminConfig.FacebookVideoUploadMaxRetries
-	var fileHandle *string
-	var bytesUploaded int64 = 0
-
-	// Check if there's any existing progress (for resume)
-	existingProgress, err := s.facebookProxy.GetUploadStatus(ctx, uploadSessionID, accessToken)
-	if err == nil && existingProgress > 0 {
-		bytesUploaded = existingProgress
-		zap.L().Info("Resuming upload from existing progress",
-			zap.String("content_id", content.ID.String()),
-			zap.Int64("bytes_uploaded", bytesUploaded))
-
-		// Skip bytes already uploaded
-		_, err = io.CopyN(io.Discard, videoReader, bytesUploaded)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to skip uploaded bytes: %w", err)
-		}
-	}
-
-	// Upload chunks
-	for bytesUploaded < fileSize {
-		// Calculate chunk size for this iteration
-		remainingBytes := fileSize - bytesUploaded
-		currentChunkSize := min(remainingBytes, int64(chunkSize))
-
-		// Read chunk from S3 reader
-		chunk := make([]byte, currentChunkSize)
-		var n int
-		n, err = io.ReadFull(videoReader, chunk)
-		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-			return "", "", fmt.Errorf("failed to read video chunk: %w", err)
-		}
-
-		// Retry logic for chunk upload
-		var uploadErr error
-		chunkToUpload := chunk[:n]     // Save chunk for retries
-		currentOffset := bytesUploaded // Save offset for this chunk
-
-		for attempt := range maxRetries {
-			zap.L().Info("Uploading video chunk",
-				zap.String("content_id", content.ID.String()),
-				zap.Int64("offset", currentOffset),
-				zap.Int("chunk_size", n),
-				zap.Int("attempt", attempt+1))
-
-			// Upload chunk and potentially get file handle on last chunk
-			fileHandle, uploadErr = s.facebookProxy.UploadVideoChunk(ctx, uploadSessionID, &chunkToUpload, currentOffset, accessToken)
-			if uploadErr == nil {
-				break // Success
-			}
-
-			// Check if we can resume from server state
-			if attempt < maxRetries-1 {
-				zap.L().Warn("Chunk upload failed, checking server state",
-					zap.String("content_id", content.ID.String()),
-					zap.Int64("offset", currentOffset),
-					zap.Error(uploadErr))
-
-				// Query server for current progress
-				serverProgress, statusErr := s.facebookProxy.GetUploadStatus(ctx, uploadSessionID, accessToken)
-				if statusErr == nil {
-					if serverProgress > currentOffset {
-						// Server already has this chunk (and possibly more)
-						zap.L().Info("Server already has this chunk",
-							zap.String("content_id", content.ID.String()),
-							zap.Int64("server_offset", serverProgress),
-							zap.Int64("our_offset", currentOffset))
-
-						// Update our position and skip to next chunk
-						uploadErr = nil // Clear error
-						break
-					} else if serverProgress == currentOffset {
-						// Server is at the position we're trying to upload, retry
-						zap.L().Info("Server waiting at expected offset, retrying",
-							zap.String("content_id", content.ID.String()),
-							zap.Int64("offset", serverProgress))
-					}
-				}
-
-				// Wait before retry with exponential backoff
-				backoff := time.Duration(attempt+1) * 2 * time.Second
-				time.Sleep(backoff)
-			}
-		}
-
-		if uploadErr != nil {
-			return "", "", fmt.Errorf("failed to upload video chunk after %d retries: %w", maxRetries, uploadErr)
-		}
-
-		bytesUploaded += int64(n)
-		zap.L().Info("Chunk uploaded successfully",
-			zap.String("content_id", content.ID.String()),
-			zap.Int64("total_uploaded", bytesUploaded),
-			zap.Float64("progress_percent", float64(bytesUploaded)/float64(fileSize)*100))
-	}
-
-	if fileHandle == nil {
-		return "", "", errors.New("upload completed but no file handle received")
-	}
-
-	zap.L().Info("Video upload completed, received file handle",
-		zap.String("content_id", content.ID.String()),
-		zap.Int("file_handle", len(*fileHandle)))
-
-	// Step 4: Publish video to page using file handle
-	publishResp, err := s.facebookProxy.PublishVideo(ctx, fileHandle, pageID, title, description, accessToken)
-	if err != nil {
-		return "", "", fmt.Errorf("facebook video publish failed: %w", err)
-	}
-
-	postURL := fmt.Sprintf("https://www.facebook.com/%s", publishResp.ID)
-
-	zap.L().Info("Facebook video published successfully",
-		zap.String("content_id", content.ID.String()),
-		zap.String("post_id", publishResp.ID),
-		zap.String("post_url", postURL))
-
-	return publishResp.ID, postURL, nil
-}
-*/
 
 // endregion 4.
 
@@ -719,15 +573,26 @@ func (s *contentPublishingService) uploadVideoToFacebookResumable(ctx context.Co
 
 // region: 3. =========== TikTok Publishing ===========
 
-// TODO: Refactor publishToTikTok according to docs
+// publishToTikTok publishes video content to TikTok
+// Note: TikTok video publishing is asynchronous. This method initiates the upload
+// and stores the publish_id in ContentChannel.Metadata for status polling.
+// The TikTokStatusPollerJob will poll for completion and set the external_post_id.
 func (s *contentPublishingService) publishToTikTok(ctx context.Context, content *model.Content, _ *model.Channel, contentChannel *model.ContentChannel, accessToken string) (string, string, error) {
 	// TikTok only supports video
 	if content.Type != enum.ContentTypeVideo {
 		return "", "", errors.New("TikTok only supports video content")
 	}
 
-	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
-	s.saveExternalPostIDAsync(ctx, contentChannel.ID, "", "", enum.ExternalPostTypeVideo)
+	// Step 0: Save initial metadata with upload status "pending"
+	// Note: We store publish_id in metadata instead of external_post_id
+	// external_post_id will be set when upload completes (by TikTokStatusPollerJob)
+	uploadStatus := "pending"
+	contentType := "video"
+	initialMetadata := &model.ContentChannelMetadata{
+		UploadStatus: &uploadStatus,
+		Type:         &contentType,
+	}
+	s.saveUploadMetadataAsync(ctx, contentChannel.ID, initialMetadata, enum.ExternalPostTypeVideo)
 
 	// 1. Get creator info (required - validates token and gets allowed privacy levels)
 	creatorInfo, err := s.tiktokProxy.GetCreatorInfo(ctx, accessToken)
@@ -802,9 +667,19 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 	zap.L().Info("TikTok video post initiated",
 		zap.String("publish_id", initResp.Data.PublishID))
 
-	// TikTok will send webhook to notify the status of the video post
-	// For now, persist publishID to check status
-	return initResp.Data.PublishID, "", nil
+	// 6. Update metadata with publish_id (upload_id) for status polling
+	// TikTokStatusPollerJob will query by metadata->>'upload_id' IS NOT NULL
+	uploadStatusProcessing := "processing"
+	updatedMetadata := &model.ContentChannelMetadata{
+		UploadID:     &initResp.Data.PublishID,
+		UploadStatus: &uploadStatusProcessing,
+		Type:         &contentType,
+	}
+	s.saveUploadMetadataAsync(ctx, contentChannel.ID, updatedMetadata, enum.ExternalPostTypeVideo)
+
+	// Return empty external_post_id and URL since the upload is not yet complete
+	// The TikTokStatusPollerJob will set these when upload completes
+	return "", "", nil
 }
 
 // endregion 3.
@@ -856,6 +731,47 @@ func (s *contentPublishingService) saveExternalPostIDAsync(
 		zap.String("content_channel_id", contentChannelID.String()),
 		zap.String("external_post_id", externalPostID),
 		zap.String("external_post_url", externalPostURL))
+}
+
+// saveUploadMetadataAsync saves upload metadata (upload_id, status) to ContentChannel.Metadata asynchronously
+// Used for TikTok and Facebook video uploads that require polling for completion
+func (s *contentPublishingService) saveUploadMetadataAsync(
+	ctx context.Context, contentChannelID uuid.UUID, metadata *model.ContentChannelMetadata, externalPostType enum.ExternalPostType,
+) {
+	zap.L().Info("ContentPublishingService - saveUploadMetadataAsync called",
+		zap.String("content_channel_id", contentChannelID.String()),
+		zap.Any("metadata", metadata))
+
+	requestID := logging.GetRequestID()
+	saveFunc := func(ctx context.Context) error {
+		logging.SetRequestID(requestID)
+
+		// Marshal metadata to JSON
+		metadataJSON, err := json.Marshal(metadata)
+		if err != nil {
+			zap.L().Error("Failed to marshal metadata", zap.Error(err))
+			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
+
+		if err := s.contentChannelRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", contentChannelID)
+		}, map[string]any{
+			"metadata":           metadataJSON,
+			"auto_post_status":   enum.AutoPostStatusInProgress,
+			"external_post_type": externalPostType,
+		}); err != nil {
+			zap.L().Error("Failed to save upload metadata asynchronously", zap.Error(err))
+			return fmt.Errorf("failed to save upload metadata: %w", err)
+		}
+		return nil
+	}
+	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, saveFunc); err != nil {
+		zap.L().Error("Failed to save upload metadata asynchronously", zap.Error(err))
+		return
+	}
+
+	zap.L().Info("Successfully saved upload metadata asynchronously",
+		zap.String("content_channel_id", contentChannelID.String()))
 }
 
 // extractVideoInfoFromContentBody extracts video metadata from the content body JSON

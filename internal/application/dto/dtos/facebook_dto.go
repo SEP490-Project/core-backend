@@ -111,3 +111,68 @@ const (
 type FacebookVideoInsightsResponse struct {
 	Data []FacebookMetricData `json:"data"`
 }
+
+// FacebookPageInfoResponse represents page-level metrics from Facebook Graph API
+// Used by GET /{page-id}?fields=fan_count,followers_count,...
+type FacebookPageInfoResponse struct {
+	ID             string `json:"id"`
+	Name           string `json:"name,omitempty"`
+	FanCount       int    `json:"fan_count"`       // Total page likes
+	FollowersCount int    `json:"followers_count"` // Total page followers
+}
+
+// FacebookPagePostsResponse represents paginated list of posts from a Facebook page
+// Used by GET /{page-id}/posts?fields=...
+type FacebookPagePostsResponse struct {
+	Data   []FacebookPagePost     `json:"data"`
+	Paging *FacebookPagingWithURL `json:"paging,omitempty"`
+}
+
+// FacebookPagingWithURL extends paging info with next/previous URLs
+type FacebookPagingWithURL struct {
+	Cursors  FacebookCursorsInfo `json:"cursors"`
+	Next     *string             `json:"next,omitempty"`     // URL for next page
+	Previous *string             `json:"previous,omitempty"` // URL for previous page
+}
+
+// FacebookPagePost represents a single post from a Facebook page
+type FacebookPagePost struct {
+	ID          string                `json:"id"`
+	Message     string                `json:"message,omitempty"`
+	CreatedTime string                `json:"created_time"`
+	Reactions   *FacebookSummaryCount `json:"reactions,omitempty"`
+	Comments    *FacebookSummaryCount `json:"comments,omitempty"`
+	Shares      *FacebookSharesCount  `json:"shares,omitempty"`
+	Attachments *FacebookAttachments  `json:"attachments,omitempty"`
+}
+
+// FacebookSummaryCount represents a count with summary (used for reactions, comments)
+type FacebookSummaryCount struct {
+	Summary struct {
+		TotalCount int `json:"total_count"`
+	} `json:"summary"`
+}
+
+// FacebookSharesCount represents shares count structure
+type FacebookSharesCount struct {
+	Count int `json:"count"`
+}
+
+// FacebookAttachments represents media attachments on a post
+type FacebookAttachments struct {
+	Data []FacebookAttachment `json:"data"`
+}
+
+// FacebookAttachment represents a single attachment (photo, video, etc.)
+type FacebookAttachment struct {
+	MediaType string                    `json:"media_type"` // "video", "photo", "album", etc.
+	Type      string                    `json:"type"`       // "video_inline", "photo", etc.
+	Target    *FacebookAttachmentTarget `json:"target,omitempty"`
+	URL       string                    `json:"url,omitempty"`
+}
+
+// FacebookAttachmentTarget contains the ID of the attachment (e.g., video ID)
+type FacebookAttachmentTarget struct {
+	ID  string `json:"id"`
+	URL string `json:"url,omitempty"`
+}

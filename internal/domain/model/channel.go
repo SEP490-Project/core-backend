@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -14,6 +15,8 @@ type Channel struct {
 	Description *string   `json:"description" gorm:"type:text;column:description"`
 	HomePageURL *string   `json:"home_page_url" gorm:"type:text;column:home_page_url"`
 	IsActive    bool      `json:"is_active" gorm:"type:boolean;column:is_active;default:true;not null"`
+	// Metrics storage for page/user level metrics
+	Metrics datatypes.JSON `json:"metrics" gorm:"type:jsonb;column:metrics;default:'{}'"`
 	// OAuth fields
 	ExternalID            *string    `json:"external_id" gorm:"type:varchar(255);column:external_id"`
 	AccountName           *string    `json:"account_name" gorm:"type:varchar(255);column:account_name"`

@@ -1,5 +1,17 @@
 package jobs
 
+// DEPRECATED: This job is deprecated and will be removed in a future release.
+// Use ContentMetricsPollerJob instead which provides:
+// - Proper rate limiting for Facebook API
+// - Parallel goroutines for different metric types
+// - Better error handling with continue-on-failure
+// - Page-level metrics storage in channel.metrics JSONB
+//
+// To migrate:
+// 1. Set social_metrics_poller_enabled: false in admin_config.yaml
+// 2. Set content_metrics_poller_enabled: true in admin_config.yaml
+// 3. Monitor for 1 week, then delete this file
+
 import (
 	"context"
 	"core-backend/config"
@@ -25,6 +37,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// SocialMetricsPollerJob is DEPRECATED. Use ContentMetricsPollerJob instead.
 type SocialMetricsPollerJob struct {
 	db                  *gorm.DB
 	unitOfWork          irepository.UnitOfWork
@@ -41,6 +54,8 @@ type SocialMetricsPollerJob struct {
 	entryID             cron.EntryID
 }
 
+// NewSocialMetricsPollerJob creates a new instance.
+// DEPRECATED: Use NewContentMetricsPollerJob instead.
 func NewSocialMetricsPollerJob(
 	db *gorm.DB,
 	unitOfWork irepository.UnitOfWork,

@@ -43,12 +43,12 @@ type ghnProxy struct {
 	tokenExpires time.Time
 }
 
-func (g ghnProxy) CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error) {
+func (g *ghnProxy) CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
+func (g *ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
 	// find order with items and variant/product data
 	var order model.Order
 	if err := g.db.WithContext(ctx).
@@ -76,7 +76,7 @@ func (g ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.Cre
 }
 
 // CalculateDeliveryPriceByID calculates delivery fee for an order by contacting GHN and returns the first fee result.
-func (g ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g *ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeePath := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
 	var deliveryFee *dtos.DeliveryFeeSuccess
 
@@ -115,7 +115,7 @@ func (g ghnProxy) CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.U
 // GetAvailableDeliveryServicesByOrderID fetches available delivery services for an order from GHN.
 //
 //	@Deprecated
-func (g ghnProxy) GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error) {
+func (g *ghnProxy) GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error) {
 	deliverySvcURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/available-services"
 	var availableSvc []dtos.DeliveryAvailableServiceDTO
 
@@ -149,7 +149,7 @@ func (g ghnProxy) GetAvailableDeliveryServicesByOrderID(ctx context.Context, ord
 }
 
 // @Deprecated
-func (g ghnProxy) GetAvailableDeliveryServicesByDistrictID(ctx context.Context, districtID int, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error) {
+func (g *ghnProxy) GetAvailableDeliveryServicesByDistrictID(ctx context.Context, districtID int, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error) {
 	deliverySvcURL := g.cfg.GHN.BaseURL + "/v2/shipping-order/available-services"
 	var availableSvc []dtos.DeliveryAvailableServiceDTO
 
@@ -177,7 +177,7 @@ func (g ghnProxy) GetAvailableDeliveryServicesByDistrictID(ctx context.Context, 
 	return availableSvc, nil
 }
 
-func (g ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g *ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeePath := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
 	var deliveryFee *dtos.DeliveryFeeSuccess
 
@@ -208,7 +208,7 @@ func (g ghnProxy) CalculateDeliveryPriceByDimensionItems(ctx context.Context, to
 
 }
 
-func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+func (g *ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
 	deliveryFeePath := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
 	var deliveryFee dtos.DeliveryFeeSuccess
 
@@ -247,7 +247,7 @@ func (g ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx contex
 	return &deliveryFee, nil
 }
 
-func (g ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error) {
+func (g *ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error) {
 	var order model.Order
 	if err := g.db.WithContext(ctx).First(&order, "id = ?", orderID).Error; err != nil {
 		return nil, fmt.Errorf("failed to find order: %w", err)
@@ -271,7 +271,7 @@ func (g ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.Order
 	return doGHNRequest[dtos.OrderInfo](ctx, http.MethodPost, url, headers, body)
 }
 
-func (g ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error) {
+func (g *ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error) {
 	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/leadtime"
 
 	body := map[string]interface{}{

@@ -14,13 +14,23 @@ import (
 func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
 	videoMetrics := constant.FacebookVideoMetrics
 	postMetrics := constant.FacebookPostMetrics
+
 	switch metric {
-	case videoMetrics.BlueReelsPlayCount, postMetrics.PostMediaView:
-		// return []string{enum.KPIValueTypeReach.String()}
+	// Video view metrics -> Reach (views)
+	case videoMetrics.BlueReelsPlayCount, postMetrics.PostMediaView, "total_video_views":
 		if v, ok := value.(float64); ok {
 			return map[string]float64{enum.KPIValueTypeReach.String(): v}
 		}
 		return map[string]float64{}
+
+	// Video impressions -> Impressions
+	case "total_video_impressions":
+		if v, ok := value.(float64); ok {
+			return map[string]float64{enum.KPIValueTypeImpressions.String(): v}
+		}
+		return map[string]float64{}
+
+	// Reactions -> Likes + Engagement
 	case videoMetrics.PostVideoLikesByReactionType, postMetrics.PostReactionsByTypeTotal:
 		if v, ok := value.(float64); ok {
 			return map[string]float64{
@@ -28,6 +38,9 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
 				enum.KPIValueTypeEngagement.String(): v,
 			}
 		}
+		return map[string]float64{}
+
+	// Post clicks -> Reach + Engagement
 	case postMetrics.PostClicks:
 		if v, ok := value.(float64); ok {
 			return map[string]float64{
@@ -35,6 +48,9 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
 				enum.KPIValueTypeEngagement.String(): v,
 			}
 		}
+		return map[string]float64{}
+
+	// Activity by action type (nested map with comment, share, like breakdown)
 	case postMetrics.PostActivityByActionType:
 		reflectedValue := reflect.ValueOf(value)
 		switch reflectedValue.Kind() {

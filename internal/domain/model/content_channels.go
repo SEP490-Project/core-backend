@@ -65,3 +65,36 @@ func (cc ContentChannel) GetMetrics() (*ContentChannelMetrics, error) {
 
 	return &metrics, nil
 }
+
+// ContentChannelMetadata represents metadata for content channel publishing
+// Used to track upload status for async video publishing (TikTok, Facebook)
+type ContentChannelMetadata struct {
+	// For TikTok video publishing
+	UploadID     *string `json:"upload_id,omitempty"`     // TikTok publish_id for tracking upload status
+	UploadStatus *string `json:"upload_status,omitempty"` // "pending", "processing", "completed", "failed"
+
+	// For Facebook video publishing
+	VideoID *string `json:"video_id,omitempty"` // Facebook video ID (before post is published)
+
+	// Generic metadata
+	Type *string `json:"type,omitempty"` // "video", "photo", "text", etc.
+}
+
+func (cc *ContentChannel) GetMetadata() (*ContentChannelMetadata, error) {
+	var metadata ContentChannelMetadata
+	if len(cc.Metadata) > 0 {
+		if err := json.Unmarshal(cc.Metadata, &metadata); err != nil {
+			return nil, err
+		}
+	}
+	return &metadata, nil
+}
+
+func (cc *ContentChannel) SetMetadata(metadata *ContentChannelMetadata) error {
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+	cc.Metadata = data
+	return nil
+}

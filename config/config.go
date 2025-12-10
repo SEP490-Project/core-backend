@@ -117,6 +117,7 @@ type RabbitMQConfig struct {
 	Password            string                   `mapstructure:"password"`
 	Port                int                      `mapstructure:"port"`
 	VHost               string                   `mapstructure:"vhost"`
+	ManagementURL       string                   `mapstructure:"management_url"` // Optional: RabbitMQ Management API URL (default: http://<host>:15672)
 	ReconnectDelayMs    int                      `mapstructure:"reconnect_delay_ms"`
 	ConnectionTimeoutMs int                      `mapstructure:"connection_timeout_ms"`
 	Heartbeat           int                      `mapstructure:"heartbeat"`

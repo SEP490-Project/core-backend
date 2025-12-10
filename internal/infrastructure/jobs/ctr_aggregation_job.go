@@ -101,11 +101,6 @@ func (j *CTRAggregationJob) Restart(adminConfig *config.AdminConfig) error {
 
 // Run implements CronJob.
 func (j *CTRAggregationJob) Run() {
-	if !j.enabled {
-		zap.L().Debug("CTR aggregation job is disabled, skipping execution")
-		return
-	}
-
 	ctx := context.Background()
 	startTime := time.Now()
 

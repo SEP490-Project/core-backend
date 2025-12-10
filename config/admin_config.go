@@ -44,6 +44,8 @@ type AdminConfig struct {
 	TikTokStatusPollerCronExpr          string `mapstructure:"tiktok_status_poller_cron_expr"`
 	SocialMetricsPollerEnabled          bool   `mapstructure:"social_metrics_poller_enabled"`
 	SocialMetricsPollerIntervalCronExpr string `mapstructure:"social_metrics_poller_interval_cron_expr"`
+	ContentMetricsPollerEnabled         bool   `mapstructure:"content_metrics_poller_enabled"`
+	ContentMetricsPollerCronExpr        string `mapstructure:"content_metrics_poller_cron_expr"`
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
