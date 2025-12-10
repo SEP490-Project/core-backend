@@ -68,6 +68,15 @@ type FacebookProxy interface {
 
 	// region: ======== Metrics Methods ========
 
+	// GetPageInfo retrieves page-level metrics like fan_count, followers_count
+	// fields parameter allows dynamic field selection (e.g., []string{"fan_count", "followers_count"})
+	GetPageInfo(ctx context.Context, pageID string, accessToken string, fields []string) (*dtos.FacebookPageInfoResponse, error)
+
+	// GetPagePosts retrieves paginated list of posts from a Facebook page with engagement metrics
+	// fields parameter specifies which fields to include in the response
+	// cursor is used for pagination (pass nil for first page)
+	GetPagePosts(ctx context.Context, pageID string, accessToken string, fields string, cursor *string) (*dtos.FacebookPagePostsResponse, error)
+
 	// GetPostMetrics retrieves metrics for a specific post
 	GetPostMetrics(ctx context.Context, postID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPostMetricsResponse, error)
 

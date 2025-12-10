@@ -16,7 +16,8 @@ type CronJobRegistry struct {
 	PayOSExpiryCheckJob     CronJob
 	PreOrderOpeningCheckJob CronJob
 	TikTokStatusPollerJob   CronJob // Added for application layer
-	SocialMetricsPollerJob  CronJob // Added for application layer
+	SocialMetricsPollerJob  CronJob // DEPRECATED: Use ContentMetricsPollerJob
+	ContentMetricsPollerJob CronJob // New consolidated metrics poller
 	CronScheduler           *cron.Cron
 	jobs                    map[string]CronJob
 }

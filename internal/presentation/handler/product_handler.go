@@ -219,8 +219,8 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	// parse status list (comma separated)
 	var prdStatuses []string
 	if strings.TrimSpace(prdStatusesParam) != "" {
-		parts := strings.Split(prdStatusesParam, ",")
-		for _, p := range parts {
+		parts := strings.SplitSeq(prdStatusesParam, ",")
+		for p := range parts {
 			p = strings.TrimSpace(p)
 			if p != "" {
 				prdStatuses = append(prdStatuses, p)
@@ -458,7 +458,7 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	}
 
 	// --- Parse multipart form ---
-	if err := parseMultipart(c, 32<<20); err != nil {
+	if err = parseMultipart(c, 32<<20); err != nil {
 		return
 	}
 
@@ -504,7 +504,7 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	req.Rating = ratingVal
 
 	// validate request using centralized validation processor
-	if err := h.validator.Struct(&req); err != nil {
+	if err = h.validator.Struct(&req); err != nil {
 		resp := processValidationError(err)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -1219,14 +1219,14 @@ func (h *ProductHandler) UpdateProduct(c *gin.Context) {
 
 	// --- Bind JSON ---
 	var req requests.UpdateProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
 	// --- Validate payload ---
-	if err := h.validator.Struct(&req); err != nil {
+	if err = h.validator.Struct(&req); err != nil {
 		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -1278,14 +1278,14 @@ func (h *ProductHandler) UpdateLimitedProduct(c *gin.Context) {
 
 	// Bind JSON
 	var req requests.UpdateLimitedProductRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
 	}
 
 	// Validate payload
-	if err := h.validator.Struct(&req); err != nil {
+	if err = h.validator.Struct(&req); err != nil {
 		resp := responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, resp)
 		return
@@ -1485,7 +1485,7 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 }
 
 // handleFileUpload lưu file tạm, upload lên storage và trả về URL
-func (p *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
+func (h *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {
 	// --- Tmp path ---
 	tmpDir := os.TempDir()
 	newFileName := uuid.New().String() + filepath.Ext(fileHeader.Filename)
@@ -1498,7 +1498,7 @@ func (p *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, file
 	defer func() { _ = os.Remove(localPath) }()
 
 	// --- Upload file lên S3 / storage ---
-	fileURL, err := p.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
+	fileURL, err := h.fileService.UploadFile(c.Request.Context(), userID.String(), localPath, newFileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload file: %w", err)
 	}

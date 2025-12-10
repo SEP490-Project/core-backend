@@ -98,6 +98,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContractPaymentRoutes(v1)
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
+		r.setupJobRoutes(v1)
+		r.setupRabbitMQRoutes(v1)
 		r.SetupChannelRoutes(v1)
 		r.SetupContentRoutes(v1)
 		r.SetupTaskRoutes(v1)
@@ -1026,5 +1028,54 @@ func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
 		aiGroup.POST("/generate", aiHandler.Generate)
 		aiGroup.POST("/generate-content", r.middlewareRegistry.Auth.RequireRole(content, marketing, admin), aiHandler.GenerateContent)
 		aiGroup.GET("/models", aiHandler.GetSupportedModels)
+	}
+}
+
+func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
+	jobHandler := r.handlerRegistry.JobHandler
+	jobGroup := group.Group("/jobs")
+	jobGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	jobGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		jobGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
+		jobGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
+		jobGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
+		jobGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
+		jobGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
+		jobGroup.POST("/social-metrics-poller", jobHandler.TriggerSocialMetricsPollerJob)
+		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
+		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+	}
+}
+
+func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
+	rabbitMQHandler := r.handlerRegistry.RabbitMQHandler
+	rabbitMQGroup := group.Group("/admin/rabbitmq")
+	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		// Overview and health
+		rabbitMQGroup.GET("/overview", rabbitMQHandler.GetOverview)
+		rabbitMQGroup.GET("/health", rabbitMQHandler.GetHealth)
+
+		// Queues
+		rabbitMQGroup.GET("/queues", rabbitMQHandler.ListQueues)
+		rabbitMQGroup.GET("/queues/grouped", rabbitMQHandler.ListQueueGroups)
+		rabbitMQGroup.GET("/queues/:queueName", rabbitMQHandler.GetQueue)
+		rabbitMQGroup.GET("/queues/:queueName/messages", rabbitMQHandler.GetQueueMessages)
+		rabbitMQGroup.DELETE("/queues/:queueName/purge", rabbitMQHandler.PurgeQueue)
+
+		// Exchanges
+		rabbitMQGroup.GET("/exchanges", rabbitMQHandler.ListExchanges)
+
+		// DLQ operations
+		rabbitMQGroup.POST("/dlq/retry", rabbitMQHandler.RetryDLQ)
+
+		// Shovels (for monitoring DLQ retry operations)
+		rabbitMQGroup.GET("/shovels", rabbitMQHandler.ListShovels)
+		rabbitMQGroup.DELETE("/shovels/:shovelName", rabbitMQHandler.DeleteShovel)
+
+		// Publish message (for testing/debugging)
+		rabbitMQGroup.POST("/publish", rabbitMQHandler.PublishMessage)
 	}
 }

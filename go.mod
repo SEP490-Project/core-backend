@@ -31,6 +31,7 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.14.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.43.0
+	golang.org/x/time v0.14.0
 	google.golang.org/api v0.253.0
 	google.golang.org/genai v1.36.0
 	gorm.io/driver/postgres v1.6.0
@@ -86,7 +87,6 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.38.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/appengine/v2 v2.0.6 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 )

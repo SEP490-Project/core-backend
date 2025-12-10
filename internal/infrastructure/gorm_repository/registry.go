@@ -78,6 +78,8 @@ type DatabaseRegistry struct {
 	FileRepository irepository.GenericRepository[model.File]
 	// Reviews
 	ReviewRepository irepository.GenericRepository[model.ProductReview]
+	// Webhooks
+	WebhookDataRepository irepository.GenericRepository[model.WebhookData]
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -125,5 +127,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		AdminAnalyticsRepository:             NewAdminAnalyticsRepository(db),
 		FileRepository:                       NewGenericRepository[model.File](db),
 		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
+		WebhookDataRepository:                NewGenericRepository[model.WebhookData](db),
 	}
 }

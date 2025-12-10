@@ -35,6 +35,7 @@ type unitOfWork struct {
 	contentChannelRepository        irepository.ContentChannelsRepository
 	blogRepository                  irepository.GenericRepository[model.Blog]
 	tagRepository                   irepository.TagRepository
+	webhookRepository               irepository.GenericRepository[model.WebhookData]
 
 	//ProductCategory
 	productCategoryRepository irepository.GenericRepository[model.ProductCategory]
@@ -99,6 +100,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.contentChannelRepository = gormrepository.NewContentChannelsRepository(tx)
 	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
 	txUow.tagRepository = gormrepository.NewTagRepository(tx)
+	txUow.webhookRepository = gormrepository.NewGenericRepository[model.WebhookData](tx)
 
 	//Product flow
 	txUow.productStoryRepository = gormrepository.NewGenericRepository[model.ProductStory](tx)
@@ -310,6 +312,10 @@ func (u *unitOfWork) KPIMetrics() irepository.GenericRepository[model.KPIMetrics
 
 func (u *unitOfWork) PreOrder() irepository.PreOrderRepository {
 	return u.preOrderRepository
+}
+
+func (u *unitOfWork) WebhookData() irepository.GenericRepository[model.WebhookData] {
+	return u.webhookRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

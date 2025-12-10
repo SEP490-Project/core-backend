@@ -48,6 +48,8 @@ type HandlerRegistry struct {
 	FacebookSocialHandler         *FacebookSocialHandler
 	TikTokSocialHandler           *TikTokSocialHandler
 	AIHandler                     *AIHandler
+	JobHandler                    *JobHandler
+	RabbitMQHandler               *RabbitMQHandler
 	TestHandler                   *TestHandler
 }
 
@@ -60,7 +62,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		ProductHandler:                NewProductHandler(applicationReg.ProductService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		BrandHandler:                  NewBrandHandler(applicationReg.BrandService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		FileHandler:                   NewS3Handler(applicationReg.FileService),
-		PayOsHandler:                  NewPayOsHandler(appConfig, applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
+		PayOsHandler:                  NewPayOsHandler(appConfig, applicationReg.PaymentTransactionService, applicationReg.StateTransferService, applicationReg.WebhookDataService, applicationReg.InfrastructureRegistry.ProxiesRegistry.PayOSProxy, applicationReg.InfrastructureRegistry.UnitOfWork),
 		PaymentTransactionsHandler:    NewPaymentTransactionsHandler(applicationReg.PaymentTransactionService),
 		StateHandler:                  NewStateHandler(applicationReg.StateTransferService, applicationReg.InfrastructureRegistry.UnitOfWork, validator.New(), applicationReg.FileService),
 		ContractHandler:               NewContractHandler(applicationReg.ContractService, applicationReg.FileService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.InfrastructureRegistry.RabbitMQ),
@@ -92,6 +94,8 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		FacebookSocialHandler:         NewFacebookSocialHandler(appConfig, applicationReg.FacebookSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		TikTokSocialHandler:           NewTikTokSocialHandler(appConfig, applicationReg.TikTokSocialService, applicationReg.InfrastructureRegistry.UnitOfWork),
 		AIHandler:                     NewAIHandler(applicationReg.AIService),
+		JobHandler:                    NewJobHandler(applicationReg.InfrastructureRegistry.CronJobsRegistry),
+		RabbitMQHandler:               NewRabbitMQHandler(applicationReg.InfrastructureRegistry.RabbitMQManagementService, applicationReg.InfrastructureRegistry.RabbitMQ),
 		TestHandler:                   NewTestHandler(appConfig, applicationReg),
 	}
 }
