@@ -137,13 +137,13 @@ type FacebookPagingWithURL struct {
 
 // FacebookPagePost represents a single post from a Facebook page
 type FacebookPagePost struct {
-	ID          string                 `json:"id"`
-	Message     string                 `json:"message,omitempty"`
-	CreatedTime string                 `json:"created_time"`
-	Reactions   *FacebookSummaryCount  `json:"reactions,omitempty"`
-	Comments    *FacebookSummaryCount  `json:"comments,omitempty"`
-	Shares      *FacebookSharesCount   `json:"shares,omitempty"`
-	Attachments *FacebookAttachments   `json:"attachments,omitempty"`
+	ID          string                `json:"id"`
+	Message     string                `json:"message,omitempty"`
+	CreatedTime string                `json:"created_time"`
+	Reactions   *FacebookSummaryCount `json:"reactions,omitempty"`
+	Comments    *FacebookSummaryCount `json:"comments,omitempty"`
+	Shares      *FacebookSharesCount  `json:"shares,omitempty"`
+	Attachments *FacebookAttachments  `json:"attachments,omitempty"`
 }
 
 // FacebookSummaryCount represents a count with summary (used for reactions, comments)
