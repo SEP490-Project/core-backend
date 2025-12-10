@@ -354,41 +354,4 @@ func (t *TikTokSocialService) generateTikTokChannelAccessToken(ctx context.Conte
 	return nil
 }
 
-func (t *TikTokSocialService) GetTikTokAccessToken(ctx context.Context) (string, error) {
-	zap.L().Info("TikTokSocialService - getTikTokAccessToken called")
-
-	// Get TikTok token Pair from channel service
-	accessToken, refreshToken, err := t.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
-	if err != nil {
-		switch err {
-		case iservice.ErrRefreshExpired:
-			zap.L().Warn("TikTok refresh token expired, need to re-authenticate")
-			return "", errors.New("tiktok refresh token expired")
-
-		case iservice.ErrAccessExpired:
-			zap.L().Info("TikTok access token expired, refreshing using refresh token")
-			// Refresh the access token
-			uow := t.unitOfWork.Begin(ctx)
-			if err = helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
-				err = t.refreshTikTokChannelRefreshToken(ctx, uow, refreshToken)
-				if err != nil {
-					return err
-				}
-				return nil
-			}); err != nil {
-				zap.L().Error("Failed to refresh TikTok access token", zap.Error(err))
-				return "", errors.New("failed to refresh TikTok access token")
-			}
-
-			return t.channelService.GetDecryptedToken(ctx, "TIKTOK")
-
-		default:
-			zap.L().Error("Failed to get TikTok token pair", zap.Error(err))
-			return "", errors.New("failed to retrieve TikTok tokens")
-		}
-	}
-
-	return accessToken, nil
-}
-
 // endregion
