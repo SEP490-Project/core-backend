@@ -229,6 +229,39 @@ func (t *TikTokSocialService) IsTikTokTokenNearExpiry(ctx context.Context, acces
 	return t.channelService.IsTokenExpiringSoon(ctx, "TIKTOK", threshold)
 }
 
+func (t *TikTokSocialService) GetTikTokAccessToken(ctx context.Context) (string, error) {
+	zap.L().Info("TikTokSocialService - getTikTokAccessToken called")
+
+	accessToken, refreshToken, err := t.channelService.GetDecryptedTokenPair(ctx, "TIKTOK")
+	if err != nil {
+		switch err {
+		case iservice.ErrRefreshExpired:
+			zap.L().Warn("TikTok refresh token expired, need to re-authenticate")
+			return "", errors.New("tiktok refresh token expired")
+		case iservice.ErrAccessExpired:
+			zap.L().Info("TikTok access token expired, refreshing using refresh token")
+			// Refresh the access token
+			if err = helper.WithTransaction(ctx, t.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+				err = t.refreshTikTokChannelRefreshToken(ctx, uow, refreshToken)
+				if err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				zap.L().Error("Failed to refresh TikTok access token", zap.Error(err))
+				return "", errors.New("failed to refresh TikTok access token")
+			}
+
+			return t.channelService.GetDecryptedToken(ctx, "TIKTOK")
+
+		default:
+			zap.L().Error("Failed to get TikTok token pair", zap.Error(err))
+			return "", errors.New("failed to retrieve TikTok tokens")
+		}
+	}
+	return accessToken, nil
+}
+
 // region: ======= Creator Info & Sytem User Profile =======
 
 func (t *TikTokSocialService) GetTikTokCreatorInfo(ctx context.Context) (*dtos.TikTokCreatorInfoResponse, error) {
