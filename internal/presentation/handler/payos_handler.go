@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 )
 
 type PayOsHandler struct {
@@ -26,6 +28,7 @@ type PayOsHandler struct {
 	stateTransferService      iservice.StateTransferService
 	payosProxy                iproxies.PayOSProxy
 	unitOfWork                irepository.UnitOfWork
+	webhookDataService        iservice.WebhookDataService
 	validator                 *validator.Validate
 }
 
@@ -33,6 +36,7 @@ func NewPayOsHandler(
 	config *config.AppConfig,
 	paymentTransactionService iservice.PaymentTransactionService,
 	stateTransferService iservice.StateTransferService,
+	webhookDataService iservice.WebhookDataService,
 	payosProxy iproxies.PayOSProxy,
 	unitOfWork irepository.UnitOfWork,
 ) *PayOsHandler {
@@ -44,6 +48,7 @@ func NewPayOsHandler(
 		stateTransferService:      stateTransferService,
 		payosProxy:                payosProxy,
 		unitOfWork:                unitOfWork,
+		webhookDataService:        webhookDataService,
 		validator:                 validator,
 	}
 }
@@ -148,13 +153,30 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
+	// Store raw webhook data for audit (non-blocking, best effort)
+	webhookData := &model.WebhookData{
+		Source:     model.WebhookSourcePayOS,
+		RawPayload: datatypes.JSON(bodyBytes),
+	}
+
 	// Parse webhook payload
 	var webhookPayload dtos.PayOSWebhookPayload
 	if err = json.Unmarshal(bodyBytes, &webhookPayload); err != nil {
 		zap.L().Error("Failed to parse webhook payload", zap.Error(err))
+		// Store webhook data with error
+		eventType := "payment.unknown"
+		webhookData.EventType = &eventType
+		webhookData.MarkFailed("Failed to parse webhook payload: " + err.Error())
+		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
 		return
 	}
+
+	// Update webhook data with parsed info
+	eventType := "payment." + webhookPayload.Code
+	externalID := utils.ToString(webhookPayload.Data.OrderCode)
+	webhookData.EventType = &eventType
+	webhookData.ExternalID = &externalID
 
 	// Verify signature
 	// Note: PayOS sends the signature in the payload itself, not as a header
@@ -162,6 +184,8 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	dataBytes, err := json.Marshal(webhookPayload.Data)
 	if err != nil {
 		zap.L().Error("Failed to marshal webhook data", zap.Error(err))
+		webhookData.MarkFailed("Failed to marshal webhook data: " + err.Error())
+		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook data"})
 		return
 	}
@@ -170,6 +194,8 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		zap.L().Warn("Invalid webhook signature",
 			zap.Int64("order_code", webhookPayload.Data.OrderCode),
 			zap.String("signature", webhookPayload.Signature))
+		webhookData.MarkFailed("Invalid webhook signature")
+		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
 		return
 	}
@@ -187,6 +213,8 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	if err = h.paymentTransactionService.ProcessWebhook(c.Request.Context(), uow, &webhookPayload); err != nil {
 		uow.Rollback()
 		zap.L().Error("Failed to process webhook", zap.Error(err))
+		webhookData.MarkFailed("Failed to process webhook: " + err.Error())
+		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 		// Still return 200 to acknowledge receipt, but log the error
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": err.Error()})
 		return
@@ -220,6 +248,8 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 				zap.String("transaction_id", transaction.ID.String()),
 				zap.String("status", string(transaction.Status)),
 				zap.Error(stateErr))
+			webhookData.MarkFailed("Failed to update related entities: " + stateErr.Error())
+			h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": "Failed to update related entities"})
 			return
 		}
@@ -228,9 +258,15 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	// Commit transaction
 	if err := uow.Commit(); err != nil {
 		zap.L().Error("Failed to commit webhook transaction", zap.Error(err))
+		webhookData.MarkFailed("Failed to commit transaction: " + err.Error())
+		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 		c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to commit transaction"})
 		return
 	}
+
+	// Mark webhook as processed and store
+	webhookData.MarkProcessed()
+	h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
 
 	zap.L().Info("Webhook processed successfully", zap.Int64("order_code", webhookPayload.Data.OrderCode))
 	c.JSON(http.StatusOK, gin.H{"status": "success"})

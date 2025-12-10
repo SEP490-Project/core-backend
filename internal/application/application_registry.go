@@ -54,6 +54,7 @@ type ApplicationRegistry struct {
 	TikTokSocialService           iservice.TikTokSocialService
 	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
+	WebhookDataService            iservice.WebhookDataService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -194,6 +195,7 @@ func NewApplicationRegistry(
 		TikTokSocialService:           tiktokSocialService,
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
+		WebhookDataService:            service.NewWebhookDataService(databaseRegistry.WebhookDataRepository, infrastructureRegistry.UnitOfWork),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
