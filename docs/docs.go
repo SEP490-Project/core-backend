@@ -24818,6 +24818,23 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.BrandInfoResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BrandOverviewMetrics": {
             "type": "object",
             "properties": {
@@ -25584,11 +25601,28 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ContentChannelBrief": {
+        "responses.ContentChannelAffiliateInfo": {
             "type": "object",
             "properties": {
                 "affiliate_link": {
                     "type": "string"
+                },
+                "original_link": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ContentChannelBrief": {
+            "type": "object",
+            "properties": {
+                "affiliate_link": {
+                    "$ref": "#/definitions/responses.ContentChannelAffiliateInfo"
                 },
                 "auto_post_status": {
                     "type": "string"
@@ -25602,8 +25636,44 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "metrics": {
+                    "$ref": "#/definitions/responses.ContentChannelMetric"
+                },
                 "post_date": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.ContentChannelMetric": {
+            "type": "object",
+            "properties": {
+                "fetched": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "mapped": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                }
+            }
+        },
+        "responses.ContentInfo": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ContentType"
                 }
             }
         },
@@ -27930,6 +28000,20 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.ProductInfo": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                }
+            }
+        },
         "responses.ProductOverviewResponse": {
             "type": "object",
             "properties": {
@@ -28892,6 +28976,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Sales Staff"
                 },
+                "brand_info": {
+                    "$ref": "#/definitions/responses.BrandInfoResponse"
+                },
                 "campaign_details": {
                     "$ref": "#/definitions/responses.CampaignInfoResponse"
                 },
@@ -28902,12 +28989,8 @@ const docTemplate = `{
                 "content_ids": {
                     "type": "array",
                     "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[\"770e8400-e29b-41d4-a716-446655440000\"",
-                        " \"880e8400-e29b-41d4-a716-446655440000\"]"
-                    ]
+                        "$ref": "#/definitions/responses.ContentInfo"
+                    }
                 },
                 "contract_id": {
                     "type": "string",
@@ -28948,12 +29031,8 @@ const docTemplate = `{
                 "product_ids": {
                     "type": "array",
                     "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "[\"550e8400-e29b-41d4-a716-446655440000\"",
-                        " \"660e8400-e29b-41d4-a716-446655440000\"]"
-                    ]
+                        "$ref": "#/definitions/responses.ProductInfo"
+                    }
                 },
                 "status": {
                     "type": "string",
@@ -29288,6 +29367,20 @@ const docTemplate = `{
                 "avatar_url": {
                     "type": "string",
                     "example": "https://example.com/avatar.jpg"
+                },
+                "bank_info": {
+                    "type": "object",
+                    "properties": {
+                        "bank_account": {
+                            "type": "string"
+                        },
+                        "bank_account_holder": {
+                            "type": "string"
+                        },
+                        "bank_name": {
+                            "type": "string"
+                        }
+                    }
                 },
                 "created_at": {
                     "type": "string",
