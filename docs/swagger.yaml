@@ -3229,6 +3229,51 @@ definitions:
     - title
     - user_id
     type: object
+  requests.RabbitMQPublishMessageRequest:
+    properties:
+      content_type:
+        type: string
+      correlation_id:
+        type: string
+      delivery_mode:
+        description: 1=non-persistent, 2=persistent
+        enum:
+        - 1
+        - 2
+        type: integer
+      exchange:
+        type: string
+      headers:
+        additionalProperties: true
+        type: object
+      message_id:
+        type: string
+      payload:
+        type: string
+      priority:
+        maximum: 9
+        minimum: 0
+        type: integer
+      routing_key:
+        type: string
+    required:
+    - exchange
+    - payload
+    - routing_key
+    type: object
+  requests.RabbitMQRetryDLQRequest:
+    properties:
+      dest_exchange:
+        type: string
+      dest_routing_key:
+        type: string
+      destination_queue:
+        type: string
+      source_queue:
+        type: string
+    required:
+    - source_queue
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -6840,6 +6885,239 @@ definitions:
       updated_at:
         type: string
     type: object
+  responses.RabbitMQBindingResponse:
+    properties:
+      destination:
+        type: string
+      destination_type:
+        type: string
+      routing_key:
+        type: string
+      source:
+        type: string
+    type: object
+  responses.RabbitMQDLQRetryResponse:
+    properties:
+      destination_queue:
+        type: string
+      message:
+        type: string
+      shovel_name:
+        type: string
+      source_queue:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.RabbitMQExchangeResponse:
+    properties:
+      arguments:
+        additionalProperties: true
+        type: object
+      auto_delete:
+        type: boolean
+      bindings:
+        items:
+          $ref: '#/definitions/responses.RabbitMQBindingResponse'
+        type: array
+      durable:
+        type: boolean
+      internal:
+        type: boolean
+      name:
+        type: string
+      type:
+        type: string
+      vhost:
+        type: string
+    type: object
+  responses.RabbitMQHealthResponse:
+    properties:
+      cluster_name:
+        type: string
+      connected:
+        type: boolean
+      details:
+        additionalProperties: true
+        type: object
+      erlang_version:
+        type: string
+      management_api:
+        type: boolean
+      node_name:
+        type: string
+      rabbitmq_version:
+        type: string
+    type: object
+  responses.RabbitMQMessagePropertiesResponse:
+    properties:
+      app_id:
+        type: string
+      content_type:
+        type: string
+      correlation_id:
+        type: string
+      delivery_mode:
+        type: integer
+      headers:
+        additionalProperties: true
+        type: object
+      message_id:
+        type: string
+      priority:
+        type: integer
+      timestamp:
+        type: integer
+      type:
+        type: string
+    type: object
+  responses.RabbitMQMessageResponse:
+    properties:
+      exchange:
+        type: string
+      message_count:
+        type: integer
+      payload:
+        type: string
+      payload_bytes:
+        type: integer
+      payload_encoding:
+        type: string
+      properties:
+        $ref: '#/definitions/responses.RabbitMQMessagePropertiesResponse'
+      redelivered:
+        type: boolean
+      routing_key:
+        type: string
+    type: object
+  responses.RabbitMQOverviewResponse:
+    properties:
+      configured_topology:
+        $ref: '#/definitions/responses.RabbitMQTopologySummary'
+      connection_status:
+        type: string
+      queue_summary:
+        $ref: '#/definitions/responses.RabbitMQQueueSummary'
+      total_exchanges:
+        type: integer
+      total_messages:
+        type: integer
+      total_messages_ready:
+        type: integer
+      total_messages_unacked:
+        type: integer
+      total_queues:
+        type: integer
+    type: object
+  responses.RabbitMQPurgeResponse:
+    properties:
+      messages_deleted:
+        type: integer
+      queue_name:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.RabbitMQQueueGroupResponse:
+    properties:
+      delay_queue:
+        $ref: '#/definitions/responses.RabbitMQQueueResponse'
+      dlq:
+        $ref: '#/definitions/responses.RabbitMQQueueResponse'
+      main_queue:
+        $ref: '#/definitions/responses.RabbitMQQueueResponse'
+      retry_queue:
+        $ref: '#/definitions/responses.RabbitMQQueueResponse'
+      total_messages:
+        type: integer
+    type: object
+  responses.RabbitMQQueueResponse:
+    properties:
+      arguments:
+        additionalProperties: true
+        type: object
+      auto_delete:
+        type: boolean
+      consumers:
+        type: integer
+      dlq_name:
+        type: string
+      durable:
+        type: boolean
+      has_dlq:
+        type: boolean
+      has_retry_queue:
+        type: boolean
+      main_queue_name:
+        type: string
+      message_rate:
+        $ref: '#/definitions/responses.RabbitMQRateInfo'
+      messages:
+        type: integer
+      messages_ready:
+        type: integer
+      messages_unacknowledged:
+        type: integer
+      name:
+        type: string
+      retry_queue_name:
+        type: string
+      state:
+        type: string
+      type:
+        description: main, retry, dead_letter, delayed
+        type: string
+      vhost:
+        type: string
+    type: object
+  responses.RabbitMQQueueSummary:
+    properties:
+      dead_letter_queues:
+        type: integer
+      delayed_queues:
+        type: integer
+      main_queues:
+        type: integer
+      retry_queues:
+        type: integer
+      total_dlq_messages:
+        type: integer
+    type: object
+  responses.RabbitMQRateInfo:
+    properties:
+      ack_rate:
+        type: number
+      deliver_rate:
+        type: number
+      publish_rate:
+        type: number
+      redeliver_rate:
+        type: number
+    type: object
+  responses.RabbitMQShovelStatusResponse:
+    properties:
+      name:
+        type: string
+      state:
+        type: string
+      timestamp:
+        type: string
+      type:
+        type: string
+      vhost:
+        type: string
+    type: object
+  responses.RabbitMQTopologySummary:
+    properties:
+      exchange_count:
+        type: integer
+      exchange_names:
+        items:
+          type: string
+        type: array
+      queue_count:
+        type: integer
+    type: object
   responses.RecentActivityItem:
     properties:
       affiliate_link_id:
@@ -7710,6 +7988,505 @@ info:
   title: SEP490 Core Backend API
   version: "1.0"
 paths:
+  /api/v1/admin/rabbitmq/dlq/retry:
+    post:
+      consumes:
+      - application/json
+      description: Moves messages from a DLQ back to the main queue for retry using
+        a shovel
+      parameters:
+      - description: Retry request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RabbitMQRetryDLQRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RabbitMQDLQRetryResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Retry Dead Letter Queue Messages
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/exchanges:
+    get:
+      consumes:
+      - application/json
+      description: Returns all RabbitMQ exchanges
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RabbitMQExchangeResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List RabbitMQ Exchanges
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/health:
+    get:
+      consumes:
+      - application/json
+      description: Returns the health status of RabbitMQ connection and management
+        API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RabbitMQHealthResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get RabbitMQ Health
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/overview:
+    get:
+      consumes:
+      - application/json
+      description: Returns an overview of RabbitMQ queues, exchanges, and message
+        counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RabbitMQOverviewResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get RabbitMQ Overview
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/publish:
+    post:
+      consumes:
+      - application/json
+      description: Publishes a message to an exchange (for testing/debugging)
+      parameters:
+      - description: Message to publish
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RabbitMQPublishMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Publish Message
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/queues:
+    get:
+      consumes:
+      - application/json
+      description: Returns all RabbitMQ queues with their message counts and status
+      parameters:
+      - description: Filter by queue type (main, retry, dead_letter, delayed, all)
+        in: query
+        name: type
+        type: string
+      - description: Search by queue name
+        in: query
+        name: search
+        type: string
+      - description: Filter queues with messages
+        in: query
+        name: has_messages
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RabbitMQQueueResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List RabbitMQ Queues
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/queues/{queueName}:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed information about a specific queue
+      parameters:
+      - description: Queue name
+        in: path
+        name: queueName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RabbitMQQueueResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Queue Details
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/queues/{queueName}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Returns messages from a queue without consuming them (peek)
+      parameters:
+      - description: Queue name
+        in: path
+        name: queueName
+        required: true
+        type: string
+      - description: 'Number of messages to retrieve (default: 10, max: 100)'
+        in: query
+        name: count
+        type: integer
+      - description: Ack mode (ack_requeue_true, ack_requeue_false, reject_requeue_true,
+          reject_requeue_false)
+        in: query
+        name: ack_mode
+        type: string
+      - description: Encoding (auto, base64)
+        in: query
+        name: encoding
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RabbitMQMessageResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Messages from Queue
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/queues/{queueName}/purge:
+    delete:
+      consumes:
+      - application/json
+      description: Removes all messages from a queue
+      parameters:
+      - description: Queue name
+        in: path
+        name: queueName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.RabbitMQPurgeResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Purge Queue
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/queues/grouped:
+    get:
+      consumes:
+      - application/json
+      description: Returns queues grouped by their main queue (main + retry + DLQ)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RabbitMQQueueGroupResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List RabbitMQ Queue Groups
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/shovels:
+    get:
+      consumes:
+      - application/json
+      description: Returns all active shovels in the vhost
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.RabbitMQShovelStatusResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Shovels
+      tags:
+      - RabbitMQ Admin
+  /api/v1/admin/rabbitmq/shovels/{shovelName}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a shovel by name
+      parameters:
+      - description: Shovel name
+        in: path
+        name: shovelName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Shovel
+      tags:
+      - RabbitMQ Admin
   /api/v1/affiliate-links:
     get:
       description: Retrieve a paginated list of affiliate links with optional filtering
