@@ -253,7 +253,6 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("social_metrics_poller_job", socialMetricsPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.SocialMetricsPollerJob = socialMetricsPollerJob
 
-		// Register Content Metrics Poller Job (new consolidated metrics poller)
 		contentMetricsPollerJob := jobs.NewContentMetricsPollerJob(
 			r.InfrastructureRegistry.DB,
 			r.InfrastructureRegistry.UnitOfWork,

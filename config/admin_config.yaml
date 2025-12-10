@@ -73,7 +73,7 @@ tiktok_status_poller_cron_expr: "*/30 * * * * *" # Every 30 seconds
 social_metrics_poller_enabled: false # DEPRECATED: Use content_metrics_poller_enabled instead
 social_metrics_poller_interval_cron_expr: "*/30 * * * *" # DEPRECATED: Use content_metrics_poller_cron_expr instead
 content_metrics_poller_enabled: true
-content_metrics_poller_cron_expr: "0 */1 * * * *" # Every 30 minutes (at second 0)
+content_metrics_poller_cron_expr: "0 */10 * * * *" # Every 30 minutes (at second 0)
 
 # Order - PreOrder
 censorship_interval_minutes: 5
