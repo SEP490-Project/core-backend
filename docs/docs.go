@@ -7566,6 +7566,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/configs/public/privacy-policy": {
+            "get": {
+                "description": "Retrieve the privacy policy",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get privacy policy",
+                "responses": {
+                    "200": {
+                        "description": "Privacy policy retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/configs/public/term-of-service": {
+            "get": {
+                "description": "Retrieve the term of service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get term of service",
+                "responses": {
+                    "200": {
+                        "description": "Term of service retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/configs/representative": {
             "get": {
                 "security": [
@@ -21753,6 +21811,7 @@ const docTemplate = `{
                 "NUMBER",
                 "BOOLEAN",
                 "JSON",
+                "TIPTAP_JSON",
                 "ARRAY",
                 "TIME"
             ],
@@ -21762,6 +21821,7 @@ const docTemplate = `{
                 "ConfigValueTypeNumber",
                 "ConfigValueTypeBoolean",
                 "ConfigValueTypeJSON",
+                "ConfigValueTypeTipTapJSON",
                 "ConfigValueTypeArray",
                 "ConfigValueTypeTime"
             ]
@@ -25795,10 +25855,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
-                "value": {
-                    "type": "string",
-                    "example": "My Awesome Site"
-                },
+                "value": {},
                 "value_type": {
                     "allOf": [
                         {
@@ -30542,7 +30599,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2024-12-31T23:59:59Z"
                 },
-                "description_json": {
+                "description": {
                     "type": "object",
                     "additionalProperties": {}
                 },
