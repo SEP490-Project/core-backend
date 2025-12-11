@@ -205,3 +205,15 @@ func GetPlainTextPreview(jsonData []byte, maxLength int) (string, error) {
 
 	return truncated + "...", nil
 }
+
+func IsValidTipTapJSON(jsonData []byte) bool {
+	var doc TiptapDocument
+	if err := json.Unmarshal(jsonData, &doc); err != nil {
+		return false
+	}
+	if doc.Type != "doc" {
+		return false
+	}
+
+	return true
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
+
+	"github.com/google/uuid"
 )
 
 type AdminConfigService interface {
@@ -20,10 +22,10 @@ type AdminConfigService interface {
 	GetAllConfig(ctx context.Context) ([]responses.AdminConfigResponse, error)
 
 	// GetConfigByKey retrieves the value of a specific admin configuration identified by its key.
-	UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork) error
+	UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork, updatedBy uuid.UUID) error
 
 	// UpdateConfigs updates multiple admin configurations at once.
-	UpdateConfigs(ctx context.Context, configs map[string]string, uow irepository.UnitOfWork) error
+	UpdateConfigs(ctx context.Context, configs map[string]string, uow irepository.UnitOfWork, updatedBy uuid.UUID) error
 
 	// RegisterListener registers a callback function to be executed when configuration changes.
 	RegisterListener(listener func())

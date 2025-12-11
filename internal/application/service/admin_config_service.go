@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/tiptap"
 	"core-backend/pkg/utils"
 	"fmt"
 	"reflect"
@@ -78,12 +79,21 @@ func (a *AdminConfigService) GetAllConfig(ctx context.Context) ([]responses.Admi
 		if dbConfig, exists := dbConfigMap[key]; exists {
 			response.ID = dbConfig.ID.String()
 			response.Value = dbConfig.Value // DB value takes precedence
+			value = dbConfig.Value
 			response.ValueType = dbConfig.ValueType
 			response.Description = dbConfig.Description
 			response.CreatedAt = utils.FormatLocalTime(&dbConfig.CreatedAt, utils.TimeFormat)
 			response.UpdatedAt = utils.FormatLocalTime(&dbConfig.UpdatedAt, utils.TimeFormat)
 			if dbConfig.UpdatedByID != uuid.Nil {
 				response.UpdatedByID = dbConfig.UpdatedByID.String()
+			}
+		}
+		if response.ValueType == enum.ConfigValueTypeTipTapJSON ||
+			response.ValueType == enum.ConfigValueTypeJSON {
+			temp := strings.TrimSpace(value)
+			response.Value, err = utils.JSONStrToMap(value)
+			if err != nil {
+				response.Value = temp // Fallback to raw string if JSON parsing fails
 			}
 		}
 
@@ -124,12 +134,22 @@ func (a *AdminConfigService) GetConfigByKey(ctx context.Context, key string) (*r
 	if err == nil && dbConfig != nil {
 		response.ID = dbConfig.ID.String()
 		response.Value = dbConfig.Value
+		value = dbConfig.Value
 		response.ValueType = dbConfig.ValueType
 		response.Description = dbConfig.Description
 		response.CreatedAt = dbConfig.CreatedAt.Format(utils.TimeFormat)
 		response.UpdatedAt = dbConfig.UpdatedAt.Format(utils.TimeFormat)
 		if dbConfig.UpdatedByID != uuid.Nil {
 			response.UpdatedByID = dbConfig.UpdatedByID.String()
+		}
+	}
+
+	if response.ValueType == enum.ConfigValueTypeTipTapJSON ||
+		response.ValueType == enum.ConfigValueTypeJSON {
+		temp := strings.TrimSpace(value)
+		response.Value, err = utils.JSONStrToMap(value)
+		if err != nil {
+			response.Value = temp // Fallback to raw string if JSON parsing fails
 		}
 	}
 
@@ -201,8 +221,11 @@ func (a *AdminConfigService) GetConfigValuesByKeys(ctx context.Context, keys []s
 }
 
 // UpdateConfigByKey implements iservice.AdminConfigService.
-func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork) error {
-	zap.L().Debug("Updating configuration by key", zap.String("key", key), zap.String("value", value))
+func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, value string, uow irepository.UnitOfWork, updatedBy uuid.UUID) error {
+	zap.L().Debug("Updating configuration by key",
+		zap.String("key", key),
+		zap.String("value", value),
+		zap.String("updated_by", updatedBy.String()))
 
 	// 1. Validate against struct
 	structKey := utils.ToStructFieldName(key)
@@ -231,7 +254,7 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 		// Update
 		if err := configRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("key = ?", key)
-		}, map[string]any{"value": value}); err != nil {
+		}, map[string]any{"value": value, "updated_by": updatedBy}); err != nil {
 			zap.L().Error("Failed to update configuration in database", zap.Error(err))
 			return err
 		}
@@ -258,8 +281,10 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 }
 
 // UpdateConfigs implements iservice.AdminConfigService.
-func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[string]string, uow irepository.UnitOfWork) error {
-	zap.L().Debug("Updating multiple configurations", zap.Any("configs", configs))
+func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[string]string, uow irepository.UnitOfWork, updatedBy uuid.UUID) error {
+	zap.L().Debug("Updating multiple configurations",
+		zap.Any("configs", configs),
+		zap.String("updated_by", updatedBy.String()))
 
 	// 1. Validation Phase
 	for key, value := range configs {
@@ -301,7 +326,7 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 			// Update
 			if err := configRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 				return db.Where("key = ?", key)
-			}, map[string]any{"value": value}); err != nil {
+			}, map[string]any{"value": value, "updated_by": updatedBy}); err != nil {
 				return err
 			}
 		} else {
@@ -339,7 +364,13 @@ func determineValueType(sf reflect.StructField, value string) enum.ConfigValueTy
 
 	switch sf.Type.Kind() {
 	case reflect.String:
-		if strings.Contains(value, "\n") || len(value) > 255 {
+		value = strings.TrimSpace(value)
+		if strings.HasPrefix(value, "{") || strings.HasPrefix(value, "[") {
+			if tiptap.IsValidTipTapJSON([]byte(value)) {
+				return enum.ConfigValueTypeTipTapJSON
+			}
+			return enum.ConfigValueTypeJSON
+		} else if strings.Contains(value, "\n") || len(value) > 255 {
 			return enum.ConfigValueTypeTextArea
 		}
 		return enum.ConfigValueTypeString

@@ -1,3 +1,4 @@
+// Package tiptap defines the data structures for Tiptap JSON documents and some utilities.
 package tiptap
 
 // TiptapDocument represents the root of a Tiptap JSON document

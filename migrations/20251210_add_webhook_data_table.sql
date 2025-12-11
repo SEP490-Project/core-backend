@@ -3,7 +3,7 @@
 
 -- Create webhook_data table
 CREATE TABLE IF NOT EXISTS webhook_data (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     -- Source of webhook: 'payos', 'facebook', 'tiktok', etc.
     source VARCHAR(50) NOT NULL,
     -- Type of event: 'payment.success', 'content.posted', etc.
