@@ -13,7 +13,7 @@ type AdminConfigResponse struct {
 	ID          string               `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	Key         string               `json:"key" example:"site_name"`
 	ValueType   enum.ConfigValueType `json:"value_type" example:"STRING"`
-	Value       string               `json:"value" example:"My Awesome Site"`
+	Value       any                  `json:"value"`
 	Description *string              `json:"description" example:"The name of the site"`
 	CreatedAt   string               `json:"created_at" example:"2006-01-02 15:04:05"`
 	UpdatedAt   string               `json:"updated_at" example:"2006-01-02 15:04:05"`
