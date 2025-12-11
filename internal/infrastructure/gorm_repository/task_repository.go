@@ -202,7 +202,7 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 		return r.db.WithContext(ctx).
 			Model(&model.Content{}).
 			Where("task_id = ?", taskID).
-			Where("deleted_at is null").
+			Where("contents.deleted_at is null").
 			Select("id", "title", "description", "type").
 			Find(&contentInfos).
 			Error
@@ -211,7 +211,7 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 		return r.db.WithContext(ctx).
 			Model(&model.Product{}).
 			Where("task_id = ?", taskID).
-			Where("deleted_at is null").
+			Where("products.deleted_at is null").
 			Select("id", "name", "type").
 			Find(&productInfos).
 			Error
@@ -224,7 +224,7 @@ func (r *TaskRepository) GetDetailTask(ctx context.Context, taskID uuid.UUID) (*
 			Joins("inner join contracts con on con.id = c.contract_id").
 			Joins("inner join brands b on b.id = con.brand_id").
 			Where("tasks.id = ?", taskID).
-			Where("deleted_at is null").
+			Where("b.deleted_at is null").
 			Select("b.id", "b.name", "b.logo_url", "b.status").
 			First(&brandInfo).
 			Error
