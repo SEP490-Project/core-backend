@@ -526,6 +526,12 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 		{
 			readGroup.GET("/representative", adminConfigHandler.GetRepresentativeConfigs)
 		}
+
+		publicGroup := configGroup.Group("public")
+		{
+			publicGroup.GET("/term-of-service", adminConfigHandler.GetTermOfService)
+			publicGroup.GET("/privacy-policy", adminConfigHandler.GetPrivacyPolicy)
+		}
 	}
 }
 

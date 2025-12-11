@@ -64,8 +64,10 @@ type AdminConfig struct {
 	TikTokExpiryThresholdNotifications int    `mapstructure:"tiktok_expiry_threshold_notifications"` // in days
 
 	// ======== General ========
-	SystemEmail string `mapstructure:"system_email"`
-	SystemName  string `mapstructure:"system_name"`
+	SystemEmail   string `mapstructure:"system_email"`
+	SystemName    string `mapstructure:"system_name"`
+	TermOfService string `mapstructure:"term_of_service"`
+	PrivacyPolicy string `mapstructure:"privacy_policy"`
 
 	// AI Content Generation
 	ContentGenerationPromptTemplate string `mapstructure:"content_generation_prompt_template" type:"textarea"`

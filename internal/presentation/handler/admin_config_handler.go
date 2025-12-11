@@ -122,9 +122,13 @@ func (h *AdminConfigHandler) UpdateConfig(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
 		return
 	}
-
 	if err := h.validator.Struct(req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
 		return
 	}
 
@@ -137,7 +141,7 @@ func (h *AdminConfigHandler) UpdateConfig(c *gin.Context) {
 		}
 	}()
 
-	if err := h.adminConfigService.UpdateConfigByKey(ctx, key, req.Value, uow); err != nil {
+	if err := h.adminConfigService.UpdateConfigByKey(ctx, key, req.Value, uow, userID); err != nil {
 		uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to update config: "+err.Error(), http.StatusBadRequest))
 		return
@@ -170,6 +174,11 @@ func (h *AdminConfigHandler) UpdateConfigs(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body", http.StatusBadRequest))
 		return
 	}
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
 
 	ctx := c.Request.Context()
 	uow := h.unitOfWork.Begin(ctx)
@@ -180,7 +189,7 @@ func (h *AdminConfigHandler) UpdateConfigs(c *gin.Context) {
 		}
 	}()
 
-	if err := h.adminConfigService.UpdateConfigs(ctx, req, uow); err != nil {
+	if err := h.adminConfigService.UpdateConfigs(ctx, req, uow, userID); err != nil {
 		uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to update configs: "+err.Error(), http.StatusBadRequest))
 		return
@@ -192,4 +201,48 @@ func (h *AdminConfigHandler) UpdateConfigs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Configs updated successfully", nil, nil))
+}
+
+// GetTermOfService godoc
+//
+//	@Summary		Get term of service
+//	@Description	Retrieve the term of service
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Term of service retrieved successfully"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Router			/api/v1/configs/public/term-of-service [get]
+func (h *AdminConfigHandler) GetTermOfService(c *gin.Context) {
+	configResponse, err := h.adminConfigService.GetConfigByKey(c.Request.Context(), "term_of_service")
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get term of service: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resposne := responses.SuccessResponse("Successfully retrieved term of service", utils.IntPtr(http.StatusOK), configResponse.Value)
+	c.JSON(http.StatusOK, resposne)
+}
+
+// GetPrivacyPolicy godoc
+//
+//	@Summary		Get privacy policy
+//	@Description	Retrieve the privacy policy
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse	"Privacy policy retrieved successfully"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Router			/api/v1/configs/public/privacy-policy [get]
+func (h *AdminConfigHandler) GetPrivacyPolicy(c *gin.Context) {
+	configResponse, err := h.adminConfigService.GetConfigByKey(c.Request.Context(), "privacy_policy")
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get privacy policy: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resposne := responses.SuccessResponse("Successfully retrieved privacy policy", utils.IntPtr(http.StatusOK), configResponse.Value)
+	c.JSON(http.StatusOK, resposne)
 }
