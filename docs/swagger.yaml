@@ -1166,6 +1166,7 @@ definitions:
     - NUMBER
     - BOOLEAN
     - JSON
+    - TIPTAP_JSON
     - ARRAY
     - TIME
     type: string
@@ -1175,6 +1176,7 @@ definitions:
     - ConfigValueTypeNumber
     - ConfigValueTypeBoolean
     - ConfigValueTypeJSON
+    - ConfigValueTypeTipTapJSON
     - ConfigValueTypeArray
     - ConfigValueTypeTime
   enum.ContainerType:
@@ -4124,9 +4126,7 @@ definitions:
       updated_by:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
-      value:
-        example: My Awesome Site
-        type: string
+      value: {}
       value_type:
         allOf:
         - $ref: '#/definitions/enum.ConfigValueType'
@@ -7335,7 +7335,7 @@ definitions:
       deadline:
         example: "2024-12-31T23:59:59Z"
         type: string
-      description_json:
+      description:
         additionalProperties: {}
         type: object
       name:
@@ -12722,6 +12722,44 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a config value
+      tags:
+      - Admin Config
+  /api/v1/configs/public/privacy-policy:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the privacy policy
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Privacy policy retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get privacy policy
+      tags:
+      - Admin Config
+  /api/v1/configs/public/term-of-service:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the term of service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Term of service retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get term of service
       tags:
       - Admin Config
   /api/v1/configs/representative:
