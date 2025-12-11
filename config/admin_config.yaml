@@ -144,3 +144,14 @@ tiktok_homepage_url: "https://www.tiktok.com/@trinhloinhoi007"
 
 affiliate_hash_length: 20
 affiliate_url_format: "{base_url}/f/{hash}"
+
+term_of_service: |
+  {
+    "type": "doc",
+    "content": []
+  }
+privacy_policy: |
+  {
+    "type": "doc",
+    "content": []
+  }
