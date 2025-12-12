@@ -126,6 +126,80 @@ func (p *Producer) PublishJSON(ctx context.Context, message any) error {
 	return p.Publish(ctx, body)
 }
 
+// PublishJSONWithDelay publishes a JSON message with a delay (for delayed message exchange)
+// The delayMs parameter specifies the delay in milliseconds before the message is delivered
+// Requires the rabbitmq_delayed_message_exchange plugin to be enabled on the RabbitMQ server
+func (p *Producer) PublishJSONWithDelay(ctx context.Context, message any, delayMs int64) error {
+	body, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+	return p.publishWithDelay(ctx, body, delayMs)
+}
+
+// publishWithDelay publishes a message with a delay header
+func (p *Producer) publishWithDelay(ctx context.Context, body []byte, delayMs int64) error {
+	deliveryMode := amqp.Transient
+	if p.config.Persistent {
+		deliveryMode = amqp.Persistent
+	}
+
+	zap.L().Debug("Publishing delayed message",
+		zap.String("producer", p.name),
+		zap.String("exchange", p.config.Exchange),
+		zap.String("routing_key", p.config.RoutingKey),
+		zap.Int64("delay_ms", delayMs),
+		zap.Int("message_size", len(body)))
+
+	// Publish message with x-delay header
+	err := p.channel.PublishWithContext(
+		ctx,
+		p.config.Exchange,
+		p.config.RoutingKey,
+		p.config.Mandatory,
+		false,
+		amqp.Publishing{
+			ContentType:  "application/json",
+			DeliveryMode: deliveryMode,
+			Timestamp:    time.Now(),
+			Body:         body,
+			Headers: amqp.Table{
+				"x-delay": delayMs, // Delay in milliseconds for delayed message exchange
+			},
+		},
+	)
+
+	if err != nil {
+		zap.L().Error("Failed to publish delayed message",
+			zap.String("producer", p.name),
+			zap.Error(err))
+		return fmt.Errorf("failed to publish delayed message: %w", err)
+	}
+
+	// Wait for confirmation if enabled
+	if p.confirming {
+		select {
+		case confirm := <-p.confirms:
+			if !confirm.Ack {
+				return fmt.Errorf("delayed message not acknowledged by broker")
+			}
+			zap.L().Debug("Delayed message confirmed by broker",
+				zap.String("producer", p.name),
+				zap.Uint64("delivery_tag", confirm.DeliveryTag))
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for confirmation: %w", ctx.Err())
+		case <-time.After(5 * time.Second):
+			return fmt.Errorf("confirmation timeout for delayed message")
+		}
+	}
+
+	zap.L().Debug("Delayed message published successfully",
+		zap.String("producer", p.name),
+		zap.Int64("delay_ms", delayMs))
+
+	return nil
+}
+
 // publishWithRetry publishes a message with exponential backoff retry
 func (p *Producer) publishWithRetry(ctx context.Context, body []byte, attempt int) error {
 	// Prepare publishing

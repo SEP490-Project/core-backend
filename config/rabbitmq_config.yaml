@@ -177,6 +177,22 @@ topology:
             exponentialMultiply: 2
           dlq:
             enabled: true
+    # Delayed message exchange for scheduled content publishing
+    # Requires rabbitmq_delayed_message_exchange plugin to be enabled
+    - name: exchange.content.schedule.delayed
+      type: x-delayed-message
+      durable: true
+      autoDelete: false
+      arguments:
+        x-delayed-type: direct
+      queues:
+        - name: queue.content.schedule.publish
+          routingKey: content.schedule.publish
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -292,6 +308,17 @@ producers:
       maxAttempts: 3
       backoffMs: 2000
       exponentialMultiply: 2.0
+  # Producer for scheduled content publishing (delayed messages)
+  - name: content-schedule-producer
+    exchange: exchange.content.schedule.delayed
+    routingKey: content.schedule.publish
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
   - name: campaign-create-producer
     exchange: exchange.campaign
     routingKey: campaign.create
@@ -372,6 +399,14 @@ consumers:
     queue: queue.content.publish_all
     prefetch: 1
     concurrency: 1
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
+  # Consumer for scheduled content publishing (processes delayed messages)
+  - name: content-schedule-consumer
+    queue: queue.content.schedule.publish
+    prefetch: 1
+    concurrency: 2
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
