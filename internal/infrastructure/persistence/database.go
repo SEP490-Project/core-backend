@@ -6,11 +6,14 @@ import (
 	"core-backend/pkg/logging"
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func InitDB() *gorm.DB {
@@ -34,11 +37,23 @@ func InitDB() *gorm.DB {
 	)
 
 	// Configure GORM logger
-	gormLogger := logging.NewZapGormLogger(zap.L())
-
-	// Optional: Tweak settings based on config
-	gormLogger.SlowThreshold = time.Second
-	gormLogger.IgnoreRecordNotFoundError = false
+	var gormLogger logger.Interface
+	if config.GetAppConfig().IsDevelopment() {
+		gormLogger = logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold:             time.Second, // Slow SQL threshold
+				LogLevel:                  logger.Info, // Set LogLevel to logger.Info to see all SQL queries
+				IgnoreRecordNotFoundError: true,        // Don't log record not found errors
+				Colorful:                  true,        // Enable color
+			},
+		)
+	} else {
+		loggerImpl := logging.NewZapGormLogger(zap.L())
+		loggerImpl.SlowThreshold = time.Second
+		loggerImpl.IgnoreRecordNotFoundError = false
+		gormLogger = &loggerImpl
+	}
 
 	var db *gorm.DB
 	var err error
