@@ -55,6 +55,7 @@ type ApplicationRegistry struct {
 	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
 	WebhookDataService            iservice.WebhookDataService
+	AlertManagerService           iservice.AlertManagerService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -153,6 +154,7 @@ func NewApplicationRegistry(
 		configs,
 	)
 
+	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -196,6 +198,7 @@ func NewApplicationRegistry(
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
 		WebhookDataService:            service.NewWebhookDataService(databaseRegistry.WebhookDataRepository, infrastructureRegistry.UnitOfWork),
+		AlertManagerService:           alertManagerService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
