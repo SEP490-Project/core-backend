@@ -50,6 +50,7 @@ type unitOfWork struct {
 	orderItemRepository          irepository.GenericRepository[model.OrderItem]
 	paymentTransactionRepository irepository.PaymentTransactionRepository
 	preOrderRepository           irepository.PreOrderRepository
+	productReviewRepository      irepository.GenericRepository[model.ProductReview]
 
 	//Notifications
 	notificationRepository irepository.NotificationRepository
@@ -131,6 +132,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.affiliateLinkRepository = gormrepository.NewAffiliateLinkRepository(tx)
 	txUow.clickEventRepository = gormrepository.NewClickEventRepository(tx)
 	txUow.kpiMetricsRepository = gormrepository.NewGenericRepository[model.KPIMetrics](tx)
+	txUow.productReviewRepository = gormrepository.NewGenericRepository[model.ProductReview](tx)
 
 	zap.L().Debug("Database transaction started successfully")
 	return txUow
@@ -316,6 +318,10 @@ func (u *unitOfWork) PreOrder() irepository.PreOrderRepository {
 
 func (u *unitOfWork) WebhookData() irepository.GenericRepository[model.WebhookData] {
 	return u.webhookRepository
+}
+
+func (u *unitOfWork) ProductReview() irepository.GenericRepository[model.ProductReview] {
+	return u.productReviewRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

@@ -1736,100 +1736,121 @@ func (p productService) UpdateLimitedVariant(ctx context.Context, variantID uuid
 	return variant, nil
 }
 
-func (p productService) AddProductReview(userID uuid.UUID, req requests.AddProductReviewRequest) (*responses.ProductReviewResponse, error) {
-	ctx := context.Background()
-	reviewModel := &model.ProductReview{
-		RatingStars: req.Rating,
-		Comment:     req.Comment,
-		AssetsURL:   req.AssetsURL,
-		ProductID:   uuid.Nil,
-		UserID:      nil,
-		OrderItemID: nil,
-		PreOrderID:  nil,
-	}
-	refID := req.ReferenceID
-	refTyp := req.Type
+func (p productService) AddProductReview(ctx context.Context, userID uuid.UUID, req requests.AddProductReviewRequest, uow irepository.UnitOfWork) (*responses.ProductReviewResponse, error) {
+	var reviewModel *model.ProductReview
 
-	user, err := p.userRepo.GetByID(ctx, userID, nil)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil {
-		return nil, errors.New("user not found")
-	}
-	reviewModel.UserID = &user.ID
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		reviewModel = &model.ProductReview{
+			RatingStars: req.Rating,
+			Comment:     req.Comment,
+			AssetsURL:   req.AssetsURL,
+			ProductID:   uuid.Nil,
+			UserID:      nil,
+			OrderItemID: nil,
+			PreOrderID:  nil,
+		}
+		refID := req.ReferenceID
+		refTyp := req.Type
 
-	if refTyp == "ORDER" {
-		includes := []string{"Order", "Order.User", "Variant", "Variant.Product"}
-		refUUID, err := uuid.Parse(refID)
+		user, err := uow.Users().GetByID(ctx, userID, nil)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		orderItem, err := p.orderItemRepo.GetByID(ctx, refUUID, includes)
-		if err != nil {
-			return nil, errors.New("order item not found")
+		if user == nil {
+			return errors.New("user not found")
 		}
-		reviewModel.OrderItemID = &orderItem.ID
-		if orderItem.Order.Status != enum.OrderStatusReceived {
-			return nil, errors.New("cannot review an order that is not received")
-		}
+		reviewModel.UserID = &user.ID
 
-		if user.ID != orderItem.Order.UserID {
-			return nil, errors.New("user not match the order's owner")
-		} else {
+		if refTyp == "ORDER" {
+			includes := []string{"Order", "Order.User", "Variant", "Variant.Product"}
+			refUUID, err := uuid.Parse(refID)
+			if err != nil {
+				return err
+			}
+			orderItem, err := uow.OrderItem().GetByID(ctx, refUUID, includes)
+			if err != nil || orderItem == nil {
+				return errors.New("order item not found")
+			}
+			reviewModel.OrderItemID = &orderItem.ID
+
+			if orderItem.Order == nil || orderItem.Order.Status != enum.OrderStatusReceived {
+				return errors.New("cannot review an order that is not received")
+			}
+
+			if user.ID != orderItem.Order.UserID {
+				return errors.New("user not match the order's owner")
+			}
 			reviewModel.UserID = &userID
-		}
-		reviewModel.ProductID = orderItem.Variant.ProductID
-	} else {
-		includes := []string{"ProductVariant", "ProductVariant.Product"}
-		preOrder, err := p.preOrderRepo.GetByID(ctx, refID, includes)
-		if err != nil {
-			return nil, err
-		}
-		if preOrder == nil {
-			return nil, errors.New("preorder not found")
-		}
-		reviewModel.PreOrderID = &preOrder.ID
+			reviewModel.ProductID = orderItem.Variant.ProductID
 
-		if preOrder.Status != enum.PreOrderStatusReceived {
-			return nil, errors.New("cannot review an preorder which status is not 'RECEIVED'")
-		}
-
-		if user.ID != preOrder.UserID {
-			return nil, errors.New("user not match the preOrder's owner")
+			orderItem.IsReviewed = true
+			if err := uow.OrderItem().Update(ctx, orderItem); err != nil {
+				return err
+			}
 		} else {
+			includes := []string{"ProductVariant", "ProductVariant.Product"}
+			preOrder, err := uow.PreOrder().GetByID(ctx, refID, includes)
+			if err != nil {
+				return err
+			}
+			if preOrder == nil {
+				return errors.New("preorder not found")
+			}
+			reviewModel.PreOrderID = &preOrder.ID
+
+			if preOrder.Status != enum.PreOrderStatusReceived {
+				return errors.New("cannot review an preorder which status is not 'RECEIVED'")
+			}
+
+			if user.ID != preOrder.UserID {
+				return errors.New("user not match the preOrder's owner")
+			}
 			reviewModel.UserID = &userID
-		}
-		reviewModel.ProductID = preOrder.ProductVariant.ProductID
-	}
+			reviewModel.ProductID = preOrder.ProductVariant.ProductID
 
-	// Ensure exactly one of orderItemID or preOrderID is set (ToPersistedModel already enforces this, defend again)
-	if (reviewModel.OrderItemID == nil && reviewModel.PreOrderID == nil) || (reviewModel.OrderItemID != nil && reviewModel.PreOrderID != nil) {
-		return nil, errors.New("either order_item_id or pre_order_id must be provided (but not both)")
-	}
+			preOrder.IsReviewed = true
+			if err := uow.PreOrder().Update(ctx, preOrder); err != nil {
+				return err
+			}
+		}
 
-	// Check existing review uniqueness: user+product+order/preorder
-	existsReview, err := p.reviewRepo.Exists(ctx, func(db *gorm.DB) *gorm.DB {
-		if userID != uuid.Nil {
-			db = db.Where("user_id = ?", userID.String())
+		// Ensure exactly one of orderItemID or preOrderID is set
+		if (reviewModel.OrderItemID == nil && reviewModel.PreOrderID == nil) || (reviewModel.OrderItemID != nil && reviewModel.PreOrderID != nil) {
+			return errors.New("either order_item_id or pre_order_id must be provided (but not both)")
 		}
-		if reviewModel.OrderItemID != nil {
-			db = db.Where("order_item_id = ?", reviewModel.OrderItemID.String())
+
+		// Check existing review uniqueness: user+order_item or user+pre_order
+		existsReview, err := uow.ProductReview().Exists(ctx, func(db *gorm.DB) *gorm.DB {
+			if userID != uuid.Nil {
+				db = db.Where("user_id = ?", userID.String())
+			}
+			if reviewModel.OrderItemID != nil {
+				db = db.Where("order_item_id = ?", reviewModel.OrderItemID.String())
+			}
+			if reviewModel.PreOrderID != nil {
+				db = db.Where("pre_order_id = ?", reviewModel.PreOrderID.String())
+			}
+			return db
+		})
+		if err != nil {
+			return err
 		}
-		if reviewModel.PreOrderID != nil {
-			db = db.Where("pre_order_id = ?", reviewModel.PreOrderID.String())
+		if existsReview {
+			return errors.New("review already exists for this product and order/preorder by the user")
 		}
-		return db
+
+		if err := uow.ProductReview().Add(ctx, reviewModel); err != nil {
+			return err
+		}
+
+		err = uow.Commit()
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 
 	if err != nil {
-		return nil, err
-	}
-	if existsReview {
-		return nil, errors.New("review already exists for this product and order/preorder by the user")
-	}
-
-	if err := p.reviewRepo.Add(ctx, reviewModel); err != nil {
 		return nil, err
 	}
 

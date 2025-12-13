@@ -382,6 +382,7 @@ func (o *orderService) GetOrdersByUserIDWithPagination(
 	if err := o.orderRepository.DB().WithContext(ctx).
 		Scopes(filterScope).
 		Preload("OrderItems").
+		Preload("OrderItems.ProductReview").
 		Preload("OrderItems.Brand").
 		Preload("OrderItems.Category").Preload("OrderItems.Category.ParentCategory").Preload("OrderItems.Category.ChildCategories").
 		Preload("OrderItems.Variant").
