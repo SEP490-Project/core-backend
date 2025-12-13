@@ -54,6 +54,7 @@ type UnitOfWork interface {
 
 	//PreOrders
 	PreOrder() PreOrderRepository
+	ProductReview() GenericRepository[model.ProductReview]
 
 	//Notifications
 	Notifications() NotificationRepository

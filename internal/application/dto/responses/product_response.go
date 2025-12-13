@@ -167,17 +167,7 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 	}
 
 	// Map reviews if preloaded
-	var avgRating float64
-	count := 0
-	for i := range m.Reviews {
-		avgRating += float64(m.Reviews[i].RatingStars)
-		count++
-	}
-	if count > 0 {
-		d.AverageRating = avgRating / float64(count)
-	} else {
-		d.AverageRating = 0
-	}
+	d.AverageRating = m.AverageRating
 	return &d
 }
 
@@ -476,19 +466,19 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 // TODO:====================================== VERSION 2======================================================
 
 type ProductResponseV2 struct {
-	ID           uuid.UUID          `json:"id"`
-	BrandID      uuid.UUID          `json:"brand_id"`
-	BrandLogoURL *string            `json:"brand_logo_url,omitempty"`
-	BrandName    string             `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string          `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool               `json:"is_active"`
-	CreatedAt    string             `json:"created_at"` // FE parse về Date
-	UpdatedAt    string             `json:"updated_at"`
-	Status       enum.ProductStatus `json:"status"`
-	Description  string             `json:"description"`
-	Name         string             `json:"name"`
-	//Price        float64                   `json:"price"`
+	ID               uuid.UUID                 `json:"id"`
+	BrandID          uuid.UUID                 `json:"brand_id"`
+	BrandLogoURL     *string                   `json:"brand_logo_url,omitempty"`
+	BrandName        string                    `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL     *[]string                 `json:"thumbnail_url,omitempty"` // optional
+	IsActive         bool                      `json:"is_active"`
+	CreatedAt        string                    `json:"created_at"` // FE parse về Date
+	UpdatedAt        string                    `json:"updated_at"`
+	Status           enum.ProductStatus        `json:"status"`
+	Description      string                    `json:"description"`
+	Name             string                    `json:"name"`
 	Type             enum.ProductType          `json:"type"`
+	AverageRating    float64                   `json:"average_rating"`
 	LimitedAttribute *LimitedProductResponse   `json:"limited_product"`
 	Category         ProductCategoryResponse   `json:"category"`
 	Variants         []*ProductVariantResponse `json:"variants,omitempty"`
@@ -515,6 +505,7 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 		Name:             m.Name,
 		Description:      utils.IfNotNil(m.Description, func(s *string) string { return *s }),
 		Type:             m.Type,
+		AverageRating:    m.AverageRating,
 		LimitedAttribute: limitedResp,
 		IsActive:         m.IsActive,
 
@@ -562,16 +553,16 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 
 // ProductResponseV2Partial represents a partial response structure for a product.
 type ProductResponseV2Partial struct {
-	ID           uuid.UUID               `json:"id"`
-	BrandID      uuid.UUID               `json:"brand_id"`
-	BrandLogoURL *string                 `json:"brand_logo_url,omitempty"`
-	BrandName    string                  `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string               `json:"thumbnail_url,omitempty"` // optional
-	Category     ProductCategoryResponse `json:"category"`
-	Description  string                  `json:"description"`
-	Name         string                  `json:"name"`
-	//Price            float64                    `json:"price"`
+	ID               uuid.UUID                  `json:"id"`
+	BrandID          uuid.UUID                  `json:"brand_id"`
+	BrandLogoURL     *string                    `json:"brand_logo_url,omitempty"`
+	BrandName        string                     `json:"brand_name,omitempty"`    // optional
+	ThumbnailURL     *[]string                  `json:"thumbnail_url,omitempty"` // optional
+	Category         ProductCategoryResponse    `json:"category"`
+	Description      string                     `json:"description"`
+	Name             string                     `json:"name"`
 	Type             enum.ProductType           `json:"type"`
+	AverageRating    float64                    `json:"average_rating"`
 	LimitedAttribute *LimitedProductResponse    `json:"limited_product"`
 	Variants         *[]*ProductVariantResponse `json:"variants,omitempty"`
 }
@@ -601,6 +592,7 @@ func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *Produ
 		pr.Description = *m.Description
 	}
 	pr.Type = m.Type
+	pr.AverageRating = m.AverageRating
 
 	// Category
 	if m.Category != nil {

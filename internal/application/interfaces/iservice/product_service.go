@@ -19,7 +19,7 @@ type ProductService interface {
 	GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error)
 	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
 	// Reviews
-	AddProductReview(userID uuid.UUID, req requests.AddProductReviewRequest) (*responses.ProductReviewResponse, error)
+	AddProductReview(ctx context.Context, userID uuid.UUID, req requests.AddProductReviewRequest, uow irepository.UnitOfWork) (*responses.ProductReviewResponse, error)
 	GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error)
 
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)

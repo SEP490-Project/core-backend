@@ -137,6 +137,7 @@ type OrderItemResponse struct {
 	Height          int                `json:"height"`
 	Length          int                `json:"length"`
 	Width           int                `json:"width"`
+	IsReviewed      bool               `json:"is_reviewed"`
 
 	//product fields
 	ProductName       string                  `json:"product_name"`
@@ -147,6 +148,7 @@ type OrderItemResponse struct {
 	AttributesDescription *datatypes.JSON `json:"attributes_description" swaggerignore:"true"` //JSON
 
 	//Relationships
+	Review     OrderItemReview            `json:"review"`
 	ItemImages []OrderItemImage           `json:"images"`
 	Brand      *OrderItemBrandResponse    `json:"brand"`
 	Category   *OrderItemCategoryResponse `json:"category"`
@@ -258,6 +260,10 @@ func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
 	if oi.Category != nil {
 		categoryResp = OrderItemCategoryResponse{}.ToResponse(oi.Category)
 	}
+	var reviewResp OrderItemReview
+	if oi.ProductReview != nil {
+		reviewResp = *OrderItemReview{}.ToResponse(oi.ProductReview)
+	}
 
 	return &OrderItemResponse{
 		ID:                    oi.ID,
@@ -276,6 +282,8 @@ func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
 		Height:                oi.Height,
 		Length:                oi.Length,
 		Width:                 oi.Width,
+		IsReviewed:            oi.IsReviewed,
+		Review:                reviewResp,
 		ProductName:           oi.ProductName,
 		Description:           oi.Description,
 		Type:                  oi.Type,
@@ -346,4 +354,31 @@ func (OrderItemImage) ToResponseList(source []model.VariantImage) []OrderItemIma
 }
 
 // ======================================== OrderItem.OrderItemImage (END) ========================================
+
+// ======================================== OrderItem.Review (START) ========================================
+type OrderItemReview struct {
+	ID          uuid.UUID `json:"id"`
+	RatingStars int       `json:"rating_stars"`
+	Comment     *string   `json:"comment"`
+	AssetsURL   *string   `json:"assets_url"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (OrderItemReview) ToResponse(review *model.ProductReview) *OrderItemReview {
+	if review == nil {
+		return nil
+	}
+	return &OrderItemReview{
+		ID:          review.ID,
+		RatingStars: review.RatingStars,
+		Comment:     review.Comment,
+		AssetsURL:   review.AssetsURL,
+		CreatedAt:   review.CreatedAt,
+		UpdatedAt:   review.UpdatedAt,
+	}
+}
+
+// ======================================== OrderItem.Review (END) ========================================
+
 //* ============================== OrderItem.Response (END) ==============================
