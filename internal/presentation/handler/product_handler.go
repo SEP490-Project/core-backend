@@ -1421,7 +1421,13 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 //	@Produce		json
 //	@Param			productId	path		string	true	"Product ID"
 //	@Param			limit		query		int		false	"Items per page"	default(10)
-//	@Param			offset		query		int		false	"Items to skip"		default(0)
+//	@Param			page		query		int		false	"Page"		default(1)
+//	@Param from_date query string false "From date (YYYY-MM-DD)"
+//	@Param to_date query string false "To date (YYYY-MM-DD)"
+//	@Param rating_stars_min query int false "Min rating"
+//	@Param rating_stars_max query int false "Max rating"
+//	@Param order_by query string false "created_at | rating_stars"
+//	@Param order_direction query string false "asc | desc"
 //	@Success		200			{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
 //	@Failure		400			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
@@ -1440,7 +1446,7 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	}
 
 	limitStr := c.DefaultQuery("limit", "10")
-	offsetStr := c.DefaultQuery("offset", "0")
+	pageStr := c.DefaultQuery("page", "1")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
 		limit = 10
@@ -1448,19 +1454,32 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	if limit > 100 {
 		limit = 100
 	}
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page <= 0 {
+		page = 1
 	}
 
-	reviews, total, svcErr := h.productService.GetProductReviewPagination(productID, limit, offset)
+	// ===== Bind filter from query =====
+	var req requests.ProductReviewFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	req.Limit = limit
+	req.Page = page
+
+	reviews, total, svcErr :=
+		h.productService.GetProductReviewPagination(productID, req)
 	if svcErr != nil {
-		// map not found -> 400, otherwise 500
 		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+			c.JSON(http.StatusBadRequest,
+				responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
+		c.JSON(http.StatusInternalServerError,
+			responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
 		return
 	}
 
@@ -1470,14 +1489,13 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	}
 
 	pagination := responses.Pagination{
-		Page:       offset,
+		Page:       page,
 		Limit:      limit,
 		Total:      int64(total),
 		TotalPages: totalPages,
-		HasNext:    offset < totalPages,
-		HasPrev:    offset > 1,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
 	}
-
 	resp := responses.NewPaginationResponse(
 		"Product reviews retrieved successfully",
 		http.StatusOK,
@@ -1512,4 +1530,114 @@ func (h *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, file
 	}
 
 	return &fileURL, nil
+}
+
+// GetProductReviewPaginationStaff godoc
+//
+//	@Summary		Get paginated product reviews (Staff)
+//	@Description	Staff retrieves product reviews with filters and pagination
+//	@Tags			Products
+//	@Accept			json
+//	@Produce		json
+//	@Param			brand_id	query		string	false	"Brand ID"
+//	@Param			product_id	query		string	false	"Product ID"
+//	@Param			page		query		int		false	"Page number"	default(1)
+//	@Param			limit		query		int		false	"Items per page"	default(10)
+//	@Param			from_date	query		string	false	"From date (YYYY-MM-DD)"
+//	@Param			to_date		query		string	false	"To date (YYYY-MM-DD)"
+//	@Param			rating_stars_min	query	int	false	"Min rating"
+//	@Param			rating_stars_max	query	int	false	"Max rating"
+//	@Param			order_by	query		string	false	"created_at | rating_stars"
+//	@Param			order_direction	query	string	false	"asc | desc"
+//	@Success		200	{object}	object{data=[]responses.ProductReviewResponseStaff,pagination=responses.Pagination}
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/staff/reviews [get]
+func (h *ProductHandler) GetProductReviewPaginationStaff(c *gin.Context) {
+	// ===== Nullable brandID =====
+	var brandID *uuid.UUID
+	if v := strings.TrimSpace(c.Query("brand_id")); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest,
+				responses.ErrorResponse("invalid brand_id", http.StatusBadRequest))
+			return
+		}
+		brandID = &id
+	}
+
+	// ===== Nullable productID =====
+	var productID *uuid.UUID
+	if v := strings.TrimSpace(c.Query("product_id")); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			c.JSON(http.StatusBadRequest,
+				responses.ErrorResponse("invalid product_id", http.StatusBadRequest))
+			return
+		}
+		productID = &id
+	}
+
+	// ===== Pagination =====
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	// ===== Bind filter =====
+	var req requests.ProductReviewFilter
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest,
+			responses.ErrorResponse("invalid query parameters", http.StatusBadRequest))
+		return
+	}
+
+	req.Page = page
+	req.Limit = limit
+
+	// ===== Call service =====
+	reviews, total, svcErr :=
+		h.productService.GetProductReviewPaginationStaff(
+			brandID,
+			productID,
+			req,
+		)
+	if svcErr != nil {
+		c.JSON(http.StatusInternalServerError,
+			responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	// ===== Pagination meta =====
+	totalPages := int(total) / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	resp := responses.NewPaginationResponse(
+		"Product reviews retrieved successfully",
+		http.StatusOK,
+		reviews,
+		pagination,
+	)
+
+	c.JSON(http.StatusOK, resp)
 }

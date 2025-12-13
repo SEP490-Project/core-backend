@@ -41,7 +41,7 @@ type User struct {
 	Sessions        []LoggedSession   `json:"sessions" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	ShippingAddress []ShippingAddress `json:"shipping_addresses" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Brand           *Brand            `json:"brand" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	DeviceTokens    []DeviceToken     `json:"device_tokens" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	DeviceTokens    []DeviceToken     `json:"device_tokens" gorm:"foreignKey:UserID;corder_onstraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Notifications   []Notification    `json:"notifications" gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
