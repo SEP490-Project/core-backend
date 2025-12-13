@@ -81,6 +81,7 @@ type DatabaseRegistry struct {
 	// Webhooks
 	WebhookDataRepository  irepository.GenericRepository[model.WebhookData]
 	VariantImageRepository irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository  irepository.SystemAlertRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -130,5 +131,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
 		WebhookDataRepository:                NewGenericRepository[model.WebhookData](db),
 		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
+		SystemAlertRepository:                NewSystemAlertRepository(db),
 	}
 }

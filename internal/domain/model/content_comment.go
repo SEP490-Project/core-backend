@@ -27,6 +27,7 @@ type ContentComment struct {
 
 type ContentReaction struct {
 	ID        uuid.UUID         `json:"id"`
+	UserID    *uuid.UUID        `json:"user_id,omitempty"`
 	ReactedAt time.Time         `json:"reacted_at"`
 	Type      enum.ReactionType `json:"reaction_type"`
 }
