@@ -87,7 +87,7 @@ type channelMetricsUpdate struct {
 type contentChannelMetricsUpdate struct {
 	contentChannel *model.ContentChannel
 	rawMetrics     map[string]any
-	mappedMetrics  map[string]float64
+	mappedMetrics  map[enum.KPIValueType]float64
 }
 
 func newMetricsCollector() *metricsCollector {
@@ -128,7 +128,7 @@ func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics m
 }
 
 // addContentChannelUpdate adds a content channel metrics update (thread-safe)
-func (c *metricsCollector) addContentChannelUpdate(cc *model.ContentChannel, rawMetrics map[string]any, mappedMetrics map[string]float64) {
+func (c *metricsCollector) addContentChannelUpdate(cc *model.ContentChannel, rawMetrics map[string]any, mappedMetrics map[enum.KPIValueType]float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -462,11 +462,7 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 		existingMetrics.CurrentFetched = update.rawMetrics
 		existingMetrics.CurrentMapped = update.mappedMetrics
 
-		metricsJSON, err := json.Marshal(existingMetrics)
-		if err != nil {
-			continue
-		}
-		update.contentChannel.Metrics = datatypes.JSON(metricsJSON)
+		update.contentChannel.Metrics = existingMetrics
 		if err := j.contentChannelRepo.Update(ctx, update.contentChannel); err != nil {
 			zap.L().Warn("Failed to update content channel metrics",
 				zap.String("content_channel_id", update.contentChannel.ID.String()),
@@ -767,7 +763,7 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	}
 
 	// Map to KPI metrics using helper
-	mappedMetrics := make(map[string]float64)
+	mappedMetrics := make(map[enum.KPIValueType]float64)
 
 	// Reactions -> Likes + Engagement
 	if reactions > 0 {
@@ -776,22 +772,18 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 
 	// Comments -> Comments + Engagement
 	if comments > 0 {
-		mappedMetrics[enum.KPIValueTypeComments.String()] = float64(comments)
-		if existing, ok := mappedMetrics[enum.KPIValueTypeEngagement.String()]; ok {
-			mappedMetrics[enum.KPIValueTypeEngagement.String()] = existing + float64(comments)
-		} else {
-			mappedMetrics[enum.KPIValueTypeEngagement.String()] = float64(comments)
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeComments:   float64(comments),
+			enum.KPIValueTypeEngagement: float64(comments),
+		})
 	}
 
 	// Shares -> Shares + Engagement
 	if shares > 0 {
-		mappedMetrics[enum.KPIValueTypeShares.String()] = float64(shares)
-		if existing, ok := mappedMetrics[enum.KPIValueTypeEngagement.String()]; ok {
-			mappedMetrics[enum.KPIValueTypeEngagement.String()] = existing + float64(shares)
-		} else {
-			mappedMetrics[enum.KPIValueTypeEngagement.String()] = float64(shares)
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeShares:     float64(shares),
+			enum.KPIValueTypeEngagement: float64(shares),
+		})
 	}
 
 	// If video post, submit video insights fetch to worker pool
@@ -837,7 +829,7 @@ func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsightsAsync(
 	accessToken string,
 	videoID string,
 	rawMetrics map[string]any,
-	mappedMetrics map[string]float64,
+	mappedMetrics map[enum.KPIValueType]float64,
 ) int {
 	// Wait for rate limit
 	if err := j.waitForFBRateLimit(ctx); err != nil {
@@ -1013,29 +1005,17 @@ func (j *ContentMetricsPollerJob) processTikTokVideoMetrics(
 	}
 
 	// Map to KPI metrics using helper
-	mappedMetrics := make(map[string]float64)
+	mappedMetrics := make(map[enum.KPIValueType]float64)
 
 	maps.Copy(mappedMetrics, helper.MapTikTokMetricsToKPIField("view_count", float64(video.ViewCount)))
 	for k, v := range helper.MapTikTokMetricsToKPIField("like_count", float64(video.LikeCount)) {
-		if existing, exists := mappedMetrics[k]; exists {
-			mappedMetrics[k] = existing + v
-		} else {
-			mappedMetrics[k] = v
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{k: v})
 	}
 	for k, v := range helper.MapTikTokMetricsToKPIField("comment_count", float64(video.CommentCount)) {
-		if existing, exists := mappedMetrics[k]; exists {
-			mappedMetrics[k] = existing + v
-		} else {
-			mappedMetrics[k] = v
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{k: v})
 	}
 	for k, v := range helper.MapTikTokMetricsToKPIField("share_count", float64(video.ShareCount)) {
-		if existing, exists := mappedMetrics[k]; exists {
-			mappedMetrics[k] = existing + v
-		} else {
-			mappedMetrics[k] = v
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{k: v})
 	}
 
 	// Add to collector (not persisting directly)

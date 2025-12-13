@@ -3,6 +3,7 @@ package model
 import (
 	"core-backend/internal/domain/enum"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -82,7 +83,7 @@ func (a *AffiliateLink) getUUIDFromMetadata(key string) *uuid.UUID {
 	if len(a.Metadata) == 0 {
 		return nil
 	}
-	var meta map[string]interface{}
+	var meta map[string]any
 	if err := json.Unmarshal(a.Metadata, &meta); err != nil {
 		return nil
 	}
@@ -107,4 +108,8 @@ func (a *AffiliateLink) Expire() {
 // Activate sets the affiliate link status to active
 func (a *AffiliateLink) Activate() {
 	a.Status = enum.AffiliateLinkStatusActive
+}
+
+func (a *AffiliateLink) GetFullLink(baseURL string) string {
+	return fmt.Sprintf("%s/r/%s", baseURL, a.Hash)
 }
