@@ -20,7 +20,8 @@ type ProductService interface {
 	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
 	// Reviews
 	AddProductReview(ctx context.Context, userID uuid.UUID, req requests.AddProductReviewRequest, uow irepository.UnitOfWork) (*responses.ProductReviewResponse, error)
-	GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error)
+	GetProductReviewPagination(productID uuid.UUID, filter requests.ProductReviewFilter) ([]responses.ProductReviewResponse, int, error)
+	GetProductReviewPaginationStaff(brandID *uuid.UUID, productID *uuid.UUID, filter requests.ProductReviewFilter) ([]responses.ProductReviewResponseStaff, int, error)
 
 	GetProductsByTask(taskID uuid.UUID, requestingUserID uuid.UUID, userRole string, limit, offset int) ([]*responses.ProductOverviewResponse, int, error)
 	GetProductVariants(productID uuid.UUID, limit, offset int) ([]*responses.ProductVariantResponse, int, error)

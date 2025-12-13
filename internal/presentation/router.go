@@ -178,6 +178,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				staffGroup.PATCH("/variants/:variantId", productHandler.UpdateVariant)
 				// Update limited variant (Sales, Admin)
 				staffGroup.PATCH("/variants/limited/:variantId", productHandler.UpdateLimitedVariant)
+				staffGroup.GET("/staff/reviews", productHandler.GetProductReviewPaginationStaff)
 			}
 		}
 

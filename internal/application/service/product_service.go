@@ -73,6 +73,76 @@ type productService struct {
 	rabbitmq     *rabbitmq.RabbitMQ
 }
 
+func (p *productService) GetProductReviewPaginationStaff(brandID *uuid.UUID, productID *uuid.UUID, req requests.ProductReviewFilter) ([]responses.ProductReviewResponseStaff, int, error) {
+	ctx := context.Background()
+
+	limit := req.Limit
+	page := req.Page
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		if brandID != nil {
+			db = db.Joins("JOIN products ON products.id = product_reviews.product_id").Where("products.brand_id = ?", *brandID)
+		}
+		if productID != nil {
+			db = db.Where("product_id = ?", productID)
+		}
+		if req.FromDateStr != nil {
+			db = db.Where("created_at >= ?", *req.FromDateStr)
+		}
+		if req.ToDateStr != nil {
+			db = db.Where("created_at <= ?", *req.ToDateStr)
+		}
+		if req.RatingStarsMin != nil {
+			db = db.Where("rating_stars >= ?", *req.RatingStarsMin)
+		}
+		if req.RatingStarsMax != nil {
+			db = db.Where("rating_stars <= ?", *req.RatingStarsMax)
+		}
+		orderBy := "created_at"
+		if req.OrderBy != nil {
+			switch *req.OrderBy {
+			case "created_at", "rating_stars":
+				orderBy = *req.OrderBy
+			}
+		}
+		orderDirection := "desc"
+		if req.OrderDirection != nil {
+			if *req.OrderDirection == "asc" || *req.OrderDirection == "desc" {
+				orderDirection = *req.OrderDirection
+			}
+		}
+		return db.Order(orderBy + " " + orderDirection).Order("id")
+	}
+
+	includes := []string{
+		"User",
+		"OrderItem",
+		"OrderItem.Order",
+		"OrderItem.Variant",
+		"OrderItem.Variant.Product",
+		"OrderItem.Variant.Product.Limited",
+		"OrderItem.Variant.Product.Brand",
+		"PreOrder",
+		"PreOrder.ProductVariant",
+		"PreOrder.ProductVariant.Product",
+		"PreOrder.ProductVariant.Product.Limited",
+		"PreOrder.ProductVariant.Product.Brand",
+	}
+
+	res, total, err := p.reviewRepo.GetAll(ctx, filter, includes, limit, page)
+	if err != nil {
+		return nil, 0, err
+	}
+	return responses.ProductReviewResponseStaff{}.ToProductReviewResponseStaffList(res), int(total), nil
+}
+
 func (p *productService) UpdateProduct(ctx context.Context, productID uuid.UUID, update requests.UpdateProductRequest) (*model.Product, error) {
 	// Load existing product
 	product, err := p.repository.GetByID(ctx, productID, []string{"Limited"})
@@ -1060,11 +1130,47 @@ func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetail
 	return res.ToProductDetailResponse(product), nil
 }
 
-func (p *productService) GetProductReviewPagination(productID uuid.UUID, limit, offset int) ([]responses.ProductReviewResponse, int, error) {
+func (p *productService) GetProductReviewPagination(productID uuid.UUID, req requests.ProductReviewFilter) ([]responses.ProductReviewResponse, int, error) {
 	ctx := context.Background()
 
+	limit := req.Limit
+	page := req.Page
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+
 	filter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("product_id = ?", productID)
+		db = db.Where("product_id = ?", productID)
+		if req.FromDateStr != nil {
+			db = db.Where("created_at >= ?", *req.FromDateStr)
+		}
+		if req.ToDateStr != nil {
+			db = db.Where("created_at <= ?", *req.ToDateStr)
+		}
+		if req.RatingStarsMin != nil {
+			db = db.Where("rating_stars >= ?", *req.RatingStarsMin)
+		}
+		if req.RatingStarsMax != nil {
+			db = db.Where("rating_stars <= ?", *req.RatingStarsMax)
+		}
+		orderBy := "created_at"
+		if req.OrderBy != nil {
+			switch *req.OrderBy {
+			case "created_at", "rating_stars":
+				orderBy = *req.OrderBy
+			}
+		}
+		orderDirection := "desc"
+		if req.OrderDirection != nil {
+			if *req.OrderDirection == "asc" || *req.OrderDirection == "desc" {
+				orderDirection = *req.OrderDirection
+			}
+		}
+		return db.Order(orderBy + " " + orderDirection).Order("id")
 	}
 
 	includes := []string{
@@ -1072,17 +1178,12 @@ func (p *productService) GetProductReviewPagination(productID uuid.UUID, limit, 
 		"OrderItem",
 		"OrderItem.Order",
 		"OrderItem.Variant.Product",
+		"PreOrder",
+		"PreOrder.ProductVariant",
 		"PreOrder.ProductVariant.Product",
 	}
 
-	if limit <= 0 {
-		limit = 10
-	}
-	if offset <= 0 {
-		offset = 1
-	}
-
-	res, total, err := p.reviewRepo.GetAll(ctx, filter, includes, limit, offset)
+	res, total, err := p.reviewRepo.GetAll(ctx, filter, includes, limit, page)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -678,3 +678,150 @@ type ProductResponseTop5Newest struct {
 	Standard []ProductResponseV2Partial `json:"standard"`
 	Limited  []ProductResponseV2Partial `json:"limited"`
 }
+
+// =======================ProductReviewResponseStaff (Start)=======================
+type ProductReviewResponseStaff struct {
+	UserInfo      *ProductReviewUserInfo    `json:"user_info"`
+	Product       *ProductReviewProductInfo `json:"product"`
+	ReviewContent *ProductReviewContent     `json:"review_content"`
+}
+type ProductReviewUserInfo struct {
+	ID        uuid.UUID  `json:"id"`
+	UserID    *uuid.UUID `json:"user_id,omitempty"`
+	UserName  string     `json:"user_name,omitempty"`
+	FullName  string     `json:"full_name,omitempty"`
+	AvatarURL *string    `json:"avatar_url,omitempty"`
+}
+
+func (ProductReviewUserInfo) ToProductReviewUserInfo(m *model.User) *ProductReviewUserInfo {
+	if m == nil {
+		return nil
+	}
+	return &ProductReviewUserInfo{
+		ID:        m.ID,
+		UserID:    &m.ID,
+		UserName:  m.Username,
+		FullName:  m.FullName,
+		AvatarURL: m.AvatarURL,
+	}
+}
+
+type ProductReviewProductInfo struct {
+	ID            uuid.UUID          `json:"id"`
+	CapacityUnit  enum.CapacityUnit  `json:"capacity_unit"`
+	ContainerType enum.ContainerType `json:"container_type"`
+	DispenserType enum.DispenserType `json:"dispenser_type"`
+	Weight        int                `json:"weight"`
+	Height        int                `json:"height"`
+	Length        int                `json:"length"`
+	Width         int                `json:"width"`
+
+	//Product stats
+	ProductID uuid.UUID `json:"product_id"`
+	Name      string    `json:"name"`
+
+	Type        enum.ProductType        `json:"type"`
+	Category    ProductCategoryResponse `json:"category"`
+	LimitedInfo *LimitedProductResponse `json:"limited_info"`
+	Brand       *BrandResponse          `json:"brand"`
+}
+
+func (pr ProductReviewProductInfo) ToProductReviewProductInfo(m *model.ProductVariant) *ProductReviewProductInfo {
+	if m == nil {
+		return nil
+	}
+
+	var prdName string
+	var prdType enum.ProductType
+	var prdCategory ProductCategoryResponse
+	var limitedInfo *LimitedProductResponse
+	var brandResp *BrandResponse
+	if m.Product != nil {
+		prdName = m.Product.Name
+		prdType = m.Product.Type
+		if m.Product.Category != nil {
+			catResp := ProductCategoryResponse{}
+			prdCategory = *catResp.ToModelResponse(m.Product.Category)
+		}
+		if m.Product.Limited != nil {
+			limitedInfo = LimitedProductResponse{}.ToLimitedProductResponse(m.Product.Limited)
+		}
+		if m.Product.Brand != nil {
+			brandResp = BrandResponse{}.ToBrandResponse(m.Product.Brand)
+		}
+	}
+
+	return &ProductReviewProductInfo{
+		ID:            m.ID,
+		CapacityUnit:  m.CapacityUnit,
+		ContainerType: m.ContainerType,
+		DispenserType: m.DispenserType,
+		Weight:        m.Weight,
+		Height:        m.Height,
+		Length:        m.Length,
+		Width:         m.Width,
+		ProductID:     m.ProductID,
+		Name:          prdName,
+		Type:          prdType,
+		Category:      prdCategory,
+		LimitedInfo:   limitedInfo,
+		Brand:         brandResp,
+	}
+}
+
+type ProductReviewContent struct {
+	RatingStars int     `json:"rating_stars"`
+	Comment     *string `json:"comment,omitempty"`
+	AssetsURL   *string `json:"assets_url,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+}
+
+func (ProductReviewContent) ToProductReviewContent(m *model.ProductReview) *ProductReviewContent {
+	if m == nil {
+		return nil
+	}
+	return &ProductReviewContent{
+		RatingStars: m.RatingStars,
+		Comment:     m.Comment,
+		AssetsURL:   m.AssetsURL,
+		CreatedAt:   utils.FormatLocalTime(&m.CreatedAt, "2006-01-02 15:04:05"),
+	}
+}
+
+func (ProductReviewResponseStaff) ToProductReviewResponseStaff(m *model.ProductReview) *ProductReviewResponseStaff {
+	var userInfo *ProductReviewUserInfo
+	var productInfo *ProductReviewProductInfo
+	var reviewContent *ProductReviewContent
+
+	if m == nil {
+		return nil
+	} else {
+		reviewContent = ProductReviewContent{}.ToProductReviewContent(m)
+	}
+
+	if m.User.ID != uuid.Nil {
+		userInfo = ProductReviewUserInfo{}.ToProductReviewUserInfo(&m.User)
+	}
+	if m.OrderItem != nil && m.OrderItem.Variant.ID != uuid.Nil {
+		productInfo = ProductReviewProductInfo{}.ToProductReviewProductInfo(&m.OrderItem.Variant)
+	} else if m.PreOrder != nil && m.PreOrder.ProductVariant != nil {
+		productInfo = ProductReviewProductInfo{}.ToProductReviewProductInfo(m.PreOrder.ProductVariant)
+	}
+
+	return &ProductReviewResponseStaff{
+		UserInfo:      userInfo,
+		Product:       productInfo,
+		ReviewContent: reviewContent,
+	}
+}
+
+func (ProductReviewResponseStaff) ToProductReviewResponseStaffList(m []model.ProductReview) []ProductReviewResponseStaff {
+	reviews := make([]ProductReviewResponseStaff, 0, len(m))
+	for i := range m {
+		review := ProductReviewResponseStaff{}.ToProductReviewResponseStaff(&m[i])
+		reviews = append(reviews, *review)
+	}
+	return reviews
+}
+
+//=======================ProductReviewResponseStaff (END)=======================
