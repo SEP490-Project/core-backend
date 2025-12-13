@@ -55,6 +55,8 @@ type ApplicationRegistry struct {
 	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
 	WebhookDataService            iservice.WebhookDataService
+	ContentScheduleService        iservice.ContentScheduleService
+	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
 
 	//Manual Scheduler Trigger
@@ -155,6 +157,18 @@ func NewApplicationRegistry(
 	)
 
 	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
+	contentScheduleService := service.NewContentScheduleService(
+		databaseRegistry,
+		contentPublishingService,
+		infrastructureRegistry.RabbitMQ,
+	)
+
+	contentEngagementService := service.NewContentEngagementService(
+		databaseRegistry.ContentChannelRepository,
+		databaseRegistry.ChannelRepository,
+		databaseRegistry.ContentCommentRepository,
+	)
+
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -198,6 +212,8 @@ func NewApplicationRegistry(
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
 		WebhookDataService:            service.NewWebhookDataService(databaseRegistry.WebhookDataRepository, infrastructureRegistry.UnitOfWork),
+		ContentScheduleService:        contentScheduleService,
+		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,
 
 		//Manual Scheduler Trigger

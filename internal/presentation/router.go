@@ -113,6 +113,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupBrandPartnerAnalyticsRoutes(v1)
 		r.SetupAdminAnalyticsRoutes(v1)
+		r.SetupContentScheduleRoutes(v1)
+		r.SetupContentEngagementRoutes(v1)
 		r.SetupAlertRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
@@ -1092,6 +1094,47 @@ func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 
 		// Publish message (for testing/debugging)
 		rabbitMQGroup.POST("/publish", rabbitMQHandler.PublishMessage)
+	}
+}
+
+
+// SetupContentScheduleRoutes sets up routes for content scheduling
+func (r *Router) SetupContentScheduleRoutes(group *gin.RouterGroup) {
+	scheduleHandler := r.handlerRegistry.ContentScheduleHandler
+	scheduleGroup := group.Group("/content-schedules")
+	{
+		// Protected routes (Content Staff, Marketing, Admin)
+		protectedGroup := scheduleGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			protectedGroup.POST("", scheduleHandler.ScheduleContent)
+			protectedGroup.GET("", scheduleHandler.ListSchedules)
+			protectedGroup.GET("/upcoming", scheduleHandler.GetUpcomingSchedules)
+			protectedGroup.GET("/:id", scheduleHandler.GetSchedule)
+			protectedGroup.POST("/:id/cancel", scheduleHandler.CancelSchedule)
+			protectedGroup.POST("/:id/reschedule", scheduleHandler.RescheduleContent)
+		}
+	}
+}
+
+// SetupContentEngagementRoutes sets up routes for content engagement (WEBSITE channel only)
+func (r *Router) SetupContentEngagementRoutes(group *gin.RouterGroup) {
+	engagementHandler := r.handlerRegistry.ContentEngagementHandler
+	engagementGroup := group.Group("/content-engagement")
+	{
+		// Public engagement stats
+		engagementGroup.GET("/:contentId", engagementHandler.GetEngagementSummary)
+
+		// Authenticated user actions (unified endpoint)
+		authGroup := engagementGroup.Group("")
+		authGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			// Unified engagement endpoint for all actions
+			authGroup.POST("/:contentId", engagementHandler.RecordEngagement)
+			// Get user's engagement status (reactions, comments)
+			authGroup.GET("/:contentId/status", engagementHandler.GetUserEngagementStatus)
+		}
 	}
 }
 

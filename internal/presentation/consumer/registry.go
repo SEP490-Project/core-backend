@@ -22,6 +22,7 @@ type ConsumerRegistry struct {
 	ContentPublishConsumer        *ContentPublishConsumer
 	ContentPublishAllConsumer     *ContentPublishAllConsumer
 	CampaignCreateConsumer        *CampaignCreateConsumer
+	ContentScheduleConsumer       *ContentScheduleConsumer
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
@@ -44,6 +45,7 @@ func NewConsumerRegistry(
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
 		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry.ContentPublishingService),
 		CampaignCreateConsumer:        NewCampaignCreateConsumer(appRegistry),
+		ContentScheduleConsumer:       NewContentScheduleConsumer(appRegistry.ContentScheduleService, appRegistry.AlertManagerService),
 	}
 
 	zap.L().Info("Consumer registry initialized successfully")
