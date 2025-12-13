@@ -457,6 +457,9 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin(ctx)
+
 	// --- Parse multipart form ---
 	if err = parseMultipart(c, 32<<20); err != nil {
 		return
@@ -527,8 +530,9 @@ func (h *ProductHandler) AddProductReview(c *gin.Context) {
 	}
 
 	// call service
-	revResp, svcErr := h.productService.AddProductReview(userID, req)
+	revResp, svcErr := h.productService.AddProductReview(ctx, userID, req, uow)
 	if svcErr != nil {
+		uow.Rollback()
 		// map common errors to proper status codes
 		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
 			c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))

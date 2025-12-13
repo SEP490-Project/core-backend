@@ -31,6 +31,7 @@ type OrderItem struct {
 	Height                int                 `json:"height" gorm:"column:height"` // in centimeters
 	Length                int                 `json:"length" gorm:"column:length"` // in centimeters
 	Width                 int                 `json:"width" gorm:"column:width"`   // in centimeters
+	IsReviewed            bool                `json:"is_reviewed" gorm:"column:is_review;default:false"`
 
 	//product fields
 	ProductName string     `json:"product_name" gorm:"column:product_name;not null"`
@@ -40,10 +41,11 @@ type OrderItem struct {
 	CategoryID  uuid.UUID  `json:"category_id" gorm:"column:category_id;not null"`
 
 	// Relationships
-	Variant  ProductVariant   `json:"product_variant" gorm:"foreignKey:VariantID"`
-	Order    *Order           `json:"-" gorm:"foreignKey:OrderID"`
-	Brand    *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
-	Category *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
+	Variant       ProductVariant   `json:"product_variant" gorm:"foreignKey:VariantID"`
+	Order         *Order           `json:"-" gorm:"foreignKey:OrderID"`
+	Brand         *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
+	Category      *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
+	ProductReview *ProductReview   `json:"review" gorm:"foreignKey:ID" swaggerignore:"true"`
 }
 
 func (OrderItem) TableName() string { return "order_items" }
