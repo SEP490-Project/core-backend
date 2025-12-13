@@ -84,8 +84,6 @@ type Order struct {
 	UserNote     *string           `json:"user_note,omitempty" gorm:"column:user_note;type:text"`
 	GHNOrderCode *string           `json:"ghn_order_code" gorm:"column:ghn_order_code;type:text"`
 
-	Review bool `json:"is_review" gorm:"column:is_review;default:false"`
-
 	// Relationships
 	User       User        `json:"-" gorm:"foreignKey:UserID"`
 	OrderItems []OrderItem `json:"order_items" gorm:"foreignKey:OrderID"`

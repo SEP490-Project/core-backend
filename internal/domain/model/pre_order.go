@@ -103,17 +103,20 @@ type PreOrder struct {
 	Width                 int                 `json:"width" gorm:"column:width"`   // in centimeters
 
 	//product fields
-	ProductName string     `json:"product_name" gorm:"column:product_name;not null"`
-	Description *string    `json:"description" gorm:"column:description"`
-	Type        string     `json:"product_type" gorm:"column:product_type;not null"`
-	BrandID     *uuid.UUID `json:"brand_id" gorm:"column:brand_id;"`
-	CategoryID  uuid.UUID  `json:"category_id" gorm:"column:category_id;not null"`
+	ProductName string  `json:"product_name" gorm:"column:product_name;not null"`
+	Description *string `json:"description" gorm:"column:description"`
+	Type        string  `json:"product_type" gorm:"column:product_type;not null"`
+	IsReviewed  bool    `json:"is_reviewed" gorm:"column:is_review;default:false"`
+
+	BrandID    *uuid.UUID `json:"brand_id" gorm:"column:brand_id;"`
+	CategoryID uuid.UUID  `json:"category_id" gorm:"column:category_id;not null"`
 
 	// Relationships
 	User           *User            `json:"-" gorm:"foreignKey:UserID"`
 	ProductVariant *ProductVariant  `json:"-" gorm:"foreignKey:VariantID"`
 	Brand          *Brand           `json:"brand" gorm:"foreignKey:BrandID" swaggerignore:"true"`
 	Category       *ProductCategory `json:"category" gorm:"foreignKey:CategoryID"`
+	ProductReview  *ProductReview   `json:"review" gorm:"foreignKey:ID" swaggerignore:"true"`
 
 	// Transient fields populated by repository (not persisted)
 	PaymentID  *uuid.UUID `json:"payment_id,omitempty" gorm:"-"`
