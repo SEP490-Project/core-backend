@@ -369,7 +369,7 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 			if err == nil {
 				for _, cm := range contentMetrics {
 					for k, v := range cm.CurrentMapped {
-						itemComp.RealisticMetrics[k] += v
+						itemComp.RealisticMetrics[k.String()] += v
 					}
 				}
 			}

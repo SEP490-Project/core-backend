@@ -113,6 +113,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupBrandPartnerAnalyticsRoutes(v1)
 		r.SetupAdminAnalyticsRoutes(v1)
+		r.SetupAlertRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -1091,5 +1092,30 @@ func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 
 		// Publish message (for testing/debugging)
 		rabbitMQGroup.POST("/publish", rabbitMQHandler.PublishMessage)
+	}
+}
+
+// SetupAlertRoutes sets up routes for system alert management
+func (r *Router) SetupAlertRoutes(group *gin.RouterGroup) {
+	alertHandler := r.handlerRegistry.AlertHandler
+	alertGroup := group.Group("/alerts")
+	{
+		// Protected routes (all staff roles)
+		protectedGroup := alertGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content, sales))
+		{
+			protectedGroup.GET("", alertHandler.GetAlerts)
+			protectedGroup.GET("/stats", alertHandler.GetAlertStats)
+			protectedGroup.GET("/unacknowledged-count", alertHandler.GetUnacknowledgedCount)
+			protectedGroup.GET("/:id", alertHandler.GetAlert)
+			protectedGroup.POST("/:id/acknowledge", alertHandler.AcknowledgeAlert)
+			protectedGroup.POST("/:id/resolve", alertHandler.ResolveAlert)
+		}
+
+		adminGroup := alertGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("", alertHandler.RaiseAlert)
+		}
 	}
 }

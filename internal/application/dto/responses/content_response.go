@@ -40,8 +40,8 @@ type ContentChannelBrief struct {
 }
 
 type ContentChannelMetric struct {
-	Mapped  map[string]float64 `json:"mapped"`
-	Fetched map[string]any     `json:"fetched"`
+	Mapped  map[enum.KPIValueType]float64 `json:"mapped"`
+	Fetched map[string]any                `json:"fetched"`
 }
 
 type ContentChannelAffiliateInfo struct {
