@@ -42,8 +42,8 @@ func NewConsumerRegistry(
 		NotificationInAppConsumer:     NewNotificationInAppConsumer(appRegistry.SSEService, dbRegistry, appRegistry.UserService),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
-		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry.ContentPublishingService),
-		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry.ContentPublishingService),
+		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry),
+		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry),
 		CampaignCreateConsumer:        NewCampaignCreateConsumer(appRegistry),
 		ContentScheduleConsumer:       NewContentScheduleConsumer(appRegistry.ContentScheduleService, appRegistry.AlertManagerService),
 	}
