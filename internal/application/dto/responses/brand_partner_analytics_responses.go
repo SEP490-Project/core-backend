@@ -12,14 +12,16 @@ import (
 
 // BrandPartnerDashboardResponse represents the complete Brand Partner dashboard
 type BrandPartnerDashboardResponse struct {
-	Overview         BrandOverviewMetrics     `json:"overview"`
-	TopProducts      []BrandProductMetric     `json:"top_products"`
-	Campaigns        []BrandCampaignMetric    `json:"campaigns"`
-	ContentMetrics   BrandContentMetric       `json:"content_metrics"`
-	RevenueTrend     []BrandRevenueTrendPoint `json:"revenue_trend"`
-	AffiliateMetrics BrandAffiliateMetric     `json:"affiliate_metrics"`
-	Contracts        []BrandContractDetail    `json:"contracts"`
-	Period           PeriodInfo               `json:"period"`
+	Overview          BrandOverviewMetrics     `json:"overview"`
+	TopProducts       []BrandProductMetric     `json:"top_products"`        //By Revenue
+	TopSoldProducts   []BrandTopSoldProducts   `json:"top_sold_products"`   //By Units Sold
+	TopRatingProducts []BrandProductRating     `json:"top_rating_products"` //By Average Rating
+	Campaigns         []BrandCampaignMetric    `json:"campaigns"`
+	ContentMetrics    BrandContentMetric       `json:"content_metrics"`
+	RevenueTrend      []BrandRevenueTrendPoint `json:"revenue_trend"`
+	AffiliateMetrics  BrandAffiliateMetric     `json:"affiliate_metrics"`
+	Contracts         []BrandContractDetail    `json:"contracts"`
+	Period            PeriodInfo               `json:"period"`
 }
 
 // BrandOverviewMetrics represents high-level metrics for the brand
@@ -259,4 +261,20 @@ type BrandContractDetail struct {
 type BrandContractsResponse struct {
 	Contracts []BrandContractDetail   `json:"contracts"`
 	Summary   BrandContractsBreakdown `json:"summary"`
+}
+
+type BrandProductRating struct {
+	ProductID     uuid.UUID `json:"product_id"`
+	ProductName   string    `json:"product_name"`
+	Type          string    `json:"type"`
+	AverageRating float64   `json:"average_rating"`
+	Rank          int       `json:"rank"`
+}
+
+type BrandTopSoldProducts struct {
+	ProductID    uuid.UUID `json:"product_id"`
+	ProductName  string    `json:"product_name"`
+	UnitsSold    int64     `json:"total_sold"`
+	TotalRevenue float64   `json:"total_revenue"`
+	Rank         int       `json:"rank"`
 }

@@ -41,7 +41,7 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandUs
 	}
 
 	// Execute queries in parallel
-	err := utils.RunParallel(ctx, 7,
+	err := utils.RunParallel(ctx, 9,
 		// Query 1: Overview metrics
 		func(ctx context.Context) error {
 			overview, err := s.getOverviewMetrics(ctx, brandUserID, &startDate, &endDate)
@@ -149,6 +149,40 @@ func (s *brandPartnerAnalyticsService) GetDashboard(ctx context.Context, brandUs
 			}
 			mu.Lock()
 			dashboard.Contracts = contracts
+			mu.Unlock()
+			return nil
+		},
+
+		// Query 8: Top Rating Products
+		func(ctx context.Context) error {
+			topRating, err := s.GetBrandTopRatingProduct(ctx, brandUserID, &requests.BrandTopRatingProductRequest{
+				StartDate: &startDate,
+				EndDate:   &endDate,
+				Limit:     5,
+			})
+			if err != nil {
+				zap.L().Warn("Failed to get top rating products", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			dashboard.TopRatingProducts = topRating
+			mu.Unlock()
+			return nil
+		},
+
+		// Query 9: Top Sold Products
+		func(ctx context.Context) error {
+			topSold, err := s.GetBrandTopSoldProduct(ctx, brandUserID, &requests.BrandTopSoldProductRequest{
+				StartDate: &startDate,
+				EndDate:   &endDate,
+				Limit:     5,
+			})
+			if err != nil {
+				zap.L().Warn("Failed to get top sold products", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			dashboard.TopSoldProducts = topSold
 			mu.Unlock()
 			return nil
 		},
@@ -363,3 +397,39 @@ func (s *brandPartnerAnalyticsService) getOverviewMetrics(ctx context.Context, b
 }
 
 // endregion
+
+func (s *brandPartnerAnalyticsService) GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopRatingProductRequest) ([]responses.BrandProductRating, error) {
+	results, err := s.analyticsRepo.GetBrandTopRatingProduct(ctx, brandUserID, req.Limit, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	topRating := make([]responses.BrandProductRating, len(results))
+	for i, r := range results {
+		topRating[i] = responses.BrandProductRating{
+			ProductID:     r.ProductID,
+			ProductName:   r.ProductName,
+			AverageRating: r.AverageRating,
+			Type:          r.Type,
+			Rank:          i + 1,
+		}
+	}
+	return topRating, nil
+}
+
+func (s *brandPartnerAnalyticsService) GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopSoldProductRequest) ([]responses.BrandTopSoldProducts, error) {
+	results, err := s.analyticsRepo.GetBrandTopSoldProduct(ctx, brandUserID, req.Limit, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	topSold := make([]responses.BrandTopSoldProducts, len(results))
+	for i, r := range results {
+		topSold[i] = responses.BrandTopSoldProducts{
+			ProductID:    r.ProductID,
+			ProductName:  r.ProductName,
+			UnitsSold:    r.UnitsSold,
+			TotalRevenue: r.TotalRevenue,
+			Rank:         i + 1,
+		}
+	}
+	return topSold, nil
+}

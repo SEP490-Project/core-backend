@@ -21,6 +21,7 @@ type BrandPartnerAnalyticsRepository interface {
 
 	// Top Products
 	GetBrandTopProducts(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductMetrics, error)
+	GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandTopSoldProducts, error)
 
 	// Campaign Metrics
 	GetBrandCampaignMetrics(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandCampaignMetrics, error)
@@ -36,4 +37,7 @@ type BrandPartnerAnalyticsRepository interface {
 
 	// Contract Details
 	GetBrandContractDetails(ctx context.Context, brandUserID uuid.UUID, limit int) ([]dtos.BrandContractDetails, error)
+
+	// Rating
+	GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductRating, error)
 }
