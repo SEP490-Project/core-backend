@@ -91,20 +91,28 @@ func (s *contentEngagementService) GetUserEngagementStatus(ctx context.Context, 
 		return nil, err
 	}
 
+	hasCommented, err := s.contentCommentRepo.Exists(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("content_channel_id = ?", contentChannel.ID).Where("created_by = ?", userID)
+	})
+	if err != nil {
+		zap.L().Warn("Failed to check user comment status", zap.Error(err))
+		hasCommented = false
+	}
+
 	metrics := s.getMetrics(contentChannel)
 	engagement := metrics.GetWebsiteEngagement()
 
 	status := &responses.UserEngagementStatus{
-		HasLiked:  false,
-		HasShared: false,
+		HasReacted:   false,
+		HasShared:    false,
+		HasCommented: hasCommented,
 	}
 
 	// Check if user has reacted
 	for _, reaction := range engagement.Reactions {
 		if reaction.UserID == userID {
-			status.HasLiked = true
-			reactionType := string(reaction.Type)
-			status.LikeType = &reactionType
+			status.HasReacted = true
+			status.ReactType = &reaction.Type
 			break
 		}
 	}
@@ -519,7 +527,7 @@ func (s *contentEngagementService) buildEngagementSummary(ctx context.Context, c
 	}
 
 	// Get comment count from database (more accurate than metrics)
-	_, totalComments, err := s.contentCommentRepo.GetAll(ctx,
+	comments, totalComments, err := s.contentCommentRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
 			return db.Where("content_channel_id = ?", cc.ID)
 		}, nil, 1, 1)
@@ -543,6 +551,7 @@ func (s *contentEngagementService) buildEngagementSummary(ctx context.Context, c
 		TotalReactions:  totalReactions,
 		ReactionsByType: reactionsByType,
 		TotalComments:   totalComments,
+		Comments:        responses.ContentCommentResponse{}.ToResponseList(comments),
 		TotalShares:     engagement.SharesCount,
 		UserReaction:    userReaction,
 	}, nil

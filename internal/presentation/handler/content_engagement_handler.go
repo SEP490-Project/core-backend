@@ -47,16 +47,16 @@ func NewContentEngagementHandler(engagementService iservice.ContentEngagementSer
 //	@Tags			Content Engagement
 //	@Accept			json
 //	@Produce		json
-//	@Param			content_id	path		string								true	"Content ID"
-//	@Param			request		body		requests.ContentEngagementRequest	true	"Engagement request"
-//	@Success		200			{object}	responses.APIResponse{data=responses.ContentEngagementResponse}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		404			{object}	responses.APIResponse
+//	@Param			id		path		string								true	"Content ID"
+//	@Param			request	body		requests.ContentEngagementRequest	true	"Engagement request"
+//	@Success		200		{object}	responses.APIResponse{data=responses.ContentEngagementResponse}
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		404		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{content_id}/engagement [post]
+//	@Router			/api/v1/contents/{id}/engagement [post]
 func (h *ContentEngagementHandler) RecordEngagement(c *gin.Context) {
-	contentID, err := extractParamID(c, "content_id")
+	contentID, err := extractParamID(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID", http.StatusBadRequest))
 		return
@@ -96,13 +96,13 @@ func (h *ContentEngagementHandler) RecordEngagement(c *gin.Context) {
 //	@Tags			Content Engagement
 //	@Accept			json
 //	@Produce		json
-//	@Param			content_id	path		string	true	"Content ID"
-//	@Success		200			{object}	responses.APIResponse{data=responses.WebsiteEngagementSummary}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		404			{object}	responses.APIResponse
-//	@Router			/api/v1/contents/{content_id}/engagement [get]
+//	@Param			id	path		string	true	"Content ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.WebsiteEngagementSummary}
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		404	{object}	responses.APIResponse
+//	@Router			/api/v1/contents/{id}/engagement [get]
 func (h *ContentEngagementHandler) GetEngagementSummary(c *gin.Context) {
-	contentID, err := extractParamID(c, "content_id")
+	contentID, err := extractParamID(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID", http.StatusBadRequest))
 		return
@@ -124,15 +124,15 @@ func (h *ContentEngagementHandler) GetEngagementSummary(c *gin.Context) {
 //	@Tags			Content Engagement
 //	@Accept			json
 //	@Produce		json
-//	@Param			content_id	path		string	true	"Content ID"
-//	@Success		200			{object}	responses.APIResponse{data=responses.UserEngagementStatus}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		401			{object}	responses.APIResponse
-//	@Failure		404			{object}	responses.APIResponse
+//	@Param			id	path		string	true	"Content ID"
+//	@Success		200	{object}	responses.APIResponse{data=responses.UserEngagementStatus}
+//	@Failure		400	{object}	responses.APIResponse
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		404	{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{content_id}/engagement/status [get]
+//	@Router			/api/v1/contents/{id}/engagement/status [get]
 func (h *ContentEngagementHandler) GetUserEngagementStatus(c *gin.Context) {
-	contentID, err := extractParamID(c, "content_id")
+	contentID, err := extractParamID(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID", http.StatusBadRequest))
 		return

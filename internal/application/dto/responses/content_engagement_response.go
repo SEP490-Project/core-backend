@@ -1,6 +1,10 @@
 package responses
 
-import "github.com/google/uuid"
+import (
+	"core-backend/internal/domain/enum"
+
+	"github.com/google/uuid"
+)
 
 // ContentEngagementResponse represents the response after an engagement action
 type ContentEngagementResponse struct {
@@ -12,19 +16,21 @@ type ContentEngagementResponse struct {
 
 // WebsiteEngagementSummary represents the engagement summary for website channel content
 type WebsiteEngagementSummary struct {
-	TotalReactions  int64            `json:"total_reactions"`
-	ReactionsByType map[string]int64 `json:"reactions_by_type"` // {"LIKE": 10, "LOVE": 5}
-	TotalComments   int64            `json:"total_comments"`
-	TotalShares     int64            `json:"total_shares"`
-	UserReaction    *string          `json:"user_reaction,omitempty"` // Current user's reaction type (nil if not reacted)
+	TotalReactions  int64                    `json:"total_reactions"`
+	ReactionsByType map[string]int64         `json:"reactions_by_type"` // {"LIKE": 10, "LOVE": 5}
+	TotalComments   int64                    `json:"total_comments"`
+	Comments        []ContentCommentResponse `json:"comments"`
+	TotalShares     int64                    `json:"total_shares"`
+	UserReaction    *string                  `json:"user_reaction,omitempty"` // Current user's reaction type (nil if not reacted)
 }
 
 // UserEngagementStatus represents the current user's engagement status with a content
 type UserEngagementStatus struct {
-	HasLiked  bool    `json:"has_liked"`
-	HasShared bool    `json:"has_shared"`
-	LikeType  *string `json:"like_type,omitempty"` // The type of reaction if liked
-	SharedAt  *string `json:"shared_at,omitempty"` // When the user last shared
+	HasReacted   bool               `json:"has_reacted"`
+	HasShared    bool               `json:"has_shared"`
+	HasCommented bool               `json:"has_commented"`
+	ReactType    *enum.ReactionType `json:"like_type,omitempty"`
+	SharedAt     *string            `json:"shared_at,omitempty"`
 }
 
 // ReactionResponse represents the response after a reaction action
