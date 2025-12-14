@@ -20,6 +20,44 @@ type productCategoryService struct {
 	categoryRepository irepository.GenericRepository[model.ProductCategory]
 }
 
+func (c productCategoryService) UpdateCategory(categoryID uuid.UUID, req requests.UpdateProductCategoryRequest) (*responses.ProductCategoryResponse, error) {
+	ctx := context.Background()
+	cateRepo := c.categoryRepository
+
+	include := []string{"ParentCategory", "ChildCategories"}
+	cateModel, err := cateRepo.GetByID(ctx, categoryID, include)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Name != nil {
+		cateModel.Name = *req.Name
+	}
+	if req.Description != nil {
+		cateModel.Description = req.Description
+	}
+	if req.ParentCategoryID != nil {
+		if *req.ParentCategoryID == categoryID {
+			return nil, errors.New("cannot set category as its own parent")
+		}
+		if len(cateModel.ChildCategories) > 0 {
+			return nil, errors.New("this category already was a parent, cannot define as child")
+		}
+		_, err := cateRepo.GetByID(ctx, categoryID, nil)
+		if err != nil {
+			return nil, errors.New("parent category not found")
+		}
+		cateModel.ParentCategoryID = req.ParentCategoryID
+	}
+
+	err = cateRepo.Update(ctx, cateModel)
+	if err != nil {
+		return nil, err
+	}
+
+	return (&responses.ProductCategoryResponse{}).ToModelResponse(cateModel), nil
+}
+
 func (c productCategoryService) GetAllCategories(
 	page, limit int,
 	search string,

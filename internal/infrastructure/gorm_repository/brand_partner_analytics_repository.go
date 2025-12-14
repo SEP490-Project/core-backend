@@ -437,7 +437,9 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Co
 			WHERE cmp.deleted_at IS NULL
 			GROUP BY cmp.contract_id
 		)
-		SELECT tc.id as contract_id,
+		SELECT tc.id as contract_id	paidStatus := enum.ContractPaymentStatusPaid.String()
+	pendingStatus := enum.ContractPaymentStatusPending.String()
+,
 			   tc.contract_number,
 			   tc.type,
 			   tc.status,
@@ -463,6 +465,93 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Co
 	// 4. limit
 	if err := r.db.WithContext(ctx).Raw(query, brandUserID, paidStatus, pendingStatus, limit).Scan(&results).Error; err != nil {
 		zap.L().Error("Failed to get brand contract details", zap.Error(err))
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (r *brandPartnerAnalyticsRepository) GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductRating, error) {
+	var results []dtos.BrandProductRating
+
+	query := r.db.
+		WithContext(ctx).
+		Table("products p").
+		Select(`
+			p.id AS product_id,
+			p.name AS product_name,
+			p.type,
+			p.average_rating
+		`).
+		Joins("JOIN brands b ON p.brand_id = b.id").
+		Where("b.user_id = ?", brandUserID).
+		Where("p.deleted_at IS NULL")
+
+	// Optional startDate
+	if startDate != nil {
+		query = query.Where("p.created_at >= ?", *startDate)
+	}
+
+	// Optional endDate
+	if endDate != nil {
+		query = query.Where("p.created_at <= ?", *endDate)
+	}
+
+	// Optional limit (recommended)
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.
+		Order("p.average_rating DESC").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+func (r *brandPartnerAnalyticsRepository) GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandTopSoldProducts, error) {
+	var results []dtos.BrandTopSoldProducts
+	orderStatus := enum.OrderStatusReceived.String()
+
+	query := r.db.
+		WithContext(ctx).
+		Table("order_items oi").
+		Select(`
+			p.id AS product_id,
+			p.name AS product_name,
+			COALESCE(SUM(oi.quantity), 0) AS units_sold,
+			COALESCE(SUM(oi.subtotal), 0) AS total_revenue
+		`).
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("b.user_id = ?", brandUserID).
+		Where("o.status = ?", orderStatus).
+		Where("p.deleted_at IS NULL")
+
+	// Optional startDate
+	if startDate != nil {
+		query = query.Where("p.created_at >= ?", *startDate)
+	}
+	// Optional endDate
+	if endDate != nil {
+		query = query.Where("p.created_at <= ?", *endDate)
+	}
+
+	// Group
+	query = query.Group("p.id, p.name").
+		Order("total_sold DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if err := query.Scan(&results).Error; err != nil {
 		return nil, err
 	}
 

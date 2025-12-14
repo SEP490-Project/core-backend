@@ -71,3 +71,17 @@ type BrandContractDetails struct {
 	PendingAmount  float64
 	CampaignCount  int64
 }
+
+type BrandProductRating struct {
+	ProductID     uuid.UUID
+	ProductName   string
+	Type          string
+	AverageRating float64
+}
+
+type BrandTopSoldProducts struct {
+	ProductID    uuid.UUID
+	ProductName  string
+	UnitsSold    int64
+	TotalRevenue float64
+}
