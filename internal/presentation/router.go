@@ -1135,19 +1135,19 @@ func (r *Router) SetupContentScheduleRoutes(group *gin.RouterGroup) {
 // SetupContentEngagementRoutes sets up routes for content engagement (WEBSITE channel only)
 func (r *Router) SetupContentEngagementRoutes(group *gin.RouterGroup) {
 	engagementHandler := r.handlerRegistry.ContentEngagementHandler
-	engagementGroup := group.Group("/content-engagement")
+	engagementGroup := group.Group("contents")
 	{
 		// Public engagement stats
-		engagementGroup.GET("/:contentId", engagementHandler.GetEngagementSummary)
+		engagementGroup.GET("/:id/engagement", engagementHandler.GetEngagementSummary)
 
 		// Authenticated user actions (unified endpoint)
 		authGroup := engagementGroup.Group("")
 		authGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			// Unified engagement endpoint for all actions
-			authGroup.POST("/:contentId", engagementHandler.RecordEngagement)
+			authGroup.POST("/:id/engagement", engagementHandler.RecordEngagement)
 			// Get user's engagement status (reactions, comments)
-			authGroup.GET("/:contentId/status", engagementHandler.GetUserEngagementStatus)
+			authGroup.GET("/:id/engagement/status", engagementHandler.GetUserEngagementStatus)
 		}
 	}
 }
