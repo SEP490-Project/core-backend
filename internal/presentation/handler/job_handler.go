@@ -103,23 +103,6 @@ func (h *JobHandler) TriggerTikTokStatusPollerJob(c *gin.Context) {
 	h.triggerJob(c, "tiktok_status_poller_job")
 }
 
-// TriggerSocialMetricsPollerJob godoc
-//
-//	@Summary		Trigger Social Metrics Poller Job
-//	@Description	Manually trigger the social metrics poller job
-//	@Tags			Jobs
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/jobs/social-metrics-poller [post]
-func (h *JobHandler) TriggerSocialMetricsPollerJob(c *gin.Context) {
-	h.triggerJob(c, "social_metrics_poller_job")
-}
-
 // TriggerContentMetricsPollerJob godoc
 //
 //	@Summary		Trigger Content Metrics Poller Job
