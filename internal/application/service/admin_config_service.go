@@ -261,9 +261,10 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 	} else {
 		// Create
 		newConfig := &model.Config{
-			Key:       key,
-			Value:     value,
-			ValueType: determineValueType(field, value),
+			Key:         key,
+			Value:       value,
+			ValueType:   determineValueType(field, value),
+			UpdatedByID: updatedBy,
 		}
 		if err := configRepo.Add(ctx, newConfig); err != nil {
 			zap.L().Error("Failed to create configuration in database", zap.Error(err))
@@ -335,9 +336,10 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 			field, _ := reflectConfig.FieldByName(structKey)
 
 			newConfig := &model.Config{
-				Key:       key,
-				Value:     value,
-				ValueType: determineValueType(field, value),
+				Key:         key,
+				Value:       value,
+				ValueType:   determineValueType(field, value),
+				UpdatedByID: updatedBy,
 			}
 			if err := configRepo.Add(ctx, newConfig); err != nil {
 				return err
