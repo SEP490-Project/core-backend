@@ -113,6 +113,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupBrandPartnerAnalyticsRoutes(v1)
 		r.SetupAdminAnalyticsRoutes(v1)
+		r.SetupContentDashboardRoutes(v1)
 		r.SetupContentScheduleRoutes(v1)
 		r.SetupContentEngagementRoutes(v1)
 		r.SetupAlertRoutes(v1)
@@ -1059,7 +1060,6 @@ func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
 		jobGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
 		jobGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
 		jobGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
-		jobGroup.POST("/social-metrics-poller", jobHandler.TriggerSocialMetricsPollerJob)
 		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
 		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
 	}
@@ -1097,6 +1097,20 @@ func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 	}
 }
 
+// SetupContentDashboardRoutes sets up routes for content staff dashboard (fresh implementation)
+func (r *Router) SetupContentDashboardRoutes(group *gin.RouterGroup) {
+	dashboardHandler := r.handlerRegistry.ContentDashboardHandler
+	dashboardGroup := group.Group("/analytics/contents")
+	{
+		// Protected routes (Admin, Marketing and Content Staff can view dashboard)
+		protectedGroup := dashboardGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			protectedGroup.GET("/dashboard", dashboardHandler.GetDashboard)
+		}
+	}
+}
 
 // SetupContentScheduleRoutes sets up routes for content scheduling
 func (r *Router) SetupContentScheduleRoutes(group *gin.RouterGroup) {
