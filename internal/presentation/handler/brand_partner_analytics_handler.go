@@ -103,17 +103,17 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 //	@Summary		Get Brand's Top Rating Products
 //	@Description	Returns top-rated products for the brand partner
 //	@Tags			Brand Partner Analytics
-//	@Accept		json
-//	@Produce	json
-//	@Param		start_date	query		string	false	"Start date (ISO 8601 format)"
-//	@Param		end_date	query		string	false	"End date (ISO 8601 format)"
-//	@Param		limit		query		int	false	"Number of products to return (default: 10, max: 50)"
-//	@Success		200			{object}responses.APIResponse{data=[]responses.BrandProductRating}
-//	@Failure		400			{object}responses.APIResponse
-//	@Failure		401			{object}responses.APIResponse
-//	@Failure		500			{object}responses.APIResponse
-//	@Security	BearerAuth
-//	@Router		/api/v1/analytics/brand-partner/top-rating-products [get]
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			limit		query		int		false	"Number of products to return (default: 10, max: 50)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandProductRating}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/top-rating-products [get]
 func (h *BrandPartnerAnalyticsHandler) GetTopRatingProducts(c *gin.Context) {
 	ctx := c.Request.Context()
 
