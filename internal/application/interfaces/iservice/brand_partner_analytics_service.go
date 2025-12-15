@@ -32,4 +32,6 @@ type BrandPartnerAnalyticsService interface {
 	GetContractDetails(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandContractsRequest) ([]responses.BrandContractDetail, error)
 
 	GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopRatingProductRequest) ([]responses.BrandProductRating, error)
+
+	GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopSoldProductRequest) ([]responses.BrandTopSoldProducts, error)
 }

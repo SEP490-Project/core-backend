@@ -512,3 +512,47 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopRatingProduct(ctx context.C
 
 	return results, nil
 }
+
+func (r *brandPartnerAnalyticsRepository) GetBrandTopBoughtProducts(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandTopSoldProducts, error) {
+	var results []dtos.BrandTopSoldProducts
+	orderStatus := enum.OrderStatusReceived.String()
+
+	query := r.db.
+		WithContext(ctx).
+		Table("order_items oi").
+		Select(`
+			p.id AS product_id,
+			p.name AS product_name,
+			COALESCE(SUM(oi.quantity), 0) AS total_sold
+		`).
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Joins("JOIN products p ON p.id = pv.product_id").
+		Joins("JOIN brands b ON b.id = p.brand_id").
+		Joins("JOIN orders o ON o.id = oi.order_id").
+		Where("b.user_id = ?", brandUserID).
+		Where("o.status = ?", orderStatus).
+		Where("p.deleted_at IS NULL")
+
+	// Optional startDate
+	if startDate != nil {
+		query = query.Where("p.created_at >= ?", *startDate)
+	}
+	// Optional endDate
+	if endDate != nil {
+		query = query.Where("p.created_at <= ?", *endDate)
+	}
+
+	// Group
+	query = query.Group("p.id, p.name").
+		Order("total_sold DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	if err := query.Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}

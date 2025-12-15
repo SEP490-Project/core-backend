@@ -203,6 +203,19 @@ type BrandAffiliateMetricsRequest struct {
 	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
 }
 
+// BrandTopRatingProductRequest represents a request for brand's top rating products
+type BrandTopRatingProductRequest struct {
+	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	Limit     int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"`
+}
+
+type BrandTopSoldProductRequest struct {
+	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
+	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
+	Limit     int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"`
+}
+
 // BrandContractsRequest represents a request for brand's contract details
 type BrandContractsRequest struct {
 	Status *string `form:"status" json:"status" binding:"omitempty,oneof=DRAFT PENDING ACTIVE COMPLETED CANCELLED"`
@@ -215,11 +228,4 @@ func (r *BrandContractsRequest) GetLimit() int {
 		return 10
 	}
 	return r.Limit
-}
-
-// BrandTopRatingProductRequest represents a request for brand's top rating products
-type BrandTopRatingProductRequest struct {
-	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
-	Limit     int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"`
 }
