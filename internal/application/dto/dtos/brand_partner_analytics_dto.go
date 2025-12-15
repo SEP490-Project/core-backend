@@ -80,7 +80,8 @@ type BrandProductRating struct {
 }
 
 type BrandTopSoldProducts struct {
-	ProductID   uuid.UUID
-	ProductName string
-	TotalSold   int64
+	ProductID    uuid.UUID
+	ProductName  string
+	UnitsSold    int64
+	TotalRevenue float64
 }

@@ -513,7 +513,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopRatingProduct(ctx context.C
 	return results, nil
 }
 
-func (r *brandPartnerAnalyticsRepository) GetBrandTopBoughtProducts(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandTopSoldProducts, error) {
+func (r *brandPartnerAnalyticsRepository) GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandTopSoldProducts, error) {
 	var results []dtos.BrandTopSoldProducts
 	orderStatus := enum.OrderStatusReceived.String()
 
@@ -523,7 +523,8 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopBoughtProducts(ctx context.
 		Select(`
 			p.id AS product_id,
 			p.name AS product_name,
-			COALESCE(SUM(oi.quantity), 0) AS total_sold
+			COALESCE(SUM(oi.quantity), 0) AS units_sold,
+			COALESCE(SUM(oi.subtotal), 0) AS total_revenue
 		`).
 		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
 		Joins("JOIN products p ON p.id = pv.product_id").
