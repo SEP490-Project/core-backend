@@ -18,53 +18,63 @@ type conceptService struct {
 	conceptRepo irepository.GenericRepository[model.Concept]
 }
 
-func (c conceptService) GetConceptPagination(limit, page int, search string) ([]model.Concept, int, error) {
+// GetConceptPagination retrieves paginated concepts with optional search and status (ATTACHED | DANGLING | NIL) filtering.
+func (c conceptService) GetConceptPagination(limit, page int, search string, status *string) ([]model.Concept, int, error) {
 	ctx := context.Background()
-	offset := (page - 1) * limit
 
 	filter := func(db *gorm.DB) *gorm.DB {
 		if search != "" {
 			db = db.Where("name ILIKE ?", "%"+search+"%")
 		}
 
+		if status != nil {
+			switch *status {
+			case "ATTACHED":
+				db = db.Where(`
+				EXISTS (
+					SELECT 1
+					FROM limited_products lp
+					WHERE lp.concept_id = concepts.id
+				)
+			`)
+			case "DANGLING":
+				db = db.Where(`
+				NOT EXISTS (
+					SELECT 1
+					FROM limited_products lp
+					WHERE lp.concept_id = concepts.id
+				)
+			`)
+			case "ALL":
+				// không filter
+			}
+		} else {
+			//nil default to DANGLING
+			db = db.Where(`
+				NOT EXISTS (
+					SELECT 1
+					FROM limited_products lp
+					WHERE lp.concept_id = concepts.id
+				)
+			`)
+		}
+
 		return db.Order("concepts.created_at DESC")
 	}
 
-	// Step 1: get IDs page
-	var ids []uuid.UUID
-	err := c.conceptRepo.DB().
-		WithContext(ctx).
-		Model(&model.Concept{}).
-		Scopes(filter).
-		Select("concepts.id").
-		Limit(limit).
-		Offset(offset).
-		Pluck("concepts.id", &ids).Error
+	includes := []string{"LimitedProduct"}
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	concepts, total, err := c.conceptRepo.GetAll(ctx, filter, includes, limit, page)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	if len(ids) == 0 {
-		return []model.Concept{}, 0, nil
-	}
-
-	// Step 2: total
-	_, total, err := c.conceptRepo.GetAll(ctx, filter, nil, 0, 0)
-	if err != nil {
-		zap.L().Error("Failed to count total products", zap.Error(err))
-		return nil, 0, err
-	}
-
-	// Step 3: load concepts with limited product and nested product relations
-	finalFilter := func(db *gorm.DB) *gorm.DB {
-		return db.Where("concepts.id IN ?", ids).Order("concepts.created_at DESC")
-	}
-
-	concepts, _, err := c.conceptRepo.GetAll(ctx, finalFilter, nil, 0, 0)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	return concepts, int(total), nil
 }
 
@@ -82,10 +92,36 @@ func (c conceptService) CreateConcept(dto requests.ConceptRequest) (*model.Conce
 	return entity, nil
 }
 
-func (c conceptService) UpdateConcept(dto requests.ConceptRequest) (*model.Concept, error) {
-	// The request struct currently doesn't carry ID; require caller to provide ID via Name match is not safe.
-	// Expectation: caller will load concept and pass fields to update. Here we'll return not implemented error to avoid accidental misuse.
-	return nil, errors.New("UpdateConcept not implemented: request must include concept ID to update")
+func (c conceptService) UpdateConcept(id uuid.UUID, dto requests.UpdateConceptRequest) (*model.Concept, error) {
+	// Get concept by ID
+	concept, err := c.conceptRepo.GetByID(context.Background(), id, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get concept: %w", err)
+	}
+	if concept == nil {
+		return nil, errors.New("concept not found")
+	}
+
+	// Update fields if provided
+	if dto.Name != nil {
+		concept.Name = *dto.Name
+	}
+	if dto.Description != nil {
+		concept.Description = dto.Description
+	}
+	if dto.BannerURL != nil {
+		concept.BannerURL = dto.BannerURL
+	}
+	if dto.VideoThumbnail != nil {
+		concept.VideoThumbnail = dto.VideoThumbnail
+	}
+
+	// Save updates
+	if err := c.conceptRepo.Update(context.Background(), concept); err != nil {
+		return nil, fmt.Errorf("failed to update concept: %w", err)
+	}
+
+	return concept, nil
 }
 
 func (c conceptService) DeleteConcept(conceptID string) error {

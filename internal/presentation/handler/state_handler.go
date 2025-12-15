@@ -130,6 +130,9 @@ type UpdateProductStateRequest struct {
 	// Enum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED
 	// example: SUBMITTED
 	State string `json:"state" validate:"required,oneof=DRAFT SUBMITTED REVISION APPROVED ACTIVED INACTIVED"`
+
+	// Reason only require when request revision
+	Reason *string `json:"reason" validate:"max=500" example:"Reason for state change"`
 }
 
 // UpdateProductState godoc
@@ -140,7 +143,7 @@ type UpdateProductStateRequest struct {
 //	@Accept			json
 //	@Produce		json
 //	@Param			id		path		string					true	"Product ID (UUID)"
-//	@Param			body	body		UpdateTaskStateRequest	true	"Target state payload"
+//	@Param			body	body		UpdateProductStateRequest	true	"Target state payload"
 //	@Success		200		{object}	responses.APIResponse	"Product state updated"
 //	@Failure		400		{object}	responses.APIResponse	"Invalid request"
 //	@Failure		404		{object}	responses.APIResponse	"Product not found"
@@ -171,6 +174,12 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 	if !target.IsValid() {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid target state", http.StatusBadRequest))
 		return
+	}
+
+	if target == enum.ProductStatusRevision {
+		if req.Reason == nil {
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when moving product to REVISION state", http.StatusBadRequest))
+		}
 	}
 
 	// Lấy role từ context
