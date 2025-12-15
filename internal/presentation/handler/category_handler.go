@@ -214,3 +214,48 @@ func (h *ProductCategoryHandler) DeleteCategory(c *gin.Context) {
 	response := responses.SuccessResponse("Category deleted successfully", ptr.Int(http.StatusOK), http.StatusNoContent)
 	c.JSON(http.StatusOK, response)
 }
+
+// UpdateCategory godoc
+//
+//	@Summary		Update a product category
+//	@Description	Update a new product category
+//	@Tags			Categories
+//	@Accept			json
+//	@Produce		json
+//	@Param			id			path		string	true	"Category ID"
+//	@Param			data	body		requests.UpdateProductCategoryRequest	true	"Update category payload"
+//	@Success		201		{object}	responses.ProductCategoryResponse
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/categories/{id} [patch]
+func (h *ProductCategoryHandler) UpdateCategory(c *gin.Context) {
+	idParam := c.Param("id")
+	categoryID, err := uuid.Parse(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category ID"})
+		return
+	}
+
+	var req requests.UpdateProductCategoryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errResp := responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, errResp)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		response := processValidationError(err)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	category, err := h.categoryService.UpdateCategory(categoryID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to create category: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	resp := responses.SuccessResponse("Category created successfully", ptr.Int(http.StatusOK), category)
+	c.JSON(http.StatusCreated, resp)
+}
