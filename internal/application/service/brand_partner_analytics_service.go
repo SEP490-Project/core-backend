@@ -363,3 +363,20 @@ func (s *brandPartnerAnalyticsService) getOverviewMetrics(ctx context.Context, b
 }
 
 // endregion
+
+func (s *brandPartnerAnalyticsService) GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopRatingProductRequest) ([]responses.BrandProductRating, error) {
+	results, err := s.analyticsRepo.GetBrandTopRatingProduct(ctx, brandUserID, req.Limit, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	topRating := make([]responses.BrandProductRating, len(results))
+	for i, r := range results {
+		topRating[i] = responses.BrandProductRating{
+			ProductID:     r.ProductID,
+			ProductName:   r.ProductName,
+			AverageRating: r.AverageRating,
+			Type:          r.Type,
+		}
+	}
+	return topRating, nil
+}

@@ -13,6 +13,12 @@ type CreateProductCategoryRequest struct {
 	ParentCategoryID *uuid.UUID `json:"parent_category_id,omitempty"`
 }
 
+type UpdateProductCategoryRequest struct {
+	Name             *string    `json:"name"`
+	Description      *string    `json:"description"`
+	ParentCategoryID *uuid.UUID `json:"parent_category_id"`
+}
+
 // ToModel map request to model
 func (c *CreateProductCategoryRequest) ToModel() *model.ProductCategory {
 	now := time.Now()
