@@ -70,7 +70,7 @@ func (tm *TopologyManager) setupExchange(channel *amqp.Channel, exchangeConfig c
 		exchangeConfig.AutoDelete, // auto-deleted
 		false,                     // internal
 		false,                     // no-wait
-		nil,                       // arguments
+		exchangeConfig.Arguments,  // arguments
 	)
 	if err != nil {
 		return fmt.Errorf("failed to declare exchange %s: %w", exchangeConfig.Name, err)

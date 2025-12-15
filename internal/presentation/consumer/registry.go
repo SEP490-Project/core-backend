@@ -23,6 +23,7 @@ type ConsumerRegistry struct {
 	ContentPublishAllConsumer     *ContentPublishAllConsumer
 	CampaignCreateConsumer        *CampaignCreateConsumer
 	ContentScheduleConsumer       *ContentScheduleConsumer
+	ContentViewConsumer           *ContentViewConsumer
 }
 
 // NewConsumerRegistry creates a new consumer registry with all consumers initialized
@@ -46,6 +47,12 @@ func NewConsumerRegistry(
 		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry),
 		CampaignCreateConsumer:        NewCampaignCreateConsumer(appRegistry),
 		ContentScheduleConsumer:       NewContentScheduleConsumer(appRegistry.ContentScheduleService, appRegistry.AlertManagerService),
+		ContentViewConsumer: NewContentViewConsumer(
+			dbRegistry.KPIMetricsRepository,
+			dbRegistry.ContentChannelRepository,
+			infraRegistry.ValkeyCache,
+			&infraRegistry.Config.AdminConfig,
+		),
 	}
 
 	zap.L().Info("Consumer registry initialized successfully")
