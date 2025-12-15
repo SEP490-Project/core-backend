@@ -229,10 +229,3 @@ func (r *BrandContractsRequest) GetLimit() int {
 	}
 	return r.Limit
 }
-
-// BrandTopRatingProductRequest represents a request for brand's top rating products
-type BrandTopRatingProductRequest struct {
-	StartDate *time.Time `form:"start_date" json:"start_date" binding:"omitempty"`
-	EndDate   *time.Time `form:"end_date" json:"end_date" binding:"omitempty"`
-	Limit     int        `form:"limit" json:"limit" binding:"omitempty,min=1,max=50"`
-}

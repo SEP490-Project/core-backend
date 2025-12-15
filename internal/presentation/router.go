@@ -870,7 +870,6 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
-			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
 		}
 	}
 }

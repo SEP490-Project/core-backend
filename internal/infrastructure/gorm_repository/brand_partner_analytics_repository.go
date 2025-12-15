@@ -437,9 +437,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Co
 			WHERE cmp.deleted_at IS NULL
 			GROUP BY cmp.contract_id
 		)
-		SELECT tc.id as contract_id	paidStatus := enum.ContractPaymentStatusPaid.String()
-	pendingStatus := enum.ContractPaymentStatusPending.String()
-,
+		SELECT tc.id as contract_id,
 			   tc.contract_number,
 			   tc.type,
 			   tc.status,
@@ -545,7 +543,7 @@ func (r *brandPartnerAnalyticsRepository) GetBrandTopSoldProduct(ctx context.Con
 
 	// Group
 	query = query.Group("p.id, p.name").
-		Order("total_sold DESC")
+		Order("units_sold DESC")
 
 	if limit > 0 {
 		query = query.Limit(limit)
