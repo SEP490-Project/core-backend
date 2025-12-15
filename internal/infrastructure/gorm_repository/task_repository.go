@@ -112,6 +112,7 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			"c.name as campaign_name",
 			"c.id as campaign_id",
 			"c.contract_id as contract_id",
+			"p.id as product_id",
 			"p.status as child_status"). // <-- đây là product status
 		Joins("LEFT JOIN users AS a ON tasks.assigned_to = a.id").
 		Joins("LEFT JOIN milestones AS m ON tasks.milestone_id = m.id").
