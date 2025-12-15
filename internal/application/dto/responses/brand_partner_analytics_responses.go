@@ -260,3 +260,10 @@ type BrandContractsResponse struct {
 	Contracts []BrandContractDetail   `json:"contracts"`
 	Summary   BrandContractsBreakdown `json:"summary"`
 }
+
+type BrandProductRating struct {
+	ProductID     uuid.UUID `json:"product_id"`
+	ProductName   string    `json:"product_name"`
+	Type          string    `json:"type"`
+	AverageRating float64   `json:"average_rating"`
+}

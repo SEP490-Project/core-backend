@@ -713,7 +713,7 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 	}
 
 	// Reload with relations
-	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Brand", "Category", "Variants"})
+	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Brand", "Category", "Variants", "Limited"})
 	if err != nil {
 		zap.L().Warn("created product but failed to reload with relations", zap.Error(err))
 		saved = entity

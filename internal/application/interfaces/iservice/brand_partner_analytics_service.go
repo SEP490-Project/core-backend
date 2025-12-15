@@ -30,4 +30,6 @@ type BrandPartnerAnalyticsService interface {
 
 	// GetContractDetails returns contract details for a brand
 	GetContractDetails(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandContractsRequest) ([]responses.BrandContractDetail, error)
+
+	GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopRatingProductRequest) ([]responses.BrandProductRating, error)
 }

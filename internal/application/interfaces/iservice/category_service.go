@@ -14,4 +14,5 @@ type ProductCategoryService interface {
 	CreateCategory(requests.CreateProductCategoryRequest) (*responses.ProductCategoryResponse, error)
 	AddParentCategory(currentID uuid.UUID, parentID uuid.UUID) (*responses.ProductCategoryResponse, error)
 	DeleteCategory(ctx context.Context, categoryID uuid.UUID, uow irepository.UnitOfWork) error
+	UpdateCategory(categoryID uuid.UUID, req requests.UpdateProductCategoryRequest) (*responses.ProductCategoryResponse, error)
 }
