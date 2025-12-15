@@ -214,6 +214,10 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				r.middlewareRegistry.Auth.RequireRole(sales, admin),
 				categoryHandler.AssignParentCategory,
 			)
+			categoriesGroup.PATCH("/:id",
+				r.middlewareRegistry.Auth.RequireRole(sales, admin),
+				categoryHandler.UpdateCategory,
+			)
 			categoriesGroup.DELETE("/:id",
 				r.middlewareRegistry.Auth.RequireRole(sales, admin),
 				categoryHandler.DeleteCategory,
@@ -866,6 +870,7 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
+			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
 		}
 	}
 }

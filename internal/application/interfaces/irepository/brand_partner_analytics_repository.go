@@ -36,4 +36,7 @@ type BrandPartnerAnalyticsRepository interface {
 
 	// Contract Details
 	GetBrandContractDetails(ctx context.Context, brandUserID uuid.UUID, limit int) ([]dtos.BrandContractDetails, error)
+
+	// Rating
+	GetBrandTopRatingProduct(ctx context.Context, brandUserID uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.BrandProductRating, error)
 }
