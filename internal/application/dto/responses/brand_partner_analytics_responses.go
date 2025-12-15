@@ -267,3 +267,9 @@ type BrandProductRating struct {
 	Type          string    `json:"type"`
 	AverageRating float64   `json:"average_rating"`
 }
+
+type BrandTopSoldProducts struct {
+	ProductID   uuid.UUID `json:"product_id"`
+	ProductName string    `json:"product_name"`
+	UnitsSold   int64     `json:"total_sold"`
+}
