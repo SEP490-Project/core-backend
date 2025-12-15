@@ -34,17 +34,17 @@ type PublishChannelError struct {
 
 // PublishingStatusResponse represents the current publishing status for a content-channel
 type PublishingStatusResponse struct {
-	ContentChannelID uuid.UUID           `json:"content_channel_id"`
-	ContentID        uuid.UUID           `json:"content_id"`
-	ChannelID        uuid.UUID           `json:"channel_id"`
-	ChannelName      string              `json:"channel_name"`
-	Status           enum.AutoPostStatus `json:"status"`
-	ExternalPostID   *string             `json:"external_post_id,omitempty"`
-	ExternalPostURL  *string             `json:"external_post_url,omitempty"`
-	PostURL          *string             `json:"post_url,omitempty"`
-	PublishedAt      *time.Time          `json:"published_at,omitempty"`
-	LastError        *string             `json:"last_error,omitempty"`
-	Metrics          map[string]any      `json:"metrics,omitempty"`
-	CreatedAt        time.Time           `json:"created_at"`
-	UpdatedAt        time.Time           `json:"updated_at"`
+	ContentChannelID uuid.UUID                     `json:"content_channel_id"`
+	ContentID        uuid.UUID                     `json:"content_id"`
+	ChannelID        uuid.UUID                     `json:"channel_id"`
+	ChannelName      string                        `json:"channel_name"`
+	Status           enum.AutoPostStatus           `json:"status"`
+	ExternalPostID   *string                       `json:"external_post_id,omitempty"`
+	ExternalPostURL  *string                       `json:"external_post_url,omitempty"`
+	PostURL          *string                       `json:"post_url,omitempty"`
+	PublishedAt      *time.Time                    `json:"published_at,omitempty"`
+	LastError        *string                       `json:"last_error,omitempty"`
+	Metrics          map[enum.KPIValueType]float64 `json:"metrics,omitempty"`
+	CreatedAt        time.Time                     `json:"created_at"`
+	UpdatedAt        time.Time                     `json:"updated_at"`
 }

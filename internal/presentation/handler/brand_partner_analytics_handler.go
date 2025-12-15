@@ -98,6 +98,46 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Top products fetched successfully", nil, products))
 }
 
+// GetTopRatingProducts returns the top-rated products for the brand
+//
+//	@Summary		Get Brand's Top Rating Products
+//	@Description	Returns top-rated products for the brand partner
+//	@Tags			Brand Partner Analytics
+//	@Accept			json
+//	@Produce		json
+//	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
+//	@Param			end_date	query		string	false	"End date (ISO 8601 format)"
+//	@Param			limit		query		int		false	"Number of products to return (default: 10, max: 50)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.BrandProductRating}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/analytics/brand-partner/top-rating-products [get]
+func (h *BrandPartnerAnalyticsHandler) GetTopRatingProducts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	brandUserID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	var req requests.BrandTopRatingProductRequest
+	if err = c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid query parameters: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	products, err := h.analyticsService.GetBrandTopRatingProduct(ctx, brandUserID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to fetch top-rated products: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Top-rated products fetched successfully", nil, products))
+}
+
 // GetCampaignMetrics returns the campaign performance metrics for the brand
 //
 //	@Summary		Get Brand's Campaign Metrics

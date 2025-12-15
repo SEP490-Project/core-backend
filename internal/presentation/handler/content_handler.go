@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"core-backend/internal/application"
 	"core-backend/internal/application/dto/consumers"
@@ -818,7 +820,132 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 		return
 	}
 
+	// Track view asynchronously via RabbitMQ
+	h.trackContentView(c, content)
+
 	c.JSON(http.StatusOK, responses.SuccessResponse("Public content retrieved successfully", nil, content))
+}
+
+// trackContentView publishes view events to RabbitMQ for async processing
+func (h *ContentHandler) trackContentView(c *gin.Context, content *responses.ContentResponse) {
+	// Get producer
+	producer, err := h.rabbitmq.GetProducer("content-view-producer")
+	if err != nil {
+		zap.L().Warn("Failed to get content view producer", zap.Error(err))
+		return
+	}
+
+	// Extract request info
+	ipAddress := c.ClientIP()
+	userAgent := c.GetHeader("User-Agent")
+	referrer := c.GetHeader("Referer")
+	sessionID := c.GetHeader("X-Session-ID")
+
+	// Get user ID if authenticated (optional)
+	var userID *uuid.UUID
+	if uid, exists := c.Get("user_id"); exists {
+		if uidParsed, ok := uid.(uuid.UUID); ok {
+			userID = &uidParsed
+		}
+	}
+
+	// Detect device info
+	deviceType := detectDeviceType(userAgent)
+	platform := detectPlatform(userAgent)
+	browser := detectBrowser(userAgent)
+	isBot := detectBot(userAgent)
+
+	// Publish view event for each content channel
+	for _, cc := range content.ContentChannels {
+		if cc.AutoPostStatus != string(enum.AutoPostStatusPosted) {
+			continue
+		}
+
+		viewMessage := &consumers.ContentViewMessage{
+			ContentChannelID: cc.ID,
+			ContentID:        content.ID,
+			UserID:           userID,
+			IPAddress:        ipAddress,
+			UserAgent:        userAgent,
+			ReferrerURL:      utils.PtrOrNil(referrer),
+			SessionID:        utils.PtrOrNil(sessionID),
+			ViewedAt:         time.Now(),
+			IsBot:            isBot,
+			DeviceType:       deviceType,
+			Platform:         platform,
+			Browser:          browser,
+		}
+
+		err = producer.PublishJSON(c.Request.Context(), viewMessage)
+		if err != nil {
+			zap.L().Warn("Failed to publish content view message",
+				zap.Error(err),
+				zap.String("content_id", content.ID.String()),
+				zap.String("content_channel_id", cc.ID.String()))
+		}
+	}
+}
+
+// detectDeviceType determines device type from user agent
+func detectDeviceType(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") && !strings.Contains(ua, "tablet") {
+		return "mobile"
+	}
+	if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {
+		return "tablet"
+	}
+	return "desktop"
+}
+
+// detectPlatform determines OS from user agent
+func detectPlatform(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+	switch {
+	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
+		return "iOS"
+	case strings.Contains(ua, "android"):
+		return "Android"
+	case strings.Contains(ua, "windows"):
+		return "Windows"
+	case strings.Contains(ua, "mac"):
+		return "macOS"
+	case strings.Contains(ua, "linux"):
+		return "Linux"
+	default:
+		return "unknown"
+	}
+}
+
+// detectBrowser determines browser from user agent
+func detectBrowser(userAgent string) string {
+	ua := strings.ToLower(userAgent)
+	switch {
+	case strings.Contains(ua, "edg"):
+		return "Edge"
+	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
+		return "Chrome"
+	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
+		return "Safari"
+	case strings.Contains(ua, "firefox"):
+		return "Firefox"
+	case strings.Contains(ua, "opera") || strings.Contains(ua, "opr"):
+		return "Opera"
+	default:
+		return "unknown"
+	}
+}
+
+// detectBot checks if user agent is a bot
+func detectBot(userAgent string) bool {
+	ua := strings.ToLower(userAgent)
+	botKeywords := []string{"bot", "crawler", "spider", "scraper", "curl", "wget", "python", "java", "http"}
+	for _, keyword := range botKeywords {
+		if strings.Contains(ua, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 // PublishToChannel publishes content to a specific social media channel

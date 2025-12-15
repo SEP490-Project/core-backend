@@ -234,7 +234,7 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 		return fmt.Errorf("invalid config key: %s", key)
 	}
 
-	if err := utils.SetStringToReflectValue(a.adminConfig, key, value); err != nil {
+	if err := utils.SetStringToReflectValue(a.adminConfig, key, value, false); err != nil {
 		return fmt.Errorf("validation failed for key '%s': %w", key, err)
 	}
 
@@ -273,7 +273,7 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 	}
 
 	// 3. Update in-memory
-	_ = utils.SetStringToReflectValue(a.adminConfig, key, value)
+	_ = utils.SetStringToReflectValue(a.adminConfig, key, value, false)
 
 	// 4. Notify listeners
 	a.notifyListeners()
@@ -289,7 +289,7 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 
 	// 1. Validation Phase
 	for key, value := range configs {
-		if err := utils.SetStringToReflectValue(a.adminConfig, key, value); err != nil {
+		if err := utils.SetStringToReflectValue(a.adminConfig, key, value, false); err != nil {
 			return fmt.Errorf("validation failed for key '%s': %w", key, err)
 		}
 	}
@@ -349,7 +349,7 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 
 	// 3. In-Memory Update Phase
 	for key, value := range configs {
-		_ = utils.SetStringToReflectValue(a.adminConfig, key, value)
+		_ = utils.SetStringToReflectValue(a.adminConfig, key, value, false)
 	}
 
 	// 4. Notify listeners

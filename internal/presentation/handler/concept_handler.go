@@ -4,9 +4,10 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
-	"github.com/google/uuid"
 	"net/http"
 	"strconv"
+
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -148,7 +149,7 @@ func (h *ConceptHandler) DeleteConcept(c *gin.Context) {
 //	@Tags			Concepts
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string						true	"Concept ID"
+//	@Param			id		path		string							true	"Concept ID"
 //	@Param			data	body		requests.UpdateConceptRequest	true	"Concept payload"
 //	@Success		201		{object}	responses.APIResponse
 //	@Failure		400		{object}	responses.APIResponse

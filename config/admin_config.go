@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 // AdminConfig holds the admin-related configuration settings
@@ -75,6 +76,9 @@ type AdminConfig struct {
 	// Affiliate Links config
 	AffiliateHashLength int    `mapstructure:"affiliate_hash_length"`
 	AffiliateURLFormat  string `mapstructure:"affiliate_url_format"`
+
+	// Content View Tracking
+	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"` // TTL for unique view deduplication cache (default: 24)
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -150,6 +154,8 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 
 	adminViper.SetDefault("affiliate_hash_length", 16)
 	adminViper.SetDefault("affiliate_url_format", "%s/r/%s")
+
+	adminViper.SetDefault("content_view_unique_cache_ttl_hours", 24)
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database
@@ -158,13 +164,30 @@ func (c *AdminConfig) Override(models []model.Config) error {
 	configMap := utils.MapKeyFromSlice(models, func(m model.Config) (string, model.Config) { return m.Key, m })
 
 	// Override fields if they exist in the configMap with reflect
-	for key, cfg := range configMap {
-		if reflectVal := reflect.ValueOf(c).Elem().FieldByName(strings.ToLower(key)); reflectVal.IsValid() {
-			value := reflect.ValueOf(cfg.Value)
-			fmt.Printf("Overriding AdminConfig field %s with value %v\n", key, cfg.Value)
-			reflectVal.Set(value)
+	overridenCount := 0
+	val := reflect.ValueOf(c)
+	typ := reflect.TypeOf(c)
+	if val.Kind() == reflect.Pointer {
+		val = val.Elem()
+		typ = typ.Elem()
+	}
+	for i := 0; i < val.NumField(); i++ {
+		fieldType := typ.Field(i)
+		tag := fieldType.Tag.Get("mapstructure")
+
+		if cfg, exists := configMap[tag]; exists {
+			zap.L().Debug("Overriding AdminConfig field from database",
+				zap.String("tag", tag), zap.String("field", fieldType.Name), zap.String("value", cfg.Value))
+			if err := utils.SetStringToReflectValue(c, fieldType.Name, cfg.Value, true); err == nil {
+				overridenCount++
+			} else {
+				zap.L().Error("Failed to override AdminConfig field",
+					zap.String("field", tag), zap.String("value", cfg.Value), zap.Error(err))
+			}
 		}
 	}
 
+	zap.L().Info("AdminConfig overridden with database values successfully",
+		zap.Int("config_count", len(configMap)), zap.Int("overriden_count", overridenCount))
 	return nil
 }

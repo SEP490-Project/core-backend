@@ -142,13 +142,13 @@ type UpdateProductStateRequest struct {
 //	@Tags			Products.State
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string					true	"Product ID (UUID)"
+//	@Param			id		path		string						true	"Product ID (UUID)"
 //	@Param			body	body		UpdateProductStateRequest	true	"Target state payload"
-//	@Success		200		{object}	responses.APIResponse	"Product state updated"
-//	@Failure		400		{object}	responses.APIResponse	"Invalid request"
-//	@Failure		404		{object}	responses.APIResponse	"Product not found"
-//	@Failure		409		{object}	responses.APIResponse	"Invalid state transition"
-//	@Failure		500		{object}	responses.APIResponse	"Internal server error"
+//	@Success		200		{object}	responses.APIResponse		"Product state updated"
+//	@Failure		400		{object}	responses.APIResponse		"Invalid request"
+//	@Failure		404		{object}	responses.APIResponse		"Product not found"
+//	@Failure		409		{object}	responses.APIResponse		"Invalid state transition"
+//	@Failure		500		{object}	responses.APIResponse		"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/{id}/state [patch]
 func (h *StateHandler) UpdateProductState(c *gin.Context) {

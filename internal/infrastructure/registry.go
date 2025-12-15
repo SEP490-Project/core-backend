@@ -58,6 +58,14 @@ func NewInfrastructureRegistry(
 		UnitOfWork: persistence.NewUnitOfWork(db),
 	}
 
+	// Override AdminConfig from Database
+	zap.L().Debug("Overriding AdminConfig from database")
+	if err := registry.OverrideAdminConfig(); err != nil {
+		zap.L().Error("Failed to override admin config", zap.Error(err))
+	}
+	// config = pkgConfig.GetAppConfig() // Update local config reference
+	// registry.Config = config
+
 	// Initialize Valkey cache
 	zap.L().Debug("Attempting to initialize Valkey cache")
 	if valkeyCache := persistence.NewValkeyCache(); valkeyCache != nil {
@@ -168,13 +176,6 @@ func NewInfrastructureRegistry(
 	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db)
 	zap.L().Info("Proxies Registry initialized successfully")
 
-	// Override AdminConfig from Database
-	zap.L().Debug("Overriding AdminConfig from database")
-	err = registry.OverrideAdminConfig()
-	if err != nil {
-		zap.L().Error("Failed to override admin config", zap.Error(err))
-	}
-
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
 }
@@ -224,8 +225,6 @@ func (r *InfrastructureRegistry) OverrideAdminConfig() error {
 		zap.L().Error("Failed to load admin config from database", zap.Error(err))
 		return err
 	}
-	zap.L().Info("Loaded admin config from database", zap.Int("config_count", len(adminConfig)),
-		zap.Any("configs", r.Config.AdminConfig))
 	err := r.Config.AdminConfig.Override(adminConfig)
 	if err != nil {
 		zap.L().Error("Failed to override admin config from database", zap.Error(err))
