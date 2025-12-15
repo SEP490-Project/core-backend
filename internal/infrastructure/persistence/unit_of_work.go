@@ -33,6 +33,7 @@ type unitOfWork struct {
 	channelRepository               irepository.GenericRepository[model.Channel]
 	contentRepository               irepository.GenericRepository[model.Content]
 	contentChannelRepository        irepository.ContentChannelsRepository
+	contentScheduleRepository       irepository.GenericRepository[model.ContentSchedule]
 	blogRepository                  irepository.GenericRepository[model.Blog]
 	tagRepository                   irepository.TagRepository
 	webhookRepository               irepository.GenericRepository[model.WebhookData]
@@ -99,6 +100,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.channelRepository = gormrepository.NewGenericRepository[model.Channel](tx)
 	txUow.contentRepository = gormrepository.NewGenericRepository[model.Content](tx)
 	txUow.contentChannelRepository = gormrepository.NewContentChannelsRepository(tx)
+	txUow.contentScheduleRepository = gormrepository.NewGenericRepository[model.ContentSchedule](tx)
 	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
 	txUow.tagRepository = gormrepository.NewTagRepository(tx)
 	txUow.webhookRepository = gormrepository.NewGenericRepository[model.WebhookData](tx)
@@ -322,6 +324,10 @@ func (u *unitOfWork) WebhookData() irepository.GenericRepository[model.WebhookDa
 
 func (u *unitOfWork) ProductReview() irepository.GenericRepository[model.ProductReview] {
 	return u.productReviewRepository
+}
+
+func (u *unitOfWork) ContentSchedules() irepository.GenericRepository[model.ContentSchedule] {
+	return u.contentScheduleRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

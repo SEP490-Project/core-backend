@@ -437,7 +437,9 @@ func (r *brandPartnerAnalyticsRepository) GetBrandContractDetails(ctx context.Co
 			WHERE cmp.deleted_at IS NULL
 			GROUP BY cmp.contract_id
 		)
-		SELECT tc.id as contract_id,
+		SELECT tc.id as contract_id	paidStatus := enum.ContractPaymentStatusPaid.String()
+	pendingStatus := enum.ContractPaymentStatusPending.String()
+,
 			   tc.contract_number,
 			   tc.type,
 			   tc.status,

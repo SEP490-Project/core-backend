@@ -88,8 +88,11 @@ func toStringInternal(v reflect.Value, seen map[uintptr]bool) string {
 // It handles parsing for basic types like string, int, bool, and float.
 // It returns an error if the field is not settable, the type is unsupported,
 // or the string value cannot be parsed into the field's type.
-func SetStringToReflectValue(object any, fieldName string, value string) error {
-	structKey := ToStructFieldName(fieldName)
+func SetStringToReflectValue(object any, fieldName string, value string, isStructFieldName bool) error {
+	structKey := fieldName
+	if !isStructFieldName {
+		structKey = ToStructFieldName(fieldName)
+	}
 	field := reflect.ValueOf(object).Elem().FieldByName(structKey)
 	if !field.IsValid() {
 		return fmt.Errorf("field %s not found in config struct for key %s", structKey, fieldName)

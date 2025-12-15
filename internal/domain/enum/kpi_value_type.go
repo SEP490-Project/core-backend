@@ -18,12 +18,15 @@ const (
 	KPIValueTypeUnitsSold    KPIValueType = "UNITS_SOLD"
 	KPIValueTypeRevenue      KPIValueType = "REVENUE"
 	KPIValueTypeFollowers    KPIValueType = "FOLLOWERS"
+	KPIValueTypeViews        KPIValueType = "VIEWS"
+	KPIValueTypeUniqueViews  KPIValueType = "UNIQUE_VIEWS"
 )
 
 func (vt KPIValueType) IsValid() bool {
 	switch vt {
 	case KPIValueTypeReach, KPIValueTypeLikes, KPIValueTypeImpressions, KPIValueTypeComments,
-		KPIValueTypeShares, KPIValueTypeEngagement, KPIValueTypeClickThrough, KPIValueTypeFollowers:
+		KPIValueTypeShares, KPIValueTypeEngagement, KPIValueTypeClickThrough, KPIValueTypeFollowers,
+		KPIValueTypeViews, KPIValueTypeUniqueViews, KPIValueTypeUnitsSold, KPIValueTypeRevenue:
 		return true
 	}
 	return false

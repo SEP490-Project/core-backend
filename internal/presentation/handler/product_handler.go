@@ -919,10 +919,10 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Param			id	path		string	true	"Variant image ID (UUID)"
-//	@Success		201			{object}	responses.VariantImageResponse
-//	@Failure		400			{object}	object{error=string}
-//	@Failure		401			{object}	object{error=string}
-//	@Failure		500			{object}	object{error=string}
+//	@Success		201	{object}	responses.VariantImageResponse
+//	@Failure		400	{object}	object{error=string}
+//	@Failure		401	{object}	object{error=string}
+//	@Failure		500	{object}	object{error=string}
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/variants/images/{id} [delete]
 func (h *ProductHandler) DeleteVariantImage(c *gin.Context) {
@@ -1043,19 +1043,19 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 
 // AddConceptToLimitedProduct godoc
 //
-//		@Summary		Add Concept to Limited Product
-//		@Description	Associate an existing concept to a limited product
-//		@Tags			Products.Limited
-//		@Accept			json
-//		@Produce		json
-//		@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
-//		@Param concept_id query string false "Concept ID (UUID)"
-//		@Success		200			{object}	map[string]any
-//		@Failure		400			{object}	object{error=string}
-//		@Failure		401			{object}	object{error=string}
-//		@Failure		500			{object}	object{error=string}
-//		@Security		BearerAuth
-//	 @Router /api/v1/products/limited/{limited-id}/concept [post]
+//	@Summary		Add Concept to Limited Product
+//	@Description	Associate an existing concept to a limited product
+//	@Tags			Products.Limited
+//	@Accept			json
+//	@Produce		json
+//	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
+//	@Param			concept_id	query		string	false	"Concept ID (UUID)"
+//	@Success		200			{object}	map[string]any
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/limited/{limited-id}/concept [post]
 func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	limitedIDStr := c.Param("limited-id")
 	limitedID, err := uuid.Parse(limitedIDStr)
@@ -1465,18 +1465,18 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			productId	path		string	true	"Product ID"
-//	@Param			limit		query		int		false	"Items per page"	default(10)
-//	@Param			page		query		int		false	"Page"		default(1)
-//	@Param from_date query string false "From date (YYYY-MM-DD)"
-//	@Param to_date query string false "To date (YYYY-MM-DD)"
-//	@Param rating_stars_min query int false "Min rating"
-//	@Param rating_stars_max query int false "Max rating"
-//	@Param order_by query string false "created_at | rating_stars"
-//	@Param order_direction query string false "asc | desc"
-//	@Success		200			{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
+//	@Param			productId			path		string	true	"Product ID"
+//	@Param			limit				query		int		false	"Items per page"	default(10)
+//	@Param			page				query		int		false	"Page"				default(1)
+//	@Param			from_date			query		string	false	"From date (YYYY-MM-DD)"
+//	@Param			to_date				query		string	false	"To date (YYYY-MM-DD)"
+//	@Param			rating_stars_min	query		int		false	"Min rating"
+//	@Param			rating_stars_max	query		int		false	"Max rating"
+//	@Param			order_by			query		string	false	"created_at | rating_stars"
+//	@Param			order_direction		query		string	false	"asc | desc"
+//	@Success		200					{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/reviews/{productId} [get]
 func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
@@ -1585,19 +1585,19 @@ func (h *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, file
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID"
-//	@Param			product_id	query		string	false	"Product ID"
-//	@Param			page		query		int		false	"Page number"	default(1)
-//	@Param			limit		query		int		false	"Items per page"	default(10)
-//	@Param			from_date	query		string	false	"From date (YYYY-MM-DD)"
-//	@Param			to_date		query		string	false	"To date (YYYY-MM-DD)"
-//	@Param			rating_stars_min	query	int	false	"Min rating"
-//	@Param			rating_stars_max	query	int	false	"Max rating"
-//	@Param			order_by	query		string	false	"created_at | rating_stars"
-//	@Param			order_direction	query	string	false	"asc | desc"
-//	@Success		200	{object}	object{data=[]responses.ProductReviewResponseStaff,pagination=responses.Pagination}
-//	@Failure		400	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			brand_id			query		string	false	"Brand ID"
+//	@Param			product_id			query		string	false	"Product ID"
+//	@Param			page				query		int		false	"Page number"		default(1)
+//	@Param			limit				query		int		false	"Items per page"	default(10)
+//	@Param			from_date			query		string	false	"From date (YYYY-MM-DD)"
+//	@Param			to_date				query		string	false	"To date (YYYY-MM-DD)"
+//	@Param			rating_stars_min	query		int		false	"Min rating"
+//	@Param			rating_stars_max	query		int		false	"Max rating"
+//	@Param			order_by			query		string	false	"created_at | rating_stars"
+//	@Param			order_direction		query		string	false	"asc | desc"
+//	@Success		200					{object}	object{data=[]responses.ProductReviewResponseStaff,pagination=responses.Pagination}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/staff/reviews [get]
 func (h *ProductHandler) GetProductReviewPaginationStaff(c *gin.Context) {

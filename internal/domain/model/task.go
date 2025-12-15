@@ -45,6 +45,34 @@ func (t *Task) BeforeCreate(_ *gorm.DB) (err error) {
 	return nil
 }
 
+func (t *Task) BeforeUpdate(tx *gorm.DB) (err error) {
+	var oldTask Task
+	if err := tx.First(&oldTask, "id = ?", t.ID).Preload("Milestone", "Milestone.Tasks").Error; err != nil {
+		return err
+	}
+	if oldTask.Status != t.Status {
+		totalTasks := len(t.Milestone.Tasks)
+		totalCompletedTasks := 0
+		for _, task := range t.Milestone.Tasks {
+			if task.Status == enum.TaskStatusDone {
+				totalCompletedTasks++
+			}
+		}
+		if t.Status == enum.TaskStatusDone {
+			t.Milestone.CompletionPercentage = float64(totalCompletedTasks+1) / float64(totalTasks) * 100
+		} else if oldTask.Status == enum.TaskStatusDone && t.Status != enum.TaskStatusDone {
+			t.Milestone.CompletionPercentage = float64(totalCompletedTasks-1) / float64(totalTasks) * 100
+		}
+		if t.Milestone.CompletionPercentage < 0 {
+			t.Milestone.CompletionPercentage = 0
+		} else if t.Milestone.CompletionPercentage > 100 {
+			t.Milestone.CompletionPercentage = 100
+		}
+	}
+
+	return nil
+}
+
 // Validate ensures the Task has a valid enum combination before persisting.
 func (t *Task) Validate() error {
 	if !t.Type.IsValid() {

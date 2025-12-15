@@ -27,3 +27,31 @@ func MapKeyFromSlice[T any, R comparable, Y any](input []T, mapper func(T) (R, Y
 	}
 	return output
 }
+
+// AddValuesToMap adds values from the additions map to the existing values in the map for the corresponding keys.
+func AddValuesToMap[M ~map[K]V, K comparable, V any](m M, additions map[K]V) {
+	for k, v := range additions {
+		AddValueToMap(m, k, v)
+	}
+}
+
+// AddValueToMap adds a value to the existing value in the map for the given key.
+func AddValueToMap[M ~map[K]V, K comparable, V any](m M, key K, addition V) {
+	if existing, ok := m[key]; ok {
+		// m[key] = existing + addition
+		switch v := any(existing).(type) {
+		case int, int8, int16, int32, int64:
+			m[key] = any(v.(int64) + any(addition).(int64)).(V)
+		case uint, uint8, uint16, uint32, uint64:
+			m[key] = any(v.(uint64) + any(addition).(uint64)).(V)
+		case float32, float64:
+			m[key] = any(v.(float64) + any(addition).(float64)).(V)
+		case string:
+			m[key] = any(v + any(addition).(string)).(V)
+		default:
+			// Unsupported type for addition; do nothing or handle error as needed
+		}
+	} else {
+		m[key] = addition
+	}
+}

@@ -1356,6 +1356,450 @@
                 }
             }
         },
+        "/api/v1/alerts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns list of system alerts with filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get system alerts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by category (LOW_CTR_WARNING, MILESTONE_DEADLINE, etc.)",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by severity (INFO, WARNING, CRITICAL)",
+                        "name": "severity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (ACTIVE, ACKNOWLEDGED, RESOLVED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by reference type",
+                        "name": "reference_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by reference ID",
+                        "name": "reference_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (RFC3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter until date (RFC3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AlertsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new system alert",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Raise a new alert",
+                "parameters": [
+                    {
+                        "description": "Alert details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RaiseAlertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AlertResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns counts of alerts by status, severity, and category",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get alert statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AlertStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/unacknowledged-count": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns count of alerts that haven't been acknowledged yet",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get unacknowledged alert count",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns details of a specific alert including acknowledgments",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Get alert details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AlertResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}/acknowledge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks an alert as acknowledged by the current user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Acknowledge an alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Acknowledgment details (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/requests.AcknowledgeAlertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/alerts/{id}/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks an alert as resolved",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Alerts"
+                ],
+                "summary": "Resolve an alert",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Alert ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resolution details (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/requests.ResolveAlertRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/analytics/admin/campaigns": {
             "get": {
                 "security": [
@@ -2817,14 +3261,14 @@
                 }
             }
         },
-        "/api/v1/analytics/content/campaigns": {
+        "/api/v1/analytics/brand-partner/top-rating-products": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns content metrics aggregated by campaign",
+                "description": "Returns top-rated products for the brand partner",
                 "consumes": [
                     "application/json"
                 ],
@@ -2832,38 +3276,227 @@
                     "application/json"
                 ],
                 "tags": [
-                    "Content Staff Analytics"
+                    "Brand Partner Analytics"
                 ],
-                "summary": "Get Campaign Content Metrics",
+                "summary": "Get Brand's Top Rating Products",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
+                        "description": "Start date (ISO 8601 format)",
                         "name": "start_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
+                        "description": "End date (ISO 8601 format)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of products to return (default: 10, max: 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.BrandProductRating"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/content/channels/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns detailed metrics for a specific channel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Dashboard"
+                ],
+                "summary": "Get channel details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Channel ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "THIS_MONTH",
+                        "description": "Period preset",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "DAY",
+                        "description": "Trend granularity (HOUR, DAY, WEEK, MONTH)",
+                        "name": "trend_granularity",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Top content limit",
+                        "name": "top_content_limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Recent content limit",
+                        "name": "recent_content_limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ChannelDetailsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/analytics/contents/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns complete dashboard with metrics, charts, schedules, and alerts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Dashboard"
+                ],
+                "summary": "Get content staff dashboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "LAST_30_DAYS",
+                        "description": "Period preset (TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom start date (YYYY-MM-DD) - required when period=CUSTOM",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom end date (YYYY-MM-DD) - required when period=CUSTOM",
                         "name": "end_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "description": "Filter by specific campaign ID",
+                        "description": "Filter by campaign ID",
                         "name": "campaign_id",
                         "in": "query"
                     },
                     {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Number of results (default: 10, max: 50)",
-                        "name": "limit",
+                        "type": "string",
+                        "description": "Filter by brand ID",
+                        "name": "brand_id",
                         "in": "query"
                     }
                 ],
@@ -2879,10 +3512,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.CampaignContentMetric"
-                                            }
+                                            "$ref": "#/definitions/responses.ContentDashboardResponse"
                                         }
                                     }
                                 }
@@ -2897,562 +3527,6 @@
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/channels": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns top performing channels ranked by total engagement",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Top Channels",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "FACEBOOK",
-                            "TIKTOK",
-                            "INSTAGRAM",
-                            "YOUTUBE"
-                        ],
-                        "type": "string",
-                        "description": "Filter by platform",
-                        "name": "platform",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Number of results (default: 10, max: 50)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.ChannelMetric"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/dashboard": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns comprehensive content dashboard with overview metrics, content status breakdown, platform metrics, top content, top channels, recent content, and engagement trend",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Content Staff Dashboard",
-                "parameters": [
-                    {
-                        "maximum": 2100,
-                        "minimum": 2000,
-                        "type": "integer",
-                        "example": 2025,
-                        "description": "Year (defaults to current year)",
-                        "name": "year",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 12,
-                        "minimum": 1,
-                        "type": "integer",
-                        "example": 11,
-                        "description": "Month (defaults to current month)",
-                        "name": "month",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ContentStaffDashboardResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/platforms": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns content and engagement metrics aggregated by platform (FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Metrics by Platform",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.PlatformMetric"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/status": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns content counts broken down by status (DRAFT, PENDING, APPROVED, REJECTED, POSTED)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Content Status Breakdown",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ContentStatusBreakdown"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/top": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns top performing content ranked by views",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Top Content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "FACEBOOK",
-                            "TIKTOK",
-                            "INSTAGRAM",
-                            "YOUTUBE"
-                        ],
-                        "type": "string",
-                        "description": "Filter by platform",
-                        "name": "platform",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Number of results (default: 10, max: 50)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.ContentMetric"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/analytics/content/trend": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns engagement time-series data with configurable granularity (DAY, WEEK, MONTH)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Staff Analytics"
-                ],
-                "summary": "Get Engagement Trend",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Start date (RFC3339 format)",
-                        "name": "start_date",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "End date (RFC3339 format)",
-                        "name": "end_date",
-                        "in": "query"
-                    },
-                    {
-                        "enum": [
-                            "DAY",
-                            "WEEK",
-                            "MONTH"
-                        ],
-                        "type": "string",
-                        "default": "DAY",
-                        "description": "Time bucket granularity",
-                        "name": "granularity",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.EngagementTrendPoint"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -6971,6 +7045,68 @@
                         }
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a new product category",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Categories"
+                ],
+                "summary": "Update a product category",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Category ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update category payload",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProductCategoryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ProductCategoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/categories/{id}/parent": {
@@ -7345,8 +7481,14 @@
                     },
                     {
                         "type": "string",
-                        "description": "Search term",
+                        "description": "Search by name",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "DANGLING (DEFAULT) | ATTACHED | ALL ",
+                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -7416,6 +7558,62 @@
             }
         },
         "/api/v1/concepts/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update existed concept",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Concepts"
+                ],
+                "summary": "Update Concept",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Concept ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Concept payload",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateConceptRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -7781,6 +7979,397 @@
                     },
                     "500": {
                         "description": "Failed to retrieve status",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-schedules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns list of content schedules with filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "List content schedules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by content channel ID",
+                        "name": "content_channel_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter schedules from this date (RFC3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter schedules until this date (RFC3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ScheduleListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a schedule for content to be published at a specific time",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Schedule content for future publishing",
+                "parameters": [
+                    {
+                        "description": "Schedule request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ScheduleContentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-schedules/upcoming": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns content scheduled for the next N days",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Get upcoming scheduled content",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 7,
+                        "description": "Number of days to look ahead",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ScheduledContentItem"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-schedules/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns details of a specific schedule",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Get schedule details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ScheduleItemResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-schedules/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cancels a pending schedule",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Cancel a scheduled content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/content-schedules/{id}/reschedule": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the scheduled time for content publishing",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Reschedule content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Schedule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reschedule request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RescheduleContentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -8311,6 +8900,82 @@
                 }
             }
         },
+        "/api/v1/contents/{content_id}/schedules/batch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates schedules for content to be published to multiple channels at specific times",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Scheduling"
+                ],
+                "summary": "Batch schedule content to multiple channels",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content ID",
+                        "name": "content_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Batch schedule request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.BatchScheduleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.BatchScheduleResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contents/{id}": {
             "get": {
                 "security": [
@@ -8654,6 +9319,203 @@
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contents/{id}/engagement": {
+            "get": {
+                "description": "Returns engagement summary (reactions, comments, shares) for a specific content on website channel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Engagement"
+                ],
+                "summary": "Get engagement summary for content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.WebsiteEngagementSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Unified endpoint for all content engagement actions on website channel.\nSupported actions: add_reaction, remove_reaction, share, add_comment, edit_comment, delete_comment, add_comment_reaction, remove_comment_reaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Engagement"
+                ],
+                "summary": "Record content engagement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Engagement request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ContentEngagementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ContentEngagementResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contents/{id}/engagement/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns whether the current user has liked/shared the content",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Content Engagement"
+                ],
+                "summary": "Get user's engagement status on content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.UserEngagementStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -11609,6 +12471,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger Content Metrics Poller Job",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11655,6 +12525,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger CTR Aggregation Job",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11701,6 +12579,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger Expired Link Cleanup Job",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11747,6 +12633,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger PayOS Expiry Check Job",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11793,52 +12687,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger Pre-Order Opening Check Job",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/jobs/social-metrics-poller": {
-            "post": {
-                "security": [
+                "parameters": [
                     {
-                        "BearerAuth": []
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
                     }
                 ],
-                "description": "Manually trigger the social metrics poller job",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Jobs"
-                ],
-                "summary": "Trigger Social Metrics Poller Job",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -11885,6 +12741,14 @@
                     "Jobs"
                 ],
                 "summary": "Trigger TikTok Status Poller Job",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -16362,7 +17226,7 @@
                 }
             }
         },
-        "/api/v1/products/limited/{limited-id}/concept/{concept-id}": {
+        "/api/v1/products/limited/{limited-id}/concept": {
             "post": {
                 "security": [
                     {
@@ -16391,8 +17255,8 @@
                     {
                         "type": "string",
                         "description": "Concept ID (UUID)",
-                        "name": "concept-id",
-                        "in": "path"
+                        "name": "concept_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -16647,9 +17511,45 @@
                     },
                     {
                         "type": "integer",
-                        "default": 0,
-                        "description": "Items to skip",
-                        "name": "offset",
+                        "default": 1,
+                        "description": "Page",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Min rating",
+                        "name": "rating_stars_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max rating",
+                        "name": "rating_stars_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "created_at | rating_stars",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc | desc",
+                        "name": "order_direction",
                         "in": "query"
                     }
                 ],
@@ -16673,6 +17573,121 @@
                                 },
                                 "total": {
                                     "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/staff/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Staff retrieves product reviews with filters and pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products"
+                ],
+                "summary": "Get paginated product reviews (Staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Brand ID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "product_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "From date (YYYY-MM-DD)",
+                        "name": "from_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "To date (YYYY-MM-DD)",
+                        "name": "to_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Min rating",
+                        "name": "rating_stars_min",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max rating",
+                        "name": "rating_stars_max",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "created_at | rating_stars",
+                        "name": "order_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "asc | desc",
+                        "name": "order_direction",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductReviewResponseStaff"
+                                    }
+                                },
+                                "pagination": {
+                                    "$ref": "#/definitions/responses.Pagination"
                                 }
                             }
                         }
@@ -16878,6 +17893,76 @@
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/products/variants/images/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete Image Of a product variant",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Variants"
+                ],
+                "summary": "Delete Variant Image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Variant image ID (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.VariantImageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -17317,7 +18402,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.UpdateTaskStateRequest"
+                            "$ref": "#/definitions/handler.UpdateProductStateRequest"
                         }
                     }
                 ],
@@ -21739,6 +22824,82 @@
                 "AffiliateLinkStatusExpired"
             ]
         },
+        "enum.AlertCategory": {
+            "type": "string",
+            "enum": [
+                "CONTENT_REJECTED",
+                "CONTENT_PUBLISH_FAILED",
+                "LOW_CTR",
+                "LOW_ENGAGEMENT",
+                "SCHEDULE_FAILED",
+                "PENDING_APPROVAL",
+                "DEADLINE_APPROACHING",
+                "MILESTONE_DEADLINE",
+                "CAMPAIGN_DEADLINE",
+                "BUDGET_EXCEEDED",
+                "ORDER_ISSUE",
+                "PAYMENT_OVERDUE",
+                "SYSTEM_HEALTH",
+                "SECURITY_ISSUE"
+            ],
+            "x-enum-varnames": [
+                "AlertCategoryContentRejected",
+                "AlertCategoryContentPublishFailed",
+                "AlertCategoryLowCTR",
+                "AlertCategoryLowEngagement",
+                "AlertCategoryScheduleFailed",
+                "AlertCategoryPendingApproval",
+                "AlertCategoryDeadlineApproaching",
+                "AlertCategoryMilestoneDeadline",
+                "AlertCategoryCampaignDeadline",
+                "AlertCategoryBudgetExceeded",
+                "AlertCategoryOrderIssue",
+                "AlertCategoryPaymentOverdue",
+                "AlertCategorySystemHealth",
+                "AlertCategorySecurityIssue"
+            ]
+        },
+        "enum.AlertSeverity": {
+            "type": "string",
+            "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL"
+            ],
+            "x-enum-varnames": [
+                "AlertSeverityLow",
+                "AlertSeverityMedium",
+                "AlertSeverityHigh",
+                "AlertSeverityCritical"
+            ]
+        },
+        "enum.AlertStatus": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "RESOLVED",
+                "EXPIRED"
+            ],
+            "x-enum-varnames": [
+                "AlertStatusActive",
+                "AlertStatusResolved",
+                "AlertStatusExpired"
+            ]
+        },
+        "enum.AlertType": {
+            "type": "string",
+            "enum": [
+                "WARNING",
+                "ERROR",
+                "INFO"
+            ],
+            "x-enum-varnames": [
+                "AlertTypeWarning",
+                "AlertTypeError",
+                "AlertTypeInfo"
+            ]
+        },
         "enum.AttributeUnit": {
             "type": "string",
             "enum": [
@@ -22113,6 +23274,50 @@
                 "ProductTypeLimited"
             ]
         },
+        "enum.ReactionType": {
+            "type": "string",
+            "enum": [
+                "LIKE",
+                "LOVE",
+                "WOW",
+                "HAHA",
+                "SAD",
+                "ANGRY",
+                "THANKFUL"
+            ],
+            "x-enum-varnames": [
+                "ReactionTypeLike",
+                "ReactionTypeLove",
+                "ReactionTypeWow",
+                "ReactionTypeHaha",
+                "ReactionTypeSad",
+                "ReactionTypeAngry",
+                "ReactionTypeThankful"
+            ]
+        },
+        "enum.ReferenceType": {
+            "type": "string",
+            "enum": [
+                "CONTENT",
+                "SCHEDULE",
+                "MILESTONE",
+                "CAMPAIGN",
+                "CONTRACT",
+                "ORDER",
+                "USER",
+                "BRAND"
+            ],
+            "x-enum-varnames": [
+                "ReferenceTypeContent",
+                "ReferenceTypeSchedule",
+                "ReferenceTypeMilestone",
+                "ReferenceTypeCampaign",
+                "ReferenceTypeContract",
+                "ReferenceTypeOrder",
+                "ReferenceTypeUser",
+                "ReferenceTypeBrand"
+            ]
+        },
         "enum.TaskType": {
             "type": "string",
             "enum": [
@@ -22213,6 +23418,32 @@
                         "ON_GOING",
                         "CANCELLED",
                         "COMPLETED"
+                    ]
+                }
+            }
+        },
+        "handler.UpdateProductStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "Reason only require when request revision",
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Reason for state change"
+                },
+                "state": {
+                    "description": "State is the desired target state.\nEnum: DRAFT,SUBMITTED,REVISION,APPROVED,ACTIVED,INACTIVED\nexample: SUBMITTED",
+                    "type": "string",
+                    "enum": [
+                        "DRAFT",
+                        "SUBMITTED",
+                        "REVISION",
+                        "APPROVED",
+                        "ACTIVED",
+                        "INACTIVED"
                     ]
                 }
             }
@@ -22487,9 +23718,6 @@
                 "id": {
                     "type": "string"
                 },
-                "is_review": {
-                    "type": "boolean"
-                },
                 "is_self_picked_up": {
                     "type": "boolean"
                 },
@@ -22620,6 +23848,9 @@
                 "instructions": {
                     "type": "string"
                 },
+                "is_reviewed": {
+                    "type": "boolean"
+                },
                 "length": {
                     "description": "in centimeters",
                     "type": "integer"
@@ -22696,6 +23927,9 @@
         "model.Product": {
             "type": "object",
             "properties": {
+                "average_rating": {
+                    "type": "number"
+                },
                 "brand_id": {
                     "type": "string"
                 },
@@ -22746,12 +23980,7 @@
                     "type": "string"
                 },
                 "type": {
-                    "description": "CurrentStock *int               `json:\"current_stock\" gorm:\"column:current_stock\"`",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.ProductType"
-                        }
-                    ]
+                    "$ref": "#/definitions/enum.ProductType"
                 },
                 "updated_at": {
                     "type": "string"
@@ -23049,6 +24278,53 @@
                 }
             }
         },
+        "requests.AcknowledgeAlertRequest": {
+            "type": "object",
+            "properties": {
+                "notes": {
+                    "type": "string",
+                    "maxLength": 1000
+                }
+            }
+        },
+        "requests.BatchScheduleItem": {
+            "type": "object",
+            "required": [
+                "channel_id",
+                "scheduled_at"
+            ],
+            "properties": {
+                "auto_post": {
+                    "description": "For FB/TikTok auto-publishing",
+                    "type": "boolean"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.BatchScheduleRequest": {
+            "type": "object",
+            "required": [
+                "content_id",
+                "schedules"
+            ],
+            "properties": {
+                "content_id": {
+                    "type": "string"
+                },
+                "schedules": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/requests.BatchScheduleItem"
+                    }
+                }
+            }
+        },
         "requests.BlogFieldsDTO": {
             "type": "object",
             "required": [
@@ -23296,12 +24572,10 @@
                 },
                 "description": {
                     "type": "string",
-                    "maxLength": 1000,
                     "example": "Concept description"
                 },
                 "name": {
                     "type": "string",
-                    "maxLength": 255,
                     "minLength": 1,
                     "example": "Concept Name"
                 },
@@ -23319,6 +24593,77 @@
             "properties": {
                 "webhook_url": {
                     "type": "string"
+                }
+            }
+        },
+        "requests.ContentEngagementAction": {
+            "type": "string",
+            "enum": [
+                "add_reaction",
+                "remove_reaction",
+                "share",
+                "add_comment",
+                "edit_comment",
+                "delete_comment",
+                "add_comment_reaction",
+                "remove_comment_reaction"
+            ],
+            "x-enum-varnames": [
+                "EngagementActionAddReaction",
+                "EngagementActionRemoveReaction",
+                "EngagementActionShare",
+                "EngagementActionAddComment",
+                "EngagementActionEditComment",
+                "EngagementActionDeleteComment",
+                "EngagementActionAddCommentReaction",
+                "EngagementActionRemoveCommentReaction"
+            ]
+        },
+        "requests.ContentEngagementRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "enum": [
+                        "add_reaction",
+                        "remove_reaction",
+                        "share",
+                        "add_comment",
+                        "edit_comment",
+                        "delete_comment",
+                        "add_comment_reaction",
+                        "remove_comment_reaction"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/requests.ContentEngagementAction"
+                        }
+                    ]
+                },
+                "comment_id": {
+                    "type": "string"
+                },
+                "comment_text": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "reaction_type": {
+                    "enum": [
+                        "LIKE",
+                        "LOVE",
+                        "WOW",
+                        "HAHA",
+                        "SAD",
+                        "ANGRY",
+                        "THANKFUL"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ReactionType"
+                        }
+                    ]
                 }
             }
         },
@@ -24694,6 +26039,59 @@
                 }
             }
         },
+        "requests.RaiseAlertRequest": {
+            "type": "object",
+            "required": [
+                "category",
+                "description",
+                "severity",
+                "target_roles",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "action_url": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/enum.AlertCategory"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 1
+                },
+                "expires_in_hours": {
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
+                "severity": {
+                    "$ref": "#/definitions/enum.AlertSeverity"
+                },
+                "target_roles": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/enum.UserRole"
+                    }
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.AlertType"
+                }
+            }
+        },
         "requests.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -24773,6 +26171,17 @@
                 }
             }
         },
+        "requests.RescheduleContentRequest": {
+            "type": "object",
+            "required": [
+                "scheduled_at"
+            ],
+            "properties": {
+                "scheduled_at": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.ResetPasswordRequest": {
             "type": "object",
             "required": [
@@ -24789,6 +26198,30 @@
                     "minLength": 8
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.ResolveAlertRequest": {
+            "type": "object",
+            "properties": {
+                "resolution": {
+                    "type": "string",
+                    "maxLength": 2000
+                }
+            }
+        },
+        "requests.ScheduleContentRequest": {
+            "type": "object",
+            "required": [
+                "content_channel_id",
+                "scheduled_at"
+            ],
+            "properties": {
+                "content_channel_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
                     "type": "string"
                 }
             }
@@ -25066,6 +26499,27 @@
                 }
             }
         },
+        "requests.UpdateConceptRequest": {
+            "type": "object",
+            "properties": {
+                "banner_url": {
+                    "type": "string",
+                    "example": "https://example.com/banner.jpg"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Concept description"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Concept Name"
+                },
+                "video_thumbnail": {
+                    "type": "string",
+                    "example": "https://example.com/thumbnail.jpg"
+                }
+            }
+        },
         "requests.UpdateContentRequest": {
             "type": "object",
             "properties": {
@@ -25287,6 +26741,11 @@
         "requests.UpdateLimitedProductRequest": {
             "type": "object",
             "properties": {
+                "achievable_quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
                 "availability_end_date": {
                     "type": "string",
                     "example": "2023-10-31T10:00"
@@ -25440,6 +26899,20 @@
                     "type": "integer",
                     "minimum": 0,
                     "example": 5
+                }
+            }
+        },
+        "requests.UpdateProductCategoryRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_category_id": {
+                    "type": "string"
                 }
             }
         },
@@ -25764,6 +27237,26 @@
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "responses.AcknowledgmentDTO": {
+            "type": "object",
+            "properties": {
+                "acknowledged_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -26094,6 +27587,270 @@
                 }
             }
         },
+        "responses.AffiliateStatsResponse": {
+            "type": "object",
+            "properties": {
+                "ctr": {
+                    "description": "float64 or \"N/A\""
+                },
+                "has_links": {
+                    "type": "boolean"
+                },
+                "total_clicks": {
+                    "type": "integer"
+                },
+                "total_links": {
+                    "type": "integer"
+                },
+                "unique_users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.AlertItem": {
+            "type": "object",
+            "properties": {
+                "action_url": {
+                    "type": "string"
+                },
+                "category": {
+                    "description": "\"LOW_CTR\", \"CONTENT_REJECTED\", etc.",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "type": "string"
+                },
+                "severity": {
+                    "description": "\"LOW\", \"MEDIUM\", \"HIGH\", \"CRITICAL\"",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"WARNING\", \"ERROR\", \"INFO\"",
+                    "type": "string"
+                }
+            }
+        },
+        "responses.AlertResponse": {
+            "type": "object",
+            "properties": {
+                "acknowledged_at": {
+                    "type": "string"
+                },
+                "acknowledgments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AcknowledgmentDTO"
+                    }
+                },
+                "auto_resolve_at": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/enum.AlertCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
+                "resolved_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/enum.AlertSeverity"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.AlertStatus"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.AlertStatsResponse": {
+            "type": "object",
+            "properties": {
+                "by_category": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "by_severity": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "recent_alerts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AlertSummaryResponse"
+                    }
+                },
+                "total_acknowledged": {
+                    "type": "integer"
+                },
+                "total_active": {
+                    "type": "integer"
+                },
+                "total_resolved": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.AlertSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "$ref": "#/definitions/enum.AlertCategory"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/enum.AlertSeverity"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.AlertsResponse": {
+            "type": "object",
+            "properties": {
+                "alerts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AlertItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unread_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BarChartDataPoint": {
+            "type": "object",
+            "properties": {
+                "engagement": {
+                    "type": "integer"
+                },
+                "label": {
+                    "description": "Channel name",
+                    "type": "string"
+                },
+                "reach": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BatchScheduleFailureItem": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.BatchScheduleResponse": {
+            "type": "object",
+            "properties": {
+                "content_id": {
+                    "type": "string"
+                },
+                "content_title": {
+                    "type": "string"
+                },
+                "failed_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BatchScheduleFailureItem"
+                    }
+                },
+                "scheduled_channels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BatchScheduleResultItem"
+                    }
+                },
+                "total_failed": {
+                    "type": "integer"
+                },
+                "total_scheduled": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.BatchScheduleResultItem": {
+            "type": "object",
+            "properties": {
+                "auto_post": {
+                    "type": "boolean"
+                },
+                "channel_code": {
+                    "type": "string"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "schedule_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.BlogResponse": {
             "type": "object",
             "properties": {
@@ -26413,9 +28170,24 @@
                     }
                 },
                 "top_products": {
+                    "description": "By Revenue",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/responses.BrandProductMetric"
+                    }
+                },
+                "top_rating_products": {
+                    "description": "By Average Rating",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandProductRating"
+                    }
+                },
+                "top_sold_products": {
+                    "description": "By Units Sold",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BrandTopSoldProducts"
                     }
                 }
             }
@@ -26447,6 +28219,26 @@
                 },
                 "units_sold": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.BrandProductRating": {
+            "type": "object",
+            "properties": {
+                "average_rating": {
+                    "type": "number"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },
@@ -26618,31 +28410,22 @@
                 }
             }
         },
-        "responses.CampaignContentMetric": {
+        "responses.BrandTopSoldProducts": {
             "type": "object",
             "properties": {
-                "campaign_id": {
+                "product_id": {
                     "type": "string"
                 },
-                "campaign_name": {
+                "product_name": {
                     "type": "string"
                 },
-                "content_count": {
+                "rank": {
                     "type": "integer"
                 },
-                "draft_count": {
-                    "type": "integer"
+                "total_revenue": {
+                    "type": "number"
                 },
-                "pending_count": {
-                    "type": "integer"
-                },
-                "posted_count": {
-                    "type": "integer"
-                },
-                "total_engagements": {
-                    "type": "integer"
-                },
-                "total_views": {
+                "total_sold": {
                     "type": "integer"
                 }
             }
@@ -26905,6 +28688,109 @@
                 }
             }
         },
+        "responses.ChannelDetailsResponse": {
+            "type": "object",
+            "properties": {
+                "affiliate_stats": {
+                    "description": "Affiliate statistics (if channel has affiliate links)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.AffiliateStatsResponse"
+                        }
+                    ]
+                },
+                "channel": {
+                    "description": "Channel information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ChannelInfo"
+                        }
+                    ]
+                },
+                "content_trend": {
+                    "description": "Content trend over time (posts count)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentTrendPoint"
+                    }
+                },
+                "engagement_trend": {
+                    "description": "Engagement trend over time",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.DashboardTimeSeriesPoint"
+                    }
+                },
+                "fetched_metrics": {
+                    "description": "Raw fetched metrics from platform (FB/TikTok only)",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "followers_count": {
+                    "description": "Followers count and trend",
+                    "type": "integer"
+                },
+                "followers_trend": {
+                    "$ref": "#/definitions/responses.TrendIndicator"
+                },
+                "mapped_metrics": {
+                    "description": "Standardized mapped metrics",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "period": {
+                    "description": "Period information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.DashboardPeriodInfo"
+                        }
+                    ]
+                },
+                "recent_content": {
+                    "description": "Recent content for this channel",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelRecentContentItem"
+                    }
+                },
+                "top_content": {
+                    "description": "Top performing content for this channel",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentPerformanceItem"
+                    }
+                }
+            }
+        },
+        "responses.ChannelInfo": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "home_page_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "token_info": {
+                    "$ref": "#/definitions/responses.TokenInfo"
+                }
+            }
+        },
         "responses.ChannelListResponse": {
             "type": "object",
             "properties": {
@@ -26928,47 +28814,6 @@
                 },
                 "success": {
                     "type": "boolean"
-                }
-            }
-        },
-        "responses.ChannelMetric": {
-            "type": "object",
-            "properties": {
-                "channel_id": {
-                    "type": "string"
-                },
-                "channel_name": {
-                    "type": "string"
-                },
-                "content_count": {
-                    "type": "integer"
-                },
-                "engagement_rate": {
-                    "type": "number"
-                },
-                "owner_name": {
-                    "type": "string"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "integer"
-                },
-                "total_comments": {
-                    "type": "integer"
-                },
-                "total_engagements": {
-                    "type": "integer"
-                },
-                "total_likes": {
-                    "type": "integer"
-                },
-                "total_shares": {
-                    "type": "integer"
-                },
-                "total_views": {
-                    "type": "integer"
                 }
             }
         },
@@ -26998,6 +28843,67 @@
                 }
             }
         },
+        "responses.ChannelMetricsCard": {
+            "type": "object",
+            "properties": {
+                "channel_code": {
+                    "description": "\"WEBSITE\", \"FACEBOOK\", \"TIKTOK\"",
+                    "type": "string"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "ctr": {
+                    "type": "number"
+                },
+                "engagement_growth": {
+                    "type": "number"
+                },
+                "fetched_metrics": {
+                    "description": "Raw platform metrics",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "followers_count": {
+                    "description": "Channel followers/subscribers",
+                    "type": "integer"
+                },
+                "followers_trend": {
+                    "description": "Followers change vs previous period",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.TrendIndicator"
+                        }
+                    ]
+                },
+                "mapped_metrics": {
+                    "description": "Standardized KPI values",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "post_count": {
+                    "type": "integer"
+                },
+                "reach_growth": {
+                    "type": "number"
+                },
+                "top_post": {
+                    "$ref": "#/definitions/responses.TopPostBrief"
+                },
+                "total_engagement": {
+                    "type": "integer"
+                },
+                "total_reach": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.ChannelMetricsResponse": {
             "type": "object",
             "properties": {
@@ -27009,6 +28915,32 @@
                 },
                 "period": {
                     "$ref": "#/definitions/responses.PeriodInfo"
+                }
+            }
+        },
+        "responses.ChannelRecentContentItem": {
+            "type": "object",
+            "properties": {
+                "content_id": {
+                    "type": "string"
+                },
+                "engagement": {
+                    "type": "integer"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
                 }
             }
         },
@@ -27074,6 +29006,39 @@
                 "refresh_token_expires_at": {
                     "type": "string",
                     "example": "2024-12-31 23:59:59"
+                }
+            }
+        },
+        "responses.ChartsSection": {
+            "type": "object",
+            "properties": {
+                "channel_distribution": {
+                    "description": "Pie chart: Content distribution by channel (posts per channel)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PieChartDataPoint"
+                    }
+                },
+                "content_type_distribution": {
+                    "description": "Pie chart: Content type distribution (kept for backwards compatibility)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PieChartDataPoint"
+                    }
+                },
+                "reach_by_channel": {
+                    "description": "Bar chart: Reach \u0026 Engagement by Channel",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.BarChartDataPoint"
+                    }
+                },
+                "trend_data": {
+                    "description": "Line chart: Trend over time",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.DashboardTimeSeriesPoint"
+                    }
                 }
             }
         },
@@ -27149,6 +29114,117 @@
                 }
             }
         },
+        "responses.ContentCommentResponse": {
+            "type": "object",
+            "properties": {
+                "censor_reason": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_censored": {
+                    "type": "boolean"
+                },
+                "is_edit": {
+                    "type": "boolean"
+                },
+                "reactions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                }
+            }
+        },
+        "responses.ContentDashboardResponse": {
+            "type": "object",
+            "properties": {
+                "alerts": {
+                    "description": "Active alerts for content staff",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AlertItem"
+                    }
+                },
+                "bottom_content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentPerformanceItem"
+                    }
+                },
+                "channel_metrics": {
+                    "description": "Channel metrics cards (Website, Facebook, TikTok)",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ChannelMetricsCard"
+                    }
+                },
+                "charts": {
+                    "description": "Charts section",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ChartsSection"
+                        }
+                    ]
+                },
+                "period": {
+                    "description": "Filter info",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.DashboardPeriodInfo"
+                        }
+                    ]
+                },
+                "quick_stats": {
+                    "description": "Quick stats section",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.QuickStatsSection"
+                        }
+                    ]
+                },
+                "top_content": {
+                    "description": "Content performance lists",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentPerformanceItem"
+                    }
+                },
+                "upcoming_schedule": {
+                    "description": "Upcoming scheduled content",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ScheduledContentItem"
+                    }
+                }
+            }
+        },
+        "responses.ContentEngagementResponse": {
+            "type": "object",
+            "properties": {
+                "comment_id": {
+                    "description": "For add_comment action",
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "$ref": "#/definitions/responses.WebsiteEngagementSummary"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "responses.ContentInfo": {
             "type": "object",
             "properties": {
@@ -27213,96 +29289,6 @@
                 }
             }
         },
-        "responses.ContentMetric": {
-            "type": "object",
-            "properties": {
-                "campaign_name": {
-                    "type": "string"
-                },
-                "channel_name": {
-                    "type": "string"
-                },
-                "clicks": {
-                    "description": "Affiliate link clicks",
-                    "type": "integer"
-                },
-                "comments": {
-                    "type": "integer"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "engagement_rate": {
-                    "type": "number"
-                },
-                "likes": {
-                    "type": "integer"
-                },
-                "platform": {
-                    "type": "string"
-                },
-                "posted_at": {
-                    "type": "string"
-                },
-                "rank": {
-                    "type": "integer"
-                },
-                "shares": {
-                    "type": "integer"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "views": {
-                    "type": "integer"
-                }
-            }
-        },
-        "responses.ContentOverviewMetrics": {
-            "type": "object",
-            "properties": {
-                "draft_content": {
-                    "description": "Content in draft",
-                    "type": "integer"
-                },
-                "engagement_growth": {
-                    "description": "Percentage change",
-                    "type": "number"
-                },
-                "engagement_rate": {
-                    "description": "Engagement rate percentage",
-                    "type": "number"
-                },
-                "pending_content": {
-                    "description": "Content awaiting approval/posting",
-                    "type": "integer"
-                },
-                "posted_content": {
-                    "description": "Content with status POSTED",
-                    "type": "integer"
-                },
-                "total_clicks": {
-                    "description": "From affiliate links",
-                    "type": "integer"
-                },
-                "total_content": {
-                    "description": "Total content pieces created",
-                    "type": "integer"
-                },
-                "total_engagements": {
-                    "description": "Sum of likes + comments + shares",
-                    "type": "integer"
-                },
-                "total_views": {
-                    "description": "Sum of all content views",
-                    "type": "integer"
-                },
-                "view_growth": {
-                    "description": "Percentage change from previous period",
-                    "type": "number"
-                }
-            }
-        },
         "responses.ContentPaginationResponse": {
             "type": "object",
             "properties": {
@@ -27326,6 +29312,45 @@
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "responses.ContentPerformanceItem": {
+            "type": "object",
+            "properties": {
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "ctr": {
+                    "type": "number"
+                },
+                "engagement": {
+                    "type": "integer"
+                },
+                "performance_score": {
+                    "type": "number"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "rank": {
+                    "type": "integer"
+                },
+                "thumbnail": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"POST\", \"VIDEO\"",
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
                 }
             }
         },
@@ -27380,69 +29405,13 @@
                 }
             }
         },
-        "responses.ContentStaffDashboardResponse": {
+        "responses.ContentTrendPoint": {
             "type": "object",
             "properties": {
-                "content_status_breakdown": {
-                    "$ref": "#/definitions/responses.ContentStatusBreakdown"
+                "date": {
+                    "type": "string"
                 },
-                "engagement_trend": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.EngagementTrendPoint"
-                    }
-                },
-                "overview": {
-                    "$ref": "#/definitions/responses.ContentOverviewMetrics"
-                },
-                "period": {
-                    "$ref": "#/definitions/responses.PeriodInfo"
-                },
-                "platform_metrics": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.PlatformMetric"
-                    }
-                },
-                "recent_content": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.RecentContentItem"
-                    }
-                },
-                "top_channels": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ChannelMetric"
-                    }
-                },
-                "top_content": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ContentMetric"
-                    }
-                }
-            }
-        },
-        "responses.ContentStatusBreakdown": {
-            "type": "object",
-            "properties": {
-                "approved_count": {
-                    "type": "integer"
-                },
-                "draft_count": {
-                    "type": "integer"
-                },
-                "pending_count": {
-                    "type": "integer"
-                },
-                "posted_count": {
-                    "type": "integer"
-                },
-                "rejected_count": {
-                    "type": "integer"
-                },
-                "total_count": {
+                "posts": {
                     "type": "integer"
                 }
             }
@@ -27925,6 +29894,55 @@
                 }
             }
         },
+        "responses.DashboardPeriodInfo": {
+            "type": "object",
+            "properties": {
+                "compare_label": {
+                    "description": "\"vs Last Month\"",
+                    "type": "string"
+                },
+                "current_end": {
+                    "type": "string"
+                },
+                "current_start": {
+                    "type": "string"
+                },
+                "preset_label": {
+                    "description": "\"This Month\", \"Last Week\", etc.",
+                    "type": "string"
+                },
+                "previous_end": {
+                    "type": "string"
+                },
+                "previous_start": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.DashboardTimeSeriesPoint": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "engagements": {
+                    "description": "Total",
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "shares": {
+                    "type": "integer"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.DeviceTokenListResponse": {
             "type": "object",
             "properties": {
@@ -28037,30 +30055,6 @@
                 },
                 "WhiteListClient": {},
                 "WhiteListDistrict": {}
-            }
-        },
-        "responses.EngagementTrendPoint": {
-            "type": "object",
-            "properties": {
-                "comments": {
-                    "type": "integer"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "engagements": {
-                    "description": "Total: likes + comments + shares",
-                    "type": "integer"
-                },
-                "likes": {
-                    "type": "integer"
-                },
-                "shares": {
-                    "type": "integer"
-                },
-                "views": {
-                    "type": "integer"
-                }
             }
         },
         "responses.FileDetailResponse": {
@@ -28426,6 +30420,29 @@
                 }
             }
         },
+        "responses.MetricWithGrowth": {
+            "type": "object",
+            "properties": {
+                "compare_label": {
+                    "description": "\"vs last month\"",
+                    "type": "string"
+                },
+                "growth": {
+                    "description": "Percentage change",
+                    "type": "number"
+                },
+                "growth_status": {
+                    "description": "\"up\", \"down\", \"stable\"",
+                    "type": "string"
+                },
+                "previous_value": {
+                    "description": "Value from previous period"
+                },
+                "value": {
+                    "description": "int64, float64"
+                }
+            }
+        },
         "responses.MilestoneResponse": {
             "type": "object",
             "properties": {
@@ -28650,7 +30667,6 @@
                     "type": "string"
                 },
                 "images": {
-                    "description": "Relationships",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/responses.OrderItemImage"
@@ -28658,6 +30674,9 @@
                 },
                 "instructions": {
                     "type": "string"
+                },
+                "is_reviewed": {
+                    "type": "boolean"
                 },
                 "length": {
                     "type": "integer"
@@ -28678,6 +30697,14 @@
                 "quantity": {
                     "type": "integer"
                 },
+                "review": {
+                    "description": "Relationships",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.OrderItemReview"
+                        }
+                    ]
+                },
                 "subtotal": {
                     "type": "number"
                 },
@@ -28692,6 +30719,29 @@
                 },
                 "width": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.OrderItemReview": {
+            "type": "object",
+            "properties": {
+                "assets_url": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "rating_stars": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -29216,35 +31266,19 @@
                 }
             }
         },
-        "responses.PlatformMetric": {
+        "responses.PieChartDataPoint": {
             "type": "object",
             "properties": {
-                "content_count": {
-                    "description": "Number of contents on this platform",
-                    "type": "integer"
-                },
-                "engagement_rate": {
-                    "description": "(likes + comments + shares) / views * 100",
-                    "type": "number"
-                },
-                "platform": {
-                    "description": "FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE",
+                "label": {
+                    "description": "\"Blog Post\", \"Video\"",
                     "type": "string"
                 },
-                "total_clicks": {
-                    "description": "Affiliate link clicks",
-                    "type": "integer"
+                "ratio": {
+                    "description": "Percentage",
+                    "type": "number"
                 },
-                "total_comments": {
-                    "type": "integer"
-                },
-                "total_likes": {
-                    "type": "integer"
-                },
-                "total_shares": {
-                    "type": "integer"
-                },
-                "total_views": {
+                "value": {
+                    "description": "Count",
                     "type": "integer"
                 }
             }
@@ -29272,6 +31306,31 @@
                 },
                 "total_revenue": {
                     "type": "number"
+                }
+            }
+        },
+        "responses.PostingFrequencyMetric": {
+            "type": "object",
+            "properties": {
+                "actual": {
+                    "description": "Posts actually published",
+                    "type": "integer"
+                },
+                "expected": {
+                    "description": "Expected posts based on schedule",
+                    "type": "integer"
+                },
+                "ratio": {
+                    "description": "actual / expected",
+                    "type": "number"
+                },
+                "source": {
+                    "description": "\"schedule\", \"tasks\", \"average\" - where expected came from",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"on_track\", \"behind\", \"ahead\"",
+                    "type": "string"
                 }
             }
         },
@@ -29358,6 +31417,9 @@
                 },
                 "instructions": {
                     "type": "string"
+                },
+                "is_reviewed": {
+                    "type": "boolean"
                 },
                 "is_self_picked_up": {
                     "type": "boolean"
@@ -29621,6 +31683,9 @@
         "responses.ProductResponseV2": {
             "type": "object",
             "properties": {
+                "average_rating": {
+                    "type": "number"
+                },
                 "brand_id": {
                     "type": "string"
                 },
@@ -29667,12 +31732,7 @@
                     }
                 },
                 "type": {
-                    "description": "Price        float64                   `json:\"price\"`",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.ProductType"
-                        }
-                    ]
+                    "$ref": "#/definitions/enum.ProductType"
                 },
                 "updated_at": {
                     "type": "string"
@@ -29685,6 +31745,71 @@
                     "items": {
                         "$ref": "#/definitions/responses.ProductVariantResponse"
                     }
+                }
+            }
+        },
+        "responses.ProductReviewContent": {
+            "type": "object",
+            "properties": {
+                "assets_url": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "rating_stars": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ProductReviewProductInfo": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "$ref": "#/definitions/responses.BrandResponse"
+                },
+                "capacity_unit": {
+                    "$ref": "#/definitions/enum.CapacityUnit"
+                },
+                "category": {
+                    "$ref": "#/definitions/responses.ProductCategoryResponse"
+                },
+                "container_type": {
+                    "$ref": "#/definitions/enum.ContainerType"
+                },
+                "dispenser_type": {
+                    "$ref": "#/definitions/enum.DispenserType"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "length": {
+                    "type": "integer"
+                },
+                "limited_info": {
+                    "$ref": "#/definitions/responses.LimitedProductResponse"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "description": "Product stats",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ProductType"
+                },
+                "weight": {
+                    "type": "integer"
+                },
+                "width": {
+                    "type": "integer"
                 }
             }
         },
@@ -29716,6 +31841,40 @@
                     "type": "integer"
                 },
                 "type": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ProductReviewResponseStaff": {
+            "type": "object",
+            "properties": {
+                "product": {
+                    "$ref": "#/definitions/responses.ProductReviewProductInfo"
+                },
+                "review_content": {
+                    "$ref": "#/definitions/responses.ProductReviewContent"
+                },
+                "user_info": {
+                    "$ref": "#/definitions/responses.ProductReviewUserInfo"
+                }
+            }
+        },
+        "responses.ProductReviewUserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "user_id": {
@@ -29903,7 +32062,10 @@
                 },
                 "metrics": {
                     "type": "object",
-                    "additionalProperties": {}
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
                 },
                 "post_url": {
                     "type": "string"
@@ -29916,6 +32078,29 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.QuickStatsSection": {
+            "type": "object",
+            "properties": {
+                "average_ctr": {
+                    "$ref": "#/definitions/responses.MetricWithGrowth"
+                },
+                "pending_content": {
+                    "type": "integer"
+                },
+                "posting_frequency": {
+                    "$ref": "#/definitions/responses.PostingFrequencyMetric"
+                },
+                "posts_this_week": {
+                    "$ref": "#/definitions/responses.MetricWithGrowth"
+                },
+                "total_engagement": {
+                    "$ref": "#/definitions/responses.MetricWithGrowth"
+                },
+                "total_views": {
+                    "$ref": "#/definitions/responses.MetricWithGrowth"
                 }
             }
         },
@@ -30293,32 +32478,6 @@
                 }
             }
         },
-        "responses.RecentContentItem": {
-            "type": "object",
-            "properties": {
-                "campaign_name": {
-                    "type": "string"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "creator_name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "responses.RevenueByCategory": {
             "type": "object",
             "properties": {
@@ -30406,6 +32565,137 @@
                 },
                 "value": {
                     "type": "number"
+                }
+            }
+        },
+        "responses.ScheduleItemResponse": {
+            "type": "object",
+            "properties": {
+                "channel_code": {
+                    "description": "\"WEBSITE\", \"FACEBOOK\", \"TIKTOK\"",
+                    "type": "string"
+                },
+                "channel_id": {
+                    "type": "string"
+                },
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_channel_id": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "content_title": {
+                    "type": "string"
+                },
+                "content_type": {
+                    "description": "\"POST\", \"VIDEO\"",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_by_id": {
+                    "type": "string"
+                },
+                "executed_at": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "retry_count": {
+                    "type": "integer"
+                },
+                "schedule_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ScheduleListResponse": {
+            "type": "object",
+            "properties": {
+                "schedules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ScheduleItemResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.ScheduleResponse": {
+            "type": "object",
+            "properties": {
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_channel_id": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "content_title": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "schedule_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ScheduledContentItem": {
+            "type": "object",
+            "properties": {
+                "channel_name": {
+                    "type": "string"
+                },
+                "content_id": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_by_id": {
+                    "type": "string"
+                },
+                "schedule_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"PENDING\", \"PROCESSING\", etc.",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 }
             }
         },
@@ -30790,6 +33080,11 @@
                     "type": "string",
                     "example": "Design Homepage"
                 },
+                "product_id": {
+                    "description": "Optional field for associated product ID",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "status": {
                     "type": "string",
                     "example": "IN_PROGRESS"
@@ -30943,6 +33238,23 @@
                 }
             }
         },
+        "responses.TokenInfo": {
+            "type": "object",
+            "properties": {
+                "access_token_expires_at": {
+                    "type": "string"
+                },
+                "account_name": {
+                    "type": "string"
+                },
+                "external_id": {
+                    "type": "string"
+                },
+                "last_synced_at": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.TopEntity": {
             "type": "object",
             "properties": {
@@ -30976,6 +33288,23 @@
                 }
             }
         },
+        "responses.TopPostBrief": {
+            "type": "object",
+            "properties": {
+                "content_id": {
+                    "type": "string"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "views": {
+                    "type": "integer"
+                }
+            }
+        },
         "responses.TrendDataPoint": {
             "type": "object",
             "properties": {
@@ -30987,6 +33316,23 @@
                 },
                 "unique_users": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.TrendIndicator": {
+            "type": "object",
+            "properties": {
+                "direction": {
+                    "description": "\"up\", \"down\", \"stable\"",
+                    "type": "string"
+                },
+                "percentage": {
+                    "description": "Change %",
+                    "type": "number"
+                },
+                "value": {
+                    "description": "Change amount",
+                    "type": "number"
                 }
             }
         },
@@ -31046,6 +33392,26 @@
                     "type": "string"
                 },
                 "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.UserEngagementStatus": {
+            "type": "object",
+            "properties": {
+                "has_commented": {
+                    "type": "boolean"
+                },
+                "has_reacted": {
+                    "type": "boolean"
+                },
+                "has_shared": {
+                    "type": "boolean"
+                },
+                "like_type": {
+                    "$ref": "#/definitions/enum.ReactionType"
+                },
+                "shared_at": {
                     "type": "string"
                 }
             }
@@ -31508,6 +33874,38 @@
                 },
                 "WhiteListClient": {},
                 "WhiteListWard": {}
+            }
+        },
+        "responses.WebsiteEngagementSummary": {
+            "type": "object",
+            "properties": {
+                "comments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContentCommentResponse"
+                    }
+                },
+                "reactions_by_type": {
+                    "description": "{\"LIKE\": 10, \"LOVE\": 5}",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
+                },
+                "total_comments": {
+                    "type": "integer"
+                },
+                "total_reactions": {
+                    "type": "integer"
+                },
+                "total_shares": {
+                    "type": "integer"
+                },
+                "user_reaction": {
+                    "description": "Current user's reaction type (nil if not reacted)",
+                    "type": "string"
+                }
             }
         }
     },
