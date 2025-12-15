@@ -595,6 +595,7 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	contentHandler := r.handlerRegistry.ContentHandler
 	blogHandler := r.handlerRegistry.BlogHandler
+	scheduleHandler := r.handlerRegistry.ContentScheduleHandler
 	contentGroup := group.Group("/contents")
 	{
 		publicGroup := contentGroup.Group("/public")
@@ -618,6 +619,7 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
 			editGroup.POST("/:id/publish/channel/:channel_id", contentHandler.PublishToChannel)
 			editGroup.POST("/:id/publish", contentHandler.PublishToAllChannels)
+			editGroup.POST("/:id/schedules/batch", scheduleHandler.BatchScheduleContent)
 		}
 
 		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))

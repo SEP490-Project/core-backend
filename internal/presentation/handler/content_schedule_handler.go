@@ -55,6 +55,55 @@ func (h *ContentScheduleHandler) ScheduleContent(c *gin.Context) {
 	c.JSON(http.StatusCreated, responses.SuccessResponse("Content scheduled successfully", &statusCode, schedule))
 }
 
+// BatchScheduleContent godoc
+//
+//	@Summary		Batch schedule content to multiple channels
+//	@Description	Creates schedules for content to be published to multiple channels at specific times
+//	@Tags			Content Scheduling
+//	@Accept			json
+//	@Produce		json
+//	@Param			content_id	path		string							true	"Content ID"
+//	@Param			request		body		requests.BatchScheduleRequest	true	"Batch schedule request"
+//	@Success		201			{object}	responses.APIResponse{data=responses.BatchScheduleResponse}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/contents/{content_id}/schedules/batch [post]
+func (h *ContentScheduleHandler) BatchScheduleContent(c *gin.Context) {
+	contentIDStr := c.Param("content_id")
+	contentID, err := uuid.Parse(contentIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID", http.StatusBadRequest))
+		return
+	}
+
+	var req requests.BatchScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	req.ContentID = contentID
+
+	// Get user ID from context
+	userIDStr, exists := c.Get("user_id")
+	if exists {
+		if userID, err := uuid.Parse(userIDStr.(string)); err == nil {
+			req.UserID = userID
+		}
+	}
+
+	result, err := h.scheduleService.BatchScheduleContent(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to batch schedule content: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	statusCode := http.StatusCreated
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Batch scheduling completed", &statusCode, result))
+}
+
 // GetSchedule godoc
 //
 //	@Summary		Get schedule details

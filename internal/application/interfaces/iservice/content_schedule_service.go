@@ -15,6 +15,9 @@ type ContentScheduleService interface {
 	// ScheduleContent schedules content for future publishing via RabbitMQ delayed message
 	ScheduleContent(ctx context.Context, req *requests.ScheduleContentRequest) (*responses.ScheduleResponse, error)
 
+	// BatchScheduleContent schedules content to multiple channels at once
+	BatchScheduleContent(ctx context.Context, req *requests.BatchScheduleRequest) (*responses.BatchScheduleResponse, error)
+
 	// RescheduleContent cancels existing schedule and creates a new one
 	RescheduleContent(ctx context.Context, scheduleID uuid.UUID, req *requests.RescheduleContentRequest) (*responses.ScheduleResponse, error)
 
