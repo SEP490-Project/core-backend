@@ -26,3 +26,5 @@ ALTER TABLE product_reviews
 
 
 ALTER TABLE orders ADD COLUMN is_review boolean NOT NULL DEFAULT FALSE;
+
+ALTER TABLE pre_orders ADD COLUMN is_review boolean NOT NULL DEFAULT FALSE;
