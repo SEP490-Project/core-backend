@@ -44,3 +44,30 @@ type ScheduleItemResponse struct {
 	CreatedBy        string     `json:"created_by"`
 	CreatedByID      uuid.UUID  `json:"created_by_id"`
 }
+
+// BatchScheduleResponse represents the response after batch scheduling content
+type BatchScheduleResponse struct {
+	ContentID         uuid.UUID                  `json:"content_id"`
+	ContentTitle      string                     `json:"content_title"`
+	TotalScheduled    int                        `json:"total_scheduled"`
+	TotalFailed       int                        `json:"total_failed"`
+	ScheduledChannels []BatchScheduleResultItem  `json:"scheduled_channels"`
+	FailedChannels    []BatchScheduleFailureItem `json:"failed_channels,omitempty"`
+}
+
+// BatchScheduleResultItem represents a successfully scheduled channel
+type BatchScheduleResultItem struct {
+	ScheduleID  uuid.UUID `json:"schedule_id"`
+	ChannelID   uuid.UUID `json:"channel_id"`
+	ChannelName string    `json:"channel_name"`
+	ChannelCode string    `json:"channel_code"`
+	ScheduledAt time.Time `json:"scheduled_at"`
+	AutoPost    bool      `json:"auto_post"`
+}
+
+// BatchScheduleFailureItem represents a failed schedule attempt
+type BatchScheduleFailureItem struct {
+	ChannelID   uuid.UUID `json:"channel_id"`
+	ChannelName string    `json:"channel_name,omitempty"`
+	Error       string    `json:"error"`
+}

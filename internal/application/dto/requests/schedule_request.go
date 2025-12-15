@@ -37,3 +37,17 @@ func (r *ScheduleFilterRequest) GetDaysOrDefault() int {
 	}
 	return 7
 }
+
+// BatchScheduleRequest for scheduling content to multiple channels at once
+type BatchScheduleRequest struct {
+	ContentID uuid.UUID           `json:"content_id" validate:"required,uuid"`
+	Schedules []BatchScheduleItem `json:"schedules" validate:"required,min=1,dive"`
+	UserID    uuid.UUID           `json:"-"` // Set from JWT context
+}
+
+// BatchScheduleItem represents a single schedule in a batch request
+type BatchScheduleItem struct {
+	ChannelID   string `json:"channel_id" validate:"required,uuid"`
+	ScheduledAt string `json:"scheduled_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+	AutoPost    bool   `json:"auto_post"` // For FB/TikTok auto-publishing
+}
