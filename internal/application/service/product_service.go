@@ -68,6 +68,7 @@ type productService struct {
 	limitedProductRepo   irepository.GenericRepository[model.LimitedProduct]
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
 	userRepo             irepository.GenericRepository[model.User]
+	variantImageRepo     irepository.GenericRepository[model.VariantImage]
 
 	imageStorage irepository_third_party.S3Storage
 	rabbitmq     *rabbitmq.RabbitMQ
@@ -153,8 +154,15 @@ func (p *productService) UpdateProduct(ctx context.Context, productID uuid.UUID,
 	if product == nil {
 		return nil, errors.New("product not found")
 	}
-	if product.Status == enum.ProductStatusActived {
-		return nil, errors.New("cannot update an actived product")
+
+	if product.Type == enum.ProductTypeStandard {
+		if product.IsActive == true {
+			return nil, errors.New("cannot update an is_active standard product")
+		}
+	} else {
+		if product.Status == enum.ProductStatusActived {
+			return nil, errors.New("cannot update an actived product")
+		}
 	}
 
 	// Validate and apply brand change
@@ -293,6 +301,9 @@ func (p productService) UpdateLimitedProduct(ctx context.Context, productID uuid
 	if update.AvailabilityEndDate != nil {
 		limited.AvailabilityEndDate = parseTime(update.AvailabilityEndDate)
 	}
+	if update.AchievableQuantity != nil {
+		limited.AchievableQuantity = *update.AchievableQuantity
+	}
 
 	// Persist limited entity first (upsert behaviour: attempt Update, otherwise Add)
 	if err := p.limitedProductRepo.Update(ctx, limited); err != nil {
@@ -338,7 +349,7 @@ func (p productService) PublishProduct(productID uuid.UUID, isActive bool) (*res
 	return resp.ToProductResponseV2(product), nil
 }
 
-func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error) {
+func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedProductID uuid.UUID, conceptID *uuid.UUID, uow irepository.UnitOfWork) (*model.LimitedProduct, error) {
 	var limitedProduct *model.LimitedProduct
 
 	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
@@ -347,13 +358,18 @@ func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedP
 		if err != nil {
 			return fmt.Errorf("failed to get limited product by id: %w", err)
 		}
-		//validate concept
-		conceptEntity, err := uow.Concepts().GetByID(ctx, conceptID, nil)
-		if err != nil {
-			return fmt.Errorf("failed to get concept by id: %w", err)
+		//validate concept if != nil
+		if conceptID != nil {
+			conceptEntity, err := uow.Concepts().GetByID(ctx, conceptID, nil)
+			if err != nil {
+				return fmt.Errorf("failed to get concept by id: %w", err)
+			}
+			//add concept to limited product
+			limitedProductEntity.ConceptID = &conceptEntity.ID
+		} else {
+			limitedProductEntity.ConceptID = nil
 		}
-		//add concept to limited product
-		limitedProductEntity.ConceptID = &conceptEntity.ID
+
 		if err := uow.LimitedProducts().Update(ctx, limitedProductEntity); err != nil {
 			zap.L().Info("failed to update limited product with concept", zap.Error(err))
 			return err
@@ -1607,6 +1623,7 @@ func NewProductService(
 		limitedProductRepo:   dbRegistry.LimitedProductRepository,
 		variantAttributeRepo: dbRegistry.VariantAttributeRepository,
 		userRepo:             dbRegistry.UserRepository,
+		variantImageRepo:     dbRegistry.VariantImageRepository,
 		imageStorage:         storage3rd.S3Storage,
 		rabbitmq:             rabbitmq,
 	}
@@ -1958,4 +1975,20 @@ func (p productService) AddProductReview(ctx context.Context, userID uuid.UUID, 
 	}
 
 	return responses.ProductReviewResponse{}.ToResponse(reviewModel), nil
+}
+
+func (p *productService) DeleteVariantImage(ctx context.Context, variantImageID uuid.UUID) error {
+	// Load existing variant image
+	img, err := p.variantImageRepo.GetByID(ctx, variantImageID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to load variant image by id: %w", err)
+	}
+
+	// delete from database
+	if err := p.variantImageRepo.Delete(ctx, img); err != nil {
+		zap.L().Error("failed to delete variant image from database", zap.Error(err))
+		return fmt.Errorf("failed to delete variant image from database: %w", err)
+	}
+
+	return err
 }

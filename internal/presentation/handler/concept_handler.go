@@ -4,6 +4,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
+	"github.com/google/uuid"
 	"net/http"
 	"strconv"
 
@@ -33,13 +34,15 @@ func NewConceptHandler(conceptService iservice.ConceptService) *ConceptHandler {
 //	@Produce		json
 //	@Param			page	query		int		false	"Page number"		default(1)
 //	@Param			limit	query		int		false	"Items per page"	default(10)
-//	@Param			search	query		string	false	"Search term"
+//	@Param			search	query		string	false	"Search by name"
+//	@Param			status	query		string	false	"DANGLING (DEFAULT) | ATTACHED | ALL "
 //	@Success		200		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Router			/api/v1/concepts [get]
 func (h *ConceptHandler) GetConcepts(c *gin.Context) {
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "10")
+	statusStr := c.DefaultQuery("status", "DANGLING")
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
@@ -54,7 +57,7 @@ func (h *ConceptHandler) GetConcepts(c *gin.Context) {
 
 	search := c.DefaultQuery("search", "")
 
-	conceptProducts, total, err := h.conceptService.GetConceptPagination(limit, page, search)
+	conceptProducts, total, err := h.conceptService.GetConceptPagination(limit, page, search, &statusStr)
 	if err != nil {
 		zap.L().Error("failed to get concepts", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get concepts: "+err.Error(), http.StatusInternalServerError))
@@ -136,4 +139,45 @@ func (h *ConceptHandler) DeleteConcept(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusNoContent, gin.H{})
+}
+
+// UpdateConcept godoc
+//
+//	@Summary		Update Concept
+//	@Description	Update existed concept
+//	@Tags			Concepts
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string						true	"Concept ID"
+//	@Param			data	body		requests.UpdateConceptRequest	true	"Concept payload"
+//	@Success		201		{object}	responses.APIResponse
+//	@Failure		400		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/concepts/{id} [put]
+func (h *ConceptHandler) UpdateConcept(c *gin.Context) {
+	idStr := c.Param("id")
+	conceptUUID, err := uuid.Parse(idStr)
+	if err != nil {
+		resp := responses.ErrorResponse("invalid concept id", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	var req requests.UpdateConceptRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("validation failed: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	model, err := h.conceptService.UpdateConcept(conceptUUID, req)
+	if err != nil {
+		zap.L().Error("failed to update concept", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to update concept: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+	c.JSON(http.StatusCreated, responses.SuccessResponse("Concept updated", nil, model))
 }

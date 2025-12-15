@@ -158,6 +158,7 @@ type TaskListResponse struct {
 	CampaignID     *string `json:"campaign_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 	CampaignName   *string `json:"campaign_name,omitempty" example:"Summer Sale Campaign"`
 	ContractID     *string `json:"contract_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ProductID      *string `json:"product_id" example:"550e8400-e29b-41d4-a716-446655440000"` // Optional field for associated product ID
 	ChildStatus    *string `json:"child_status" gorm:"column:child_status"`
 }
 
@@ -193,6 +194,9 @@ func (TaskListResponse) ToListResponse(dtos []dtos.TaskListDTO) []TaskListRespon
 		}
 		if dto.ContractID != nil {
 			res.ContractID = utils.PtrOrNil(dto.ContractID.String())
+		}
+		if dto.ProductID != nil {
+			res.ProductID = utils.PtrOrNil(dto.ProductID.String())
 		}
 		if dto.ChildStatus != nil {
 			childStatus := dto.ChildStatus.String()
