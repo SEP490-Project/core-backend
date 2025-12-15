@@ -58,7 +58,7 @@ func (cc ContentChannel) GetMetrics() (*ContentChannelMetrics, error) {
 // GetRenderedBody returns the content body with tracking URLs replaced by this channel's affiliate link.
 // Must preload Content and AffiliateLink before calling this method.
 // Returns original body if no affiliate link is configured.
-func (cc *ContentChannel) GetRenderedBody() []byte {
+func (cc *ContentChannel) GetRenderedBody(baseURL string) []byte {
 	if cc.Content == nil {
 		return nil
 	}
@@ -70,8 +70,13 @@ func (cc *ContentChannel) GetRenderedBody() []byte {
 		return body
 	}
 
-	// Replace tracking URL with affiliate URL
-	renderedBody, err := renderBodyWithAffiliateLink(body, cc.Content.Type, cc.AffiliateLink.TrackingURL, cc.AffiliateLink.AffiliateURL)
+	// Replace tracking URL with the full affiliate short URL
+	fullAffiliateURL := cc.AffiliateLink.AffiliateURL
+	if cc.AffiliateLink.Hash != "" {
+		fullAffiliateURL = cc.AffiliateLink.GetFullLink(baseURL)
+	}
+
+	renderedBody, err := renderBodyWithAffiliateLink(body, cc.Content.Type, cc.AffiliateLink.TrackingURL, fullAffiliateURL)
 	if err != nil {
 		return body // Fallback to original on error
 	}
