@@ -1111,6 +1111,70 @@ definitions:
     - AffiliateLinkStatusActive
     - AffiliateLinkStatusInactive
     - AffiliateLinkStatusExpired
+  enum.AlertCategory:
+    enum:
+    - CONTENT_REJECTED
+    - CONTENT_PUBLISH_FAILED
+    - LOW_CTR
+    - LOW_ENGAGEMENT
+    - SCHEDULE_FAILED
+    - PENDING_APPROVAL
+    - DEADLINE_APPROACHING
+    - MILESTONE_DEADLINE
+    - CAMPAIGN_DEADLINE
+    - BUDGET_EXCEEDED
+    - ORDER_ISSUE
+    - PAYMENT_OVERDUE
+    - SYSTEM_HEALTH
+    - SECURITY_ISSUE
+    type: string
+    x-enum-varnames:
+    - AlertCategoryContentRejected
+    - AlertCategoryContentPublishFailed
+    - AlertCategoryLowCTR
+    - AlertCategoryLowEngagement
+    - AlertCategoryScheduleFailed
+    - AlertCategoryPendingApproval
+    - AlertCategoryDeadlineApproaching
+    - AlertCategoryMilestoneDeadline
+    - AlertCategoryCampaignDeadline
+    - AlertCategoryBudgetExceeded
+    - AlertCategoryOrderIssue
+    - AlertCategoryPaymentOverdue
+    - AlertCategorySystemHealth
+    - AlertCategorySecurityIssue
+  enum.AlertSeverity:
+    enum:
+    - LOW
+    - MEDIUM
+    - HIGH
+    - CRITICAL
+    type: string
+    x-enum-varnames:
+    - AlertSeverityLow
+    - AlertSeverityMedium
+    - AlertSeverityHigh
+    - AlertSeverityCritical
+  enum.AlertStatus:
+    enum:
+    - ACTIVE
+    - RESOLVED
+    - EXPIRED
+    type: string
+    x-enum-varnames:
+    - AlertStatusActive
+    - AlertStatusResolved
+    - AlertStatusExpired
+  enum.AlertType:
+    enum:
+    - WARNING
+    - ERROR
+    - INFO
+    type: string
+    x-enum-varnames:
+    - AlertTypeWarning
+    - AlertTypeError
+    - AlertTypeInfo
   enum.AttributeUnit:
     enum:
     - '%'
@@ -1423,6 +1487,44 @@ definitions:
     x-enum-varnames:
     - ProductTypeStandard
     - ProductTypeLimited
+  enum.ReactionType:
+    enum:
+    - LIKE
+    - LOVE
+    - WOW
+    - HAHA
+    - SAD
+    - ANGRY
+    - THANKFUL
+    type: string
+    x-enum-varnames:
+    - ReactionTypeLike
+    - ReactionTypeLove
+    - ReactionTypeWow
+    - ReactionTypeHaha
+    - ReactionTypeSad
+    - ReactionTypeAngry
+    - ReactionTypeThankful
+  enum.ReferenceType:
+    enum:
+    - CONTENT
+    - SCHEDULE
+    - MILESTONE
+    - CAMPAIGN
+    - CONTRACT
+    - ORDER
+    - USER
+    - BRAND
+    type: string
+    x-enum-varnames:
+    - ReferenceTypeContent
+    - ReferenceTypeSchedule
+    - ReferenceTypeMilestone
+    - ReferenceTypeCampaign
+    - ReferenceTypeContract
+    - ReferenceTypeOrder
+    - ReferenceTypeUser
+    - ReferenceTypeBrand
   enum.TaskType:
     enum:
     - PRODUCT
@@ -1689,8 +1791,6 @@ definitions:
         type: string
       id:
         type: string
-      is_review:
-        type: boolean
       is_self_picked_up:
         type: boolean
       order_items:
@@ -1778,6 +1878,8 @@ definitions:
         type: string
       instructions:
         type: string
+      is_reviewed:
+        type: boolean
       length:
         description: in centimeters
         type: integer
@@ -1828,6 +1930,8 @@ definitions:
     type: object
   model.Product:
     properties:
+      average_rating:
+        type: number
       brand_id:
         type: string
       category:
@@ -1862,9 +1966,7 @@ definitions:
       task_id:
         type: string
       type:
-        allOf:
-        - $ref: '#/definitions/enum.ProductType'
-        description: CurrentStock *int               `json:"current_stock" gorm:"column:current_stock"`
+        $ref: '#/definitions/enum.ProductType'
       updated_at:
         type: string
       updated_by:
@@ -2055,6 +2157,38 @@ definitions:
         type: string
       variant_id:
         type: string
+    type: object
+  requests.AcknowledgeAlertRequest:
+    properties:
+      notes:
+        maxLength: 1000
+        type: string
+    type: object
+  requests.BatchScheduleItem:
+    properties:
+      auto_post:
+        description: For FB/TikTok auto-publishing
+        type: boolean
+      channel_id:
+        type: string
+      scheduled_at:
+        type: string
+    required:
+    - channel_id
+    - scheduled_at
+    type: object
+  requests.BatchScheduleRequest:
+    properties:
+      content_id:
+        type: string
+      schedules:
+        items:
+          $ref: '#/definitions/requests.BatchScheduleItem'
+        minItems: 1
+        type: array
+    required:
+    - content_id
+    - schedules
     type: object
   requests.BlogFieldsDTO:
     properties:
@@ -2250,6 +2384,59 @@ definitions:
         type: string
     required:
     - webhook_url
+    type: object
+  requests.ContentEngagementAction:
+    enum:
+    - add_reaction
+    - remove_reaction
+    - share
+    - add_comment
+    - edit_comment
+    - delete_comment
+    - add_comment_reaction
+    - remove_comment_reaction
+    type: string
+    x-enum-varnames:
+    - EngagementActionAddReaction
+    - EngagementActionRemoveReaction
+    - EngagementActionShare
+    - EngagementActionAddComment
+    - EngagementActionEditComment
+    - EngagementActionDeleteComment
+    - EngagementActionAddCommentReaction
+    - EngagementActionRemoveCommentReaction
+  requests.ContentEngagementRequest:
+    properties:
+      action:
+        allOf:
+        - $ref: '#/definitions/requests.ContentEngagementAction'
+        enum:
+        - add_reaction
+        - remove_reaction
+        - share
+        - add_comment
+        - edit_comment
+        - delete_comment
+        - add_comment_reaction
+        - remove_comment_reaction
+      comment_id:
+        type: string
+      comment_text:
+        maxLength: 2000
+        type: string
+      reaction_type:
+        allOf:
+        - $ref: '#/definitions/enum.ReactionType'
+        enum:
+        - LIKE
+        - LOVE
+        - WOW
+        - HAHA
+        - SAD
+        - ANGRY
+        - THANKFUL
+    required:
+    - action
     type: object
   requests.CreateAffiliateLinkRequest:
     properties:
@@ -3274,6 +3461,45 @@ definitions:
     required:
     - source_queue
     type: object
+  requests.RaiseAlertRequest:
+    properties:
+      action_url:
+        type: string
+      category:
+        $ref: '#/definitions/enum.AlertCategory'
+      description:
+        maxLength: 2000
+        minLength: 1
+        type: string
+      expires_in_hours:
+        maximum: 720
+        minimum: 1
+        type: integer
+      reference_id:
+        type: string
+      reference_type:
+        $ref: '#/definitions/enum.ReferenceType'
+      severity:
+        $ref: '#/definitions/enum.AlertSeverity'
+      target_roles:
+        items:
+          $ref: '#/definitions/enum.UserRole'
+        minItems: 1
+        type: array
+      title:
+        maxLength: 255
+        minLength: 1
+        type: string
+      type:
+        $ref: '#/definitions/enum.AlertType'
+    required:
+    - category
+    - description
+    - severity
+    - target_roles
+    - title
+    - type
+    type: object
   requests.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -3327,6 +3553,13 @@ definitions:
     required:
     - notification_ids
     type: object
+  requests.RescheduleContentRequest:
+    properties:
+      scheduled_at:
+        type: string
+    required:
+    - scheduled_at
+    type: object
   requests.ResetPasswordRequest:
     properties:
       email:
@@ -3340,6 +3573,22 @@ definitions:
     - email
     - new_password
     - token
+    type: object
+  requests.ResolveAlertRequest:
+    properties:
+      resolution:
+        maxLength: 2000
+        type: string
+    type: object
+  requests.ScheduleContentRequest:
+    properties:
+      content_channel_id:
+        type: string
+      scheduled_at:
+        type: string
+    required:
+    - content_channel_id
+    - scheduled_at
     type: object
   requests.SignUpRequest:
     properties:
@@ -3832,6 +4081,15 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  requests.UpdateProductCategoryRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      parent_category_id:
+        type: string
+    type: object
   requests.UpdateProductRequest:
     properties:
       brand_id:
@@ -4070,6 +4328,19 @@ definitions:
       success:
         type: boolean
     type: object
+  responses.AcknowledgmentDTO:
+    properties:
+      acknowledged_at:
+        type: string
+      id:
+        type: string
+      notes:
+        type: string
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
   responses.AdminCampaignsSummary:
     properties:
       cancelled:
@@ -4286,6 +4557,181 @@ definitions:
       tracking_url:
         type: string
       updated_at:
+        type: string
+    type: object
+  responses.AffiliateStatsResponse:
+    properties:
+      ctr:
+        description: float64 or "N/A"
+      has_links:
+        type: boolean
+      total_clicks:
+        type: integer
+      total_links:
+        type: integer
+      unique_users:
+        type: integer
+    type: object
+  responses.AlertItem:
+    properties:
+      action_url:
+        type: string
+      category:
+        description: '"LOW_CTR", "CONTENT_REJECTED", etc.'
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      reference_id:
+        type: string
+      reference_type:
+        type: string
+      severity:
+        description: '"LOW", "MEDIUM", "HIGH", "CRITICAL"'
+        type: string
+      title:
+        type: string
+      type:
+        description: '"WARNING", "ERROR", "INFO"'
+        type: string
+    type: object
+  responses.AlertResponse:
+    properties:
+      acknowledged_at:
+        type: string
+      acknowledgments:
+        items:
+          $ref: '#/definitions/responses.AcknowledgmentDTO'
+        type: array
+      auto_resolve_at:
+        type: string
+      category:
+        $ref: '#/definitions/enum.AlertCategory'
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      reference_id:
+        type: string
+      reference_type:
+        $ref: '#/definitions/enum.ReferenceType'
+      resolved_at:
+        type: string
+      severity:
+        $ref: '#/definitions/enum.AlertSeverity'
+      status:
+        $ref: '#/definitions/enum.AlertStatus'
+      title:
+        type: string
+    type: object
+  responses.AlertStatsResponse:
+    properties:
+      by_category:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      by_severity:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+      recent_alerts:
+        items:
+          $ref: '#/definitions/responses.AlertSummaryResponse'
+        type: array
+      total_acknowledged:
+        type: integer
+      total_active:
+        type: integer
+      total_resolved:
+        type: integer
+    type: object
+  responses.AlertSummaryResponse:
+    properties:
+      category:
+        $ref: '#/definitions/enum.AlertCategory'
+      created_at:
+        type: string
+      id:
+        type: string
+      severity:
+        $ref: '#/definitions/enum.AlertSeverity'
+      title:
+        type: string
+    type: object
+  responses.AlertsResponse:
+    properties:
+      alerts:
+        items:
+          $ref: '#/definitions/responses.AlertItem'
+        type: array
+      total:
+        type: integer
+      unread_count:
+        type: integer
+    type: object
+  responses.BarChartDataPoint:
+    properties:
+      engagement:
+        type: integer
+      label:
+        description: Channel name
+        type: string
+      reach:
+        type: integer
+    type: object
+  responses.BatchScheduleFailureItem:
+    properties:
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      error:
+        type: string
+    type: object
+  responses.BatchScheduleResponse:
+    properties:
+      content_id:
+        type: string
+      content_title:
+        type: string
+      failed_channels:
+        items:
+          $ref: '#/definitions/responses.BatchScheduleFailureItem'
+        type: array
+      scheduled_channels:
+        items:
+          $ref: '#/definitions/responses.BatchScheduleResultItem'
+        type: array
+      total_failed:
+        type: integer
+      total_scheduled:
+        type: integer
+    type: object
+  responses.BatchScheduleResultItem:
+    properties:
+      auto_post:
+        type: boolean
+      channel_code:
+        type: string
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      schedule_id:
+        type: string
+      scheduled_at:
         type: string
     type: object
   responses.BlogResponse:
@@ -4524,6 +4970,17 @@ definitions:
       units_sold:
         type: integer
     type: object
+  responses.BrandProductRating:
+    properties:
+      average_rating:
+        type: number
+      product_id:
+        type: string
+      product_name:
+        type: string
+      type:
+        type: string
+    type: object
   responses.BrandResponse:
     properties:
       address:
@@ -4640,25 +5097,6 @@ definitions:
       tax_number:
         example: TAX123456
         type: string
-    type: object
-  responses.CampaignContentMetric:
-    properties:
-      campaign_id:
-        type: string
-      campaign_name:
-        type: string
-      content_count:
-        type: integer
-      draft_count:
-        type: integer
-      pending_count:
-        type: integer
-      posted_count:
-        type: integer
-      total_engagements:
-        type: integer
-      total_views:
-        type: integer
     type: object
   responses.CampaignDetailsResponse:
     properties:
@@ -4845,6 +5283,73 @@ definitions:
       suggested_campaign:
         $ref: '#/definitions/responses.SuggestedCampaign'
     type: object
+  responses.ChannelDetailsResponse:
+    properties:
+      affiliate_stats:
+        allOf:
+        - $ref: '#/definitions/responses.AffiliateStatsResponse'
+        description: Affiliate statistics (if channel has affiliate links)
+      channel:
+        allOf:
+        - $ref: '#/definitions/responses.ChannelInfo'
+        description: Channel information
+      content_trend:
+        description: Content trend over time (posts count)
+        items:
+          $ref: '#/definitions/responses.ContentTrendPoint'
+        type: array
+      engagement_trend:
+        description: Engagement trend over time
+        items:
+          $ref: '#/definitions/responses.DashboardTimeSeriesPoint'
+        type: array
+      fetched_metrics:
+        additionalProperties: {}
+        description: Raw fetched metrics from platform (FB/TikTok only)
+        type: object
+      followers_count:
+        description: Followers count and trend
+        type: integer
+      followers_trend:
+        $ref: '#/definitions/responses.TrendIndicator'
+      mapped_metrics:
+        additionalProperties:
+          format: float64
+          type: number
+        description: Standardized mapped metrics
+        type: object
+      period:
+        allOf:
+        - $ref: '#/definitions/responses.DashboardPeriodInfo'
+        description: Period information
+      recent_content:
+        description: Recent content for this channel
+        items:
+          $ref: '#/definitions/responses.ChannelRecentContentItem'
+        type: array
+      top_content:
+        description: Top performing content for this channel
+        items:
+          $ref: '#/definitions/responses.ContentPerformanceItem'
+        type: array
+    type: object
+  responses.ChannelInfo:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      home_page_url:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      token_info:
+        $ref: '#/definitions/responses.TokenInfo'
+    type: object
   responses.ChannelListResponse:
     properties:
       data:
@@ -4861,33 +5366,6 @@ definitions:
         type: integer
       success:
         type: boolean
-    type: object
-  responses.ChannelMetric:
-    properties:
-      channel_id:
-        type: string
-      channel_name:
-        type: string
-      content_count:
-        type: integer
-      engagement_rate:
-        type: number
-      owner_name:
-        type: string
-      platform:
-        type: string
-      rank:
-        type: integer
-      total_comments:
-        type: integer
-      total_engagements:
-        type: integer
-      total_likes:
-        type: integer
-      total_shares:
-        type: integer
-      total_views:
-        type: integer
     type: object
   responses.ChannelMetricItem:
     properties:
@@ -4907,6 +5385,47 @@ definitions:
       unique_users:
         type: integer
     type: object
+  responses.ChannelMetricsCard:
+    properties:
+      channel_code:
+        description: '"WEBSITE", "FACEBOOK", "TIKTOK"'
+        type: string
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      ctr:
+        type: number
+      engagement_growth:
+        type: number
+      fetched_metrics:
+        additionalProperties: {}
+        description: Raw platform metrics
+        type: object
+      followers_count:
+        description: Channel followers/subscribers
+        type: integer
+      followers_trend:
+        allOf:
+        - $ref: '#/definitions/responses.TrendIndicator'
+        description: Followers change vs previous period
+      mapped_metrics:
+        additionalProperties:
+          format: float64
+          type: number
+        description: Standardized KPI values
+        type: object
+      post_count:
+        type: integer
+      reach_growth:
+        type: number
+      top_post:
+        $ref: '#/definitions/responses.TopPostBrief'
+      total_engagement:
+        type: integer
+      total_reach:
+        type: integer
+    type: object
   responses.ChannelMetricsResponse:
     properties:
       channels:
@@ -4915,6 +5434,23 @@ definitions:
         type: array
       period:
         $ref: '#/definitions/responses.PeriodInfo'
+    type: object
+  responses.ChannelRecentContentItem:
+    properties:
+      content_id:
+        type: string
+      engagement:
+        type: integer
+      published_at:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      views:
+        type: integer
     type: object
   responses.ChannelResponse:
     properties:
@@ -4962,6 +5498,29 @@ definitions:
       refresh_token_expires_at:
         example: "2024-12-31 23:59:59"
         type: string
+    type: object
+  responses.ChartsSection:
+    properties:
+      channel_distribution:
+        description: 'Pie chart: Content distribution by channel (posts per channel)'
+        items:
+          $ref: '#/definitions/responses.PieChartDataPoint'
+        type: array
+      content_type_distribution:
+        description: 'Pie chart: Content type distribution (kept for backwards compatibility)'
+        items:
+          $ref: '#/definitions/responses.PieChartDataPoint'
+        type: array
+      reach_by_channel:
+        description: 'Bar chart: Reach & Engagement by Channel'
+        items:
+          $ref: '#/definitions/responses.BarChartDataPoint'
+        type: array
+      trend_data:
+        description: 'Line chart: Trend over time'
+        items:
+          $ref: '#/definitions/responses.DashboardTimeSeriesPoint'
+        type: array
     type: object
   responses.ChatResponse:
     properties:
@@ -5011,6 +5570,77 @@ definitions:
           type: number
         type: object
     type: object
+  responses.ContentCommentResponse:
+    properties:
+      censor_reason:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_censored:
+        type: boolean
+      is_edit:
+        type: boolean
+      reactions:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
+    type: object
+  responses.ContentDashboardResponse:
+    properties:
+      alerts:
+        description: Active alerts for content staff
+        items:
+          $ref: '#/definitions/responses.AlertItem'
+        type: array
+      bottom_content:
+        items:
+          $ref: '#/definitions/responses.ContentPerformanceItem'
+        type: array
+      channel_metrics:
+        description: Channel metrics cards (Website, Facebook, TikTok)
+        items:
+          $ref: '#/definitions/responses.ChannelMetricsCard'
+        type: array
+      charts:
+        allOf:
+        - $ref: '#/definitions/responses.ChartsSection'
+        description: Charts section
+      period:
+        allOf:
+        - $ref: '#/definitions/responses.DashboardPeriodInfo'
+        description: Filter info
+      quick_stats:
+        allOf:
+        - $ref: '#/definitions/responses.QuickStatsSection'
+        description: Quick stats section
+      top_content:
+        description: Content performance lists
+        items:
+          $ref: '#/definitions/responses.ContentPerformanceItem'
+        type: array
+      upcoming_schedule:
+        description: Upcoming scheduled content
+        items:
+          $ref: '#/definitions/responses.ScheduledContentItem'
+        type: array
+    type: object
+  responses.ContentEngagementResponse:
+    properties:
+      comment_id:
+        description: For add_comment action
+        type: string
+      message:
+        type: string
+      metrics:
+        $ref: '#/definitions/responses.WebsiteEngagementSummary'
+      success:
+        type: boolean
+    type: object
   responses.ContentInfo:
     properties:
       description:
@@ -5053,69 +5683,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  responses.ContentMetric:
-    properties:
-      campaign_name:
-        type: string
-      channel_name:
-        type: string
-      clicks:
-        description: Affiliate link clicks
-        type: integer
-      comments:
-        type: integer
-      content_id:
-        type: string
-      engagement_rate:
-        type: number
-      likes:
-        type: integer
-      platform:
-        type: string
-      posted_at:
-        type: string
-      rank:
-        type: integer
-      shares:
-        type: integer
-      title:
-        type: string
-      views:
-        type: integer
-    type: object
-  responses.ContentOverviewMetrics:
-    properties:
-      draft_content:
-        description: Content in draft
-        type: integer
-      engagement_growth:
-        description: Percentage change
-        type: number
-      engagement_rate:
-        description: Engagement rate percentage
-        type: number
-      pending_content:
-        description: Content awaiting approval/posting
-        type: integer
-      posted_content:
-        description: Content with status POSTED
-        type: integer
-      total_clicks:
-        description: From affiliate links
-        type: integer
-      total_content:
-        description: Total content pieces created
-        type: integer
-      total_engagements:
-        description: Sum of likes + comments + shares
-        type: integer
-      total_views:
-        description: Sum of all content views
-        type: integer
-      view_growth:
-        description: Percentage change from previous period
-        type: number
-    type: object
   responses.ContentPaginationResponse:
     properties:
       data:
@@ -5132,6 +5699,32 @@ definitions:
         type: integer
       success:
         type: boolean
+    type: object
+  responses.ContentPerformanceItem:
+    properties:
+      channel_name:
+        type: string
+      content_id:
+        type: string
+      ctr:
+        type: number
+      engagement:
+        type: integer
+      performance_score:
+        type: number
+      published_at:
+        type: string
+      rank:
+        type: integer
+      thumbnail:
+        type: string
+      title:
+        type: string
+      type:
+        description: '"POST", "VIDEO"'
+        type: string
+      views:
+        type: integer
     type: object
   responses.ContentResponse:
     properties:
@@ -5167,48 +5760,11 @@ definitions:
       updated_at:
         type: string
     type: object
-  responses.ContentStaffDashboardResponse:
+  responses.ContentTrendPoint:
     properties:
-      content_status_breakdown:
-        $ref: '#/definitions/responses.ContentStatusBreakdown'
-      engagement_trend:
-        items:
-          $ref: '#/definitions/responses.EngagementTrendPoint'
-        type: array
-      overview:
-        $ref: '#/definitions/responses.ContentOverviewMetrics'
-      period:
-        $ref: '#/definitions/responses.PeriodInfo'
-      platform_metrics:
-        items:
-          $ref: '#/definitions/responses.PlatformMetric'
-        type: array
-      recent_content:
-        items:
-          $ref: '#/definitions/responses.RecentContentItem'
-        type: array
-      top_channels:
-        items:
-          $ref: '#/definitions/responses.ChannelMetric'
-        type: array
-      top_content:
-        items:
-          $ref: '#/definitions/responses.ContentMetric'
-        type: array
-    type: object
-  responses.ContentStatusBreakdown:
-    properties:
-      approved_count:
-        type: integer
-      draft_count:
-        type: integer
-      pending_count:
-        type: integer
-      posted_count:
-        type: integer
-      rejected_count:
-        type: integer
-      total_count:
+      date:
+        type: string
+      posts:
         type: integer
     type: object
   responses.ContractAnalyticsSummary:
@@ -5548,6 +6104,39 @@ definitions:
           $ref: '#/definitions/responses.TrendDataPoint'
         type: array
     type: object
+  responses.DashboardPeriodInfo:
+    properties:
+      compare_label:
+        description: '"vs Last Month"'
+        type: string
+      current_end:
+        type: string
+      current_start:
+        type: string
+      preset_label:
+        description: '"This Month", "Last Week", etc.'
+        type: string
+      previous_end:
+        type: string
+      previous_start:
+        type: string
+    type: object
+  responses.DashboardTimeSeriesPoint:
+    properties:
+      comments:
+        type: integer
+      date:
+        type: string
+      engagements:
+        description: Total
+        type: integer
+      likes:
+        type: integer
+      shares:
+        type: integer
+      views:
+        type: integer
+    type: object
   responses.DeviceTokenListResponse:
     properties:
       tokens:
@@ -5623,22 +6212,6 @@ definitions:
         type: string
       WhiteListClient: {}
       WhiteListDistrict: {}
-    type: object
-  responses.EngagementTrendPoint:
-    properties:
-      comments:
-        type: integer
-      date:
-        type: string
-      engagements:
-        description: 'Total: likes + comments + shares'
-        type: integer
-      likes:
-        type: integer
-      shares:
-        type: integer
-      views:
-        type: integer
     type: object
   responses.FileDetailResponse:
     properties:
@@ -5887,6 +6460,22 @@ definitions:
           $ref: '#/definitions/responses.UpcomingCampaignResponse'
         type: array
     type: object
+  responses.MetricWithGrowth:
+    properties:
+      compare_label:
+        description: '"vs last month"'
+        type: string
+      growth:
+        description: Percentage change
+        type: number
+      growth_status:
+        description: '"up", "down", "stable"'
+        type: string
+      previous_value:
+        description: Value from previous period
+      value:
+        description: int64, float64
+    type: object
   responses.MilestoneResponse:
     properties:
       behind_schedule:
@@ -6037,12 +6626,13 @@ definitions:
       id:
         type: string
       images:
-        description: Relationships
         items:
           $ref: '#/definitions/responses.OrderItemImage'
         type: array
       instructions:
         type: string
+      is_reviewed:
+        type: boolean
       length:
         type: integer
       limited_properties:
@@ -6056,6 +6646,10 @@ definitions:
         type: string
       quantity:
         type: integer
+      review:
+        allOf:
+        - $ref: '#/definitions/responses.OrderItemReview'
+        description: Relationships
       subtotal:
         type: number
       unit_price:
@@ -6066,6 +6660,21 @@ definitions:
         type: integer
       width:
         type: integer
+    type: object
+  responses.OrderItemReview:
+    properties:
+      assets_url:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      rating_stars:
+        type: integer
+      updated_at:
+        type: string
     type: object
   responses.OrderLimitedProperties:
     properties:
@@ -6413,27 +7022,16 @@ definitions:
       start_date:
         type: string
     type: object
-  responses.PlatformMetric:
+  responses.PieChartDataPoint:
     properties:
-      content_count:
-        description: Number of contents on this platform
-        type: integer
-      engagement_rate:
-        description: (likes + comments + shares) / views * 100
-        type: number
-      platform:
-        description: FACEBOOK, TIKTOK, INSTAGRAM, YOUTUBE
+      label:
+        description: '"Blog Post", "Video"'
         type: string
-      total_clicks:
-        description: Affiliate link clicks
-        type: integer
-      total_comments:
-        type: integer
-      total_likes:
-        type: integer
-      total_shares:
-        type: integer
-      total_views:
+      ratio:
+        description: Percentage
+        type: number
+      value:
+        description: Count
         type: integer
     type: object
   responses.PlatformRevenueResponse:
@@ -6452,6 +7050,24 @@ definitions:
         type: array
       total_revenue:
         type: number
+    type: object
+  responses.PostingFrequencyMetric:
+    properties:
+      actual:
+        description: Posts actually published
+        type: integer
+      expected:
+        description: Expected posts based on schedule
+        type: integer
+      ratio:
+        description: actual / expected
+        type: number
+      source:
+        description: '"schedule", "tasks", "average" - where expected came from'
+        type: string
+      status:
+        description: '"on_track", "behind", "ahead"'
+        type: string
     type: object
   responses.PreOrderResponse:
     properties:
@@ -6685,6 +7301,8 @@ definitions:
     type: object
   responses.ProductResponseV2:
     properties:
+      average_rating:
+        type: number
       brand_id:
         type: string
       brand_logo_url:
@@ -6717,9 +7335,7 @@ definitions:
           type: string
         type: array
       type:
-        allOf:
-        - $ref: '#/definitions/enum.ProductType'
-        description: Price        float64                   `json:"price"`
+        $ref: '#/definitions/enum.ProductType'
       updated_at:
         type: string
       updated_by:
@@ -6728,6 +7344,49 @@ definitions:
         items:
           $ref: '#/definitions/responses.ProductVariantResponse'
         type: array
+    type: object
+  responses.ProductReviewContent:
+    properties:
+      assets_url:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      rating_stars:
+        type: integer
+    type: object
+  responses.ProductReviewProductInfo:
+    properties:
+      brand:
+        $ref: '#/definitions/responses.BrandResponse'
+      capacity_unit:
+        $ref: '#/definitions/enum.CapacityUnit'
+      category:
+        $ref: '#/definitions/responses.ProductCategoryResponse'
+      container_type:
+        $ref: '#/definitions/enum.ContainerType'
+      dispenser_type:
+        $ref: '#/definitions/enum.DispenserType'
+      height:
+        type: integer
+      id:
+        type: string
+      length:
+        type: integer
+      limited_info:
+        $ref: '#/definitions/responses.LimitedProductResponse'
+      name:
+        type: string
+      product_id:
+        description: Product stats
+        type: string
+      type:
+        $ref: '#/definitions/enum.ProductType'
+      weight:
+        type: integer
+      width:
+        type: integer
     type: object
   responses.ProductReviewResponse:
     properties:
@@ -6748,6 +7407,28 @@ definitions:
       rating_stars:
         type: integer
       type:
+        type: string
+      user_id:
+        type: string
+      user_name:
+        type: string
+    type: object
+  responses.ProductReviewResponseStaff:
+    properties:
+      product:
+        $ref: '#/definitions/responses.ProductReviewProductInfo'
+      review_content:
+        $ref: '#/definitions/responses.ProductReviewContent'
+      user_info:
+        $ref: '#/definitions/responses.ProductReviewUserInfo'
+    type: object
+  responses.ProductReviewUserInfo:
+    properties:
+      avatar_url:
+        type: string
+      full_name:
+        type: string
+      id:
         type: string
       user_id:
         type: string
@@ -6872,7 +7553,9 @@ definitions:
       last_error:
         type: string
       metrics:
-        additionalProperties: {}
+        additionalProperties:
+          format: float64
+          type: number
         type: object
       post_url:
         type: string
@@ -6882,6 +7565,21 @@ definitions:
         $ref: '#/definitions/enum.AutoPostStatus'
       updated_at:
         type: string
+    type: object
+  responses.QuickStatsSection:
+    properties:
+      average_ctr:
+        $ref: '#/definitions/responses.MetricWithGrowth'
+      pending_content:
+        type: integer
+      posting_frequency:
+        $ref: '#/definitions/responses.PostingFrequencyMetric'
+      posts_this_week:
+        $ref: '#/definitions/responses.MetricWithGrowth'
+      total_engagement:
+        $ref: '#/definitions/responses.MetricWithGrowth'
+      total_views:
+        $ref: '#/definitions/responses.MetricWithGrowth'
     type: object
   responses.RabbitMQBindingResponse:
     properties:
@@ -7129,23 +7827,6 @@ definitions:
       timestamp:
         type: string
     type: object
-  responses.RecentContentItem:
-    properties:
-      campaign_name:
-        type: string
-      content_id:
-        type: string
-      created_at:
-        type: string
-      creator_name:
-        type: string
-      status:
-        type: string
-      title:
-        type: string
-      updated_at:
-        type: string
-    type: object
   responses.RevenueByCategory:
     properties:
       category_name:
@@ -7206,6 +7887,93 @@ definitions:
         type: string
       value:
         type: number
+    type: object
+  responses.ScheduleItemResponse:
+    properties:
+      channel_code:
+        description: '"WEBSITE", "FACEBOOK", "TIKTOK"'
+        type: string
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      content_channel_id:
+        type: string
+      content_id:
+        type: string
+      content_title:
+        type: string
+      content_type:
+        description: '"POST", "VIDEO"'
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_by_id:
+        type: string
+      executed_at:
+        type: string
+      last_error:
+        type: string
+      retry_count:
+        type: integer
+      schedule_id:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.ScheduleListResponse:
+    properties:
+      schedules:
+        items:
+          $ref: '#/definitions/responses.ScheduleItemResponse'
+        type: array
+      total:
+        type: integer
+    type: object
+  responses.ScheduleResponse:
+    properties:
+      channel_name:
+        type: string
+      content_channel_id:
+        type: string
+      content_id:
+        type: string
+      content_title:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      schedule_id:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        type: string
+    type: object
+  responses.ScheduledContentItem:
+    properties:
+      channel_name:
+        type: string
+      content_id:
+        type: string
+      created_by:
+        type: string
+      created_by_id:
+        type: string
+      schedule_id:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        description: '"PENDING", "PROCESSING", etc.'
+        type: string
+      title:
+        type: string
     type: object
   responses.SessionInfo:
     properties:
@@ -7582,6 +8350,17 @@ definitions:
       unique_users:
         type: integer
     type: object
+  responses.TokenInfo:
+    properties:
+      access_token_expires_at:
+        type: string
+      account_name:
+        type: string
+      external_id:
+        type: string
+      last_synced_at:
+        type: string
+    type: object
   responses.TopEntity:
     properties:
       id:
@@ -7604,6 +8383,17 @@ definitions:
           $ref: '#/definitions/responses.AffiliateLinkMetric'
         type: array
     type: object
+  responses.TopPostBrief:
+    properties:
+      content_id:
+        type: string
+      likes:
+        type: integer
+      title:
+        type: string
+      views:
+        type: integer
+    type: object
   responses.TrendDataPoint:
     properties:
       clicks:
@@ -7612,6 +8402,18 @@ definitions:
         type: string
       unique_users:
         type: integer
+    type: object
+  responses.TrendIndicator:
+    properties:
+      direction:
+        description: '"up", "down", "stable"'
+        type: string
+      percentage:
+        description: Change %
+        type: number
+      value:
+        description: Change amount
+        type: number
     type: object
   responses.UpcomingCampaignResponse:
     properties:
@@ -7653,6 +8455,19 @@ definitions:
       id:
         type: string
       username:
+        type: string
+    type: object
+  responses.UserEngagementStatus:
+    properties:
+      has_commented:
+        type: boolean
+      has_reacted:
+        type: boolean
+      has_shared:
+        type: boolean
+      like_type:
+        $ref: '#/definitions/enum.ReactionType'
+      shared_at:
         type: string
     type: object
   responses.UserGrowthPoint:
@@ -7970,6 +8785,28 @@ definitions:
         type: string
       WhiteListClient: {}
       WhiteListWard: {}
+    type: object
+  responses.WebsiteEngagementSummary:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/responses.ContentCommentResponse'
+        type: array
+      reactions_by_type:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: '{"LIKE": 10, "LOVE": 5}'
+        type: object
+      total_comments:
+        type: integer
+      total_reactions:
+        type: integer
+      total_shares:
+        type: integer
+      user_reaction:
+        description: Current user's reaction type (nil if not reacted)
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -8796,6 +9633,275 @@ paths:
       summary: Get supported AI models
       tags:
       - AI
+  /api/v1/alerts:
+    get:
+      consumes:
+      - application/json
+      description: Returns list of system alerts with filtering
+      parameters:
+      - description: Filter by category (LOW_CTR_WARNING, MILESTONE_DEADLINE, etc.)
+        in: query
+        name: category
+        type: string
+      - description: Filter by severity (INFO, WARNING, CRITICAL)
+        in: query
+        name: severity
+        type: string
+      - description: Filter by status (ACTIVE, ACKNOWLEDGED, RESOLVED)
+        in: query
+        name: status
+        type: string
+      - description: Filter by reference type
+        in: query
+        name: reference_type
+        type: string
+      - description: Filter by reference ID
+        in: query
+        name: reference_id
+        type: string
+      - description: Filter from date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter until date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AlertsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get system alerts
+      tags:
+      - Alerts
+    post:
+      consumes:
+      - application/json
+      description: Creates a new system alert
+      parameters:
+      - description: Alert details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RaiseAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AlertResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Raise a new alert
+      tags:
+      - Alerts
+  /api/v1/alerts/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific alert including acknowledgments
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AlertResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get alert details
+      tags:
+      - Alerts
+  /api/v1/alerts/{id}/acknowledge:
+    post:
+      consumes:
+      - application/json
+      description: Marks an alert as acknowledged by the current user
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Acknowledgment details (optional)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/requests.AcknowledgeAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Acknowledge an alert
+      tags:
+      - Alerts
+  /api/v1/alerts/{id}/resolve:
+    post:
+      consumes:
+      - application/json
+      description: Marks an alert as resolved
+      parameters:
+      - description: Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Resolution details (optional)
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/requests.ResolveAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Resolve an alert
+      tags:
+      - Alerts
+  /api/v1/alerts/stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns counts of alerts by status, severity, and category
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AlertStatsResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get alert statistics
+      tags:
+      - Alerts
+  /api/v1/alerts/unacknowledged-count:
+    get:
+      consumes:
+      - application/json
+      description: Returns count of alerts that haven't been acknowledged yet
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  type: integer
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get unacknowledged alert count
+      tags:
+      - Alerts
   /api/v1/analytics/admin/campaigns:
     get:
       consumes:
@@ -9697,207 +10803,151 @@ paths:
       summary: Get Brand's Top Products
       tags:
       - Brand Partner Analytics
-  /api/v1/analytics/content/campaigns:
+  /api/v1/analytics/brand-partner/top-rating-products:
     get:
       consumes:
       - application/json
-      description: Returns content metrics aggregated by campaign
+      description: Returns top-rated products for the brand partner
       parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
+      - description: Start date (ISO 8601 format)
         in: query
         name: start_date
         type: string
-      - description: End date (RFC3339 format)
-        format: date-time
+      - description: End date (ISO 8601 format)
         in: query
         name: end_date
         type: string
-      - description: Filter by specific campaign ID
-        format: uuid
+      - description: 'Number of products to return (default: 10, max: 50)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.BrandProductRating'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Brand's Top Rating Products
+      tags:
+      - Brand Partner Analytics
+  /api/v1/analytics/content/channels/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed metrics for a specific channel
+      parameters:
+      - description: Channel ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: THIS_MONTH
+        description: Period preset
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Custom end date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - default: DAY
+        description: Trend granularity (HOUR, DAY, WEEK, MONTH)
+        in: query
+        name: trend_granularity
+        type: string
+      - default: 10
+        description: Top content limit
+        in: query
+        name: top_content_limit
+        type: integer
+      - default: 10
+        description: Recent content limit
+        in: query
+        name: recent_content_limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ChannelDetailsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get channel details
+      tags:
+      - Content Dashboard
+  /api/v1/analytics/contents/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns complete dashboard with metrics, charts, schedules, and
+        alerts
+      parameters:
+      - default: LAST_30_DAYS
+        description: Period preset (TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH,
+          LAST_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)
+        in: query
+        name: period
+        type: string
+      - description: Custom start date (YYYY-MM-DD) - required when period=CUSTOM
+        in: query
+        name: start_date
+        type: string
+      - description: Custom end date (YYYY-MM-DD) - required when period=CUSTOM
+        in: query
+        name: end_date
+        type: string
+      - description: Filter by campaign ID
         in: query
         name: campaign_id
         type: string
-      - default: 10
-        description: 'Number of results (default: 10, max: 50)'
+      - description: Filter by brand ID
         in: query
-        maximum: 50
-        minimum: 1
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.CampaignContentMetric'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Campaign Content Metrics
-      tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/channels:
-    get:
-      consumes:
-      - application/json
-      description: Returns top performing channels ranked by total engagement
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - description: Filter by platform
-        enum:
-        - FACEBOOK
-        - TIKTOK
-        - INSTAGRAM
-        - YOUTUBE
-        in: query
-        name: platform
-        type: string
-      - default: 10
-        description: 'Number of results (default: 10, max: 50)'
-        in: query
-        maximum: 50
-        minimum: 1
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ChannelMetric'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Top Channels
-      tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/dashboard:
-    get:
-      consumes:
-      - application/json
-      description: Returns comprehensive content dashboard with overview metrics,
-        content status breakdown, platform metrics, top content, top channels, recent
-        content, and engagement trend
-      parameters:
-      - description: Year (defaults to current year)
-        example: 2025
-        in: query
-        maximum: 2100
-        minimum: 2000
-        name: year
-        type: integer
-      - description: Month (defaults to current month)
-        example: 11
-        in: query
-        maximum: 12
-        minimum: 1
-        name: month
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ContentStaffDashboardResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Content Staff Dashboard
-      tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/platforms:
-    get:
-      consumes:
-      - application/json
-      description: Returns content and engagement metrics aggregated by platform (FACEBOOK,
-        TIKTOK, INSTAGRAM, YOUTUBE)
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
+        name: brand_id
         type: string
       produces:
       - application/json
@@ -9909,9 +10959,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/responses.PlatformMetric'
-                  type: array
+                  $ref: '#/definitions/responses.ContentDashboardResponse'
               type: object
         "400":
           description: Bad Request
@@ -9921,197 +10969,15 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/responses.APIResponse'
       security:
       - BearerAuth: []
-      summary: Get Metrics by Platform
+      summary: Get content staff dashboard
       tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/status:
-    get:
-      consumes:
-      - application/json
-      description: Returns content counts broken down by status (DRAFT, PENDING, APPROVED,
-        REJECTED, POSTED)
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ContentStatusBreakdown'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Content Status Breakdown
-      tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/top:
-    get:
-      consumes:
-      - application/json
-      description: Returns top performing content ranked by views
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - description: Filter by platform
-        enum:
-        - FACEBOOK
-        - TIKTOK
-        - INSTAGRAM
-        - YOUTUBE
-        in: query
-        name: platform
-        type: string
-      - default: 10
-        description: 'Number of results (default: 10, max: 50)'
-        in: query
-        maximum: 50
-        minimum: 1
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ContentMetric'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Top Content
-      tags:
-      - Content Staff Analytics
-  /api/v1/analytics/content/trend:
-    get:
-      consumes:
-      - application/json
-      description: Returns engagement time-series data with configurable granularity
-        (DAY, WEEK, MONTH)
-      parameters:
-      - description: Start date (RFC3339 format)
-        format: date-time
-        in: query
-        name: start_date
-        type: string
-      - description: End date (RFC3339 format)
-        format: date-time
-        in: query
-        name: end_date
-        type: string
-      - default: DAY
-        description: Time bucket granularity
-        enum:
-        - DAY
-        - WEEK
-        - MONTH
-        in: query
-        name: granularity
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.EngagementTrendPoint'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get Engagement Trend
-      tags:
-      - Content Staff Analytics
+      - Content Dashboard
   /api/v1/analytics/marketing/active-brands:
     get:
       description: Returns the total count of brands with status = 'ACTIVE'
@@ -12318,6 +13184,46 @@ paths:
       summary: Delete a product category
       tags:
       - Categories
+    patch:
+      consumes:
+      - application/json
+      description: Update a new product category
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update category payload
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProductCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ProductCategoryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a product category
+      tags:
+      - Categories
   /api/v1/categories/{id}/parent:
     patch:
       consumes:
@@ -12832,6 +13738,242 @@ paths:
       summary: Get publishing status
       tags:
       - Content
+  /api/v1/content-schedules:
+    get:
+      consumes:
+      - application/json
+      description: Returns list of content schedules with filtering
+      parameters:
+      - description: Filter by content channel ID
+        in: query
+        name: content_channel_id
+        type: string
+      - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
+        in: query
+        name: status
+        type: string
+      - description: Filter schedules from this date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter schedules until this date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List content schedules
+      tags:
+      - Content Scheduling
+    post:
+      consumes:
+      - application/json
+      description: Creates a schedule for content to be published at a specific time
+      parameters:
+      - description: Schedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ScheduleContentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Schedule content for future publishing
+      tags:
+      - Content Scheduling
+  /api/v1/content-schedules/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific schedule
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleItemResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get schedule details
+      tags:
+      - Content Scheduling
+  /api/v1/content-schedules/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancels a pending schedule
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a scheduled content
+      tags:
+      - Content Scheduling
+  /api/v1/content-schedules/{id}/reschedule:
+    post:
+      consumes:
+      - application/json
+      description: Updates the scheduled time for content publishing
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reschedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RescheduleContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reschedule content
+      tags:
+      - Content Scheduling
+  /api/v1/content-schedules/upcoming:
+    get:
+      consumes:
+      - application/json
+      description: Returns content scheduled for the next N days
+      parameters:
+      - default: 7
+        description: Number of days to look ahead
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ScheduledContentItem'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get upcoming scheduled content
+      tags:
+      - Content Scheduling
   /api/v1/contents:
     get:
       consumes:
@@ -12977,6 +14119,53 @@ paths:
       summary: Create content draft
       tags:
       - Content
+  /api/v1/contents/{content_id}/schedules/batch:
+    post:
+      consumes:
+      - application/json
+      description: Creates schedules for content to be published to multiple channels
+        at specific times
+      parameters:
+      - description: Content ID
+        in: path
+        name: content_id
+        required: true
+        type: string
+      - description: Batch schedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BatchScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BatchScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Batch schedule content to multiple channels
+      tags:
+      - Content Scheduling
   /api/v1/contents/{id}:
     delete:
       consumes:
@@ -13195,6 +14384,128 @@ paths:
       summary: Update blog details
       tags:
       - Content/Blog
+  /api/v1/contents/{id}/engagement:
+    get:
+      consumes:
+      - application/json
+      description: Returns engagement summary (reactions, comments, shares) for a
+        specific content on website channel
+      parameters:
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.WebsiteEngagementSummary'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get engagement summary for content
+      tags:
+      - Content Engagement
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Unified endpoint for all content engagement actions on website channel.
+        Supported actions: add_reaction, remove_reaction, share, add_comment, edit_comment, delete_comment, add_comment_reaction, remove_comment_reaction
+      parameters:
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Engagement request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ContentEngagementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContentEngagementResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Record content engagement
+      tags:
+      - Content Engagement
+  /api/v1/contents/{id}/engagement/status:
+    get:
+      consumes:
+      - application/json
+      description: Returns whether the current user has liked/shared the content
+      parameters:
+      - description: Content ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.UserEngagementStatus'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's engagement status on content
+      tags:
+      - Content Engagement
   /api/v1/contents/{id}/publish:
     post:
       consumes:
@@ -15310,6 +16621,11 @@ paths:
       consumes:
       - application/json
       description: Manually trigger the content metrics poller job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -15339,6 +16655,11 @@ paths:
       consumes:
       - application/json
       description: Manually trigger the CTR aggregation job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -15368,6 +16689,11 @@ paths:
       consumes:
       - application/json
       description: Manually trigger the expired link cleanup job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -15397,6 +16723,11 @@ paths:
       consumes:
       - application/json
       description: Manually trigger the PayOS expiry check job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -15426,6 +16757,11 @@ paths:
       consumes:
       - application/json
       description: Manually trigger the pre-order opening check job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -15450,40 +16786,16 @@ paths:
       summary: Trigger Pre-Order Opening Check Job
       tags:
       - Jobs
-  /api/v1/jobs/social-metrics-poller:
-    post:
-      consumes:
-      - application/json
-      description: Manually trigger the social metrics poller job
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Trigger Social Metrics Poller Job
-      tags:
-      - Jobs
   /api/v1/jobs/tiktok-status-poller:
     post:
       consumes:
       - application/json
       description: Manually trigger the TikTok status poller job
+      parameters:
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
       produces:
       - application/json
       responses:
@@ -18819,11 +20131,35 @@ paths:
         in: query
         name: limit
         type: integer
-      - default: 0
-        description: Items to skip
+      - default: 1
+        description: Page
         in: query
-        name: offset
+        name: page
         type: integer
+      - description: From date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Min rating
+        in: query
+        name: rating_stars_min
+        type: integer
+      - description: Max rating
+        in: query
+        name: rating_stars_max
+        type: integer
+      - description: created_at | rating_stars
+        in: query
+        name: order_by
+        type: string
+      - description: asc | desc
+        in: query
+        name: order_direction
+        type: string
       produces:
       - application/json
       responses:
@@ -18853,6 +20189,81 @@ paths:
       security:
       - BearerAuth: []
       summary: Get paginated reviews for a product
+      tags:
+      - Products
+  /api/v1/products/staff/reviews:
+    get:
+      consumes:
+      - application/json
+      description: Staff retrieves product reviews with filters and pagination
+      parameters:
+      - description: Brand ID
+        in: query
+        name: brand_id
+        type: string
+      - description: Product ID
+        in: query
+        name: product_id
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: From date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: To date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - description: Min rating
+        in: query
+        name: rating_stars_min
+        type: integer
+      - description: Max rating
+        in: query
+        name: rating_stars_max
+        type: integer
+      - description: created_at | rating_stars
+        in: query
+        name: order_by
+        type: string
+      - description: asc | desc
+        in: query
+        name: order_direction
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductReviewResponseStaff'
+                type: array
+              pagination:
+                $ref: '#/definitions/responses.Pagination'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get paginated product reviews (Staff)
       tags:
       - Products
   /api/v1/products/standard:

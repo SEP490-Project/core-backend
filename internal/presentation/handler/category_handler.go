@@ -222,7 +222,7 @@ func (h *ProductCategoryHandler) DeleteCategory(c *gin.Context) {
 //	@Tags			Categories
 //	@Accept			json
 //	@Produce		json
-//	@Param			id			path		string	true	"Category ID"
+//	@Param			id		path		string									true	"Category ID"
 //	@Param			data	body		requests.UpdateProductCategoryRequest	true	"Update category payload"
 //	@Success		201		{object}	responses.ProductCategoryResponse
 //	@Failure		400		{object}	map[string]string

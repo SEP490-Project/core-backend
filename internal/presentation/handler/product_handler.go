@@ -1465,18 +1465,18 @@ func (h *ProductHandler) UpdateLimitedVariant(c *gin.Context) {
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			productId	path		string	true	"Product ID"
-//	@Param			limit		query		int		false	"Items per page"	default(10)
-//	@Param			page		query		int		false	"Page"		default(1)
-//	@Param from_date query string false "From date (YYYY-MM-DD)"
-//	@Param to_date query string false "To date (YYYY-MM-DD)"
-//	@Param rating_stars_min query int false "Min rating"
-//	@Param rating_stars_max query int false "Max rating"
-//	@Param order_by query string false "created_at | rating_stars"
-//	@Param order_direction query string false "asc | desc"
-//	@Success		200			{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
-//	@Failure		400			{object}	responses.APIResponse
-//	@Failure		500			{object}	responses.APIResponse
+//	@Param			productId			path		string	true	"Product ID"
+//	@Param			limit				query		int		false	"Items per page"	default(10)
+//	@Param			page				query		int		false	"Page"				default(1)
+//	@Param			from_date			query		string	false	"From date (YYYY-MM-DD)"
+//	@Param			to_date				query		string	false	"To date (YYYY-MM-DD)"
+//	@Param			rating_stars_min	query		int		false	"Min rating"
+//	@Param			rating_stars_max	query		int		false	"Max rating"
+//	@Param			order_by			query		string	false	"created_at | rating_stars"
+//	@Param			order_direction		query		string	false	"asc | desc"
+//	@Success		200					{object}	object{data=[]responses.ProductReviewResponse,total=int,limit=int,offset=int}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/reviews/{productId} [get]
 func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
@@ -1585,19 +1585,19 @@ func (h *ProductHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, file
 //	@Tags			Products
 //	@Accept			json
 //	@Produce		json
-//	@Param			brand_id	query		string	false	"Brand ID"
-//	@Param			product_id	query		string	false	"Product ID"
-//	@Param			page		query		int		false	"Page number"	default(1)
-//	@Param			limit		query		int		false	"Items per page"	default(10)
-//	@Param			from_date	query		string	false	"From date (YYYY-MM-DD)"
-//	@Param			to_date		query		string	false	"To date (YYYY-MM-DD)"
-//	@Param			rating_stars_min	query	int	false	"Min rating"
-//	@Param			rating_stars_max	query	int	false	"Max rating"
-//	@Param			order_by	query		string	false	"created_at | rating_stars"
-//	@Param			order_direction	query	string	false	"asc | desc"
-//	@Success		200	{object}	object{data=[]responses.ProductReviewResponseStaff,pagination=responses.Pagination}
-//	@Failure		400	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			brand_id			query		string	false	"Brand ID"
+//	@Param			product_id			query		string	false	"Product ID"
+//	@Param			page				query		int		false	"Page number"		default(1)
+//	@Param			limit				query		int		false	"Items per page"	default(10)
+//	@Param			from_date			query		string	false	"From date (YYYY-MM-DD)"
+//	@Param			to_date				query		string	false	"To date (YYYY-MM-DD)"
+//	@Param			rating_stars_min	query		int		false	"Min rating"
+//	@Param			rating_stars_max	query		int		false	"Max rating"
+//	@Param			order_by			query		string	false	"created_at | rating_stars"
+//	@Param			order_direction		query		string	false	"asc | desc"
+//	@Success		200					{object}	object{data=[]responses.ProductReviewResponseStaff,pagination=responses.Pagination}
+//	@Failure		400					{object}	responses.APIResponse
+//	@Failure		500					{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/staff/reviews [get]
 func (h *ProductHandler) GetProductReviewPaginationStaff(c *gin.Context) {
