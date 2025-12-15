@@ -5,8 +5,8 @@ import (
 )
 
 type ConceptRequest struct {
-	Name           string  `json:"name" validate:"required,min=1,max=255" example:"Concept Name"`
-	Description    *string `json:"description" validate:"omitempty,max=1000" example:"Concept description"`
+	Name           string  `json:"name" validate:"required,min=1" example:"Concept Name"`
+	Description    *string `json:"description" validate:"omitempty" example:"Concept description"`
 	BannerURL      *string `json:"banner_url" validate:"omitempty,url" example:"https://example.com/banner.jpg"`
 	VideoThumbnail *string `json:"video_thumbnail" validate:"omitempty,url" example:"https://example.com/thumbnail.jpg"`
 }
@@ -21,4 +21,11 @@ func (d *ConceptRequest) ToModel() *model.Concept {
 		BannerURL:      d.BannerURL,
 		VideoThumbnail: d.VideoThumbnail,
 	}
+}
+
+type UpdateConceptRequest struct {
+	Name           *string `json:"name" validate:"omitempty" example:"Concept Name"`
+	Description    *string `json:"description" validate:"omitempty" example:"Concept description"`
+	BannerURL      *string `json:"banner_url" validate:"omitempty,url" example:"https://example.com/banner.jpg"`
+	VideoThumbnail *string `json:"video_thumbnail" validate:"omitempty,url" example:"https://example.com/thumbnail.jpg"`
 }

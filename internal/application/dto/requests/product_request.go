@@ -141,4 +141,5 @@ type UpdateLimitedProductRequest struct {
 	PremiereDate          *string    `json:"premiere_date" validate:"omitempty" example:"2023-10-01T10:00:00"`
 	AvailabilityStartDate *string    `json:"availability_start_date" validate:"omitempty" example:"2023-10-01T10:00"`
 	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"omitempty" example:"2023-10-31T10:00"`
+	AchievableQuantity    *int       `json:"achievable_quantity" validate:"omitempty,min=1" example:"1"`
 }

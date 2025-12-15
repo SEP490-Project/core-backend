@@ -911,6 +911,47 @@ func (h *ProductHandler) CreateVariantImage(c *gin.Context) {
 	))
 }
 
+// DeleteVariantImage godoc
+//
+//	@Summary		Delete Variant Image
+//	@Description	Delete Image Of a product variant
+//	@Tags			Products.Variants
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Param			id	path		string	true	"Variant image ID (UUID)"
+//	@Success		201			{object}	responses.VariantImageResponse
+//	@Failure		400			{object}	object{error=string}
+//	@Failure		401			{object}	object{error=string}
+//	@Failure		500			{object}	object{error=string}
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/variants/images/{id} [delete]
+func (h *ProductHandler) DeleteVariantImage(c *gin.Context) {
+	_, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	imgID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid variant image ID: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	ctx := c.Request.Context()
+	err = h.productService.DeleteVariantImage(ctx, imgID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, responses.ErrorResponse("Failed to delete variant image: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusNoContent, responses.SuccessResponse(
+		"Variant image delete successfully",
+		utils.IntPtr(http.StatusNoContent),
+		nil,
+	))
+}
+
 // CreateVariantAttribute godoc
 //
 //	@Summary		Create Variant Attribute
@@ -1002,19 +1043,19 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 
 // AddConceptToLimitedProduct godoc
 //
-//	@Summary		Add Concept to Limited Product
-//	@Description	Associate an existing concept to a limited product
-//	@Tags			Products.Limited
-//	@Accept			json
-//	@Produce		json
-//	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
-//	@Param			concept-id	path		string	false	"Concept ID (UUID)"
-//	@Success		200			{object}	map[string]any
-//	@Failure		400			{object}	object{error=string}
-//	@Failure		401			{object}	object{error=string}
-//	@Failure		500			{object}	object{error=string}
-//	@Security		BearerAuth
-//	@Router			/api/v1/products/limited/{limited-id}/concept/{concept-id} [post]
+//		@Summary		Add Concept to Limited Product
+//		@Description	Associate an existing concept to a limited product
+//		@Tags			Products.Limited
+//		@Accept			json
+//		@Produce		json
+//		@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
+//		@Param concept_id query string false "Concept ID (UUID)"
+//		@Success		200			{object}	map[string]any
+//		@Failure		400			{object}	object{error=string}
+//		@Failure		401			{object}	object{error=string}
+//		@Failure		500			{object}	object{error=string}
+//		@Security		BearerAuth
+//	 @Router /api/v1/products/limited/{limited-id}/concept [post]
 func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 	limitedIDStr := c.Param("limited-id")
 	limitedID, err := uuid.Parse(limitedIDStr)
@@ -1023,11 +1064,16 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 		return
 	}
 
-	conceptIDStr := c.Param("concept-id")
-	conceptID, err := uuid.Parse(conceptIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid concept id: "+err.Error(), http.StatusBadRequest))
-		return
+	conceptIDStr := c.Query("concept_id")
+	var conceptID *uuid.UUID
+	if conceptIDStr != "" {
+		id, err := uuid.Parse(conceptIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest,
+				responses.ErrorResponse("invalid concept id", http.StatusBadRequest))
+			return
+		}
+		conceptID = &id
 	}
 
 	ctx := c.Request.Context()
