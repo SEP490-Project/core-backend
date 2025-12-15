@@ -36,5 +36,7 @@ func (r *ProductReview) BeforeCreate(tx *gorm.DB) (err error) {
 	if r.ID == uuid.Nil {
 		r.ID = uuid.New()
 	}
+	r.CreatedAt = time.Now()
+	r.UpdatedAt = time.Now()
 	return nil
 }

@@ -61,10 +61,11 @@ type PreOrdersProps struct {
 	Instructions          *string             `json:"instructions"`
 	AttributesDescription *datatypes.JSON     `json:"attributes_description" swaggerignore:"true"`
 
-	Weight int `json:"weight"`
-	Height int `json:"height"`
-	Length int `json:"length"`
-	Width  int `json:"width"`
+	Weight     int  `json:"weight"`
+	Height     int  `json:"height"`
+	Length     int  `json:"length"`
+	Width      int  `json:"width"`
+	IsReviewed bool `json:"is_reviewed"`
 
 	// Product Info
 	ProductName       string                  `json:"product_name"`
@@ -148,6 +149,7 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 			Height:                po.Height,
 			Length:                po.Length,
 			Width:                 po.Width,
+			IsReviewed:            po.IsReviewed,
 			ProductName:           po.ProductName,
 			Description:           po.Description,
 			Type:                  po.Type,

@@ -419,6 +419,8 @@ func (s *brandPartnerAnalyticsService) GetBrandTopRatingProduct(ctx context.Cont
 func (s *brandPartnerAnalyticsService) GetBrandTopSoldProduct(ctx context.Context, brandUserID uuid.UUID, req *requests.BrandTopSoldProductRequest) ([]responses.BrandTopSoldProducts, error) {
 	results, err := s.analyticsRepo.GetBrandTopSoldProduct(ctx, brandUserID, req.Limit, req.StartDate, req.EndDate)
 	if err != nil {
+
+		zap.L().Error("failed to get top sold products from repository: ", zap.Error(err))
 		return nil, err
 	}
 	topSold := make([]responses.BrandTopSoldProducts, len(results))

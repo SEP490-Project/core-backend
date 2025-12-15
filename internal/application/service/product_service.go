@@ -1881,12 +1881,17 @@ func (p productService) AddProductReview(ctx context.Context, userID uuid.UUID, 
 			reviewModel.ProductID = orderItem.Variant.ProductID
 
 			orderItem.IsReviewed = true
+			reviewModel.CreatedAt = time.Now().UTC()
 			if err := uow.OrderItem().Update(ctx, orderItem); err != nil {
 				return err
 			}
 		} else {
 			includes := []string{"ProductVariant", "ProductVariant.Product"}
-			preOrder, err := uow.PreOrder().GetByID(ctx, refID, includes)
+			refUUID, err := uuid.Parse(refID)
+			if err != nil {
+				return err
+			}
+			preOrder, err := uow.PreOrder().GetByID(ctx, refUUID, includes)
 			if err != nil {
 				return err
 			}
@@ -1906,6 +1911,7 @@ func (p productService) AddProductReview(ctx context.Context, userID uuid.UUID, 
 			reviewModel.ProductID = preOrder.ProductVariant.ProductID
 
 			preOrder.IsReviewed = true
+			reviewModel.CreatedAt = time.Now().UTC()
 			if err := uow.PreOrder().Update(ctx, preOrder); err != nil {
 				return err
 			}
