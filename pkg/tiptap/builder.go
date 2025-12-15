@@ -71,7 +71,7 @@ func (b *Builder) AddLinkParagraph(label, text, url string) *Builder {
 	return b
 }
 
-// AppendContent appends a node to the document content
+// AppendNode appends a node to the document content
 func (b *Builder) AppendNode(node TiptapNode) *Builder {
 	b.doc.Content = append(b.doc.Content, node)
 	return b
@@ -85,4 +85,39 @@ func (b *Builder) Build() ([]byte, error) {
 // BuildObject returns the underlying TiptapDocument object
 func (b *Builder) BuildObject() *TiptapDocument {
 	return b.doc
+}
+
+// ReplaceLinkURL replaces all occurrences of trackingURL with affiliateURL in link marks
+// This is used to render channel-specific affiliate links at read time
+func (b *Builder) ReplaceLinkURL(trackingURL, affiliateURL string) *Builder {
+	for i := range b.doc.Content {
+		replaceLinkInNode(&b.doc.Content[i], trackingURL, affiliateURL)
+	}
+	return b
+}
+
+// replaceLinkInNode recursively replaces link URLs in a node and its children
+func replaceLinkInNode(node *TiptapNode, trackingURL, affiliateURL string) {
+	// Check marks for link type
+	for i := range node.Marks {
+		if node.Marks[i].Type == "link" {
+			if href, ok := node.Marks[i].Attrs["href"].(string); ok && href == trackingURL {
+				node.Marks[i].Attrs["href"] = affiliateURL
+			}
+		}
+	}
+
+	// Recursively process children
+	for i := range node.Content {
+		replaceLinkInNode(&node.Content[i], trackingURL, affiliateURL)
+	}
+}
+
+// RenderWithAffiliateLink creates a new body with tracking URL replaced by affiliate URL
+func RenderWithAffiliateLink(body []byte, trackingURL, affiliateURL string) ([]byte, error) {
+	builder, err := FromJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	return builder.ReplaceLinkURL(trackingURL, affiliateURL).Build()
 }

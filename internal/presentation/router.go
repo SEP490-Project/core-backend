@@ -113,6 +113,9 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupBrandPartnerAnalyticsRoutes(v1)
 		r.SetupAdminAnalyticsRoutes(v1)
+		r.SetupContentScheduleRoutes(v1)
+		r.SetupContentEngagementRoutes(v1)
+		r.SetupAlertRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -591,6 +594,7 @@ func (r *Router) SetupChannelRoutes(group *gin.RouterGroup) {
 func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 	contentHandler := r.handlerRegistry.ContentHandler
 	blogHandler := r.handlerRegistry.BlogHandler
+	scheduleHandler := r.handlerRegistry.ContentScheduleHandler
 	contentGroup := group.Group("/contents")
 	{
 		publicGroup := contentGroup.Group("/public")
@@ -614,6 +618,7 @@ func (r *Router) SetupContentRoutes(group *gin.RouterGroup) {
 			editGroup.PUT("/:id/blog", blogHandler.UpdateBlogDetails)
 			editGroup.POST("/:id/publish/channel/:channel_id", contentHandler.PublishToChannel)
 			editGroup.POST("/:id/publish", contentHandler.PublishToAllChannels)
+			editGroup.POST("/:id/schedules/batch", scheduleHandler.BatchScheduleContent)
 		}
 
 		reviewGroup := contentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing))
@@ -834,27 +839,6 @@ func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupContentStaffAnalyticsRoutes sets up routes for content staff analytics dashboard
-func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
-	contentAnalyticsHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
-	analyticsGroup := group.Group("/analytics/content")
-	{
-		// Protected routes (Admin, Marketing and Content Staff can view analytics)
-		protectedGroup := analyticsGroup.Group("")
-		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
-		{
-			protectedGroup.GET("/dashboard", contentAnalyticsHandler.GetDashboard)
-			protectedGroup.GET("/status", contentAnalyticsHandler.GetContentStatusBreakdown)
-			protectedGroup.GET("/platforms", contentAnalyticsHandler.GetMetricsByPlatform)
-			protectedGroup.GET("/top", contentAnalyticsHandler.GetTopContent)
-			protectedGroup.GET("/channels", contentAnalyticsHandler.GetTopChannels)
-			protectedGroup.GET("/trend", contentAnalyticsHandler.GetEngagementTrend)
-			protectedGroup.GET("/campaigns", contentAnalyticsHandler.GetCampaignContentMetrics)
-		}
-	}
-}
-
 // SetupBrandPartnerAnalyticsRoutes sets up routes for brand partner analytics dashboard
 func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 	brandAnalyticsHandler := r.handlerRegistry.BrandPartnerAnalyticsHandler
@@ -872,6 +856,7 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
+			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
 		}
 	}
 }
@@ -1047,24 +1032,26 @@ func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
 func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
 	jobHandler := r.handlerRegistry.JobHandler
 	jobGroup := group.Group("/jobs")
-	jobGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-	jobGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
-		jobGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
-		jobGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
-		jobGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
-		jobGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
-		jobGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
-		jobGroup.POST("/social-metrics-poller", jobHandler.TriggerSocialMetricsPollerJob)
-		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
-		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+		adminGroup := jobGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
+			adminGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
+			adminGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
+			adminGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
+			adminGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
+			adminGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+		}
+
+		jobGroup.POST("/content-metrics-poller",
+			r.middlewareRegistry.Auth.RequireRole(admin, content), jobHandler.TriggerContentMetricsPollerJob)
 	}
 }
 
 func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 	rabbitMQHandler := r.handlerRegistry.RabbitMQHandler
 	rabbitMQGroup := group.Group("/admin/rabbitmq")
-	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
 		// Overview and health
@@ -1090,5 +1077,91 @@ func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 
 		// Publish message (for testing/debugging)
 		rabbitMQGroup.POST("/publish", rabbitMQHandler.PublishMessage)
+	}
+}
+
+// SetupContentStaffAnalyticsRoutes sets up routes for content staff dashboard
+func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	dashboardHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
+
+	// Main dashboard group at /analytics/content
+	dashboardGroup := group.Group("/analytics/contents")
+	{
+		// Protected routes (Admin, Marketing and Content Staff can view dashboard)
+		protectedGroup := dashboardGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			// Consolidated dashboard endpoint
+			protectedGroup.GET("/dashboard", dashboardHandler.GetDashboard)
+
+			// Channel details endpoint
+			protectedGroup.GET("/channels/:id", dashboardHandler.GetChannelDetails)
+		}
+	}
+}
+
+// SetupContentScheduleRoutes sets up routes for content scheduling
+func (r *Router) SetupContentScheduleRoutes(group *gin.RouterGroup) {
+	scheduleHandler := r.handlerRegistry.ContentScheduleHandler
+	scheduleGroup := group.Group("/content-schedules")
+	{
+		// Protected routes (Content Staff, Marketing, Admin)
+		protectedGroup := scheduleGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			protectedGroup.POST("", scheduleHandler.ScheduleContent)
+			protectedGroup.GET("", scheduleHandler.ListSchedules)
+			protectedGroup.GET("/upcoming", scheduleHandler.GetUpcomingSchedules)
+			protectedGroup.GET("/:id", scheduleHandler.GetSchedule)
+			protectedGroup.POST("/:id/cancel", scheduleHandler.CancelSchedule)
+			protectedGroup.POST("/:id/reschedule", scheduleHandler.RescheduleContent)
+		}
+	}
+}
+
+// SetupContentEngagementRoutes sets up routes for content engagement (WEBSITE channel only)
+func (r *Router) SetupContentEngagementRoutes(group *gin.RouterGroup) {
+	engagementHandler := r.handlerRegistry.ContentEngagementHandler
+	engagementGroup := group.Group("contents")
+	{
+		// Public engagement stats
+		engagementGroup.GET("/:id/engagement", engagementHandler.GetEngagementSummary)
+
+		// Authenticated user actions (unified endpoint)
+		authGroup := engagementGroup.Group("")
+		authGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		{
+			// Unified engagement endpoint for all actions
+			authGroup.POST("/:id/engagement", engagementHandler.RecordEngagement)
+			// Get user's engagement status (reactions, comments)
+			authGroup.GET("/:id/engagement/status", engagementHandler.GetUserEngagementStatus)
+		}
+	}
+}
+
+// SetupAlertRoutes sets up routes for system alert management
+func (r *Router) SetupAlertRoutes(group *gin.RouterGroup) {
+	alertHandler := r.handlerRegistry.AlertHandler
+	alertGroup := group.Group("/alerts")
+	{
+		// Protected routes (all staff roles)
+		protectedGroup := alertGroup.Group("")
+		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content, sales))
+		{
+			protectedGroup.GET("", alertHandler.GetAlerts)
+			protectedGroup.GET("/stats", alertHandler.GetAlertStats)
+			protectedGroup.GET("/unacknowledged-count", alertHandler.GetUnacknowledgedCount)
+			protectedGroup.GET("/:id", alertHandler.GetAlert)
+			protectedGroup.POST("/:id/acknowledge", alertHandler.AcknowledgeAlert)
+			protectedGroup.POST("/:id/resolve", alertHandler.ResolveAlert)
+		}
+
+		adminGroup := alertGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("", alertHandler.RaiseAlert)
+		}
 	}
 }

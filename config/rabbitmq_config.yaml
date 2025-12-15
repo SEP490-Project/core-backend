@@ -177,6 +177,39 @@ topology:
             exponentialMultiply: 2
           dlq:
             enabled: true
+    # Delayed message exchange for scheduled content publishing
+    # Requires rabbitmq_delayed_message_exchange plugin to be enabled
+    - name: exchange.content.schedule.delayed
+      type: x-delayed-message
+      durable: true
+      autoDelete: false
+      arguments:
+        x-delayed-type: direct
+      queues:
+        - name: queue.content.schedule.publish
+          routingKey: content.schedule.publish
+          durable: true
+          autoDelete: false
+          prefetch: 1
+          dlq:
+            enabled: true
+    - name: exchange.content_analytics
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.content.view
+          routingKey: content.view
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 30000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -292,6 +325,17 @@ producers:
       maxAttempts: 3
       backoffMs: 2000
       exponentialMultiply: 2.0
+  # Producer for scheduled content publishing (delayed messages)
+  - name: content-schedule-producer
+    exchange: exchange.content.schedule.delayed
+    routingKey: content.schedule.publish
+    confirm: true
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 2000
+      exponentialMultiply: 2.0
   - name: campaign-create-producer
     exchange: exchange.campaign
     routingKey: campaign.create
@@ -301,6 +345,17 @@ producers:
       enabled: true
       maxAttempts: 3
       backoffMs: 2000
+      exponentialMultiply: 2.0
+  - name: content-view-producer
+    exchange: exchange.content_analytics
+    routingKey: content.view
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
       exponentialMultiply: 2.0
 
 consumers:
@@ -375,6 +430,14 @@ consumers:
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
+  # Consumer for scheduled content publishing (processes delayed messages)
+  - name: content-schedule-consumer
+    queue: queue.content.schedule.publish
+    prefetch: 1
+    concurrency: 2
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 5000
   - name: campaign-create-consumer
     queue: queue.campaign.create
     prefetch: 1
@@ -382,3 +445,10 @@ consumers:
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
+  - name: content-view-consumer
+    queue: queue.content.view
+    prefetch: 50
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
