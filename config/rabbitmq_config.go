@@ -17,6 +17,7 @@ type RabbitMQExchangeConfig struct {
 	Type       string                `mapstructure:"type" json:"type" yaml:"type"` // direct, topic, fanout, headers
 	Durable    bool                  `mapstructure:"durable" json:"durable" yaml:"durable"`
 	AutoDelete bool                  `mapstructure:"autoDelete" json:"autoDelete" yaml:"autoDelete"`
+	Arguments  map[string]any        `mapstructure:"arguments" json:"arguments" yaml:"arguments"`
 	Queues     []RabbitMQQueueConfig `mapstructure:"queues" json:"queues" yaml:"queues"`
 }
 

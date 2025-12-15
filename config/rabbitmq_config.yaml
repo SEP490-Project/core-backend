@@ -193,6 +193,23 @@ topology:
           prefetch: 1
           dlq:
             enabled: true
+    - name: exchange.content_analytics
+      type: topic
+      durable: true
+      autoDelete: false
+      queues:
+        - name: queue.content.view
+          routingKey: content.view
+          durable: true
+          autoDelete: false
+          prefetch: 50
+          retry:
+            enabled: true
+            ttlMs: 30000
+            maxAttempts: 3
+            exponentialMultiply: 2
+          dlq:
+            enabled: true
 
 producers:
   - name: notification-email-producer
@@ -329,6 +346,17 @@ producers:
       maxAttempts: 3
       backoffMs: 2000
       exponentialMultiply: 2.0
+  - name: content-view-producer
+    exchange: exchange.content_analytics
+    routingKey: content.view
+    confirm: true
+    mandatory: false
+    persistent: true
+    retry:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 1000
+      exponentialMultiply: 2.0
 
 consumers:
   - name: notification-email-consumer
@@ -417,3 +445,10 @@ consumers:
     autoAck: false
     requeueOnError: false
     backoffMs: 5000
+  - name: content-view-consumer
+    queue: queue.content.view
+    prefetch: 50
+    concurrency: 3
+    autoAck: false
+    requeueOnError: false
+    backoffMs: 2000
