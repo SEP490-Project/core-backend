@@ -55,6 +55,7 @@ type TaskListDTO struct {
 	CampaignID     *uuid.UUID          `json:"campaign_id" gorm:"column:campaign_id"`
 	CampaignName   *string             `json:"campaign_name,omitempty" gorm:"column:campaign_name"`
 	ContractID     *uuid.UUID          `json:"contract_id" gorm:"column:contract_id"`
+	ProductID      *uuid.UUID          `json:"product_id" gorm:"column:product_id"`
 	ChildStatus    *enum.ProductStatus `json:"child_status" gorm:"column:child_status"`
 }
 

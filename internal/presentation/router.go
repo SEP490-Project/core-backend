@@ -179,6 +179,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 				// Update limited variant (Sales, Admin)
 				staffGroup.PATCH("/variants/limited/:variantId", productHandler.UpdateLimitedVariant)
 				staffGroup.GET("/staff/reviews", productHandler.GetProductReviewPaginationStaff)
+				staffGroup.DELETE("/variants/images/:id", productHandler.DeleteVariantImage)
 			}
 		}
 
@@ -285,6 +286,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			protected.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin, sales, content))
 			{
 				protected.POST("", conceptHandler.CreateConcept)
+				protected.PUT("/:id", conceptHandler.UpdateConcept)
 				protected.DELETE("/:id", conceptHandler.DeleteConcept)
 			}
 		}
@@ -870,6 +872,7 @@ func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/revenue-trend", brandAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/affiliates", brandAnalyticsHandler.GetAffiliateMetrics)
 			protectedGroup.GET("/contracts", brandAnalyticsHandler.GetContractDetails)
+			protectedGroup.GET("/top-rating-products", brandAnalyticsHandler.GetTopRatingProducts)
 		}
 	}
 }
