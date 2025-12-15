@@ -25,11 +25,11 @@ func NewJobHandler(cronJobRegistry *jobs.CronJobRegistry) *JobHandler {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/ctr-aggregation [post]
 func (h *JobHandler) TriggerCTRAggregationJob(c *gin.Context) {
@@ -47,11 +47,11 @@ func (h *JobHandler) TriggerCTRAggregationJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/expired-link-cleanup [post]
 func (h *JobHandler) TriggerExpiredLinkCleanupJob(c *gin.Context) {
@@ -69,11 +69,11 @@ func (h *JobHandler) TriggerExpiredLinkCleanupJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/payos-expiry-check [post]
 func (h *JobHandler) TriggerPayOSExpiryCheckJob(c *gin.Context) {
@@ -91,11 +91,11 @@ func (h *JobHandler) TriggerPayOSExpiryCheckJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/pre-order-opening-check [post]
 func (h *JobHandler) TriggerPreOrderOpeningCheckJob(c *gin.Context) {
@@ -113,11 +113,11 @@ func (h *JobHandler) TriggerPreOrderOpeningCheckJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/tiktok-status-poller [post]
 func (h *JobHandler) TriggerTikTokStatusPollerJob(c *gin.Context) {
@@ -135,11 +135,11 @@ func (h *JobHandler) TriggerTikTokStatusPollerJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Param			async	query	bool	false	"Run job asynchronously (default: true)"
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/content-metrics-poller [post]
 func (h *JobHandler) TriggerContentMetricsPollerJob(c *gin.Context) {
