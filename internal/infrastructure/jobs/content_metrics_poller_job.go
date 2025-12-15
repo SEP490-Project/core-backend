@@ -8,8 +8,10 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/gorountine"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
@@ -41,6 +43,7 @@ type ContentMetricsPollerJob struct {
 	contentChannelRepo  irepository.GenericRepository[model.ContentChannel]
 	channelRepo         irepository.GenericRepository[model.Channel]
 	kpiMetricsRepo      irepository.GenericRepository[model.KPIMetrics]
+	contentCommentRepo  irepository.GenericRepository[model.ContentComment]
 	channelService      iservice.ChannelService
 	tiktokSocialService iservice.TikTokSocialService
 	facebookProxy       iproxies.FacebookProxy
@@ -207,6 +210,7 @@ func NewContentMetricsPollerJob(
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel],
 	channelRepo irepository.GenericRepository[model.Channel],
 	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
+	contentCommentRepo irepository.GenericRepository[model.ContentComment],
 	channelService iservice.ChannelService,
 	tiktokSocialService iservice.TikTokSocialService,
 	facebookProxy iproxies.FacebookProxy,
@@ -225,6 +229,7 @@ func NewContentMetricsPollerJob(
 		contentChannelRepo:  contentChannelRepo,
 		channelRepo:         channelRepo,
 		kpiMetricsRepo:      kpiMetricsRepo,
+		contentCommentRepo:  contentCommentRepo,
 		channelService:      channelService,
 		tiktokSocialService: tiktokSocialService,
 		facebookProxy:       facebookProxy,
@@ -280,49 +285,61 @@ func (j *ContentMetricsPollerJob) Run() {
 	zap.L().Info("ContentMetricsPollerJob starting...", zap.Time("start_time", startTime))
 
 	// Get active channels by platform
-	fbChannels, tikTokChannels, err := j.getActiveChannels(ctx)
+	// fbChannels, tikTokChannels, err := j.getActiveChannels(ctx)
+	channels, err := j.getActiveChannels(ctx)
 	if err != nil {
 		zap.L().Error("Failed to get active channels", zap.Error(err))
 		return
 	}
+	fbChannels := utils.FilterSlice(channels, func(c model.Channel) bool {
+		return c.Code == constant.ChannelCodeFacebook
+	})
+	tikTokChannels := utils.FilterSlice(channels, func(c model.Channel) bool {
+		return c.Code == constant.ChannelCodeTikTok
+	})
+	websiteChannels := utils.FilterSlice(channels, func(c model.Channel) bool {
+		return c.Code == constant.ChannelCodeWebsite
+	})
 
 	zap.L().Info("Found active channels",
-		zap.Int("facebook_channels", len(fbChannels)),
-		zap.Int("tiktok_channels", len(tikTokChannels)))
+		zap.Int("channels", len(channels)))
 
 	// Pre-fetch content channels for all channels to avoid N+1 queries
-	contentChannelMap := j.prefetchContentChannels(ctx, fbChannels, tikTokChannels)
+	contentChannelMap := j.prefetchContentChannels(ctx, channels)
 
 	// Create centralized metrics collector
 	collector := newMetricsCollector()
 
 	// Create worker pool for video insights fetching (5 concurrent workers)
-	videoInsightsPool := utils.NewWorkerPool(ctx, 5)
+	videoInsightsPool := gorountine.NewWorkerPool(ctx, 5)
 	videoInsightsPool.Start()
 
 	// Execute all tasks with continue-on-failure
 	var wg sync.WaitGroup
 	tasks := []struct {
 		name string
-		fn   func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *utils.WorkerPool)
+		fn   func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *gorountine.WorkerPool)
 	}{
-		{"Facebook Page Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+		{"Facebook Page Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *gorountine.WorkerPool) {
 			j.fetchFacebookPageMetrics(ctx, fbChannels, c)
 		}},
-		{"Facebook Posts Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+		{"Facebook Posts Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *gorountine.WorkerPool) {
 			j.fetchFacebookPostsMetrics(ctx, fbChannels, c, ccMap, pool)
 		}},
-		{"TikTok User Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+		{"TikTok User Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *gorountine.WorkerPool) {
 			j.fetchTikTokUserMetrics(ctx, tikTokChannels, c)
 		}},
-		{"TikTok Video List Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *utils.WorkerPool) {
+		{"TikTok Video List Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *gorountine.WorkerPool) {
 			j.fetchTikTokVideoListMetrics(ctx, tikTokChannels, c, ccMap)
+		}},
+		{"Website Metrics", func(ctx context.Context, c *metricsCollector, ccMap map[uuid.UUID]map[string]*model.ContentChannel, pool *gorountine.WorkerPool) {
+			j.processWebsiteMetrics(ctx, websiteChannels, c, ccMap)
 		}},
 	}
 
 	for _, task := range tasks {
 		wg.Add(1)
-		go func(taskName string, taskFn func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *utils.WorkerPool)) {
+		go func(taskName string, taskFn func(context.Context, *metricsCollector, map[uuid.UUID]map[string]*model.ContentChannel, *gorountine.WorkerPool)) {
 			defer wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
@@ -358,20 +375,15 @@ func (j *ContentMetricsPollerJob) Run() {
 // prefetchContentChannels loads all content channels for given channels in one query
 // Returns map[channelID][externalPostID]*ContentChannel for O(1) lookup
 func (j *ContentMetricsPollerJob) prefetchContentChannels(
-	ctx context.Context,
-	fbChannels, tikTokChannels []model.Channel,
+	ctx context.Context, channels []model.Channel,
 ) map[uuid.UUID]map[string]*model.ContentChannel {
 	result := make(map[uuid.UUID]map[string]*model.ContentChannel)
 
 	// Collect all channel IDs
-	channelIDs := make([]uuid.UUID, 0, len(fbChannels)+len(tikTokChannels))
-	for _, ch := range fbChannels {
+	channelIDs := make([]uuid.UUID, 0, len(channels))
+	for _, ch := range channels {
 		channelIDs = append(channelIDs, ch.ID)
 	}
-	for _, ch := range tikTokChannels {
-		channelIDs = append(channelIDs, ch.ID)
-	}
-
 	if len(channelIDs) == 0 {
 		return result
 	}
@@ -510,30 +522,18 @@ func (j *ContentMetricsPollerJob) Restart(adminConfig *config.AdminConfig) error
 // region: ======== Helper Methods ========
 
 // getActiveChannels returns active Facebook and TikTok channels
-func (j *ContentMetricsPollerJob) getActiveChannels(ctx context.Context) ([]model.Channel, []model.Channel, error) {
+func (j *ContentMetricsPollerJob) getActiveChannels(ctx context.Context) ([]model.Channel, error) {
 	channels, _, err := j.channelRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
 			return db.Where("is_active = ?", true).
-				Where("hashed_access_token IS NOT NULL").
-				Where("code IN (?, ?)", "FACEBOOK", "TIKTOK")
+				Where("(hashed_access_token IS NOT NULL) OR (code = ?)", "WEBSITE")
 		},
 		nil, 0, 0)
-
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	var fbChannels, tikTokChannels []model.Channel
-	for _, ch := range channels {
-		switch ch.Code {
-		case "FACEBOOK":
-			fbChannels = append(fbChannels, ch)
-		case "TIKTOK":
-			tikTokChannels = append(tikTokChannels, ch)
-		}
-	}
-
-	return fbChannels, tikTokChannels, nil
+	return channels, nil
 }
 
 // waitForFBRateLimit waits for Facebook rate limiter before making API call
@@ -574,6 +574,8 @@ func (j *ContentMetricsPollerJob) mergeAggregatedMetricsIntoChannels(collector *
 		}
 		if agg.totalViews > 0 {
 			update.mappedMetrics[enum.KPIValueTypeReach.String()] = float64(agg.totalViews)
+			update.mappedMetrics[enum.KPIValueTypeViews.String()] = float64(agg.totalViews)
+			update.mappedMetrics[enum.KPIValueTypeUniqueViews.String()] = float64(agg.totalViews)
 		}
 		if totalEngagement > 0 {
 			update.mappedMetrics[enum.KPIValueTypeEngagement.String()] = totalEngagement
@@ -654,7 +656,7 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(
 	channels []model.Channel,
 	collector *metricsCollector,
 	contentChannelMap map[uuid.UUID]map[string]*model.ContentChannel,
-	videoInsightsPool *utils.WorkerPool,
+	videoInsightsPool *gorountine.WorkerPool,
 ) {
 	for i := range channels {
 		channel := &channels[i]
@@ -731,7 +733,7 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	post *dtos.FacebookPagePost,
 	collector *metricsCollector,
 	ccMap map[string]*model.ContentChannel,
-	videoInsightsPool *utils.WorkerPool,
+	videoInsightsPool *gorountine.WorkerPool,
 ) {
 	// O(1) lookup from pre-fetched map instead of database query
 	cc, exists := ccMap[post.ID]
@@ -763,7 +765,14 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	}
 
 	// Map to KPI metrics using helper
-	mappedMetrics := make(map[enum.KPIValueType]float64)
+	mappedMetrics := map[enum.KPIValueType]float64{
+		enum.KPIValueTypeViews:       0,
+		enum.KPIValueTypeUniqueViews: 0,
+		enum.KPIValueTypeComments:    0,
+		enum.KPIValueTypeLikes:       0,
+		enum.KPIValueTypeShares:      0,
+		enum.KPIValueTypeEngagement:  0,
+	}
 
 	// Reactions -> Likes + Engagement
 	if reactions > 0 {
@@ -858,11 +867,7 @@ func (j *ContentMetricsPollerJob) fetchAndMergeVideoInsightsAsync(
 
 				// Map video metrics
 				for k, v := range helper.MapFacebookMetricsToKPIField(data.Name, value) {
-					if existing, exists := mappedMetrics[k]; exists {
-						mappedMetrics[k] = existing + v
-					} else {
-						mappedMetrics[k] = v
-					}
+					utils.AddValueToMap(mappedMetrics, k, v)
 				}
 			}
 		}
@@ -983,7 +988,7 @@ func (j *ContentMetricsPollerJob) fetchTikTokVideoListMetrics(
 // processTikTokVideoMetrics processes metrics for a single TikTok video
 func (j *ContentMetricsPollerJob) processTikTokVideoMetrics(
 	_ context.Context,
-	_ *model.Channel,
+	channel *model.Channel,
 	video *dtos.TikTokVideoItem,
 	collector *metricsCollector,
 	ccMap map[string]*model.ContentChannel,
@@ -1020,6 +1025,200 @@ func (j *ContentMetricsPollerJob) processTikTokVideoMetrics(
 
 	// Add to collector (not persisting directly)
 	collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
+
+	// Aggregate post metrics to channel level
+	collector.aggregatePostMetricsToChannel(channel.ID, int(video.LikeCount), int(video.CommentCount), int(video.ShareCount), int(video.ViewCount))
+}
+
+// endregion
+
+// region: ======== Website Metrics Methods ========
+
+// processWebsiteMetrics aggregates metrics for website channels from local database
+// Website metrics come from:
+// - kpi_metrics table (VIEWS, UNIQUE_VIEWS) populated by ContentViewConsumer
+// - content_comments table for comment counts
+// - ContentChannel.Metrics for stored reaction data
+func (j *ContentMetricsPollerJob) processWebsiteMetrics(
+	ctx context.Context,
+	websiteChannels []model.Channel,
+	collector *metricsCollector,
+	contentChannelMap map[uuid.UUID]map[string]*model.ContentChannel,
+) {
+	if len(websiteChannels) == 0 {
+		zap.L().Debug("No website channels to process")
+		return
+	}
+
+	for _, channel := range websiteChannels {
+		j.processWebsiteChannel(ctx, channel, collector, contentChannelMap)
+	}
+}
+
+// processWebsiteChannel aggregates metrics for a single website channel
+func (j *ContentMetricsPollerJob) processWebsiteChannel(
+	ctx context.Context,
+	channel model.Channel,
+	collector *metricsCollector,
+	contentChannelMap map[uuid.UUID]map[string]*model.ContentChannel,
+) {
+	zap.L().Debug("Processing website channel metrics", zap.String("channel_id", channel.ID.String()))
+
+	// Get content channels for this website channel
+	ccMap, exists := contentChannelMap[channel.ID]
+	if !exists || len(ccMap) == 0 {
+		// Fetch directly if not in prefetch map (website uses ContentID as key, not ExternalPostID)
+		contentChannels, _, err := j.contentChannelRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("channel_id = ?", channel.ID)
+		}, nil, 0, 0)
+		if err != nil {
+			zap.L().Error("Failed to get content channels for website",
+				zap.String("channel_id", channel.ID.String()),
+				zap.Error(err))
+			return
+		}
+		ccMap = make(map[string]*model.ContentChannel)
+		for i := range contentChannels {
+			ccMap[contentChannels[i].ContentID.String()] = &contentChannels[i]
+		}
+	}
+
+	if len(ccMap) == 0 {
+		zap.L().Debug("No content channels for website", zap.String("channel_id", channel.ID.String()))
+		return
+	}
+
+	// Aggregate channel-level metrics
+	var totalViews, totalUniqueViews, totalComments, totalLikes, totalShares int64
+
+	for _, cc := range ccMap {
+		views, uniqueViews, comments, likes, shares := j.getWebsiteContentMetrics(ctx, cc)
+		totalViews += views
+		totalUniqueViews += uniqueViews
+		totalComments += comments
+		totalLikes += likes
+		totalShares += shares
+
+		// Update content channel metrics
+		mappedMetrics := map[enum.KPIValueType]float64{
+			enum.KPIValueTypeReach:       float64(uniqueViews),
+			enum.KPIValueTypeViews:       float64(views),
+			enum.KPIValueTypeUniqueViews: float64(uniqueViews),
+			enum.KPIValueTypeComments:    float64(comments),
+			enum.KPIValueTypeLikes:       float64(likes),
+			enum.KPIValueTypeShares:      float64(shares),
+			enum.KPIValueTypeEngagement:  float64(likes + comments + shares),
+		}
+
+		rawMetrics := map[string]any{
+			"views":        views,
+			"unique_views": uniqueViews,
+			"comments":     comments,
+			"likes":        likes,
+			"shares":       shares,
+		}
+
+		collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
+	}
+
+	// Update channel-level metrics
+	rawChannelMetrics := map[string]any{
+		"views":            totalViews,
+		"unique_views":     totalUniqueViews,
+		"comments":         totalComments,
+		"likes":            totalLikes,
+		"shares":           totalShares,
+		"content_count":    len(ccMap),
+		"platform":         "website",
+		"last_aggregation": time.Now().Format(time.RFC3339),
+	}
+
+	mappedChannelMetrics := map[string]float64{
+		string(enum.KPIValueTypeReach):       float64(totalUniqueViews),
+		string(enum.KPIValueTypeViews):       float64(totalViews),
+		string(enum.KPIValueTypeUniqueViews): float64(totalUniqueViews),
+		string(enum.KPIValueTypeComments):    float64(totalComments),
+		string(enum.KPIValueTypeLikes):       float64(totalLikes),
+		string(enum.KPIValueTypeShares):      float64(totalShares),
+		string(enum.KPIValueTypeEngagement):  float64(totalLikes + totalComments + totalShares),
+	}
+
+	collector.addChannelUpdate(&channel, rawChannelMetrics, mappedChannelMetrics)
+
+	zap.L().Debug("Processed website channel metrics",
+		zap.String("channel_id", channel.ID.String()),
+		zap.Int64("total_views", totalViews),
+		zap.Int64("total_comments", totalComments),
+		zap.Int("content_count", len(ccMap)))
+}
+
+// getWebsiteContentMetrics retrieves metrics for a single website content channel
+// from kpi_metrics (views), content_comments (comments), and stored Metrics (likes/shares)
+func (j *ContentMetricsPollerJob) getWebsiteContentMetrics(
+	ctx context.Context,
+	cc *model.ContentChannel,
+) (views, uniqueViews, comments, likes, shares int64) {
+	// 1. Get views from kpi_metrics table
+	viewMetrics, _, _ := j.kpiMetricsRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("reference_type = ?", enum.KPIReferenceTypeContentChannel).
+			Where("reference_id = ?", cc.ID).
+			Where("type IN ?", []enum.KPIValueType{enum.KPIValueTypeViews, enum.KPIValueTypeUniqueViews})
+	}, nil, 1000, 1)
+
+	for _, m := range viewMetrics {
+		switch m.Type {
+		case enum.KPIValueTypeViews:
+			views += int64(m.Value)
+		case enum.KPIValueTypeUniqueViews:
+			uniqueViews += int64(m.Value)
+		}
+	}
+
+	// 2. Get comment count from content_comments table
+	commentCount, _ := j.contentCommentRepo.Count(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("content_channel_id = ?", cc.ID)
+	})
+	comments = commentCount
+
+	// 3. Get likes and shares from ContentChannelMetrics stored struct
+	if cc.Metrics != nil {
+		zap.L().Debug("Extracting likes and shares from ContentChannel metrics",
+			zap.String("content_channel_id", cc.ID.String()))
+		// Try CurrentMapped first
+		if cc.Metrics.CurrentMapped != nil {
+			zap.L().Debug("Using CurrentMapped for likes and shares",
+				zap.String("content_channel_id", cc.ID.String()))
+			if l, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeLikes]; ok {
+				zap.L().Debug("Found likes in CurrentMapped",
+					zap.String("content_channel_id", cc.ID.String()), zap.Float64("likes", l))
+				likes = int64(l)
+			}
+			if s, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeShares]; ok {
+				zap.L().Debug("Found shares in CurrentMapped",
+					zap.String("content_channel_id", cc.ID.String()), zap.Float64("shares", s))
+				shares = int64(s)
+			}
+		}
+
+		// Fallback to CurrentFetched for website-specific format
+		if _, ok := cc.Metrics.CurrentFetched["reaction_summary"]; likes == 0 && cc.Metrics.CurrentFetched != nil && ok {
+			// rawSummary, err := json.Marshal(reactionSummary)
+			zap.L().Debug("Using CurrentFetched for likes and shares",
+				zap.String("content_channel_id", cc.ID.String()), zap.Any("current_fetched", cc.Metrics.CurrentFetched))
+			if summary, ok := cc.Metrics.CurrentFetched["reaction_summary"].(map[string]any); ok {
+				for _, count := range summary {
+					if c, ok := count.(float64); ok {
+						likes += int64(c)
+					}
+				}
+			}
+			if s, ok := cc.Metrics.CurrentFetched["shares_count"].(float64); ok {
+				shares = int64(s)
+			}
+		}
+	}
+
+	return
 }
 
 // endregion

@@ -20,7 +20,11 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[enum.KPIValueTyp
 	// Video view metrics -> Reach (views)
 	case videoMetrics.BlueReelsPlayCount, postMetrics.PostMediaView, "total_video_views":
 		if v, ok := value.(float64); ok {
-			return map[enum.KPIValueType]float64{enum.KPIValueTypeReach: v}
+			return map[enum.KPIValueType]float64{
+				enum.KPIValueTypeReach:       v,
+				enum.KPIValueTypeViews:       v,
+				enum.KPIValueTypeUniqueViews: v,
+			}
 		}
 		return map[enum.KPIValueType]float64{}
 
@@ -78,7 +82,11 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[enum.KPIValueTyp
 func MapTikTokMetricsToKPIField(metric string, value float64) map[enum.KPIValueType]float64 {
 	switch metric {
 	case constant.TikTokVideoMetrics.ViewCount:
-		return map[enum.KPIValueType]float64{enum.KPIValueTypeReach: value}
+		return map[enum.KPIValueType]float64{
+			enum.KPIValueTypeReach:       value,
+			enum.KPIValueTypeViews:       value,
+			enum.KPIValueTypeUniqueViews: value,
+		}
 	case constant.TikTokVideoMetrics.LikeCount:
 		return map[enum.KPIValueType]float64{
 			enum.KPIValueTypeLikes:      value,
