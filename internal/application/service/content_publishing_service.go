@@ -383,7 +383,7 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	pageID := *channel.ExternalID
 
 	// Parse Tiptap content body to extract text and images
-	parseResult, err := tiptap.ParseTiptapJSON(contentChannel.GetRenderedBody())
+	parseResult, err := tiptap.ParseTiptapJSON(contentChannel.GetRenderedBody(s.config.Server.BaseURL))
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to parse content body: %w", err)
 	}
