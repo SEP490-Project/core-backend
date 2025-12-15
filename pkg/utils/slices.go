@@ -90,3 +90,14 @@ func JoinSliceFunc[T any](slice []T, separator string, mapper func(T) string) st
 	}
 	return result.String()
 }
+
+// GetElementByFilter returns the first element in the slice that satisfies the predicate function.
+func GetElementByFilter[T any](slice []T, predicate func(T) bool) *T {
+	for _, item := range slice {
+		if predicate(item) {
+			return &item
+		}
+	}
+
+	return nil
+}

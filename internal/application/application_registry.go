@@ -55,6 +55,9 @@ type ApplicationRegistry struct {
 	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
 	WebhookDataService            iservice.WebhookDataService
+	ContentScheduleService        iservice.ContentScheduleService
+	ContentEngagementService      iservice.ContentEngagementService
+	AlertManagerService           iservice.AlertManagerService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -153,6 +156,19 @@ func NewApplicationRegistry(
 		configs,
 	)
 
+	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
+	contentScheduleService := service.NewContentScheduleService(
+		databaseRegistry,
+		contentPublishingService,
+		infrastructureRegistry.RabbitMQ,
+	)
+
+	contentEngagementService := service.NewContentEngagementService(
+		databaseRegistry.ContentChannelRepository,
+		databaseRegistry.ChannelRepository,
+		databaseRegistry.ContentCommentRepository,
+	)
+
 	return &ApplicationRegistry{
 		configs:                       configs,
 		DatabaseRegistry:              databaseRegistry,
@@ -188,7 +204,7 @@ func NewApplicationRegistry(
 		PreOrderService:               service.NewPreOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, stateTransferService, notificationService),
 		MarketingAnalyticsService:     service.NewMarketingAnalyticsService(databaseRegistry.MarketingAnalyticsRepository),
 		SalesStaffAnalyticsService:    service.NewSalesStaffAnalyticsService(databaseRegistry.SalesStaffAnalyticsRepository),
-		ContentStaffAnalyticsService:  service.NewContentStaffAnalyticsService(databaseRegistry.ContentStaffAnalyticsRepository),
+		ContentStaffAnalyticsService:  service.NewContentStaffAnalyticsService(databaseRegistry),
 		BrandPartnerAnalyticsService:  service.NewBrandPartnerAnalyticsService(databaseRegistry.BrandPartnerAnalyticsRepository),
 		AdminAnalyticsService:         service.NewAdminAnalyticsService(databaseRegistry.AdminAnalyticsRepository),
 		FacebookSocialService:         facebookSocialService,
@@ -196,6 +212,9 @@ func NewApplicationRegistry(
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
 		WebhookDataService:            service.NewWebhookDataService(databaseRegistry.WebhookDataRepository, infrastructureRegistry.UnitOfWork),
+		ContentScheduleService:        contentScheduleService,
+		ContentEngagementService:      contentEngagementService,
+		AlertManagerService:           alertManagerService,
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
@@ -237,28 +256,13 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("tiktok_status_poller_job", tiktokPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.TikTokStatusPollerJob = tiktokPollerJob
 
-		// Register Social Metrics Poller Job (DEPRECATED - use ContentMetricsPollerJob)
-		socialMetricsPollerJob := jobs.NewSocialMetricsPollerJob(
-			r.InfrastructureRegistry.DB,
-			r.InfrastructureRegistry.UnitOfWork,
-			r.DatabaseRegistry.ContentChannelRepository,
-			r.DatabaseRegistry.KPIMetricsRepository,
-			r.ChannelService,
-			r.TikTokSocialService,
-			r.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
-			r.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
-			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
-			&r.configs.AdminConfig,
-		)
-		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("social_metrics_poller_job", socialMetricsPollerJob)
-		r.InfrastructureRegistry.CronJobsRegistry.SocialMetricsPollerJob = socialMetricsPollerJob
-
 		contentMetricsPollerJob := jobs.NewContentMetricsPollerJob(
 			r.InfrastructureRegistry.DB,
 			r.InfrastructureRegistry.UnitOfWork,
 			r.DatabaseRegistry.ContentChannelRepository,
 			r.DatabaseRegistry.ChannelRepository,
 			r.DatabaseRegistry.KPIMetricsRepository,
+			r.DatabaseRegistry.ContentCommentRepository,
 			r.ChannelService,
 			r.TikTokSocialService,
 			r.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,

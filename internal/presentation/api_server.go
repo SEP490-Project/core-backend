@@ -232,6 +232,8 @@ func (s *APIServer) registerRabbitMQConsumers() error {
 		"content-publish-consumer":         s.consumerRegistry.ContentPublishConsumer.Handle,
 		"content-publish-all-consumer":     s.consumerRegistry.ContentPublishAllConsumer.Handle,
 		"campaign-create-consumer":         s.consumerRegistry.CampaignCreateConsumer.Handle,
+		"content-schedule-consumer":        s.consumerRegistry.ContentScheduleConsumer.Handle,
+		"content-view-consumer":            s.consumerRegistry.ContentViewConsumer.Handle,
 	}
 
 	// Register handlers with RabbitMQ
