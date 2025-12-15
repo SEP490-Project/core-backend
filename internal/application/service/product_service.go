@@ -1678,13 +1678,9 @@ func (p productService) UpdateVariant(ctx context.Context, variantID uuid.UUID, 
 		variant.Width = *update.Width
 	}
 
-	// Handle stock update for inputed stock (only set CurrentStock/MaxStock as appropriate)
 	if update.InputedStock != nil {
 		variant.CurrentStock = update.InputedStock
-		// if MaxStock exists, keep it; otherwise set MaxStock to inputed stock
-		if variant.MaxStock == nil {
-			variant.MaxStock = update.InputedStock
-		}
+		variant.MaxStock = update.InputedStock
 	}
 
 	// Handle default flag: unset other variants' default if setting this one to true
