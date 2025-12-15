@@ -840,27 +840,6 @@ func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupContentStaffAnalyticsRoutes sets up routes for content staff analytics dashboard
-func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
-	contentAnalyticsHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
-	analyticsGroup := group.Group("/analytics/content")
-	{
-		// Protected routes (Admin, Marketing and Content Staff can view analytics)
-		protectedGroup := analyticsGroup.Group("")
-		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
-		{
-			protectedGroup.GET("/dashboard", contentAnalyticsHandler.GetDashboard)
-			protectedGroup.GET("/status", contentAnalyticsHandler.GetContentStatusBreakdown)
-			protectedGroup.GET("/platforms", contentAnalyticsHandler.GetMetricsByPlatform)
-			protectedGroup.GET("/top", contentAnalyticsHandler.GetTopContent)
-			protectedGroup.GET("/channels", contentAnalyticsHandler.GetTopChannels)
-			protectedGroup.GET("/trend", contentAnalyticsHandler.GetEngagementTrend)
-			protectedGroup.GET("/campaigns", contentAnalyticsHandler.GetCampaignContentMetrics)
-		}
-	}
-}
-
 // SetupBrandPartnerAnalyticsRoutes sets up routes for brand partner analytics dashboard
 func (r *Router) SetupBrandPartnerAnalyticsRoutes(group *gin.RouterGroup) {
 	brandAnalyticsHandler := r.handlerRegistry.BrandPartnerAnalyticsHandler
@@ -1054,23 +1033,26 @@ func (r *Router) setupAIRoutes(group *gin.RouterGroup) {
 func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
 	jobHandler := r.handlerRegistry.JobHandler
 	jobGroup := group.Group("/jobs")
-	jobGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
-	jobGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
-		jobGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
-		jobGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
-		jobGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
-		jobGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
-		jobGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
-		jobGroup.POST("/content-metrics-poller", jobHandler.TriggerContentMetricsPollerJob)
-		jobGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+		adminGroup := jobGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("/ctr-aggregation", jobHandler.TriggerCTRAggregationJob)
+			adminGroup.POST("/expired-link-cleanup", jobHandler.TriggerExpiredLinkCleanupJob)
+			adminGroup.POST("/payos-expiry-check", jobHandler.TriggerPayOSExpiryCheckJob)
+			adminGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
+			adminGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
+			adminGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+		}
+
+		jobGroup.POST("/content-metrics-poller",
+			r.middlewareRegistry.Auth.RequireRole(admin, content), jobHandler.TriggerContentMetricsPollerJob)
 	}
 }
 
 func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 	rabbitMQHandler := r.handlerRegistry.RabbitMQHandler
 	rabbitMQGroup := group.Group("/admin/rabbitmq")
-	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 	rabbitMQGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
 		// Overview and health
@@ -1099,9 +1081,11 @@ func (r *Router) setupRabbitMQRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupContentDashboardRoutes sets up routes for content staff dashboard (fresh implementation)
-func (r *Router) SetupContentDashboardRoutes(group *gin.RouterGroup) {
-	dashboardHandler := r.handlerRegistry.ContentDashboardHandler
+// SetupContentStaffAnalyticsRoutes sets up routes for content staff dashboard
+func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
+	dashboardHandler := r.handlerRegistry.ContentStaffAnalyticsHandler
+
+	// Main dashboard group at /analytics/content
 	dashboardGroup := group.Group("/analytics/contents")
 	{
 		// Protected routes (Admin, Marketing and Content Staff can view dashboard)
@@ -1109,7 +1093,11 @@ func (r *Router) SetupContentDashboardRoutes(group *gin.RouterGroup) {
 		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
 		{
+			// Consolidated dashboard endpoint
 			protectedGroup.GET("/dashboard", dashboardHandler.GetDashboard)
+
+			// Channel details endpoint
+			protectedGroup.GET("/channels/:id", dashboardHandler.GetChannelDetails)
 		}
 	}
 }
