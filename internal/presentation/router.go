@@ -156,7 +156,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			{
 				protectedProducts.POST("/standard", productHandler.CreateStandardProduct)
 				protectedProducts.POST("/limited", productHandler.CreateLimitedProduct)
-				protectedProducts.POST("/limited/:limited-id/concept/:concept-id", productHandler.AddConceptToLimitedProduct)
+				protectedProducts.POST("/limited/:limited-id/concept", productHandler.AddConceptToLimitedProduct)
 				protectedProducts.POST("/:productId/variants", productHandler.CreateProductVariant)
 				protectedProducts.POST("/variants/:variantId/images", productHandler.CreateVariantImage)
 				//Debt: do not allow brand to active this
