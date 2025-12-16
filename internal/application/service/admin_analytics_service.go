@@ -167,6 +167,7 @@ func (s *adminAnalyticsService) GetDashboard(ctx context.Context, req *requests.
 				TotalContractRevenue:   revenue.AdvertisingRevenue + revenue.AffiliateRevenue + revenue.AmbassadorRevenue + revenue.CoProducingRevenue,
 				TotalProductRevenue:    revenue.StandardProductRevenue + revenue.LimitedProductRevenue,
 				TotalRevenue:           revenue.MonthlyRevenue,
+				ShippingRevenue:        revenue.ShippingRevenue,
 			}
 			mu.Unlock()
 			return nil
@@ -289,17 +290,36 @@ func (s *adminAnalyticsService) GetPlatformRevenue(ctx context.Context, req *req
 
 	var mu sync.Mutex
 	_ = utils.RunParallel(ctx, 3,
+		// func(ctx context.Context) error {
+		// 	revenue, _ := s.analyticsRepo.GetTotalPlatformRevenue(ctx, &start, &end)
+		// 	mu.Lock()
+		// 	totalRevenue = revenue
+		// 	mu.Unlock()
+		// 	return nil
+		// },
+		// func(ctx context.Context) error {
+		// 	b, _ := s.getRevenueBreakdown(ctx, &start, &end)
+		// 	mu.Lock()
+		// 	breakdown = b
+		// 	mu.Unlock()
+		// 	return nil
+		// },
 		func(ctx context.Context) error {
-			revenue, _ := s.analyticsRepo.GetTotalPlatformRevenue(ctx, &start, &end)
+			revenue, _ := s.analyticsRepo.GetDashboardRevenueMetrics(ctx, &start, &end)
 			mu.Lock()
-			totalRevenue = revenue
-			mu.Unlock()
-			return nil
-		},
-		func(ctx context.Context) error {
-			b, _ := s.getRevenueBreakdown(ctx, &start, &end)
-			mu.Lock()
-			breakdown = b
+			totalRevenue = revenue.TotalRevenue
+			breakdown = &responses.AdminRevenueBreakdown{
+				AdvertisingRevenue:     revenue.AdvertisingRevenue,
+				AffiliateRevenue:       revenue.AffiliateRevenue,
+				AmbassadorRevenue:      revenue.AmbassadorRevenue,
+				CoProducingRevenue:     revenue.CoProducingRevenue,
+				StandardProductRevenue: revenue.StandardProductRevenue,
+				LimitedProductRevenue:  revenue.LimitedProductRevenue,
+				TotalContractRevenue:   revenue.AdvertisingRevenue + revenue.AffiliateRevenue + revenue.AmbassadorRevenue + revenue.CoProducingRevenue,
+				TotalProductRevenue:    revenue.StandardProductRevenue + revenue.LimitedProductRevenue,
+				TotalRevenue:           revenue.MonthlyRevenue,
+				ShippingRevenue:        revenue.ShippingRevenue,
+			}
 			mu.Unlock()
 			return nil
 		},
