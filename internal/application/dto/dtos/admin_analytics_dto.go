@@ -89,4 +89,5 @@ type DashboardRevenueResult struct {
 	CoProducingRevenue     float64
 	StandardProductRevenue float64
 	LimitedProductRevenue  float64
+	ShippingRevenue        float64
 }

@@ -63,6 +63,7 @@ type AdminRevenueBreakdown struct {
 	// Product Revenue
 	StandardProductRevenue float64 `json:"standard_product_revenue"`
 	LimitedProductRevenue  float64 `json:"limited_product_revenue"`
+	ShippingRevenue        float64 `json:"shipping_revenue"`
 
 	// Totals
 	TotalContractRevenue float64 `json:"total_contract_revenue"`
