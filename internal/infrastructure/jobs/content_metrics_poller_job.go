@@ -1100,25 +1100,25 @@ func (j *ContentMetricsPollerJob) processWebsiteChannel(
 		totalShares += shares
 
 		// Update content channel metrics
-		mappedMetrics := map[enum.KPIValueType]float64{
-			enum.KPIValueTypeReach:       float64(uniqueViews),
-			enum.KPIValueTypeViews:       float64(views),
-			enum.KPIValueTypeUniqueViews: float64(uniqueViews),
-			enum.KPIValueTypeComments:    float64(comments),
-			enum.KPIValueTypeLikes:       float64(likes),
-			enum.KPIValueTypeShares:      float64(shares),
-			enum.KPIValueTypeEngagement:  float64(likes + comments + shares),
-		}
+		// mappedMetrics := map[enum.KPIValueType]float64{
+		// 	enum.KPIValueTypeReach:       float64(uniqueViews),
+		// 	enum.KPIValueTypeViews:       float64(views),
+		// 	enum.KPIValueTypeUniqueViews: float64(uniqueViews),
+		// 	enum.KPIValueTypeComments:    float64(comments),
+		// 	enum.KPIValueTypeLikes:       float64(likes),
+		// 	enum.KPIValueTypeShares:      float64(shares),
+		// 	enum.KPIValueTypeEngagement:  float64(likes + comments + shares),
+		// }
 
-		rawMetrics := map[string]any{
-			"views":        views,
-			"unique_views": uniqueViews,
-			"comments":     comments,
-			"likes":        likes,
-			"shares":       shares,
-		}
+		// rawMetrics := map[string]any{
+		// 	"views":        views,
+		// 	"unique_views": uniqueViews,
+		// 	"comments":     comments,
+		// 	"likes":        likes,
+		// 	"shares":       shares,
+		// }
 
-		collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
+		// collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
 	}
 
 	// Update channel-level metrics
