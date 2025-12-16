@@ -120,12 +120,14 @@ func (r *NotificationRepository) CleanupOldNotifications(ctx context.Context, ol
 }
 
 // CountUnread counts unread notifications for a specific user
-func (r *NotificationRepository) CountUnread(ctx context.Context, userID uuid.UUID) (int64, error) {
+func (r *NotificationRepository) CountUnread(ctx context.Context, userID uuid.UUID, notiType []enum.NotificationType) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Notification{}).
 		Where("user_id = ?", userID).
 		Where("is_read = ?", false).
+		Where("status = ?", enum.NotificationStatusSent).
+		Where("type IN ?", notiType).
 		Count(&count).Error
 	return count, err
 }

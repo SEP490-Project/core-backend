@@ -36,7 +36,7 @@ type NotificationRepository interface {
 	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.Notification, int64, error)
 
 	// CountUnread counts unread notifications for a specific user
-	CountUnread(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountUnread(ctx context.Context, userID uuid.UUID, notiType []enum.NotificationType) (int64, error)
 
 	// MarkAsRead marks a notification as read
 	MarkAsRead(ctx context.Context, id uuid.UUID) error
