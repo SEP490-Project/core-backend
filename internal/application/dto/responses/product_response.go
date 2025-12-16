@@ -88,6 +88,7 @@ type ProductDetailResponse struct {
 	BrandName    string                  `json:"brand_name,omitempty"`    // optional
 	ThumbnailURL *[]string               `json:"thumbnail_url,omitempty"` // optional
 	IsActive     bool                    `json:"is_active"`
+	Status       enum.ProductStatus      `json:"status"`
 	Category     ProductCategoryResponse `json:"category"`
 	Description  string                  `json:"description"`
 	Name         string                  `json:"name"`
@@ -147,6 +148,7 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 
 	// Status & time
 	d.IsActive = m.Status == enum.ProductStatusActived
+	d.Status = m.Status
 	d.CreatedAt = utils.FormatLocalTime(&m.CreatedAt, "")
 
 	// Thumbnail

@@ -368,9 +368,15 @@ func (p productService) AddConceptToLimitedProduct(ctx context.Context, limitedP
 			limitedProductEntity.ConceptID = &conceptEntity.ID
 		} else {
 			limitedProductEntity.ConceptID = nil
+			limitedProductEntity.Concept = nil
 		}
 
-		if err := uow.LimitedProducts().Update(ctx, limitedProductEntity); err != nil {
+		err = uow.LimitedProducts().
+			DB().
+			Model(&model.LimitedProduct{}).
+			Where("id = ?", limitedProductEntity.Id).
+			Update("concept_id", limitedProductEntity.ConceptID).Error
+		if err != nil {
 			zap.L().Info("failed to update limited product with concept", zap.Error(err))
 			return err
 		}

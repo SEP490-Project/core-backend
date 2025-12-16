@@ -1049,7 +1049,7 @@ func (h *ProductHandler) GetProductDetail(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Param			limited-id	path		string	true	"Limited Product ID (UUID)"
-//	@Param			concept_id	query		string	false	"Concept ID (UUID)"
+//	@Param			concept-id	query		string	false	"Concept ID (UUID)"
 //	@Success		200			{object}	map[string]any
 //	@Failure		400			{object}	object{error=string}
 //	@Failure		401			{object}	object{error=string}
@@ -1064,7 +1064,7 @@ func (h *ProductHandler) AddConceptToLimitedProduct(c *gin.Context) {
 		return
 	}
 
-	conceptIDStr := c.Query("concept_id")
+	conceptIDStr := c.Query("concept-id")
 	var conceptID *uuid.UUID
 	if conceptIDStr != "" {
 		id, err := uuid.Parse(conceptIDStr)
