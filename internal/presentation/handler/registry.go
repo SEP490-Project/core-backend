@@ -51,6 +51,9 @@ type HandlerRegistry struct {
 	JobHandler                    *JobHandler
 	RabbitMQHandler               *RabbitMQHandler
 	TestHandler                   *TestHandler
+	ContentScheduleHandler        *ContentScheduleHandler
+	ContentEngagementHandler      *ContentEngagementHandler
+	AlertHandler                  *AlertHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConfig *config.AppConfig) *HandlerRegistry {
@@ -97,5 +100,8 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		JobHandler:                    NewJobHandler(applicationReg.InfrastructureRegistry.CronJobsRegistry),
 		RabbitMQHandler:               NewRabbitMQHandler(applicationReg.InfrastructureRegistry.RabbitMQManagementService, applicationReg.InfrastructureRegistry.RabbitMQ),
 		TestHandler:                   NewTestHandler(appConfig, applicationReg),
+		ContentScheduleHandler:        NewContentScheduleHandler(applicationReg.ContentScheduleService),
+		ContentEngagementHandler:      NewContentEngagementHandler(applicationReg.ContentEngagementService),
+		AlertHandler:                  NewAlertHandler(applicationReg.AlertManagerService),
 	}
 }

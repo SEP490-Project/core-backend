@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
@@ -716,7 +717,6 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 	}
 
 	// Create affiliate links for each channel
-	var affiliateLinkURL string
 	for _, channelID := range channelIDs {
 		affiliateReq := &requests.CreateAffiliateLinkRequest{
 			TrackingURL: trackingLink,
@@ -726,8 +726,7 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 		}
 
 		// Use CreateOrGet to ensure idempotency (no duplicates)
-		var affiliateLink *responses.AffiliateLinkResponse
-		affiliateLink, err = s.affiliateLinkService.CreateOrGet(ctx, affiliateReq)
+		affiliateLink, err := s.affiliateLinkService.CreateOrGet(ctx, affiliateReq)
 		if err != nil {
 			zap.L().Error("Failed to create affiliate link for content channel",
 				zap.String("content_id", content.ID.String()),
@@ -737,7 +736,6 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 			// Log error but don't fail content creation
 			continue
 		}
-		affiliateLinkURL = affiliateLink.ShortURL
 		zap.L().Info("Affiliate link created for content channel",
 			zap.String("affiliate_link_id", affiliateLink.ID.String()),
 			zap.String("hash", affiliateLink.Hash),
@@ -745,32 +743,38 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 			zap.String("channel_id", channelID.String()))
 	}
 
-	// NOTE: Currently, content have a 1-N relationship with Channels. However, the current Frontend implementation only
-	// pass one channel per content creation. In that case, it is possible to append the affiliate link at the end of the body
-	// in the content model.
-	// Further on, if multiple channels are supported on the frontend, it is necessary to revisit how to handlC:q
-	// affiliate links in the content body.
-	builder, err := tiptap.FromJSON(content.Body)
-	if err == nil {
-		builder.AddLinkParagraph("Check it out ", "right now", affiliateLinkURL)
-		var newBody []byte
-		newBody, err = builder.Build()
-		if err != nil {
-			zap.L().Error("Failed to build new body with affiliate link",
-				zap.String("content_id", content.ID.String()),
-				zap.Error(err))
-		}
+	// NOTE: Affiliate link injection is now handled at publish/render time via ContentChannel.GetRenderedBody()
+	// This method replaces the tracking URL with the channel-specific affiliate URL dynamically.
+	// This supports multi-channel content where each channel has its own unique affiliate link.
+	// The original body is preserved in content.Body and should contain the tracking URL.
 
-		content.Body = newBody
-		if err := s.contentRepo.Update(ctx, content); err != nil {
-			zap.L().Error("Failed to update content body after affiliate link creation",
-				zap.String("content_id", content.ID.String()),
-				zap.Error(err))
-			// Don't fail content creation if affiliate link creation fails
+	// If the tracking URL is not in the body, append it now (one time, shared across all channels)
+	if !s.bodyContainsURL(content.Body, trackingLink) {
+		builder, err := tiptap.FromJSON(content.Body)
+		if err == nil {
+			builder.AddLinkParagraph("Check it out ", "right now", trackingLink)
+			newBody, err := builder.Build()
+			if err != nil {
+				zap.L().Error("Failed to build new body with tracking link",
+					zap.String("content_id", content.ID.String()),
+					zap.Error(err))
+			} else {
+				content.Body = newBody
+				if err := s.contentRepo.Update(ctx, content); err != nil {
+					zap.L().Error("Failed to update content body with tracking link",
+						zap.String("content_id", content.ID.String()),
+						zap.Error(err))
+				}
+			}
 		}
 	}
 
 	return nil
+}
+
+// bodyContainsURL checks if the tiptap body contains the given URL in any link
+func (s *ContentService) bodyContainsURL(body []byte, url string) bool {
+	return bytes.Contains(body, []byte(url))
 }
 
 func (s *ContentService) appendDefaultHomePageURLToContent(body []byte) ([]byte, error) {

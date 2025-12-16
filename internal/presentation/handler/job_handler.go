@@ -25,14 +25,19 @@ func NewJobHandler(cronJobRegistry *jobs.CronJobRegistry) *JobHandler {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/ctr-aggregation [post]
 func (h *JobHandler) TriggerCTRAggregationJob(c *gin.Context) {
-	h.triggerJob(c, "ctr_aggregation_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "ctr_aggregation_job", isAsync)
 }
 
 // TriggerExpiredLinkCleanupJob godoc
@@ -42,14 +47,19 @@ func (h *JobHandler) TriggerCTRAggregationJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/expired-link-cleanup [post]
 func (h *JobHandler) TriggerExpiredLinkCleanupJob(c *gin.Context) {
-	h.triggerJob(c, "expired_link_cleanup_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "expired_link_cleanup_job", isAsync)
 }
 
 // TriggerPayOSExpiryCheckJob godoc
@@ -59,14 +69,19 @@ func (h *JobHandler) TriggerExpiredLinkCleanupJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/payos-expiry-check [post]
 func (h *JobHandler) TriggerPayOSExpiryCheckJob(c *gin.Context) {
-	h.triggerJob(c, "payos_expiry_check_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "payos_expiry_check_job", isAsync)
 }
 
 // TriggerPreOrderOpeningCheckJob godoc
@@ -76,14 +91,19 @@ func (h *JobHandler) TriggerPayOSExpiryCheckJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/pre-order-opening-check [post]
 func (h *JobHandler) TriggerPreOrderOpeningCheckJob(c *gin.Context) {
-	h.triggerJob(c, "pre_order_opening_check_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "pre_order_opening_check_job", isAsync)
 }
 
 // TriggerTikTokStatusPollerJob godoc
@@ -93,31 +113,19 @@ func (h *JobHandler) TriggerPreOrderOpeningCheckJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/tiktok-status-poller [post]
 func (h *JobHandler) TriggerTikTokStatusPollerJob(c *gin.Context) {
-	h.triggerJob(c, "tiktok_status_poller_job")
-}
-
-// TriggerSocialMetricsPollerJob godoc
-//
-//	@Summary		Trigger Social Metrics Poller Job
-//	@Description	Manually trigger the social metrics poller job
-//	@Tags			Jobs
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
-//	@Security		BearerAuth
-//	@Router			/api/v1/jobs/social-metrics-poller [post]
-func (h *JobHandler) TriggerSocialMetricsPollerJob(c *gin.Context) {
-	h.triggerJob(c, "social_metrics_poller_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "tiktok_status_poller_job", isAsync)
 }
 
 // TriggerContentMetricsPollerJob godoc
@@ -127,14 +135,19 @@ func (h *JobHandler) TriggerSocialMetricsPollerJob(c *gin.Context) {
 //	@Tags			Jobs
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	responses.APIResponse
-//	@Failure		401	{object}	responses.APIResponse
-//	@Failure		403	{object}	responses.APIResponse
-//	@Failure		500	{object}	responses.APIResponse
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/jobs/content-metrics-poller [post]
 func (h *JobHandler) TriggerContentMetricsPollerJob(c *gin.Context) {
-	h.triggerJob(c, "content_metrics_poller_job")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, "content_metrics_poller_job", isAsync)
 }
 
 // TriggerAllJobs godoc
@@ -162,14 +175,18 @@ func (h *JobHandler) TriggerAllJobs(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("All jobs triggered successfully", nil, triggered))
 }
 
-func (h *JobHandler) triggerJob(c *gin.Context, jobName string) {
+func (h *JobHandler) triggerJob(c *gin.Context, jobName string, isAsync bool) {
 	job, exists := h.cronJobRegistry.GetJobByName(jobName)
 	if !exists {
 		c.JSON(http.StatusNotFound, responses.ErrorResponse("Job not found", http.StatusNotFound))
 		return
 	}
 
-	go job.Run()
+	if isAsync {
+		go job.Run()
+	} else {
+		job.Run()
+	}
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Job triggered successfully", nil, nil))
 }
