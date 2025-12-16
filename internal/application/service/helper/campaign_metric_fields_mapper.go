@@ -3,6 +3,7 @@ package helper
 import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
+	"core-backend/pkg/utils"
 	"reflect"
 	"strings"
 )
@@ -11,7 +12,7 @@ import (
 // For Facebook, some metrics field contains nested data that can be mapped to multiple KPI types.
 // Need to pass the value parameter to determine the exact mapping if necessary.
 // Currently, value can be of type float64, or map[string]float64.
-func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
+func MapFacebookMetricsToKPIField(metric string, value any) map[enum.KPIValueType]float64 {
 	videoMetrics := constant.FacebookVideoMetrics
 	postMetrics := constant.FacebookPostMetrics
 
@@ -19,36 +20,40 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
 	// Video view metrics -> Reach (views)
 	case videoMetrics.BlueReelsPlayCount, postMetrics.PostMediaView, "total_video_views":
 		if v, ok := value.(float64); ok {
-			return map[string]float64{enum.KPIValueTypeReach.String(): v}
+			return map[enum.KPIValueType]float64{
+				enum.KPIValueTypeReach:       v,
+				enum.KPIValueTypeViews:       v,
+				enum.KPIValueTypeUniqueViews: v,
+			}
 		}
-		return map[string]float64{}
+		return map[enum.KPIValueType]float64{}
 
 	// Video impressions -> Impressions
 	case "total_video_impressions":
 		if v, ok := value.(float64); ok {
-			return map[string]float64{enum.KPIValueTypeImpressions.String(): v}
+			return map[enum.KPIValueType]float64{enum.KPIValueTypeImpressions: v}
 		}
-		return map[string]float64{}
+		return map[enum.KPIValueType]float64{}
 
 	// Reactions -> Likes + Engagement
 	case videoMetrics.PostVideoLikesByReactionType, postMetrics.PostReactionsByTypeTotal:
 		if v, ok := value.(float64); ok {
-			return map[string]float64{
-				enum.KPIValueTypeLikes.String():      v,
-				enum.KPIValueTypeEngagement.String(): v,
+			return map[enum.KPIValueType]float64{
+				enum.KPIValueTypeLikes:      v,
+				enum.KPIValueTypeEngagement: v,
 			}
 		}
-		return map[string]float64{}
+		return map[enum.KPIValueType]float64{}
 
 	// Post clicks -> Reach + Engagement
 	case postMetrics.PostClicks:
 		if v, ok := value.(float64); ok {
-			return map[string]float64{
-				enum.KPIValueTypeReach.String():      v,
-				enum.KPIValueTypeEngagement.String(): v,
+			return map[enum.KPIValueType]float64{
+				enum.KPIValueTypeReach:      v,
+				enum.KPIValueTypeEngagement: v,
 			}
 		}
-		return map[string]float64{}
+		return map[enum.KPIValueType]float64{}
 
 	// Activity by action type (nested map with comment, share, like breakdown)
 	case postMetrics.PostActivityByActionType:
@@ -56,68 +61,65 @@ func MapFacebookMetricsToKPIField(metric string, value any) map[string]float64 {
 		switch reflectedValue.Kind() {
 		case reflect.Map:
 			keys := reflectedValue.MapKeys()
-			mappedMetrics := map[string]float64{}
-			if len(keys) > 0 {
-				for _, key := range keys {
-					if key.Kind() == reflect.String &&
-						reflectedValue.MapIndex(key).Kind() == reflect.Float64 {
-						mapFacebookNestedMetricsToKPIField(
-							strings.ToLower(key.String()),
-							reflectedValue.MapIndex(key).Float(),
-							mappedMetrics)
-					}
+			mappedMetrics := map[enum.KPIValueType]float64{}
+			for _, key := range keys {
+				if key.Kind() == reflect.String &&
+					reflectedValue.MapIndex(key).Kind() == reflect.Float64 {
+					mapFacebookNestedMetricsToKPIField(strings.ToLower(key.String()), reflectedValue.MapIndex(key).Float(), mappedMetrics)
 				}
 			}
 			return mappedMetrics
 		case reflect.Float64:
-			return map[string]float64{enum.KPIValueTypeEngagement.String(): reflectedValue.Float()}
+			return map[enum.KPIValueType]float64{enum.KPIValueTypeEngagement: reflectedValue.Float()}
 		}
 	}
 
 	// Not needed: PostVideoAvgTimeWatched, PostVideoSocialActions, PostVideoViewTime, PostImpressionsUnique,
 	// FbReelsTotalPlays
-	return map[string]float64{}
+	return map[enum.KPIValueType]float64{}
 }
 
-func MapTikTokMetricsToKPIField(metric string, value float64) map[string]float64 {
+func MapTikTokMetricsToKPIField(metric string, value float64) map[enum.KPIValueType]float64 {
 	switch metric {
 	case constant.TikTokVideoMetrics.ViewCount:
-		return map[string]float64{enum.KPIValueTypeReach.String(): value}
+		return map[enum.KPIValueType]float64{
+			enum.KPIValueTypeReach:       value,
+			enum.KPIValueTypeViews:       value,
+			enum.KPIValueTypeUniqueViews: value,
+		}
 	case constant.TikTokVideoMetrics.LikeCount:
-		return map[string]float64{
-			enum.KPIValueTypeLikes.String():      value,
-			enum.KPIValueTypeEngagement.String(): value,
+		return map[enum.KPIValueType]float64{
+			enum.KPIValueTypeLikes:      value,
+			enum.KPIValueTypeEngagement: value,
 		}
 	case constant.TikTokVideoMetrics.CommentCount:
-		return map[string]float64{
-			enum.KPIValueTypeComments.String():   value,
-			enum.KPIValueTypeEngagement.String(): value,
+		return map[enum.KPIValueType]float64{
+			enum.KPIValueTypeComments:   value,
+			enum.KPIValueTypeEngagement: value,
 		}
 	case constant.TikTokVideoMetrics.ShareCount:
-		return map[string]float64{
-			enum.KPIValueTypeShares.String():     value,
-			enum.KPIValueTypeEngagement.String(): value,
+		return map[enum.KPIValueType]float64{
+			enum.KPIValueTypeShares:     value,
+			enum.KPIValueTypeEngagement: value,
 		}
 	default:
-		return map[string]float64{}
+		return map[enum.KPIValueType]float64{}
 	}
 }
 
-func mapFacebookNestedMetricsToKPIField(strKey string, value float64, mappedMetrics map[string]float64) {
+func mapFacebookNestedMetricsToKPIField(strKey string, value float64, mappedMetrics map[enum.KPIValueType]float64) {
 	if strings.Contains(strKey, "comment") {
-		if existing, exists := mappedMetrics[enum.KPIValueTypeComments.String()]; exists {
-			mappedMetrics[enum.KPIValueTypeComments.String()] = existing + value
-		} else {
-			mappedMetrics[enum.KPIValueTypeComments.String()] = value
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeComments:   value,
+			enum.KPIValueTypeEngagement: value,
+		})
 	}
 
 	if strings.Contains(strKey, "share") {
-		if existing, exists := mappedMetrics[enum.KPIValueTypeShares.String()]; exists {
-			mappedMetrics[enum.KPIValueTypeShares.String()] = existing + value
-		} else {
-			mappedMetrics[enum.KPIValueTypeShares.String()] = value
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeShares:     value,
+			enum.KPIValueTypeEngagement: value,
+		})
 	}
 
 	if strings.Contains(strKey, "like") ||
@@ -126,10 +128,9 @@ func mapFacebookNestedMetricsToKPIField(strKey string, value float64, mappedMetr
 		strings.Contains(strKey, "haha") ||
 		strings.Contains(strKey, "sorry") ||
 		strings.Contains(strKey, "anger") {
-		if existing, exists := mappedMetrics[enum.KPIValueTypeLikes.String()]; exists {
-			mappedMetrics[enum.KPIValueTypeLikes.String()] = existing + value
-		} else {
-			mappedMetrics[enum.KPIValueTypeLikes.String()] = value
-		}
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeLikes:      value,
+			enum.KPIValueTypeEngagement: value,
+		})
 	}
 }

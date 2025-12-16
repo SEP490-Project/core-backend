@@ -19,8 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,7 +50,7 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 		zap.String("user_id", userID.String()))
 
 	// 1. Load content with preloads
-	content, err := s.contentRepo.GetByID(ctx, contentID, []string{"ContentChannels", "Task"})
+	content, err := s.contentRepo.GetByID(ctx, contentID, []string{"ContentChannels.AffiliateLink", "Task"})
 	if err != nil {
 		zap.L().Error("Failed to load content", zap.Error(err))
 		return nil, errors.New("content not found")
@@ -257,17 +255,15 @@ func (s *contentPublishingService) GetPublishingStatus(ctx context.Context, cont
 	}
 
 	// Parse metrics if available
-	var metrics map[string]any
+	var metrics map[enum.KPIValueType]float64
 	if contentChannel.Metrics != nil {
-		if err := json.Unmarshal(contentChannel.Metrics, &metrics); err != nil {
-			zap.L().Warn("Failed to parse metrics", zap.Error(err))
-		}
+		metrics = contentChannel.Metrics.CurrentMapped
 	}
 
 	// Extract post URL from metrics if not set directly
 	var postURL *string
 	if metrics != nil {
-		if url, ok := metrics["post_url"].(string); ok {
+		if url, ok := contentChannel.Metrics.CurrentFetched["post_url"].(string); ok {
 			postURL = &url
 		}
 	}
@@ -387,7 +383,7 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 	pageID := *channel.ExternalID
 
 	// Parse Tiptap content body to extract text and images
-	parseResult, err := tiptap.ParseTiptapJSON(content.Body)
+	parseResult, err := tiptap.ParseTiptapJSON(contentChannel.GetRenderedBody(s.config.Server.BaseURL))
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to parse content body: %w", err)
 	}
@@ -404,7 +400,7 @@ func (s *contentPublishingService) publishToFacebook(ctx context.Context, conten
 		}
 
 	case enum.ContentTypeVideo:
-		return s.publishVideoPostToFacebook(ctx, contentChannel.ID, accessToken, pageID, content, parseResult)
+		return s.publishVideoPostToFacebook(ctx, contentChannel.ID, channel.ID, accessToken, pageID, content, parseResult)
 	default:
 		return "", "", nil, fmt.Errorf("unsupported content type for Facebook: %s", content.Type)
 	}
@@ -517,16 +513,16 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 // region: 4. ======== Facebook Publishing Content of Video Types ========
 
 func (s *contentPublishingService) publishVideoPostToFacebook(
-	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *tiptap.TiptapParseResult,
+	ctx context.Context, contentChannelID, channelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
 	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeVideo)
 
 	// Step 1: Extract video info from content body
-	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
+	videoInfo, err := content.GetVideoBody(channelID, s.config.Server.BaseURL)
 	if err != nil {
-		zap.L().Error("Failed to extract video info from content body", zap.Error(err))
-		return "", "", nil, fmt.Errorf("failed to extract video info from content body: %w", err)
+		zap.L().Error("Failed to get video body from content", zap.Error(err))
+		return "", "", nil, fmt.Errorf("failed to get video body from content: %w", err)
 	}
 	if parseResult != nil && parseResult.PlainText != "" {
 		videoInfo.Description = parseResult.PlainText
@@ -605,10 +601,13 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		zap.Any("privacy_options", creatorInfo.Data.PrivacyLevelOptions))
 
 	// 2. Parse content body for video metadata
-	videoInfo, err := s.extractVideoInfoFromContentBody(ctx, content)
+	videoInfo, err := content.GetVideoBody(contentChannel.ChannelID, s.config.Server.BaseURL)
 	if err != nil {
-		zap.L().Error("Failed to extract video info from content body", zap.Error(err))
-		return "", "", fmt.Errorf("failed to extract video info from content body: %w", err)
+		zap.L().Error("Failed to get video body from content", zap.Error(err))
+		return "", "", fmt.Errorf("failed to get video body from content: %w", err)
+	}
+	if videoInfo.Description != "" {
+		videoInfo.Title = fmt.Sprintf("%s\n\n%s", videoInfo.Title, videoInfo.Description)
 	}
 
 	// 3. Init video post
@@ -644,9 +643,9 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 	}
 
 	// initReq.FileInfo
-	if videoInfo.S3Key != nil {
+	if videoInfo.S3Key != "" {
 		var fileInfoResp *responses.FileDetailResponse
-		fileInfoResp, err = s.fileService.GetFileByS3Key(ctx, *videoInfo.S3Key)
+		fileInfoResp, err = s.fileService.GetFileByS3Key(ctx, videoInfo.S3Key)
 		if err == nil {
 			initReq.FileInfoMetadata = fileInfoResp.Metadata
 		}
@@ -772,67 +771,6 @@ func (s *contentPublishingService) saveUploadMetadataAsync(
 
 	zap.L().Info("Successfully saved upload metadata asynchronously",
 		zap.String("content_channel_id", contentChannelID.String()))
-}
-
-// extractVideoInfoFromContentBody extracts video metadata from the content body JSON
-func (s *contentPublishingService) extractVideoInfoFromContentBody(
-	_ context.Context, content *model.Content,
-) (*struct {
-	Title       string
-	Description string
-	VideoURL    string
-	S3Key       *string
-}, error) {
-	var videoBody map[string]any
-	if err := json.Unmarshal(content.Body, &videoBody); err != nil {
-		return nil, fmt.Errorf("failed to parse video content body: %w", err)
-	}
-
-	// Extract video S3 key
-	videoS3URLStr, ok := videoBody["video_url"].(string)
-	if !ok || videoS3URLStr == "" {
-		return nil, errors.New("content body must contain 'video_s3_key' field for VIDEO type")
-	}
-	videoURL, err := url.Parse(videoS3URLStr)
-	if err != nil {
-		zap.L().Error("Failed to parse video URL",
-			zap.String("video_url", videoS3URLStr),
-			zap.Error(err))
-		return nil, fmt.Errorf("failed to parse video URL: %w", err)
-	}
-	videoS3Key := strings.Trim(videoURL.Path, "/")
-	var encodedURL string
-	if encodedURL, err = utils.EncodeIndividualPathSegments(videoURL.String()); err != nil {
-		zap.L().Error("Failed to encode video S3 URL",
-			zap.Error(err))
-		return nil, fmt.Errorf("failed to encode video S3 URL: %w", err)
-	}
-
-	// Use title from content model
-	title := content.Title
-	if title == "" {
-		title, ok = videoBody["title"].(string)
-		if !ok || title == "" {
-			title = "Untitled Video"
-		}
-	}
-
-	description, ok := videoBody["description"].(string)
-	if !ok {
-		description = ""
-	}
-	result := &struct {
-		Title       string
-		Description string
-		VideoURL    string
-		S3Key       *string
-	}{
-		Title:       title,
-		Description: description,
-		VideoURL:    encodedURL,
-		S3Key:       &videoS3Key,
-	}
-	return result, nil
 }
 
 // endregion 1.

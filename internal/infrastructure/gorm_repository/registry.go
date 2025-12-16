@@ -24,6 +24,7 @@ type DatabaseRegistry struct {
 	ChannelRepository         irepository.GenericRepository[model.Channel]
 	ContentRepository         irepository.GenericRepository[model.Content]
 	ContentChannelRepository  irepository.ContentChannelsRepository
+	ContentCommentRepository  irepository.GenericRepository[model.ContentComment]
 	BlogRepository            irepository.GenericRepository[model.Blog]
 	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
 	AdminConfigRepository     irepository.GenericRepository[model.Config]
@@ -79,8 +80,10 @@ type DatabaseRegistry struct {
 	// Reviews
 	ReviewRepository irepository.GenericRepository[model.ProductReview]
 	// Webhooks
-	WebhookDataRepository  irepository.GenericRepository[model.WebhookData]
-	VariantImageRepository irepository.GenericRepository[model.VariantImage]
+	WebhookDataRepository     irepository.GenericRepository[model.WebhookData]
+	VariantImageRepository    irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository     irepository.SystemAlertRepository
+	ContentScheduleRepository irepository.ContentScheduleRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -105,6 +108,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ChannelRepository:                    NewGenericRepository[model.Channel](db),
 		ContentRepository:                    NewGenericRepository[model.Content](db),
 		ContentChannelRepository:             NewContentChannelsRepository(db),
+		ContentCommentRepository:             NewGenericRepository[model.ContentComment](db),
 		BlogRepository:                       NewGenericRepository[model.Blog](db),
 		TagRepository:                        NewTagRepository(db),
 		OrderRepository:                      NewOrderRepository(db),
@@ -130,5 +134,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
 		WebhookDataRepository:                NewGenericRepository[model.WebhookData](db),
 		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
+		ContentScheduleRepository:            NewContentScheduleRepository(db),
+		SystemAlertRepository:                NewSystemAlertRepository(db),
 	}
 }

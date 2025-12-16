@@ -4,7 +4,9 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,368 +23,796 @@ func NewContentStaffAnalyticsRepository(db *gorm.DB) irepository.ContentStaffAna
 	return &contentStaffAnalyticsRepository{db: db}
 }
 
-// GetContentCountByStatus returns the count of content by status
-func (r *contentStaffAnalyticsRepository) GetContentCountByStatus(ctx context.Context, status string, startDate, endDate *time.Time) (int64, error) {
+// GetPostCountByDateRange returns the count of posted content in a date range
+func (r *contentStaffAnalyticsRepository) GetPostCountByDateRange(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (int64, error) {
 	var count int64
-	query := r.db.WithContext(ctx).Table("contents").Where("deleted_at IS NULL")
 
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	if startDate != nil {
-		query = query.Where("created_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("created_at <= ?", *endDate)
+	query := r.db.WithContext(ctx).Table("content_channels cc").
+		Select("COUNT(DISTINCT cc.content_id)").
+		Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+		Where("cc.published_at >= ?", startDate).
+		Where("cc.published_at < ?", endDate)
+
+	if channelID != nil {
+		query = query.Where("cc.channel_id = ?", *channelID)
 	}
 
-	if err := query.Count(&count).Error; err != nil {
-		zap.L().Error("Failed to get content count by status", zap.Error(err))
+	if err := query.Scan(&count).Error; err != nil {
+		zap.L().Error("Failed to get post count by date range", zap.Error(err))
 		return 0, err
 	}
 	return count, nil
 }
 
-// GetTotalContentCount returns the total count of content
-func (r *contentStaffAnalyticsRepository) GetTotalContentCount(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
-	return r.GetContentCountByStatus(ctx, "", startDate, endDate)
-}
+// GetTotalViews returns total views by getting the LATEST value for each content_channel
+// kpi_metrics stores cumulative values at each sync point, not incremental gains
+func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (int64, error) {
+	var views float64
 
-// GetTotalViews returns total views from content channels metrics JSONB
-func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
-	var views int64
-	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select("COALESCE(SUM((cc.metrics->>'views')::int), 0)").
-		Where("cc.metrics IS NOT NULL")
+	// Use DISTINCT ON to get the latest record per content_channel
+	// Then sum those latest values to get total across all content_channels
+	subquery := `
+		SELECT DISTINCT ON (km.reference_id) km.reference_id, km.value
+		FROM kpi_metrics km
+		JOIN content_channels cc ON cc.id = km.reference_id
+		WHERE km.reference_type = ?
+		  AND km.type = ?
+		  AND km.recorded_date >= ?
+		  AND km.recorded_date < ?
+		  AND cc.auto_post_status = ?
+		  AND cc.published_at >= ?
+		  AND cc.published_at < ?
+	`
+	args := []any{
+		enum.KPIReferenceTypeContentChannel,
+		enum.KPIValueTypeViews,
+		startDate,
+		endDate,
+		enum.AutoPostStatusPosted.String(),
+		startDate,
+		endDate,
+	}
 
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
+	if channelID != nil {
+		subquery += " AND cc.channel_id = ?"
+		args = append(args, *channelID)
 	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
-	}
+
+	subquery += " ORDER BY km.reference_id, km.recorded_date DESC"
+
+	query := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(SUM(latest.value), 0) as total
+		FROM (`+subquery+`) AS latest
+	`, args...)
 
 	if err := query.Scan(&views).Error; err != nil {
-		zap.L().Error("Failed to get total views", zap.Error(err))
+		zap.L().Error("Failed to get total views from kpi_metrics", zap.Error(err))
 		return 0, err
 	}
-	return views, nil
+	return int64(views), nil
 }
 
-// GetTotalEngagements returns total engagements (likes + comments + shares) from metrics JSONB
-func (r *contentStaffAnalyticsRepository) GetTotalEngagements(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
-	var engagements int64
-	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select("COALESCE(SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0)), 0)").
-		Where("cc.metrics IS NOT NULL")
+// GetTotalEngagement returns total engagement by getting the LATEST value for each content_channel
+func (r *contentStaffAnalyticsRepository) GetTotalEngagement(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (int64, error) {
+	var engagement float64
 
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
+	// Get latest ENGAGEMENT (or LIKES+COMMENTS+SHARES) per content_channel
+	subquery := `
+		SELECT DISTINCT ON (km.reference_id, km.type) km.reference_id, km.type, km.value
+		FROM kpi_metrics km
+		JOIN content_channels cc ON cc.id = km.reference_id
+		WHERE km.reference_type = ?
+		  AND km.type IN (?, ?, ?, ?)
+		  AND km.recorded_date >= ?
+		  AND km.recorded_date < ?
+		  AND cc.auto_post_status = ?
+		  AND cc.published_at >= ?
+		  AND cc.published_at < ?
+	`
+	args := []any{
+		enum.KPIReferenceTypeContentChannel,
+		enum.KPIValueTypeEngagement,
+		enum.KPIValueTypeLikes,
+		enum.KPIValueTypeComments,
+		enum.KPIValueTypeShares,
+		startDate,
+		endDate,
+		enum.AutoPostStatusPosted.String(),
+		startDate,
+		endDate,
 	}
 
-	if err := query.Scan(&engagements).Error; err != nil {
-		zap.L().Error("Failed to get total engagements", zap.Error(err))
+	if channelID != nil {
+		subquery += " AND cc.channel_id = ?"
+		args = append(args, *channelID)
+	}
+
+	subquery += " ORDER BY km.reference_id, km.type, km.recorded_date DESC"
+
+	query := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(SUM(latest.value), 0) as total
+		FROM (`+subquery+`) AS latest
+	`, args...)
+
+	if err := query.Scan(&engagement).Error; err != nil {
+		zap.L().Error("Failed to get total engagement from kpi_metrics", zap.Error(err))
 		return 0, err
 	}
-	return engagements, nil
+	return int64(engagement), nil
 }
 
-// GetTotalClicks returns total clicks from affiliate links
-func (r *contentStaffAnalyticsRepository) GetTotalClicks(ctx context.Context, startDate, endDate *time.Time) (int64, error) {
-	var clicks int64
-	query := r.db.WithContext(ctx).Table("click_events ce").
-		Select("COUNT(*)")
+// GetAverageCTR returns CTR using latest CLICK_THROUGH and VIEWS values
+func (r *contentStaffAnalyticsRepository) GetAverageCTR(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (float64, error) {
+	// Get latest total clicks from affiliate links
+	var totalClicks float64
 
-	if startDate != nil {
-		query = query.Where("ce.clicked_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("ce.clicked_at <= ?", *endDate)
+	clicksSubquery := `
+		SELECT DISTINCT ON (km.reference_id) km.reference_id, km.value
+		FROM kpi_metrics km
+		JOIN affiliate_links al ON al.id = km.reference_id
+		JOIN content_channels cc ON cc.id = al.channel_id
+		WHERE km.reference_type = ?
+		  AND km.type = ?
+		  AND km.recorded_date >= ?
+		  AND km.recorded_date < ?
+	`
+	clicksArgs := []any{
+		enum.KPIReferenceTypeAffiliateLink,
+		enum.KPIValueTypeClickThrough,
+		startDate,
+		endDate,
 	}
 
-	if err := query.Scan(&clicks).Error; err != nil {
-		zap.L().Error("Failed to get total clicks", zap.Error(err))
+	if channelID != nil {
+		clicksSubquery += " AND cc.channel_id = ?"
+		clicksArgs = append(clicksArgs, *channelID)
+	}
+
+	clicksSubquery += " ORDER BY km.reference_id, km.recorded_date DESC"
+
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(SUM(latest.value), 0) as total
+		FROM (`+clicksSubquery+`) AS latest
+	`, clicksArgs...).Scan(&totalClicks).Error; err != nil {
+		zap.L().Error("Failed to get total clicks from kpi_metrics", zap.Error(err))
 		return 0, err
 	}
-	return clicks, nil
+
+	// Get latest total views
+	totalViews, err := r.GetTotalViews(ctx, startDate, endDate, channelID)
+	if err != nil {
+		return 0, err
+	}
+
+	if totalViews == 0 {
+		return 0, nil
+	}
+
+	return (totalClicks / float64(totalViews)) * 100, nil
 }
 
-// GetMetricsByPlatform returns metrics aggregated by platform (channel name)
-func (r *contentStaffAnalyticsRepository) GetMetricsByPlatform(ctx context.Context, startDate, endDate *time.Time) ([]dtos.PlatformMetricsResult, error) {
-	var results []dtos.PlatformMetricsResult
+// GetPendingContentCount returns count of content in pending statuses
+func (r *contentStaffAnalyticsRepository) GetPendingContentCount(ctx context.Context, startDate, endDate time.Time) (int64, error) {
+	var count int64
 
-	query := r.db.WithContext(ctx).Table("content_channels cc").
+	pendingStatuses := []string{
+		enum.ContentStatusDraft.String(),
+		enum.ContentStatusAwaitStaff.String(),
+		enum.ContentStatusAwaitBrand.String(),
+	}
+
+	if err := r.db.WithContext(ctx).Table("contents").
+		Where("deleted_at IS NULL").
+		Where("status IN ?", pendingStatuses).
+		Where("created_at >= ?", startDate).
+		Where("created_at < ?", endDate).
+		Count(&count).Error; err != nil {
+		zap.L().Error("Failed to get pending content count", zap.Error(err))
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetChannelMetrics returns the LATEST metrics for each channel from kpi_metrics
+func (r *contentStaffAnalyticsRepository) GetChannelMetrics(ctx context.Context, startDate, endDate time.Time) ([]dtos.ChannelMetricsDTO, error) {
+	var results []dtos.ChannelMetricsDTO
+
+	// Get channel info
+	channelQuery := r.db.WithContext(ctx).Table("channels ch").
 		Select(`
-			ch.name as platform,
-			COUNT(DISTINCT cc.content_id) as content_count,
-			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
-			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as total_likes,
-			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as total_comments,
-			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as total_shares,
-			0 as total_clicks,
-			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
-				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
-				ELSE 0 
-			END as engagement_rate
-		`).
-		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Where("cc.metrics IS NOT NULL")
-
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
-	}
-
-	query = query.Group("ch.name").Order("total_views DESC")
-
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get metrics by platform", zap.Error(err))
-		return nil, err
-	}
-	return results, nil
-}
-
-// GetTopContentByViews returns top content by views
-func (r *contentStaffAnalyticsRepository) GetTopContentByViews(ctx context.Context, platform *string, limit int, startDate, endDate *time.Time) ([]dtos.ContentMetricsResult, error) {
-	var results []dtos.ContentMetricsResult
-
-	postedStatus := enum.AutoPostStatusPosted.String()
-
-	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select(`
-			c.id as content_id,
-			c.title,
-			ch.name as platform,
+			ch.id as channel_id,
 			ch.name as channel_name,
-			cmp.name as campaign_name,
-			COALESCE((cc.metrics->>'views')::int, 0) as views,
-			COALESCE((cc.metrics->>'likes')::int, 0) as likes,
-			COALESCE((cc.metrics->>'comments')::int, 0) as comments,
-			COALESCE((cc.metrics->>'shares')::int, 0) as shares,
-			0 as clicks,
-			CASE WHEN (cc.metrics->>'views')::int > 0 
-				THEN ((COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / (cc.metrics->>'views')::int::float * 100)
-				ELSE 0 
-			END as engagement_rate,
-			cc.published_at as posted_at
+			ch.code as channel_code,
+			COALESCE((ch.metrics->'current_mapped'->>'FOLLOWERS')::bigint, 0) as followers_count,
+			ch.metrics->'current_fetched' as fetched_metrics,
+			ch.metrics->'current_mapped' as mapped_metrics
 		`).
-		Joins("JOIN contents c ON c.id = cc.content_id").
-		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Joins("LEFT JOIN tasks t ON t.id = c.task_id").
-		Joins("LEFT JOIN milestones m ON m.id = t.milestone_id").
-		Joins("LEFT JOIN campaigns cmp ON cmp.id = m.campaign_id").
-		Where("cc.metrics IS NOT NULL").
-		Where("cc.auto_post_status = ?", postedStatus)
+		Where("ch.deleted_at IS NULL")
 
-	if platform != nil && *platform != "" {
-		query = query.Where("ch.name = ?", *platform)
-	}
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
+	var channels []dtos.ChannelMetricsDTO
+	if err := channelQuery.Scan(&channels).Error; err != nil {
+		zap.L().Error("Failed to get channels", zap.Error(err))
+		return nil, err
 	}
 
-	query = query.Order("views DESC").Limit(limit)
+	// For each channel, get latest metrics per content_channel then aggregate
+	for i := range channels {
+		channelID := channels[i].ChannelID
+
+		// Get post count
+		var postCount int64
+		r.db.WithContext(ctx).Table("content_channels cc").
+			Select("COUNT(DISTINCT cc.content_id)").
+			Where("cc.channel_id = ?", channelID).
+			Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+			Where("cc.published_at >= ?", startDate).
+			Where("cc.published_at < ?", endDate).
+			Scan(&postCount)
+		channels[i].PostCount = postCount
+
+		// Get latest KPI values per content_channel for this channel
+		// Using window function to get latest record per (reference_id, type)
+		latestMetricsQuery := `
+			SELECT km.type, COALESCE(SUM(km.value), 0) as total
+			FROM (
+				SELECT DISTINCT ON (km.reference_id, km.type) km.reference_id, km.type, km.value
+				FROM kpi_metrics km
+				JOIN content_channels cc ON cc.id = km.reference_id
+				WHERE cc.channel_id = ?
+				  AND km.reference_type = ?
+				  AND cc.auto_post_status = ?
+				  AND cc.published_at >= ?
+				  AND cc.published_at < ?
+				  AND km.recorded_date >= ?
+				  AND km.recorded_date < ?
+				ORDER BY km.reference_id, km.type, km.recorded_date DESC
+			) km
+			GROUP BY km.type
+		`
+
+		type MetricAggregate struct {
+			Type  enum.KPIValueType
+			Total float64
+		}
+		var metrics []MetricAggregate
+
+		r.db.WithContext(ctx).Raw(latestMetricsQuery,
+			channelID,
+			enum.KPIReferenceTypeContentChannel,
+			enum.AutoPostStatusPosted.String(),
+			startDate, endDate,
+			startDate, endDate,
+		).Scan(&metrics)
+
+		for _, m := range metrics {
+			switch m.Type {
+			case enum.KPIValueTypeViews:
+				channels[i].TotalViews = int64(m.Total)
+			case enum.KPIValueTypeLikes:
+				channels[i].TotalLikes = int64(m.Total)
+			case enum.KPIValueTypeComments:
+				channels[i].TotalComments = int64(m.Total)
+			case enum.KPIValueTypeShares:
+				channels[i].TotalShares = int64(m.Total)
+			case enum.KPIValueTypeEngagement:
+				channels[i].TotalEngagement = int64(m.Total)
+			case enum.KPIValueTypeReach:
+				channels[i].TotalReach = int64(m.Total)
+			}
+		}
+
+		// Calculate engagement if not set
+		if channels[i].TotalEngagement == 0 {
+			channels[i].TotalEngagement = channels[i].TotalLikes + channels[i].TotalComments + channels[i].TotalShares
+		}
+
+		// Get latest clicks for CTR from affiliate links
+		var clicks float64
+		r.db.WithContext(ctx).Raw(`
+			SELECT COALESCE(SUM(latest.value), 0)
+			FROM (
+				SELECT DISTINCT ON (km.reference_id) km.reference_id, km.value
+				FROM kpi_metrics km
+				JOIN affiliate_links al ON al.id = km.reference_id
+				JOIN content_channels cc ON cc.id = al.channel_id
+				WHERE cc.channel_id = ?
+				  AND km.reference_type = ?
+				  AND km.type = ?
+				  AND km.recorded_date >= ?
+				  AND km.recorded_date < ?
+				ORDER BY km.reference_id, km.recorded_date DESC
+			) AS latest
+		`, channelID, enum.KPIReferenceTypeAffiliateLink, enum.KPIValueTypeClickThrough, startDate, endDate).Scan(&clicks)
+
+		channels[i].TotalClicks = int64(clicks)
+
+		// Calculate CTR
+		if channels[i].TotalViews > 0 {
+			channels[i].AverageCTR = (float64(channels[i].TotalClicks) / float64(channels[i].TotalViews)) * 100
+		}
+
+		results = append(results, channels[i])
+	}
+
+	return results, nil
+}
+
+// GetTopPostForChannel returns the top performing post for a specific channel
+func (r *contentStaffAnalyticsRepository) GetTopPostForChannel(ctx context.Context, channelID uuid.UUID, startDate, endDate time.Time) (*dtos.TopPostDTO, error) {
+	// Get content channels for this channel in date range with their LATEST metrics
+	type ContentWithMetrics struct {
+		ContentChannelID uuid.UUID
+		ContentID        uuid.UUID
+		Title            string
+		Views            int64
+		Likes            int64
+		Comments         int64
+		Shares           int64
+	}
+
+	// Use a CTE to get latest metrics per content_channel, then join with content info
+	query := `
+		WITH latest_metrics AS (
+			SELECT DISTINCT ON (km.reference_id, km.type) 
+				km.reference_id, km.type, km.value
+			FROM kpi_metrics km
+			JOIN content_channels cc ON cc.id = km.reference_id
+			WHERE cc.channel_id = ?
+			  AND km.reference_type = ?
+			  AND cc.auto_post_status = ?
+			  AND cc.published_at >= ?
+			  AND cc.published_at < ?
+			  AND km.recorded_date >= ?
+			  AND km.recorded_date < ?
+			ORDER BY km.reference_id, km.type, km.recorded_date DESC
+		),
+		pivoted_metrics AS (
+			SELECT 
+				reference_id,
+				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as views,
+				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as likes,
+				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as comments,
+				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as shares
+			FROM latest_metrics
+			GROUP BY reference_id
+		)
+		SELECT 
+			cc.id as content_channel_id,
+			cc.content_id,
+			c.title,
+			COALESCE(pm.views, 0) as views,
+			COALESCE(pm.likes, 0) as likes,
+			COALESCE(pm.comments, 0) as comments,
+			COALESCE(pm.shares, 0) as shares
+		FROM content_channels cc
+		JOIN contents c ON c.id = cc.content_id
+		LEFT JOIN pivoted_metrics pm ON pm.reference_id = cc.id
+		WHERE cc.channel_id = ?
+		  AND cc.auto_post_status = ?
+		  AND cc.published_at >= ?
+		  AND cc.published_at < ?
+		  AND c.deleted_at IS NULL
+		ORDER BY (COALESCE(pm.views, 0) + COALESCE(pm.likes, 0) * 2 + COALESCE(pm.comments, 0) * 3 + COALESCE(pm.shares, 0) * 4) DESC
+		LIMIT 1
+	`
+
+	var result ContentWithMetrics
+	err := r.db.WithContext(ctx).Raw(query,
+		channelID,
+		enum.KPIReferenceTypeContentChannel,
+		enum.AutoPostStatusPosted.String(),
+		startDate, endDate,
+		startDate, endDate,
+		enum.KPIValueTypeViews,
+		enum.KPIValueTypeLikes,
+		enum.KPIValueTypeComments,
+		enum.KPIValueTypeShares,
+		channelID,
+		enum.AutoPostStatusPosted.String(),
+		startDate, endDate,
+	).Scan(&result).Error
+
+	if err != nil || result.ContentID == uuid.Nil {
+		return nil, err
+	}
+
+	return &dtos.TopPostDTO{
+		ContentID: result.ContentID,
+		Title:     result.Title,
+		Views:     result.Views,
+		Likes:     result.Likes,
+		Comments:  result.Comments,
+		Shares:    result.Shares,
+	}, nil
+}
+
+// GetTrendData returns time series data for trend charts from kpi_metrics
+// This returns the raw data points to show the progression over time
+func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, startDate, endDate time.Time, granularity constant.TrendGranularity, channelID *uuid.UUID) ([]dtos.TrendDataPointDTO, error) {
+	var results []dtos.TrendDataPointDTO
+
+	timeBucket := "date_trunc('day', km.recorded_date)"
+	switch granularity {
+	case constant.TrendGranularityWeek:
+		timeBucket = "date_trunc('week', km.recorded_date)"
+	case constant.TrendGranularityMonth:
+		timeBucket = "date_trunc('month', km.recorded_date)"
+	}
+
+	// For trend data, we want to show the LATEST value per time bucket per content_channel
+	// Then sum across all content_channels to get the total for that time bucket
+	query := `
+		WITH bucketed_latest AS (
+			SELECT DISTINCT ON (` + timeBucket + `, km.reference_id, km.type)
+				` + timeBucket + ` as bucket,
+				km.reference_id,
+				km.type,
+				km.value
+			FROM kpi_metrics km
+			JOIN content_channels cc ON cc.id = km.reference_id
+			WHERE km.reference_type = ?
+			  AND km.recorded_date >= ?
+			  AND km.recorded_date < ?
+			  AND cc.auto_post_status = ?
+	`
+	args := []any{
+		enum.KPIReferenceTypeContentChannel,
+		startDate,
+		endDate,
+		enum.AutoPostStatusPosted.String(),
+	}
+
+	if channelID != nil {
+		query += " AND cc.channel_id = ?"
+		args = append(args, *channelID)
+	}
+
+	query += `
+			ORDER BY ` + timeBucket + `, km.reference_id, km.type, km.recorded_date DESC
+		)
+		SELECT 
+			bucket as date,
+			type,
+			SUM(value) as total
+		FROM bucketed_latest
+		GROUP BY bucket, type
+		ORDER BY bucket ASC
+	`
+
+	type RawTrendData struct {
+		Date  time.Time
+		Type  enum.KPIValueType
+		Total float64
+	}
+	var rawData []RawTrendData
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&rawData).Error; err != nil {
+		zap.L().Error("Failed to get trend data from kpi_metrics", zap.Error(err))
+		return nil, err
+	}
+
+	// Pivot the data: group by date, spread metrics into columns
+	dateMap := make(map[time.Time]*dtos.TrendDataPointDTO)
+	for _, row := range rawData {
+		if _, exists := dateMap[row.Date]; !exists {
+			dateMap[row.Date] = &dtos.TrendDataPointDTO{Date: row.Date}
+		}
+		dp := dateMap[row.Date]
+		switch row.Type {
+		case enum.KPIValueTypeViews:
+			dp.Views = int64(row.Total)
+		case enum.KPIValueTypeLikes:
+			dp.Likes = int64(row.Total)
+		case enum.KPIValueTypeComments:
+			dp.Comments = int64(row.Total)
+		case enum.KPIValueTypeShares:
+			dp.Shares = int64(row.Total)
+		case enum.KPIValueTypeEngagement:
+			dp.Engagements = int64(row.Total)
+		}
+	}
+
+	// Convert map to slice and calculate engagements if not set
+	for _, dp := range dateMap {
+		if dp.Engagements == 0 {
+			dp.Engagements = dp.Likes + dp.Comments + dp.Shares
+		}
+		results = append(results, *dp)
+	}
+
+	// Sort results by date ascending
+	for i := 0; i < len(results)-1; i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].Date.Before(results[i].Date) {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// GetContentTypeDistribution returns content count by type
+func (r *contentStaffAnalyticsRepository) GetContentTypeDistribution(ctx context.Context, startDate, endDate time.Time) ([]dtos.ContentTypeDistributionDTO, error) {
+	var results []dtos.ContentTypeDistributionDTO
+	var total int64
+
+	// First get total count
+	if err := r.db.WithContext(ctx).Table("contents c").
+		Joins("JOIN content_channels cc ON cc.content_id = c.id").
+		Where("c.deleted_at IS NULL").
+		Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+		Where("cc.published_at >= ?", startDate).
+		Where("cc.published_at < ?", endDate).
+		Count(&total).Error; err != nil {
+		zap.L().Error("Failed to get total content count for distribution", zap.Error(err))
+		return nil, err
+	}
+
+	// Then get distribution
+	query := r.db.WithContext(ctx).Table("contents c").
+		Select(`
+			c.type as content_type,
+			COUNT(DISTINCT c.id) as count,
+			CASE WHEN ? > 0 THEN (COUNT(DISTINCT c.id)::float / ?::float * 100) ELSE 0 END as percentage
+		`, total, total).
+		Joins("JOIN content_channels cc ON cc.content_id = c.id").
+		Where("c.deleted_at IS NULL").
+		Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+		Where("cc.published_at >= ?", startDate).
+		Where("cc.published_at < ?", endDate).
+		Group("c.type").
+		Order("count DESC")
 
 	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get top content by views", zap.Error(err))
+		zap.L().Error("Failed to get content type distribution", zap.Error(err))
 		return nil, err
 	}
 	return results, nil
 }
 
-// GetTopChannelsByEngagement returns top channels by engagement
-func (r *contentStaffAnalyticsRepository) GetTopChannelsByEngagement(ctx context.Context, limit int, startDate, endDate *time.Time) ([]dtos.ChannelMetricsResult, error) {
-	var results []dtos.ChannelMetricsResult
+// GetChannelDistribution returns content count by channel (for pie chart)
+func (r *contentStaffAnalyticsRepository) GetChannelDistribution(ctx context.Context, startDate, endDate time.Time) ([]dtos.ChannelDistributionDTO, error) {
+	var results []dtos.ChannelDistributionDTO
+	var total int64
 
-	postedStatus := enum.AutoPostStatusPosted.String()
+	// First get total count of posted content channels
+	if err := r.db.WithContext(ctx).Table("content_channels cc").
+		Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+		Where("cc.published_at >= ?", startDate).
+		Where("cc.published_at < ?", endDate).
+		Count(&total).Error; err != nil {
+		zap.L().Error("Failed to get total content count for channel distribution", zap.Error(err))
+		return nil, err
+	}
 
+	// Then get distribution by channel
 	query := r.db.WithContext(ctx).Table("content_channels cc").
 		Select(`
 			ch.id as channel_id,
 			ch.name as channel_name,
-			ch.name as platform,
-			'' as owner_name,
-			COUNT(DISTINCT cc.content_id) as content_count,
-			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
-			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as total_likes,
-			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as total_comments,
-			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as total_shares,
-			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements,
-			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
-				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
-				ELSE 0 
-			END as engagement_rate
-		`).
+			ch.code as channel_code,
+			COUNT(DISTINCT cc.content_id) as count,
+			CASE WHEN ? > 0 THEN (COUNT(DISTINCT cc.content_id)::float / ?::float * 100) ELSE 0 END as percentage
+		`, total, total).
 		Joins("JOIN channels ch ON ch.id = cc.channel_id").
-		Where("cc.metrics IS NOT NULL").
-		Where("cc.auto_post_status = ?", postedStatus)
-
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
-	}
-
-	query = query.Group("ch.id, ch.name").
-		Order("total_engagements DESC").
-		Limit(limit)
+		Where("cc.auto_post_status = ?", enum.AutoPostStatusPosted.String()).
+		Where("cc.published_at >= ?", startDate).
+		Where("cc.published_at < ?", endDate).
+		Group("ch.id, ch.name, ch.code").
+		Order("count DESC")
 
 	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get top channels by engagement", zap.Error(err))
+		zap.L().Error("Failed to get channel distribution", zap.Error(err))
 		return nil, err
 	}
 	return results, nil
 }
 
-// GetEngagementTrend returns engagement trend over time
-func (r *contentStaffAnalyticsRepository) GetEngagementTrend(ctx context.Context, granularity string, startDate, endDate *time.Time) ([]dtos.EngagementTrendResult, error) {
-	var results []dtos.EngagementTrendResult
+// GetTopContentByPerformance returns top performing content from kpi_metrics
+func (r *contentStaffAnalyticsRepository) GetTopContentByPerformance(ctx context.Context, limit int, startDate, endDate time.Time, channelID *uuid.UUID) ([]dtos.ContentPerformanceDTO, error) {
+	return r.getContentByPerformance(ctx, limit, startDate, endDate, channelID, "DESC")
+}
 
-	timeBucket := "date_trunc('day', cc.published_at)"
-	switch granularity {
-	case "WEEK":
-		timeBucket = "date_trunc('week', cc.published_at)"
-	case "MONTH":
-		timeBucket = "date_trunc('month', cc.published_at)"
+// GetBottomContentByPerformance returns lowest performing content
+func (r *contentStaffAnalyticsRepository) GetBottomContentByPerformance(ctx context.Context, limit int, startDate, endDate time.Time, channelID *uuid.UUID) ([]dtos.ContentPerformanceDTO, error) {
+	return r.getContentByPerformance(ctx, limit, startDate, endDate, channelID, "ASC")
+}
+
+// getContentByPerformance is a helper method for getting content sorted by performance
+// Uses DISTINCT ON to get LATEST metric values (not cumulative sums)
+func (r *contentStaffAnalyticsRepository) getContentByPerformance(ctx context.Context, limit int, startDate, endDate time.Time, channelID *uuid.UUID, order string) ([]dtos.ContentPerformanceDTO, error) {
+	// Build the SQL query using DISTINCT ON to get latest values
+	// This uses a CTE to get the latest value for each content_channel + metric type combination
+	channelFilter := ""
+	args := []any{
+		enum.KPIReferenceTypeContentChannel.String(),
+		startDate, endDate,
+		enum.AutoPostStatusPosted.String(),
+		startDate, endDate,
+		enum.KPIReferenceTypeAffiliateLink.String(),
+		enum.KPIValueTypeClickThrough.String(),
+		startDate, endDate,
 	}
 
-	query := r.db.WithContext(ctx).Table("content_channels cc").
-		Select(`
-			` + timeBucket + ` as date,
-			COALESCE(SUM((cc.metrics->>'views')::int), 0) as views,
-			COALESCE(SUM((cc.metrics->>'likes')::int), 0) as likes,
-			COALESCE(SUM((cc.metrics->>'comments')::int), 0) as comments,
-			COALESCE(SUM((cc.metrics->>'shares')::int), 0) as shares,
-			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements,
-			CASE WHEN SUM((cc.metrics->>'views')::int) > 0 
-				THEN (SUM(COALESCE((cc.metrics->>'likes')::int, 0) + COALESCE((cc.metrics->>'comments')::int, 0) + COALESCE((cc.metrics->>'shares')::int, 0))::float / SUM((cc.metrics->>'views')::int)::float * 100)
+	if channelID != nil {
+		channelFilter = "AND cc.channel_id = ?"
+		// Insert channel ID at appropriate positions
+		args = append(args[:6], append([]any{*channelID}, args[6:]...)...)
+	}
+
+	query := fmt.Sprintf(`
+		WITH latest_metrics AS (
+			-- Get latest value for each content_channel + metric type
+			SELECT DISTINCT ON (km.reference_id, km.type)
+				km.reference_id as content_channel_id,
+				km.type,
+				km.value
+			FROM kpi_metrics km
+			WHERE km.reference_type = ?
+			  AND km.recorded_date >= ? AND km.recorded_date < ?
+			ORDER BY km.reference_id, km.type, km.recorded_date DESC
+		),
+		pivoted_metrics AS (
+			-- Pivot latest metrics into columns
+			SELECT 
+				content_channel_id,
+				COALESCE(MAX(CASE WHEN type = 'VIEWS' THEN value END), 0) as views,
+				COALESCE(MAX(CASE WHEN type = 'LIKES' THEN value END), 0) as likes,
+				COALESCE(MAX(CASE WHEN type = 'COMMENTS' THEN value END), 0) as comments,
+				COALESCE(MAX(CASE WHEN type = 'SHARES' THEN value END), 0) as shares
+			FROM latest_metrics
+			GROUP BY content_channel_id
+		),
+		content_info AS (
+			-- Get content channel info
+			SELECT 
+				cc.id as content_channel_id,
+				cc.content_id,
+				c.title,
+				c.type as content_type,
+				ch.id as channel_id,
+				ch.name as channel_name,
+				cc.published_at,
+				c.thumbnail_url
+			FROM content_channels cc
+			JOIN contents c ON c.id = cc.content_id
+			JOIN channels ch ON ch.id = cc.channel_id
+			WHERE cc.auto_post_status = ?
+			  AND cc.published_at >= ? AND cc.published_at < ?
+			  AND c.deleted_at IS NULL
+			  %s
+		),
+		latest_clicks AS (
+			-- Get latest click count for affiliate links related to content channels
+			SELECT DISTINCT ON (al.channel_id)
+				al.channel_id as content_channel_id,
+				km.value as clicks
+			FROM kpi_metrics km
+			JOIN affiliate_links al ON al.id = km.reference_id
+			WHERE km.reference_type = ?
+			  AND km.type = ?
+			  AND km.recorded_date >= ? AND km.recorded_date < ?
+			ORDER BY al.channel_id, km.recorded_date DESC
+		)
+		SELECT 
+			ci.content_id,
+			ci.title,
+			ci.content_type,
+			ci.channel_id,
+			ci.channel_name,
+			ci.published_at,
+			ci.thumbnail_url,
+			COALESCE(pm.views, 0)::bigint as views,
+			COALESCE(pm.likes, 0)::bigint as likes,
+			COALESCE(pm.comments, 0)::bigint as comments,
+			COALESCE(pm.shares, 0)::bigint as shares,
+			(COALESCE(pm.likes, 0) + COALESCE(pm.comments, 0) + COALESCE(pm.shares, 0))::bigint as engagement,
+			CASE 
+				WHEN COALESCE(pm.views, 0) > 0 
+				THEN (COALESCE(lc.clicks, 0) / pm.views * 100)
 				ELSE 0 
-			END as engagement_rate
-		`).
-		Where("cc.metrics IS NOT NULL").
-		Where("cc.published_at IS NOT NULL")
+			END as ctr,
+			(COALESCE(pm.views, 0) + COALESCE(pm.likes, 0) * 2 + COALESCE(pm.comments, 0) * 3 + COALESCE(pm.shares, 0) * 4) as performance_score
+		FROM content_info ci
+		LEFT JOIN pivoted_metrics pm ON pm.content_channel_id = ci.content_channel_id
+		LEFT JOIN latest_clicks lc ON lc.content_channel_id = ci.content_channel_id
+		ORDER BY performance_score %s
+		LIMIT ?
+	`, channelFilter, order)
 
-	if startDate != nil {
-		query = query.Where("cc.published_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cc.published_at <= ?", *endDate)
-	}
+	args = append(args, limit)
 
-	query = query.Group(timeBucket).Order("date ASC")
-
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get engagement trend", zap.Error(err))
+	var results []dtos.ContentPerformanceDTO
+	if err := r.db.WithContext(ctx).Raw(query, args...).Scan(&results).Error; err != nil {
+		zap.L().Error("Failed to get content by performance", zap.Error(err))
 		return nil, err
 	}
+
 	return results, nil
 }
 
-// GetRecentContent returns recent content
-func (r *contentStaffAnalyticsRepository) GetRecentContent(ctx context.Context, limit int) ([]dtos.RecentContentResult, error) {
-	var results []dtos.RecentContentResult
+// GetScheduledContentCount returns count of scheduled content for a date range
+func (r *contentStaffAnalyticsRepository) GetScheduledContentCount(ctx context.Context, startDate, endDate time.Time) (int64, error) {
+	var count int64
 
-	query := r.db.WithContext(ctx).Table("contents c").
-		Select(`
-			c.id as content_id,
-			c.title,
-			c.status,
-			cmp.name as campaign_name,
-			'' as creator_name,
-			c.created_at,
-			c.updated_at
-		`).
-		Joins("LEFT JOIN tasks t ON t.id = c.task_id").
-		Joins("LEFT JOIN milestones m ON m.id = t.milestone_id").
-		Joins("LEFT JOIN campaigns cmp ON cmp.id = m.campaign_id").
-		Where("c.deleted_at IS NULL").
-		Order("c.created_at DESC").
-		Limit(limit)
-
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get recent content", zap.Error(err))
-		return nil, err
+	if err := r.db.WithContext(ctx).Table("content_schedules cs").
+		Where("cs.deleted_at IS NULL").
+		Where("cs.scheduled_at >= ?", startDate).
+		Where("cs.scheduled_at < ?", endDate).
+		Where("cs.status IN ?", []string{"PENDING", "SCHEDULED"}).
+		Count(&count).Error; err != nil {
+		zap.L().Error("Failed to get scheduled content count", zap.Error(err))
+		return 0, err
 	}
-	return results, nil
+	return count, nil
 }
 
-// GetContentStatusBreakdown returns content counts by status
-func (r *contentStaffAnalyticsRepository) GetContentStatusBreakdown(ctx context.Context, startDate, endDate *time.Time) ([]dtos.ContentStatusCount, error) {
-	var results []dtos.ContentStatusCount
+// GetTaskContentDeliverableCount returns expected content count from tasks in date range
+func (r *contentStaffAnalyticsRepository) GetTaskContentDeliverableCount(ctx context.Context, startDate, endDate time.Time) (int64, error) {
+	var count int64
 
-	query := r.db.WithContext(ctx).Table("contents").
-		Select("status, COUNT(*) as count").
-		Where("deleted_at IS NULL")
-
-	if startDate != nil {
-		query = query.Where("created_at >= ?", *startDate)
+	// Count tasks with type CONTENT that have deadline in the date range
+	if err := r.db.WithContext(ctx).Table("tasks t").
+		Where("t.deleted_at IS NULL").
+		Where("t.type = ?", enum.TaskTypeContent.String()).
+		Where("t.deadline >= ?", startDate).
+		Where("t.deadline < ?", endDate).
+		Where("t.status NOT IN ?", []string{
+			enum.TaskStatusCancelled.String(),
+		}).
+		Count(&count).Error; err != nil {
+		zap.L().Error("Failed to get task content deliverable count", zap.Error(err))
+		return 0, err
 	}
-	if endDate != nil {
-		query = query.Where("created_at <= ?", *endDate)
-	}
-
-	query = query.Group("status")
-
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get content status breakdown", zap.Error(err))
-		return nil, err
-	}
-	return results, nil
+	return count, nil
 }
 
-// GetCampaignContentMetrics returns content metrics by campaign
-func (r *contentStaffAnalyticsRepository) GetCampaignContentMetrics(ctx context.Context, campaignID *uuid.UUID, limit int, startDate, endDate *time.Time) ([]dtos.CampaignContentMetrics, error) {
-	var results []dtos.CampaignContentMetrics
+// GetChannelMappedMetrics returns LATEST kpi_metrics values aggregated for a channel
+// Uses DISTINCT ON to get the latest value per content_channel before summing
+func (r *contentStaffAnalyticsRepository) GetChannelMappedMetrics(ctx context.Context, channelID uuid.UUID, startDate, endDate time.Time) (map[string]float64, error) {
+	metrics := make(map[string]float64)
 
-	// Use enum values for content statuses
-	postedStatus := enum.ContentStatusPosted.String()
-	awaitStaffStatus := enum.ContentStatusAwaitStaff.String()
-	awaitBrandStatus := enum.ContentStatusAwaitBrand.String()
-	draftStatus := enum.ContentStatusDraft.String()
+	// Use DISTINCT ON to get latest value per (content_channel, type), then sum
+	query := `
+		WITH latest_metrics AS (
+			SELECT DISTINCT ON (km.reference_id, km.type)
+				km.reference_id,
+				km.type,
+				km.value
+			FROM kpi_metrics km
+			JOIN content_channels cc ON cc.id = km.reference_id
+			WHERE cc.channel_id = ?
+			  AND km.reference_type = ?
+			  AND cc.auto_post_status = ?
+			  AND cc.published_at >= ? AND cc.published_at < ?
+			  AND km.recorded_date >= ? AND km.recorded_date < ?
+			ORDER BY km.reference_id, km.type, km.recorded_date DESC
+		)
+		SELECT type, COALESCE(SUM(value), 0) as total
+		FROM latest_metrics
+		GROUP BY type
+	`
 
-	query := r.db.WithContext(ctx).Table("campaigns cmp").
-		Select(`
-			cmp.id as campaign_id,
-			cmp.name as campaign_name,
-			COUNT(DISTINCT c.id) as content_count,
-			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as posted_count,
-			SUM(CASE WHEN c.status IN (?, ?) THEN 1 ELSE 0 END) as pending_count,
-			SUM(CASE WHEN c.status = ? THEN 1 ELSE 0 END) as draft_count,
-			COALESCE(SUM((cc.metrics->>'views')::int), 0) as total_views,
-			COALESCE(SUM((cc.metrics->>'likes')::int) + SUM((cc.metrics->>'comments')::int) + SUM((cc.metrics->>'shares')::int), 0) as total_engagements
-		`, postedStatus, awaitStaffStatus, awaitBrandStatus, draftStatus).
-		Joins("JOIN milestones m ON m.campaign_id = cmp.id").
-		Joins("LEFT JOIN tasks t ON t.milestone_id = m.id").
-		Joins("LEFT JOIN contents c ON c.task_id = t.id").
-		Joins("LEFT JOIN content_channels cc ON cc.content_id = c.id").
-		Where("cmp.deleted_at IS NULL")
-
-	if campaignID != nil {
-		query = query.Where("cmp.id = ?", *campaignID)
+	type MetricAggregate struct {
+		Type  string
+		Total float64
 	}
-	if startDate != nil {
-		query = query.Where("cmp.created_at >= ?", *startDate)
-	}
-	if endDate != nil {
-		query = query.Where("cmp.created_at <= ?", *endDate)
+	var results []MetricAggregate
+
+	if err := r.db.WithContext(ctx).Raw(query,
+		channelID,
+		enum.KPIReferenceTypeContentChannel.String(),
+		enum.AutoPostStatusPosted.String(),
+		startDate, endDate,
+		startDate, endDate,
+	).Scan(&results).Error; err != nil {
+		zap.L().Error("Failed to get channel mapped metrics", zap.Error(err))
+		return metrics, err
 	}
 
-	query = query.Group("cmp.id, cmp.name").
-		Order("total_views DESC").
-		Limit(limit)
-
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get campaign content metrics", zap.Error(err))
-		return nil, err
+	for _, r := range results {
+		metrics[r.Type] = r.Total
 	}
-	return results, nil
+
+	return metrics, nil
 }
