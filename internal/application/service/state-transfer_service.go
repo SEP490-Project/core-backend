@@ -268,7 +268,6 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	}()
 
 	productRepo := trx.Products()
-	taskRepo := trx.Tasks()
 	// Make sure we load the Task relation so we can update it
 	includes := []string{"Variants", "Limited", "Task"}
 
@@ -314,15 +313,30 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	if targetState == enum.ProductStatusActived {
 		product.IsActive = true
 		if product.Task != nil {
-			product.Task.Status = enum.TaskStatusDone
-			product.Task.UpdatedByID = &updatedBy
-			if err := taskRepo.Update(ctx, product.Task); err != nil {
+			// Capture local reference to avoid races/mutations and avoid deref in logger
+			task := product.Task
+			task.Status = enum.TaskStatusDone
+			task.UpdatedByID = &updatedBy
+			// Use raw SQL update to persist task changes within the same transaction
+			res := trx.DB().Exec(`UPDATE tasks SET status = ?, updated_by = ?, updated_at = now() WHERE id = ?`, task.Status, updatedBy.String(), task.ID)
+			if res.Error != nil {
 				_ = trx.Rollback()
-				zap.L().Error("Failed to update related task state in DB",
+				// Prepare safe task id string for logging
+				taskID := task.ID.String()
+				zap.L().Error("Failed to update related task state in DB (raw sql)",
 					zap.String("product_id", productID.String()),
-					zap.String("task_id", product.Task.ID.String()),
-					zap.Error(err))
-				return errors.New("Failed to update related task state in DB: " + err.Error())
+					zap.String("task_id", taskID),
+					zap.Error(res.Error))
+				return errors.New("Failed to update related task state in DB: " + res.Error.Error())
+			}
+			// Ensure a row was actually updated
+			if res.RowsAffected == 0 {
+				_ = trx.Rollback()
+				taskID := task.ID.String()
+				zap.L().Error("No task row updated when attempting to set task to DONE",
+					zap.String("product_id", productID.String()),
+					zap.String("task_id", taskID))
+				return errors.New("failed to update task: no rows affected")
 			}
 		}
 	}
@@ -334,10 +348,6 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 			zap.String("new_state", targetState.String()),
 			zap.Error(err))
 		return errors.New("Failed to update product state in DB: " + err.Error())
-	}
-
-	// If a Task was attached and modified, persist it explicitly through task repository
-	if product.Task != nil {
 	}
 
 	if err := trx.Commit(); err != nil {
