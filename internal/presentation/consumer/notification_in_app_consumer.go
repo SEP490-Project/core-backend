@@ -74,7 +74,7 @@ func (c *NotificationInAppConsumer) Handle(ctx context.Context, body []byte) err
 
 	// Send real-time event via SSE
 	// We send the full message data so the frontend can display a toast/popup
-	eventData := map[string]interface{}{
+	eventData := map[string]any{
 		"id":         msg.NotificationID,
 		"title":      msg.Title,
 		"message":    msg.Message,
@@ -93,7 +93,7 @@ func (c *NotificationInAppConsumer) Handle(ctx context.Context, body []byte) err
 	}
 
 	// Also send updated unread count
-	count, err := c.notificationRepository.CountUnread(ctx, msg.UserID)
+	count, err := c.notificationRepository.CountUnread(ctx, msg.UserID, []enum.NotificationType{enum.NotificationTypeInApp})
 	if err == nil {
 		_ = c.sseService.SendUnreadCount(msg.UserID, count)
 	}

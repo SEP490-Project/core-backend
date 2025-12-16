@@ -919,7 +919,11 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uuid.UU
 	zap.L().Info("NotificationService - GetUnreadCount called",
 		zap.String("user_id", userID.String()))
 
-	return s.notificationRepo.CountUnread(ctx, userID)
+	return s.notificationRepo.CountUnread(ctx, userID, []enum.NotificationType{
+		enum.NotificationTypeEmail,
+		enum.NotificationTypePush,
+		enum.NotificationTypeInApp,
+	})
 }
 
 // region: ============ Helper Methods =============
@@ -981,7 +985,11 @@ func (s *NotificationService) sendPushNotification(ctx context.Context, pushMess
 }
 
 func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.UUID) {
-	count, err := s.notificationRepo.CountUnread(ctx, userID)
+	count, err := s.notificationRepo.CountUnread(ctx, userID, []enum.NotificationType{
+		enum.NotificationTypeEmail,
+		enum.NotificationTypePush,
+		enum.NotificationTypeInApp,
+	})
 	if err != nil {
 		zap.L().Error("Failed to count unread notifications", zap.Error(err), zap.String("user_id", userID.String()))
 		return
