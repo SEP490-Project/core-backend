@@ -132,7 +132,7 @@ type UpdateProductStateRequest struct {
 	State string `json:"state" validate:"required,oneof=DRAFT SUBMITTED REVISION APPROVED ACTIVED INACTIVED"`
 
 	// Reason only require when request revision
-	Reason *string `json:"reason" validate:"max=500" example:"Reason for state change"`
+	Reason *string `json:"reason" example:"Reason for state change"`
 }
 
 // UpdateProductState godoc
