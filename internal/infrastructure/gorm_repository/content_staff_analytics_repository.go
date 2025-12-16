@@ -369,10 +369,10 @@ func (r *contentStaffAnalyticsRepository) GetTopPostForChannel(ctx context.Conte
 		pivoted_metrics AS (
 			SELECT 
 				reference_id,
-				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as views,
-				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as likes,
-				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as comments,
-				COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) as shares
+				CAST(COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) AS BIGINT) as views,
+				CAST(COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) AS BIGINT) as likes,
+				CAST(COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) AS BIGINT) as comments,
+				CAST(COALESCE(MAX(CASE WHEN type = ? THEN value END), 0) AS BIGINT) as shares
 			FROM latest_metrics
 			GROUP BY reference_id
 		)
