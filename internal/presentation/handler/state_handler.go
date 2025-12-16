@@ -176,11 +176,11 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 		return
 	}
 
-	if target == enum.ProductStatusRevision {
-		if req.Reason == nil {
-			c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when moving product to REVISION state", http.StatusBadRequest))
-		}
-	}
+	//if target == enum.ProductStatusRevision {
+	//	if req.Reason == nil {
+	//		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when moving product to REVISION state", http.StatusBadRequest))
+	//	}
+	//}
 
 	// Lấy role từ context
 	roleVal, ok := c.Get("roles")
@@ -652,7 +652,7 @@ func roleChecker(t, roleStr string, target any) error {
 		}
 
 		if forbiddenStates[parsedTarget] {
-			return fmt.Errorf("%s cannot move product to state %s", enum.UserRoleBrandPartner.String(), parsedTarget.String())
+			return fmt.Errorf("%s cannot move product to state %s", roleStr, parsedTarget.String())
 		}
 
 	default:
