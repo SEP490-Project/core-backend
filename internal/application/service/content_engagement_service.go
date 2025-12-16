@@ -529,8 +529,8 @@ func (s *contentEngagementService) buildEngagementSummary(ctx context.Context, c
 	// Get comment count from database (more accurate than metrics)
 	comments, totalComments, err := s.contentCommentRepo.GetAll(ctx,
 		func(db *gorm.DB) *gorm.DB {
-			return db.Where("content_channel_id = ?", cc.ID)
-		}, nil, 1, 1)
+			return db.Where("content_channel_id = ?", cc.ID).Order("created_at DESC")
+		}, []string{"CreatedUser"}, 50, 1)
 	if err != nil {
 		zap.L().Warn("Failed to get comment count", zap.Error(err))
 	}
@@ -551,7 +551,7 @@ func (s *contentEngagementService) buildEngagementSummary(ctx context.Context, c
 		TotalReactions:  totalReactions,
 		ReactionsByType: reactionsByType,
 		TotalComments:   totalComments,
-		Comments:        responses.ContentCommentResponse{}.ToResponseList(comments),
+		Comments:        responses.ContentCommentResponse{}.ToResponseList(comments, userID),
 		TotalShares:     engagement.SharesCount,
 		UserReaction:    userReaction,
 	}, nil
