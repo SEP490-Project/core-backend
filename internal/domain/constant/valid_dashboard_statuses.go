@@ -4,13 +4,15 @@ import "core-backend/internal/domain/enum"
 
 // region: ======= Valid Order Status =========
 
+type ValidOrderStatusGroup []enum.OrderStatus
+
 var (
-	ValidCompletedOrderStatus = []enum.OrderStatus{
+	ValidCompletedOrderStatus ValidOrderStatusGroup = []enum.OrderStatus{
 		enum.OrderStatusDelivered,
 		enum.OrderStatusReceived,
 		enum.OrderStatusCompensateRequested,
 	}
-	ValidPendingOrderStatus = []enum.OrderStatus{
+	ValidPendingOrderStatus ValidOrderStatusGroup = []enum.OrderStatus{
 		enum.OrderStatusPending,
 		enum.OrderStatusPaid,
 		enum.OrderStatusConfirmed,
@@ -19,26 +21,35 @@ var (
 		enum.OrderStatusAwaitingPickUp,
 		enum.OrderStatusRefundRequested,
 	}
-	ValidCancelledOrderStatus = []enum.OrderStatus{
+	ValidCancelledOrderStatus ValidOrderStatusGroup = []enum.OrderStatus{
 		enum.OrderStatusCancelled,
 	}
-	ValidRefundedOrderStatus = []enum.OrderStatus{
+	ValidRefundedOrderStatus ValidOrderStatusGroup = []enum.OrderStatus{
 		enum.OrderStatusRefunded,
 		enum.OrderStatusCompensated,
 	}
 )
 
+func (os *ValidOrderStatusGroup) ToStringSlice() (result []string) {
+	for _, s := range *os {
+		result = append(result, s.String())
+	}
+	return result
+}
+
 // endregion
 
 // region: ======= Valid Pre-Order Status =========
 
+type ValidPreOrderStatusGroup []enum.PreOrderStatus
+
 var (
-	ValidCompletedPreOrderStatus = []enum.PreOrderStatus{
+	ValidCompletedPreOrderStatus ValidPreOrderStatusGroup = []enum.PreOrderStatus{
 		enum.PreOrderStatusDelivered,
 		enum.PreOrderStatusReceived,
 		enum.PreOrderStatusCompensateRequest,
 	}
-	ValidPendingPreOrderStatus = []enum.PreOrderStatus{
+	ValidPendingPreOrderStatus ValidPreOrderStatusGroup = []enum.PreOrderStatus{
 		enum.PreOrderStatusPending,
 		enum.PreOrderStatusPaid,
 		enum.PreOrderStatusPreOrdered,
@@ -46,13 +57,20 @@ var (
 		enum.PreOrderStatusAwaitingPickup,
 		enum.PreOrderStatusInTransit,
 	}
-	ValidCancelledPreOrderStatus = []enum.PreOrderStatus{
+	ValidCancelledPreOrderStatus ValidPreOrderStatusGroup = []enum.PreOrderStatus{
 		enum.PreOrderStatusCancelled,
 	}
-	ValidRefundedPreOrderStatus = []enum.PreOrderStatus{
+	ValidRefundedPreOrderStatus ValidPreOrderStatusGroup = []enum.PreOrderStatus{
 		enum.PreOrderStatusRefunded,
 		enum.PreOrderStatusCompensated,
 	}
 )
+
+func (pos *ValidPreOrderStatusGroup) ToStringSlice() (result []string) {
+	for _, s := range *pos {
+		result = append(result, s.String())
+	}
+	return result
+}
 
 // endregion

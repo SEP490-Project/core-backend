@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"strings"
 	"time"
@@ -728,102 +729,108 @@ func (r *adminAnalyticsRepository) GetDashboardOrdersMetrics(ctx context.Context
 
 // GetDashboardRevenueMetrics returns all revenue metrics in a single query
 func (r *adminAnalyticsRepository) GetDashboardRevenueMetrics(ctx context.Context, startDate, endDate *time.Time) (*dtos.DashboardRevenueResult, error) {
-	// Build list of valid order statuses
-	validOrderStatuses := []string{
-		enum.OrderStatusPaid.String(),
-		enum.OrderStatusConfirmed.String(),
-		enum.OrderStatusShipped.String(),
-		enum.OrderStatusInTransit.String(),
-		enum.OrderStatusDelivered.String(),
-		enum.OrderStatusReceived.String(),
-		enum.OrderStatusAwaitingPickUp.String(),
-	}
-	validPreOrderStatuses := []string{
-		enum.PreOrderStatusPaid.String(),
-		enum.PreOrderStatusAwaitingPickup.String(),
-		enum.PreOrderStatusInTransit.String(),
-		enum.PreOrderStatusDelivered.String(),
-		enum.PreOrderStatusReceived.String(),
-	}
-
 	query := `
-		WITH order_revenue AS (
-			SELECT COALESCE(SUM(total_amount), 0) AS total
-			FROM orders
-			WHERE deleted_at IS NULL
-				AND status = ANY($3)
-		),
-		pre_order_revenue AS (
-			SELECT COALESCE(SUM(total_amount), 0) AS total
-			FROM pre_orders
-			WHERE deleted_at IS NULL
-				AND status = any($11)
-		),
-		monthly_order_revenue AS (
-			SELECT COALESCE(SUM(total_amount), 0) AS total
+		WITH 
+		-- 1. Orders within time range
+		-- We grab total_amount (for global sum) and shipping_fee (for breakdown)
+		range_orders AS (
+			SELECT id, total_amount, shipping_fee
 			FROM orders
 			WHERE deleted_at IS NULL
 				AND status = ANY($3)
 				AND created_at >= $1 AND created_at < $2
 		),
-		contract_revenue AS (
-			SELECT
-				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $4), 0) AS advertising_revenue,
-				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $5), 0) AS affiliate_revenue,
-				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $6), 0) AS ambassador_revenue,
-				COALESCE(SUM(cp.amount) FILTER (WHERE c.type = $7), 0) AS co_producing_revenue,
-				COALESCE(SUM(cp.amount), 0) AS total_contract_revenue
+
+		-- 2. Pre-Orders within time range
+		-- LOGIC: All Pre-Orders are considered 'Limited' products per requirement
+		range_pre_orders AS (
+			SELECT total_amount
+			FROM pre_orders
+			WHERE deleted_at IS NULL
+				AND status = ANY($11)
+				AND created_at >= $1 AND created_at < $2
+		),
+
+		-- 3. Contracts (B2B) within time range
+		range_contracts AS (
+			SELECT cp.amount, c.type
 			FROM contract_payments cp
-			INNER JOIN contracts c ON c.id = cp.contract_id AND c.deleted_at IS NULL
+			INNER JOIN contracts c ON c.id = cp.contract_id
 			WHERE cp.deleted_at IS NULL
+				AND c.deleted_at IS NULL
 				AND cp.status = $8
 				AND cp.updated_at >= $1 AND cp.updated_at < $2
 		),
-		product_revenue AS (
-			SELECT
-				COALESCE(SUM(oi.subtotal) FILTER (WHERE p.type = $9), 0) AS standard_product_revenue,
-				COALESCE(SUM(oi.subtotal) FILTER (WHERE p.type = $10), 0) AS limited_product_revenue
-			FROM orders o
-			INNER JOIN order_items oi ON oi.order_id = o.id
-			INNER JOIN product_variants pv ON pv.id = oi.variant_id AND pv.deleted_at IS NULL
-			INNER JOIN products p ON p.id = pv.product_id AND p.deleted_at IS NULL
-			WHERE o.deleted_at IS NULL
-				AND o.status = ANY($3)
-				AND o.created_at >= $1 AND o.created_at < $2
+
+		-- 4. Order Item Breakdown
+		-- Isolates subtotal of items to distinguish Standard vs Limited inside Orders
+		range_order_items AS (
+			SELECT 
+				p.type as product_type, 
+				SUM(oi.subtotal) as subtotal
+			FROM order_items oi
+			INNER JOIN range_orders ro ON ro.id = oi.order_id
+			INNER JOIN product_variants pv ON pv.id = oi.variant_id
+			INNER JOIN products p ON p.id = pv.product_id
+			WHERE pv.deleted_at IS NULL AND p.deleted_at IS NULL
+			GROUP BY p.type
 		),
-		pre_order_limited_revenue as (
-			select COALESCE(SUM(total_amount), 0) AS limited_product_revenue
-			FROM pre_orders
-			WHERE deleted_at IS NULL
-				AND status = any($11)
-				AND created_at >= $1 AND created_at < $2
+
+		-- 5. Aggregation
+		calculations AS (
+			SELECT
+				-- Base Totals
+				COALESCE((SELECT SUM(total_amount) FROM range_orders), 0) as orders_total,
+				COALESCE((SELECT SUM(total_amount) FROM range_pre_orders), 0) as pre_orders_total,
+				COALESCE((SELECT SUM(amount) FROM range_contracts), 0) as contracts_total,
+				COALESCE((SELECT SUM(shipping_fee) FROM range_orders), 0) as shipping_total,
+
+				-- Contract Breakdowns
+				COALESCE((SELECT SUM(amount) FROM range_contracts WHERE type = $4), 0) as adv_rev,
+				COALESCE((SELECT SUM(amount) FROM range_contracts WHERE type = $5), 0) as aff_rev,
+				COALESCE((SELECT SUM(amount) FROM range_contracts WHERE type = $6), 0) as amb_rev,
+				COALESCE((SELECT SUM(amount) FROM range_contracts WHERE type = $7), 0) as co_rev,
+
+				-- Product Logic
+				-- Standard = Sum of Standard Items from Orders
+				COALESCE((SELECT SUM(subtotal) FROM range_order_items WHERE product_type = $9), 0) as standard_rev,
+
+				-- Limited = Sum of Limited Items from Orders + ALL Pre-Order Revenue
+				COALESCE((SELECT SUM(subtotal) FROM range_order_items WHERE product_type = $10), 0) +
+				COALESCE((SELECT SUM(total_amount) FROM range_pre_orders), 0) as limited_rev
 		)
-		SELECT
-			orv.total + pov.total + cr.total_contract_revenue AS total_revenue,
-			morv.total + cr.total_contract_revenue + polr.limited_product_revenue AS monthly_revenue,
-			cr.advertising_revenue,
-			cr.affiliate_revenue,
-			cr.ambassador_revenue,
-			cr.co_producing_revenue,
-			pr.standard_product_revenue,
-			pr.limited_product_revenue + polr.limited_product_revenue AS limited_product_revenue
-		FROM order_revenue orv, pre_order_revenue pov, monthly_order_revenue morv, contract_revenue cr, product_revenue pr, pre_order_limited_revenue polr
+		SELECT 
+			-- Total System Revenue
+			(orders_total + pre_orders_total + contracts_total) AS total_revenue,
+			(orders_total + pre_orders_total + contracts_total) AS monthly_revenue,
+			
+			-- Breakdowns
+			adv_rev AS advertising_revenue,
+			aff_rev AS affiliate_revenue,
+			amb_rev AS ambassador_revenue,
+			co_rev AS co_producing_revenue,
+			
+			standard_rev AS standard_product_revenue,
+			limited_rev AS limited_product_revenue,
+			shipping_total AS shipping_revenue
+		FROM calculations
 	`
 
 	var result dtos.DashboardRevenueResult
 	err := r.db.WithContext(ctx).Raw(query,
-		startDate,
-		endDate,
-		validOrderStatuses,
-		enum.ContractTypeAdvertising.String(),
-		enum.ContractTypeAffiliate.String(),
-		enum.ContractTypeAmbassador.String(),
-		enum.ContractTypeCoProduce.String(),
-		enum.ContractPaymentStatusPaid.String(),
-		enum.ProductTypeStandard.String(),
-		enum.ProductTypeLimited.String(),
-		validPreOrderStatuses,
+		startDate, // $1
+		endDate,   // $2
+		constant.ValidCompletedOrderStatus.ToStringSlice(),    // $3
+		enum.ContractTypeAdvertising.String(),                 // $4
+		enum.ContractTypeAffiliate.String(),                   // $5
+		enum.ContractTypeAmbassador.String(),                  // $6
+		enum.ContractTypeCoProduce.String(),                   // $7
+		enum.ContractPaymentStatusPaid.String(),               // $8
+		enum.ProductTypeStandard.String(),                     // $9
+		enum.ProductTypeLimited.String(),                      // $10
+		constant.ValidCompletedPreOrderStatus.ToStringSlice(), // $11
 	).Scan(&result).Error
+
 	return &result, err
 }
 
@@ -856,17 +863,16 @@ func getDateTruncFuncForGenerateSeries(granularity string) string {
 // getValidOrderStatusesSQL returns a SQL-safe string of valid order statuses for revenue calculations
 // These are statuses that represent completed/valid orders for revenue reporting
 func getValidOrderStatusesSQL() string {
-	statuses := []enum.OrderStatus{
-		enum.OrderStatusPaid,
-		enum.OrderStatusConfirmed,
-		enum.OrderStatusShipped,
-		enum.OrderStatusInTransit,
-		enum.OrderStatusDelivered,
-		enum.OrderStatusReceived,
-		enum.OrderStatusAwaitingPickUp,
-	}
 	var quoted []string
-	for _, s := range statuses {
+	for _, s := range constant.ValidCompletedOrderStatus {
+		quoted = append(quoted, "'"+s.String()+"'")
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func getValidPreOrderStatusesSQL() string {
+	var quoted []string
+	for _, s := range constant.ValidCompletedPreOrderStatus {
 		quoted = append(quoted, "'"+s.String()+"'")
 	}
 	return strings.Join(quoted, ", ")
