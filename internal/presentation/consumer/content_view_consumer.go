@@ -21,7 +21,7 @@ import (
 
 // ContentViewConsumer handles content view events from RabbitMQ
 type ContentViewConsumer struct {
-	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo     irepository.KPIMetricsRepository
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
 	cache              *persistence.ValkeyCache
 	adminConfig        *config.AdminConfig
@@ -29,7 +29,7 @@ type ContentViewConsumer struct {
 
 // NewContentViewConsumer creates a new content view consumer
 func NewContentViewConsumer(
-	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
+	kpiMetricsRepo irepository.KPIMetricsRepository,
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel],
 	cache *persistence.ValkeyCache,
 	adminConfig *config.AdminConfig,
@@ -84,6 +84,14 @@ func (c *ContentViewConsumer) Handle(ctx context.Context, body []byte) error {
 		return err
 	}
 
+	// Update ContentChannel.Metrics (fetched and mapped)
+	if err := c.incrementContentChannelViews(ctx, message.ContentChannelID, 1, false); err != nil {
+		zap.L().Error("Failed to update content channel metrics",
+			zap.String("content_channel_id", message.ContentChannelID.String()),
+			zap.Error(err))
+		// Don't fail the operation, just log error
+	}
+
 	// Check if this is a unique view
 	isUnique := c.isUniqueView(ctx, &message)
 	if isUnique {
@@ -100,6 +108,13 @@ func (c *ContentViewConsumer) Handle(ctx context.Context, body []byte) error {
 				zap.String("content_channel_id", message.ContentChannelID.String()),
 				zap.Error(err))
 			// Don't fail the entire operation for unique view tracking
+		}
+
+		// Update ContentChannel.Metrics for unique view
+		if err := c.incrementContentChannelViews(ctx, message.ContentChannelID, 1, true); err != nil {
+			zap.L().Error("Failed to update content channel unique views",
+				zap.String("content_channel_id", message.ContentChannelID.String()),
+				zap.Error(err))
 		}
 	}
 
@@ -189,4 +204,52 @@ func (c *ContentViewConsumer) validateMessage(message *consumers.ContentViewMess
 	}
 
 	return nil
+}
+
+// incrementContentChannelViews updates the views count in ContentChannel.Metrics
+func (c *ContentViewConsumer) incrementContentChannelViews(ctx context.Context, contentChannelID uuid.UUID, count int64, isUnique bool) error {
+	// Fetch content channel
+	cc, err := c.contentChannelRepo.GetByID(ctx, contentChannelID, nil)
+	if err != nil {
+		return err
+	}
+
+	// Initialize Metrics if nil
+	if cc.Metrics == nil {
+		cc.Metrics = &model.ContentChannelMetrics{
+			CurrentFetched: make(map[string]any),
+			CurrentMapped:  make(map[enum.KPIValueType]float64),
+		}
+	}
+	if cc.Metrics.CurrentFetched == nil {
+		cc.Metrics.CurrentFetched = make(map[string]any)
+	}
+	if cc.Metrics.CurrentMapped == nil {
+		cc.Metrics.CurrentMapped = make(map[enum.KPIValueType]float64)
+	}
+
+	// Update Mapped Metrics
+	if isUnique {
+		cc.Metrics.CurrentMapped[enum.KPIValueTypeUniqueViews] += float64(count)
+	} else {
+		cc.Metrics.CurrentMapped[enum.KPIValueTypeViews] += float64(count)
+
+		// Update Fetched Metrics (Website specific format)
+		// views_count is stored as float64 in JSON unmarshaling usually, but we set it as int64 or float64
+		var currentViews float64
+		if v, ok := cc.Metrics.CurrentFetched["views_count"]; ok {
+			switch val := v.(type) {
+			case float64:
+				currentViews = val
+			case int64:
+				currentViews = float64(val)
+			case int:
+				currentViews = float64(val)
+			}
+		}
+		cc.Metrics.CurrentFetched["views_count"] = currentViews + float64(count)
+	}
+
+	// Save updates
+	return c.contentChannelRepo.Update(ctx, cc)
 }
