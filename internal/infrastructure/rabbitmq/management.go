@@ -26,36 +26,36 @@ type ManagementService struct {
 
 // QueueInfo represents information about a RabbitMQ queue
 type QueueInfo struct {
-	Name                 string                 `json:"name"`
-	VHost                string                 `json:"vhost"`
-	Durable              bool                   `json:"durable"`
-	AutoDelete           bool                   `json:"auto_delete"`
-	Messages             int64                  `json:"messages"`
-	MessagesReady        int64                  `json:"messages_ready"`
-	MessagesUnacked      int64                  `json:"messages_unacknowledged"`
-	Consumers            int                    `json:"consumers"`
-	State                string                 `json:"state"`
-	Arguments            map[string]interface{} `json:"arguments,omitempty"`
-	MessageStats         *MessageStats          `json:"message_stats,omitempty"`
-	BackingQueueStatus   *BackingQueueStatus    `json:"backing_queue_status,omitempty"`
-	QueueType            string                 `json:"type,omitempty"`
-	Policy               string                 `json:"policy,omitempty"`
-	IdleSince            string                 `json:"idle_since,omitempty"`
-	ExclusiveConsumerTag string                 `json:"exclusive_consumer_tag,omitempty"`
+	Name                 string              `json:"name"`
+	VHost                string              `json:"vhost"`
+	Durable              bool                `json:"durable"`
+	AutoDelete           bool                `json:"auto_delete"`
+	Messages             int64               `json:"messages"`
+	MessagesReady        int64               `json:"messages_ready"`
+	MessagesUnacked      int64               `json:"messages_unacknowledged"`
+	Consumers            int                 `json:"consumers"`
+	State                string              `json:"state"`
+	Arguments            map[string]any      `json:"arguments,omitempty"`
+	MessageStats         *MessageStats       `json:"message_stats,omitempty"`
+	BackingQueueStatus   *BackingQueueStatus `json:"backing_queue_status,omitempty"`
+	QueueType            string              `json:"type,omitempty"`
+	Policy               string              `json:"policy,omitempty"`
+	IdleSince            string              `json:"idle_since,omitempty"`
+	ExclusiveConsumerTag string              `json:"exclusive_consumer_tag,omitempty"`
 }
 
 // MessageStats contains message statistics for a queue
 type MessageStats struct {
 	Ack               int64      `json:"ack,omitempty"`
-	AckDetails        RateDetail `json:"ack_details,omitempty"`
+	AckDetails        RateDetail `json:"ack_details"`
 	Deliver           int64      `json:"deliver,omitempty"`
-	DeliverDetails    RateDetail `json:"deliver_details,omitempty"`
+	DeliverDetails    RateDetail `json:"deliver_details"`
 	DeliverGet        int64      `json:"deliver_get,omitempty"`
-	DeliverGetDetails RateDetail `json:"deliver_get_details,omitempty"`
+	DeliverGetDetails RateDetail `json:"deliver_get_details"`
 	Publish           int64      `json:"publish,omitempty"`
-	PublishDetails    RateDetail `json:"publish_details,omitempty"`
+	PublishDetails    RateDetail `json:"publish_details"`
 	Redeliver         int64      `json:"redeliver,omitempty"`
-	RedeliverDetails  RateDetail `json:"redeliver_details,omitempty"`
+	RedeliverDetails  RateDetail `json:"redeliver_details"`
 }
 
 // RateDetail contains rate information
@@ -81,24 +81,24 @@ type BackingQueueStatus struct {
 
 // ExchangeInfo represents information about a RabbitMQ exchange
 type ExchangeInfo struct {
-	Name       string                 `json:"name"`
-	VHost      string                 `json:"vhost"`
-	Type       string                 `json:"type"`
-	Durable    bool                   `json:"durable"`
-	AutoDelete bool                   `json:"auto_delete"`
-	Internal   bool                   `json:"internal"`
-	Arguments  map[string]interface{} `json:"arguments,omitempty"`
+	Name       string         `json:"name"`
+	VHost      string         `json:"vhost"`
+	Type       string         `json:"type"`
+	Durable    bool           `json:"durable"`
+	AutoDelete bool           `json:"auto_delete"`
+	Internal   bool           `json:"internal"`
+	Arguments  map[string]any `json:"arguments,omitempty"`
 }
 
 // BindingInfo represents information about a queue binding
 type BindingInfo struct {
-	Source          string                 `json:"source"`
-	VHost           string                 `json:"vhost"`
-	Destination     string                 `json:"destination"`
-	DestinationType string                 `json:"destination_type"`
-	RoutingKey      string                 `json:"routing_key"`
-	Arguments       map[string]interface{} `json:"arguments,omitempty"`
-	PropertiesKey   string                 `json:"properties_key,omitempty"`
+	Source          string         `json:"source"`
+	VHost           string         `json:"vhost"`
+	Destination     string         `json:"destination"`
+	DestinationType string         `json:"destination_type"`
+	RoutingKey      string         `json:"routing_key"`
+	Arguments       map[string]any `json:"arguments,omitempty"`
+	PropertiesKey   string         `json:"properties_key,omitempty"`
 }
 
 // Message represents a message retrieved from a queue
@@ -115,19 +115,19 @@ type Message struct {
 
 // MessageProperties contains message metadata
 type MessageProperties struct {
-	ContentType     string                 `json:"content_type,omitempty"`
-	ContentEncoding string                 `json:"content_encoding,omitempty"`
-	Headers         map[string]interface{} `json:"headers,omitempty"`
-	DeliveryMode    int                    `json:"delivery_mode,omitempty"`
-	Priority        int                    `json:"priority,omitempty"`
-	CorrelationID   string                 `json:"correlation_id,omitempty"`
-	ReplyTo         string                 `json:"reply_to,omitempty"`
-	Expiration      string                 `json:"expiration,omitempty"`
-	MessageID       string                 `json:"message_id,omitempty"`
-	Timestamp       int64                  `json:"timestamp,omitempty"`
-	Type            string                 `json:"type,omitempty"`
-	UserID          string                 `json:"user_id,omitempty"`
-	AppID           string                 `json:"app_id,omitempty"`
+	ContentType     string         `json:"content_type,omitempty"`
+	ContentEncoding string         `json:"content_encoding,omitempty"`
+	Headers         map[string]any `json:"headers,omitempty"`
+	DeliveryMode    int            `json:"delivery_mode,omitempty"`
+	Priority        int            `json:"priority,omitempty"`
+	CorrelationID   string         `json:"correlation_id,omitempty"`
+	ReplyTo         string         `json:"reply_to,omitempty"`
+	Expiration      string         `json:"expiration,omitempty"`
+	MessageID       string         `json:"message_id,omitempty"`
+	Timestamp       int64          `json:"timestamp,omitempty"`
+	Type            string         `json:"type,omitempty"`
+	UserID          string         `json:"user_id,omitempty"`
+	AppID           string         `json:"app_id,omitempty"`
 }
 
 // ShovelDefinition represents a shovel configuration for moving messages
@@ -339,7 +339,7 @@ func (m *ManagementService) GetMessages(ctx context.Context, queueName string, c
 	encodedQueue := url.PathEscape(queueName)
 	path := fmt.Sprintf("/api/queues/%s/%s/get", encodedVHost, encodedQueue)
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"count":    count,
 		"ackmode":  ackMode,
 		"encoding": encoding,
@@ -418,7 +418,7 @@ func (m *ManagementService) MoveMessages(ctx context.Context, srcQueue, destQueu
 	encodedVHost := url.PathEscape(m.vhost)
 	path := fmt.Sprintf("/api/parameters/shovel/%s/%s", encodedVHost, url.PathEscape(shovelName))
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"value": shovelDef,
 	}
 	payloadBytes, _ := json.Marshal(payload)
@@ -437,12 +437,12 @@ func (m *ManagementService) MoveMessages(ctx context.Context, srcQueue, destQueu
 }
 
 // PublishMessage publishes a message to an exchange
-func (m *ManagementService) PublishMessage(ctx context.Context, exchange, routingKey string, payload string, properties map[string]interface{}) error {
+func (m *ManagementService) PublishMessage(ctx context.Context, exchange, routingKey string, payload string, properties map[string]any) error {
 	encodedVHost := url.PathEscape(m.vhost)
 	encodedExchange := url.PathEscape(exchange)
 	path := fmt.Sprintf("/api/exchanges/%s/%s/publish", encodedVHost, encodedExchange)
 
-	message := map[string]interface{}{
+	message := map[string]any{
 		"routing_key":      routingKey,
 		"payload":          payload,
 		"payload_encoding": "string",
@@ -528,13 +528,13 @@ func (m *ManagementService) DeleteShovel(ctx context.Context, shovelName string)
 }
 
 // GetOverview returns RabbitMQ overview information
-func (m *ManagementService) GetOverview(ctx context.Context) (map[string]interface{}, error) {
+func (m *ManagementService) GetOverview(ctx context.Context) (map[string]any, error) {
 	body, err := m.doRequest(ctx, http.MethodGet, "/api/overview", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get overview: %w", err)
 	}
 
-	var overview map[string]interface{}
+	var overview map[string]any
 	if err := json.Unmarshal(body, &overview); err != nil {
 		return nil, fmt.Errorf("failed to parse overview response: %w", err)
 	}

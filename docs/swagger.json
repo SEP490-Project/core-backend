@@ -17,6 +17,52 @@
     },
     "host": "localhost:8080",
     "paths": {
+        "/admin/system/specs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the system specifications and runtime statistics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get System Specs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.SystemSpecsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/rabbitmq/dlq/retry": {
             "post": {
                 "security": [
@@ -17255,7 +17301,7 @@
                     {
                         "type": "string",
                         "description": "Concept ID (UUID)",
-                        "name": "concept_id",
+                        "name": "concept-id",
                         "in": "query"
                     }
                 ],
@@ -23431,7 +23477,6 @@
                 "reason": {
                     "description": "Reason only require when request revision",
                     "type": "string",
-                    "maxLength": 500,
                     "example": "Reason for state change"
                 },
                 "state": {
@@ -27457,6 +27502,9 @@
                 "limited_product_revenue": {
                     "type": "number"
                 },
+                "shipping_revenue": {
+                    "type": "number"
+                },
                 "standard_product_revenue": {
                     "description": "Product Revenue",
                     "type": "number"
@@ -28430,6 +28478,20 @@
                 }
             }
         },
+        "responses.BuildInfo": {
+            "type": "object",
+            "properties": {
+                "build_time": {
+                    "type": "string"
+                },
+                "commit": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.CampaignDetailsResponse": {
             "type": "object",
             "properties": {
@@ -29117,6 +29179,9 @@
         "responses.ContentCommentResponse": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
                 "censor_reason": {
                     "type": "string"
                 },
@@ -29141,6 +29206,15 @@
                         "type": "integer",
                         "format": "int64"
                     }
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_reaction": {
+                    "$ref": "#/definitions/enum.ReactionType"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -29983,6 +30057,20 @@
                 }
             }
         },
+        "responses.DiskInfo": {
+            "type": "object",
+            "properties": {
+                "free": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "string"
+                },
+                "used": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.DistrictResponse": {
             "type": "object",
             "properties": {
@@ -30303,6 +30391,23 @@
                 }
             }
         },
+        "responses.KubernetesInfo": {
+            "type": "object",
+            "properties": {
+                "namespace": {
+                    "type": "string"
+                },
+                "node_name": {
+                    "type": "string"
+                },
+                "pod_ip": {
+                    "type": "string"
+                },
+                "pod_name": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.LatestOrder": {
             "type": "object",
             "properties": {
@@ -30420,6 +30525,26 @@
                 }
             }
         },
+        "responses.MemoryStats": {
+            "type": "object",
+            "properties": {
+                "alloc": {
+                    "type": "string"
+                },
+                "num_gc": {
+                    "type": "integer"
+                },
+                "pause_total_ns": {
+                    "type": "string"
+                },
+                "sys": {
+                    "type": "string"
+                },
+                "total_alloc": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.MetricWithGrowth": {
             "type": "object",
             "properties": {
@@ -30494,6 +30619,20 @@
                     "description": "e.g., \"openai\", \"gemini\"",
                     "type": "string",
                     "example": "openai"
+                }
+            }
+        },
+        "responses.NetworkInfo": {
+            "type": "object",
+            "properties": {
+                "host_name": {
+                    "type": "string"
+                },
+                "ips": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -32960,6 +33099,50 @@
                 },
                 "queue_status": {
                     "description": "OK, WARNING, ERROR",
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.SystemSpecsResponse": {
+            "type": "object",
+            "properties": {
+                "arch": {
+                    "type": "string"
+                },
+                "build_info": {
+                    "$ref": "#/definitions/responses.BuildInfo"
+                },
+                "disk": {
+                    "$ref": "#/definitions/responses.DiskInfo"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "go_version": {
+                    "type": "string"
+                },
+                "gomaxprocs": {
+                    "type": "integer"
+                },
+                "goroutines": {
+                    "type": "integer"
+                },
+                "kubernetes": {
+                    "$ref": "#/definitions/responses.KubernetesInfo"
+                },
+                "memory": {
+                    "$ref": "#/definitions/responses.MemoryStats"
+                },
+                "network": {
+                    "$ref": "#/definitions/responses.NetworkInfo"
+                },
+                "num_cpu": {
+                    "type": "integer"
+                },
+                "os": {
                     "type": "string"
                 },
                 "uptime": {
