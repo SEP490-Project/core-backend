@@ -56,7 +56,7 @@ type DatabaseRegistry struct {
 	//Affiliate Link Tracking
 	AffiliateLinkRepository irepository.AffiliateLinkRepository
 	ClickEventRepository    irepository.ClickEventRepository
-	KPIMetricsRepository    irepository.GenericRepository[model.KPIMetrics]
+	KPIMetricsRepository    irepository.KPIMetricsRepository
 
 	//Marketing Analytics
 	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
@@ -122,7 +122,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		WardRepository:                       NewGenericRepository[model.Ward](db),
 		AffiliateLinkRepository:              NewAffiliateLinkRepository(db),
 		ClickEventRepository:                 NewClickEventRepository(db),
-		KPIMetricsRepository:                 NewGenericRepository[model.KPIMetrics](db),
+		KPIMetricsRepository:                 NewKPIMetricsRepository(db),
 		PreOrderRepository:                   NewPreOrderRepository(db),
 		MarketingAnalyticsRepository:         NewMarketingAnalyticsRepository(db),
 		ContractPaymentCalculationRepository: NewContractPaymentCalculationRepository(db),

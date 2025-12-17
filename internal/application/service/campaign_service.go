@@ -33,7 +33,7 @@ type CampaignService struct {
 	preOrderRepo       irepository.PreOrderRepository
 	contentChannelRepo irepository.ContentChannelsRepository
 	affiliateLinkRepo  irepository.AffiliateLinkRepository
-	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo     irepository.KPIMetricsRepository
 }
 
 // SetRejectReason implements iservice.CampaignService.
@@ -385,13 +385,10 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 			if len(affiliateLinks) > 0 {
 				linkID := affiliateLinks[0].ID
 				// Query KPI Metrics
-				kpis, _, _ := c.kpiMetricsRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-					return db.Where("reference_id = ?", linkID).
-						Where("reference_type = ?", enum.KPIReferenceTypeAffiliateLink)
-				}, nil, 100, 1)
+				metrics, _ := c.kpiMetricsRepo.GetAggregatedMetrics(ctx, linkID, enum.KPIReferenceTypeAffiliateLink, nil)
 
-				for _, kpi := range kpis {
-					itemComp.RealisticMetrics[string(kpi.Type)] += kpi.Value
+				for k, v := range metrics {
+					itemComp.RealisticMetrics[string(k)] += v
 				}
 			}
 		}

@@ -26,7 +26,7 @@ type contentStaffAnalyticsService struct {
 	scheduleRepo       irepository.ContentScheduleRepository
 	alertRepo          irepository.SystemAlertRepository
 	channelRepo        irepository.GenericRepository[model.Channel]
-	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo     irepository.KPIMetricsRepository
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
 	clickEventRepo     irepository.ClickEventRepository
 }
