@@ -25,10 +25,10 @@ type TaskFilterRequest struct {
 	MilestoneID      *string `form:"milestone_id" json:"milestone_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	CampaignID       *string `form:"campaign_id" json:"campaign_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	ContractID       *string `form:"contract_id" json:"contract_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	DeadlineFromDate *string `form:"deadline_start_date" json:"start_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-01"`
-	DeadlineToDate   *string `form:"deadline_end_date" json:"end_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-31"`
-	UpdatedFromDate  *string `form:"updated_start_date" json:"updated_start_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-01"`
-	UpdatedToDate    *string `form:"updated_end_date" json:"updated_end_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-31"`
+	DeadlineFromDate *string `form:"deadline_from_date" json:"start_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-01"`
+	DeadlineToDate   *string `form:"deadline_to_date" json:"end_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-31"`
+	UpdatedFromDate  *string `form:"updated_from_date" json:"updated_start_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-01"`
+	UpdatedToDate    *string `form:"updated_to_date" json:"updated_end_date" validate:"omitempty,datetime=2006-01-02" example:"2023-10-31"`
 	Status           *string `form:"status" json:"status" validate:"omitempty,oneof=TODO IN_PROGRESS CANCELLED RECAP DONE" example:"TODO"`
 	Type             *string `form:"type" json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"OTHER"`
 	HasContent       *bool   `form:"has_content" json:"has_content"`

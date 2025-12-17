@@ -42,10 +42,10 @@ func NewTaskHandler(taskService iservice.TaskService, unitOfWork irepository.Uni
 //	@Param			milestone_id		query		string								false	"Filter by milestone ID"		format(uuid)
 //	@Param			campaign_id			query		string								false	"Filter by campaign ID"			format(uuid)
 //	@Param			contract_id			query		string								false	"Filter by contract ID"			format(uuid)
-//	@Param			deadline_from_date	query		string								false	"Filter by deadline from date"	format(date-time)
-//	@Param			deadline_to_date	query		string								false	"Filter by deadline to date"	format(date-time)
-//	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date-time)
-//	@Param			updated_to_date		query		string								false	"Filter by updated to date"		format(date-time)
+//	@Param			deadline_from_date	query		string								false	"Filter by deadline from date"	format(date)
+//	@Param			deadline_to_date	query		string								false	"Filter by deadline to date"	format(date)
+//	@Param			updated_from_date	query		string								false	"Filter by updated from date"	format(date)
+//	@Param			updated_to_date		query		string								false	"Filter by updated to date"		format(date)
 //	@Param			status				query		string								false	"Filter by task status"			Enums(TODO, IN_PROGRESS, CANCELLED, RECAP, DONE)
 //	@Param			has_content			query		bool								false	"Filter by tasks that have associated content"
 //	@Param			has_product			query		bool								false	"Filter by tasks that have associated product"
