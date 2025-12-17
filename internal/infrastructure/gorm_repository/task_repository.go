@@ -129,9 +129,10 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 		Joins("LEFT JOIN milestones AS m ON tasks.milestone_id = m.id").
 		Joins("LEFT JOIN campaigns AS c ON m.campaign_id = c.id").
 		Joins("LEFT JOIN products AS p ON p.task_id = tasks.id")
-	countQuery = countQuery.Distinct("tasks.id")
-	if err := countQuery.Count(&total).Error; err != nil {
-		return []dtos.TaskListDTO{}, 0, err
+	countQuery = filterQuery(countQuery)
+
+	if err := countQuery.Distinct("tasks.id").Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
 
 	return data, total, nil
