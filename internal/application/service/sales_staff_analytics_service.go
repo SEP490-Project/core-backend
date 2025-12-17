@@ -267,9 +267,7 @@ func (s *SalesStaffAnalyticsService) GetRevenueGrowth(ctx context.Context, req *
 		zap.Float64("previousSoldRevenue", previousSoldRevenue),
 		zap.Float64("growthPercentage", (currentSoldRevenue-previousSoldRevenue)/previousSoldRevenue),
 	)
-	if previousSoldRevenue == 0 && currentSoldRevenue > 0 {
-		return 100, nil
-	} else if previousSoldRevenue > 0 {
+	if previousSoldRevenue > 0 {
 		return ((currentSoldRevenue - previousSoldRevenue) / previousSoldRevenue) * 100, nil
 	}
 
