@@ -54,6 +54,7 @@ type HandlerRegistry struct {
 	ContentScheduleHandler        *ContentScheduleHandler
 	ContentEngagementHandler      *ContentEngagementHandler
 	AlertHandler                  *AlertHandler
+	SystemHandler                 *SystemHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConfig *config.AppConfig) *HandlerRegistry {
@@ -103,5 +104,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		ContentScheduleHandler:        NewContentScheduleHandler(applicationReg.ContentScheduleService),
 		ContentEngagementHandler:      NewContentEngagementHandler(applicationReg.ContentEngagementService),
 		AlertHandler:                  NewAlertHandler(applicationReg.AlertManagerService),
+		SystemHandler:                 NewSystemHandler(applicationReg.SystemService),
 	}
 }

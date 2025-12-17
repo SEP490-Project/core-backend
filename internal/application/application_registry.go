@@ -58,6 +58,7 @@ type ApplicationRegistry struct {
 	ContentScheduleService        iservice.ContentScheduleService
 	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
+	SystemService                 iservice.SystemService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -215,6 +216,7 @@ func NewApplicationRegistry(
 		ContentScheduleService:        contentScheduleService,
 		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,
+		SystemService:                 service.NewSystemService(configs),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),

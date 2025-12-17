@@ -116,6 +116,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentScheduleRoutes(v1)
 		r.SetupContentEngagementRoutes(v1)
 		r.SetupAlertRoutes(v1)
+		r.setupSystemRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -1163,5 +1164,15 @@ func (r *Router) SetupAlertRoutes(group *gin.RouterGroup) {
 		{
 			adminGroup.POST("", alertHandler.RaiseAlert)
 		}
+	}
+}
+
+func (r *Router) setupSystemRoutes(group *gin.RouterGroup) {
+	systemHandler := r.handlerRegistry.SystemHandler
+	systemGroup := group.Group("/admin/system")
+	systemGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+	systemGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		systemGroup.GET("/specs", systemHandler.GetSystemSpecs)
 	}
 }
