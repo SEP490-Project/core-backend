@@ -756,10 +756,12 @@ func (r *adminAnalyticsRepository) GetDashboardRevenueMetrics(ctx context.Contex
 			SELECT cp.amount, c.type
 			FROM contract_payments cp
 			INNER JOIN contracts c ON c.id = cp.contract_id
+         	INNER JOIN payment_transactions pt ON pt.reference_id = cp.id 
+				AND pt.reference_type = 'CONTRACT_PAYMENT'
 			WHERE cp.deleted_at IS NULL
 				AND c.deleted_at IS NULL
 				AND cp.status = $8
-				AND cp.updated_at >= $1 AND cp.updated_at < $2
+				AND pt.transaction_date >= $1 AND pt.transaction_date < $2
 		),
 
 		-- 4. Order Item Breakdown
