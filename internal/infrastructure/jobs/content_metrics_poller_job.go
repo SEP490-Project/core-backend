@@ -42,7 +42,7 @@ type ContentMetricsPollerJob struct {
 	unitOfWork          irepository.UnitOfWork
 	contentChannelRepo  irepository.GenericRepository[model.ContentChannel]
 	channelRepo         irepository.GenericRepository[model.Channel]
-	kpiMetricsRepo      irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo      irepository.KPIMetricsRepository
 	contentCommentRepo  irepository.GenericRepository[model.ContentComment]
 	channelService      iservice.ChannelService
 	tiktokSocialService iservice.TikTokSocialService
@@ -209,7 +209,7 @@ func NewContentMetricsPollerJob(
 	unitOfWork irepository.UnitOfWork,
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel],
 	channelRepo irepository.GenericRepository[model.Channel],
-	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
+	kpiMetricsRepo irepository.KPIMetricsRepository,
 	contentCommentRepo irepository.GenericRepository[model.ContentComment],
 	channelService iservice.ChannelService,
 	tiktokSocialService iservice.TikTokSocialService,
@@ -1100,25 +1100,29 @@ func (j *ContentMetricsPollerJob) processWebsiteChannel(
 		totalShares += shares
 
 		// Update content channel metrics
-		// mappedMetrics := map[enum.KPIValueType]float64{
-		// 	enum.KPIValueTypeReach:       float64(uniqueViews),
-		// 	enum.KPIValueTypeViews:       float64(views),
-		// 	enum.KPIValueTypeUniqueViews: float64(uniqueViews),
-		// 	enum.KPIValueTypeComments:    float64(comments),
-		// 	enum.KPIValueTypeLikes:       float64(likes),
-		// 	enum.KPIValueTypeShares:      float64(shares),
-		// 	enum.KPIValueTypeEngagement:  float64(likes + comments + shares),
-		// }
+		// For WEBSITE, Views and UniqueViews are inserted into kpi_metrics by ContentViewConsumer incrementally.
+		// We should NOT insert them again here to avoid double counting or incorrect snapshots.
+		// However, Likes, Comments, Shares are NOT inserted into kpi_metrics by ContentEngagementService,
+		// so we MUST insert them here.
+		mappedMetrics := map[enum.KPIValueType]float64{
+			// enum.KPIValueTypeReach:       float64(uniqueViews), // Handled by consumer
+			// enum.KPIValueTypeViews:       float64(views),       // Handled by consumer
+			// enum.KPIValueTypeUniqueViews: float64(uniqueViews), // Handled by consumer
+			enum.KPIValueTypeComments:   float64(comments),
+			enum.KPIValueTypeLikes:      float64(likes),
+			enum.KPIValueTypeShares:     float64(shares),
+			enum.KPIValueTypeEngagement: float64(likes + comments + shares),
+		}
 
-		// rawMetrics := map[string]any{
-		// 	"views":        views,
-		// 	"unique_views": uniqueViews,
-		// 	"comments":     comments,
-		// 	"likes":        likes,
-		// 	"shares":       shares,
-		// }
+		rawMetrics := map[string]any{
+			"views":        views,
+			"unique_views": uniqueViews,
+			"comments":     comments,
+			"likes":        likes,
+			"shares":       shares,
+		}
 
-		// collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
+		collector.addContentChannelUpdate(cc, rawMetrics, mappedMetrics)
 	}
 
 	// Update channel-level metrics
@@ -1153,72 +1157,77 @@ func (j *ContentMetricsPollerJob) processWebsiteChannel(
 }
 
 // getWebsiteContentMetrics retrieves metrics for a single website content channel
-// from kpi_metrics (views), content_comments (comments), and stored Metrics (likes/shares)
+// from stored Metrics (likes/shares/views/comments) which are maintained by consumers
 func (j *ContentMetricsPollerJob) getWebsiteContentMetrics(
 	ctx context.Context,
 	cc *model.ContentChannel,
 ) (views, uniqueViews, comments, likes, shares int64) {
-	// 1. Get views from kpi_metrics table
-	viewMetrics, _, _ := j.kpiMetricsRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-		return db.Where("reference_type = ?", enum.KPIReferenceTypeContentChannel).
-			Where("reference_id = ?", cc.ID).
-			Where("type IN ?", []enum.KPIValueType{enum.KPIValueTypeViews, enum.KPIValueTypeUniqueViews})
-	}, nil, 1000, 1)
+	if cc.Metrics == nil {
+		return 0, 0, 0, 0, 0
+	}
 
-	for _, m := range viewMetrics {
-		switch m.Type {
-		case enum.KPIValueTypeViews:
-			views += int64(m.Value)
-		case enum.KPIValueTypeUniqueViews:
-			uniqueViews += int64(m.Value)
+	// Use CurrentMapped for all metrics as they are updated by consumers/services
+	if cc.Metrics.CurrentMapped != nil {
+		if v, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeViews]; ok {
+			views = int64(v)
+		}
+		if uv, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeUniqueViews]; ok {
+			uniqueViews = int64(uv)
+		}
+		if c, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeComments]; ok {
+			comments = int64(c)
+		}
+		if l, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeLikes]; ok {
+			likes = int64(l)
+		}
+		if s, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeShares]; ok {
+			shares = int64(s)
 		}
 	}
 
-	// 2. Get comment count from content_comments table
-	commentCount, _ := j.contentCommentRepo.Count(ctx, func(db *gorm.DB) *gorm.DB {
-		return db.Where("content_channel_id = ?", cc.ID)
-	})
-	comments = commentCount
-
-	// 3. Get likes and shares from ContentChannelMetrics stored struct
-	if cc.Metrics != nil {
-		zap.L().Debug("Extracting likes and shares from ContentChannel metrics",
-			zap.String("content_channel_id", cc.ID.String()))
-		// Try CurrentMapped first
-		if cc.Metrics.CurrentMapped != nil {
-			zap.L().Debug("Using CurrentMapped for likes and shares",
-				zap.String("content_channel_id", cc.ID.String()))
-			if l, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeLikes]; ok {
-				zap.L().Debug("Found likes in CurrentMapped",
-					zap.String("content_channel_id", cc.ID.String()), zap.Float64("likes", l))
-				likes = int64(l)
-			}
-			if s, ok := cc.Metrics.CurrentMapped[enum.KPIValueTypeShares]; ok {
-				zap.L().Debug("Found shares in CurrentMapped",
-					zap.String("content_channel_id", cc.ID.String()), zap.Float64("shares", s))
-				shares = int64(s)
+	// Fallback/Supplement from CurrentFetched for website-specific format if needed
+	// (Though CurrentMapped should be the source of truth now)
+	if cc.Metrics.CurrentFetched != nil {
+		// Ensure views are synced if missing in Mapped
+		if views == 0 {
+			if v, ok := cc.Metrics.CurrentFetched["views_count"]; ok {
+				views = castToInt64(v)
 			}
 		}
 
-		// Fallback to CurrentFetched for website-specific format
-		if _, ok := cc.Metrics.CurrentFetched["reaction_summary"]; likes == 0 && cc.Metrics.CurrentFetched != nil && ok {
-			// rawSummary, err := json.Marshal(reactionSummary)
-			zap.L().Debug("Using CurrentFetched for likes and shares",
-				zap.String("content_channel_id", cc.ID.String()), zap.Any("current_fetched", cc.Metrics.CurrentFetched))
-			if summary, ok := cc.Metrics.CurrentFetched["reaction_summary"].(map[string]any); ok {
-				for _, count := range summary {
-					if c, ok := count.(float64); ok {
-						likes += int64(c)
-					}
-				}
+		// Ensure shares are synced
+		if shares == 0 {
+			if s, ok := cc.Metrics.CurrentFetched["shares_count"]; ok {
+				shares = castToInt64(s)
 			}
-			if s, ok := cc.Metrics.CurrentFetched["shares_count"].(float64); ok {
-				shares = int64(s)
+		}
+
+		// Ensure likes from reaction summary
+		if likes == 0 {
+			if summary, ok := cc.Metrics.CurrentFetched["reaction_summary"].(map[string]any); ok {
+				var totalLikes int64
+				for _, count := range summary {
+					totalLikes += castToInt64(count)
+				}
+				likes = totalLikes
 			}
 		}
 	}
 
 	return
+}
+
+func castToInt64(v any) int64 {
+	switch val := v.(type) {
+	case float64:
+		return int64(val)
+	case int64:
+		return val
+	case int:
+		return int64(val)
+	default:
+		return 0
+	}
 }
 
 // endregion
