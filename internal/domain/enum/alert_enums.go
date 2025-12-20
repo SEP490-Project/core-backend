@@ -55,8 +55,9 @@ const (
 	AlertCategoryMilestoneDeadline    AlertCategory = "MILESTONE_DEADLINE"
 
 	// Marketing Staff Alerts
-	AlertCategoryCampaignDeadline AlertCategory = "CAMPAIGN_DEADLINE"
-	AlertCategoryBudgetExceeded   AlertCategory = "BUDGET_EXCEEDED"
+	AlertCategoryContractTerminateFailed AlertCategory = "CONTRACT_TERMINATE_FAILED"
+	AlertCategoryCampaignDeadline        AlertCategory = "CAMPAIGN_DEADLINE"
+	AlertCategoryBudgetExceeded          AlertCategory = "BUDGET_EXCEEDED"
 
 	// Sales Staff Alerts
 	AlertCategoryOrderIssue     AlertCategory = "ORDER_ISSUE"
@@ -183,14 +184,17 @@ func (s AlertStatus) String() string { return string(s) }
 type ReferenceType string
 
 const (
-	ReferenceTypeContent   ReferenceType = "CONTENT"
-	ReferenceTypeSchedule  ReferenceType = "SCHEDULE"
-	ReferenceTypeMilestone ReferenceType = "MILESTONE"
-	ReferenceTypeCampaign  ReferenceType = "CAMPAIGN"
-	ReferenceTypeContract  ReferenceType = "CONTRACT"
-	ReferenceTypeOrder     ReferenceType = "ORDER"
-	ReferenceTypeUser      ReferenceType = "USER"
-	ReferenceTypeBrand     ReferenceType = "BRAND"
+	ReferenceTypeContentChannel ReferenceType = "CONTENT_CHANNEL"
+	ReferenceTypeNotification   ReferenceType = "NOTIFICATION"
+	ReferenceTypeContent        ReferenceType = "CONTENT"
+	ReferenceTypeSchedule       ReferenceType = "SCHEDULE"
+	ReferenceTypeMilestone      ReferenceType = "MILESTONE"
+	ReferenceTypeCampaign       ReferenceType = "CAMPAIGN"
+	ReferenceTypeContract       ReferenceType = "CONTRACT"
+	ReferenceTypeOrder          ReferenceType = "ORDER"
+	ReferenceTypeUser           ReferenceType = "USER"
+	ReferenceTypeBrand          ReferenceType = "BRAND"
+	ReferenceTypeOther          ReferenceType = "OTHER"
 )
 
 func (r ReferenceType) IsValid() bool {

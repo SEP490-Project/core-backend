@@ -18,8 +18,8 @@ type ContractPaymentService interface {
 		contractID uuid.UUID,
 		uow irepository.UnitOfWork) error
 
-	GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymenntResponse, int64, error)
-	GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymenntResponse, error)
+	GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymentResponse, int64, error)
+	GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymentResponse, error)
 
 	CreatePaymentLinkFromContractPayment(
 		ctx context.Context,

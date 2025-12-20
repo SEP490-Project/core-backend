@@ -86,7 +86,7 @@ func (s *ContractService) GetContractsByUserID(
 
 		return db
 	}
-	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand", "Campaign"}, 0, 0)
+	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand", "Campaign", "ContractPayments"}, 0, 0)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -319,7 +319,7 @@ func (s *ContractService) UpdateContractFileURL(
 func (s *ContractService) GetContractByID(ctx context.Context, contractID uuid.UUID) (*responses.ContractResponse, error) {
 	zap.L().Info("Fetching contract by ID", zap.String("contract_id", contractID.String()))
 
-	contract, err := s.contractRepository.GetByID(ctx, contractID, []string{"Brand", "ParentContract", "Campaign"})
+	contract, err := s.contractRepository.GetByID(ctx, contractID, []string{"Brand", "ParentContract", "Campaign", "ContractPayments"})
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))

@@ -10,7 +10,7 @@ import (
 
 type DatabaseRegistry struct {
 	GormDatabase              *gorm.DB
-	UserRepository            irepository.GenericRepository[model.User]
+	UserRepository            irepository.UserRepository
 	LoggedSessionRepository   irepository.GenericRepository[model.LoggedSession]
 	ProductRepository         irepository.GenericRepository[model.Product]
 	ProductVariantRepository  irepository.GenericRepository[model.ProductVariant]
@@ -56,7 +56,7 @@ type DatabaseRegistry struct {
 	//Affiliate Link Tracking
 	AffiliateLinkRepository irepository.AffiliateLinkRepository
 	ClickEventRepository    irepository.ClickEventRepository
-	KPIMetricsRepository    irepository.GenericRepository[model.KPIMetrics]
+	KPIMetricsRepository    irepository.KPIMetricsRepository
 
 	//Marketing Analytics
 	MarketingAnalyticsRepository irepository.MarketingAnalyticsRepository
@@ -80,16 +80,16 @@ type DatabaseRegistry struct {
 	// Reviews
 	ReviewRepository irepository.GenericRepository[model.ProductReview]
 	// Webhooks
-	WebhookDataRepository     irepository.GenericRepository[model.WebhookData]
-	VariantImageRepository    irepository.GenericRepository[model.VariantImage]
-	SystemAlertRepository     irepository.SystemAlertRepository
-	ContentScheduleRepository irepository.ContentScheduleRepository
+	WebhookDataRepository  irepository.GenericRepository[model.WebhookData]
+	VariantImageRepository irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository  irepository.SystemAlertRepository
+	ScheduleRepository     irepository.ScheduleRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 	return &DatabaseRegistry{
 		GormDatabase:                         db,
-		UserRepository:                       NewGenericRepository[model.User](db),
+		UserRepository:                       NewUserRepository(db),
 		LoggedSessionRepository:              NewGenericRepository[model.LoggedSession](db),
 		ProductRepository:                    NewGenericRepository[model.Product](db),
 		ProductVariantRepository:             NewGenericRepository[model.ProductVariant](db),
@@ -122,7 +122,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		WardRepository:                       NewGenericRepository[model.Ward](db),
 		AffiliateLinkRepository:              NewAffiliateLinkRepository(db),
 		ClickEventRepository:                 NewClickEventRepository(db),
-		KPIMetricsRepository:                 NewGenericRepository[model.KPIMetrics](db),
+		KPIMetricsRepository:                 NewKPIMetricsRepository(db),
 		PreOrderRepository:                   NewPreOrderRepository(db),
 		MarketingAnalyticsRepository:         NewMarketingAnalyticsRepository(db),
 		ContractPaymentCalculationRepository: NewContractPaymentCalculationRepository(db),
@@ -134,7 +134,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ReviewRepository:                     NewGenericRepository[model.ProductReview](db),
 		WebhookDataRepository:                NewGenericRepository[model.WebhookData](db),
 		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
-		ContentScheduleRepository:            NewContentScheduleRepository(db),
+		ScheduleRepository:                   NewScheduleRepository(db),
 		SystemAlertRepository:                NewSystemAlertRepository(db),
 	}
 }

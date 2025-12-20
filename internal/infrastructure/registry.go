@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	iservicethirdparty "core-backend/internal/application/interfaces/iservice_third_party"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/jobs"
 	"core-backend/internal/infrastructure/persistence"
@@ -36,6 +37,9 @@ type InfrastructureRegistry struct {
 	HealthMonitor             iservicethirdparty.HealthMonitor
 	ProxiesRegistry           *proxies.ProxiesRegistry
 
+	// Asynq Task Scheduler
+	AsynqClient *asynq.AsynqClient
+
 	//Automatic Trigger
 	schedulers []scheduler.TaskScheduler
 	//Manual Trigger Schedulers
@@ -63,8 +67,6 @@ func NewInfrastructureRegistry(
 	if err := registry.OverrideAdminConfig(); err != nil {
 		zap.L().Error("Failed to override admin config", zap.Error(err))
 	}
-	// config = pkgConfig.GetAppConfig() // Update local config reference
-	// registry.Config = config
 
 	// Initialize Valkey cache
 	zap.L().Debug("Attempting to initialize Valkey cache")
@@ -154,6 +156,30 @@ func NewInfrastructureRegistry(
 	//Initialize Manual Trigger Schedulers
 	registry.LocationSyncTask = scheduler.NewLocationSyncScheduler(config, db)
 
+	// Initialize Cron Scheduler
+	zap.L().Debug("Initializing Cron Jobs Scheduler...")
+	registry.CronJobsRegistry = jobs.NewCronJobRegistry(dbReg, db, &config.AdminConfig)
+	zap.L().Info("Cron Jobs Scheduler initialized successfully")
+
+	// Initialize Asynq Task Scheduler
+	zap.L().Debug("Initializing Asynq Task Scheduler...")
+	if config.Asynq.Enabled {
+		asynqClient, err := asynq.NewAsynqClient(&config.Cache, &config.Asynq)
+		if err != nil {
+			zap.L().Error("Failed to initialize Asynq client", zap.Error(err))
+		} else {
+			registry.AsynqClient = asynqClient
+			zap.L().Info("Asynq Task Scheduler initialized successfully")
+		}
+	} else {
+		zap.L().Debug("Asynq Task Scheduler disabled in configuration")
+	}
+
+	// Initialize Proxies Registry
+	zap.L().Debug("Initializing Proxies Registry...")
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db)
+	zap.L().Info("Proxies Registry initialized successfully")
+
 	// Initialize Health Monitor
 	zap.L().Debug("Initializing Health Monitor...")
 	healthMonitor := service.NewHealthMonitor(
@@ -162,19 +188,10 @@ func NewInfrastructureRegistry(
 		db,
 		registry.ValkeyCache,
 		registry.RabbitMQ,
+		registry.AsynqClient,
 	)
 	registry.HealthMonitor = healthMonitor
 	zap.L().Info("Health Monitor initialized successfully")
-
-	// Initialize Cron Scheduler
-	zap.L().Debug("Initializing Cron Jobs Scheduler...")
-	registry.CronJobsRegistry = jobs.NewCronJobRegistry(dbReg, db, &config.AdminConfig)
-	zap.L().Info("Cron Jobs Scheduler initialized successfully")
-
-	// Initialize Proxies Registry
-	zap.L().Debug("Initializing Proxies Registry...")
-	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db)
-	zap.L().Info("Proxies Registry initialized successfully")
 
 	zap.L().Info("Infrastructure registry initialization completed")
 	return registry
@@ -246,9 +263,33 @@ func (r *InfrastructureRegistry) StartSchedulers(ctx context.Context) {
 	}
 }
 
+// StartAsynqServer starts the Asynq server in the background
+// This should be called after registering task handlers
+func (r *InfrastructureRegistry) StartAsynqServer() error {
+	if r.AsynqClient == nil {
+		zap.L().Warn("Asynq client not initialized, skipping Asynq server start")
+		return nil
+	}
+
+	zap.L().Info("Starting Asynq server...")
+	go func() {
+		if err := r.AsynqClient.Start(); err != nil {
+			zap.L().Error("Failed to start Asynq server", zap.Error(err))
+		}
+	}()
+
+	return nil
+}
+
 // StopServices gracefully stops all services
 func (r *InfrastructureRegistry) StopServices() {
 	zap.L().Info("Stopping infrastructure services...")
+
+	// Stop Asynq client
+	if r.AsynqClient != nil {
+		r.AsynqClient.Shutdown()
+		zap.L().Info("Asynq client stopped successfully")
+	}
 
 	// Stop cron scheduler
 	if r.CronJobsRegistry != nil {

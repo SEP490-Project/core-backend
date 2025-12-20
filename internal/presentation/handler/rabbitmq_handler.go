@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -309,6 +310,9 @@ func (h *RabbitMQHandler) ListQueueGroups(c *gin.Context) {
 			result = append(result, *group)
 		}
 	}
+	slices.SortFunc(result, func(a, b responses.RabbitMQQueueGroupResponse) int {
+		return strings.Compare(a.MainQueue.Name, b.MainQueue.Name)
+	})
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Queue groups retrieved successfully", nil, result))
 }

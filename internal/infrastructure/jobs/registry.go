@@ -18,6 +18,7 @@ type CronJobRegistry struct {
 	TikTokStatusPollerJob   CronJob // Added for application layer
 	SocialMetricsPollerJob  CronJob // DEPRECATED: Use ContentMetricsPollerJob
 	ContentMetricsPollerJob CronJob // New consolidated metrics poller
+	DailyJob                CronJob
 	CronScheduler           *cron.Cron
 	jobs                    map[string]CronJob
 }

@@ -62,14 +62,14 @@ type CampaignItemComparison struct {
 
 // CampaignMilestoneInfo represents the details of milestone within a campaign.
 type CampaignMilestoneInfo struct {
-	ID                   string  `json:"id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Description          string  `json:"description,omitempty" example:"Milestone for initial launch."`
-	DueDate              string  `json:"due_date,omitempty" example:"2023-06-15 00:00:00"`
-	CompletedAt          string  `json:"completed_at,omitempty" example:"2023-06-15 00:00:00"`
-	CompletionPercentage float64 `json:"completion_percentage,omitempty" example:"60.5"`
-	Status               string  `json:"status,omitempty" example:"NOT_STARTED"`
-	BehindSchedule       bool    `json:"behind_schedule,omitempty" example:"false"`
-	NumberOfTasks        int     `json:"number_of_tasks,omitempty" example:"25"`
+	ID                  string  `json:"id,omitempty" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Description         string  `json:"description,omitempty" example:"Milestone for initial launch."`
+	DueDate             string  `json:"due_date,omitempty" example:"2023-06-15 00:00:00"`
+	CompletedAt         string  `json:"completed_at" example:"2023-06-15 00:00:00"`
+	PercentageCompleted float64 `json:"percentage_completed" example:"60.5"`
+	Status              string  `json:"status" example:"NOT_STARTED"`
+	BehindSchedule      bool    `json:"behind_schedule" example:"false"`
+	NumberOfTasks       int     `json:"number_of_tasks" example:"25"`
 }
 
 // ToCampaignInfoResponse maps a Campaign model to a CampaignInfoResponse DTO.
@@ -151,14 +151,14 @@ func (cdr CampaignDetailsResponse) ToCampaignMilestoneInfoList(campaign *model.C
 			defer func() { wg.Done() }()
 
 			milestoneInfo := CampaignMilestoneInfo{
-				ID:                   milestone.ID.String(),
-				Description:          *milestone.Description,
-				DueDate:              milestone.DueDate.String(),
-				CompletedAt:          "",
-				CompletionPercentage: milestone.CompletionPercentage,
-				Status:               milestone.Status.String(),
-				BehindSchedule:       milestone.BehindSchedule,
-				NumberOfTasks:        len(milestone.Tasks),
+				ID:                  milestone.ID.String(),
+				Description:         *milestone.Description,
+				DueDate:             milestone.DueDate.String(),
+				CompletedAt:         "",
+				PercentageCompleted: milestone.CompletionPercentage,
+				Status:              milestone.Status.String(),
+				BehindSchedule:      milestone.BehindSchedule,
+				NumberOfTasks:       len(milestone.Tasks),
 			}
 			if milestone.CompletedAt != nil {
 				milestoneInfo.CompletedAt = utils.FormatLocalTime(milestone.CompletedAt, "")

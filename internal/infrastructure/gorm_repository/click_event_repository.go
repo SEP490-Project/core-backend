@@ -41,6 +41,32 @@ func (r *clickEventRepository) GetRecentClicks(ctx context.Context, since time.T
 	return events, err
 }
 
+// GetAggregatedClicks returns click counts grouped by affiliate link ID since a specific timestamp
+func (r *clickEventRepository) GetAggregatedClicks(ctx context.Context, since time.Time) (map[uuid.UUID]int, error) {
+	type Result struct {
+		AffiliateLinkID uuid.UUID
+		Count           int
+	}
+	var results []Result
+
+	err := r.db.WithContext(ctx).
+		Model(&model.ClickEvent{}).
+		Where("clicked_at >= ?", since).
+		Select("affiliate_link_id, COUNT(*) as count").
+		Group("affiliate_link_id").
+		Scan(&results).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	aggregates := make(map[uuid.UUID]int)
+	for _, res := range results {
+		aggregates[res.AffiliateLinkID] = res.Count
+	}
+	return aggregates, nil
+}
+
 // GetClicksByTimeRange retrieves click events for a specific affiliate link within a time range
 // Optimized for TimescaleDB chunk exclusion
 func (r *clickEventRepository) GetClicksByTimeRange(

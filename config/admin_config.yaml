@@ -74,6 +74,9 @@ social_metrics_poller_enabled: false # DEPRECATED: Use content_metrics_poller_en
 social_metrics_poller_interval_cron_expr: "*/30 * * * *" # DEPRECATED: Use content_metrics_poller_cron_expr instead
 content_metrics_poller_enabled: false
 content_metrics_poller_cron_expr: "0 */10 * * * *" # Every 30 minutes (at second 0)
+daily_cron_job_enabled: false
+daily_cron_job_cron_expr: "0 0 0 * * *" # Every day at 00:00 (with seconds: sec min hour day month weekday)
+daily_cron_job_worker_count: "7"
 
 # Order - PreOrder
 censorship_interval_minutes: 5
