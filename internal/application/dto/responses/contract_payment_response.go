@@ -9,7 +9,7 @@ import (
 
 // region: ============== Contract Payment Response ==============
 
-type ContractPaymenntResponse struct {
+type ContractPaymentResponse struct {
 	ID                    string  `json:"id" example:"b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f"`
 	ContractID            string  `json:"contract_id" example:"a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"`
 	ContractTitle         string  `json:"contract_title" example:"Website Development Contract"`
@@ -27,12 +27,12 @@ type ContractPaymenntResponse struct {
 }
 
 // ToResponse converts a ContractPayment model to a ContractPaymentResponse
-func (ContractPaymenntResponse) ToResponse(model *model.ContractPayment) *ContractPaymenntResponse {
+func (ContractPaymentResponse) ToResponse(model *model.ContractPayment) *ContractPaymentResponse {
 	if model == nil {
 		return nil
 	}
 
-	response := &ContractPaymenntResponse{
+	response := &ContractPaymentResponse{
 		ID:                    model.ID.String(),
 		ContractID:            model.ContractID.String(),
 		InstallmentPercentage: model.InstallmentPercentage,
@@ -58,14 +58,14 @@ func (ContractPaymenntResponse) ToResponse(model *model.ContractPayment) *Contra
 }
 
 // ToResponseList converts a list of ContractPayment models to a list of ContractPaymentResponses
-func (ContractPaymenntResponse) ToResponseList(model []model.ContractPayment) []ContractPaymenntResponse {
+func (ContractPaymentResponse) ToResponseList(model []model.ContractPayment) []ContractPaymentResponse {
 	if len(model) == 0 {
-		return []ContractPaymenntResponse{}
+		return []ContractPaymentResponse{}
 	}
 
-	responses := make([]ContractPaymenntResponse, len(model))
+	responses := make([]ContractPaymentResponse, len(model))
 	for i, v := range model {
-		responses[i] = *ContractPaymenntResponse{}.ToResponse(&v)
+		responses[i] = *ContractPaymentResponse{}.ToResponse(&v)
 	}
 	return responses
 }
@@ -73,7 +73,7 @@ func (ContractPaymenntResponse) ToResponseList(model []model.ContractPayment) []
 // endregion
 
 type ContractPaymentDetailResponse struct {
-	ContractPaymenntResponse
+	ContractPaymentResponse
 }
 
-type ContractPaymentPaginationResponse PaginationResponse[ContractPaymenntResponse]
+type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]

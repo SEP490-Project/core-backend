@@ -157,7 +157,7 @@ func (h *ContractPaymentHandler) GetContractPaymentsByFilter(c *gin.Context) {
 //	@Accept		json
 //	@Produce	json
 //	@Param		contract_payment_id	path		string															true	"Contract Payment ID"	example("b1c2d3e4-f5a6-7b8c-9d0e-f1a2b3c4d5e6")
-//	@Success	200					{object}	responses.APIResponse{data=responses.ContractPaymenntResponse}	"Contract payment retrieved successfully"
+//	@Success	200					{object}	responses.APIResponse{data=responses.ContractPaymentResponse}	"Contract payment retrieved successfully"
 //	@Failure	400					{object}	responses.APIResponse											"Invalid request or validation error"
 //	@Failure	401					{object}	responses.APIResponse											"Unauthorized"
 //	@Failure	404					{object}	responses.APIResponse											"Contract payment not found"

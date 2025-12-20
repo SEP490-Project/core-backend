@@ -34,7 +34,7 @@ type contractPaymentService struct {
 // GetContractPaymentByID implements iservice.ContractPaymentService.
 // For AFFILIATE and CO_PRODUCING contracts, this method automatically
 // recalculates the payment amount if the payment is for the current period.
-func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymenntResponse, error) {
+func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, contractPaymentID uuid.UUID) (*responses.ContractPaymentResponse, error) {
 	zap.L().Info("ContractPaymentService - GetContractPaymentByID called",
 		zap.String("contractPaymentID", contractPaymentID.String()))
 
@@ -52,7 +52,7 @@ func (c *contractPaymentService) GetContractPaymentByID(ctx context.Context, con
 		// Don't fail the request, just log and return current data
 	}
 
-	return responses.ContractPaymenntResponse{}.ToResponse(contractPayment), nil
+	return responses.ContractPaymentResponse{}.ToResponse(contractPayment), nil
 }
 
 // CreatePaymentLinkFromContractPayment implements iservice.ContractPaymentService.
@@ -146,7 +146,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 // GetContractPaymentsByFilter implements iservice.ContractPaymentService.
 // For AFFILIATE and CO_PRODUCING contracts, this method automatically
 // recalculates payment amounts for current period payments using parallel processing.
-func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymenntResponse, int64, error) {
+func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context, filter *requests.ContractPaymentFilterRequest) (*[]responses.ContractPaymentResponse, int64, error) {
 	zap.L().Info("ContractPaymentService - GetContractPaymentsByFilter called", zap.Any("filter", filter))
 
 	filterQuery := func(db *gorm.DB) *gorm.DB {
@@ -211,7 +211,7 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 		}
 	}
 
-	responsesList := responses.ContractPaymenntResponse{}.ToResponseList(payments)
+	responsesList := responses.ContractPaymentResponse{}.ToResponseList(payments)
 	return &responsesList, total, nil
 }
 
