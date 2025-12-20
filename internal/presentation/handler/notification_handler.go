@@ -234,9 +234,9 @@ func (h *NotificationHandler) PublishNotification(c *gin.Context) {
 	}
 
 	// Convert UUIDs to strings for response
-	idStrings := make([]string, len(notificationIDs))
-	for i, id := range notificationIDs {
-		idStrings[i] = id.String()
+	idStrings := make([]string, 0, len(notificationIDs))
+	for _, id := range notificationIDs {
+		idStrings = append(idStrings, id.String())
 	}
 
 	statusCode := http.StatusCreated

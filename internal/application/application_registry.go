@@ -161,7 +161,8 @@ func NewApplicationRegistry(
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
 		contentPublishingService,
-		infrastructureRegistry.RabbitMQ,
+		infrastructureRegistry.AsynqClient,
+		&configs.Asynq,
 	)
 
 	contentEngagementService := service.NewContentEngagementService(
