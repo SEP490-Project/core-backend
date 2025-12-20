@@ -38,14 +38,14 @@ func NewExpiredLinkCleanupJob(
 
 // Initialize implements CronJob.
 func (j *ExpiredLinkCleanupJob) Initialize() error {
-	if !j.adminConfig.ExpiredContractCleanupEnabled {
+	if !j.adminConfig.ExpiredLinkCleanupEnabled {
 		zap.L().Info("Expired Link Cleanup Job is disabled via admin config")
 		return nil
 	}
 
 	zap.L().Debug("Initializing Expired Link Cleanup Job...")
 
-	cronExpr := j.adminConfig.ExpiredContractCleanupCronExpr
+	cronExpr := j.adminConfig.ExpiredLinkCleanupCronExpr
 	if cronExpr == "" {
 		cronExpr = "0 0 0 * * *" // Default to daily at midnight if not set
 	}
@@ -55,7 +55,7 @@ func (j *ExpiredLinkCleanupJob) Initialize() error {
 
 	// Schedule the job
 	entryID, err := j.CronScheduler.AddFunc(cronExpr, func() {
-		if j.adminConfig.ExpiredContractCleanupEnabled {
+		if j.adminConfig.ExpiredLinkCleanupEnabled {
 			j.Run()
 		}
 	})
@@ -156,12 +156,12 @@ func (j *ExpiredLinkCleanupJob) GetLastRunTime() time.Time {
 
 // IsEnabled implements CronJob.
 func (j *ExpiredLinkCleanupJob) IsEnabled() bool {
-	return j.adminConfig.ExpiredContractCleanupEnabled
+	return j.adminConfig.ExpiredLinkCleanupEnabled
 }
 
 // SetEnabled implements CronJob.
 func (j *ExpiredLinkCleanupJob) SetEnabled(enabled bool) {
-	j.adminConfig.ExpiredContractCleanupEnabled = enabled
+	j.adminConfig.ExpiredLinkCleanupEnabled = enabled
 }
 
 // Restart implements CronJob.
