@@ -22,6 +22,8 @@ type HealthMonitor interface {
 	// CheckTimescaleDB checks if TimescaleDB extension and hypertables are working correctly
 	CheckTimescaleDB(ctx context.Context) ServiceHealth
 
+	CheckAsynq(ctx context.Context) ServiceHealth
+
 	// IsEmailHealthy returns true if the email service is healthy
 	IsEmailHealthy() bool
 
