@@ -117,6 +117,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentEngagementRoutes(v1)
 		r.SetupAlertRoutes(v1)
 		r.setupSystemRoutes(v1)
+		r.setupAsynqRoutes(v1)
+		r.setupCacheRoutes(v1)
 		r.SetupPayOSRoutes(v1)
 		r.setupFacebookSocialRoutes(v1)
 		r.setupTikTokSocialRoutes(v1)
@@ -1043,6 +1045,8 @@ func (r *Router) setupJobRoutes(group *gin.RouterGroup) {
 			adminGroup.POST("/pre-order-opening-check", jobHandler.TriggerPreOrderOpeningCheckJob)
 			adminGroup.POST("/tiktok-status-poller", jobHandler.TriggerTikTokStatusPollerJob)
 			adminGroup.POST("/trigger-all", jobHandler.TriggerAllJobs)
+			adminGroup.GET("", jobHandler.GetAllRegisteredJobs)
+			adminGroup.POST("/trigger/:jobName", jobHandler.TriggerJobByName)
 		}
 
 		jobGroup.POST("/content-metrics-poller",
@@ -1170,9 +1174,40 @@ func (r *Router) SetupAlertRoutes(group *gin.RouterGroup) {
 func (r *Router) setupSystemRoutes(group *gin.RouterGroup) {
 	systemHandler := r.handlerRegistry.SystemHandler
 	systemGroup := group.Group("/admin/system")
-	systemGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 	systemGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
 	{
 		systemGroup.GET("/specs", systemHandler.GetSystemSpecs)
+	}
+}
+
+func (r *Router) setupAsynqRoutes(group *gin.RouterGroup) {
+	asynqHandler := r.handlerRegistry.AsynqHandler
+	asynqGroup := group.Group("/admin/asynq")
+	asynqGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		asynqGroup.GET("/overview", asynqHandler.GetOverview)
+		asynqGroup.GET("/queues/stats", asynqHandler.GetQueueStats)
+		asynqGroup.GET("/tasks", asynqHandler.ListTasks)
+		asynqGroup.GET("/tasks/details", asynqHandler.GetTaskDetails)
+		asynqGroup.DELETE("/tasks", asynqHandler.DeleteTask)
+		asynqGroup.POST("/tasks/run", asynqHandler.RunTask)
+		asynqGroup.PATCH("/tasks/archive", asynqHandler.ArchiveTask)
+		asynqGroup.PATCH("/queues/pause", asynqHandler.PauseQueue)
+		asynqGroup.PATCH("/queues/unpause", asynqHandler.UnpauseQueue)
+	}
+}
+
+func (r *Router) setupCacheRoutes(group *gin.RouterGroup) {
+	cacheHandler := r.handlerRegistry.CacheHandler
+	cacheGroup := group.Group("/admin/cache")
+	cacheGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+	{
+		cacheGroup.GET("/overview", cacheHandler.GetOverview)
+		cacheGroup.GET("/keys", cacheHandler.GetKeys)
+		cacheGroup.GET("/keys/:key", cacheHandler.GetKey)
+		cacheGroup.DELETE("/keys", cacheHandler.DeleteKey)
+		cacheGroup.DELETE("/keys/by-pattern", cacheHandler.DeleteByPattern)
+		cacheGroup.POST("/keys", cacheHandler.SetKey)
+		cacheGroup.DELETE("/keys/flush", cacheHandler.FlushDatabase)
 	}
 }
