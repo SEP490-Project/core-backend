@@ -37,6 +37,7 @@ type AppConfig struct {
 	Social            SocialConfig            `mapstructure:"social"`
 	TokenStorage      TokenStorageConfig      `mapstructure:"token_storage"`
 	AI                AIConfig                `mapstructure:"ai"`
+	Asynq             AsynqConfig             `mapstructure:"asynq"`
 }
 
 type ServerConfig struct {
@@ -134,6 +135,8 @@ type WebSocketConfig struct {
 	WriteBufferSize int      `mapstructure:"write_buffer_size"`
 }
 
+// region: ============== S3 Configuration ==============
+
 type S3BucketConfig struct {
 	BucketName string `mapstructure:"bucket_name"`
 	Region     string `mapstructure:"region"`
@@ -150,6 +153,8 @@ type S3StreamingBucketConfig struct {
 	AccessKey        string `mapstructure:"access_key"`
 	SecretKey        string `mapstructure:"secret_key"`
 }
+
+// endregion
 
 type PayOSConfig struct {
 	BaseURL           string `mapstructure:"base_url"`
@@ -177,6 +182,8 @@ type GHNConfig struct {
 		AppKey    string `mapstructure:"app_key"`
 	} `mapstructure:"mock_session_info"`
 }
+
+// region: ============== Notification Configuration ==============
 
 type EmailConfig struct {
 	Host      string `mapstructure:"host"`
@@ -210,6 +217,8 @@ type NotificationConcurrency struct {
 	Push  int `mapstructure:"push"`
 }
 
+// endregion
+
 type HTTPClientConfig struct {
 	Timeout               int `mapstructure:"timeout"`                 // in seconds
 	MaxIdleConns          int `mapstructure:"max_idle_conns"`          // maximum number of idle connections
@@ -237,6 +246,8 @@ type locationSynchronizationConfig struct {
 	SyncHour    int  `mapstructure:"sync_hour"`
 	Concurrency int  `mapstructure:"concurrency"`
 }
+
+// region: ============== Social Configuration ==============
 
 type SocialConfig struct {
 	Facebook FacebookSocialConfig `mapstructure:"facebook"`
@@ -268,6 +279,10 @@ type TikTokSocialConfig struct {
 	ResponseType        string   `mapstructure:"response_type"`
 }
 
+// endregion
+
+// region: ============== AI Configuration ==============
+
 // AIConfig holds configuration for AI features
 type AIConfig struct {
 	Providers map[string]AIProviderConfig `mapstructure:"providers"`
@@ -283,6 +298,22 @@ type AIProviderConfig struct {
 	APIKey  string `mapstructure:"api_key"`
 	BaseURL string `mapstructure:"base_url"`
 	Type    string `mapstructure:"type"` // "gemini", "openai" (covers openrouter, moonshot)
+}
+
+// endregion
+
+// AsynqConfig holds configuration for Asynq task scheduler
+type AsynqConfig struct {
+	Enabled     bool           `mapstructure:"enabled"`
+	DB          int            `mapstructure:"db"`          // Redis DB number for Asynq (separate from cache)
+	Concurrency int            `mapstructure:"concurrency"` // Number of concurrent workers
+	TaskTypes   AsynqTaskTypes `mapstructure:"task_types"`
+}
+
+// AsynqTaskTypes holds task type names for configuration management
+type AsynqTaskTypes struct {
+	ContentSchedule      string `mapstructure:"content_schedule"`
+	NotificationSchedule string `mapstructure:"notification_schedule"`
 }
 
 //End of Schedulers

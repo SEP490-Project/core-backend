@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/infrastructure/asynq"
 	"errors"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ type healthMonitor struct {
 	db           *gorm.DB
 	valkeyCache  ValkeyHealthChecker
 	rabbitMQ     RabbitMQHealthChecker
+	asynqClient  *asynq.AsynqClient
 
 	mu sync.RWMutex
 }
@@ -41,6 +43,7 @@ func NewHealthMonitor(
 	db *gorm.DB,
 	valkeyCache ValkeyHealthChecker,
 	rabbitMQ RabbitMQHealthChecker,
+	asynqClient *asynq.AsynqClient,
 ) iservice_third_party.HealthMonitor {
 	return &healthMonitor{
 		emailService: emailService,
@@ -48,6 +51,7 @@ func NewHealthMonitor(
 		db:           db,
 		valkeyCache:  valkeyCache,
 		rabbitMQ:     rabbitMQ,
+		asynqClient:  asynqClient,
 	}
 }
 
@@ -84,53 +88,35 @@ func (h *healthMonitor) CheckAllServices(ctx context.Context) map[string]iservic
 		results["rabbitmq"] = h.checkRabbitMQ(ctx)
 	}
 
+	if h.asynqClient != nil {
+		results["asynq"] = h.CheckAsynq(ctx)
+	}
+
 	return results
 }
 
-// checkEmailService checks SMTP connectivity
-func (h *healthMonitor) checkEmailService(ctx context.Context) iservice_third_party.ServiceHealth {
-	return h.emailService.Health(ctx)
+// GetEmailHealth performs an on-demand check and returns email service health status
+func (h *healthMonitor) GetEmailHealth() iservice_third_party.ServiceHealth {
+	if h.emailService == nil {
+		return iservice_third_party.ServiceHealth{
+			Name:      "EmailService",
+			IsHealthy: false,
+			LastError: errors.New("email service not initialized"),
+		}
+	}
+	return h.checkEmailService(context.Background())
 }
 
-// checkFCMService checks FCM connectivity
-func (h *healthMonitor) checkFCMService(ctx context.Context) iservice_third_party.ServiceHealth {
-	return h.fcmService.Health(ctx)
-}
-
-// checkDatabase checks database connectivity
-func (h *healthMonitor) checkDatabase(ctx context.Context) iservice_third_party.ServiceHealth {
-	health := iservice_third_party.ServiceHealth{
-		Name:          "Database",
-		LastCheckTime: time.Now(),
-		Details:       make(map[string]any),
+// GetFCMHealth performs an on-demand check and returns FCM service health status
+func (h *healthMonitor) GetFCMHealth() iservice_third_party.ServiceHealth {
+	if h.fcmService == nil {
+		return iservice_third_party.ServiceHealth{
+			Name:      "FCMService",
+			IsHealthy: false,
+			LastError: errors.New("FCM service not initialized"),
+		}
 	}
-
-	sqlDB, err := h.db.DB()
-	if err != nil {
-		health.IsHealthy = false
-		health.LastError = err
-		zap.L().Debug("Database health check failed - cannot get SQL DB", zap.Error(err))
-		return health
-	}
-
-	if err := sqlDB.PingContext(ctx); err != nil {
-		health.IsHealthy = false
-		health.LastError = err
-		zap.L().Debug("Database health check failed - ping failed", zap.Error(err))
-	} else {
-		health.IsHealthy = true
-
-		// Get database stats
-		stats := sqlDB.Stats()
-		health.Details["open_connections"] = stats.OpenConnections
-		health.Details["in_use"] = stats.InUse
-		health.Details["idle"] = stats.Idle
-
-		zap.L().Debug("Database health check passed",
-			zap.Int("open_connections", stats.OpenConnections))
-	}
-
-	return health
+	return h.checkFCMService(context.Background())
 }
 
 // CheckTimescaleDB checks TimescaleDB extension and hypertable status
@@ -216,6 +202,98 @@ func (h *healthMonitor) CheckTimescaleDB(ctx context.Context) iservice_third_par
 	return health
 }
 
+func (h *healthMonitor) CheckAsynq(ctx context.Context) iservice_third_party.ServiceHealth {
+	health := iservice_third_party.ServiceHealth{
+		Name:          "Asynq",
+		LastCheckTime: time.Now(),
+		Details:       make(map[string]any),
+	}
+
+	if h.asynqClient == nil {
+		health.IsHealthy = false
+		health.LastError = errors.New("asynq client not initialized")
+		zap.L().Debug("Asynq health check failed - client not initialized")
+		return health
+	}
+	err := h.asynqClient.HealthCheck()
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		health.Details["error"] = err.Error()
+		zap.L().Debug("Asynq health check failed", zap.Error(err))
+	} else {
+		health.IsHealthy = true
+		zap.L().Debug("Asynq health check passed")
+	}
+	return health
+}
+
+// IsEmailHealthy performs an on-demand check and returns whether email service is healthy
+func (h *healthMonitor) IsEmailHealthy() bool {
+	if h.emailService == nil {
+		return false
+	}
+	health := h.checkEmailService(context.Background())
+	return health.IsHealthy
+}
+
+// IsFCMHealthy performs an on-demand check and returns whether FCM service is healthy
+func (h *healthMonitor) IsFCMHealthy() bool {
+	if h.fcmService == nil {
+		return false
+	}
+	health := h.checkFCMService(context.Background())
+	return health.IsHealthy
+}
+
+// region: ============== Private Methods ==============
+
+// checkEmailService checks SMTP connectivity
+func (h *healthMonitor) checkEmailService(ctx context.Context) iservice_third_party.ServiceHealth {
+	return h.emailService.Health(ctx)
+}
+
+// checkFCMService checks FCM connectivity
+func (h *healthMonitor) checkFCMService(ctx context.Context) iservice_third_party.ServiceHealth {
+	return h.fcmService.Health(ctx)
+}
+
+// checkDatabase checks database connectivity
+func (h *healthMonitor) checkDatabase(ctx context.Context) iservice_third_party.ServiceHealth {
+	health := iservice_third_party.ServiceHealth{
+		Name:          "Database",
+		LastCheckTime: time.Now(),
+		Details:       make(map[string]any),
+	}
+
+	sqlDB, err := h.db.DB()
+	if err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		zap.L().Debug("Database health check failed - cannot get SQL DB", zap.Error(err))
+		return health
+	}
+
+	if err := sqlDB.PingContext(ctx); err != nil {
+		health.IsHealthy = false
+		health.LastError = err
+		zap.L().Debug("Database health check failed - ping failed", zap.Error(err))
+	} else {
+		health.IsHealthy = true
+
+		// Get database stats
+		stats := sqlDB.Stats()
+		health.Details["open_connections"] = stats.OpenConnections
+		health.Details["in_use"] = stats.InUse
+		health.Details["idle"] = stats.Idle
+
+		zap.L().Debug("Database health check passed",
+			zap.Int("open_connections", stats.OpenConnections))
+	}
+
+	return health
+}
+
 // checkValkey checks Valkey/Redis connectivity
 func (h *healthMonitor) checkValkey(_ context.Context) iservice_third_party.ServiceHealth {
 	health := iservice_third_party.ServiceHealth{
@@ -263,44 +341,4 @@ func (h *healthMonitor) checkRabbitMQ(_ context.Context) iservice_third_party.Se
 	return health
 }
 
-// IsEmailHealthy performs an on-demand check and returns whether email service is healthy
-func (h *healthMonitor) IsEmailHealthy() bool {
-	if h.emailService == nil {
-		return false
-	}
-	health := h.checkEmailService(context.Background())
-	return health.IsHealthy
-}
-
-// IsFCMHealthy performs an on-demand check and returns whether FCM service is healthy
-func (h *healthMonitor) IsFCMHealthy() bool {
-	if h.fcmService == nil {
-		return false
-	}
-	health := h.checkFCMService(context.Background())
-	return health.IsHealthy
-}
-
-// GetEmailHealth performs an on-demand check and returns email service health status
-func (h *healthMonitor) GetEmailHealth() iservice_third_party.ServiceHealth {
-	if h.emailService == nil {
-		return iservice_third_party.ServiceHealth{
-			Name:      "EmailService",
-			IsHealthy: false,
-			LastError: errors.New("email service not initialized"),
-		}
-	}
-	return h.checkEmailService(context.Background())
-}
-
-// GetFCMHealth performs an on-demand check and returns FCM service health status
-func (h *healthMonitor) GetFCMHealth() iservice_third_party.ServiceHealth {
-	if h.fcmService == nil {
-		return iservice_third_party.ServiceHealth{
-			Name:      "FCMService",
-			IsHealthy: false,
-			LastError: errors.New("FCM service not initialized"),
-		}
-	}
-	return h.checkFCMService(context.Background())
-}
+// endregion
