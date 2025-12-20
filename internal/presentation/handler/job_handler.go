@@ -175,6 +175,57 @@ func (h *JobHandler) TriggerAllJobs(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("All jobs triggered successfully", nil, triggered))
 }
 
+// GetAllRegisteredJobs godoc
+//
+//	@Summary		Get All Registered Jobs
+//	@Description	Retrieve a list of all registered cron jobs with their statuses
+//	@Tags			Jobs
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse
+//	@Failure		401	{object}	responses.APIResponse
+//	@Failure		403	{object}	responses.APIResponse
+//	@Failure		500	{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/jobs [get]
+func (h *JobHandler) GetAllRegisteredJobs(c *gin.Context) {
+	jobs := h.cronJobRegistry.GetAllJobs()
+	jobInfos := make(map[string]any, len(jobs))
+	for name, cronJob := range jobs {
+		jobInfos[name] = map[string]any{
+			"name":     name,
+			"enabled":  cronJob.IsEnabled(),
+			"last_run": cronJob.GetLastRunTime(),
+		}
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("All jobs registered successfully", nil, jobInfos))
+}
+
+// TriggerJobByName godoc
+//
+//	@Summary		Trigger Job By Name
+//	@Description	Manually trigger a specific job
+//	@Tags			Jobs
+//	@Accept			json
+//	@Produce		json
+//	@Param			jobName	path		string	true	"Job name"
+//	@Param			async	query		bool	false	"Run job asynchronously (default: true)"
+//	@Success		200		{object}	responses.APIResponse
+//	@Failure		401		{object}	responses.APIResponse
+//	@Failure		403		{object}	responses.APIResponse
+//	@Failure		500		{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/jobs/trigger/{jobName} [post]
+func (h *JobHandler) TriggerJobByName(c *gin.Context) {
+	jobName := c.Param("jobName")
+	isAsync := true
+	if val := c.Query("async"); val == "false" {
+		isAsync = false
+	}
+	h.triggerJob(c, jobName, isAsync)
+}
+
 func (h *JobHandler) triggerJob(c *gin.Context, jobName string, isAsync bool) {
 	job, exists := h.cronJobRegistry.GetJobByName(jobName)
 	if !exists {
