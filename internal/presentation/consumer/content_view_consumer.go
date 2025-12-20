@@ -93,7 +93,7 @@ func (c *ContentViewConsumer) Handle(ctx context.Context, body []byte) error {
 	}
 
 	// Check if this is a unique view
-	isUnique := c.isUniqueView(ctx, &message)
+	isUnique := c.isUniqueView(&message)
 	if isUnique {
 		// Record unique view
 		uniqueViewMetric := &model.KPIMetrics{
@@ -128,7 +128,7 @@ func (c *ContentViewConsumer) Handle(ctx context.Context, body []byte) error {
 }
 
 // isUniqueView checks if this is a unique view using Valkey cache for deduplication
-func (c *ContentViewConsumer) isUniqueView(ctx context.Context, event *consumers.ContentViewMessage) bool {
+func (c *ContentViewConsumer) isUniqueView(event *consumers.ContentViewMessage) bool {
 	if c.cache == nil {
 		// If cache is not available, treat as unique
 		return true
@@ -145,7 +145,7 @@ func (c *ContentViewConsumer) isUniqueView(ctx context.Context, event *consumers
 	ttl := time.Duration(ttlHours) * time.Hour
 
 	// Check if already viewed within TTL window
-	existing, err := c.cache.Get(cacheKey)
+	existing, _, err := c.cache.Get(cacheKey)
 	if err != nil {
 		zap.L().Warn("Failed to check cache for unique view",
 			zap.String("cache_key", cacheKey),

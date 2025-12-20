@@ -242,7 +242,7 @@ func (s *ClickTrackingService) getAffiliateLinkCache(hash string) (string, error
 	key := s.affiliateLinkCachePrefix + hash
 	zap.L().Debug("Looking up affiliate link in cache", zap.String("hash", hash), zap.String("key", key))
 
-	trackingURL, err := s.cache.Get(key)
+	trackingURL, valueType, err := s.cache.Get(key)
 	if err != nil {
 		return "", err
 	}
@@ -252,8 +252,17 @@ func (s *ClickTrackingService) getAffiliateLinkCache(hash string) (string, error
 		return "", nil
 	}
 
-	zap.L().Debug("Affiliate link cache hit", zap.String("hash", hash), zap.String("tracking_url", trackingURL))
-	return trackingURL, nil
+	if valueType != "string" {
+		zap.L().Warn("Affiliate link cache hit with unexpected value type", zap.String("hash", hash), zap.String("value_type", valueType))
+		return "", nil
+	}
+	trackingURLStr, ok := trackingURL.(string)
+	if !ok {
+		zap.L().Warn("Affiliate link cache hit with unexpected value type", zap.String("hash", hash), zap.String("value_type", valueType))
+		return "", nil
+	}
+	zap.L().Debug("Affiliate link cache hit", zap.String("hash", hash), zap.String("tracking_url", trackingURLStr))
+	return trackingURLStr, nil
 }
 
 // deleteAffiliateLinkCache removes an affiliate link from cache
