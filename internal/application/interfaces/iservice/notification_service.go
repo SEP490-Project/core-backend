@@ -27,7 +27,7 @@ type NotificationService interface {
 	GetByFilters(ctx context.Context, userID *uuid.UUID, notificationType *enum.NotificationType, status *enum.NotificationStatus, isRead *bool, startDate, endDate *string, page, limit int) ([]*model.Notification, int64, error)
 
 	// CreateAndPublishNotification creates a notification record and publishes it to specified channels
-	CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) ([]uuid.UUID, error)
+	CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) (map[enum.NotificationType]uuid.UUID, error)
 
 	// CreateAndPublishEmail creates an email notification record and publishes it
 	CreateAndPublishEmail(ctx context.Context, req *requests.PublishEmailRequest) (uuid.UUID, error)
@@ -52,6 +52,12 @@ type NotificationService interface {
 
 	// BroadcastToUser sends a unified notification to a specific user across specified channels
 	BroadcastToUser(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string, channels []string) error
+
+	// BroadcastToUserWithRequest sends a unified notification to a specific user based on a request object
+	BroadcastToUserWithRequest(ctx context.Context, req *requests.PublishNotificationRequest) error
+
+	// BroadcastToRole sends a unified notification to all users with a specific role
+	BroadcastToRoleWithRequest(ctx context.Context, userRoles []enum.UserRole, req *requests.PublishNotificationRequest) error
 
 	// BroadcastToAll sends a unified notification to all users (optionally filtered by role)
 	BroadcastToAll(ctx context.Context, title, body string, data map[string]string, role *string) error

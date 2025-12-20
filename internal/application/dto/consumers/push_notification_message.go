@@ -10,6 +10,9 @@ type PushNotificationMessage struct {
 	Body           string            `json:"body"`
 	Data           map[string]string `json:"data,omitempty"`            // Custom data payload
 	PlatformConfig *PlatformConfig   `json:"platform_config,omitempty"` // Platform-specific configurations
+
+	// Optional ScheduleID if the notification is related to a scheduled task
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty"`
 }
 
 // PlatformConfig contains platform-specific notification configurations

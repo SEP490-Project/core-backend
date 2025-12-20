@@ -6,10 +6,12 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -26,6 +28,7 @@ type NotificationEmailConsumer struct {
 	userService      iservice.UserService
 	validator        *validator.Validate
 	healthMonitor    iservice_third_party.HealthMonitor
+	unitOfWork       irepository.UnitOfWork
 }
 
 // NewNotificationEmailConsumer creates a new email notification consumer
@@ -40,6 +43,7 @@ func NewNotificationEmailConsumer(
 		userService:      userService,
 		validator:        validator.New(),
 		healthMonitor:    infraRegistry.HealthMonitor,
+		unitOfWork:       infraRegistry.UnitOfWork,
 	}
 }
 
@@ -62,14 +66,8 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 				return fmt.Errorf("failed to fetch user: %w", errUser)
 			}
 
-			msg = consumers.EmailNotificationMessage{
-				NotificationID: unifiedMsg.NotificationID,
-				UserID:         unifiedMsg.UserID,
-				To:             user.Email,
-				Subject:        unifiedMsg.Title,
-				HTMLBody:       unifiedMsg.Body,
-				// TemplateData could be mapped from Data if needed, but HTMLBody is preferred here
-			}
+			msg = *unifiedMsg.ToEmailRequest()
+			msg.To = user.Email
 		} else {
 			zap.L().Error("Failed to unmarshal email notification message",
 				zap.Error(err),
@@ -85,7 +83,11 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 			zap.String("notification_id", msg.NotificationID.String()))
 
 		// Update error details in database
-		c.updateNotificationError(ctx, msg.NotificationID, "validation_failed", err.Error())
+		helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			c.updateNotificationError(ctx, uow, msg.NotificationID, "validation_failed", err.Error())
+			c.updateScheduleStatus(ctx, uow, msg.ScheduleID, enum.ScheduleStatusFailed, utils.PtrOrNil(err.Error()))
+			return nil
+		})
 		return fmt.Errorf("message validation failed: %w", err)
 	}
 
@@ -111,8 +113,13 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 				zap.String("to", msg.To))
 
 			// Update status to skipped (custom status - you may want to add this to enum)
-			c.updateNotificationStatus(ctx, msg.NotificationID, enum.NotificationStatusSent)
-			c.updateNotificationError(ctx, msg.NotificationID, "user_preference", "Email notifications disabled by user")
+			helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+				errorMsg := "Email notifications disabled by user"
+				c.updateNotificationStatus(ctx, uow, msg.NotificationID, enum.NotificationStatusSent)
+				c.updateNotificationError(ctx, uow, msg.NotificationID, "user_preference", errorMsg)
+				c.updateScheduleStatus(ctx, uow, msg.ScheduleID, enum.ScheduleStatusCancelled, &errorMsg)
+				return nil
+			})
 
 			// Return success (no retry needed)
 			return nil
@@ -127,8 +134,14 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 			zap.Error(health.LastError))
 
 		// Update status to retrying (will retry when service recovers)
-		c.updateNotificationStatus(ctx, msg.NotificationID, enum.NotificationStatusRetrying)
-		c.updateNotificationError(ctx, msg.NotificationID, "service_unhealthy", "Email service is temporarily unavailable")
+
+		helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			errorMsg := "Email service is temporarily unavailable"
+			c.updateNotificationStatus(ctx, uow, msg.NotificationID, enum.NotificationStatusRetrying)
+			c.updateNotificationError(ctx, uow, msg.NotificationID, "service_unhealthy", errorMsg)
+			c.updateScheduleStatus(ctx, uow, msg.ScheduleID, enum.ScheduleStatusFailed, &errorMsg)
+			return nil
+		})
 
 		// Return error to trigger RabbitMQ retry
 		return fmt.Errorf("email service unhealthy: %w", health.LastError)
@@ -171,8 +184,12 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 			zap.Error(err))
 
 		// Update notification with error details
-		c.updateNotificationError(ctx, msg.NotificationID, "smtp_error", err.Error())
-		c.logDeliveryAttempt(ctx, msg.NotificationID, attempt)
+		helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			c.updateNotificationError(ctx, uow, msg.NotificationID, "smtp_error", err.Error())
+			c.logDeliveryAttempt(ctx, uow, msg.NotificationID, attempt)
+			c.updateScheduleStatus(ctx, uow, msg.ScheduleID, enum.ScheduleStatusFailed, utils.PtrOrNil(err.Error()))
+			return nil
+		})
 
 		// Return error to trigger RabbitMQ retry
 		return fmt.Errorf("failed to send email: %w", err)
@@ -183,15 +200,21 @@ func (c *NotificationEmailConsumer) Handle(ctx context.Context, body []byte) err
 		zap.String("to", msg.To))
 
 	// Update notification status to SENT
-	c.updateNotificationStatus(ctx, msg.NotificationID, enum.NotificationStatusSent)
-	c.logDeliveryAttempt(ctx, msg.NotificationID, attempt)
+	helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		c.updateNotificationStatus(ctx, uow, msg.NotificationID, enum.NotificationStatusSent)
+		c.logDeliveryAttempt(ctx, uow, msg.NotificationID, attempt)
+		c.updateScheduleStatus(ctx, uow, msg.ScheduleID, enum.ScheduleStatusCompleted, nil)
+		return nil
+	})
 
 	return nil
 }
 
 // updateNotificationStatus updates the notification status in the database
-func (c *NotificationEmailConsumer) updateNotificationStatus(ctx context.Context, notificationID uuid.UUID, status enum.NotificationStatus) {
-	if err := c.notificationRepo.UpdateStatus(ctx, notificationID, status); err != nil {
+func (c *NotificationEmailConsumer) updateNotificationStatus(
+	ctx context.Context, uow irepository.UnitOfWork, notificationID uuid.UUID, status enum.NotificationStatus,
+) {
+	if err := uow.Notifications().UpdateStatus(ctx, notificationID, status); err != nil {
 		zap.L().Error("Failed to update notification status",
 			zap.String("notification_id", notificationID.String()),
 			zap.String("status", string(status)),
@@ -200,8 +223,10 @@ func (c *NotificationEmailConsumer) updateNotificationStatus(ctx context.Context
 }
 
 // logDeliveryAttempt logs a delivery attempt to the database
-func (c *NotificationEmailConsumer) logDeliveryAttempt(ctx context.Context, notificationID uuid.UUID, attempt model.DeliveryAttempt) {
-	if err := c.notificationRepo.UpdateDeliveryAttempt(ctx, notificationID, attempt); err != nil {
+func (c *NotificationEmailConsumer) logDeliveryAttempt(
+	ctx context.Context, uow irepository.UnitOfWork, notificationID uuid.UUID, attempt model.DeliveryAttempt,
+) {
+	if err := uow.Notifications().UpdateDeliveryAttempt(ctx, notificationID, attempt); err != nil {
 		zap.L().Error("Failed to log delivery attempt",
 			zap.String("notification_id", notificationID.String()),
 			zap.Error(err))
@@ -209,7 +234,9 @@ func (c *NotificationEmailConsumer) logDeliveryAttempt(ctx context.Context, noti
 }
 
 // updateNotificationError updates the error details in the database
-func (c *NotificationEmailConsumer) updateNotificationError(ctx context.Context, notificationID uuid.UUID, errorCode, errorMessage string) {
+func (c *NotificationEmailConsumer) updateNotificationError(
+	ctx context.Context, uow irepository.UnitOfWork, notificationID uuid.UUID, errorCode, errorMessage string,
+) {
 	now := time.Now()
 	errorDetails := model.ErrorDetails{
 		ErrorCode:     errorCode,
@@ -217,9 +244,26 @@ func (c *NotificationEmailConsumer) updateNotificationError(ctx context.Context,
 		LastAttemptAt: &now,
 	}
 
-	if err := c.notificationRepo.UpdateErrorDetails(ctx, notificationID, errorDetails); err != nil {
+	if err := uow.Notifications().UpdateErrorDetails(ctx, notificationID, errorDetails); err != nil {
 		zap.L().Error("Failed to update notification error details",
 			zap.String("notification_id", notificationID.String()),
+			zap.Error(err))
+	}
+}
+
+func (c *NotificationEmailConsumer) updateScheduleStatus(
+	ctx context.Context, uow irepository.UnitOfWork, scheduleID *uuid.UUID, status enum.ScheduleStatus, errorMsg *string,
+) {
+	if scheduleID == nil {
+		zap.L().Warn("No schedule ID provided, skipping schedule status update")
+		return
+	}
+	if status != enum.ScheduleStatusFailed && status != enum.ScheduleStatusCancelled {
+		errorMsg = nil
+	}
+	if err := uow.Schedules().UpdateScheduleStatus(ctx, *scheduleID, status, errorMsg); err != nil {
+		zap.L().Error("Failed to update schedule status",
+			zap.String("schedule_id", scheduleID.String()),
 			zap.Error(err))
 	}
 }

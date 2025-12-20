@@ -11,4 +11,7 @@ type InAppNotificationMessage struct {
 	Type           string            `json:"type"` // e.g. "info", "warning", "error"
 	Data           map[string]string `json:"data,omitempty"`
 	CreatedAt      string            `json:"created_at"`
+
+	// Optional ScheduleID if the notification is related to a scheduled task
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty"`
 }
