@@ -40,7 +40,7 @@ func NewConsumerRegistry(
 		ExcelImportProductsConsumer:   NewExcelImportProductsConsumer(appRegistry),
 		NotificationEmailConsumer:     NewNotificationEmailConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
 		NotificationPushConsumer:      NewNotificationPushConsumer(infraRegistry, dbRegistry, appRegistry.UserService),
-		NotificationInAppConsumer:     NewNotificationInAppConsumer(appRegistry.SSEService, dbRegistry, appRegistry.UserService),
+		NotificationInAppConsumer:     NewNotificationInAppConsumer(appRegistry.SSEService, dbRegistry, appRegistry.UserService, infraRegistry.UnitOfWork),
 		VideoUploadConsumer:           NewVideoUploadConsumer(appRegistry),
 		ClickEventConsumer:            NewClickEventConsumer(dbRegistry.ClickEventRepository),
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry),

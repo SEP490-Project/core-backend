@@ -16,6 +16,9 @@ type EmailNotificationMessage struct {
 	Attachments    []Attachment      `json:"attachments,omitempty"`
 	Priority       string            `json:"priority,omitempty" validate:"omitempty,oneof=low normal high"`
 	Metadata       map[string]string `json:"metadata,omitempty"`
+
+	// Optional ScheduleID if the notification is related to a scheduled task
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty"`
 }
 
 // Attachment represents an email attachment with S3 URL reference

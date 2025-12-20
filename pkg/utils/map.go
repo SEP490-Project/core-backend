@@ -1,5 +1,10 @@
 package utils
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // GetKeys returns a slice of keys from the given map.
 func GetKeys[M ~map[K]V, K comparable, V any](m M) []K {
 	keys := make([]K, 0, len(m))
@@ -54,4 +59,64 @@ func AddValueToMap[M ~map[K]V, K comparable, V any](m M, key K, addition V) {
 	} else {
 		m[key] = addition
 	}
+}
+
+func IsFlatMap[M ~map[K]V, K comparable, V any](m M) bool {
+	for _, v := range m {
+		switch any(v).(type) {
+		case map[K]V:
+			return false
+		case []V:
+			return false
+		default:
+			// continue
+		}
+	}
+	return true
+}
+
+func FlattenMap[M ~map[K]V, K comparable, V any](m M) map[K]any {
+	result := make(map[K]any)
+	for k, v := range m {
+		switch val := any(v).(type) {
+		case string,
+			int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64,
+			float32, float64,
+			bool:
+			result[k] = val
+		case nil:
+			result[k] = "nil"
+		case []any, map[K]V:
+			result[k] = ToString(val)
+		default:
+			result[k] = ToString(val)
+		}
+	}
+	return result
+}
+
+func FlattenMapToString[M ~map[K]V, K comparable, V any](m M) map[K]string {
+	result := make(map[K]string)
+	for k, v := range m {
+		switch val := any(v).(type) {
+		case string:
+			result[k] = val
+		case int, int8, int16, int32, int64:
+			result[k] = strconv.FormatInt(any(val).(int64), 10)
+		case uint, uint8, uint16, uint32, uint64:
+			result[k] = strconv.FormatUint(any(val).(uint64), 10)
+		case float32, float64:
+			result[k] = strconv.FormatFloat(any(val).(float64), 'f', -1, 64)
+		case bool:
+			result[k] = strconv.FormatBool(any(val).(bool))
+		case nil:
+			result[k] = "nil"
+		case []any, map[K]V:
+			result[k] = ToString(val)
+		default:
+			result[k] = fmt.Sprintf("%v", val)
+		}
+	}
+	return result
 }

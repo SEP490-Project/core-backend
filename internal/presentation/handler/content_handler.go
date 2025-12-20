@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"core-backend/internal/application"
@@ -884,68 +883,6 @@ func (h *ContentHandler) trackContentView(c *gin.Context, content *responses.Con
 				zap.String("content_channel_id", cc.ID.String()))
 		}
 	}
-}
-
-// detectDeviceType determines device type from user agent
-func detectDeviceType(userAgent string) string {
-	ua := strings.ToLower(userAgent)
-	if strings.Contains(ua, "mobile") || strings.Contains(ua, "android") && !strings.Contains(ua, "tablet") {
-		return "mobile"
-	}
-	if strings.Contains(ua, "tablet") || strings.Contains(ua, "ipad") {
-		return "tablet"
-	}
-	return "desktop"
-}
-
-// detectPlatform determines OS from user agent
-func detectPlatform(userAgent string) string {
-	ua := strings.ToLower(userAgent)
-	switch {
-	case strings.Contains(ua, "iphone") || strings.Contains(ua, "ipad"):
-		return "iOS"
-	case strings.Contains(ua, "android"):
-		return "Android"
-	case strings.Contains(ua, "windows"):
-		return "Windows"
-	case strings.Contains(ua, "mac"):
-		return "macOS"
-	case strings.Contains(ua, "linux"):
-		return "Linux"
-	default:
-		return "unknown"
-	}
-}
-
-// detectBrowser determines browser from user agent
-func detectBrowser(userAgent string) string {
-	ua := strings.ToLower(userAgent)
-	switch {
-	case strings.Contains(ua, "edg"):
-		return "Edge"
-	case strings.Contains(ua, "chrome") && !strings.Contains(ua, "edg"):
-		return "Chrome"
-	case strings.Contains(ua, "safari") && !strings.Contains(ua, "chrome"):
-		return "Safari"
-	case strings.Contains(ua, "firefox"):
-		return "Firefox"
-	case strings.Contains(ua, "opera") || strings.Contains(ua, "opr"):
-		return "Opera"
-	default:
-		return "unknown"
-	}
-}
-
-// detectBot checks if user agent is a bot
-func detectBot(userAgent string) bool {
-	ua := strings.ToLower(userAgent)
-	botKeywords := []string{"bot", "crawler", "spider", "scraper", "curl", "wget", "python", "java", "http"}
-	for _, keyword := range botKeywords {
-		if strings.Contains(ua, keyword) {
-			return true
-		}
-	}
-	return false
 }
 
 // PublishToChannel publishes content to a specific social media channel

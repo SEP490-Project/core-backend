@@ -108,23 +108,3 @@ type ContentPerformanceDTO struct {
 	PublishedAt      *time.Time `json:"published_at"`
 	ThumbnailURL     *string    `json:"thumbnail_url"`
 }
-
-// ScheduleDTO represents schedule data from database query
-type ScheduleDTO struct {
-	ScheduleID       uuid.UUID  `json:"schedule_id"`
-	ContentChannelID uuid.UUID  `json:"content_channel_id"`
-	ContentID        uuid.UUID  `json:"content_id"`
-	ContentTitle     string     `json:"content_title"`
-	ContentType      string     `json:"content_type"`
-	ChannelID        uuid.UUID  `json:"channel_id"`
-	ChannelName      string     `json:"channel_name"`
-	ChannelCode      string     `json:"channel_code"`
-	ScheduledAt      time.Time  `json:"scheduled_at"`
-	Status           string     `json:"status"`
-	RetryCount       int        `json:"retry_count"`
-	LastError        *string    `json:"last_error"`
-	ExecutedAt       *time.Time `json:"executed_at"`
-	CreatedAt        time.Time  `json:"created_at"`
-	CreatedBy        uuid.UUID  `json:"created_by"`
-	CreatedByName    string     `json:"created_by_name"`
-}

@@ -269,7 +269,7 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 	}
 
 	// Get user details from preloaded session
-	user := &session.User
+	user := session.User
 	if user.ID == uuid.Nil {
 		zap.L().Error("Failed to retrieve user from session during token refresh",
 			zap.String("user_id", session.UserID.String()))
@@ -318,7 +318,7 @@ func (s *authService) RefreshToken(ctx context.Context, request *requests.Refres
 	}
 
 	// Build response
-	userInfo := responses.UserInfoResponse{}.ToResponse(user)
+	userInfo := responses.UserInfoResponse{}.ToResponse(&user)
 
 	zap.L().Info("Token refresh successful",
 		zap.String("user_id", user.ID.String()),

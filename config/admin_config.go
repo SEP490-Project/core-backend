@@ -33,20 +33,25 @@ type AdminConfig struct {
 	BotSignatures              []string `mapstructure:"bot_signatures"`
 
 	// Cron Jobs Configuration
-	CTRAggregationEnabled               bool   `mapstructure:"ctr_aggregation_enabled"`
-	CTRAggregationIntervalMinutes       int    `mapstructure:"ctr_aggregation_interval_minutes"`
-	ExpiredContractCleanupEnabled       bool   `mapstructure:"expired_contract_cleanup_enabled"`
-	ExpiredContractCleanupCronExpr      string `mapstructure:"expired_contract_cleanup_cron_expr"`
-	PayOSExpiryCheckEnabled             bool   `mapstructure:"payos_expiry_check_enabled"`
-	PayOSExpiryCheckIntervalMinutes     int    `mapstructure:"payos_expiry_check_interval_minutes"`
-	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled"`
-	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes"`
-	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled"`
-	TikTokStatusPollerCronExpr          string `mapstructure:"tiktok_status_poller_cron_expr"`
-	SocialMetricsPollerEnabled          bool   `mapstructure:"social_metrics_poller_enabled"`
-	SocialMetricsPollerIntervalCronExpr string `mapstructure:"social_metrics_poller_interval_cron_expr"`
-	ContentMetricsPollerEnabled         bool   `mapstructure:"content_metrics_poller_enabled"`
-	ContentMetricsPollerCronExpr        string `mapstructure:"content_metrics_poller_cron_expr"`
+	CTRAggregationEnabled               bool   `mapstructure:"ctr_aggregation_enabled" job:"ctr_aggregation_job"`
+	CTRAggregationIntervalMinutes       int    `mapstructure:"ctr_aggregation_interval_minutes" job:"ctr_aggregation_job"`
+	ExpiredLinkCleanupEnabled           bool   `mapstructure:"expired_link_cleanup_enabled" job:"expired_link_cleanup_job"`
+	ExpiredLinkCleanupCronExpr          string `mapstructure:"expired_link_cleanup_cron_expr" job:"expired_link_cleanup_job"`
+	PayOSExpiryCheckEnabled             bool   `mapstructure:"payos_expiry_check_enabled" job:"payos_expiry_check_job"`
+	PayOSExpiryCheckIntervalMinutes     int    `mapstructure:"payos_expiry_check_interval_minutes" job:"payos_expiry_check_job"`
+	PreOrderOpeningCheckEnable          bool   `mapstructure:"preorder_opening_check_enabled" job:"pre_order_opening_check_job"`
+	PreOrderOpeningCheckIntervalMinutes int    `mapstructure:"preorder_opening_check_interval_minutes" job:"pre_order_opening_check_job"`
+	TikTokStatusPollerEnabled           bool   `mapstructure:"tiktok_status_poller_enabled" job:"tiktok_status_poller_job"`
+	TikTokStatusPollerCronExpr          string `mapstructure:"tiktok_status_poller_cron_expr" job:"tiktok_status_poller_job"`
+	ContentMetricsPollerEnabled         bool   `mapstructure:"content_metrics_poller_enabled" job:"content_metrics_poller_job"`
+	ContentMetricsPollerCronExpr        string `mapstructure:"content_metrics_poller_cron_expr" job:"content_metrics_poller_job"`
+	DailyCronJobEnabled                 bool   `mapstructure:"daily_cron_job_enabled" job:"daily_job"`
+	DailyCronJobCronExpr                string `mapstructure:"daily_cron_job_cron_expr" job:"daily_job"`
+	DailyCronJobWorkerCount             int    `mapstructure:"daily_cron_job_worker_count" job:"daily_job"`
+
+	// Daily Job configuration fields
+	ContractPaymentAllowedOverdueDays int `mapstructure:"contract_payment_allowed_overdue_days"`
+	ContractPaymentNotificationHour   int `mapstructure:"contract_payment_notification_hour"`
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
@@ -77,8 +82,8 @@ type AdminConfig struct {
 	AffiliateHashLength int    `mapstructure:"affiliate_hash_length"`
 	AffiliateURLFormat  string `mapstructure:"affiliate_url_format"`
 
-	// Content View Tracking
-	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"` // TTL for unique view deduplication cache (default: 24)
+	// Cache TTLs
+	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"`
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -156,6 +161,9 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("affiliate_url_format", "%s/r/%s")
 
 	adminViper.SetDefault("content_view_unique_cache_ttl_hours", 24)
+
+	adminViper.SetDefault("contract_payment_allowed_overdue_days", 5)
+	adminViper.SetDefault("contract_payment_notification_hour", 8)
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database
@@ -166,7 +174,7 @@ func (c *AdminConfig) Override(models []model.Config) error {
 	// Override fields if they exist in the configMap with reflect
 	overridenCount := 0
 	val := reflect.ValueOf(c)
-	typ := reflect.TypeOf(c)
+	typ := reflect.TypeFor[*AdminConfig]()
 	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 		typ = typ.Elem()
