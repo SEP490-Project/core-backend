@@ -56,9 +56,9 @@ func toStringInternal(v reflect.Value, seen map[uintptr]bool) string {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(fmt.Sprintf("%s: %s",
+			fmt.Fprintf(&sb, "%s: %s",
 				toStringInternal(key, seen),
-				toStringInternal(v.MapIndex(key), seen)))
+				toStringInternal(v.MapIndex(key), seen))
 		}
 		sb.WriteString("}")
 		return sb.String()
@@ -73,9 +73,9 @@ func toStringInternal(v reflect.Value, seen map[uintptr]bool) string {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(fmt.Sprintf("%s: %s",
+			fmt.Fprintf(&sb, "%s: %s",
 				field.Name,
-				toStringInternal(v.Field(i), seen)))
+				toStringInternal(v.Field(i), seen))
 		}
 		sb.WriteString("}")
 		return sb.String()
@@ -153,4 +153,41 @@ func IfNotNil[T any, R any](ptr *T, getter func(*T) R) R {
 		return zero
 	}
 	return getter(ptr)
+}
+
+// FindFieldByTag searches for a struct field by its tag key and value.
+func FindFieldByTag(v any, tagKey, tagValue string) string {
+	t := reflect.TypeOf(v)
+
+	// Handle pointer to struct
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.Tag.Get(tagKey) == tagValue {
+			return field.Name
+		}
+	}
+	return ""
+}
+
+// FindFieldAndValueByTagKey searches for struct fields by their tag key and optional tag value,
+// and returns a map of field names and their values.
+func FindFieldAndValueByTagKey(v any, tagKey string, tagValue *string) map[string]any {
+	t := reflect.TypeOf(v)
+	// Handle pointer to struct
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	result := make(map[string]any)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tagVal := field.Tag.Get(tagKey)
+		if tagVal != "" && (tagValue == nil || tagVal == *tagValue) {
+			result[field.Name] = reflect.ValueOf(v).Elem().FieldByName(field.Name).Interface()
+		}
+	}
+	return result
 }
