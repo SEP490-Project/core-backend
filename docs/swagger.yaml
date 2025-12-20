@@ -1121,6 +1121,7 @@ definitions:
     - PENDING_APPROVAL
     - DEADLINE_APPROACHING
     - MILESTONE_DEADLINE
+    - CONTRACT_TERMINATE_FAILED
     - CAMPAIGN_DEADLINE
     - BUDGET_EXCEEDED
     - ORDER_ISSUE
@@ -1137,6 +1138,7 @@ definitions:
     - AlertCategoryPendingApproval
     - AlertCategoryDeadlineApproaching
     - AlertCategoryMilestoneDeadline
+    - AlertCategoryContractTerminateFailed
     - AlertCategoryCampaignDeadline
     - AlertCategoryBudgetExceeded
     - AlertCategoryOrderIssue
@@ -1374,11 +1376,13 @@ definitions:
     - EMAIL
     - PUSH
     - IN_APP
+    - ALL
     type: string
     x-enum-varnames:
     - NotificationTypeEmail
     - NotificationTypePush
     - NotificationTypeInApp
+    - NotificationTypeAll
   enum.OrderStatus:
     enum:
     - PENDING
@@ -1507,6 +1511,8 @@ definitions:
     - ReactionTypeThankful
   enum.ReferenceType:
     enum:
+    - CONTENT_CHANNEL
+    - NOTIFICATION
     - CONTENT
     - SCHEDULE
     - MILESTONE
@@ -1515,8 +1521,11 @@ definitions:
     - ORDER
     - USER
     - BRAND
+    - OTHER
     type: string
     x-enum-varnames:
+    - ReferenceTypeContentChannel
+    - ReferenceTypeNotification
     - ReferenceTypeContent
     - ReferenceTypeSchedule
     - ReferenceTypeMilestone
@@ -1525,6 +1534,7 @@ definitions:
     - ReferenceTypeOrder
     - ReferenceTypeUser
     - ReferenceTypeBrand
+    - ReferenceTypeOther
   enum.TaskType:
     enum:
     - PRODUCT
@@ -2186,6 +2196,59 @@ definitions:
         maxLength: 1000
         type: string
     type: object
+  requests.AsynqArchiveTaskRequest:
+    properties:
+      queue:
+        example: default
+        type: string
+      task_id:
+        example: d:default:t:task_id
+        type: string
+    required:
+    - queue
+    - task_id
+    type: object
+  requests.AsynqDeleteTaskRequest:
+    properties:
+      queue:
+        example: default
+        type: string
+      state:
+        enum:
+        - scheduled
+        - pending
+        - retry
+        - archived
+        example: scheduled
+        type: string
+      task_id:
+        example: d:default:t:task_id
+        type: string
+    required:
+    - queue
+    - state
+    - task_id
+    type: object
+  requests.AsynqQueueActionRequest:
+    properties:
+      queue:
+        example: default
+        type: string
+    required:
+    - queue
+    type: object
+  requests.AsynqRunTaskRequest:
+    properties:
+      queue:
+        example: default
+        type: string
+      task_id:
+        example: d:default:t:task_id
+        type: string
+    required:
+    - queue
+    - task_id
+    type: object
   requests.BatchScheduleItem:
     properties:
       auto_post:
@@ -2368,6 +2431,53 @@ definitions:
     - container_type
     - dispenser_type
     - price
+    type: object
+  requests.CacheDeleteKeyRequest:
+    properties:
+      keys:
+        example:
+        - user:123
+        - session:456
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - keys
+    type: object
+  requests.CacheDeletePatternRequest:
+    properties:
+      confirm_delete_all:
+        example: false
+        type: boolean
+      pattern:
+        example: user:*
+        type: string
+    required:
+    - pattern
+    type: object
+  requests.CacheFlushRequest:
+    properties:
+      confirm:
+        example: true
+        type: boolean
+    required:
+    - confirm
+    type: object
+  requests.CacheSetKeyRequest:
+    properties:
+      key:
+        example: user:123
+        type: string
+      ttl:
+        description: TTL in seconds, 0 = no expiration
+        example: 3600
+        minimum: 0
+        type: integer
+      value: {}
+    required:
+    - key
+    - value
     type: object
   requests.ChangePasswordRequest:
     properties:
@@ -2631,20 +2741,6 @@ definitions:
     type: object
   requests.CreateContentRequest:
     properties:
-      affiliate_link:
-        description: "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID
-          is provided, it indicates an existing affiliate link to be associated.\n2.
-          If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink
-          record is created and probably used in the Body.\n\t  Check in the Body
-          field for usage of the new affiliate link.\n3. If neither is provided, no
-          affiliate link is associated. However, if content associlated with contract
-          of type AFFILIATE,\n\t  forcefully created an affiliate link record. If
-          the Body does not contains affiliate link,\n\t  then automatically added
-          it at the end of the body."
-        maxLength: 1000
-        type: string
-      affiliate_link_id:
-        type: string
       ai_generated_text:
         type: string
       blog_fields:
@@ -2662,6 +2758,18 @@ definitions:
         type: string
       title:
         maxLength: 500
+        type: string
+      tracking_link:
+        description: "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID
+          is provided, it indicates an existing affiliate link to be associated.\n2.
+          If TrackingLink is provided (and AffiliateLinkID is nil), affiliateLink
+          record is created and probably used in the Body.\n\t  Check in the Body
+          field for usage of the new affiliate link.\n3. If neither is provided, no
+          affiliate link is associated. However, if content associlated with contract
+          of type AFFILIATE,\n\t  forcefully created an affiliate link record. If
+          the Body does not contains affiliate link,\n\t  then automatically added
+          it at the end of the body."
+        maxLength: 1000
         type: string
       type:
         enum:
@@ -3315,6 +3423,10 @@ definitions:
         - high
         example: normal
         type: string
+      schedule_id:
+        description: In case the notification is published through scheduling
+        example: 123e4567-e89b-12d3-a456-426614174000
+        type: string
       subject:
         example: Test Email Subject
         maxLength: 255
@@ -3380,6 +3492,11 @@ definitions:
         example: task_assigned
         minLength: 1
         type: string
+      schedule_id:
+        additionalProperties:
+          type: string
+        description: In case the notification is published through scheduling
+        type: object
       title:
         example: Test Notification
         maxLength: 255
@@ -3422,6 +3539,10 @@ definitions:
         type: integer
       ios_sound:
         example: default
+        type: string
+      schedule_id:
+        description: In case the notification is published through scheduling
+        example: 123e4567-e89b-12d3-a456-426614174000
         type: string
       title:
         example: Test Push Notification
@@ -4722,6 +4843,185 @@ definitions:
       unread_count:
         type: integer
     type: object
+  responses.AsynqOverviewResponse:
+    properties:
+      queues:
+        items:
+          $ref: '#/definitions/responses.AsynqQueueInfo'
+        type: array
+      status:
+        example: healthy
+        type: string
+      total_active:
+        example: 5
+        type: integer
+      total_archived:
+        example: 100
+        type: integer
+      total_completed:
+        example: 1000
+        type: integer
+      total_pending:
+        example: 10
+        type: integer
+      total_processed:
+        example: 1200
+        type: integer
+      total_queues:
+        example: 3
+        type: integer
+      total_retry:
+        example: 2
+        type: integer
+      total_scheduled:
+        example: 15
+        type: integer
+    type: object
+  responses.AsynqQueueInfo:
+    properties:
+      active:
+        example: 5
+        type: integer
+      archived:
+        example: 3
+        type: integer
+      completed:
+        example: 100
+        type: integer
+      name:
+        example: default
+        type: string
+      paused:
+        example: false
+        type: boolean
+      pending:
+        example: 10
+        type: integer
+      processed:
+        example: 120
+        type: integer
+      retry:
+        example: 2
+        type: integer
+      scheduled:
+        example: 5
+        type: integer
+      size:
+        example: 25
+        type: integer
+      timestamp:
+        example: "2025-12-18T10:00:00Z"
+        type: string
+    type: object
+  responses.AsynqQueueStatsResponse:
+    properties:
+      active:
+        example: 5
+        type: integer
+      archived:
+        example: 3
+        type: integer
+      avg_process_time:
+        description: seconds
+        example: 2.5
+        type: number
+      completed:
+        example: 100
+        type: integer
+      completed_today:
+        example: 45
+        type: integer
+      failed:
+        example: 20
+        type: integer
+      failed_today:
+        example: 5
+        type: integer
+      name:
+        example: default
+        type: string
+      paused:
+        example: false
+        type: boolean
+      pending:
+        example: 10
+        type: integer
+      processed:
+        example: 120
+        type: integer
+      processed_today:
+        example: 50
+        type: integer
+      retry:
+        example: 2
+        type: integer
+      scheduled:
+        example: 5
+        type: integer
+      size:
+        example: 25
+        type: integer
+      timestamp:
+        example: "2025-12-18T10:00:00Z"
+        type: string
+    type: object
+  responses.AsynqTaskListResponse:
+    properties:
+      limit:
+        example: 20
+        type: integer
+      page:
+        example: 1
+        type: integer
+      tasks:
+        items:
+          $ref: '#/definitions/responses.AsynqTaskResponse'
+        type: array
+      total_count:
+        example: 50
+        type: integer
+    type: object
+  responses.AsynqTaskResponse:
+    properties:
+      completed_at:
+        example: "2025-12-18T15:01:00Z"
+        type: string
+      deadline:
+        example: "2025-12-18T16:00:00Z"
+        type: string
+      id:
+        example: d:default:t:123
+        type: string
+      last_err:
+        example: ""
+        type: string
+      max_retry:
+        example: 3
+        type: integer
+      next_process_at:
+        example: "2025-12-18T15:00:00Z"
+        type: string
+      payload: {}
+      queue:
+        example: default
+        type: string
+      result:
+        example: ""
+        type: string
+      retried:
+        example: 0
+        type: integer
+      state:
+        example: scheduled
+        type: string
+      timeout:
+        description: seconds
+        example: 1800
+        type: integer
+      type:
+        example: task:content:schedule
+        type: string
+    type: object
   responses.BarChartDataPoint:
     properties:
       engagement:
@@ -5172,6 +5472,90 @@ definitions:
       commit:
         type: string
       version:
+        type: string
+    type: object
+  responses.CacheKeyInfo:
+    properties:
+      key:
+        example: user:123
+        type: string
+      ttl:
+        description: -1 for no expiration, -2 for expired
+        example: 3600
+        type: integer
+      type:
+        example: string
+        type: string
+    type: object
+  responses.CacheKeyValueResponse:
+    properties:
+      key:
+        example: user:123
+        type: string
+      ttl:
+        example: 3600
+        type: integer
+      type:
+        example: string
+        type: string
+      value: {}
+    type: object
+  responses.CacheKeysResponse:
+    properties:
+      keys:
+        items:
+          $ref: '#/definitions/responses.CacheKeyInfo'
+        type: array
+      pattern:
+        example: user:*
+        type: string
+      total_count:
+        example: 100
+        type: integer
+    type: object
+  responses.CacheOverviewResponse:
+    properties:
+      connected_clients:
+        example: "10"
+        type: string
+      evicted_keys:
+        example: "10"
+        type: string
+      expired_keys:
+        example: "50"
+        type: string
+      hit_rate:
+        example: 80.00%
+        type: string
+      keyspace_hits:
+        example: "8000"
+        type: string
+      keyspace_misses:
+        example: "2000"
+        type: string
+      status:
+        example: connected
+        type: string
+      total_commands_processed:
+        example: "10000"
+        type: string
+      total_connections_received:
+        example: "5000"
+        type: string
+      total_keys:
+        example: 1234
+        type: integer
+      uptime:
+        example: "86400"
+        type: string
+      used_memory:
+        example: 1.5M
+        type: string
+      used_memory_peak:
+        example: 2.0M
+        type: string
+      version:
+        example: 7.2.0
         type: string
     type: object
   responses.CampaignDetailsResponse:
@@ -8295,6 +8679,8 @@ definitions:
         type: string
       build_info:
         $ref: '#/definitions/responses.BuildInfo'
+      current_time:
+        type: string
       disk:
         $ref: '#/definitions/responses.DiskInfo'
       environment:
@@ -8314,6 +8700,8 @@ definitions:
       num_cpu:
         type: integer
       os:
+        type: string
+      timezone:
         type: string
       uptime:
         type: string
@@ -9010,6 +9398,579 @@ paths:
       summary: Get System Specs
       tags:
       - System
+  /api/v1/admin/asynq/overview:
+    get:
+      consumes:
+      - application/json
+      description: Returns an overview of Asynq queues, tasks, and status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AsynqOverviewResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Asynq Overview
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/queues/pause:
+    patch:
+      consumes:
+      - application/json
+      description: Pauses task processing in a queue
+      parameters:
+      - description: Pause queue request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AsynqQueueActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Pause Queue
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/queues/stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed statistics for a specific queue
+      parameters:
+      - description: Queue name
+        in: query
+        name: queue
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AsynqQueueStatsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Queue Statistics
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/queues/unpause:
+    patch:
+      consumes:
+      - application/json
+      description: Resumes task processing in a paused queue
+      parameters:
+      - description: Unpause queue request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AsynqQueueActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Unpause Queue
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/tasks:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes or cancels a task (for scheduled, pending, retry, or archived
+        tasks)
+      parameters:
+      - description: Delete task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AsynqDeleteTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete/Cancel Task
+      tags:
+      - Asynq Admin
+    get:
+      consumes:
+      - application/json
+      description: Returns tasks in a specific queue and state
+      parameters:
+      - description: Queue name (default, critical, low)
+        in: query
+        name: queue
+        required: true
+        type: string
+      - description: Task state (scheduled, pending, active, retry, archived)
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: 'Limit number of results (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Page number for pagination (default: 1)'
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AsynqTaskListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Asynq Tasks
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/tasks/archive:
+    patch:
+      consumes:
+      - application/json
+      description: Archives a task (moves it to archived state)
+      parameters:
+      - description: Archive task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AsynqArchiveTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Archive Task
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/tasks/details:
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific task
+      parameters:
+      - description: Queue name
+        in: query
+        name: queue
+        required: true
+        type: string
+      - description: Task ID
+        in: query
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.AsynqTaskResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Task Details
+      tags:
+      - Asynq Admin
+  /api/v1/admin/asynq/tasks/run:
+    post:
+      consumes:
+      - application/json
+      description: Forces a scheduled or retry task to run immediately
+      parameters:
+      - description: Run task request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.AsynqRunTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Run Task Immediately
+      tags:
+      - Asynq Admin
+  /api/v1/admin/cache/flush:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes all keys in the current database (USE WITH CAUTION)
+      parameters:
+      - description: Flush request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CacheFlushRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Flush Cache Database
+      tags:
+      - Cache Admin
+  /api/v1/admin/cache/keys:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes one or more cache keys
+      parameters:
+      - description: Delete key request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CacheDeleteKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Cache Key
+      tags:
+      - Cache Admin
+    get:
+      consumes:
+      - application/json
+      description: Returns cache keys matching a pattern
+      parameters:
+      - default: '*'
+        description: Key pattern (* for all, prefix:* for prefix match)
+        in: query
+        name: pattern
+        type: string
+      - default: 100
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CacheKeysResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List Cache Keys
+      tags:
+      - Cache Admin
+    post:
+      consumes:
+      - application/json
+      description: Sets a cache key with an optional TTL
+      parameters:
+      - description: Set key request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CacheSetKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Set Cache Key
+      tags:
+      - Cache Admin
+  /api/v1/admin/cache/keys/{key}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the value of a specific cache key
+      parameters:
+      - description: Cache key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CacheKeyValueResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Cache Key Value
+      tags:
+      - Cache Admin
+  /api/v1/admin/cache/keys/by-pattern:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes all cache keys matching a pattern
+      parameters:
+      - description: Delete pattern request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CacheDeletePatternRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Cache Keys by Pattern
+      tags:
+      - Cache Admin
+  /api/v1/admin/cache/overview:
+    get:
+      consumes:
+      - application/json
+      description: Returns cache statistics and connection info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.CacheOverviewResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Cache Overview
+      tags:
+      - Cache Admin
   /api/v1/admin/rabbitmq/dlq/retry:
     post:
       consumes:
@@ -13971,9 +14932,9 @@ paths:
       - application/json
       description: Returns list of content schedules with filtering
       parameters:
-      - description: Filter by content channel ID
+      - description: Filter by reference ID (e.g. content channel ID)
         in: query
-        name: content_channel_id
+        name: reference_id
         type: string
       - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
         in: query
@@ -16843,6 +17804,35 @@ paths:
       summary: Order Update Webhook
       tags:
       - Webhook
+  /api/v1/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all registered cron jobs with their statuses
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get All Registered Jobs
+      tags:
+      - Jobs
   /api/v1/jobs/content-metrics-poller:
     post:
       consumes:
@@ -17074,6 +18064,45 @@ paths:
       security:
       - BearerAuth: []
       summary: Trigger All Jobs
+      tags:
+      - Jobs
+  /api/v1/jobs/trigger/{jobName}:
+    post:
+      consumes:
+      - application/json
+      description: Manually trigger a specific job
+      parameters:
+      - description: Job name
+        in: path
+        name: jobName
+        required: true
+        type: string
+      - description: 'Run job asynchronously (default: true)'
+        in: query
+        name: async
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Job By Name
       tags:
       - Jobs
   /api/v1/location/address:

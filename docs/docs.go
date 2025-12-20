@@ -70,6 +70,937 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/asynq/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns an overview of Asynq queues, tasks, and status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Get Asynq Overview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AsynqOverviewResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/queues/pause": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pauses task processing in a queue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Pause Queue",
+                "parameters": [
+                    {
+                        "description": "Pause queue request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AsynqQueueActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/queues/stats": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns detailed statistics for a specific queue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Get Queue Statistics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Queue name",
+                        "name": "queue",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AsynqQueueStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/queues/unpause": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resumes task processing in a paused queue",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Unpause Queue",
+                "parameters": [
+                    {
+                        "description": "Unpause queue request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AsynqQueueActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns tasks in a specific queue and state",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "List Asynq Tasks",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Queue name (default, critical, low)",
+                        "name": "queue",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task state (scheduled, pending, active, retry, archived)",
+                        "name": "state",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit number of results (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AsynqTaskListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes or cancels a task (for scheduled, pending, retry, or archived tasks)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Delete/Cancel Task",
+                "parameters": [
+                    {
+                        "description": "Delete task request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AsynqDeleteTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/tasks/archive": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Archives a task (moves it to archived state)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Archive Task",
+                "parameters": [
+                    {
+                        "description": "Archive task request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AsynqArchiveTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/tasks/details": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns details of a specific task",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Get Task Details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Queue name",
+                        "name": "queue",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Task ID",
+                        "name": "task_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.AsynqTaskResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/asynq/tasks/run": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Forces a scheduled or retry task to run immediately",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Asynq Admin"
+                ],
+                "summary": "Run Task Immediately",
+                "parameters": [
+                    {
+                        "description": "Run task request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AsynqRunTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/flush": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes all keys in the current database (USE WITH CAUTION)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Flush Cache Database",
+                "parameters": [
+                    {
+                        "description": "Flush request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CacheFlushRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/keys": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns cache keys matching a pattern",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "List Cache Keys",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "*",
+                        "description": "Key pattern (* for all, prefix:* for prefix match)",
+                        "name": "pattern",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CacheKeysResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets a cache key with an optional TTL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Set Cache Key",
+                "parameters": [
+                    {
+                        "description": "Set key request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CacheSetKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes one or more cache keys",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Delete Cache Key",
+                "parameters": [
+                    {
+                        "description": "Delete key request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CacheDeleteKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/keys/by-pattern": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes all cache keys matching a pattern",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Delete Cache Keys by Pattern",
+                "parameters": [
+                    {
+                        "description": "Delete pattern request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CacheDeletePatternRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/keys/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the value of a specific cache key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Get Cache Key Value",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cache key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CacheKeyValueResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/overview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns cache statistics and connection info",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Get Cache Overview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.CacheOverviewResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/rabbitmq/dlq/retry": {
             "post": {
                 "security": [
@@ -8060,8 +8991,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by content channel ID",
-                        "name": "content_channel_id",
+                        "description": "Filter by reference ID (e.g. content channel ID)",
+                        "name": "reference_id",
                         "in": "query"
                     },
                     {
@@ -12506,6 +13437,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of all registered cron jobs with their statuses",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Get All Registered Jobs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/jobs/content-metrics-poller": {
             "post": {
                 "security": [
@@ -12848,6 +13825,67 @@ const docTemplate = `{
                     "Jobs"
                 ],
                 "summary": "Trigger All Jobs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/jobs/trigger/{jobName}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Manually trigger a specific job",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Trigger Job By Name",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job name",
+                        "name": "jobName",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Run job asynchronously (default: true)",
+                        "name": "async",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -22888,6 +23926,7 @@ const docTemplate = `{
                 "PENDING_APPROVAL",
                 "DEADLINE_APPROACHING",
                 "MILESTONE_DEADLINE",
+                "CONTRACT_TERMINATE_FAILED",
                 "CAMPAIGN_DEADLINE",
                 "BUDGET_EXCEEDED",
                 "ORDER_ISSUE",
@@ -22904,6 +23943,7 @@ const docTemplate = `{
                 "AlertCategoryPendingApproval",
                 "AlertCategoryDeadlineApproaching",
                 "AlertCategoryMilestoneDeadline",
+                "AlertCategoryContractTerminateFailed",
                 "AlertCategoryCampaignDeadline",
                 "AlertCategoryBudgetExceeded",
                 "AlertCategoryOrderIssue",
@@ -23190,12 +24230,14 @@ const docTemplate = `{
             "enum": [
                 "EMAIL",
                 "PUSH",
-                "IN_APP"
+                "IN_APP",
+                "ALL"
             ],
             "x-enum-varnames": [
                 "NotificationTypeEmail",
                 "NotificationTypePush",
-                "NotificationTypeInApp"
+                "NotificationTypeInApp",
+                "NotificationTypeAll"
             ]
         },
         "enum.OrderStatus": {
@@ -23351,6 +24393,8 @@ const docTemplate = `{
         "enum.ReferenceType": {
             "type": "string",
             "enum": [
+                "CONTENT_CHANNEL",
+                "NOTIFICATION",
                 "CONTENT",
                 "SCHEDULE",
                 "MILESTONE",
@@ -23358,9 +24402,12 @@ const docTemplate = `{
                 "CONTRACT",
                 "ORDER",
                 "USER",
-                "BRAND"
+                "BRAND",
+                "OTHER"
             ],
             "x-enum-varnames": [
+                "ReferenceTypeContentChannel",
+                "ReferenceTypeNotification",
                 "ReferenceTypeContent",
                 "ReferenceTypeSchedule",
                 "ReferenceTypeMilestone",
@@ -23368,7 +24415,8 @@ const docTemplate = `{
                 "ReferenceTypeContract",
                 "ReferenceTypeOrder",
                 "ReferenceTypeUser",
-                "ReferenceTypeBrand"
+                "ReferenceTypeBrand",
+                "ReferenceTypeOther"
             ]
         },
         "enum.TaskType": {
@@ -24339,6 +25387,80 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.AsynqArchiveTaskRequest": {
+            "type": "object",
+            "required": [
+                "queue",
+                "task_id"
+            ],
+            "properties": {
+                "queue": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "task_id": {
+                    "type": "string",
+                    "example": "d:default:t:task_id"
+                }
+            }
+        },
+        "requests.AsynqDeleteTaskRequest": {
+            "type": "object",
+            "required": [
+                "queue",
+                "state",
+                "task_id"
+            ],
+            "properties": {
+                "queue": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "scheduled",
+                        "pending",
+                        "retry",
+                        "archived"
+                    ],
+                    "example": "scheduled"
+                },
+                "task_id": {
+                    "type": "string",
+                    "example": "d:default:t:task_id"
+                }
+            }
+        },
+        "requests.AsynqQueueActionRequest": {
+            "type": "object",
+            "required": [
+                "queue"
+            ],
+            "properties": {
+                "queue": {
+                    "type": "string",
+                    "example": "default"
+                }
+            }
+        },
+        "requests.AsynqRunTaskRequest": {
+            "type": "object",
+            "required": [
+                "queue",
+                "task_id"
+            ],
+            "properties": {
+                "queue": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "task_id": {
+                    "type": "string",
+                    "example": "d:default:t:task_id"
+                }
+            }
+        },
         "requests.BatchScheduleItem": {
             "type": "object",
             "required": [
@@ -24594,6 +25716,73 @@ const docTemplate = `{
                     "minimum": 0,
                     "example": 5
                 }
+            }
+        },
+        "requests.CacheDeleteKeyRequest": {
+            "type": "object",
+            "required": [
+                "keys"
+            ],
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "user:123",
+                        "session:456"
+                    ]
+                }
+            }
+        },
+        "requests.CacheDeletePatternRequest": {
+            "type": "object",
+            "required": [
+                "pattern"
+            ],
+            "properties": {
+                "confirm_delete_all": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "pattern": {
+                    "type": "string",
+                    "example": "user:*"
+                }
+            }
+        },
+        "requests.CacheFlushRequest": {
+            "type": "object",
+            "required": [
+                "confirm"
+            ],
+            "properties": {
+                "confirm": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "requests.CacheSetKeyRequest": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "user:123"
+                },
+                "ttl": {
+                    "description": "TTL in seconds, 0 = no expiration",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 3600
+                },
+                "value": {}
             }
         },
         "requests.ChangePasswordRequest": {
@@ -24953,14 +26142,6 @@ const docTemplate = `{
                 "type"
             ],
             "properties": {
-                "affiliate_link": {
-                    "description": "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID is provided, it indicates an existing affiliate link to be associated.\n2. If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.\n\t  Check in the Body field for usage of the new affiliate link.\n3. If neither is provided, no affiliate link is associated. However, if content associlated with contract of type AFFILIATE,\n\t  forcefully created an affiliate link record. If the Body does not contains affiliate link,\n\t  then automatically added it at the end of the body.",
-                    "type": "string",
-                    "maxLength": 1000
-                },
-                "affiliate_link_id": {
-                    "type": "string"
-                },
                 "ai_generated_text": {
                     "type": "string"
                 },
@@ -24985,6 +26166,11 @@ const docTemplate = `{
                 "title": {
                     "type": "string",
                     "maxLength": 500
+                },
+                "tracking_link": {
+                    "description": "Optional affiliateLink fields. Has three stages:\n1. If AffiliateLinkID is provided, it indicates an existing affiliate link to be associated.\n2. If TrackingLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.\n\t  Check in the Body field for usage of the new affiliate link.\n3. If neither is provided, no affiliate link is associated. However, if content associlated with contract of type AFFILIATE,\n\t  forcefully created an affiliate link record. If the Body does not contains affiliate link,\n\t  then automatically added it at the end of the body.",
+                    "type": "string",
+                    "maxLength": 1000
                 },
                 "type": {
                     "type": "string",
@@ -25873,6 +27059,11 @@ const docTemplate = `{
                     ],
                     "example": "normal"
                 },
+                "schedule_id": {
+                    "description": "In case the notification is published through scheduling",
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                },
                 "subject": {
                     "type": "string",
                     "maxLength": 255,
@@ -25959,6 +27150,13 @@ const docTemplate = `{
                     "minLength": 1,
                     "example": "task_assigned"
                 },
+                "schedule_id": {
+                    "description": "In case the notification is published through scheduling",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "title": {
                     "type": "string",
                     "maxLength": 255,
@@ -26013,6 +27211,11 @@ const docTemplate = `{
                 "ios_sound": {
                     "type": "string",
                     "example": "default"
+                },
+                "schedule_id": {
+                    "description": "In case the notification is published through scheduling",
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 },
                 "title": {
                     "type": "string",
@@ -27825,6 +29028,250 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.AsynqOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "queues": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AsynqQueueInfo"
+                    }
+                },
+                "status": {
+                    "type": "string",
+                    "example": "healthy"
+                },
+                "total_active": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "total_archived": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "total_completed": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "total_pending": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "total_processed": {
+                    "type": "integer",
+                    "example": 1200
+                },
+                "total_queues": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "total_retry": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "total_scheduled": {
+                    "type": "integer",
+                    "example": 15
+                }
+            }
+        },
+        "responses.AsynqQueueInfo": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "archived": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "completed": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "name": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "paused": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "pending": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "processed": {
+                    "type": "integer",
+                    "example": 120
+                },
+                "retry": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "scheduled": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2025-12-18T10:00:00Z"
+                }
+            }
+        },
+        "responses.AsynqQueueStatsResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "archived": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "avg_process_time": {
+                    "description": "seconds",
+                    "type": "number",
+                    "example": 2.5
+                },
+                "completed": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "completed_today": {
+                    "type": "integer",
+                    "example": 45
+                },
+                "failed": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "failed_today": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "name": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "paused": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "pending": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "processed": {
+                    "type": "integer",
+                    "example": 120
+                },
+                "processed_today": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "retry": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "scheduled": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "size": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2025-12-18T10:00:00Z"
+                }
+            }
+        },
+        "responses.AsynqTaskListResponse": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 20
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.AsynqTaskResponse"
+                    }
+                },
+                "total_count": {
+                    "type": "integer",
+                    "example": 50
+                }
+            }
+        },
+        "responses.AsynqTaskResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "string",
+                    "example": "2025-12-18T15:01:00Z"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2025-12-18T16:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "d:default:t:123"
+                },
+                "last_err": {
+                    "type": "string",
+                    "example": ""
+                },
+                "max_retry": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "next_process_at": {
+                    "type": "string",
+                    "example": "2025-12-18T15:00:00Z"
+                },
+                "payload": {},
+                "queue": {
+                    "type": "string",
+                    "example": "default"
+                },
+                "result": {
+                    "type": "string",
+                    "example": ""
+                },
+                "retried": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "state": {
+                    "type": "string",
+                    "example": "scheduled"
+                },
+                "timeout": {
+                    "description": "seconds",
+                    "type": "integer",
+                    "example": 1800
+                },
+                "type": {
+                    "type": "string",
+                    "example": "task:content:schedule"
+                }
+            }
+        },
         "responses.BarChartDataPoint": {
             "type": "object",
             "properties": {
@@ -28496,6 +29943,122 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.CacheKeyInfo": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "user:123"
+                },
+                "ttl": {
+                    "description": "-1 for no expiration, -2 for expired",
+                    "type": "integer",
+                    "example": 3600
+                },
+                "type": {
+                    "type": "string",
+                    "example": "string"
+                }
+            }
+        },
+        "responses.CacheKeyValueResponse": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "user:123"
+                },
+                "ttl": {
+                    "type": "integer",
+                    "example": 3600
+                },
+                "type": {
+                    "type": "string",
+                    "example": "string"
+                },
+                "value": {}
+            }
+        },
+        "responses.CacheKeysResponse": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.CacheKeyInfo"
+                    }
+                },
+                "pattern": {
+                    "type": "string",
+                    "example": "user:*"
+                },
+                "total_count": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
+        },
+        "responses.CacheOverviewResponse": {
+            "type": "object",
+            "properties": {
+                "connected_clients": {
+                    "type": "string",
+                    "example": "10"
+                },
+                "evicted_keys": {
+                    "type": "string",
+                    "example": "10"
+                },
+                "expired_keys": {
+                    "type": "string",
+                    "example": "50"
+                },
+                "hit_rate": {
+                    "type": "string",
+                    "example": "80.00%"
+                },
+                "keyspace_hits": {
+                    "type": "string",
+                    "example": "8000"
+                },
+                "keyspace_misses": {
+                    "type": "string",
+                    "example": "2000"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "connected"
+                },
+                "total_commands_processed": {
+                    "type": "string",
+                    "example": "10000"
+                },
+                "total_connections_received": {
+                    "type": "string",
+                    "example": "5000"
+                },
+                "total_keys": {
+                    "type": "integer",
+                    "example": 1234
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "86400"
+                },
+                "used_memory": {
+                    "type": "string",
+                    "example": "1.5M"
+                },
+                "used_memory_peak": {
+                    "type": "string",
+                    "example": "2.0M"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "7.2.0"
                 }
             }
         },
@@ -33122,6 +34685,9 @@ const docTemplate = `{
                 "build_info": {
                     "$ref": "#/definitions/responses.BuildInfo"
                 },
+                "current_time": {
+                    "type": "string"
+                },
                 "disk": {
                     "$ref": "#/definitions/responses.DiskInfo"
                 },
@@ -33150,6 +34716,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "os": {
+                    "type": "string"
+                },
+                "timezone": {
                     "type": "string"
                 },
                 "uptime": {
