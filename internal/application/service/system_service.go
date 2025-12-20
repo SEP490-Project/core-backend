@@ -48,6 +48,8 @@ func (s *SystemService) GetSystemSpecs(ctx context.Context) (*responses.SystemSp
 			PauseTotalNs: time.Duration(m.PauseTotalNs).String(),
 		},
 		Uptime:      time.Since(s.startTime).String(),
+		CurrentTime: time.Now(),
+		Timezone:    time.Now().Location().String(),
 		Environment: s.config.Server.Environment,
 		BuildInfo: responses.BuildInfo{
 			Version:   "1.0.0",    // TODO: Inject via ldflags

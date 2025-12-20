@@ -10,6 +10,8 @@ type SystemSpecsResponse struct {
 	GoVersion   string         `json:"go_version"`
 	Goroutines  int            `json:"goroutines"`
 	Memory      MemoryStats    `json:"memory"`
+	CurrentTime time.Time      `json:"current_time"`
+	Timezone    string         `json:"timezone"`
 	Uptime      string         `json:"uptime"`
 	Environment string         `json:"environment"`
 	BuildInfo   BuildInfo      `json:"build_info"`
