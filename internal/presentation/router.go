@@ -460,10 +460,10 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 
 	// View routes with their specific role requirements
 	contracts.GET("", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), contractHandler.GetContracts)
-	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand), contractHandler.GetContractByID)
+	contracts.GET("/:id", r.middlewareRegistry.Auth.RequireRole(marketing, brand, admin), contractHandler.GetContractByID)
 	contracts.GET("/:id/scope-of-work", r.middlewareRegistry.Auth.RequireRole(admin, brand, marketing), contractHandler.GetScopeOfWorkByContractID)
-	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand), contractHandler.GetContractsByBrandProfile)
-	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand, marketing), contractHandler.GetContractsByBrandID)
+	contracts.GET("/brands/profile", r.middlewareRegistry.Auth.RequireRole(brand, admin), contractHandler.GetContractsByBrandProfile)
+	contracts.GET("/brands/:brand_id", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), contractHandler.GetContractsByBrandID)
 	contracts.PATCH("/:id/state", r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin), stateHandler.UpdateContractState)
 
 	// Write/Modify routes for Marketing and Admins
@@ -478,7 +478,7 @@ func (r *Router) setupContractRoutes(group *gin.RouterGroup) {
 
 	// Update route for Marketing ONLY
 	marketingOnly := contracts.Group("")
-	marketingOnly.Use(r.middlewareRegistry.Auth.RequireRole(marketing))
+	marketingOnly.Use(r.middlewareRegistry.Auth.RequireRole(marketing, admin))
 	{
 		marketingOnly.PUT("/:id", contractHandler.UpdateContract)
 	}
