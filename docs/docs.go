@@ -11172,7 +11172,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ContractPaymenntResponse"
+                                            "$ref": "#/definitions/responses.ContractPaymentResponse"
                                         }
                                     }
                                 }
@@ -30279,10 +30279,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2023-06-15 00:00:00"
                 },
-                "completion_percentage": {
-                    "type": "number",
-                    "example": 60.5
-                },
                 "description": {
                     "type": "string",
                     "example": "Milestone for initial launch."
@@ -30298,6 +30294,10 @@ const docTemplate = `{
                 "number_of_tasks": {
                     "type": "integer",
                     "example": 25
+                },
+                "percentage_completed": {
+                    "type": "number",
+                    "example": 60.5
                 },
                 "status": {
                     "type": "string",
@@ -31097,6 +31097,14 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Acme Corp"
                 },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
+                "campaign_name": {
+                    "type": "string",
+                    "example": "Summer Sale Campaign"
+                },
                 "contract_number": {
                     "type": "string",
                     "example": "CONTRACT-2023-001"
@@ -31208,7 +31216,33 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ContractPaymenntResponse": {
+        "responses.ContractPaymentPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractPaymentResponse"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/responses.Pagination"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "responses.ContractPaymentResponse": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -31269,32 +31303,6 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ContractPaymentPaginationResponse": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ContractPaymenntResponse"
-                    }
-                },
-                "message": {
-                    "type": "string"
-                },
-                "pagination": {
-                    "$ref": "#/definitions/responses.Pagination"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "status_code": {
-                    "type": "integer"
-                },
-                "success": {
-                    "type": "boolean"
-                }
-            }
-        },
         "responses.ContractResponse": {
             "type": "object",
             "properties": {
@@ -31306,6 +31314,14 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                },
+                "campaign_name": {
+                    "type": "string",
+                    "example": "Summer Sale Campaign"
+                },
                 "contract_file_url": {
                     "description": "File URLs",
                     "type": "string",
@@ -31314,6 +31330,12 @@ const docTemplate = `{
                 "contract_number": {
                     "type": "string",
                     "example": "CONTRACT-2023-001"
+                },
+                "contract_payments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ContractPaymentResponse"
+                    }
                 },
                 "created_at": {
                     "description": "Metadata",

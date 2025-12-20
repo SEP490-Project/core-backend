@@ -5714,9 +5714,6 @@ definitions:
       completed_at:
         example: "2023-06-15 00:00:00"
         type: string
-      completion_percentage:
-        example: 60.5
-        type: number
       description:
         example: Milestone for initial launch.
         type: string
@@ -5729,6 +5726,9 @@ definitions:
       number_of_tasks:
         example: 25
         type: integer
+      percentage_completed:
+        example: 60.5
+        type: number
       status:
         example: NOT_STARTED
         type: string
@@ -6260,6 +6260,12 @@ definitions:
       brand_name:
         example: Acme Corp
         type: string
+      campaign_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      campaign_name:
+        example: Summer Sale Campaign
+        type: string
       contract_number:
         example: CONTRACT-2023-001
         type: string
@@ -6337,7 +6343,24 @@ definitions:
       success:
         type: boolean
     type: object
-  responses.ContractPaymenntResponse:
+  responses.ContractPaymentPaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ContractPaymentResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
+    type: object
+  responses.ContractPaymentResponse:
     properties:
       amount:
         example: 5000
@@ -6382,29 +6405,18 @@ definitions:
         example: 2006-01-02T15:04:05Z07:00
         type: string
     type: object
-  responses.ContractPaymentPaginationResponse:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/responses.ContractPaymenntResponse'
-        type: array
-      message:
-        type: string
-      pagination:
-        $ref: '#/definitions/responses.Pagination'
-      status:
-        type: string
-      status_code:
-        type: integer
-      success:
-        type: boolean
-    type: object
   responses.ContractResponse:
     properties:
       brand:
         allOf:
         - $ref: '#/definitions/responses.BrandSummary'
         description: Brand information (from relationship)
+      campaign_id:
+        example: 770e8400-e29b-41d4-a716-446655440000
+        type: string
+      campaign_name:
+        example: Summer Sale Campaign
+        type: string
       contract_file_url:
         description: File URLs
         example: https://example.com/contracts/contract.pdf
@@ -6412,6 +6424,10 @@ definitions:
       contract_number:
         example: CONTRACT-2023-001
         type: string
+      contract_payments:
+        items:
+          $ref: '#/definitions/responses.ContractPaymentResponse'
+        type: array
       created_at:
         description: Metadata
         example: "2006-01-02 15:04:05"
@@ -16188,7 +16204,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ContractPaymenntResponse'
+                  $ref: '#/definitions/responses.ContractPaymentResponse'
               type: object
         "400":
           description: Invalid request or validation error
