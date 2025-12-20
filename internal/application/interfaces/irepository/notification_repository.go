@@ -21,7 +21,7 @@ type NotificationRepository interface {
 	FindByEmailRecipient(ctx context.Context, email string) ([]*model.Notification, error)
 
 	// FindFailedWithRetries retrieves failed notifications with minimum retry attempts
-	FindFailedWithRetries(ctx context.Context, minRetries int) ([]*model.Notification, error)
+	FindFailedWithRetries(ctx context.Context, minRetries int, page, limit int) ([]*model.Notification, error)
 
 	// UpdateDeliveryAttempt appends a new delivery attempt to the JSONB array
 	UpdateDeliveryAttempt(ctx context.Context, id uuid.UUID, attempt model.DeliveryAttempt) error
