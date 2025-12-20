@@ -275,5 +275,19 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		)
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("content_metrics_poller_job", contentMetricsPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.ContentMetricsPollerJob = contentMetricsPollerJob
+
+		dailyJob := jobs.NewDailyJob(
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			r.configs,
+			r.InfrastructureRegistry.DB,
+			r.DatabaseRegistry.ContractRepository,
+			r.DatabaseRegistry.ContractPaymentRepository,
+			r.NotificationService,
+			r.AlertManagerService,
+			r.InfrastructureRegistry.UnitOfWork,
+			r.InfrastructureRegistry.AsynqClient,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("daily_job", dailyJob)
+		r.InfrastructureRegistry.CronJobsRegistry.DailyJob = dailyJob
 	}
 }
