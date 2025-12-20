@@ -141,14 +141,14 @@ func (h *ContentScheduleHandler) GetSchedule(c *gin.Context) {
 //	@Tags			Content Scheduling
 //	@Accept			json
 //	@Produce		json
-//	@Param			content_channel_id	query		string	false	"Filter by content channel ID"
-//	@Param			status				query		string	false	"Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)"
-//	@Param			from				query		string	false	"Filter schedules from this date (RFC3339)"
-//	@Param			to					query		string	false	"Filter schedules until this date (RFC3339)"
-//	@Param			page				query		int		false	"Page number"		default(1)
-//	@Param			limit				query		int		false	"Items per page"	default(20)
-//	@Success		200					{object}	responses.APIResponse{data=responses.ScheduleListResponse}
-//	@Failure		400					{object}	responses.APIResponse
+//	@Param			reference_id	query		string	false	"Filter by reference ID (e.g. content channel ID)"
+//	@Param			status			query		string	false	"Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)"
+//	@Param			from			query		string	false	"Filter schedules from this date (RFC3339)"
+//	@Param			to				query		string	false	"Filter schedules until this date (RFC3339)"
+//	@Param			page			query		int		false	"Page number"		default(1)
+//	@Param			limit			query		int		false	"Items per page"	default(20)
+//	@Success		200				{object}	responses.APIResponse{data=responses.ScheduleListResponse}
+//	@Failure		400				{object}	responses.APIResponse
 //	@Security		BearerAuth
 //	@Router			/api/v1/content-schedules [get]
 func (h *ContentScheduleHandler) ListSchedules(c *gin.Context) {

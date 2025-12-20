@@ -1,6 +1,10 @@
 package requests
 
-import "github.com/google/uuid"
+import (
+	"core-backend/internal/domain/enum"
+
+	"github.com/google/uuid"
+)
 
 // ScheduleContentRequest represents a request to schedule content for publishing
 type ScheduleContentRequest struct {
@@ -23,11 +27,12 @@ type CancelScheduleRequest struct {
 // ScheduleFilterRequest represents filter parameters for listing schedules
 type ScheduleFilterRequest struct {
 	PaginationRequest
-	Status    *string `form:"status" validate:"omitempty,oneof=PENDING PROCESSING COMPLETED FAILED CANCELLED"`
-	ChannelID *string `form:"channel_id" validate:"omitempty,uuid"`
-	FromDate  *string `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
-	ToDate    *string `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
-	Days      *int    `form:"days" validate:"omitempty,min=1,max=90"` // Get schedules for next N days
+	Status        *enum.ScheduleStatus `form:"status" validate:"omitempty,oneof=PENDING PROCESSING COMPLETED FAILED CANCELLED"`
+	ReferenceID   *uuid.UUID           `form:"reference_id" validate:"omitempty,uuid"`
+	ReferenceType *enum.ScheduleType   `form:"reference_type" validate:"omitempty"`
+	FromDate      *string              `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
+	ToDate        *string              `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
+	Days          *int                 `form:"days" validate:"omitempty,min=1,max=90"` // Get schedules for next N days
 }
 
 // GetDaysOrDefault returns the days parameter with default of 7
