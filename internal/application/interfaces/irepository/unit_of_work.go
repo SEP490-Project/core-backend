@@ -19,7 +19,7 @@ type UnitOfWork interface {
 	ShippingAddresses() GenericRepository[model.ShippingAddress]
 	Brands() GenericRepository[model.Brand]
 	LoggedSessions() GenericRepository[model.LoggedSession]
-	Contracts() GenericRepository[model.Contract]
+	Contracts() ContractRepository
 	ContractPayments() GenericRepository[model.ContractPayment]
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
