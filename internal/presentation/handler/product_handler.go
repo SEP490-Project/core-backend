@@ -1393,14 +1393,27 @@ func (h *ProductHandler) UpdateVariant(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	uow := h.unitOfWork.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			_ = uow.Rollback()
+			panic(r)
+		}
+	}()
 
-	updatedVariant, svcErr := h.productService.UpdateVariant(ctx, variantID, req)
+	updatedVariant, svcErr := h.productService.UpdateVariant(ctx, variantID, req, uow)
 	if svcErr != nil {
 		if strings.Contains(strings.ToLower(svcErr.Error()), "not found") {
 			c.JSON(http.StatusNotFound, responses.ErrorResponse(svcErr.Error(), http.StatusNotFound))
 			return
 		}
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(svcErr.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
+		return
+	}
+
+	if err := uow.Commit(); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Commit error: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 

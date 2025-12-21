@@ -49,7 +49,7 @@ type ProductService interface {
 	GetVariantAttributePagination(limit, offset int, search string) ([]model.VariantAttribute, int, error)
 
 	// Update Variant
-	UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest) (*model.ProductVariant, error)
+	UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest, uow irepository.UnitOfWork) (*model.ProductVariant, error)
 
 	UpdateLimitedVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateLimitedProductVariantRequest) (*model.ProductVariant, error)
 
