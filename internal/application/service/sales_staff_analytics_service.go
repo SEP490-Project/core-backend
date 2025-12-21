@@ -292,7 +292,10 @@ func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requ
 	}
 
 	// 3. If only ToDate provided, or neither provided, calculate Start based on End (or Now) and PeriodGap
-	end := now
+	end := time.Date(
+		now.Year(), now.Month(), now.Day(),
+		0, 0, 0, 0, now.Location(),
+	)
 	if req.ToDate != nil {
 		end = *req.ToDate
 	}
