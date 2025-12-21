@@ -173,7 +173,7 @@ func NewInfrastructureRegistry(
 
 	// Initialize Proxies Registry
 	zap.L().Debug("Initializing Proxies Registry...")
-	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db)
+	registry.ProxiesRegistry = proxies.NewProxiesRegistry(config, db, dbReg)
 	zap.L().Info("Proxies Registry initialized successfully")
 
 	zap.L().Info("Infrastructure registry initialization completed")

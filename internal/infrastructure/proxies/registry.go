@@ -4,6 +4,7 @@ package proxies
 import (
 	"core-backend/config"
 	"core-backend/internal/application/interfaces/iproxies"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/proxies/ai"
 	"net/http"
 	"time"
@@ -21,7 +22,7 @@ type ProxiesRegistry struct {
 	db              *gorm.DB
 }
 
-func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry {
+func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB, dbReg *gormrepository.DatabaseRegistry) *ProxiesRegistry {
 	transport := &http.Transport{
 		MaxIdleConns:          config.HTTPClient.MaxIdleConns,
 		MaxIdleConnsPerHost:   config.HTTPClient.MaxIdleConnsPerHost,
@@ -38,7 +39,7 @@ func NewProxiesRegistry(config *config.AppConfig, db *gorm.DB) *ProxiesRegistry 
 	return &ProxiesRegistry{
 		httpClient:      client,
 		PayOSProxy:      NewPayOSProxy(client, config),
-		GHNProxy:        NewGHNProxy(client, config, db),
+		GHNProxy:        NewGHNProxy(client, config, db, dbReg),
 		FacebookProxy:   NewFacebookProxy(client, config),
 		TikTokProxy:     NewTikTokProxy(client, config),
 		AIClientManager: ai.NewAIClientManager(client, &config.AI),

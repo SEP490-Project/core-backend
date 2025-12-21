@@ -27,6 +27,12 @@ type AdminConfig struct {
 	RepresentativeBankAccountNumber string `mapstructure:"representative_bank_account_number"`
 	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
 	RepresentativeCompanyAddress    string `mapstructure:"representative_company_address"`
+	// Representative use to create GHN Order
+	RepresentativeGHNCompanyName  string `mapstructure:"representative_ghn_company_name"` // From name: max:1024
+	RepresentativeGHNPhone        string `mapstructure:"representative_ghn_phone"`
+	RepresentativeGHNWardName     string `mapstructure:"representative_ghn_ward_name"`
+	RepresentativeGHNDistrictName string `mapstructure:"representative_ghn_district_name"`
+	RepresentativeGHNProvinceName string `mapstructure:"representative_ghn_province_name"`
 
 	// Affiliate Link Tracking Configuration
 	TrackingLinkTrustedDomains []string `mapstructure:"tracking_link_trusted_domains"`
@@ -50,6 +56,9 @@ type AdminConfig struct {
 
 	// Order - PreOrder
 	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
+
+	// Products
+	ProductMaximumVariants int `mapstructure:"product_maximum_variants"`
 
 	// Social Media Integration
 	// This is used to determine when to send notifications for expiring OAuth tokens

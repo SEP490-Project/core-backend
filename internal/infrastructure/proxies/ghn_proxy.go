@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/httpclient"
 	"core-backend/pkg/utils"
 	"encoding/json"
@@ -34,13 +35,22 @@ var (
 
 type ghnProxy struct {
 	*BaseProxy
-	cfg    *config.AppConfig
-	client *http.Client
-	db     *gorm.DB
+	cfg      *config.AppConfig
+	adminCfg *config.AdminConfig
+	client   *http.Client
+	db       *gorm.DB
 	//mocking
 	tokenMutex   sync.Mutex
 	cachedToken  *string
 	tokenExpires time.Time
+	provinceRepo irepository.GenericRepository[model.Province]
+	districtRepo irepository.GenericRepository[model.District]
+	wardRepo     irepository.GenericRepository[model.Ward]
+}
+
+func (g *ghnProxy) GetAvailableNextActions(info *dtos.OrderInfo) (map[string]bool, error) {
+	currentState := info.Status
+	return getAvailableState(currentState)
 }
 
 func (g *ghnProxy) CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error) {
@@ -62,7 +72,7 @@ func (g *ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.Cr
 		return nil, fmt.Errorf("failed to query order: %w", err)
 	}
 
-	dto := convertOrderToGHNOrderCreationDTO(&order)
+	dto := g.convertOrderToGHNOrderCreationDTO(&order)
 
 	// call GHN create endpoint
 	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/create"
@@ -271,6 +281,84 @@ func (g *ghnProxy) GetOrderInfo(ctx context.Context, orderID string) (*dtos.Orde
 	return doGHNRequest[dtos.OrderInfo](ctx, http.MethodPost, url, headers, body)
 }
 
+func (g *ghnProxy) GetOrderInfoRaw(ctx context.Context, ghnCode string) (*dtos.OrderInfo, error) {
+	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/detail"
+	body := map[string]string{
+		"order_code": ghnCode,
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Token":        g.cfg.GHN.Token,
+	}
+	info, err := doGHNRequest[dtos.OrderInfo](ctx, http.MethodPost, url, headers, body)
+	if err != nil {
+		return nil, err
+	}
+
+	extractedInfo := g.extractLocationNameFromInfo(ctx, info)
+	return extractedInfo, nil
+}
+
+func (g *ghnProxy) extractLocationNameFromInfo(ctx context.Context, info *dtos.OrderInfo) *dtos.OrderInfo {
+	var mu sync.Mutex
+
+	err := utils.RunParallel(ctx, 3,
+		// Get "Return" location
+		func(ctx context.Context) error {
+			// Ward Name
+			includes := []string{"District", "District.Province"}
+			ward, err := g.wardRepo.GetByID(ctx, info.ReturnWardCode, includes)
+			if err != nil {
+				zap.L().Warn("Failed to get Ward of \"Return\" location ", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			info.ReturnWardName = ward.Name
+			info.ReturnDistrictName = ward.District.Name
+			info.ReturnProvinceName = ward.District.Province.Name
+			mu.Unlock()
+			return nil
+		},
+		// Get "From" location
+		func(ctx context.Context) error {
+			// Ward Name
+			includes := []string{"District", "District.Province"}
+			ward, err := g.wardRepo.GetByID(ctx, info.FromWardCode, includes)
+			if err != nil {
+				zap.L().Warn("Failed to get Ward of \"From\" location ", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			info.FromWardName = ward.Name
+			info.FromDistrictName = ward.District.Name
+			info.FromProvinceName = ward.District.Province.Name
+			mu.Unlock()
+			return nil
+		},
+		// Get "To" location
+		func(ctx context.Context) error {
+			// Ward Name
+			includes := []string{"District", "District.Province"}
+			ward, err := g.wardRepo.GetByID(ctx, info.ToWardCode, includes)
+			if err != nil {
+				zap.L().Warn("Failed to get Ward of \"To\" location ", zap.Error(err))
+				return nil
+			}
+			mu.Lock()
+			info.ToWardName = ward.Name
+			info.ToDistrictName = ward.District.Name
+			info.ToProvinceName = ward.District.Province.Name
+			mu.Unlock()
+			return nil
+		},
+	)
+	if err != nil {
+		zap.L().Error("failed to extract location name from info, return raw as api", zap.Error(err))
+	}
+	return info
+}
+
 func (g *ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int, toWardCode string) (*dtos.ExpectedDeliveryTime, error) {
 	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/leadtime"
 
@@ -474,11 +562,15 @@ func (g *ghnProxy) getValidAccessToken(ctx context.Context) (string, error) {
 	return *g.cachedToken, nil
 }
 
-func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB) iproxies.GHNProxy {
+func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB, dbReg *gormrepository.DatabaseRegistry) iproxies.GHNProxy {
 	return &ghnProxy{
-		BaseProxy: NewBaseProxy(httpClient, cfg.GHN.BaseURL, cfg),
-		cfg:       cfg,
-		db:        db,
+		BaseProxy:    NewBaseProxy(httpClient, cfg.GHN.BaseURL, cfg),
+		cfg:          cfg,
+		adminCfg:     &cfg.AdminConfig,
+		db:           db,
+		provinceRepo: dbReg.ProvinceRepository,
+		districtRepo: dbReg.DistrictRepository,
+		wardRepo:     dbReg.WardRepository,
 	}
 }
 
@@ -508,7 +600,7 @@ func convertOrderItemRequestToApplicationDeliveryFeeItem(ctx context.Context, it
 
 }
 
-func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderDTO {
+func (g *ghnProxy) convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderDTO {
 	var totalLength, totalWeight, totalHeight, totalWidth int
 	var dtoItems []dtos.ApplicationDeliveryFeeItem
 
@@ -530,31 +622,38 @@ func convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.CreateGHNOrderD
 		clientOrderCode = order.UserID.String()
 	}
 
+	fromName := g.adminCfg.RepresentativeGHNCompanyName
+	fromPhone := g.adminCfg.RepresentativeGHNPhone
+	fromAddress := g.adminCfg.RepresentativeCompanyAddress
+	//fromWardName := g.adminCfg.RepresentativeGHNWardName
+	//fromDistrictName := g.adminCfg.RepresentativeGHNDistrictName
+	//fromProvinceName := g.adminCfg.RepresentativeGHNProvinceName
+
 	return &dtos.CreateGHNOrderDTO{
-		PaymentTypeID:    2,
-		Note:             userNote,
-		RequiredNote:     "CHOXEMHANGKHONGTHU",
-		FromName:         "BShowSell.Co",
-		FromPhone:        "0944488274",
-		FromAddress:      "7 Đ. D1",
-		FromWardName:     "Long Thạnh Mỹ",
-		FromDistrictName: "Thủ Đức",
-		FromProvinceName: "Hồ Chí Minh",
-		ClientOrderCode:  clientOrderCode,
-		ToName:           order.FullName,
-		ToPhone:          order.PhoneNumber,
-		ToAddress:        order.AddressLine2,
-		ToWardCode:       order.GhnWardCode,
-		ToDistrictID:     order.GhnDistrictID,
-		Content:          "",
-		Weight:           totalWeight,
-		Length:           totalLength,
-		Width:            totalWidth,
-		Height:           totalHeight,
-		InsuranceValue:   totalWidth,
-		ServiceID:        0,
-		ServiceTypeID:    2,
-		Items:            dtoItems,
+		PaymentTypeID: 2,
+		Note:          userNote,
+		RequiredNote:  "CHOXEMHANGKHONGTHU",
+		FromName:      fromName,
+		FromPhone:     fromPhone,
+		FromAddress:   fromAddress,
+		//FromWardName:     fromWardName,
+		//FromDistrictName: fromDistrictName,
+		//FromProvinceName: fromProvinceName,
+		ClientOrderCode: clientOrderCode,
+		ToName:          order.FullName,
+		ToPhone:         order.PhoneNumber,
+		ToAddress:       order.AddressLine2,
+		ToWardCode:      order.GhnWardCode,
+		ToDistrictID:    order.GhnDistrictID,
+		Content:         "",
+		Weight:          totalWeight,
+		Length:          totalLength,
+		Width:           totalWidth,
+		Height:          totalHeight,
+		InsuranceValue:  totalWidth,
+		ServiceID:       0,
+		ServiceTypeID:   2,
+		Items:           dtoItems,
 	}
 }
 
@@ -619,4 +718,37 @@ func doGHNRequest[T any](ctx context.Context, method, url string, headers map[st
 	}
 
 	return &wrapper.Data, nil
+}
+
+func getAvailableState(currentState string) (map[string]bool, error) {
+	switch currentState {
+	case "ready_to_pick":
+		return map[string]bool{
+			"storing": true,
+		}, nil
+	case "storing":
+		return map[string]bool{
+			"delivering": true,
+			"lost":       false,
+			"return":     false, // seller request return
+		}, nil
+	case "delivering":
+		return map[string]bool{
+			"delivered":     true, //end
+			"delivery_fail": false,
+		}, nil
+	case "delivery_fail":
+		return map[string]bool{
+			"storing": true, // loops
+			"lost":    false,
+		}, nil
+	case "return":
+		return map[string]bool{
+			"returned": true, //end
+		}, nil
+	case "lost", "delivered", "returned":
+		return map[string]bool{}, nil
+	}
+
+	return nil, fmt.Errorf("unknown current state: %s", currentState)
 }

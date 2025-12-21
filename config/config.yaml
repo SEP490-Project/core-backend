@@ -23,7 +23,7 @@ database:
   port: 5432
   user: "postgres"
   password: "170504"
-  dbname: "sep490_db_stag"
+  dbname: "sep490_demo_ver1"
   sslmode: "disable"
 
 # Cache (Valkey/Redis)
