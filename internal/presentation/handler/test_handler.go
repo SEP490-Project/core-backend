@@ -17,18 +17,20 @@ import (
 )
 
 type TestHandler struct {
-	config        *config.AppConfig
-	tiktokProxy   iproxies.TikTokProxy
-	facebookProxy iproxies.FacebookProxy
-	dbRegistry    *gormrepository.DatabaseRegistry
+	config         *config.AppConfig
+	tiktokProxy    iproxies.TikTokProxy
+	facebookProxy  iproxies.FacebookProxy
+	dbRegistry     *gormrepository.DatabaseRegistry
+	applicationReg *application.ApplicationRegistry
 }
 
 func NewTestHandler(config *config.AppConfig, applicationRegistry *application.ApplicationRegistry) *TestHandler {
 	return &TestHandler{
-		config:        config,
-		tiktokProxy:   applicationRegistry.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
-		facebookProxy: applicationRegistry.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
-		dbRegistry:    applicationRegistry.DatabaseRegistry,
+		config:         config,
+		tiktokProxy:    applicationRegistry.InfrastructureRegistry.ProxiesRegistry.TikTokProxy,
+		facebookProxy:  applicationRegistry.InfrastructureRegistry.ProxiesRegistry.FacebookProxy,
+		dbRegistry:     applicationRegistry.DatabaseRegistry,
+		applicationReg: applicationRegistry,
 	}
 }
 
@@ -251,4 +253,34 @@ func (h *TestHandler) MigrateScopeOfWorkIDs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"updated_contracts": updatedCount})
+}
+
+// UpdateContractScopeOfWork godoc
+//
+//	@Summary		Update Contract Scope of Work
+//	@Description	Updates the scope of work for a specific contract based on its associated tasks.
+//	@Tags			Test
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string					true	"Contract ID"
+//	@Success		200	{object}	any						"Successfully updated contract scope of work"
+//	@Failure		400	{object}	responses.APIResponse	"Bad request due to invalid parameters"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/test/contracts/{id}/update-sow [put]
+func (h *TestHandler) UpdateContractScopeOfWork(c *gin.Context) {
+	contractID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid contract ID", http.StatusBadRequest))
+		return
+	}
+
+	contractService := h.applicationReg.ContractService
+	if err := contractService.UpdateContractScopeOfWorkWithReferencinnTaskIDs(c.Request.Context(), contractID); err != nil {
+		zap.L().Error("Failed to update contract scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to update contract scope of work", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Contract scope of work updated successfully", nil, nil))
 }

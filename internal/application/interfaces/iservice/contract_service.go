@@ -49,4 +49,7 @@ type ContractService interface {
 	DeleteContractByID(ctx context.Context, contractID uuid.UUID) error
 
 	GetScopeOfWorkByContractID(ctx context.Context, contractID uuid.UUID) (any, error)
+
+	// UpdateContractScopeOfWork updates the scope of work for a contract
+	UpdateContractScopeOfWorkWithReferencinnTaskIDs(ctx context.Context, contractID uuid.UUID) error
 }
