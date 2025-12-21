@@ -37,7 +37,7 @@ type CampaignService struct {
 }
 
 // SetRejectReason implements iservice.CampaignService.
-func (c *CampaignService) SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error {
+func (s *CampaignService) SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error {
 	zap.L().Info("CampaignService - SetRejectReason called",
 		zap.String("campaign_id", campaignID.String()),
 		zap.String("reason", reason),
@@ -74,7 +74,7 @@ func (c *CampaignService) SetRejectReason(ctx context.Context, uow irepository.U
 }
 
 // UpdateCampaign implements iservice.CampaignService.
-func (c *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, request *requests.UpdateCampaignRequest) (*responses.CampaignDetailsResponse, error) {
+func (s *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, request *requests.UpdateCampaignRequest) (*responses.CampaignDetailsResponse, error) {
 	zap.L().Info("Updating campaign",
 		zap.String("campaign_id", campaignID.String()),
 		zap.Any("request", request))
@@ -114,11 +114,11 @@ func (c *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.Un
 	}
 
 	zap.L().Info("Successfully updated campaign")
-	return c.GetCampaignDetailsByID(ctx, campaignID)
+	return s.GetCampaignDetailsByID(ctx, campaignID)
 }
 
 // GetCampaignsInfoByUserID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignsInfoByUserID(
+func (s *CampaignService) GetCampaignsInfoByUserID(
 	ctx context.Context,
 	userID uuid.UUID,
 	filterRequest *requests.CampaignFilterRequest,
@@ -163,7 +163,7 @@ func (c *CampaignService) GetCampaignsInfoByUserID(
 			Where("brands.user_id = ?", userID)
 	}
 
-	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
+	campaigns, totalCount, err := s.campaignRepo.GetAll(ctx, query, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -175,7 +175,7 @@ func (c *CampaignService) GetCampaignsInfoByUserID(
 }
 
 // GetCampaignDetailsByContractID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignDetailsByContractID(
+func (s *CampaignService) GetCampaignDetailsByContractID(
 	ctx context.Context,
 	contractID uuid.UUID,
 ) (*responses.CampaignDetailsResponse, error) {
@@ -186,7 +186,7 @@ func (c *CampaignService) GetCampaignDetailsByContractID(
 	}
 	var campaign *model.Campaign
 	var err error
-	if campaign, err = c.campaignRepo.GetByCondition(ctx, filterQuery, []string{"Contract", "Milestones.Tasks"}); err != nil {
+	if campaign, err = s.campaignRepo.GetByCondition(ctx, filterQuery, []string{"Contract", "Milestones.Tasks"}); err != nil {
 		zap.L().Error("Failed to retrieve campaign with details by contract ID",
 			zap.String("contract_id", contractID.String()),
 			zap.Error(err))
@@ -200,7 +200,7 @@ func (c *CampaignService) GetCampaignDetailsByContractID(
 }
 
 // GetCampaignInfoByContractID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignInfoByContractID(
+func (s *CampaignService) GetCampaignInfoByContractID(
 	ctx context.Context,
 	contractID uuid.UUID,
 ) (*responses.CampaignInfoResponse, error) {
@@ -211,7 +211,7 @@ func (c *CampaignService) GetCampaignInfoByContractID(
 	}
 	var campaign *model.Campaign
 	var err error
-	if campaign, err = c.campaignRepo.GetByCondition(ctx, filterQuery, []string{"Contract"}); err != nil {
+	if campaign, err = s.campaignRepo.GetByCondition(ctx, filterQuery, []string{"Contract"}); err != nil {
 		zap.L().Error("Failed to retrieve campaign with info by contract ID",
 			zap.String("contract_id", contractID.String()),
 			zap.Error(err))
@@ -225,14 +225,14 @@ func (c *CampaignService) GetCampaignInfoByContractID(
 }
 
 // GetCampaignsInfoByBrandID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignsInfoByBrandID(ctx context.Context, brandID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error) {
+func (s *CampaignService) GetCampaignsInfoByBrandID(ctx context.Context, brandID uuid.UUID) ([]*responses.CampaignInfoResponse, int64, error) {
 	zap.L().Info("Retrieving campaigns info by brand ID", zap.String("brand_id", brandID.String()))
 
 	query := func(db *gorm.DB) *gorm.DB {
 		return db.Joins("JOIN contracts ON contracts.id = campaigns.contract_id").
 			Where("contracts.brand_id = ?", brandID)
 	}
-	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, query, []string{"Contract"}, 0, 0)
+	campaigns, totalCount, err := s.campaignRepo.GetAll(ctx, query, []string{"Contract"}, 0, 0)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by brand ID",
 			zap.String("brand_id", brandID.String()),
@@ -245,10 +245,10 @@ func (c *CampaignService) GetCampaignsInfoByBrandID(ctx context.Context, brandID
 }
 
 // DeleteCampaign implements iservice.CampaignService.
-func (c *CampaignService) DeleteCampaign(ctx context.Context, id uuid.UUID) error {
+func (s *CampaignService) DeleteCampaign(ctx context.Context, id uuid.UUID) error {
 	zap.L().Info("Deleting campaign", zap.String("id", id.String()))
 
-	if exists, err := c.campaignRepo.ExistsByID(ctx, id); err != nil {
+	if exists, err := s.campaignRepo.ExistsByID(ctx, id); err != nil {
 		zap.L().Error("Failed to check if campaign exists", zap.String("id", id.String()), zap.Error(err))
 		return err
 	} else if !exists {
@@ -256,7 +256,7 @@ func (c *CampaignService) DeleteCampaign(ctx context.Context, id uuid.UUID) erro
 		return fmt.Errorf("campaign with ID %s not found", id.String())
 	}
 
-	if err := c.campaignRepo.DeleteByID(ctx, id); err != nil {
+	if err := s.campaignRepo.DeleteByID(ctx, id); err != nil {
 		zap.L().Error("Failed to delete campaign", zap.String("id", id.String()), zap.Error(err))
 		return err
 	}
@@ -266,12 +266,12 @@ func (c *CampaignService) DeleteCampaign(ctx context.Context, id uuid.UUID) erro
 }
 
 // GetCampaignInfoByID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignInfoByID(ctx context.Context, id uuid.UUID) (*responses.CampaignInfoResponse, error) {
+func (s *CampaignService) GetCampaignInfoByID(ctx context.Context, id uuid.UUID) (*responses.CampaignInfoResponse, error) {
 	zap.L().Info("Retrieving campaign info by ID", zap.String("id", id.String()))
 
 	var campaign *model.Campaign
 	var err error
-	if campaign, err = c.campaignRepo.GetByID(ctx, id, []string{"Contract"}); err != nil {
+	if campaign, err = s.campaignRepo.GetByID(ctx, id, []string{"Contract"}); err != nil {
 		zap.L().Error("Failed to retrieve campaign", zap.String("id", id.String()), zap.Error(err))
 		return nil, err
 	}
@@ -280,12 +280,12 @@ func (c *CampaignService) GetCampaignInfoByID(ctx context.Context, id uuid.UUID)
 }
 
 // GetCampaignDetailsByID implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignDetailsByID(ctx context.Context, id uuid.UUID) (*responses.CampaignDetailsResponse, error) {
+func (s *CampaignService) GetCampaignDetailsByID(ctx context.Context, id uuid.UUID) (*responses.CampaignDetailsResponse, error) {
 	zap.L().Info("Retrieving campaign details by ID", zap.String("id", id.String()))
 
 	var campaign *model.Campaign
 	var err error
-	if campaign, err = c.campaignRepo.GetByID(ctx, id, []string{"Contract", "Milestones.Tasks"}); err != nil {
+	if campaign, err = s.campaignRepo.GetByID(ctx, id, []string{"Contract", "Milestones.Tasks"}); err != nil {
 		zap.L().Error("Failed to retrieve campaign with details", zap.String("id", id.String()), zap.Error(err))
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (c *CampaignService) GetCampaignDetailsByID(ctx context.Context, id uuid.UU
 
 	// Calculate metrics
 	if campaign.Contract != nil {
-		metrics, err := c.calculateMetricsComparison(ctx, campaign.Contract)
+		metrics, err := s.calculateMetricsComparison(ctx, campaign.Contract)
 		if err != nil {
 			zap.L().Error("Failed to calculate metrics comparison", zap.Error(err))
 			// Don't fail the request
@@ -306,7 +306,7 @@ func (c *CampaignService) GetCampaignDetailsByID(ctx context.Context, id uuid.UU
 	return response, nil
 }
 
-func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contract *model.Contract) (*responses.CampaignMetricsComparison, error) {
+func (s *CampaignService) calculateMetricsComparison(ctx context.Context, contract *model.Contract) (*responses.CampaignMetricsComparison, error) {
 	var sow dtos.ScopeOfWork
 	if err := json.Unmarshal(contract.ScopeOfWork, &sow); err != nil {
 		return nil, err
@@ -319,7 +319,10 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 	}
 
 	// Helper to process items
-	processItem := func(id *int8, name string, metrics []dtos.KPIGoal, productIDs []uuid.UUID, contentIDs []uuid.UUID, trackingLink string) {
+	processItem := func(
+		id *int8, name string, metrics []dtos.KPIGoal, trackingLink string,
+		productIDs []uuid.UUID, contentIDs []uuid.UUID,
+	) {
 		if id == nil {
 			return
 		}
@@ -335,7 +338,7 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 		for i, m := range metrics {
 			itemComp.ExpectedMetrics[i] = m
 			val, _ := strconv.ParseFloat(m.Target, 64)
-			comparison.ExpectedMetrics[m.Metric] += val
+			utils.AddValueToMap(comparison.ExpectedMetrics, m.Metric, val)
 		}
 
 		// Realistic Metrics
@@ -346,30 +349,34 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 			err := utils.RunParallel(ctx, 2,
 				func(ctx context.Context) error {
 					var tempErr error
-					orderCount, orderRevenue, tempErr = c.orderRepo.GetOrderCountsAndTotalRevenueByOrderType(ctx, enum.ProductTypeLimited, constant.ValidCompletedOrderStatus)
+					orderCount, orderRevenue, tempErr = s.orderRepo.GetOrderCountsAndTotalRevenueByOrderType(
+						ctx, enum.ProductTypeLimited, constant.ValidCompletedOrderStatus, productIDs,
+					)
 					return tempErr
 				},
 				func(ctx context.Context) error {
 					var tempErr error
-					preOrderCount, preOrderRevenue, tempErr = c.preOrderRepo.GetPreOrderCountsAndTotalAmountByStatuses(ctx, constant.ValidCompletedPreOrderStatus)
+					preOrderCount, preOrderRevenue, tempErr = s.preOrderRepo.GetPreOrderCountsAndTotalAmountByStatuses(
+						ctx, constant.ValidCompletedPreOrderStatus, productIDs,
+					)
 					return tempErr
 				},
 			)
 			if err != nil {
 				zap.L().Error("Failed to get order counts and total revenue by order type", zap.Error(err))
 			} else {
-				itemComp.RealisticMetrics[strings.ToLower(enum.KPIValueTypeRevenue.String())] += orderRevenue + preOrderRevenue
-				itemComp.RealisticMetrics[strings.ToLower(enum.KPIValueTypeUnitsSold.String())] += float64(orderCount + preOrderCount)
+				utils.AddValueToMap(itemComp.RealisticMetrics, strings.ToLower(enum.KPIValueTypeRevenue.String()), orderRevenue+preOrderRevenue)
+				utils.AddValueToMap(itemComp.RealisticMetrics, strings.ToLower(enum.KPIValueTypeUnitsSold.String()), float64(orderCount+preOrderCount))
 			}
 		}
 
 		// 2. Content
 		if len(contentIDs) > 0 {
-			contentMetrics, err := c.contentChannelRepo.GetMetricsByContentIDs(ctx, contentIDs)
+			contentMetrics, err := s.contentChannelRepo.GetMetricsByContentIDs(ctx, contentIDs)
 			if err == nil {
 				for _, cm := range contentMetrics {
 					for k, v := range cm.CurrentMapped {
-						itemComp.RealisticMetrics[k.String()] += v
+						utils.AddValueToMap(itemComp.RealisticMetrics, k.String(), v)
 					}
 				}
 			}
@@ -378,24 +385,24 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 		// 3. Affiliate
 		if trackingLink != "" {
 			// Find AffiliateLink by tracking URL
-			affiliateLinks, _, _ := c.affiliateLinkRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+			affiliateLinks, _, _ := s.affiliateLinkRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
 				return db.Where("tracking_url = ?", trackingLink)
 			}, nil, 1, 1)
 
 			if len(affiliateLinks) > 0 {
 				linkID := affiliateLinks[0].ID
 				// Query KPI Metrics
-				metrics, _ := c.kpiMetricsRepo.GetAggregatedMetrics(ctx, linkID, enum.KPIReferenceTypeAffiliateLink, nil)
+				metrics, _ := s.kpiMetricsRepo.GetAggregatedMetrics(ctx, linkID, enum.KPIReferenceTypeAffiliateLink, nil)
 
 				for k, v := range metrics {
-					itemComp.RealisticMetrics[string(k)] += v
+					utils.AddValueToMap(itemComp.RealisticMetrics, k.String(), v)
 				}
 			}
 		}
 
 		// Aggregate item realistic metrics to total
 		for k, v := range itemComp.RealisticMetrics {
-			comparison.RealisticMetrics[k] += v
+			utils.AddValueToMap(comparison.RealisticMetrics, k, v)
 		}
 
 		comparison.Items = append(comparison.Items, itemComp)
@@ -404,25 +411,32 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 	// Iterate Deliverables
 	if sow.Deliverables.AdvertisedItems != nil {
 		for _, item := range sow.Deliverables.AdvertisedItems {
-			processItem(item.ID, item.Name, item.KPIs, nil, item.ContentIDs, sow.Deliverables.TrackingLink)
+			processItem(item.ID, item.Name, item.KPIs, sow.Deliverables.TrackingLink, nil, item.ContentIDs)
 		}
 	}
 
 	if sow.Deliverables.Events != nil {
 		for _, item := range sow.Deliverables.Events {
-			processItem(item.ID, item.Name, item.KPIs, nil, nil, "")
+			processItem(item.ID, item.Name, item.KPIs, "", nil, nil)
 		}
 	}
 
 	if sow.Deliverables.Products != nil {
 		for _, item := range sow.Deliverables.Products {
-			processItem(item.ID, item.Name, item.KPIs, item.ProductIDs, nil, "")
+			processItem(item.ID, item.Name, item.KPIs, "", item.ProductIDs, nil)
 		}
 	}
 
 	if sow.Deliverables.Concepts != nil {
 		for _, item := range sow.Deliverables.Concepts {
-			processItem(item.ID, item.Name, item.KPIs, item.ProductIDs, item.ContentIDs, "")
+			processItem(item.ID, item.Name, item.KPIs, "", item.ProductIDs, item.ContentIDs)
+		}
+	}
+
+	// Ensure all expected metrics keys exist in realistic metrics with zero value
+	for k := range comparison.ExpectedMetrics {
+		if _, exists := comparison.RealisticMetrics[k]; !exists {
+			comparison.RealisticMetrics[k] = 0
 		}
 	}
 
@@ -430,7 +444,7 @@ func (c *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 }
 
 // GetCampaignsByFilter implements iservice.CampaignService.
-func (c *CampaignService) GetCampaignsByFilter(
+func (s *CampaignService) GetCampaignsByFilter(
 	ctx context.Context,
 	filterRequest *requests.CampaignFilterRequest,
 ) ([]*responses.CampaignInfoResponse, int64, error) {
@@ -466,13 +480,13 @@ func (c *CampaignService) GetCampaignsByFilter(
 
 		return db
 	}
-	campaigns, totalCount, err := c.campaignRepo.GetAll(ctx, filterQuery, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
+	campaigns, totalCount, err := s.campaignRepo.GetAll(ctx, filterQuery, []string{"Contract"}, filterRequest.Limit, filterRequest.Page)
 
 	return responses.CampaignInfoResponse{}.ToCampaignInfoResponseList(campaigns), totalCount, err
 }
 
 // CreateCampaignFromContract implements iservice.CampaignService.
-func (c *CampaignService) CreateCampaignFromContract(
+func (s *CampaignService) CreateCampaignFromContract(
 	ctx context.Context,
 	userID uuid.UUID,
 	request *requests.CreateCampaignRequest,
@@ -490,7 +504,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 		existFilterQuery := func(db *gorm.DB) *gorm.DB {
 			return db.Where("contract_id = ?", contractID)
 		}
-		if exists, err := c.campaignRepo.Exists(ctx, existFilterQuery); err != nil {
+		if exists, err := s.campaignRepo.Exists(ctx, existFilterQuery); err != nil {
 			zap.L().Error("Failed to check if campaign exists for contract", zap.Error(err))
 			return err
 		} else if exists {
@@ -502,7 +516,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 	}
 	contractStatusFunc := func(ctx context.Context) error {
 		var err error
-		contract, err = c.contractRepo.GetByID(ctx, contractID, nil)
+		contract, err = s.contractRepo.GetByID(ctx, contractID, nil)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				zap.L().Warn("Contract not found", zap.String("contract_id", request.ContractID))
@@ -576,7 +590,7 @@ func (c *CampaignService) CreateCampaignFromContract(
 	return response, nil
 }
 
-func (c *CampaignService) CreateInternalCampaign(
+func (s *CampaignService) CreateInternalCampaign(
 	ctx context.Context,
 	uow irepository.UnitOfWork,
 	request *requests.CreateCampaignRequest,
@@ -645,14 +659,14 @@ func (c *CampaignService) CreateInternalCampaign(
 // region: ======= Suggest Campaign from Contract  =======
 
 // SuggestCampaignFromContract implements iservice.CampaignService.
-func (c *CampaignService) SuggestCampaignFromContract(
+func (s *CampaignService) SuggestCampaignFromContract(
 	ctx context.Context,
 	contractID uuid.UUID,
 ) (*responses.CampaignSuggestionResponse, error) {
 	zap.L().Info("Suggesting campaign from contract", zap.String("contract_id", contractID.String()))
 
 	// Retrieve contract with necessary fields
-	contract, err := c.contractRepo.GetByID(ctx, contractID, []string{"Brand", "ContractPayments"})
+	contract, err := s.contractRepo.GetByID(ctx, contractID, []string{"Brand", "ContractPayments"})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
@@ -693,13 +707,13 @@ func (c *CampaignService) SuggestCampaignFromContract(
 	var suggestedCampaign *responses.SuggestedCampaign
 	switch contract.Type {
 	case "ADVERTISING":
-		suggestedCampaign, err = c.extractAdvertisingTasks(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractAdvertisingTasks(ctx, scopeOfWorks, contract)
 	case "AFFILIATE":
-		suggestedCampaign, err = c.extractAffiliateTasks(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractAffiliateTasks(ctx, scopeOfWorks, contract)
 	case "BRAND_AMBASSADOR":
-		suggestedCampaign, err = c.extractBrandAmbassadorTasks(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractBrandAmbassadorTasks(ctx, scopeOfWorks, contract)
 	case "CO_PRODUCING":
-		suggestedCampaign, err = c.extractCoProducingStructure(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractCoProducingStructure(ctx, scopeOfWorks, contract)
 	default:
 		zap.L().Error("Unsupported contract type", zap.String("contract_id", contractID.String()), zap.String("type", string(contract.Type)))
 		return nil, errors.New("unsupported contract type")
@@ -753,7 +767,7 @@ func (c *CampaignService) SuggestCampaignFromContract(
 }
 
 // extractAdvertisingTasks extracts tasks from ADVERTISING contract deliverables
-func (c *CampaignService) extractAdvertisingTasks(
+func (s *CampaignService) extractAdvertisingTasks(
 	ctx context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
@@ -785,12 +799,12 @@ func (c *CampaignService) extractAdvertisingTasks(
 	err = utils.RunParallel(ctx, 2,
 		// Extract tasks
 		func(ctx context.Context) error {
-			suggestedTasks, tasksErr = c.extractAdvertisingTasksAsync(ctx, contract, deliverables, contract.StartDate)
+			suggestedTasks, tasksErr = s.extractAdvertisingTasksAsync(ctx, contract, deliverables, contract.StartDate)
 			return tasksErr
 		},
 		// Extract milestones
 		func(ctx context.Context) error {
-			suggestedMilestones, milestonesErr = c.extractAdvertisingMilestonesAsync(ctx, contract, financialTerms)
+			suggestedMilestones, milestonesErr = s.extractAdvertisingMilestonesAsync(ctx, contract, financialTerms)
 			return milestonesErr
 		},
 	)
@@ -821,7 +835,7 @@ func (c *CampaignService) extractAdvertisingTasks(
 }
 
 // extractAdvertisingTasksAsync extracts tasks from advertised items with item-level parallelization
-func (c *CampaignService) extractAdvertisingTasksAsync(
+func (s *CampaignService) extractAdvertisingTasksAsync(
 	_ context.Context,
 	contract *model.Contract,
 	deliverables *dtos.AdvertisingDeliverable,
@@ -863,7 +877,7 @@ func (c *CampaignService) extractAdvertisingTasksAsync(
 }
 
 // extractAdvertisingMilestonesAsync extracts milestones from financial terms schedules
-func (c *CampaignService) extractAdvertisingMilestonesAsync(
+func (s *CampaignService) extractAdvertisingMilestonesAsync(
 	_ context.Context,
 	contract *model.Contract,
 	financialTerms dtos.AdvertisingFinancialTerms,
@@ -917,7 +931,7 @@ func (c *CampaignService) extractAdvertisingMilestonesAsync(
 }
 
 // extractAffiliateTasks extracts tasks from AFFILIATE contract deliverables
-func (c *CampaignService) extractAffiliateTasks(
+func (s *CampaignService) extractAffiliateTasks(
 	_ context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
@@ -1014,7 +1028,7 @@ func (c *CampaignService) extractAffiliateTasks(
 }
 
 // extractBrandAmbassadorTasks extracts tasks from BRAND_AMBASSADOR contract deliverables
-func (c *CampaignService) extractBrandAmbassadorTasks(
+func (s *CampaignService) extractBrandAmbassadorTasks(
 	_ context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
@@ -1106,7 +1120,7 @@ func (c *CampaignService) extractBrandAmbassadorTasks(
 }
 
 // extractCoProducingStructure extracts milestones and tasks from CO_PRODUCING contract deliverables
-func (c *CampaignService) extractCoProducingStructure(
+func (s *CampaignService) extractCoProducingStructure(
 	_ context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,

@@ -520,12 +520,18 @@ func (r *OrderRepository) GetOrdersWithFiltersWithPagination(
 	return orders, total, nil
 }
 
-func (r *OrderRepository) GetOrderCountsAndTotalRevenueByOrderType(ctx context.Context, orderType enum.ProductType, status []enum.OrderStatus) (count int64, totalRevenue float64, err error) {
+func (r *OrderRepository) GetOrderCountsAndTotalRevenueByOrderType(
+	ctx context.Context, orderType enum.ProductType, status []enum.OrderStatus, productIDs []uuid.UUID,
+) (count int64, totalRevenue float64, err error) {
 	db := r.db.WithContext(ctx).Model(&model.Order{})
 	query := db.
-		Where("order_type = ?", orderType).
-		Where("status IN ?", status).
-		Select("COUNT(*) AS order_count, COALESCE(SUM(total_amount), 0) AS total_revenue")
+		Joins("JOIN order_items oi ON oi.order_id = orders.id").
+		Joins("JOIN product_variants pv ON pv.id = oi.variant_id").
+		Where("orders.order_type = ?", orderType).
+		Where("orders.status IN ?", status).
+		Where("pv.product_id IN ?", productIDs).
+		Distinct("orders.id").
+		Select("COUNT(orders.id) AS order_count, COALESCE(SUM(orders.total_amount), 0) AS total_revenue")
 
 	if err = query.Row().Scan(&count, &totalRevenue); err != nil {
 		zap.L().Error("Failed to get order counts and total revenue by order type", zap.Error(err))
