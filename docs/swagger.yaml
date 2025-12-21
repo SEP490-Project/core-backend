@@ -494,6 +494,10 @@ definitions:
     properties:
       _id:
         type: string
+      available_states:
+        additionalProperties:
+          type: boolean
+        type: object
       calculate_weight:
         type: integer
       client_id:
@@ -577,6 +581,8 @@ definitions:
         type: string
       from_district_id:
         type: integer
+      from_district_name:
+        type: string
       from_hotline:
         type: string
       from_location:
@@ -602,10 +608,14 @@ definitions:
         type: string
       from_province_id_v2:
         type: integer
+      from_province_name:
+        type: string
       from_ward_code:
         type: string
       from_ward_id_v2:
         type: integer
+      from_ward_name:
+        type: string
       height:
         type: integer
       image_ids: {}
@@ -709,6 +719,8 @@ definitions:
         type: string
       return_district_id:
         type: integer
+      return_district_name:
+        type: string
       return_location:
         properties:
           cell_code:
@@ -732,10 +744,14 @@ definitions:
         type: string
       return_province_id_v2:
         type: integer
+      return_province_name:
+        type: string
       return_ward_code:
         type: string
       return_ward_id_v2:
         type: integer
+      return_ward_name:
+        type: string
       return_warehouse_id:
         type: integer
       seal_code:
@@ -766,6 +782,8 @@ definitions:
         type: string
       to_district_id:
         type: integer
+      to_district_name:
+        type: string
       to_location:
         properties:
           cell_code:
@@ -789,10 +807,14 @@ definitions:
         type: string
       to_province_id_v2:
         type: integer
+      to_province_name:
+        type: string
       to_ward_code:
         type: string
       to_ward_id_v2:
         type: integer
+      to_ward_name:
+        type: string
       transaction_ids:
         items:
           type: string
@@ -17562,6 +17584,39 @@ paths:
       summary: Get expected delivery time from GHN
       tags:
       - ghn
+  /api/v1/ghn/info/{ghn-code}:
+    get:
+      consumes:
+      - application/json
+      description: Fetch GHN order details for a given GHN order code
+      parameters:
+      - description: Code of GHN order which is provided after create a standard order
+        in: path
+        name: ghn-code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrderInfo'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN order info by GHN order code
+      tags:
+      - ghn
   /api/v1/ghn/mocking/gso-token:
     get:
       consumes:
@@ -17754,8 +17809,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-      security:
-      - BearerAuth: []
       summary: Get GHN order info by GHN order code
       tags:
       - ghn
@@ -22268,22 +22321,22 @@ paths:
         name: contract_id
         type: string
       - description: Filter by deadline from date
-        format: date-time
+        format: date
         in: query
         name: deadline_from_date
         type: string
       - description: Filter by deadline to date
-        format: date-time
+        format: date
         in: query
         name: deadline_to_date
         type: string
       - description: Filter by updated from date
-        format: date-time
+        format: date
         in: query
         name: updated_from_date
         type: string
       - description: Filter by updated to date
-        format: date-time
+        format: date
         in: query
         name: updated_to_date
         type: string
@@ -22852,6 +22905,37 @@ paths:
       summary: Get Tasks by Profile
       tags:
       - Tasks
+  /api/v1/test/contracts/{id}/update-sow:
+    put:
+      consumes:
+      - application/json
+      description: Updates the scope of work for a specific contract based on its
+        associated tasks.
+      parameters:
+      - description: Contract ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated contract scope of work
+          schema: {}
+        "400":
+          description: Bad request due to invalid parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Contract Scope of Work
+      tags:
+      - Test
   /api/v1/test/migrate-sow-ids:
     post:
       consumes:
