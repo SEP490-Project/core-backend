@@ -11,3 +11,12 @@ const (
 )
 
 func (s ScopeOfWorkIDType) String() string { return string(s) }
+
+func (s ScopeOfWorkIDType) IsValid() bool {
+	switch s {
+	case ScopeOfWorkIDTypeAdvertise, ScopeOfWorkIDTypeAffiliate, ScopeOfWorkIDTypeEvent, ScopeOfWorkIDTypeProduct, ScopeOfWorkIDTypeConcept:
+		return true
+	default:
+		return false
+	}
+}

@@ -1,6 +1,7 @@
 package dtos
 
 import (
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"time"
 
@@ -63,6 +64,9 @@ type ProductInfo struct {
 	ID   uuid.UUID        `json:"id"`
 	Name string           `json:"name"`
 	Type enum.ProductType `json:"type"`
+
+	// Relation
+	TaskID uuid.UUID `json:"task_id"`
 }
 
 type ContentInfo struct {
@@ -70,6 +74,9 @@ type ContentInfo struct {
 	Title       string           `json:"title"`
 	Description *string          `json:"description,omitempty"`
 	Type        enum.ContentType `json:"type"`
+
+	// Relation
+	TaskID uuid.UUID `json:"task_id"`
 }
 
 type BrandInfo struct {
@@ -77,4 +84,20 @@ type BrandInfo struct {
 	Name    string  `json:"name"`
 	LogoURL *string `json:"logo_url"`
 	Status  string  `json:"status"`
+}
+
+type TaskWithScopeOfWorkID struct {
+	ID     uuid.UUID       `json:"id" gorm:"column:id"`
+	Type   enum.TaskType   `json:"type" gorm:"column:type"`
+	Status enum.TaskStatus `json:"status" gorm:"column:status"`
+
+	// ScopeOfWorkItemID and splitted value fields
+	ScopeOfWorkItemID   *string                     `json:"scope_of_work_item_id" gorm:"column:scope_of_work_item_id"`
+	ContractID          *uuid.UUID                  `json:"-"`
+	ScopeOfWorkItemType *constant.ScopeOfWorkIDType `json:"-"`
+	ItemID              *int8                       `json:"-"`
+
+	// Aggregated fields
+	ProductInfo *ProductInfo `json:"product_info,omitempty" gorm:"-"`
+	ContentInfo *ContentInfo `json:"content_info,omitempty" gorm:"-"`
 }
