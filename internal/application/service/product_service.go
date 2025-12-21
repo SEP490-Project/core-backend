@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"core-backend/config"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -72,6 +73,7 @@ type productService struct {
 
 	imageStorage irepository_third_party.S3Storage
 	rabbitmq     *rabbitmq.RabbitMQ
+	config       *config.AppConfig
 }
 
 func (p *productService) GetProductReviewPaginationStaff(brandID *uuid.UUID, productID *uuid.UUID, req requests.ProductReviewFilter) ([]responses.ProductReviewResponseStaff, int, error) {
@@ -546,6 +548,11 @@ func (p productService) CreateVarianceImage(ctx context.Context, variantID uuid.
 func (p productService) CreateProductVariance(ctx context.Context, userID uuid.UUID, productID uuid.UUID, variant requests.CreateProductVariantRequest, unitOfWork irepository.UnitOfWork) (*model.ProductVariant, error) {
 	var productVariant *model.ProductVariant
 	var productOfVariant *model.Product
+	maximumProductVariant := p.config.AdminConfig.ProductMaximumVariants
+	if maximumProductVariant <= 0 {
+		zap.L().Info("invalid maximum product variant config, defaulting to 5")
+		maximumProductVariant = 5
+	}
 	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// validate dimensions
 		err := p.variantDimensionValidation(variant)
@@ -557,15 +564,15 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if productID == uuid.Nil {
 			return errors.New("invalid product id")
 		}
-		//Limited variants of a product maximum is 5
+		//Limited variants of a product maximum from admin config (default is 5)
 		//Count variants
 		variantCount, err := uow.ProductVariant().Count(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("product_id = ?", productID)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to count product variants: %w", err)
-		} else if variantCount >= 5 {
-			return errors.New("reach maximum variants for a product (5)")
+		} else if int(variantCount) >= maximumProductVariant {
+			return fmt.Errorf("reach maximum variants for a product (%d)", maximumProductVariant)
 		}
 
 		// Load product now (check and propagate any error) so we can use it for response
@@ -600,6 +607,21 @@ func (p productService) CreateProductVariance(ctx context.Context, userID uuid.U
 		if err := uow.ProductVariant().Add(ctx, productVariant); err != nil {
 			zap.L().Info("failed to persist product variant", zap.Error(err))
 			return err
+		}
+
+		if productVariant.IsDefault {
+			// Unset other variants as default
+			result := uow.ProductVariant().
+				DB().
+				WithContext(ctx).
+				Model(&model.ProductVariant{}).
+				Where("product_id = ? AND id != ?", productID, productVariant.ID).
+				Update("is_default", false)
+
+			if result.Error != nil {
+				zap.L().Error("failed to unset other default product variants", zap.Error(result.Error))
+				return fmt.Errorf("failed to unset other default product variants: %w", result.Error)
+			}
 		}
 
 		return nil
@@ -1614,6 +1636,7 @@ func NewProductService(
 	dbRegistry *gormrepository.DatabaseRegistry,
 	storage3rd *third_party_repository.ThirdPartyStorageRegistry,
 	rabbitmq *rabbitmq.RabbitMQ,
+	config *config.AppConfig,
 ) iservice.ProductService {
 	return &productService{
 		repository:           dbRegistry.ProductRepository,
@@ -1632,98 +1655,107 @@ func NewProductService(
 		variantImageRepo:     dbRegistry.VariantImageRepository,
 		imageStorage:         storage3rd.S3Storage,
 		rabbitmq:             rabbitmq,
+		config:               config,
 	}
 }
 
-func (p productService) UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest) (*model.ProductVariant, error) {
-	// Load existing variant with product relation
-	variant, err := p.variantRepo.GetByID(ctx, variantID, []string{"Product"})
+func (p productService) UpdateVariant(ctx context.Context, variantID uuid.UUID, update requests.UpdateProductVariantRequest, uow irepository.UnitOfWork) (*model.ProductVariant, error) {
+	var variant *model.ProductVariant
+
+	err := helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		variantRepo := uow.ProductVariant()
+		// Load existing variant with product relation
+		variant, err := variantRepo.GetByID(ctx, variantID, []string{"Product"})
+		if err != nil {
+			zap.L().Info("failed to get product variant by id", zap.String("variant_id", variantID.String()), zap.Error(err))
+			return err
+		}
+
+		// Parse optional dates
+		if update.ManufactureDate != nil {
+			if parsed, err := time.Parse(time.RFC3339, *update.ManufactureDate); err == nil {
+				variant.ManufactureDate = &parsed
+			} else {
+				zap.L().Warn("failed to parse manufacture date", zap.Error(err), zap.String("value", *update.ManufactureDate))
+			}
+		}
+		if update.ExpiryDate != nil {
+			if parsed, err := time.Parse(time.RFC3339, *update.ExpiryDate); err == nil {
+				variant.ExpiryDate = &parsed
+			} else {
+				zap.L().Warn("failed to parse expiry date", zap.Error(err), zap.String("value", *update.ExpiryDate))
+			}
+		}
+
+		// Apply scalar updates if provided
+		if update.Price != nil {
+			if *update.Price < 0 {
+				zap.L().Warn("price less than 0, setting to 0")
+				*update.Price = 0
+			}
+			variant.Price = *update.Price
+		}
+		if update.Capacity != nil {
+			variant.Capacity = *update.Capacity
+		}
+		if update.CapacityUnit != nil {
+			variant.CapacityUnit = *update.CapacityUnit
+		}
+		if update.ContainerType != nil {
+			variant.ContainerType = *update.ContainerType
+		}
+		if update.DispenserType != nil {
+			variant.DispenserType = *update.DispenserType
+		}
+		if update.Uses != nil {
+			variant.Uses = *update.Uses
+		}
+		if update.Instructions != nil {
+			variant.Instructions = *update.Instructions
+		}
+		if update.Weight != nil {
+			variant.Weight = *update.Weight
+		}
+		if update.Height != nil {
+			variant.Height = *update.Height
+		}
+		if update.Length != nil {
+			variant.Length = *update.Length
+		}
+		if update.Width != nil {
+			variant.Width = *update.Width
+		}
+
+		if update.InputedStock != nil {
+			variant.CurrentStock = update.InputedStock
+			variant.MaxStock = update.InputedStock
+		}
+
+		// Handle default flag: unset other variants' default if setting this one to true
+		if update.IsDefault != nil && *update.IsDefault {
+			result := variantRepo.DB().WithContext(ctx).
+				Model(&model.ProductVariant{}).
+				Where("product_id = ?", variant.ProductID).
+				Update("is_default", false)
+			if result.Error != nil {
+				zap.L().Warn("failed to unset other default variants", zap.Error(result.Error))
+			}
+			variant.IsDefault = *update.IsDefault
+		} else if update.IsDefault != nil {
+			variant.IsDefault = *update.IsDefault
+		}
+
+		variant.UpdatedAt = time.Now().UTC()
+
+		if err := variantRepo.Update(ctx, variant); err != nil {
+			zap.L().Error("failed to update product variant", zap.String("variant_id", variantID.String()), zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		zap.L().Info("failed to get product variant by id", zap.String("variant_id", variantID.String()), zap.Error(err))
-		return nil, err
-	}
-	if variant == nil {
-		return nil, errors.New("product variant not found")
-	}
-
-	// Parse optional dates
-	if update.ManufactureDate != nil {
-		if parsed, err := time.Parse(time.RFC3339, *update.ManufactureDate); err == nil {
-			variant.ManufactureDate = &parsed
-		} else {
-			zap.L().Warn("failed to parse manufacture date", zap.Error(err), zap.String("value", *update.ManufactureDate))
-		}
-	}
-	if update.ExpiryDate != nil {
-		if parsed, err := time.Parse(time.RFC3339, *update.ExpiryDate); err == nil {
-			variant.ExpiryDate = &parsed
-		} else {
-			zap.L().Warn("failed to parse expiry date", zap.Error(err), zap.String("value", *update.ExpiryDate))
-		}
-	}
-
-	// Apply scalar updates if provided
-	if update.Price != nil {
-		if *update.Price < 0 {
-			zap.L().Warn("price less than 0, setting to 0")
-			*update.Price = 0
-		}
-		variant.Price = *update.Price
-	}
-	if update.Capacity != nil {
-		variant.Capacity = *update.Capacity
-	}
-	if update.CapacityUnit != nil {
-		variant.CapacityUnit = *update.CapacityUnit
-	}
-	if update.ContainerType != nil {
-		variant.ContainerType = *update.ContainerType
-	}
-	if update.DispenserType != nil {
-		variant.DispenserType = *update.DispenserType
-	}
-	if update.Uses != nil {
-		variant.Uses = *update.Uses
-	}
-	if update.Instructions != nil {
-		variant.Instructions = *update.Instructions
-	}
-	if update.Weight != nil {
-		variant.Weight = *update.Weight
-	}
-	if update.Height != nil {
-		variant.Height = *update.Height
-	}
-	if update.Length != nil {
-		variant.Length = *update.Length
-	}
-	if update.Width != nil {
-		variant.Width = *update.Width
-	}
-
-	if update.InputedStock != nil {
-		variant.CurrentStock = update.InputedStock
-		variant.MaxStock = update.InputedStock
-	}
-
-	// Handle default flag: unset other variants' default if setting this one to true
-	if update.IsDefault != nil && *update.IsDefault {
-		result := p.variantRepo.DB().WithContext(ctx).
-			Model(&model.ProductVariant{}).
-			Where("product_id = ?", variant.ProductID).
-			Update("is_default", false)
-		if result.Error != nil {
-			zap.L().Warn("failed to unset other default variants", zap.Error(result.Error))
-		}
-		variant.IsDefault = *update.IsDefault
-	} else if update.IsDefault != nil {
-		variant.IsDefault = *update.IsDefault
-	}
-
-	variant.UpdatedAt = time.Now().UTC()
-
-	if err := p.variantRepo.Update(ctx, variant); err != nil {
-		zap.L().Error("failed to update product variant", zap.String("variant_id", variantID.String()), zap.Error(err))
 		return nil, err
 	}
 
