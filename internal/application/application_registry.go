@@ -180,7 +180,7 @@ func NewApplicationRegistry(
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
-		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ),
+		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ, configs),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          stateTransferService,
 		ContractService:               service.NewContractService(databaseRegistry),

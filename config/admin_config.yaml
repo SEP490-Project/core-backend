@@ -12,6 +12,13 @@ representative_bank_name: "Ngân hàng TMCP Đầu tư và Phát triển Việt 
 representative_bank_account_number: "6330871111"
 representative_bank_account_holder: "TRAN MAI QUANG KHAI"
 representative_company_address: "FPTU Lỏ lỏ"
+# Representative use to create GHN Order
+representative_company_name: "Công ty TNHH Thương Mại Dịch Vụ BShowSell"
+representative_ghn_phone: "0944488274"
+representative_ghn_ward_name: "phường Long Thạnh Mỹ"
+representative_ghn_district_name: "Thủ Đức"
+representative_ghn_province_name: "TP Hồ Chí Minh"
+
 
 # Affiliate Link Tracking Configuration
 tracking_link_trusted_domains: 
@@ -80,6 +87,9 @@ daily_cron_job_worker_count: "7"
 
 # Order - PreOrder
 censorship_interval_minutes: 5
+
+#Products
+product_maximum_variants: 5
 
 # Social Media config integrations
 # Facebook

@@ -321,12 +321,13 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// ---------- GHN INTEGRATION ----------
 		ghnHandler := r.handlerRegistry.GHNHandler
 		ghnGroup := v1.Group("/ghn")
-		ghnGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		ghnGroup.Use()
 		{
 			ghnGroup.GET("/order/:order-id/shipping-services", ghnHandler.GetAvailableDeliveryServicesByOrderID)
 			ghnGroup.POST("/order/:order-id/calculate", ghnHandler.CalculateDeliveryPriceByOrderID)
 			// GHN order info (protected)
 			ghnGroup.GET("/order/info/:order-id", ghnHandler.GetOrderInfo)
+			ghnGroup.GET("/info/:ghn-code", ghnHandler.GetOrderInfoByGhnCode)
 		}
 		ghnPublicGroup := v1.Group("/ghn")
 		{

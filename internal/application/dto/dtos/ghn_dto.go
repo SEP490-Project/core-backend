@@ -298,14 +298,18 @@ type DeliveryAvailableServiceBody struct {
 // ============================ ORDER MANAGEMENT ============================================
 
 type OrderInfo struct {
-	ShopID           int    `json:"shop_id"`
-	ClientID         int    `json:"client_id"`
-	ReturnName       string `json:"return_name"`
-	ReturnPhone      string `json:"return_phone"`
-	ReturnAddress    string `json:"return_address"`
-	ReturnWardCode   string `json:"return_ward_code"`
-	ReturnDistrictID int    `json:"return_district_id"`
-	ReturnLocation   struct {
+	AvailableStates    map[string]bool `json:"available_states"`
+	ShopID             int             `json:"shop_id"`
+	ClientID           int             `json:"client_id"`
+	ReturnName         string          `json:"return_name"`
+	ReturnPhone        string          `json:"return_phone"`
+	ReturnAddress      string          `json:"return_address"`
+	ReturnWardCode     string          `json:"return_ward_code"`
+	ReturnDistrictID   int             `json:"return_district_id"`
+	ReturnWardName     string          `json:"return_ward_name"`
+	ReturnDistrictName string          `json:"return_district_name"`
+	ReturnProvinceName string          `json:"return_province_name"`
+	ReturnLocation     struct {
 		Lat        float64 `json:"lat"`
 		Long       float64 `json:"long"`
 		CellCode   string  `json:"cell_code"`
@@ -314,13 +318,16 @@ type OrderInfo struct {
 		Wardcode   string  `json:"wardcode"`
 		MapSource  string  `json:"map_source"`
 	} `json:"return_location"`
-	FromName       string `json:"from_name"`
-	FromPhone      string `json:"from_phone"`
-	FromHotline    string `json:"from_hotline"`
-	FromAddress    string `json:"from_address"`
-	FromWardCode   string `json:"from_ward_code"`
-	FromDistrictID int    `json:"from_district_id"`
-	FromLocation   struct {
+	FromName         string `json:"from_name"`
+	FromPhone        string `json:"from_phone"`
+	FromHotline      string `json:"from_hotline"`
+	FromAddress      string `json:"from_address"`
+	FromWardCode     string `json:"from_ward_code"`
+	FromDistrictID   int    `json:"from_district_id"`
+	FromWardName     string `json:"from_ward_name"`
+	FromDistrictName string `json:"from_district_name"`
+	FromProvinceName string `json:"from_province_name"`
+	FromLocation     struct {
 		Lat        float64 `json:"lat"`
 		Long       float64 `json:"long"`
 		CellCode   string  `json:"cell_code"`
@@ -335,6 +342,9 @@ type OrderInfo struct {
 	ToAddress        string `json:"to_address"`
 	ToWardCode       string `json:"to_ward_code"`
 	ToDistrictID     int    `json:"to_district_id"`
+	ToWardName       string `json:"to_ward_name"`
+	ToDistrictName   string `json:"to_district_name"`
+	ToProvinceName   string `json:"to_province_name"`
 	ToLocation       struct {
 		Lat        float64 `json:"lat"`
 		Long       float64 `json:"long"`

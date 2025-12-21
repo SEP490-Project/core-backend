@@ -20,6 +20,8 @@ type GHNProxy interface {
 
 	//Order Management
 	GetOrderInfo(ctx context.Context, orderID string) (*dtos.OrderInfo, error)
+	GetOrderInfoRaw(ctx context.Context, ghnCode string) (*dtos.OrderInfo, error)
+	GetAvailableNextActions(*dtos.OrderInfo) (map[string]bool, error)
 	CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error)
 	CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error)
 
