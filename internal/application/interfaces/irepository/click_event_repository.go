@@ -19,6 +19,9 @@ type ClickEventRepository interface {
 	// Used by aggregation job to process new clicks
 	GetRecentClicks(ctx context.Context, since time.Time, limit int) ([]model.ClickEvent, error)
 
+	// GetAggregatedClicks returns click counts grouped by affiliate link ID since a specific timestamp
+	GetAggregatedClicks(ctx context.Context, since time.Time) (map[uuid.UUID]int, error)
+
 	// GetClicksByTimeRange retrieves click events for a specific affiliate link within a time range
 	// Optimized for TimescaleDB chunk exclusion
 	GetClicksByTimeRange(ctx context.Context, affiliateLinkID uuid.UUID, startTime, endTime time.Time) ([]model.ClickEvent, error)

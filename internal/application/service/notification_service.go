@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
 	"time"
@@ -28,7 +29,7 @@ const (
 // NotificationService implements notification monitoring operations
 type NotificationService struct {
 	notificationRepo irepository.NotificationRepository
-	userRepo         irepository.GenericRepository[model.User]
+	userRepo         irepository.UserRepository
 	rabbitmq         *rabbitmq.RabbitMQ
 	realTimeNotifier iservice.SSEService
 }
@@ -36,7 +37,7 @@ type NotificationService struct {
 // NewNotificationService creates a new notification service instance
 func NewNotificationService(
 	notificationRepo irepository.NotificationRepository,
-	userRepo irepository.GenericRepository[model.User],
+	userRepo irepository.UserRepository,
 	rabbitmq *rabbitmq.RabbitMQ,
 	realTimeNotifier iservice.SSEService,
 ) *NotificationService {
@@ -170,40 +171,33 @@ func (s *NotificationService) GetFailedWithRetries(ctx context.Context, minRetri
 		zap.Int("page", page),
 		zap.Int("limit", limit))
 
-	if page < 1 {
-		page = 1
+	// notifications, err := s.notificationRepo.FindFailedWithRetries(ctx, minRetries, page, limit)
+	// if err != nil {
+	// 	zap.L().Error("Failed to fetch notifications with retries",
+	// 		zap.Int("min_retries", minRetries),
+	// 		zap.Error(err))
+	// 	return nil, 0, errors.New("failed to fetch failed notifications")
+	// }
+	filterQuery := func(db *gorm.DB) *gorm.DB {
+		return db.Where("jsonb_array_length(delivery_attempts) >= ?", minRetries).
+			Where("status = ?", enum.NotificationStatusFailed).
+			Order("created_at DESC")
 	}
-	if limit < 1 || limit > 100 {
-		limit = 20
-	}
-
-	notifications, err := s.notificationRepo.FindFailedWithRetries(ctx, minRetries)
+	failedNotification, count, err := s.notificationRepo.GetAll(ctx, filterQuery, nil, limit, page)
 	if err != nil {
-		zap.L().Error("Failed to fetch notifications with retries",
+		zap.L().Error("Failed to fetch failed notifications with retries",
 			zap.Int("min_retries", minRetries),
 			zap.Error(err))
 		return nil, 0, errors.New("failed to fetch failed notifications")
 	}
 
-	// Manual pagination since this uses a custom query
-	total := int64(len(notifications))
-	start := (page - 1) * limit
-	end := start + limit
-
-	if start >= len(notifications) {
-		return []*model.Notification{}, total, nil
-	}
-	if end > len(notifications) {
-		end = len(notifications)
-	}
-
-	paginatedNotifications := notifications[start:end]
-
 	zap.L().Info("Fetched failed notifications with retries",
-		zap.Int("count", len(paginatedNotifications)),
-		zap.Int64("total", total))
+		zap.Int("count", len(failedNotification)),
+		zap.Int64("total", count))
 
-	return paginatedNotifications, total, nil
+	return utils.MapSlice(failedNotification, func(n model.Notification) *model.Notification {
+		return &n
+	}), count, nil
 }
 
 // GetByFilters retrieves notifications with multiple filter criteria
@@ -308,7 +302,7 @@ func (s *NotificationService) GetByFilters(
 }
 
 // CreateAndPublishNotification creates notification records and publishes them to specified channels
-func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) ([]uuid.UUID, error) {
+func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) (map[enum.NotificationType]uuid.UUID, error) {
 	zap.L().Info("Creating and publishing notification to multiple channels",
 		zap.String("user_id", req.UserID.String()),
 		zap.Strings("channels", req.Channels))
@@ -318,68 +312,7 @@ func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
-
-	// Process each channel
-	notificationIDs := make([]uuid.UUID, 0, len(req.Channels))
-	for _, channel := range req.Channels {
-		notificationType := enum.NotificationType(channel)
-		if !notificationType.IsValid() {
-			zap.L().Warn("Invalid notification channel", zap.String("channel", channel))
-			continue
-		}
-
-		switch notificationType {
-		case enum.NotificationTypeEmail:
-			emailReq := req.ToEmailRequest()
-			if req.CustomReceiver != nil {
-				emailReq.To = *req.CustomReceiver
-			} else {
-				emailReq.To = user.Email
-			}
-			var notificationID uuid.UUID
-			notificationID, err = s.CreateAndPublishEmail(ctx, emailReq)
-			if err != nil {
-				zap.L().Error("Failed to publish email notification", zap.Error(err))
-				continue
-			}
-			notificationIDs = append(notificationIDs, notificationID)
-
-		case enum.NotificationTypePush:
-			pushReq := req.ToPushRequest()
-			var notificationID uuid.UUID
-			notificationID, err = s.CreateAndPublishPush(ctx, pushReq)
-			if err != nil {
-				zap.L().Error("Failed to publish push notification", zap.Error(err))
-				continue
-			}
-			notificationIDs = append(notificationIDs, notificationID)
-
-		case enum.NotificationTypeInApp:
-			inAppReq := req.ToInAppRequest()
-			var notificationID uuid.UUID
-			notificationID, err = s.CreateAndPublishInApp(ctx, inAppReq)
-			if err != nil {
-				zap.L().Error("Failed to publish in-app notification", zap.Error(err))
-				continue
-			}
-			notificationIDs = append(notificationIDs, notificationID)
-
-		default:
-			zap.L().Warn("Unsupported notification channel, skipping requests",
-				zap.String("channel", channel),
-				zap.Any("request", req))
-			continue
-		}
-	}
-
-	if len(notificationIDs) == 0 {
-		return nil, errors.New("failed to publish notifications to any channel")
-	}
-
-	zap.L().Info("Successfully published notifications",
-		zap.Int("count", len(notificationIDs)))
-
-	return notificationIDs, nil
+	return s.createAndPublishNotification(ctx, req, user)
 }
 
 // CreateAndPublishEmail creates an email notification record and publishes it
@@ -416,6 +349,7 @@ func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *re
 		Subject:        req.Subject,
 		Priority:       req.Priority,
 		Metadata:       req.Metadata,
+		ScheduleID:     req.ScheduleID,
 	}
 
 	if req.TemplateName != nil {
@@ -481,6 +415,7 @@ func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *req
 		Title:          req.Title,
 		Body:           req.Body,
 		Data:           req.Data,
+		ScheduleID:     req.ScheduleID,
 	}
 
 	// Add platform-specific configurations if provided
@@ -580,6 +515,7 @@ func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *re
 			Type:           "info", // Default type
 			Data:           req.Data,
 			CreatedAt:      time.Now().Format(time.RFC3339),
+			ScheduleID:     req.ScheduleID,
 		}
 
 		if err := producer.PublishJSON(ctx, msg); err != nil {
@@ -607,72 +543,65 @@ func (s *NotificationService) BroadcastToUser(ctx context.Context, userID uuid.U
 		zap.String("user_id", userID.String()),
 		zap.Strings("channels", channels))
 
-	// Verify user exists
-	if _, err := s.validateUserExists(ctx, userID, nil); err != nil {
+	req := &requests.PublishNotificationRequest{
+		UserID:        userID,
+		Channels:      channels,
+		Title:         title,
+		Body:          body,
+		Data:          data,
+		EmailHTMLBody: &body, // Ensure body is passed to email channel
+	}
+
+	user, err := s.validateUserExists(ctx, req.UserID, nil)
+	if err != nil {
 		return err
 	}
-
-	// Create notification record (generic type or primary type?)
-	// For broadcast, we might want to create one record per channel or one master record.
-	// Current system seems to be 1 record = 1 type.
-	// If we use "notification.all", we are sending to multiple queues.
-	// But we need a record in DB for history.
-	// Let's create an IN_APP record as the "master" record for history if InApp is included,
-	// or just create one record and let the consumers handle it?
-	// If we create one record, say Type=IN_APP, but send to Email queue, Email consumer might be confused if it expects Type=EMAIL.
-	// However, our consumers now handle UnifiedNotificationMessage.
-
-	// Strategy: Create one notification record of type "SYSTEM" or "BROADCAST" if we had it,
-	// but for now let's default to IN_APP as it's the most generic.
-	// OR, we iterate and create records like CreateAndPublishNotification does.
-	// BUT the user wants to use the "notification.all" routing key to broadcast.
-
-	// If we use "notification.all", the SAME message goes to all queues.
-	// That message needs a NotificationID.
-	// So we must create ONE notification record that represents this broadcast.
-	// Let's use Type=IN_APP as the primary type for the record, as it's most likely to be viewed in the app.
-
-	notificationID := uuid.New()
-	notification := &model.Notification{
-		ID:            notificationID,
-		UserID:        userID,
-		Type:          enum.NotificationTypeInApp, // Defaulting to InApp for broadcast records
-		Status:        enum.NotificationStatusSent,
-		IsRead:        false,
-		RecipientInfo: model.JSONBRecipientInfo{
-			// We could store target channels here if we extend the struct
-		},
-		ContentData: model.JSONBContentData{
-			Title: title,
-			Body:  body,
-		},
-	}
-
-	if err := s.notificationRepo.Add(ctx, notification); err != nil {
-		return fmt.Errorf("failed to create notification record: %w", err)
-	}
-
-	// Publish to "notification.all"
-	producer, err := s.rabbitmq.GetProducer(allProducerName)
+	_, err = s.createAndPublishNotification(ctx, req, user)
 	if err != nil {
-		return fmt.Errorf("failed to get all-producer: %w", err)
+		return fmt.Errorf("failed to broadcast notification: %w", err)
 	}
 
-	msg := consumers.UnifiedNotificationMessage{
-		NotificationID: notificationID,
-		UserID:         userID,
-		Title:          title,
-		Body:           body,
-		Data:           data,
-		Type:           "info",
-		TargetChannels: channels,
-		CreatedAt:      time.Now().Format(time.RFC3339),
+	return nil
+}
+
+func (s *NotificationService) BroadcastToUserWithRequest(ctx context.Context, req *requests.PublishNotificationRequest) error {
+	user, err := s.validateUserExists(ctx, req.UserID, nil)
+	if err != nil {
+		return err
+	}
+	_, err = s.createAndPublishNotification(ctx, req, user)
+	if err != nil {
+		return fmt.Errorf("failed to broadcast notification: %w", err)
 	}
 
-	if err := producer.PublishJSON(ctx, msg); err != nil {
-		return fmt.Errorf("failed to publish broadcast message: %w", err)
+	return nil
+}
+
+func (s *NotificationService) BroadcastToRoleWithRequest(ctx context.Context, userRoles []enum.UserRole, req *requests.PublishNotificationRequest) error {
+	zap.L().Info("Broadcasting notification to all user with role",
+		zap.Strings("role", utils.MapSlice(userRoles, func(r enum.UserRole) string { return r.String() })))
+
+	userIDs, err := s.userRepo.GetUserIDsByFilter(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.
+			Where("is_active = ?", true).
+			Where("is_deleted = ?", false).
+			Where("role = ?", userRoles)
+	})
+	if err != nil {
+		zap.L().Error("Failed to fetch user IDs for broadcast", zap.Error(err))
+		return fmt.Errorf("failed to fetch user IDs for broadcast: %w", err)
 	}
 
+	for _, userID := range userIDs {
+		// Default to All channels when broadcasting to all users
+		channels := []string{"EMAIL", "PUSH", "IN_APP"}
+
+		if err := s.BroadcastToUser(ctx, userID, req.Title, req.Body, req.Data, channels); err != nil {
+			zap.L().Error("Failed to broadcast to user",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
+		}
+	}
 	return nil
 }
 
@@ -681,54 +610,25 @@ func (s *NotificationService) BroadcastToAll(ctx context.Context, title, body st
 	zap.L().Info("Broadcasting notification to all users",
 		zap.Stringp("role", role))
 
-	// Fetch users (with role filter if provided)
-	// This could be heavy if there are many users. For a real production system,
-	// we should use a batch job or a specific "Broadcast" queue that expands the list.
-	// For now, we'll iterate.
+	userIDs, err := s.userRepo.GetUserIDsByFilter(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.
+			Where("is_active = ?", true).
+			Where("is_deleted = ?", false).
+			Where("role = ?", role)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to fetch user IDs for broadcast: %w", err)
+	}
+	// Process batch
+	for _, userID := range userIDs {
+		// Default to All channels when broadcasting to all users
+		channels := []string{"EMAIL", "PUSH", "IN_APP"}
 
-	limit := 100
-	page := 1
-
-	for {
-		users, total, err := s.userRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-			if role != nil {
-				return db.Where("role = ?", *role)
-			}
-			return db
-		}, nil, limit, page)
-
-		if err != nil {
-			return fmt.Errorf("failed to fetch users for broadcast: %w", err)
+		if err := s.BroadcastToUser(ctx, userID, title, body, data, channels); err != nil {
+			zap.L().Error("Failed to broadcast to user",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
 		}
-
-		if len(users) == 0 {
-			break
-		}
-
-		// Process batch
-		for _, user := range users {
-			// We use "all" channels by default for broadcast to all
-			// Or we could check user preferences here?
-			// Let's send to all channels and let consumers/preferences handle it.
-			channels := []string{"EMAIL", "PUSH", "IN_APP"}
-
-			// Call BroadcastToUser for each user
-			// We do this asynchronously to not block the loop too much,
-			// but we need to be careful about overwhelming the DB/RabbitMQ.
-			// For safety in this implementation, we'll do it synchronously or with a worker pool.
-			// Synchronous for simplicity and reliability for now.
-			if err := s.BroadcastToUser(ctx, user.ID, title, body, data, channels); err != nil {
-				zap.L().Error("Failed to broadcast to user",
-					zap.String("user_id", user.ID.String()),
-					zap.Error(err))
-				// Continue to next user
-			}
-		}
-
-		if int64(page*limit) >= total {
-			break
-		}
-		page++
 	}
 
 	return nil
@@ -761,7 +661,7 @@ func (s *NotificationService) RepublishFailedNotifications(ctx context.Context, 
 			minRetries = *req.MinRetries
 		}
 
-		notifications, err = s.notificationRepo.FindFailedWithRetries(ctx, minRetries)
+		notifications, err = s.notificationRepo.FindFailedWithRetries(ctx, minRetries, 0, 0)
 		if err != nil {
 			zap.L().Error("Failed to fetch failed notifications", zap.Error(err))
 			return 0, errors.New("failed to fetch failed notifications")
@@ -910,6 +810,8 @@ func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUI
 	return nil
 }
 
+// region: ============ Real-Time Notifications (Server-Sent Events) =============
+
 // SubscribeSSE subscribes a user to real-time notification updates
 func (s *NotificationService) SubscribeSSE(userID uuid.UUID) (<-chan iservice.SSEMessage, func()) {
 	return s.realTimeNotifier.Subscribe(userID)
@@ -919,8 +821,14 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uuid.UU
 	zap.L().Info("NotificationService - GetUnreadCount called",
 		zap.String("user_id", userID.String()))
 
-	return s.notificationRepo.CountUnread(ctx, userID)
+	return s.notificationRepo.CountUnread(ctx, userID, []enum.NotificationType{
+		enum.NotificationTypeEmail,
+		enum.NotificationTypePush,
+		enum.NotificationTypeInApp,
+	})
 }
+
+// endregion
 
 // region: ============ Helper Methods =============
 
@@ -981,7 +889,11 @@ func (s *NotificationService) sendPushNotification(ctx context.Context, pushMess
 }
 
 func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.UUID) {
-	count, err := s.notificationRepo.CountUnread(ctx, userID)
+	count, err := s.notificationRepo.CountUnread(ctx, userID, []enum.NotificationType{
+		enum.NotificationTypeEmail,
+		enum.NotificationTypePush,
+		enum.NotificationTypeInApp,
+	})
 	if err != nil {
 		zap.L().Error("Failed to count unread notifications", zap.Error(err), zap.String("user_id", userID.String()))
 		return
@@ -990,6 +902,75 @@ func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.U
 	if err := s.realTimeNotifier.SendUnreadCount(userID, count); err != nil {
 		zap.L().Error("Failed to push unread count", zap.Error(err), zap.String("user_id", userID.String()))
 	}
+}
+
+func (s *NotificationService) createAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest, user *model.User) (map[enum.NotificationType]uuid.UUID, error) {
+	var err error
+	// If All channel is included, use all channels
+	if utils.ContainsSlice(req.Channels, enum.NotificationTypeAll.String()) {
+		req.Channels = []string{enum.NotificationTypeEmail.String(), enum.NotificationTypePush.String(), enum.NotificationTypeInApp.String()}
+	}
+	// Process each channel
+	notificationsIDsByChannel := make(map[enum.NotificationType]uuid.UUID, len(req.Channels))
+	for _, channel := range req.Channels {
+		notificationType := enum.NotificationType(channel)
+		if !notificationType.IsValid() {
+			zap.L().Warn("Invalid notification channel", zap.String("channel", channel))
+			continue
+		}
+
+		switch notificationType {
+		case enum.NotificationTypeEmail:
+			emailReq := req.ToEmailRequest()
+			if req.CustomReceiver != nil {
+				emailReq.To = *req.CustomReceiver
+			} else {
+				emailReq.To = user.Email
+			}
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishEmail(ctx, emailReq)
+			if err != nil {
+				zap.L().Error("Failed to publish email notification", zap.Error(err))
+				continue
+			}
+			notificationsIDsByChannel[enum.NotificationTypeEmail] = notificationID
+
+		case enum.NotificationTypePush:
+			pushReq := req.ToPushRequest()
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishPush(ctx, pushReq)
+			if err != nil {
+				zap.L().Error("Failed to publish push notification", zap.Error(err))
+				continue
+			}
+			notificationsIDsByChannel[enum.NotificationTypePush] = notificationID
+
+		case enum.NotificationTypeInApp:
+			inAppReq := req.ToInAppRequest()
+			var notificationID uuid.UUID
+			notificationID, err = s.CreateAndPublishInApp(ctx, inAppReq)
+			if err != nil {
+				zap.L().Error("Failed to publish in-app notification", zap.Error(err))
+				continue
+			}
+			notificationsIDsByChannel[enum.NotificationTypeInApp] = notificationID
+
+		default:
+			zap.L().Warn("Unsupported notification channel, skipping requests",
+				zap.String("channel", channel),
+				zap.Any("request", req))
+			continue
+		}
+	}
+
+	if len(notificationsIDsByChannel) == 0 {
+		return nil, errors.New("failed to publish notifications to any channel")
+	}
+
+	zap.L().Info("Successfully published notifications",
+		zap.Int("count", len(notificationsIDsByChannel)))
+
+	return notificationsIDsByChannel, nil
 }
 
 // endregion

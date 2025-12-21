@@ -23,10 +23,10 @@ import (
 
 type contentStaffAnalyticsService struct {
 	dashboardRepo      irepository.ContentStaffAnalyticsRepository
-	scheduleRepo       irepository.ContentScheduleRepository
+	scheduleRepo       irepository.ScheduleRepository
 	alertRepo          irepository.SystemAlertRepository
 	channelRepo        irepository.GenericRepository[model.Channel]
-	kpiMetricsRepo     irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo     irepository.KPIMetricsRepository
 	contentChannelRepo irepository.GenericRepository[model.ContentChannel]
 	clickEventRepo     irepository.ClickEventRepository
 }
@@ -37,7 +37,7 @@ func NewContentStaffAnalyticsService(
 ) iservice.ContentStaffAnalyticsService {
 	return &contentStaffAnalyticsService{
 		dashboardRepo:      dbReg.ContentStaffAnalyticsRepository,
-		scheduleRepo:       dbReg.ContentScheduleRepository,
+		scheduleRepo:       dbReg.ScheduleRepository,
 		alertRepo:          dbReg.SystemAlertRepository,
 		channelRepo:        dbReg.ChannelRepository,
 		kpiMetricsRepo:     dbReg.KPIMetricsRepository,
@@ -535,7 +535,7 @@ func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context) 
 			Title:       detail.ContentTitle,
 			ChannelName: detail.ChannelName,
 			ScheduledAt: detail.ScheduledAt,
-			Status:      detail.Status,
+			Status:      detail.Status.String(),
 			CreatedBy:   detail.CreatedByName,
 			CreatedByID: detail.CreatedBy,
 		})

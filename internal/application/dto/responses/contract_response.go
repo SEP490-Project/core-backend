@@ -4,6 +4,8 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
+
+	"github.com/google/uuid"
 )
 
 // ContractResponse represents the full contract response with all details
@@ -19,7 +21,10 @@ type ContractResponse struct {
 	DepositPercent *int   `json:"deposit_percent,omitempty" example:"30"`
 	DepositAmount  *int   `json:"deposit_amount,omitempty" example:"3000000"`
 	IsDepositPaid  *bool  `json:"is_deposit_paid,omitempty" example:"true"`
-	HasCampaign    bool   `json:"has_campaign,omitempty" example:"true"`
+
+	HasCampaign  bool       `json:"has_campaign,omitempty" example:"true"`
+	CampaignID   *uuid.UUID `json:"campaign_id,omitempty" example:"770e8400-e29b-41d4-a716-446655440000"`
+	CampaignName *string    `json:"campaign_name,omitempty" example:"Summer Sale Campaign"`
 
 	// Brand information (from relationship)
 	Brand *BrandSummary `json:"brand,omitempty"`
@@ -54,6 +59,8 @@ type ContractResponse struct {
 
 	// Parent contract summary (if exists)
 	ParentContract *ContractSummary `json:"parent_contract,omitempty"`
+
+	ContractPayments []ContractPaymentResponse `json:"contract_payments,omitempty"`
 
 	// Metadata
 	CreatedAt string `json:"created_at" example:"2006-01-02 15:04:05"`
@@ -189,6 +196,12 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 
 	if contract.Campaign != nil {
 		response.HasCampaign = true
+		response.CampaignID = &contract.Campaign.ID
+		response.CampaignName = &contract.Campaign.Name
+	}
+
+	if len(contract.ContractPayments) > 0 {
+		response.ContractPayments = ContractPaymentResponse{}.ToResponseList(contract.ContractPayments)
 	}
 
 	return response, nil
@@ -196,19 +209,21 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 
 // ContractListResponse represents a simplified contract for list views
 type ContractListResponse struct {
-	ID             string  `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Title          string  `json:"title" example:"Social Media Promotion Contract"`
-	ContractNumber string  `json:"contract_number" example:"CONTRACT-2023-001"`
-	Type           string  `json:"type" example:"ADVERTISING"`
-	Status         string  `json:"status" example:"ACTIVE"`
-	BrandID        string  `json:"brand_id" example:"660e8400-e29b-41d4-a716-446655440000"`
-	BrandName      *string `json:"brand_name,omitempty" example:"Acme Corp"`
-	StartDate      string  `json:"start_date" example:"2006-01-02 15:04:05"`
-	EndDate        string  `json:"end_date" example:"2006-01-02 15:04:05"`
-	HasCampaign    bool    `json:"has_campaign,omitempty" example:"true"`
-	SignedDate     string  `json:"signed_date" example:"2006-01-02 15:04:05"`
-	CreatedAt      string  `json:"created_at" example:"2006-01-02 15:04:05"`
-	UpdatedAt      string  `json:"updated_at" example:"2006-01-02 15:04:05"`
+	ID             string     `json:"id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Title          string     `json:"title" example:"Social Media Promotion Contract"`
+	ContractNumber string     `json:"contract_number" example:"CONTRACT-2023-001"`
+	Type           string     `json:"type" example:"ADVERTISING"`
+	Status         string     `json:"status" example:"ACTIVE"`
+	BrandID        string     `json:"brand_id" example:"660e8400-e29b-41d4-a716-446655440000"`
+	BrandName      *string    `json:"brand_name,omitempty" example:"Acme Corp"`
+	StartDate      string     `json:"start_date" example:"2006-01-02 15:04:05"`
+	EndDate        string     `json:"end_date" example:"2006-01-02 15:04:05"`
+	HasCampaign    bool       `json:"has_campaign,omitempty" example:"true"`
+	CampaignID     *uuid.UUID `json:"campaign_id,omitempty" example:"770e8400-e29b-41d4-a716-446655440000"`
+	CampaignName   *string    `json:"campaign_name,omitempty" example:"Summer Sale Campaign"`
+	SignedDate     string     `json:"signed_date" example:"2006-01-02 15:04:05"`
+	CreatedAt      string     `json:"created_at" example:"2006-01-02 15:04:05"`
+	UpdatedAt      string     `json:"updated_at" example:"2006-01-02 15:04:05"`
 }
 
 // ToContractListResponse converts a model.Contract to ContractListResponse
@@ -242,6 +257,8 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 
 	if contract.Campaign != nil {
 		response.HasCampaign = true
+		response.CampaignID = &contract.Campaign.ID
+		response.CampaignName = &contract.Campaign.Name
 	}
 
 	return response

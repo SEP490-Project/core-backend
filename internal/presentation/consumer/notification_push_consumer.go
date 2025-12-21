@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/interfaces/iservice_third_party"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
@@ -27,6 +28,7 @@ type NotificationPushConsumer struct {
 	notificationRepository irepository.NotificationRepository
 	userService            iservice.UserService
 	healthMonitor          iservice_third_party.HealthMonitor
+	unitOfWork             irepository.UnitOfWork
 }
 
 // NewNotificationPushConsumer creates a new push notification consumer
@@ -42,6 +44,7 @@ func NewNotificationPushConsumer(
 		notificationRepository: dbRegistry.NotificationRepository,
 		userService:            userService,
 		healthMonitor:          infraReg.HealthMonitor,
+		unitOfWork:             infraReg.UnitOfWork,
 	}
 }
 
@@ -57,13 +60,7 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 		var unifiedMsg consumers.UnifiedNotificationMessage
 		if errUnified := json.Unmarshal(body, &unifiedMsg); errUnified == nil && unifiedMsg.UserID != uuid.Nil {
 			// Convert Unified to Push message
-			msg = consumers.PushNotificationMessage{
-				NotificationID: unifiedMsg.NotificationID,
-				UserID:         unifiedMsg.UserID,
-				Title:          unifiedMsg.Title,
-				Body:           unifiedMsg.Body,
-				Data:           unifiedMsg.Data,
-			}
+			msg = *unifiedMsg.ToPushRequest()
 		} else {
 			zap.L().Error("Failed to unmarshal push notification message",
 				zap.Error(err),
@@ -206,6 +203,10 @@ func (c *NotificationPushConsumer) Handle(ctx context.Context, body []byte) erro
 	return nil
 }
 
+// region: 1. ============== Helper Functions ==============
+
+// region: 2. ============== Sending Functions ==============
+
 // sendViaExpo sends notifications via Expo push service
 func (c *NotificationPushConsumer) sendViaExpo(
 	ctx context.Context,
@@ -271,6 +272,8 @@ func (c *NotificationPushConsumer) sendViaFCM(
 	return batchResp.SuccessCount, batchResp.FailureCount, nil
 }
 
+// endregion 2.
+
 // processBatchResponse handles the FCM batch response and marks invalid tokens
 func (c *NotificationPushConsumer) processBatchResponse(ctx context.Context, batchResp *messaging.BatchResponse, tokens []string) {
 	for i, resp := range batchResp.Responses {
@@ -311,43 +314,62 @@ func (c *NotificationPushConsumer) logDeliveryAttempt(ctx context.Context, notif
 		Error:     errorMsg,
 	}
 
-	// Fetch existing notification
-	notification, err := c.notificationRepository.GetByID(ctx, notificationID, nil)
-	if err != nil {
-		zap.L().Error("Failed to fetch notification for logging",
-			zap.String("notification_id", notificationID.String()),
-			zap.Error(err))
-		return
-	}
-
-	// Update delivery attempts
-	attempts := notification.DeliveryAttempts
-	attempts = append(attempts, attempt)
-	notification.DeliveryAttempts = attempts
-
-	// Update status
-	if successCount > 0 {
-		notification.Status = enum.NotificationStatusSent
-	} else if failureCount > 0 {
-		if len(attempts) >= 3 { // Max retries reached
-			notification.Status = enum.NotificationStatusFailed
-		} else {
-			notification.Status = enum.NotificationStatusRetrying
+	if err := helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Use atomic update for delivery attempt
+		if err := c.notificationRepository.UpdateDeliveryAttempt(ctx, notificationID, attempt); err != nil {
+			zap.L().Error("Failed to log delivery attempt",
+				zap.String("notification_id", notificationID.String()),
+				zap.Error(err))
 		}
-	}
 
-	// Update error details if present
-	if errorMsg != "" {
-		now := time.Now()
-		notification.ErrorDetails = model.JSONBErrorDetails{
-			ErrorMessage:  errorMsg,
-			LastAttemptAt: &now,
+		// Update status
+		if successCount > 0 {
+			if err := c.notificationRepository.UpdateStatus(ctx, notificationID, enum.NotificationStatusSent); err != nil {
+				zap.L().Error("Failed to update notification status",
+					zap.String("notification_id", notificationID.String()),
+					zap.Error(err))
+			}
+		} else if failureCount > 0 {
+			// Fetch notification to check retry count
+			notification, err := c.notificationRepository.GetByID(ctx, notificationID, nil)
+			if err != nil {
+				zap.L().Error("Failed to fetch notification for status update",
+					zap.String("notification_id", notificationID.String()),
+					zap.Error(err))
+			} else {
+				newStatus := enum.NotificationStatusRetrying
+				if len(notification.DeliveryAttempts) >= 3 { // Max retries reached
+					newStatus = enum.NotificationStatusFailed
+				}
+
+				if err := c.notificationRepository.UpdateStatus(ctx, notificationID, newStatus); err != nil {
+					zap.L().Error("Failed to update notification status",
+						zap.String("notification_id", notificationID.String()),
+						zap.Error(err))
+				}
+			}
 		}
-	}
 
-	// Save updated notification
-	if err := c.notificationRepository.Update(ctx, notification); err != nil {
-		zap.L().Error("Failed to update notification delivery attempt",
+		// Update error details if present
+		if errorMsg != "" {
+			now := time.Now()
+			// Use model.ErrorDetails compatible with UpdateErrorDetails
+			errorDetails := model.ErrorDetails{
+				ErrorCode:     "push_delivery_failed",
+				ErrorMessage:  errorMsg,
+				LastAttemptAt: &now,
+			}
+
+			if err := c.notificationRepository.UpdateErrorDetails(ctx, notificationID, errorDetails); err != nil {
+				zap.L().Error("Failed to update notification error details",
+					zap.String("notification_id", notificationID.String()),
+					zap.Error(err))
+			}
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed while logging delivery attempt",
 			zap.String("notification_id", notificationID.String()),
 			zap.Error(err))
 	}
@@ -462,3 +484,5 @@ func (c *NotificationPushConsumer) buildAndroidConfig(androidConfig *consumers.A
 
 	return config
 }
+
+// endregion

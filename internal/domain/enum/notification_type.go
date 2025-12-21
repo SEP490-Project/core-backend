@@ -12,12 +12,13 @@ const (
 	NotificationTypeEmail NotificationType = "EMAIL"
 	NotificationTypePush  NotificationType = "PUSH"
 	NotificationTypeInApp NotificationType = "IN_APP"
+	NotificationTypeAll   NotificationType = "ALL"
 )
 
 // IsValid checks if the notification type is valid
 func (nt NotificationType) IsValid() bool {
 	switch nt {
-	case NotificationTypeEmail, NotificationTypePush, NotificationTypeInApp:
+	case NotificationTypeEmail, NotificationTypePush, NotificationTypeInApp, NotificationTypeAll:
 		return true
 	}
 	return false

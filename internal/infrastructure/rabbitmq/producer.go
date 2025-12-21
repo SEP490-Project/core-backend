@@ -59,35 +59,6 @@ func (pm *ProducerManager) InitializeProducers() error {
 	return nil
 }
 
-// createProducer creates a single producer with dedicated channel
-func (pm *ProducerManager) createProducer(producerConfig config.RabbitMQProducerConfig) (*Producer, error) {
-	// Create dedicated channel for this producer
-	channel, err := pm.conn.Channel()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create channel: %w", err)
-	}
-
-	producer := &Producer{
-		name:    producerConfig.Name,
-		channel: channel,
-		config:  producerConfig,
-	}
-
-	// Enable publisher confirms if configured
-	if producerConfig.Confirm {
-		if err := channel.Confirm(false); err != nil {
-			channel.Close()
-			return nil, fmt.Errorf("failed to enable confirm mode: %w", err)
-		}
-		producer.confirms = make(chan amqp.Confirmation, 1)
-		channel.NotifyPublish(producer.confirms)
-		producer.confirming = true
-		zap.L().Debug("Publisher confirms enabled", zap.String("producer", producerConfig.Name))
-	}
-
-	return producer, nil
-}
-
 // GetProducer returns a producer by name
 func (pm *ProducerManager) GetProducer(name string) (*Producer, error) {
 	producer, exists := pm.producers[name]
@@ -126,6 +97,19 @@ func (p *Producer) PublishJSON(ctx context.Context, message any) error {
 	return p.Publish(ctx, body)
 }
 
+func (p *Producer) BulkBPulish(ctx context.Context, messages []any) error {
+	for _, msg := range messages {
+		rawMsg, err := json.Marshal(msg)
+		if err != nil {
+			return fmt.Errorf("failed to marshal message: %w", err)
+		}
+		if err := p.publishWithRetry(ctx, rawMsg, 0); err != nil {
+			return fmt.Errorf("failed to publish message: %w", err)
+		}
+	}
+	return nil
+}
+
 // PublishJSONWithDelay publishes a JSON message with a delay (for delayed message exchange)
 // The delayMs parameter specifies the delay in milliseconds before the message is delivered
 // Requires the rabbitmq_delayed_message_exchange plugin to be enabled on the RabbitMQ server
@@ -135,6 +119,50 @@ func (p *Producer) PublishJSONWithDelay(ctx context.Context, message any, delayM
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 	return p.publishWithDelay(ctx, body, delayMs)
+}
+
+// Close closes the producer and its channel
+func (p *Producer) Close() error {
+	if p.channel != nil && !p.channel.IsClosed() {
+		return p.channel.Close()
+	}
+	return nil
+}
+
+// IsHealthy checks if the producer channel is still open
+func (p *Producer) IsHealthy() bool {
+	return p.channel != nil && !p.channel.IsClosed()
+}
+
+// region: ===================== Private methods =====================
+
+// createProducer creates a single producer with dedicated channel
+func (pm *ProducerManager) createProducer(producerConfig config.RabbitMQProducerConfig) (*Producer, error) {
+	// Create dedicated channel for this producer
+	channel, err := pm.conn.Channel()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create channel: %w", err)
+	}
+
+	producer := &Producer{
+		name:    producerConfig.Name,
+		channel: channel,
+		config:  producerConfig,
+	}
+
+	// Enable publisher confirms if configured
+	if producerConfig.Confirm {
+		if err := channel.Confirm(false); err != nil {
+			channel.Close()
+			return nil, fmt.Errorf("failed to enable confirm mode: %w", err)
+		}
+		producer.confirms = make(chan amqp.Confirmation, 1)
+		channel.NotifyPublish(producer.confirms)
+		producer.confirming = true
+		zap.L().Debug("Publisher confirms enabled", zap.String("producer", producerConfig.Name))
+	}
+
+	return producer, nil
 }
 
 // publishWithDelay publishes a message with a delay header
@@ -301,20 +329,4 @@ func (p *Producer) handlePublishError(ctx context.Context, body []byte, attempt 
 	}
 }
 
-// Close closes the producer and its channel
-func (p *Producer) Close() error {
-	if p.channel != nil && !p.channel.IsClosed() {
-		return p.channel.Close()
-	}
-	return nil
-}
-
-// GetConfig returns the producer configuration
-func (p *Producer) GetConfig() config.RabbitMQProducerConfig {
-	return p.config
-}
-
-// IsHealthy checks if the producer channel is still open
-func (p *Producer) IsHealthy() bool {
-	return p.channel != nil && !p.channel.IsClosed()
-}
+// endregion

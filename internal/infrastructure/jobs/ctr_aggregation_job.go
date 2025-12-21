@@ -9,14 +9,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
 
 type CTRAggregationJob struct {
 	clickEventRepo    irepository.ClickEventRepository
-	kpiMetricsRepo    irepository.GenericRepository[model.KPIMetrics]
+	kpiMetricsRepo    irepository.KPIMetricsRepository
 	affiliateLinkRepo irepository.AffiliateLinkRepository
 	cronScheduler     *cron.Cron
 	lastRunTime       time.Time
@@ -27,7 +26,7 @@ type CTRAggregationJob struct {
 
 func NewCTRAggregationJob(
 	clickEventRepo irepository.ClickEventRepository,
-	kpiMetricsRepo irepository.GenericRepository[model.KPIMetrics],
+	kpiMetricsRepo irepository.KPIMetricsRepository,
 	affiliateLinkRepo irepository.AffiliateLinkRepository,
 	crontScheduler *cron.Cron,
 	adminConfig *config.AdminConfig,
@@ -108,29 +107,28 @@ func (j *CTRAggregationJob) Run() {
 		zap.Time("last_run", j.lastRunTime),
 		zap.Duration("interval", time.Duration(j.intervalMinutes)*time.Minute))
 
-	// Get click events since last run
-	clicks, err := j.clickEventRepo.GetRecentClicks(ctx, j.lastRunTime, 10000) // Limit to 10k clicks per run
+	// Aggregate clicks by affiliate link directly in DB
+	aggregates, err := j.clickEventRepo.GetAggregatedClicks(ctx, j.lastRunTime)
 	if err != nil {
-		zap.L().Error("Failed to retrieve recent click events", zap.Error(err))
+		zap.L().Error("Failed to retrieve aggregated clicks", zap.Error(err))
 		return
 	}
 
-	if len(clicks) == 0 {
+	if len(aggregates) == 0 {
 		zap.L().Info("No new click events to aggregate")
 		j.lastRunTime = time.Now()
 		return
 	}
 
-	zap.L().Info("Processing click events", zap.Int("count", len(clicks)))
-
-	// Aggregate clicks by affiliate link
-	aggregates := j.aggregateClicksByLink(clicks)
+	zap.L().Info("Processing aggregated clicks", zap.Int("unique_links", len(aggregates)))
 
 	// Store aggregated metrics in kpi_metrics table
 	successCount := 0
 	errorCount := 0
+	totalClicks := 0
 
 	for linkID, clickCount := range aggregates {
+		totalClicks += clickCount
 		metric := &model.KPIMetrics{
 			ReferenceID:   linkID,
 			ReferenceType: enum.KPIReferenceTypeAffiliateLink,
@@ -155,23 +153,12 @@ func (j *CTRAggregationJob) Run() {
 
 	duration := time.Since(startTime)
 	zap.L().Info("CTR aggregation job completed",
-		zap.Int("total_clicks", len(clicks)),
+		zap.Int("total_clicks", totalClicks),
 		zap.Int("unique_links", len(aggregates)),
 		zap.Int("success_count", successCount),
 		zap.Int("error_count", errorCount),
 		zap.Duration("duration", duration))
 
-}
-
-// aggregateClicksByLink groups click events by affiliate link ID
-func (j *CTRAggregationJob) aggregateClicksByLink(clicks []model.ClickEvent) map[uuid.UUID]int {
-	aggregates := make(map[uuid.UUID]int)
-
-	for _, click := range clicks {
-		aggregates[click.AffiliateLinkID]++
-	}
-
-	return aggregates
 }
 
 // GetLastRunTime returns the timestamp of the last successful run

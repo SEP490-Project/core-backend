@@ -66,8 +66,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 	tagRepo := uow.Tags()
 	contentChannelRepo := uow.ContentChannels()
 
-	var affiliateLink *model.AffiliateLink
-
 	validationFuncs := make([]func(ctx context.Context) error, 0)
 	if req.TaskID != nil {
 		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
@@ -77,27 +75,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			} else if !exists {
 				return errors.New("task not found")
 			}
-			return nil
-		})
-	}
-	if req.AffiliateLink != nil || req.AffiliateLinkID != nil {
-		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
-			affiliateLinkQuery := func(db *gorm.DB) *gorm.DB {
-				if req.AffiliateLinkID != nil {
-					db = db.Where("id = ?", *req.AffiliateLinkID)
-				}
-				if req.AffiliateLink != nil {
-					db = db.Where("hash = ?", strings.Split(*req.AffiliateLink, "/r/")[1])
-				}
-				return db
-			}
-			var err error
-			if affiliateLink, err = s.affiliateLinkRepo.GetByCondition(ctx, affiliateLinkQuery, nil); err != nil {
-				zap.L().Error("Failed to retrieve affiliate link for content channel",
-					zap.Error(err))
-				return err
-			}
-
 			return nil
 		})
 	}
@@ -146,6 +123,19 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		}
 	}
 
+	creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
+		return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
+	})
+	var createdTags []model.Tag
+	createdTags, err = tagRepo.CreateIfNotExists(ctx, creatingTags)
+	if err != nil {
+		zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
+		return nil, errors.New("failed to create or retrieve tags")
+	}
+	content.Tags = utils.MapSlice(createdTags, func(tag model.Tag) string {
+		return tag.Name
+	})
+
 	if err = contentRepo.Add(ctx, content); err != nil {
 		zap.L().Error("Failed to create content", zap.Error(err))
 		return nil, errors.New("failed to create content")
@@ -153,15 +143,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 
 	// Create blog if type is POST
 	if content.Type == enum.ContentTypePost && req.BlogFields != nil {
-		creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
-			return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
-		})
-		var createdTags []model.Tag
-		createdTags, err = tagRepo.CreateIfNotExists(ctx, creatingTags)
-		if err != nil {
-			zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
-			return nil, errors.New("failed to create or retrieve tags")
-		}
 
 		blog := &model.Blog{
 			ContentID: content.ID,
@@ -189,13 +170,13 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		// Thus, it is possible to just update the created affiliate link with the current content ID and channel ID.
 		// However, in the future, if multiple channels are supported in one content creation flow, it is necessary to revisit
 		// how to handle the affiliate link in the content body.
-		if affiliateLink != nil {
-			if err = uow.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Where("id = ?", affiliateLink.ID)
-			}, map[string]any{"content_id": content.ID, "channel_id": channelID}); err != nil {
-				zap.L().Error("Failed to associate affiliate link with content and channel", zap.Error(err))
-			}
-		}
+		// if affiliateLink != nil {
+		// 	if err = uow.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		// 		return db.Where("id = ?", affiliateLink.ID)
+		// 	}, map[string]any{"content_id": content.ID, "channel_id": channelID}); err != nil {
+		// 		zap.L().Error("Failed to associate affiliate link with content and channel", zap.Error(err))
+		// 	}
+		// }
 
 		if err = contentChannelRepo.Add(ctx, contentChannel); err != nil {
 			zap.L().Error("Failed to create content channel", zap.Error(err))
@@ -211,7 +192,7 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 	// Automatically create affiliate links for content channels if contract has tracking link
 	// and no affiliate link info provided in the request
 	// This is a best-effort operation - failures are logged but don't fail content creation
-	if req.AffiliateLinkID == nil && req.AffiliateLink == nil {
+	if req.TrackingLink == nil {
 		if err := s.createAffiliateLinkIfNeeded(ctx, content, req.Channels); err != nil {
 			zap.L().Warn("Failed to create affiliate links for content",
 				zap.String("content_id", content.ID.String()),
@@ -749,7 +730,7 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 	// The original body is preserved in content.Body and should contain the tracking URL.
 
 	// If the tracking URL is not in the body, append it now (one time, shared across all channels)
-	if !s.bodyContainsURL(content.Body, trackingLink) {
+	if !bytes.Contains(content.Body, []byte(trackingLink)) {
 		builder, err := tiptap.FromJSON(content.Body)
 		if err == nil {
 			builder.AddLinkParagraph("Check it out ", "right now", trackingLink)
@@ -773,9 +754,9 @@ func (s *ContentService) createAffiliateLinkIfNeeded(ctx context.Context, conten
 }
 
 // bodyContainsURL checks if the tiptap body contains the given URL in any link
-func (s *ContentService) bodyContainsURL(body []byte, url string) bool {
-	return bytes.Contains(body, []byte(url))
-}
+// func (s *ContentService) bodyContainsURL(body []byte, url string) bool {
+// 	return bytes.Contains(body, []byte(url))
+// }
 
 func (s *ContentService) appendDefaultHomePageURLToContent(body []byte) ([]byte, error) {
 	builder, err := tiptap.FromJSON(body)

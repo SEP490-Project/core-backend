@@ -313,16 +313,14 @@ func (s *contentPublishingService) RetryPublish(ctx context.Context, contentChan
 
 func (s *contentPublishingService) findOrCreateContentChannel(ctx context.Context, contentID uuid.UUID, channelID uuid.UUID) (*model.ContentChannel, error) {
 	// Try to find existing content channel
-	contentChannels, _, err := s.contentChannelRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+	contentChannel, err := s.contentChannelRepo.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.Where("content_id = ? AND channel_id = ?", contentID, channelID)
-	}, nil, 1, 1)
-
+	}, []string{"Content"})
 	if err != nil {
 		return nil, fmt.Errorf("failed to query content channels: %w", err)
 	}
-
-	if len(contentChannels) > 0 {
-		return &contentChannels[0], nil
+	if contentChannel != nil {
+		return contentChannel, nil
 	}
 
 	// Create new content channel

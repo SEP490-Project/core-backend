@@ -22,13 +22,13 @@ type CreateContentRequest struct {
 
 	// Optional affiliateLink fields. Has three stages:
 	// 1. If AffiliateLinkID is provided, it indicates an existing affiliate link to be associated.
-	// 2. If AffiliateLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.
+	// 2. If TrackingLink is provided (and AffiliateLinkID is nil), affiliateLink record is created and probably used in the Body.
 	//	  Check in the Body field for usage of the new affiliate link.
 	// 3. If neither is provided, no affiliate link is associated. However, if content associlated with contract of type AFFILIATE,
 	// 	  forcefully created an affiliate link record. If the Body does not contains affiliate link,
 	//	  then automatically added it at the end of the body.
-	AffiliateLink   *string    `json:"affiliate_link,omitempty" validate:"omitempty,max=1000"`
-	AffiliateLinkID *uuid.UUID `json:"affiliate_link_id,omitempty" validate:"omitempty,uuid"`
+	TrackingLink *string `json:"tracking_link,omitempty" validate:"omitempty,max=1000"`
+	// AffiliateLinkID *uuid.UUID `json:"affiliate_link_id,omitempty" validate:"omitempty,uuid"`
 }
 
 // UpdateContentRequest DTO for updating existing content
@@ -81,12 +81,12 @@ func ValidateCreateContentRequest(sl validator.StructLevel) {
 	request := sl.Current().Interface().(CreateContentRequest)
 
 	affiliateLinkRegex := regexp.MustCompile(`https?://[^\s]+/r/[^\s]+`)
-	if request.AffiliateLink != nil && !affiliateLinkRegex.MatchString(*request.AffiliateLink) {
-		sl.ReportError(*request.AffiliateLink, "affiliate_link", "AffiliateLink", "affiliate_link.regex", affiliateLinkRegex.String())
+	if request.TrackingLink != nil && !affiliateLinkRegex.MatchString(*request.TrackingLink) {
+		sl.ReportError(*request.TrackingLink, "affiliate_link", "AffiliateLink", "affiliate_link.regex", affiliateLinkRegex.String())
 	}
 
 	bodyStr := utils.ToString(request.Body)
-	if request.AffiliateLink != nil && !strings.Contains(bodyStr, *request.AffiliateLink) {
-		sl.ReportError(request.Body, "body", "Body", "affiliate_link.body", *request.AffiliateLink)
+	if request.TrackingLink != nil && !strings.Contains(bodyStr, *request.TrackingLink) {
+		sl.ReportError(request.Body, "body", "Body", "affiliate_link.body", *request.TrackingLink)
 	}
 }

@@ -225,34 +225,41 @@ func (t *stateTransferService) handleTaskSideEffects(
 	}
 
 	// 2. If the task is moved to "IN_PROGRESS", if milestones are not yet "ON_GOING", move them too
-	if targetState == enum.TaskStatusInProgress {
-		// uow.Milestones().DB().Model(&model.Milestone{}).Raw(`
-		// UPdate milestones m
-		// set status = case when m.status <> ? then ? else m.status end,
-		// inner join tasks t on t.milestone_id = m.id
-		// 	where t.id = ?
-		// `, enum.MilestoneStatusOnGoing, enum.MilestoneStatusOnGoing, task.ID).Scan(&model.Milestone{})
-
-		// UPdate milestones as m
-		// set status = case
-		//     when m.status = 'NOT_STARTED' then 'ON_GOING'
-		//     else m.status
-		//     end
-		// from tasks t
-		// where t.milestone_id = m.id
-		//  and t.id in ('34cd629e-0cb3-4bee-8c04-e94c03d7fbbc', '09797536-a6ef-4241-9c23-b5fa86093885')
-		// and t.status = 'IN_PROGRESS' ;
-		uow.Milestones().DB().Model(&model.Milestone{}).Raw(`
-			UPDATE milestones AS m
-				SET status = CASE
-					WHEN m.status = ? THEN ?
-					ELSE m.status 
-				END
-			FROM tasks t
-			WHERE t.milestone_id = m.id
-				AND t.id = ?
-				and t.status = ?;
-		`, enum.MilestoneStatusNotStarted, enum.MilestoneStatusOnGoing, task.ID, enum.TaskStatusInProgress).Scan(&model.Milestone{})
+	if targetState == enum.TaskStatusInProgress || targetState == enum.TaskStatusDone {
+		tasksInMilestone, totalTasksCount, err := uow.Tasks().GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("milestone_id = ?", task.Milestone.ID).Where("deleted_at IS NULL")
+		}, []string{}, 0, 0)
+		if err != nil {
+			return err
+		}
+		var (
+			totalCompletedTasks                   = 0
+			milestoneCompletionPercentage float64 = 0
+			milestoneUpdatingStatus               = enum.MilestoneStatusOnGoing
+			completedAt                   time.Time
+		)
+		for _, t := range tasksInMilestone {
+			if t.Status == enum.TaskStatusDone {
+				totalCompletedTasks++
+			}
+		}
+		if totalTasksCount > 0 {
+			milestoneCompletionPercentage = float64(float64(totalCompletedTasks)/float64(totalTasksCount)) * 100
+		}
+		if int64(totalCompletedTasks) == totalTasksCount && totalTasksCount > 0 {
+			milestoneUpdatingStatus = enum.MilestoneStatusCompleted
+			completedAt = time.Now()
+		}
+		updatingFields := map[string]any{
+			"status":                milestoneUpdatingStatus,
+			"completion_percentage": milestoneCompletionPercentage,
+		}
+		if !completedAt.IsZero() {
+			updatingFields["completed_at"] = completedAt
+		}
+		uow.Milestones().DB().Model(new(model.Milestone)).
+			Where("milestones.id = ?", task.Milestone.ID).
+			Updates(updatingFields)
 	}
 	return nil
 }

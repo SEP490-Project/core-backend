@@ -30,6 +30,7 @@ type Content struct {
 	CreatedAt         *time.Time         `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt     `json:"deleted_at" gorm:"index"`
+	Tags              []string           `json:"tags,omitempty" gorm:"type:text[]"`
 
 	// Relationships
 	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
