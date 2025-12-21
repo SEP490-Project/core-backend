@@ -31,9 +31,11 @@ type ContentService struct {
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	taskRepo             irepository.TaskRepository
 	affiliateLinkRepo    irepository.AffiliateLinkRepository
+	contractRepo         irepository.ContractRepository
 	uow                  irepository.UnitOfWork
 	affiliateLinkService iservice.AffiliateLinkService
 	channelService       iservice.ChannelService
+	contractService      iservice.ContractService
 }
 
 func NewContentService(
@@ -42,6 +44,7 @@ func NewContentService(
 	uow irepository.UnitOfWork,
 	affiliateLinkService iservice.AffiliateLinkService,
 	channelService iservice.ChannelService,
+	contractService iservice.ContractService,
 ) iservice.ContentService {
 	return &ContentService{
 		config:               config,
@@ -50,9 +53,11 @@ func NewContentService(
 		contentChannelRepo:   databaseReg.ContentChannelRepository,
 		taskRepo:             databaseReg.TaskRepository,
 		affiliateLinkRepo:    databaseReg.AffiliateLinkRepository,
+		contractRepo:         databaseReg.ContractRepository,
 		uow:                  uow,
 		affiliateLinkService: affiliateLinkService,
 		channelService:       channelService,
+		contractService:      contractService,
 	}
 }
 
@@ -199,6 +204,16 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 				zap.Error(err))
 			// Don't fail content creation if affiliate link creation fails
 		}
+	}
+
+	if req.TaskID != nil {
+		go func() {
+			if err := s.updateContractScopeOfWork(ctx, *req.TaskID); err != nil {
+				zap.L().Warn("Failed to update contract scope of work after content creation",
+					zap.String("content_id", content.ID.String()),
+					zap.Error(err))
+			}
+		}()
 	}
 
 	zap.L().Info("Content created successfully", zap.String("content_id", content.ID.String()))
@@ -768,6 +783,20 @@ func (s *ContentService) appendDefaultHomePageURLToContent(body []byte) ([]byte,
 	builder.AddLinkParagraph("Visit our ", "TikTok profile", s.config.AdminConfig.TikTokHomepageURL)
 
 	return builder.Build()
+}
+
+func (s *ContentService) updateContractScopeOfWork(ctx context.Context, taskID uuid.UUID) error {
+	// Find contract ID associate with task id
+	contractID, err := s.contractRepo.GetContractIDByTaskID(ctx, taskID)
+	if err != nil {
+		zap.L().Error("Failed to retrieve contract ID by task ID", zap.Error(err))
+		return err
+	} else if contractID == uuid.Nil {
+		zap.L().Warn("No contract found for task ID", zap.String("task_id", taskID.String()))
+		return nil
+	}
+
+	return s.contractService.UpdateContractScopeOfWorkWithReferencinnTaskIDs(ctx, contractID)
 }
 
 // endregion
