@@ -1,6 +1,10 @@
 package requests
 
-import "github.com/google/uuid"
+import (
+	"core-backend/internal/domain/enum"
+
+	"github.com/google/uuid"
+)
 
 // PublishNotificationRequest represents a request to publish a notification to one or many channels
 type PublishNotificationRequest struct {
@@ -16,6 +20,9 @@ type PublishNotificationRequest struct {
 	EmailTemplateName *string        `json:"email_template_name,omitempty" validate:"omitempty,min=1" example:"task_assigned"`
 	EmailTemplateData map[string]any `json:"email_template_data,omitempty"`
 	EmailHTMLBody     *string        `json:"email_html_body,omitempty" validate:"omitempty,min=1"`
+
+	// In case the notification is published through scheduling
+	ScheduleIDsByChannels map[enum.NotificationType]uuid.UUID `json:"schedule_id,omitempty" validate:"omitempty"`
 }
 
 func (r *PublishNotificationRequest) ToEmailRequest() *PublishEmailRequest {
@@ -35,6 +42,10 @@ func (r *PublishNotificationRequest) ToEmailRequest() *PublishEmailRequest {
 	if r.EmailHTMLBody != nil {
 		resp.HTMLBody = r.EmailHTMLBody
 	}
+	tempID, ok := r.ScheduleIDsByChannels[enum.NotificationTypeEmail]
+	if ok {
+		resp.ScheduleID = &tempID
+	}
 	return resp
 }
 
@@ -49,6 +60,10 @@ func (r *PublishNotificationRequest) ToPushRequest() *PublishPushRequest {
 	if r.Data != nil {
 		resp.Data = r.Data
 	}
+	tempID, ok := r.ScheduleIDsByChannels[enum.NotificationTypePush]
+	if ok {
+		resp.ScheduleID = &tempID
+	}
 	return resp
 }
 
@@ -62,6 +77,10 @@ func (r *PublishNotificationRequest) ToInAppRequest() *PublishInAppRequest {
 	}
 	if r.Data != nil {
 		resp.Data = r.Data
+	}
+	tempID, ok := r.ScheduleIDsByChannels[enum.NotificationTypeInApp]
+	if ok {
+		resp.ScheduleID = &tempID
 	}
 	return resp
 }
@@ -79,6 +98,9 @@ type PublishEmailRequest struct {
 
 	Priority string            `json:"priority,omitempty" validate:"omitempty,oneof=low normal high" example:"normal"`
 	Metadata map[string]string `json:"metadata,omitempty"`
+
+	// In case the notification is published through scheduling
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty" validate:"omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
 }
 
 // PublishPushRequest represents a request to publish a push notification
@@ -93,6 +115,9 @@ type PublishPushRequest struct {
 	IOSSound               *string `json:"ios_sound,omitempty" example:"default"`
 	AndroidPriority        *string `json:"android_priority,omitempty" validate:"omitempty,oneof=min low default high max" example:"high"`
 	AndroidNotificationTag *string `json:"android_notification_tag,omitempty" example:"group1"`
+
+	// In case the notification is published through scheduling
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty" validate:"omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
 }
 
 // PublishInAppRequest represents a request to publish an in-app notification
@@ -101,6 +126,9 @@ type PublishInAppRequest struct {
 	Title  string            `json:"title" validate:"required,min=1,max=255" example:"Test In-App Notification"`
 	Body   string            `json:"body" validate:"required,min=1" example:"This is a test in-app notification"`
 	Data   map[string]string `json:"data,omitempty"`
+
+	// In case the notification is published through scheduling
+	ScheduleID *uuid.UUID `json:"schedule_id,omitempty" validate:"omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
 }
 
 // RepublishFailedNotificationRequest represents a request to republish failed notifications

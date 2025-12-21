@@ -21,7 +21,7 @@ type NotificationRepository interface {
 	FindByEmailRecipient(ctx context.Context, email string) ([]*model.Notification, error)
 
 	// FindFailedWithRetries retrieves failed notifications with minimum retry attempts
-	FindFailedWithRetries(ctx context.Context, minRetries int) ([]*model.Notification, error)
+	FindFailedWithRetries(ctx context.Context, minRetries int, page, limit int) ([]*model.Notification, error)
 
 	// UpdateDeliveryAttempt appends a new delivery attempt to the JSONB array
 	UpdateDeliveryAttempt(ctx context.Context, id uuid.UUID, attempt model.DeliveryAttempt) error
@@ -36,7 +36,7 @@ type NotificationRepository interface {
 	FindByUserID(ctx context.Context, userID uuid.UUID, limit, offset int) ([]*model.Notification, int64, error)
 
 	// CountUnread counts unread notifications for a specific user
-	CountUnread(ctx context.Context, userID uuid.UUID) (int64, error)
+	CountUnread(ctx context.Context, userID uuid.UUID, notiType []enum.NotificationType) (int64, error)
 
 	// MarkAsRead marks a notification as read
 	MarkAsRead(ctx context.Context, id uuid.UUID) error

@@ -8,6 +8,7 @@ import (
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
+	asynqhandler "core-backend/internal/presentation/asynq_handler"
 	"core-backend/internal/presentation/consumer"
 	"core-backend/internal/presentation/handler"
 	"core-backend/internal/presentation/middleware"
@@ -28,6 +29,7 @@ type APIServer struct {
 	middlewareRegistry     *middleware.MiddlewareRegistry
 	serviceRegistry        *application.ApplicationRegistry
 	consumerRegistry       *consumer.ConsumerRegistry
+	asynqHandlerRegistry   *asynqhandler.AsynqHandlerRegistry
 	databaseRegistry       *gormrepository.DatabaseRegistry
 	infrastructureRegistry *infrastructure.InfrastructureRegistry
 	wsServer               *WebSocketServer
@@ -64,6 +66,8 @@ func NewAPIServer() *APIServer {
 	handlerRegistry := handler.NewHandlerRegistry(serviceRegistry, config.GetAppConfig())
 	middlewareRegistry := middleware.NewMiddlewareRegistry(serviceRegistry)
 	consumerRegistry := consumer.NewConsumerRegistry(serviceRegistry, infrastructureRegistry, databaseRegistry)
+	asynqHandlerRegistry := asynqhandler.NewAsynqHandlerRegistry(config.GetAppConfig(), infrastructureRegistry.AsynqClient, serviceRegistry)
+	asynqHandlerRegistry.RegisterHandlers()
 
 	// Register application-layer cron jobs (jobs that depend on application services)
 	serviceRegistry.RegisterApplicationLayerJobs()
@@ -101,6 +105,7 @@ func NewAPIServer() *APIServer {
 		handlerRegistry:        handlerRegistry,
 		middlewareRegistry:     middlewareRegistry,
 		consumerRegistry:       consumerRegistry,
+		asynqHandlerRegistry:   asynqHandlerRegistry,
 		wsServer:               wsServer,
 		router:                 NewRouter(config.GetAppConfig(), handlerRegistry, middlewareRegistry),
 		ctx:                    ctx,
@@ -161,6 +166,9 @@ func (s *APIServer) Start() error {
 
 	// Start background schedulers (location sync, etc.)
 	s.infrastructureRegistry.StartSchedulers(s.ctx)
+
+	// Start Asynq server for background task processing
+	s.infrastructureRegistry.StartAsynqServer()
 
 	// Start server in a goroutine
 	go func() {

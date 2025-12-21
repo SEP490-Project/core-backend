@@ -4,7 +4,9 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -87,32 +89,100 @@ func (v *ValkeyCache) Set(key string, value any, expiration time.Duration) error
 		zap.String("key", key),
 		zap.Duration("expiration", expiration))
 
-	err := v.client.Set(v.ctx, key, value, expiration).Err()
-	if err != nil {
-		zap.L().Error("Failed to set cache key",
-			zap.String("key", key),
-			zap.Error(err))
+	switch val := value.(type) {
+
+	// -----------------------------
+	// Primitives → STRING
+	// -----------------------------
+	case string, []byte, int, int64, float64, bool:
+		return v.setString(key, val, expiration)
+
+	// -----------------------------
+	// map[string]string → HASH
+	// -----------------------------
+	case map[string]string:
+		return v.setHash(key, val, expiration)
+
+	// -----------------------------
+	// map[string]any → HASH if flat
+	// -----------------------------
+	case map[string]any:
+		return v.setHash(key, utils.FlattenMapToString(val), expiration)
+
+	// -----------------------------
+	// []string → LIST
+	// -----------------------------
+	case []string:
+		return v.setList(key, val, expiration)
+
+	// -----------------------------
+	// Fallback → JSON STRING
+	// -----------------------------
+	default:
+		return v.setJSON(key, value, expiration)
 	}
-	return err
 }
 
 // Get retrieves a value by key
-func (v *ValkeyCache) Get(key string) (string, error) {
+func (v *ValkeyCache) Get(key string) (value any, valueType string, err error) {
 	zap.L().Debug("Getting cache key", zap.String("key", key))
 
-	result := v.client.Get(v.ctx, key)
-	if result.Err() == redis.Nil {
-		zap.L().Debug("Cache key not found", zap.String("key", key))
-		return "", nil // Key does not exist
-	}
-
-	if result.Err() != nil {
-		zap.L().Error("Failed to get cache key",
+	keyType, err := v.client.Type(v.ctx, key).Result()
+	if err != nil {
+		zap.L().Error("Failed to get key type",
 			zap.String("key", key),
-			zap.Error(result.Err()))
+			zap.Error(err))
+		return nil, "", err
 	}
 
-	return result.Result()
+	switch keyType {
+
+	case "none":
+		// Key does not exist
+		zap.L().Debug("Cache key not found", zap.String("key", key))
+		return nil, "", nil
+
+	// -----------------------------
+	// STRING
+	// -----------------------------
+	case "string":
+		val, err := v.client.Get(v.ctx, key).Result()
+		if err != nil {
+			return nil, keyType, err
+		}
+
+		// Attempt JSON decode
+		var decoded any
+		if json.Unmarshal([]byte(val), &decoded) == nil {
+			return decoded, keyType, nil
+		}
+
+		// Fallback → raw string
+		return val, keyType, nil
+
+	// -----------------------------
+	// HASH
+	// -----------------------------
+	case "hash":
+		val, err := v.client.HGetAll(v.ctx, key).Result()
+		if err != nil {
+			return nil, keyType, err
+		}
+		return val, keyType, nil
+
+	// -----------------------------
+	// LIST
+	// -----------------------------
+	case "list":
+		val, err := v.client.LRange(v.ctx, key, 0, -1).Result()
+		if err != nil {
+			return nil, keyType, err
+		}
+		return val, keyType, nil
+
+	default:
+		return nil, keyType, fmt.Errorf("unsupported redis type: %s", keyType)
+	}
 }
 
 // GetBytes retrieves a value as bytes by key
@@ -134,6 +204,11 @@ func (v *ValkeyCache) SetJSON(key string, value any, expiration time.Duration) e
 
 // GetJSON retrieves and deserializes a JSON value
 func (v *ValkeyCache) GetJSON(key string, dest any) error {
+	reflect.TypeOf(dest).Kind()
+	if reflect.TypeOf(dest).Kind() != reflect.Pointer {
+		panic("dest must be a pointer")
+	}
+
 	result := v.client.Get(v.ctx, key)
 	if result.Err() == redis.Nil {
 		return nil // Key does not exist
@@ -142,8 +217,10 @@ func (v *ValkeyCache) GetJSON(key string, dest any) error {
 		return result.Err()
 	}
 
-	// In a real implementation, you'd unmarshal JSON here
-	// For now, this is a placeholder
+	err := json.Unmarshal([]byte(result.Val()), dest)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -237,3 +314,53 @@ func (v *ValkeyCache) GetClient() *redis.Client {
 func (v *ValkeyCache) GetContext() context.Context {
 	return v.ctx
 }
+
+// region: ============== Helper Functions ==============
+
+func (v *ValkeyCache) setString(key string, value any, expiration time.Duration) error {
+	return v.client.Set(v.ctx, key, value, expiration).Err()
+}
+
+func (v *ValkeyCache) setHash(key string, value map[string]string, expiration time.Duration) error {
+	pipe := v.client.Pipeline()
+
+	pipe.Del(v.ctx, key)
+	pipe.HSet(v.ctx, key, value)
+
+	if expiration > 0 {
+		pipe.Expire(v.ctx, key, expiration)
+	}
+
+	_, err := pipe.Exec(v.ctx)
+	return err
+}
+
+func (v *ValkeyCache) setList(key string, values []string, expiration time.Duration) error {
+	pipe := v.client.Pipeline()
+
+	pipe.Del(v.ctx, key)
+	for _, value := range values {
+		pipe.RPush(v.ctx, key, value)
+	}
+
+	if expiration > 0 {
+		pipe.Expire(v.ctx, key, expiration)
+	}
+
+	_, err := pipe.Exec(v.ctx)
+	return err
+}
+
+func (v *ValkeyCache) setJSON(key string, value any, expiration time.Duration) error {
+	rawValue, err := json.Marshal(value)
+	if err != nil {
+		zap.L().Error("Failed to marshal value",
+			zap.String("key", key),
+			zap.Error(err))
+		return err
+	}
+
+	return v.client.Set(v.ctx, key, rawValue, expiration).Err()
+}
+
+// endregion

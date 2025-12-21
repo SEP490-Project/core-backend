@@ -14,7 +14,7 @@ type unitOfWork struct {
 	db *gorm.DB
 	tx *gorm.DB
 
-	userRepo                        irepository.GenericRepository[model.User]
+	userRepo                        irepository.UserRepository
 	shippingAddressRepo             irepository.GenericRepository[model.ShippingAddress]
 	brandRepo                       irepository.GenericRepository[model.Brand]
 	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
@@ -33,7 +33,7 @@ type unitOfWork struct {
 	channelRepository               irepository.GenericRepository[model.Channel]
 	contentRepository               irepository.GenericRepository[model.Content]
 	contentChannelRepository        irepository.ContentChannelsRepository
-	contentScheduleRepository       irepository.GenericRepository[model.ContentSchedule]
+	scheduleRepository              irepository.ScheduleRepository
 	blogRepository                  irepository.GenericRepository[model.Blog]
 	tagRepository                   irepository.TagRepository
 	webhookRepository               irepository.GenericRepository[model.WebhookData]
@@ -88,7 +88,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	}
 
 	txUow.productRepo = gormrepository.NewGenericRepository[model.Product](tx)
-	txUow.userRepo = gormrepository.NewGenericRepository[model.User](tx)
+	txUow.userRepo = gormrepository.NewUserRepository(tx)
 	txUow.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](tx)
 	txUow.brandRepo = gormrepository.NewGenericRepository[model.Brand](tx)
 	txUow.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](tx)
@@ -100,7 +100,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.channelRepository = gormrepository.NewGenericRepository[model.Channel](tx)
 	txUow.contentRepository = gormrepository.NewGenericRepository[model.Content](tx)
 	txUow.contentChannelRepository = gormrepository.NewContentChannelsRepository(tx)
-	txUow.contentScheduleRepository = gormrepository.NewGenericRepository[model.ContentSchedule](tx)
+	txUow.scheduleRepository = gormrepository.NewScheduleRepository(tx)
 	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
 	txUow.tagRepository = gormrepository.NewTagRepository(tx)
 	txUow.webhookRepository = gormrepository.NewGenericRepository[model.WebhookData](tx)
@@ -182,7 +182,7 @@ func (u *unitOfWork) Products() irepository.GenericRepository[model.Product] {
 	return u.productRepo
 }
 
-func (u *unitOfWork) Users() irepository.GenericRepository[model.User] {
+func (u *unitOfWork) Users() irepository.UserRepository {
 	return u.userRepo
 }
 
@@ -326,8 +326,8 @@ func (u *unitOfWork) ProductReview() irepository.GenericRepository[model.Product
 	return u.productReviewRepository
 }
 
-func (u *unitOfWork) ContentSchedules() irepository.GenericRepository[model.ContentSchedule] {
-	return u.contentScheduleRepository
+func (u *unitOfWork) Schedules() irepository.ScheduleRepository {
+	return u.scheduleRepository
 }
 
 func (u *unitOfWork) DB() *gorm.DB {

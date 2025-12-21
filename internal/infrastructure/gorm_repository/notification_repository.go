@@ -47,13 +47,24 @@ func (r *NotificationRepository) FindByEmailRecipient(ctx context.Context, email
 }
 
 // FindFailedWithRetries retrieves failed notifications with minimum retry attempts
-func (r *NotificationRepository) FindFailedWithRetries(ctx context.Context, minRetries int) ([]*model.Notification, error) {
+func (r *NotificationRepository) FindFailedWithRetries(ctx context.Context, minRetries int, page, limit int) ([]*model.Notification, error) {
 	var notifications []*model.Notification
+	if limit <= 0 {
+		limit = 100
+	} else {
+		limit = min(100, limit)
+	}
+	if page < 1 {
+		page = 1
+	}
+
 	err := r.db.WithContext(ctx).
 		Where("jsonb_array_length(delivery_attempts) >= ?", minRetries).
 		Where("status = ?", enum.NotificationStatusFailed).
 		Order("created_at DESC").
-		Find(&notifications).Error
+		Find(&notifications).
+		Offset((page - 1) * limit).
+		Limit(limit).Error
 	return notifications, err
 }
 
@@ -120,12 +131,14 @@ func (r *NotificationRepository) CleanupOldNotifications(ctx context.Context, ol
 }
 
 // CountUnread counts unread notifications for a specific user
-func (r *NotificationRepository) CountUnread(ctx context.Context, userID uuid.UUID) (int64, error) {
+func (r *NotificationRepository) CountUnread(ctx context.Context, userID uuid.UUID, notiType []enum.NotificationType) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Notification{}).
 		Where("user_id = ?", userID).
 		Where("is_read = ?", false).
+		Where("status = ?", enum.NotificationStatusSent).
+		Where("type IN ?", notiType).
 		Count(&count).Error
 	return count, err
 }

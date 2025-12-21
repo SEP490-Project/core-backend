@@ -15,7 +15,7 @@ type UnitOfWork interface {
 
 	// Expose repos trong transaction
 	Products() GenericRepository[model.Product]
-	Users() GenericRepository[model.User]
+	Users() UserRepository
 	ShippingAddresses() GenericRepository[model.ShippingAddress]
 	Brands() GenericRepository[model.Brand]
 	LoggedSessions() GenericRepository[model.LoggedSession]
@@ -27,7 +27,7 @@ type UnitOfWork interface {
 	Channels() GenericRepository[model.Channel]
 	Contents() GenericRepository[model.Content]
 	ContentChannels() ContentChannelsRepository
-	ContentSchedules() GenericRepository[model.ContentSchedule]
+	Schedules() ScheduleRepository
 	Blogs() GenericRepository[model.Blog]
 	Tags() TagRepository
 	WebhookData() GenericRepository[model.WebhookData]

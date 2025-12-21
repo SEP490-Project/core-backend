@@ -58,6 +58,7 @@ type ApplicationRegistry struct {
 	ContentScheduleService        iservice.ContentScheduleService
 	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
+	SystemService                 iservice.SystemService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -160,7 +161,8 @@ func NewApplicationRegistry(
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
 		contentPublishingService,
-		infrastructureRegistry.RabbitMQ,
+		infrastructureRegistry.AsynqClient,
+		&configs.Asynq,
 	)
 
 	contentEngagementService := service.NewContentEngagementService(
@@ -215,6 +217,7 @@ func NewApplicationRegistry(
 		ContentScheduleService:        contentScheduleService,
 		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,
+		SystemService:                 service.NewSystemService(configs),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
@@ -272,5 +275,19 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 		)
 		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("content_metrics_poller_job", contentMetricsPollerJob)
 		r.InfrastructureRegistry.CronJobsRegistry.ContentMetricsPollerJob = contentMetricsPollerJob
+
+		dailyJob := jobs.NewDailyJob(
+			r.InfrastructureRegistry.CronJobsRegistry.CronScheduler,
+			r.configs,
+			r.InfrastructureRegistry.DB,
+			r.DatabaseRegistry.ContractRepository,
+			r.DatabaseRegistry.ContractPaymentRepository,
+			r.NotificationService,
+			r.AlertManagerService,
+			r.InfrastructureRegistry.UnitOfWork,
+			r.InfrastructureRegistry.AsynqClient,
+		)
+		r.InfrastructureRegistry.CronJobsRegistry.RegisterApplicationLayerJob("daily_job", dailyJob)
+		r.InfrastructureRegistry.CronJobsRegistry.DailyJob = dailyJob
 	}
 }

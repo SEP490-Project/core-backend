@@ -33,6 +33,15 @@ cache:
   db: 0
   password: "12345"
 
+# Asynq Task Scheduler (uses Valkey/Redis)
+asynq:
+  enabled: true
+  db: 1  # Use separate DB from cache to avoid conflicts
+  concurrency: 10
+  task_types:
+    content_schedule: "task:content:schedule"
+    notification_schedule: "task:notification:schedule"
+
 # JWT configuration
 jwt:
   algorithm: "RS256"
