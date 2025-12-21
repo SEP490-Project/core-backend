@@ -70,6 +70,9 @@ type productService struct {
 	variantAttributeRepo irepository.GenericRepository[model.VariantAttribute]
 	userRepo             irepository.GenericRepository[model.User]
 	variantImageRepo     irepository.GenericRepository[model.VariantImage]
+	contractRepo         irepository.ContractRepository
+
+	contractService iservice.ContractService
 
 	imageStorage irepository_third_party.S3Storage
 	rabbitmq     *rabbitmq.RabbitMQ
@@ -767,6 +770,15 @@ func (p productService) CreateLimitedProduct(dto *requests.CreateLimitedProductR
 		empty := ""
 		saved.Description = &empty
 	}
+
+	// Update contract scope of work in background to include the new limited product
+	go func() {
+		if err := p.updateContractScopeOfWork(ctx, dto.TaskID); err != nil {
+			zap.L().Error("failed to update contract scope of work after creating limited product",
+				zap.String("task_id", dto.TaskID.String()),
+				zap.Error(err))
+		}
+	}()
 
 	resp := &responses.ProductResponseV2{}
 	return resp.ToProductResponseV2(saved), nil
@@ -1637,6 +1649,7 @@ func NewProductService(
 	storage3rd *third_party_repository.ThirdPartyStorageRegistry,
 	rabbitmq *rabbitmq.RabbitMQ,
 	config *config.AppConfig,
+	contractService iservice.ContractService,
 ) iservice.ProductService {
 	return &productService{
 		repository:           dbRegistry.ProductRepository,
@@ -1653,9 +1666,11 @@ func NewProductService(
 		variantAttributeRepo: dbRegistry.VariantAttributeRepository,
 		userRepo:             dbRegistry.UserRepository,
 		variantImageRepo:     dbRegistry.VariantImageRepository,
+		contractRepo:         dbRegistry.ContractRepository,
 		imageStorage:         storage3rd.S3Storage,
 		rabbitmq:             rabbitmq,
 		config:               config,
+		contractService:      contractService,
 	}
 }
 
@@ -2029,4 +2044,18 @@ func (p *productService) DeleteVariantImage(ctx context.Context, variantImageID 
 	}
 
 	return err
+}
+
+func (p *productService) updateContractScopeOfWork(ctx context.Context, taskID uuid.UUID) error {
+	// Find contract ID associate with task id
+	contractID, err := p.contractRepo.GetContractIDByTaskID(ctx, taskID)
+	if err != nil {
+		zap.L().Error("Failed to retrieve contract ID by task ID", zap.Error(err))
+		return err
+	} else if contractID == uuid.Nil {
+		zap.L().Warn("No contract found for task ID", zap.String("task_id", taskID.String()))
+		return nil
+	}
+
+	return p.contractService.UpdateContractScopeOfWorkWithReferencinnTaskIDs(ctx, contractID)
 }
