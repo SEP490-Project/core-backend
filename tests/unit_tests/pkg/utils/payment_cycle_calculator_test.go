@@ -348,7 +348,7 @@ func TestCalculateScheduleBasedPaymentDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := helper.CalculateScheduleBasedPaymentDates(tt.schedules)
+			results, err := helper.CalculateScheduleBasedPaymentDates(time.Time{}, time.Time{}, tt.schedules)
 
 			if tt.wantError {
 				require.Error(t, err)
