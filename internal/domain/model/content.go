@@ -3,6 +3,7 @@ package model
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -30,7 +31,7 @@ type Content struct {
 	CreatedAt         *time.Time         `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt     `json:"deleted_at" gorm:"index"`
-	Tags              []string           `json:"tags,omitempty" gorm:"type:text[]"`
+	Tags              ContentTag         `json:"tags,omitempty" gorm:"type:jsonb"`
 
 	// Relationships
 	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
@@ -107,3 +108,28 @@ func (c *Content) GetVideoBody(channelID uuid.UUID, baseAffiliateLinkURL string)
 	}
 	return &videoBody, nil
 }
+
+// region: ======== ContentTag ========
+
+type ContentTag []string
+
+func (ct *ContentTag) Scan(value any) error {
+	if value == nil {
+		*ct = ContentTag{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to scan ContentTag: %v", value)
+	}
+	return json.Unmarshal(bytes, ct)
+}
+
+func (ct ContentTag) Value() (driver.Value, error) {
+	if len(ct) == 0 {
+		return "[]", nil
+	}
+	return json.Marshal(ct)
+}
+
+// endregion
