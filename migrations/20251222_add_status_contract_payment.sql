@@ -6,3 +6,7 @@ DO $$ BEGIN
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$ ;
+
+ALTER TABLE contents
+ALTER COLUMN tags SET DATA TYPE jsonb USING to_jsonb (tags),
+ALTER COLUMN tags SET DEFAULT '[]'::jsonb ;
