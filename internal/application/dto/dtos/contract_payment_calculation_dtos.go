@@ -6,6 +6,28 @@ import (
 	"github.com/google/uuid"
 )
 
+type GeneralPaymentBreakdown struct {
+	ContractID   uuid.UUID `json:"contract_id"`
+	PeriodStart  time.Time `json:"period_start"`
+	PeriodEnd    time.Time `json:"period_end"`
+	CalculatedAt time.Time `json:"calculated_at"`
+
+	// Affiliate-specific fields
+	TotalClicks  int64                   `json:"total_clicks,omitempty"`
+	GrossPayment int64                   `json:"gross_payment,omitempty"` // Before tax deduction
+	TaxAmount    int64                   `json:"tax_amount,omitempty"`    // Tax withholding amount
+	NetPayment   int64                   `json:"net_payment,omitempty"`   // After tax deduction (final payment)
+	Breakdown    []LevelPaymentBreakdown `json:"breakdown,omitempty"`
+
+	// Co-Producing-specific fields
+	TotalRevenue     float64                         `json:"total_revenue,omitempty"`   // Total revenue from limited products
+	CompanyPercent   int                             `json:"company_percent,omitempty"` // Company's share percentage
+	BrandPercent     int                             `json:"brand_percent,omitempty"`   // Brand/KOL's share percentage
+	CompanyShare     float64                         `json:"company_share,omitempty"`   // Calculated company share amount
+	BrandShare       float64                         `json:"brand_share,omitempty"`     // Calculated brand share amount (this is the payment)
+	RevenueBreakdown *LimitedProductRevenueBreakdown `json:"revenue_breakdown,omitempty"`
+}
+
 // =============================================================================
 // AFFILIATE Contract Payment Calculation DTOs
 // =============================================================================
