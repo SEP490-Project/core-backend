@@ -5,6 +5,7 @@ import (
 	"core-backend/config"
 	asynqtask "core-backend/internal/application/dto/asynq_tasks"
 	"core-backend/internal/application/dto/consumers"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -562,7 +563,7 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		}
 
 		// Batch expire affiliate links associated with this contract
-		if err := t.affiliateLinkRepository.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		if err := trx.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("contract_id = ? AND status = ?", contractID, enum.AffiliateLinkStatusActive)
 		}, map[string]any{"status": enum.AffiliateLinkStatusExpired}); err != nil {
 			zap.L().Error("Failed to expire affiliate links (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
@@ -570,6 +571,17 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			zap.L().Warn("Continuing contract termination despite affiliate link update failure")
 		} else {
 			zap.L().Info("Expired affiliate links due to contract termination", zap.String("contract_id", contractID.String()))
+		}
+
+		// Batch terminate Contract Payment Transactions associated with this contract
+		if err := trx.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("contract_id = ? AND status <> ?", contractID, enum.ContractPaymentStatusTerminated)
+		}, map[string]any{"status": enum.ContractPaymentStatusTerminated}); err != nil {
+			zap.L().Error("Failed to terminate contract payment transactions (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
+			// Don't fail the entire transaction - log warning and continue
+			zap.L().Warn("Continuing contract termination despite contract payment transaction update failure")
+		} else {
+			zap.L().Info("Terminated contract payment transactions due to contract termination", zap.String("contract_id", contractID.String()))
 		}
 
 		// Reflect memory
@@ -688,7 +700,7 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 
 	// 6. Side-effects: Expire affiliate links if content is unpublished
 	// If content is moved away from POSTED status, expire associated affiliate links
-	if targetState != enum.ContentStatusPosted {
+	if currentState.Name() == enum.ContentStatusPosted && targetState != enum.ContentStatusPosted {
 		affiliateLinkRepo := uow.AffiliateLinks()
 		if err := affiliateLinkRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("content_id = ? AND status = ?", contentID, enum.AffiliateLinkStatusActive)
@@ -901,7 +913,8 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		// But if its mark as SELF PICK UP we skip GHN order creation
 		var ghnOrderCode string
 		if targetState == enum.OrderStatusConfirmed && !order.IsSelfPickedUp {
-			ghnOrder, err := t.ghnProxy.CreateOrder(ctx, order.ID)
+			var ghnOrder *dtos.CreatedGHNOrderResponse
+			ghnOrder, err = t.ghnProxy.CreateOrder(ctx, order.ID)
 			if err != nil {
 				zap.L().Error("Failed to create GHN order", zap.Error(err))
 				return fmt.Errorf("failed to create GHN order: %w", err)
@@ -914,7 +927,7 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		if targetState == enum.OrderStatusConfirmed && ghnOrderCode != "" {
 			order.GHNOrderCode = &ghnOrderCode
 		}
-		if err := uow.Order().Update(ctx, order); err != nil {
+		if err = uow.Order().Update(ctx, order); err != nil {
 			zap.L().Error("Failed to update order state", zap.Error(err))
 			return fmt.Errorf("failed to update order state: %w", err)
 		}

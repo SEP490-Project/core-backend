@@ -17,4 +17,6 @@ type TaskRepository interface {
 	// GetContractTrackingLinkByTaskID retrieves the contract tracking link associated with the given task ID
 	// and only if the contract is of type 'AFFILIATE'.
 	GetContractTrackingLinkByTaskID(ctx context.Context, taskID uuid.UUID) (string, uuid.UUID, error)
+	GetTaskIDsByContractID(ctx context.Context, contractID uuid.UUID) (taskIDs []uuid.UUID, err error)
+	GetListTasksByIDs(ctx context.Context, taskIDs []uuid.UUID) (tasks []dtos.TaskWithScopeOfWorkID, err error)
 }
