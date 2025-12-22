@@ -51,8 +51,8 @@ type stateTransferService struct {
 	ghnProxy                iproxies.GHNProxy
 	adminConfig             config.AdminConfig
 	config                  *config.AppConfig
-	taskScheduler          *asynq.AsynqClient
-	asynqConfig            *config.AsynqConfig
+	taskScheduler           *asynq.AsynqClient
+	asynqConfig             *config.AsynqConfig
 }
 
 func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
@@ -1353,12 +1353,11 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 			break
 		}
 
-		// default: 72h after delivered
-		delay := 72 * time.Hour
+		delay := time.Duration(t.config.AdminConfig.AutoReceiveOrderIntervalHours) * time.Hour
 		processAt := time.Now().Add(delay)
 
 		payload := asynqtask.AutoReceiveOrderTaskPayload{OrderID: order.ID}
-		askType := t.asynqConfig.TaskTypes.AutoReceiveOrder
+		taskType := t.asynqConfig.TaskTypes.AutoReceiveOrder
 		if taskType == "" {
 			taskType = "task:order:auto-receive"
 		}
@@ -1424,6 +1423,7 @@ func NewStateTransferService(
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,
+	taskScheduler *asynq.AsynqClient,
 	configs *config.AppConfig,
 ) iservice.StateTransferService {
 	return &stateTransferService{
@@ -1443,8 +1443,8 @@ func NewStateTransferService(
 		ghnProxy:                ghnProxy,
 		config:                  configs,
 		adminConfig:             configs.AdminConfig,
-		taskScheduler:          asynq.NewAsynqClient(configs.Asynq.Redis),
-		asynqConfig:            &configs.Asynq,
+		taskScheduler:           taskScheduler,
+		asynqConfig:             &configs.Asynq,
 	}
 }
 
