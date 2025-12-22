@@ -695,7 +695,7 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 
 	// 6. Side-effects: Expire affiliate links if content is unpublished
 	// If content is moved away from POSTED status, expire associated affiliate links
-	if targetState != enum.ContentStatusPosted {
+	if currentState.Name() == enum.ContentStatusPosted && targetState != enum.ContentStatusPosted {
 		affiliateLinkRepo := uow.AffiliateLinks()
 		if err := affiliateLinkRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("content_id = ? AND status = ?", contentID, enum.AffiliateLinkStatusActive)

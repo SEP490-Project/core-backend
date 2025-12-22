@@ -87,8 +87,8 @@ func (cir CampaignInfoResponse) ToCampaignInfoResponse(model *model.Campaign) *C
 		Status:         model.Status.String(),
 		Type:           model.Type.String(),
 		RejectReason:   model.RejectReason,
-		CreatedAt:      model.CreatedAt.String(),
-		UpdatedAt:      model.UpdatedAt.String(),
+		CreatedAt:      utils.FormatLocalTime(&model.CreatedAt, ""),
+		UpdatedAt:      utils.FormatLocalTime(&model.UpdatedAt, ""),
 	}
 }
 
@@ -130,8 +130,8 @@ func (cdr CampaignDetailsResponse) ToCampaignDetailsResponse(model *model.Campai
 		Milestones:          milestones,
 		NumberOfTasks:       totalTasks,
 		PercentageCompleted: percentageCompleted,
-		CreatedAt:           model.CreatedAt.String(),
-		UpdatedAt:           model.UpdatedAt.String(),
+		CreatedAt:           utils.FormatLocalTime(&model.CreatedAt, ""),
+		UpdatedAt:           utils.FormatLocalTime(&model.UpdatedAt, ""),
 	}
 }
 

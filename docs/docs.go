@@ -31397,6 +31397,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Tech Solutions Inc."
                 },
+                "breakdown": {},
                 "contract_id": {
                     "type": "string",
                     "example": "a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6"

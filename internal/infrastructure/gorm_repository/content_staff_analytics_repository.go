@@ -169,7 +169,6 @@ func (r *contentStaffAnalyticsRepository) GetAverageCTR(ctx context.Context, sta
 		SELECT COALESCE(SUM(km.value), 0)
 		FROM kpi_metrics km
 		JOIN affiliate_links al ON al.id = km.reference_id
-		JOIN content_channels cc ON cc.id = al.channel_id
 		WHERE km.reference_type = ?
 		  AND km.type = ?
 		  AND km.recorded_date >= ?
@@ -183,7 +182,7 @@ func (r *contentStaffAnalyticsRepository) GetAverageCTR(ctx context.Context, sta
 	}
 
 	if channelID != nil {
-		clicksQuery += " AND cc.channel_id = ?"
+		clicksQuery += " AND (al.metadata ->> 'channel_id') = ?"
 		clicksArgs = append(clicksArgs, *channelID)
 	}
 

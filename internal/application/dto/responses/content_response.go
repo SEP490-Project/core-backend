@@ -74,7 +74,7 @@ func (ContentResponse) ToResponse(content *model.Content, affiliateLinkBaseURL s
 		Title:             content.Title,
 		ThumbnailURL:      content.ThumbnailURL,
 		Description:       content.Description,
-		Body:              content.Body,
+		Body:              content.GetRenderedBody(affiliateLinkBaseURL, "WEBSITE"),
 		Type:              content.Type,
 		Status:            content.Status,
 		PublishDate:       content.PublishDate,
@@ -82,7 +82,6 @@ func (ContentResponse) ToResponse(content *model.Content, affiliateLinkBaseURL s
 		RejectionFeedback: content.RejectionFeedback,
 		CreatedAt:         utils.FormatLocalTime(content.CreatedAt, ""),
 		UpdatedAt:         utils.FormatLocalTime(content.UpdatedAt, ""),
-		// AffiliateLink:     content.AffiliateLink,
 	}
 
 	if content.Blog != nil {

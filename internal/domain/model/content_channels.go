@@ -1,14 +1,18 @@
 package model
 
 import (
+	"bytes"
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/tiptap"
+	"core-backend/pkg/utils"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -58,7 +62,7 @@ func (cc ContentChannel) GetMetrics() (*ContentChannelMetrics, error) {
 // GetRenderedBody returns the content body with tracking URLs replaced by this channel's affiliate link.
 // Must preload Content and AffiliateLink before calling this method.
 // Returns original body if no affiliate link is configured.
-func (cc *ContentChannel) GetRenderedBody(baseURL string) []byte {
+func (cc *ContentChannel) GetRenderedBody(baseURL string) datatypes.JSON {
 	if cc.Content == nil {
 		return nil
 	}
@@ -90,6 +94,14 @@ func renderBodyWithAffiliateLink(body []byte, contentType enum.ContentType, trac
 	case enum.ContentTypePost:
 		return tiptap.RenderWithAffiliateLink(body, trackingURL, affiliateURL)
 	case enum.ContentTypeVideo:
+		if bytes.Contains(body, []byte(trackingURL)) {
+			var videoBody map[string]any
+			if err := json.Unmarshal(body, &videoBody); err != nil {
+				return nil, err
+			}
+			videoBody["description"] = strings.ReplaceAll(utils.ToString(videoBody["description"]), trackingURL, affiliateURL)
+			return json.Marshal(videoBody)
+		}
 
 	}
 	return body, nil
