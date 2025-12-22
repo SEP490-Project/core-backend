@@ -8,9 +8,10 @@ import (
 type ContractPaymentStatus string
 
 const (
-	ContractPaymentStatusPending ContractPaymentStatus = "PENDING"
-	ContractPaymentStatusPaid    ContractPaymentStatus = "PAID"
-	ContractPaymentStatusOverdue ContractPaymentStatus = "OVERDUE"
+	ContractPaymentStatusPending    ContractPaymentStatus = "PENDING"
+	ContractPaymentStatusPaid       ContractPaymentStatus = "PAID"
+	ContractPaymentStatusOverdue    ContractPaymentStatus = "OVERDUE"
+	ContractPaymentStatusTerminated ContractPaymentStatus = "TERMINATED"
 )
 
 func (cps ContractPaymentStatus) IsValid() bool {

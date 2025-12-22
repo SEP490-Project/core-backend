@@ -26,20 +26,21 @@ import (
 )
 
 type DailyJob struct {
-	contractRepo        irepository.GenericRepository[model.Contract]
-	contractPaymentRepo irepository.GenericRepository[model.ContractPayment]
-	notificationService iservice.NotificationService
-	alertService        iservice.AlertManagerService
-	unitOfWork          irepository.UnitOfWork
-	asynqClient         *asynqClient.AsynqClient
-	appConfig           *config.AppConfig
-	db                  *gorm.DB
-	cronScheduler       *cron.Cron
-	cronExpr            string
-	enabled             bool
-	entryID             cron.EntryID
-	lastRunTime         *time.Time
-	workerPool          *gorountine.WorkerPool
+	contractRepo         irepository.GenericRepository[model.Contract]
+	contractPaymentRepo  irepository.GenericRepository[model.ContractPayment]
+	notificationService  iservice.NotificationService
+	alertService         iservice.AlertManagerService
+	stateTransferService iservice.StateTransferService
+	unitOfWork           irepository.UnitOfWork
+	asynqClient          *asynqClient.AsynqClient
+	appConfig            *config.AppConfig
+	db                   *gorm.DB
+	cronScheduler        *cron.Cron
+	cronExpr             string
+	enabled              bool
+	entryID              cron.EntryID
+	lastRunTime          *time.Time
+	workerPool           *gorountine.WorkerPool
 }
 
 func NewDailyJob(
@@ -50,6 +51,7 @@ func NewDailyJob(
 	contractPaymentRepo irepository.GenericRepository[model.ContractPayment],
 	notificationService iservice.NotificationService,
 	alertService iservice.AlertManagerService,
+	stateTransferService iservice.StateTransferService,
 	unitOfWork irepository.UnitOfWork,
 	asynqClient *asynqClient.AsynqClient,
 ) CronJob {
@@ -59,18 +61,19 @@ func NewDailyJob(
 	}
 
 	return &DailyJob{
-		cronScheduler:       cronScheduler,
-		cronExpr:            cronExpr,
-		enabled:             appConfig.AdminConfig.DailyCronJobEnabled,
-		contractRepo:        contractRepo,
-		contractPaymentRepo: contractPaymentRepo,
-		db:                  db,
-		appConfig:           appConfig,
-		asynqClient:         asynqClient,
-		notificationService: notificationService,
-		alertService:        alertService,
-		unitOfWork:          unitOfWork,
-		workerPool:          gorountine.NewWorkerPool(context.Background(), appConfig.AdminConfig.DailyCronJobWorkerCount),
+		cronScheduler:        cronScheduler,
+		cronExpr:             cronExpr,
+		enabled:              appConfig.AdminConfig.DailyCronJobEnabled,
+		contractRepo:         contractRepo,
+		contractPaymentRepo:  contractPaymentRepo,
+		db:                   db,
+		appConfig:            appConfig,
+		asynqClient:          asynqClient,
+		notificationService:  notificationService,
+		alertService:         alertService,
+		stateTransferService: stateTransferService,
+		unitOfWork:           unitOfWork,
+		workerPool:           gorountine.NewWorkerPool(context.Background(), appConfig.AdminConfig.DailyCronJobWorkerCount),
 	}
 }
 
@@ -152,7 +155,7 @@ func (j *DailyJob) SetEnabled(enabled bool) {
 	}
 }
 
-// region: 1. ======== Helper Methods ========
+// region: 1. ======== Registered Jobs Methods ========
 
 // region: 2. ======== Contract Payment Overdue Notification ========
 
@@ -276,9 +279,7 @@ func (j *DailyJob) scheduleOverdueNotification(
 
 		// Terminate the contract immediately after sending the notification
 		if err = helper.WithTransaction(ctx, j.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-			return uow.Contracts().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Where("id = ?", contract.ID).Where("status = ?", enum.ContractStatusActive)
-			}, map[string]any{"status": enum.ContractStatusTerminated})
+			return j.stateTransferService.MoveContractToState(ctx, uow, contract.ID, enum.ContractStatusTerminated, uuid.Nil)
 		}); err != nil {
 			zap.L().Error("Failed to terminate contract after overdue notification",
 				zap.String("contract_id", contract.ID.String()),

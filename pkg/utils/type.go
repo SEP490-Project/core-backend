@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ToString converts any value of any type to its string representation.
@@ -190,4 +191,116 @@ func FindFieldAndValueByTagKey(v any, tagKey string, tagValue *string) map[strin
 		}
 	}
 	return result
+}
+
+// CompareByJSONTag compares two structs (a, b) based on the field with the matching json tag.
+// Returns: -1 (a < b), 0 (a == b), 1 (a > b)
+func CompareByJSONTag(a, b any, sortTag string) int {
+	valA := reflect.ValueOf(a)
+	valB := reflect.ValueOf(b)
+
+	// If pointers, get the element
+	if valA.Kind() == reflect.Ptr {
+		valA = valA.Elem()
+	}
+	if valB.Kind() == reflect.Ptr {
+		valB = valB.Elem()
+	}
+
+	// 1. Find the field with the matching JSON tag
+	typ := valA.Type()
+	var fieldName string
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		tag := field.Tag.Get("json")
+		// JSON tags often look like "name,omitempty". We only want the "name" part.
+		tagKey := strings.Split(tag, ",")[0]
+
+		if tagKey == sortTag {
+			fieldName = field.Name
+			break
+		}
+	}
+
+	// If no matching field found, return equality (preserve original order)
+	if fieldName == "" {
+		return 0
+	}
+
+	fieldA := valA.FieldByName(fieldName)
+	fieldB := valB.FieldByName(fieldName)
+
+	// 2. Handle Pointers (Nil checks)
+	// We treat Nil as "smaller" than Non-Nil.
+	isNilA := false
+	isNilB := false
+
+	if fieldA.Kind() == reflect.Ptr {
+		if fieldA.IsNil() {
+			isNilA = true
+		} else {
+			fieldA = fieldA.Elem()
+		}
+	}
+	if fieldB.Kind() == reflect.Ptr {
+		if fieldB.IsNil() {
+			isNilB = true
+		} else {
+			fieldB = fieldB.Elem()
+		}
+	}
+
+	if isNilA && !isNilB {
+		return -1
+	}
+	if !isNilA && isNilB {
+		return 1
+	}
+	if isNilA && isNilB {
+		return 0
+	}
+
+	// 3. Compare based on underlying type
+	switch fieldA.Kind() {
+	case reflect.String:
+		return strings.Compare(strings.ToLower(fieldA.String()), strings.ToLower(fieldB.String()))
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if fieldA.Int() < fieldB.Int() {
+			return -1
+		}
+		if fieldA.Int() > fieldB.Int() {
+			return 1
+		}
+		return 0
+
+	case reflect.Float32, reflect.Float64:
+		if fieldA.Float() < fieldB.Float() {
+			return -1
+		}
+		if fieldA.Float() > fieldB.Float() {
+			return 1
+		}
+		return 0
+
+	case reflect.Bool:
+		if fieldA.Bool() == fieldB.Bool() {
+			return 0
+		}
+		if !fieldA.Bool() {
+			return -1
+		} // false < true
+		return 1
+
+	case reflect.Struct:
+		// Handle time.Time specifically
+		if tA, ok := fieldA.Interface().(time.Time); ok {
+			if tB, ok := fieldB.Interface().(time.Time); ok {
+				return tA.Compare(tB)
+			}
+		}
+	}
+
+	return 0
 }
