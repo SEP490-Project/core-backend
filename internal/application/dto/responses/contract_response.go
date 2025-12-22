@@ -1,6 +1,7 @@
 package responses
 
 import (
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"encoding/json"
@@ -98,7 +99,7 @@ type BrandSummary struct {
 }
 
 // ToContractResponse converts a model.Contract to ContractResponse
-func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractResponse, error) {
+func (ContractResponse) ToContractResponse(contract *model.Contract, filter *requests.PaginationRequest) (*ContractResponse, error) {
 	if contract == nil {
 		return nil, nil
 	}
@@ -201,7 +202,7 @@ func (ContractResponse) ToContractResponse(contract *model.Contract) (*ContractR
 	}
 
 	if len(contract.ContractPayments) > 0 {
-		response.ContractPayments = ContractPaymentResponse{}.ToResponseList(contract.ContractPayments)
+		response.ContractPayments = ContractPaymentResponse{}.ToResponseList(contract.ContractPayments, filter)
 	}
 
 	return response, nil
