@@ -52,6 +52,38 @@ func (c *Content) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+func (c *Content) GetRenderedBody(baseURL string, channelCode string) datatypes.JSON {
+	if len(c.ContentChannels) == 0 {
+		return c.Body
+	}
+
+	var contentChannel *ContentChannel
+	for i := range c.ContentChannels {
+		cc := c.ContentChannels[i]
+		if cc.Channel == nil || !strings.EqualFold(cc.Channel.Code, channelCode) || cc.AffiliateLink == nil {
+			continue
+		}
+
+		contentChannel = cc
+	}
+	if contentChannel == nil || contentChannel.AffiliateLink == nil || contentChannel.AffiliateLinkID == nil {
+		return c.Body
+	}
+
+	// Replace tracking URL with the full affiliate short URL
+	fullAffiliateURL := contentChannel.AffiliateLink.AffiliateURL
+	if contentChannel.AffiliateLink.Hash != "" {
+		fullAffiliateURL = contentChannel.AffiliateLink.GetFullLink(baseURL)
+	}
+
+	renderedBody, err := renderBodyWithAffiliateLink(c.Body, c.Type, contentChannel.AffiliateLink.TrackingURL, fullAffiliateURL)
+	if err != nil {
+		return c.Body // Fallback to original on error
+	}
+
+	return renderedBody
+}
+
 type ContentBodyVideo struct {
 	VideoURL      string `json:"video_url" gorm:"type:varchar(100);not null"`
 	S3Key         string `json:"s3_key" gorm:"type:varchar(255)"`
