@@ -80,7 +80,7 @@ func NewApplicationRegistry(
 		sseService,
 	)
 
-	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, configs)
+	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, infrastructureRegistry.AsynqClient, configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
