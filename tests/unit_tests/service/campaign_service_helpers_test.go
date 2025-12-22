@@ -311,6 +311,7 @@ func TestCalculateBasePaymentPerPeriod(t *testing.T) {
 			result, _ := helper.CalculateBasePaymentPerPeriod(
 				tt.totalCost,
 				tt.depositPercent,
+				nil,
 				tt.numberOfPeriods,
 			)
 

@@ -304,28 +304,59 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			return
 		}
 
-		// Process each schedule to create payments
+		// Determine if we should use internal Schedule IDs or just index-based IDs
+		shouldUseInternalScheduleID := true
+		if advertisingFinancialTerms.Schedules[0].ID == nil {
+			shouldUseInternalScheduleID = false
+		}
+		schedulesMap := make(map[int8]dtos.Schedule)
 		for _, schedule := range advertisingFinancialTerms.Schedules {
-			var dueDate time.Time
-			dueDate, err = time.Parse(utils.DateFormat, schedule.DueDate)
-			if err != nil {
-				zap.L().Error("Failed to parse due date", zap.Error(err))
-				return nil, err
+			if shouldUseInternalScheduleID {
+				schedulesMap[*schedule.ID] = schedule
+			} else {
+				schedulesMap[int8(len(schedulesMap)+1)] = schedule
+			}
+		}
+
+		var paymentResults []helper.PaymentDateResult
+		paymentResults, err = helper.CalculateScheduleBasedPaymentDates(
+			contract.StartDate,
+			contract.EndDate,
+			advertisingFinancialTerms.Schedules,
+		)
+		if err != nil {
+			zap.L().Error("Failed to calculate advertising payment dates", zap.Error(err))
+			return nil, err
+		}
+
+		// Process each schedule to create payments
+		for _, res := range paymentResults {
+			amount := 0.0
+			percent := 0.0
+			note := res.Note
+
+			// Find matching schedule by ID (if available) or index
+			for _, s := range advertisingFinancialTerms.Schedules {
+				if s.ID != nil && res.ID != nil && *s.ID == *res.ID {
+					amount = float64(s.Amount)
+					percent = float64(s.Percent)
+					break
+				}
 			}
 
-			note := fmt.Sprintf("Payment for milestone: %s - contract number: %s", utils.ToString(schedule.ID), *contract.ContractNumber)
-
-			contractPayment := &model.ContractPayment{
+			pStart, pEnd := res.PeriodStart, res.PeriodEnd
+			contractPaymentsSlice = append(contractPaymentsSlice, &model.ContractPayment{
 				ContractID:            contract.ID,
-				InstallmentPercentage: float64(schedule.Percent),
-				Amount:                float64(schedule.Amount),
-				DueDate:               dueDate,
+				InstallmentPercentage: float64(percent),
+				Amount:                float64(amount),
+				DueDate:               res.DueDate,
+				PeriodStart:           &pStart,
+				PeriodEnd:             &pEnd,
 				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
 				Note:                  &note,
 				CreatedBy:             &userID,
 				UpdatedBy:             &userID,
-			}
-			contractPaymentsSlice = append(contractPaymentsSlice, contractPayment)
+			})
 		}
 
 	case enum.ContractTypeAffiliate:
@@ -361,13 +392,11 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 			depositPercent = float64(*contract.DepositPercent)
 		}
 
-		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(affiliateFinancialTerms.TotalCost), depositPercent, len(paymentResults))
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(affiliateFinancialTerms.TotalCost), depositPercent, contract.DepositAmount, len(paymentResults))
 
 		// Devided equally the payment amount per period based on the total cost
 		// The performance cost will be calculated later during the payment link creation phase
 		for _, paymentResult := range paymentResults {
-			periodStart := paymentResult.PeriodStart
-			periodEnd := paymentResult.PeriodEnd
 			paymentResult.Note = fmt.Sprintf(`%s
 Base Payment: %.2f VND for contract number %s.
 Further performance cost will be calculated during the payment link creation phase`,
@@ -377,8 +406,8 @@ Further performance cost will be calculated during the payment link creation pha
 				InstallmentPercentage: percent,
 				Amount:                basePayment,
 				DueDate:               paymentResult.DueDate,
-				PeriodStart:           &periodStart,
-				PeriodEnd:             &periodEnd,
+				PeriodStart:           utils.PtrOrNil(paymentResult.PeriodStart),
+				PeriodEnd:             utils.PtrOrNil(paymentResult.PeriodEnd),
 				PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
 				Note:                  &paymentResult.Note,
 				CreatedBy:             &userID,
@@ -419,7 +448,7 @@ Further performance cost will be calculated during the payment link creation pha
 			depositPercent = float64(*contract.DepositPercent)
 		}
 
-		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(coProducingFinancialTerms.TotalCost), depositPercent, len(paymentResults))
+		basePayment, percent := helper.CalculateBasePaymentPerPeriod(float64(coProducingFinancialTerms.TotalCost), depositPercent, contract.DepositAmount, len(paymentResults))
 
 		// Devided equally the payment amount per period based on the total cost
 		// The revenue distribution will be calculated later during the payment link creation phase

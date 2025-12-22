@@ -1,10 +1,12 @@
 package responses
 
 import (
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"slices"
 	"strings"
 	"sync"
@@ -13,6 +15,9 @@ import (
 )
 
 // region: ============== Contract Payment Response ==============
+var (
+	endStatuses = []enum.ContractPaymentStatus{enum.ContractPaymentStatusPaid, enum.ContractPaymentStatusTerminated}
+)
 
 type ContractPaymentResponse struct {
 	ID                    string                     `json:"id" example:"b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f"`
@@ -24,6 +29,7 @@ type ContractPaymentResponse struct {
 	BrandName             string                     `json:"brand_name" example:"Tech Solutions Inc."`
 	InstallmentPercentage float64                    `json:"installment_percentage" example:"50.0"`
 	Amount                float64                    `json:"amount" example:"5000.00"`
+	Breakdown             any                        `json:"breakdown,omitempty"`
 	Status                enum.ContractPaymentStatus `json:"status" example:"PENDING"`
 	DueDate               string                     `json:"due_date" example:"2024-07-15T00:00:00Z"`
 	PaymentMethod         string                     `json:"payment_method" example:"BANK_TRANSFER"`
@@ -39,12 +45,15 @@ func (ContractPaymentResponse) ToResponse(model *model.ContractPayment) *Contrac
 	if model == nil {
 		return nil
 	}
+	var breakdown dtos.GeneralPaymentBreakdown
+	json.Unmarshal(model.CalculationBreakdown, &breakdown)
 
 	response := &ContractPaymentResponse{
 		ID:                    model.ID.String(),
 		ContractID:            model.ContractID.String(),
 		InstallmentPercentage: model.InstallmentPercentage,
 		Amount:                model.Amount,
+		Breakdown:             utils.PtrOrNil(breakdown),
 		Status:                model.Status,
 		DueDate:               utils.FormatLocalTime(&model.DueDate, utils.DateFormat),
 		PaymentMethod:         model.PaymentMethod.String(),
@@ -104,9 +113,21 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 			defer wg.Done()
 			// Sort Internal List: DueDate ASC, then by sortBy & sortOrder
 			slices.SortFunc(pList, func(a, b *model.ContractPayment) int {
+				// PAID and Terminated always go to the end
+				aEnd := utils.ContainsSlice(endStatuses, a.Status)
+				bEnd := utils.ContainsSlice(endStatuses, b.Status)
+
+				if aEnd != bEnd {
+					if aEnd {
+						return 1
+					} // a is PAID, move to end
+					return -1 // b is PAID, move a to front
+				}
+
 				if diff := a.DueDate.Compare(b.DueDate); diff != 0 {
 					return diff
 				}
+
 				res := utils.CompareByJSONTag(a, b, sortBy)
 				if sortOrder == "desc" {
 					return -res
@@ -151,7 +172,7 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 				resp := mapper.ToResponse(p)
 				if resp != nil {
 					// Apply PayNow logic: Only true for the first item in the sorted group
-					if utils.ContainsSlice([]enum.ContractPaymentStatus{enum.ContractPaymentStatusPaid}, resp.Status) {
+					if utils.ContainsSlice(endStatuses, resp.Status) {
 						index++
 					} else {
 						resp.PayNow = (k == index)
