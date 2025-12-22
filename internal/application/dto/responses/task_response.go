@@ -175,8 +175,8 @@ func (TaskListResponse) ToListResponse(dtos []dtos.TaskListDTO) []TaskListRespon
 			Deadline:  dto.Deadline.String(),
 			Type:      dto.Type.String(),
 			Status:    dto.Status.String(),
-			CreatedAt: dto.CreatedAt.String(),
-			UpdatedAt: dto.UpdatedAt.String(),
+			CreatedAt: utils.FormatLocalTime(&dto.CreatedAt, ""),
+			UpdatedAt: utils.FormatLocalTime(&dto.UpdatedAt, ""),
 		}
 		if dto.AssignedToID != nil {
 			res.AssignedToID = utils.PtrOrNil(dto.AssignedToID.String())

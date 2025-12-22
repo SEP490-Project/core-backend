@@ -136,11 +136,14 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 	return preorders, total, nil
 }
 
-func (r *PreOrderRepository) GetPreOrderCountsAndTotalAmountByStatuses(ctx context.Context, statuses []enum.PreOrderStatus) (count int64, totalAmount float64, err error) {
+func (r *PreOrderRepository) GetPreOrderCountsAndTotalAmountByStatuses(ctx context.Context, statuses []enum.PreOrderStatus, productIDs []uuid.UUID) (count int64, totalAmount float64, err error) {
 	db := r.db.WithContext(ctx).Model(&model.PreOrder{})
 	query := db.
-		Where("status IN ?", statuses).
-		Select("COUNT(*) AS preorder_count, COALESCE(SUM(total_amount), 0) AS total_amount")
+		Joins("JOIN product_variants pv ON pv.id = pre_orders.variant_id").
+		Where("pre_orders.status IN ?", statuses).
+		Where("pv.product_id IN ?", productIDs).
+		Distinct("pre_orders.id").
+		Select("COUNT(pre_orders.id) AS preorder_count, COALESCE(SUM(pre_orders.total_amount), 0) AS total_amount")
 
 	if err = query.Row().Scan(&count, &totalAmount); err != nil {
 		zap.L().Error("Failed to get preorder counts and total amount by statuses", zap.Error(err))

@@ -37,7 +37,7 @@ func GenerateMilestoneDueDatesFromFinancialTerms(
 			return nil, errors.New("invalid financial terms type for ADVERTISING/AMBASSADOR contract")
 		}
 
-		paymentResults, err := CalculateScheduleBasedPaymentDates(advFinancialTerms.Schedules)
+		paymentResults, err := CalculateScheduleBasedPaymentDates(contract.StartDate, contract.EndDate, advFinancialTerms.Schedules)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate schedule-based payment dates: %w", err)
 		}
@@ -111,13 +111,20 @@ func GenerateMilestoneDueDatesFromFinancialTerms(
 func CalculateBasePaymentPerPeriod(
 	totalCost float64,
 	depositPercent float64,
+	actualDepositAmount *int,
 	numberOfPeriods int,
 ) (baseAmount, amountPercent float64) {
 	if numberOfPeriods == 0 {
 		return 0, 0
 	}
 
-	depositAmount := totalCost * (depositPercent / 100.0)
+	// depositAmount := totalCost * (depositPercent / 100.0)
+	var depositAmount float64
+	if actualDepositAmount != nil {
+		depositAmount = float64(*actualDepositAmount)
+	} else {
+		depositAmount = totalCost * (depositPercent / 100.0)
+	}
 	remainingCost := totalCost - depositAmount
 
 	return remainingCost / float64(numberOfPeriods), (remainingCost / totalCost) * 100.0 / float64(numberOfPeriods)

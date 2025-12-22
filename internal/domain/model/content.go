@@ -3,6 +3,7 @@ package model
 import (
 	"core-backend/internal/domain/enum"
 	"core-backend/pkg/utils"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -30,7 +31,7 @@ type Content struct {
 	CreatedAt         *time.Time         `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt     `json:"deleted_at" gorm:"index"`
-	Tags              []string           `json:"tags,omitempty" gorm:"type:text[]"`
+	Tags              ContentTag         `json:"tags,omitempty" gorm:"type:jsonb"`
 
 	// Relationships
 	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
@@ -49,6 +50,38 @@ func (c *Content) BeforeCreate(_ *gorm.DB) error {
 		c.Status = enum.ContentStatusDraft
 	}
 	return nil
+}
+
+func (c *Content) GetRenderedBody(baseURL string, channelCode string) datatypes.JSON {
+	if len(c.ContentChannels) == 0 {
+		return c.Body
+	}
+
+	var contentChannel *ContentChannel
+	for i := range c.ContentChannels {
+		cc := c.ContentChannels[i]
+		if cc.Channel == nil || !strings.EqualFold(cc.Channel.Code, channelCode) || cc.AffiliateLink == nil {
+			continue
+		}
+
+		contentChannel = cc
+	}
+	if contentChannel == nil || contentChannel.AffiliateLink == nil || contentChannel.AffiliateLinkID == nil {
+		return c.Body
+	}
+
+	// Replace tracking URL with the full affiliate short URL
+	fullAffiliateURL := contentChannel.AffiliateLink.AffiliateURL
+	if contentChannel.AffiliateLink.Hash != "" {
+		fullAffiliateURL = contentChannel.AffiliateLink.GetFullLink(baseURL)
+	}
+
+	renderedBody, err := renderBodyWithAffiliateLink(c.Body, c.Type, contentChannel.AffiliateLink.TrackingURL, fullAffiliateURL)
+	if err != nil {
+		return c.Body // Fallback to original on error
+	}
+
+	return renderedBody
 }
 
 type ContentBodyVideo struct {
@@ -107,3 +140,28 @@ func (c *Content) GetVideoBody(channelID uuid.UUID, baseAffiliateLinkURL string)
 	}
 	return &videoBody, nil
 }
+
+// region: ======== ContentTag ========
+
+type ContentTag []string
+
+func (ct *ContentTag) Scan(value any) error {
+	if value == nil {
+		*ct = ContentTag{}
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to scan ContentTag: %v", value)
+	}
+	return json.Unmarshal(bytes, ct)
+}
+
+func (ct ContentTag) Value() (driver.Value, error) {
+	if len(ct) == 0 {
+		return "[]", nil
+	}
+	return json.Marshal(ct)
+}
+
+// endregion

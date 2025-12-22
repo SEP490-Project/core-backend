@@ -16,7 +16,7 @@ type DatabaseRegistry struct {
 	ProductVariantRepository  irepository.GenericRepository[model.ProductVariant]
 	BrandRepository           irepository.GenericRepository[model.Brand]
 	ProductCategoryRepository irepository.GenericRepository[model.ProductCategory]
-	ContractRepository        irepository.GenericRepository[model.Contract]
+	ContractRepository        irepository.ContractRepository
 	ContractPaymentRepository irepository.GenericRepository[model.ContractPayment]
 	CampaignRepository        irepository.GenericRepository[model.Campaign]
 	MilestoneRepository       irepository.GenericRepository[model.Milestone]
@@ -95,7 +95,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ProductVariantRepository:             NewGenericRepository[model.ProductVariant](db),
 		BrandRepository:                      NewGenericRepository[model.Brand](db),
 		ProductCategoryRepository:            NewGenericRepository[model.ProductCategory](db),
-		ContractRepository:                   NewGenericRepository[model.Contract](db),
+		ContractRepository:                   NewContractRepository(db),
 		ContractPaymentRepository:            NewGenericRepository[model.ContractPayment](db),
 		CampaignRepository:                   NewGenericRepository[model.Campaign](db),
 		MilestoneRepository:                  NewGenericRepository[model.Milestone](db),
