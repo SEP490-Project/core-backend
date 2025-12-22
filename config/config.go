@@ -312,8 +312,10 @@ type AsynqConfig struct {
 
 // AsynqTaskTypes holds task type names for configuration management
 type AsynqTaskTypes struct {
-	ContentSchedule      string `mapstructure:"content_schedule"`
-	NotificationSchedule string `mapstructure:"notification_schedule"`
+	ContentSchedule       string `mapstructure:"content_schedule"`
+	NotificationSchedule  string `mapstructure:"notification_schedule"`
+	CancelPaymentSchedule string `mapstructure:"cancel_payment_schedule"`
+	AutoReceiveOrder      string `mapstructure:"auto_receive_order"`
 }
 
 //End of Schedulers

@@ -12,6 +12,8 @@ type AsynqHandlerRegistry struct {
 	client                       *asynqClient.AsynqClient
 	ContentScheduleHandler       *ContentScheduleHandler
 	NotificationScheduledHandler *NotificationScheduledHandler
+	CancelPaymentHandler         *CancelPaymentHandler
+	AutoReceiveOrderHandler      *AutoReceiveOrderHandler
 }
 
 func NewAsynqHandlerRegistry(
@@ -24,10 +26,14 @@ func NewAsynqHandlerRegistry(
 		client:                       client,
 		ContentScheduleHandler:       NewContentScheduleHandler(appReg.ContentScheduleService, appReg.AlertManagerService),
 		NotificationScheduledHandler: NewNotificationScheduledHandler(appReg.NotificationService, appReg.InfrastructureRegistry.UnitOfWork),
+		CancelPaymentHandler:         NewCancelPaymentHandler(appReg.PaymentTransactionService, appReg.InfrastructureRegistry.UnitOfWork),
+		AutoReceiveOrderHandler:      NewAutoReceiveOrderHandler(appReg.OrderService),
 	}
 }
 
 func (r *AsynqHandlerRegistry) RegisterHandlers() {
 	r.client.RegisterHandler(r.config.Asynq.TaskTypes.ContentSchedule, r.ContentScheduleHandler)
 	r.client.RegisterHandler(r.config.Asynq.TaskTypes.NotificationSchedule, r.NotificationScheduledHandler)
+	r.client.RegisterHandler(r.config.Asynq.TaskTypes.CancelPaymentSchedule, r.CancelPaymentHandler)
+	r.client.RegisterHandler(r.config.Asynq.TaskTypes.AutoReceiveOrder, r.AutoReceiveOrderHandler)
 }

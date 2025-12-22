@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"core-backend/config"
+	asynqtask "core-backend/internal/application/dto/asynq_tasks"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
@@ -10,8 +11,10 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	asynq2 "core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/persistence"
 	"core-backend/pkg/utils"
@@ -20,6 +23,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/hibiken/asynq"
 	"strconv"
 	"time"
 
@@ -38,6 +42,9 @@ type paymentTransactionService struct {
 	payosProxy             iproxies.PayOSProxy
 	config                 *config.AppConfig
 	db                     *gorm.DB
+	taskScheduler          *asynq2.AsynqClient
+	asynqConfig            *config.AsynqConfig
+	scheduleRepo           irepository.ScheduleRepository
 }
 
 // GetPaymentTransactionByFilter implements iservice.PaymentTransactionService.
@@ -188,6 +195,46 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 		}()
 		return nil, fmt.Errorf("failed to save payment transaction: %w", err)
 	}
+
+	scheduledAt := time.Now().Add(time.Duration(expirySeconds) * time.Second)
+
+	// Check if there's already a pending schedule for this payment transaction
+	existingSchedule, err := s.scheduleRepo.GetByReferenceID(ctx, paymentTransaction.ID)
+	if err != nil {
+		zap.L().Error("Failed to get existing schedule", zap.Error(err), zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return nil, fmt.Errorf("failed to get existing schedule: %w", err)
+	}
+	if existingSchedule != nil && existingSchedule.Status == enum.ScheduleStatusPending {
+		zap.L().Info("Payment transaction already has a pending cancel schedule",
+			zap.String("schedule_id", existingSchedule.ID.String()),
+			zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return payosResp, nil
+	}
+
+	// Create a new schedule record (or reuse non-pending schedule by creating a new one).
+	cancelSchedule := &model.Schedule{
+		ReferenceID: &paymentTransaction.ID,
+		Type:        enum.ScheduleTypeOther,
+		ScheduledAt: scheduledAt,
+		Status:      enum.ScheduleStatusPending,
+		RetryCount:  0,
+		CreatedBy:   utils.DerefPtr(req.PayerID, uuid.Nil),
+	}
+
+	if err := uow.Schedules().Add(ctx, cancelSchedule); err != nil {
+		zap.L().Error("Failed to create cancel payment schedule", zap.Error(err), zap.String("payment_transaction_id", paymentTransaction.ID.String()))
+		return nil, fmt.Errorf("failed to create cancel schedule: %w", err)
+	}
+
+	if err := s.publishCancelPaymentDelayMessage(ctx, cancelSchedule, uow); err != nil {
+		zap.L().Error("Failed to schedule cancel payment task", zap.Error(err), zap.String("schedule_id", cancelSchedule.ID.String()))
+		return nil, fmt.Errorf("failed to schedule cancel payment task: %w", err)
+	}
+
+	zap.L().Info("Cancel payment scheduled",
+		zap.String("schedule_id", cancelSchedule.ID.String()),
+		zap.String("payment_transaction_id", paymentTransaction.ID.String()),
+		zap.Time("scheduled_at", scheduledAt))
 
 	zap.L().Info("PayOS payment link created successfully",
 		zap.String("payment_link_id", payosResp.PaymentLinkID),
@@ -615,6 +662,8 @@ func NewPaymentTransactionService(
 	databaseRegistry *gormrepository.DatabaseRegistry,
 	payosProxy iproxies.PayOSProxy,
 	db *gorm.DB,
+	taskScheduler *asynq2.AsynqClient,
+	asynqConfig *config.AsynqConfig,
 ) iservice.PaymentTransactionService {
 	return &paymentTransactionService{
 		stateTransferService:   stateTransferService,
@@ -626,5 +675,67 @@ func NewPaymentTransactionService(
 		payosProxy:             payosProxy,
 		config:                 config.GetAppConfig(),
 		db:                     db,
+		taskScheduler:          taskScheduler,
+		asynqConfig:            asynqConfig,
+		scheduleRepo:           databaseRegistry.ScheduleRepository,
 	}
+}
+
+func (s *paymentTransactionService) publishCancelPaymentDelayMessage(ctx context.Context, schedule *model.Schedule, uow irepository.UnitOfWork) error {
+	if s.taskScheduler == nil {
+		return errors.New("task scheduler not initialized")
+	}
+	if s.asynqConfig == nil {
+		return errors.New("asynq config not initialized")
+	}
+	if schedule == nil {
+		return errors.New("schedule is nil")
+	}
+	if schedule.ReferenceID == nil || *schedule.ReferenceID == uuid.Nil {
+		return errors.New("schedule reference id is required")
+	}
+
+	// This schedule is expected to reference a PaymentTransaction.
+	paymentTransaction, err := uow.PaymentTransaction().GetByID(ctx, *schedule.ReferenceID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get payment transaction: %w", err)
+	}
+	if paymentTransaction == nil {
+		return errors.New("payment transaction not found")
+	}
+
+	// Create task payload (consumer will cancel the payment based on PaymentID).
+	payload := asynqtask.CancelPaymentTaskPayload{
+		PaymentID: paymentTransaction.ID.String(),
+	}
+
+	// Task type from config (fallback default)
+	taskType := s.asynqConfig.TaskTypes.CancelPaymentSchedule
+	if taskType == "" {
+		taskType = "task:payment:cancel"
+	}
+
+	// Unique key prevents duplicates for the same schedule.
+	uniqueKey := fmt.Sprintf("schedule:%s", schedule.ID.String())
+
+	_, err = s.taskScheduler.ScheduleTaskWithUniqueKey(
+		ctx,
+		taskType,
+		payload,
+		schedule.ScheduledAt,
+		uniqueKey,
+		asynq.Queue("default"),
+		asynq.MaxRetry(constant.DefaultMaxScheduleRetries),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to schedule cancel payment task: %w", err)
+	}
+
+	zap.L().Info("Cancel payment schedule task created",
+		zap.String("schedule_id", schedule.ID.String()),
+		zap.String("payment_transaction_id", paymentTransaction.ID.String()),
+		zap.String("unique_key", uniqueKey),
+		zap.Time("scheduled_at", schedule.ScheduledAt))
+
+	return nil
 }

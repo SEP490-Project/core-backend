@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"core-backend/config"
+	asynqtask "core-backend/internal/application/dto/asynq_tasks"
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iproxies"
@@ -20,6 +21,7 @@ import (
 	"core-backend/internal/domain/state/paymenttransactionsm"
 	"core-backend/internal/domain/state/productsm"
 	"core-backend/internal/domain/state/tasksm"
+	"core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"errors"
@@ -27,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	githubAsynq "github.com/hibiken/asynq"
 	"go.uber.org/zap"
 	"gorm.io/gorm" // added for UpdateByCondition filter closure
 )
@@ -48,6 +51,8 @@ type stateTransferService struct {
 	ghnProxy                iproxies.GHNProxy
 	adminConfig             config.AdminConfig
 	config                  *config.AppConfig
+	taskScheduler          *asynq.AsynqClient
+	asynqConfig            *config.AsynqConfig
 }
 
 func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
@@ -1318,8 +1323,6 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 	}
 	orderRepo := uow.Order()
 
-	//note := transactionCtx.GenerateActionNote(updatedBy, reason)
-
 	switch nextStatus {
 	case enum.OrderStatusConfirmed:
 		zap.L().Info("Order confirmation")
@@ -1342,7 +1345,44 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 				*it.Variant.CurrentStock = *it.Variant.CurrentStock - it.Quantity
 			}
 		}
-		zap.L().Info("Here goes the email :D")
+	case enum.OrderStatusDelivered:
+		// Schedule auto-receive after a delay (idempotent by unique key)
+		if t.taskScheduler == nil || t.asynqConfig == nil {
+			zap.L().Warn("Asynq not configured; skip scheduling auto receive",
+				zap.String("order_id", order.ID.String()))
+			break
+		}
+
+		// default: 72h after delivered
+		delay := 72 * time.Hour
+		processAt := time.Now().Add(delay)
+
+		payload := asynqtask.AutoReceiveOrderTaskPayload{OrderID: order.ID}
+		askType := t.asynqConfig.TaskTypes.AutoReceiveOrder
+		if taskType == "" {
+			taskType = "task:order:auto-receive"
+		}
+
+		uniqueKey := fmt.Sprintf("order:auto-receive:%s", order.ID.String())
+		if _, schErr := t.taskScheduler.ScheduleTaskWithUniqueKey(
+			ctx,
+			taskType,
+			payload,
+			processAt,
+			uniqueKey,
+			githubAsynq.Queue("default"),
+			githubAsynq.MaxRetry(10),
+		); schErr != nil {
+			zap.L().Error("Failed to schedule auto receive order task",
+				zap.Error(schErr),
+				zap.String("order_id", order.ID.String()))
+			// Do not fail the whole state transition because of scheduling.
+		} else {
+			zap.L().Info("Auto receive order task scheduled",
+				zap.String("order_id", order.ID.String()),
+				zap.Time("process_at", processAt),
+				zap.String("unique_key", uniqueKey))
+		}
 	case enum.OrderStatusCancelled:
 		// Regain stock for LIMITED orders and persist per-variant
 		if order.OrderType == enum.ProductTypeLimited.String() {
@@ -1403,6 +1443,8 @@ func NewStateTransferService(
 		ghnProxy:                ghnProxy,
 		config:                  configs,
 		adminConfig:             configs.AdminConfig,
+		taskScheduler:          asynq.NewAsynqClient(configs.Asynq.Redis),
+		asynqConfig:            &configs.Asynq,
 	}
 }
 
