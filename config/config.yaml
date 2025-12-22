@@ -28,10 +28,10 @@ database:
 
 # Cache (Valkey/Redis)
 cache:
-  host: "localhost"
+  host: "trangiangkhanh.online"
   port: 6379
   db: 0
-  password: "12345"
+  password: "170504"
 
 # Asynq Task Scheduler (uses Valkey/Redis)
 asynq:
@@ -41,6 +41,8 @@ asynq:
   task_types:
     content_schedule: "task:content:schedule"
     notification_schedule: "task:notification:schedule"
+    cancel_payment_schedule: "task:payment:cancel"
+    auto_receive_order: "task:order:auto-receive"
 
 # JWT configuration
 jwt:

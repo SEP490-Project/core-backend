@@ -87,6 +87,7 @@ daily_cron_job_worker_count: "7"
 
 # Order - PreOrder
 censorship_interval_minutes: 5
+auto_receive_order_interval_hours: 72
 
 #Products
 product_maximum_variants: 5

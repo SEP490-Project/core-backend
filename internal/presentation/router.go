@@ -300,6 +300,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		// ---------- LOCATIONS ----------/
 		locationHandler := r.handlerRegistry.LocationHandler
 		locationGroup := v1.Group("/location")
+		locationGroup.GET("/test", locationHandler.Test)
 		locationGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		{
 			locationGroup.GET("/provinces", locationHandler.GetProvinces)
