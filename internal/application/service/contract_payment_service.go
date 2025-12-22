@@ -211,7 +211,7 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 		}
 	}
 
-	responsesList := responses.ContractPaymentResponse{}.ToResponseList(payments)
+	responsesList := responses.ContractPaymentResponse{}.ToResponseList(payments, &filter.PaginationRequest)
 	return &responsesList, total, nil
 }
 
