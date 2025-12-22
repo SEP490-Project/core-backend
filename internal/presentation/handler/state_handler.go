@@ -176,12 +176,6 @@ func (h *StateHandler) UpdateProductState(c *gin.Context) {
 		return
 	}
 
-	//if target == enum.ProductStatusRevision {
-	//	if req.Reason == nil {
-	//		c.JSON(http.StatusBadRequest, responses.ErrorResponse("reason is required when moving product to REVISION state", http.StatusBadRequest))
-	//	}
-	//}
-
 	// Lấy role từ context
 	roleVal, ok := c.Get("roles")
 	if !ok || roleVal == nil {

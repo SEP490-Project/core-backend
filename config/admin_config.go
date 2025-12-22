@@ -28,7 +28,7 @@ type AdminConfig struct {
 	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
 	RepresentativeCompanyAddress    string `mapstructure:"representative_company_address"`
 	// Representative use to create GHN Order
-	RepresentativeGHNCompanyName  string `mapstructure:"representative_ghn_company_name"` // From name: max:1024
+	RepresentativeGHNCompanyName  string `mapstructure:"representative_company_name"` // From name: max:1024
 	RepresentativeGHNPhone        string `mapstructure:"representative_ghn_phone"`
 	RepresentativeGHNWardName     string `mapstructure:"representative_ghn_ward_name"`
 	RepresentativeGHNDistrictName string `mapstructure:"representative_ghn_district_name"`
@@ -60,7 +60,8 @@ type AdminConfig struct {
 	ContractPaymentNotificationHour   int `mapstructure:"contract_payment_notification_hour"`
 
 	// Order - PreOrder
-	CensorshipIntervalMinutes int `mapstructure:"censorship_interval_minutes"`
+	CensorshipIntervalMinutes     int `mapstructure:"censorship_interval_minutes"`
+	AutoReceiveOrderIntervalHours int `mapstructure:"auto_receive_order_interval_hours"`
 
 	// Products
 	ProductMaximumVariants int `mapstructure:"product_maximum_variants"`
@@ -142,6 +143,12 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("representative_bank_name", "")
 	adminViper.SetDefault("representative_bank_account_number", "")
 	adminViper.SetDefault("representative_bank_account_holder", "TRAN GIANH KHANH")
+	// GHN Info
+	adminViper.SetDefault("representative_company_name", "Công ty TNHH Thương Mại Dịch Vụ BShowSell")
+	adminViper.SetDefault("representative_ghn_phone", "0912312312")
+	adminViper.SetDefault("representative_ghn_ward_name", "phường Long Thạnh Mỹ")
+	adminViper.SetDefault("representative_ghn_district_name", "Thủ Đức")
+	adminViper.SetDefault("representative_ghn_province_name", "TP Hồ Chí Minh")
 
 	adminViper.SetDefault("tracking_link_trusted_domains", []string{"example.com", "trustedpartner.com"})
 	adminViper.SetDefault("bot_signatures", []string{"example.com", "trustedpartner.com"})
@@ -173,6 +180,12 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 
 	adminViper.SetDefault("contract_payment_allowed_overdue_days", 5)
 	adminViper.SetDefault("contract_payment_notification_hour", 8)
+
+	//Mock
+	//products
+	adminViper.SetDefault("product_maximum_variants", 3)
+	//orders
+	adminViper.SetDefault("auto_receive_order_interval_hours", 24)
 }
 
 // Override updates AdminConfig with values from the the model that was retrieved from the database

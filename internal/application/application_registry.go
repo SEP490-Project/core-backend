@@ -120,6 +120,8 @@ func NewApplicationRegistry(
 		databaseRegistry,
 		infrastructureRegistry.ProxiesRegistry.PayOSProxy,
 		infrastructureRegistry.DB,
+		infrastructureRegistry.AsynqClient,
+		&configs.Asynq,
 	)
 
 	fileService := infraService.NewFileService(
