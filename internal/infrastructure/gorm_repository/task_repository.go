@@ -5,11 +5,13 @@ import (
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -264,6 +266,105 @@ func (r *TaskRepository) GetContractTrackingLinkByTaskID(ctx context.Context, ta
 		return "", uuid.Nil, err
 	}
 	return result.TrackingLink, result.ContractID, nil
+}
+
+func (r *TaskRepository) GetTaskIDsByContractID(ctx context.Context, contractID uuid.UUID) (taskIDs []uuid.UUID, err error) {
+	err = r.db.WithContext(ctx).Model(new(model.Task)).
+		Joins("INNER JOIN milestones AS m ON tasks.milestone_id = m.id").
+		Joins("INNER JOIN campaigns AS c ON m.campaign_id = c.id").
+		Where("c.contract_id = ?", contractID).
+		Select("tasks.id").
+		Pluck("tasks.id", &taskIDs).Error
+	return
+}
+
+func (r *TaskRepository) GetListTasksByIDs(ctx context.Context, taskIDs []uuid.UUID) (tasks []dtos.TaskWithScopeOfWorkID, err error) {
+	var (
+		taskList []dtos.TaskWithScopeOfWorkID
+		// Slices to handle edge cases where a task has multiple products or contents
+		productInfoMap = make(map[uuid.UUID][]dtos.ProductInfo) // map[TaskID] slice of ProductInfo
+		contentInfoMap = make(map[uuid.UUID][]dtos.ContentInfo) // map[TaskID] slice of ContentInfo
+	)
+	taskFunc := func(ctx context.Context) error {
+		err := r.db.WithContext(ctx).Model(new(model.Task)).
+			Where("tasks.id IN ?", taskIDs).
+			Where("tasks.deleted_at IS NULL").
+			Select("tasks.id", "tasks.type", "tasks.status", "tasks.scope_of_work_item_id").
+			Find(&taskList).Error
+		if err != nil {
+			return err
+		}
+		for i := range taskList {
+			if taskList[i].ScopeOfWorkItemID == nil {
+				continue
+			}
+			splittedID := strings.Split(*taskList[i].ScopeOfWorkItemID, "|")
+			if len(splittedID) != 3 {
+				continue
+			}
+			if contractID, idErr := uuid.Parse(splittedID[0]); idErr == nil {
+				taskList[i].ContractID = &contractID
+			}
+			if itemType := constant.ScopeOfWorkIDType(splittedID[1]); itemType.IsValid() {
+				taskList[i].ScopeOfWorkItemType = &itemType
+			}
+			if itemID, idErr := strconv.ParseInt(splittedID[2], 10, 8); idErr == nil {
+				taskList[i].ItemID = utils.PtrOrNil(int8(itemID))
+			}
+		}
+
+		return err
+	}
+	productFunc := func(ctx context.Context) error {
+		var procucts []dtos.ProductInfo
+		if err := r.db.WithContext(ctx).Model(new(model.Product)).
+			Where("products.task_id IN ?", taskIDs).
+			Where("products.deleted_at IS NULL").
+			Select("products.task_id", "products.id", "products.name", "products.type").
+			Find(&procucts).Error; err != nil {
+			return err
+		}
+		for _, p := range procucts {
+			if _, exists := productInfoMap[p.TaskID]; !exists {
+				productInfoMap[p.TaskID] = make([]dtos.ProductInfo, 0)
+			}
+			productInfoMap[p.TaskID] = append(productInfoMap[p.TaskID], p)
+		}
+		return nil
+	}
+	contentFunc := func(ctx context.Context) error {
+		var contents []dtos.ContentInfo
+		if err := r.db.WithContext(ctx).Model(new(model.Content)).
+			Where("contents.task_id IN ?", taskIDs).
+			Where("contents.deleted_at IS NULL").
+			Select("contents.task_id", "contents.id", "contents.title", "contents.description", "contents.type").
+			Find(&contents).Error; err != nil {
+			return err
+		}
+		for _, c := range contents {
+			if _, exists := contentInfoMap[c.TaskID]; !exists {
+				contentInfoMap[c.TaskID] = make([]dtos.ContentInfo, 0)
+			}
+			contentInfoMap[c.TaskID] = append(contentInfoMap[c.TaskID], c)
+		}
+		return nil
+	}
+	if err := utils.RunParallel(ctx, 3, taskFunc, productFunc, contentFunc); err != nil {
+		return nil, err
+	}
+	// Map product and content info to tasks
+	for i := range taskList {
+		products, exists := productInfoMap[taskList[i].ID]
+		if exists && len(products) > 0 {
+			taskList[i].ProductInfo = &products[0]
+		}
+		contents, exists := contentInfoMap[taskList[i].ID]
+		if exists && len(contents) > 0 {
+			taskList[i].ContentInfo = &contents[0]
+		}
+	}
+
+	return taskList, nil
 }
 
 func NewTaskRepository(db *gorm.DB) irepository.TaskRepository {

@@ -19,7 +19,7 @@ type unitOfWork struct {
 	brandRepo                       irepository.GenericRepository[model.Brand]
 	loggedSessionRepo               irepository.GenericRepository[model.LoggedSession]
 	productRepo                     irepository.GenericRepository[model.Product]
-	contractRepository              irepository.GenericRepository[model.Contract]
+	contractRepository              irepository.ContractRepository
 	contractPaymentRepository       irepository.GenericRepository[model.ContractPayment]
 	campaignRepository              irepository.GenericRepository[model.Campaign]
 	milestoneRepository             irepository.GenericRepository[model.Milestone]
@@ -92,7 +92,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.shippingAddressRepo = gormrepository.NewGenericRepository[model.ShippingAddress](tx)
 	txUow.brandRepo = gormrepository.NewGenericRepository[model.Brand](tx)
 	txUow.loggedSessionRepo = gormrepository.NewGenericRepository[model.LoggedSession](tx)
-	txUow.contractRepository = gormrepository.NewGenericRepository[model.Contract](tx)
+	txUow.contractRepository = gormrepository.NewContractRepository(tx)
 	txUow.contractPaymentRepository = gormrepository.NewGenericRepository[model.ContractPayment](tx)
 	txUow.campaignRepository = gormrepository.NewGenericRepository[model.Campaign](tx)
 	txUow.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](tx)
@@ -198,7 +198,7 @@ func (u *unitOfWork) LoggedSessions() irepository.GenericRepository[model.Logged
 	return u.loggedSessionRepo
 }
 
-func (u *unitOfWork) Contracts() irepository.GenericRepository[model.Contract] {
+func (u *unitOfWork) Contracts() irepository.ContractRepository {
 	return u.contractRepository
 }
 

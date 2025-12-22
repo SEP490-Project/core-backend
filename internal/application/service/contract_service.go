@@ -2,13 +2,16 @@ package service
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/application/service/helper"
+	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"encoding/json"
@@ -23,6 +26,8 @@ import (
 type ContractService struct {
 	brandRepository    irepository.GenericRepository[model.Brand]
 	contractRepository irepository.GenericRepository[model.Contract]
+	taskRepository     irepository.TaskRepository
+	unitOfWork         irepository.UnitOfWork
 }
 
 // GetContractsByUserID implements iservice.ContractService.
@@ -198,7 +203,7 @@ func (s *ContractService) CreateContract(
 		zap.String("contract_id", contract.ID.String()),
 		zap.String("contract_number", *contract.ContractNumber))
 
-	return responses.ContractResponse{}.ToContractResponse(createdContract)
+	return responses.ContractResponse{}.ToContractResponse(createdContract, nil)
 }
 
 // UpdateContract implements iservice.ContractService.
@@ -282,7 +287,7 @@ func (s *ContractService) UpdateContract(
 	zap.L().Info("Contract updated successfully",
 		zap.String("contract_id", contractID.String()))
 
-	return responses.ContractResponse{}.ToContractResponse(updatedContract)
+	return responses.ContractResponse{}.ToContractResponse(updatedContract, nil)
 }
 
 // UpdateContractFileURL implements iservice.ContractService.
@@ -329,7 +334,7 @@ func (s *ContractService) GetContractByID(ctx context.Context, contractID uuid.U
 		return nil, errors.New("failed to fetch contract")
 	}
 
-	return responses.ContractResponse{}.ToContractResponse(contract)
+	return responses.ContractResponse{}.ToContractResponse(contract, nil)
 }
 
 // GetContractsByBrandID implements iservice.ContractService.
@@ -536,9 +541,192 @@ func (s *ContractService) GetScopeOfWorkByContractID(ctx context.Context, contra
 	return scopeOfWork, nil
 }
 
-func NewContractService(repositoryRegistry *gormrepository.DatabaseRegistry) iservice.ContractService {
+func (s *ContractService) UpdateContractScopeOfWorkWithReferencinnTaskIDs(
+	ctx context.Context, contractID uuid.UUID,
+) error {
+	zap.L().Info("Updating contract scope of work with referencing task IDs",
+		zap.String("contract_id", contractID.String()))
+
+	var (
+		err                      error
+		contract                 *model.Contract
+		scopeOfWork              *dtos.ScopeOfWork
+		taskIDs                  []uuid.UUID
+		taskWithScopeOfWork      []dtos.TaskWithScopeOfWorkID
+		scopeOfWorkItemIDTypeMap = make(map[constant.ScopeOfWorkIDType]map[int8]*dtos.TaskWithScopeOfWorkID)
+	)
+
+	contractFunc := func(ctx context.Context) error {
+		contract, err = s.contractRepository.GetByID(ctx, contractID, nil)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				zap.L().Warn("Contract not found", zap.String("contract_id", contractID.String()))
+				return errors.New("contract not found")
+			}
+			zap.L().Error("Failed to retrieve contract", zap.String("contract_id", contractID.String()), zap.Error(err))
+			return err
+		}
+		scopeOfWork, err = s.unmarshalScopeOfWork(contract)
+		if err != nil {
+			zap.L().Error("Failed to unmarshal scope of work", zap.Error(err))
+			return err
+		}
+		return nil
+	}
+	taskFunc := func(ctx context.Context) error {
+		taskIDs, err = s.taskRepository.GetTaskIDsByContractID(ctx, contractID)
+		if err != nil {
+			zap.L().Error("Failed to retrieve task IDs by contract ID", zap.Error(err))
+			return err
+		}
+
+		taskWithScopeOfWork, err = s.taskRepository.GetListTasksByIDs(ctx, taskIDs)
+		if err != nil {
+			zap.L().Error("Failed to retrieve tasks by IDs", zap.Error(err))
+			return err
+		}
+		for _, task := range taskWithScopeOfWork {
+			if task.ScopeOfWorkItemID == nil || task.ScopeOfWorkItemType == nil || task.ItemID == nil {
+				continue
+			}
+			if _, exists := scopeOfWorkItemIDTypeMap[*task.ScopeOfWorkItemType]; !exists {
+				scopeOfWorkItemIDTypeMap[*task.ScopeOfWorkItemType] = make(map[int8]*dtos.TaskWithScopeOfWorkID)
+			}
+			scopeOfWorkItemIDTypeMap[*task.ScopeOfWorkItemType][*task.ItemID] = &task
+		}
+		return nil
+	}
+	if err = utils.RunParallel(ctx, 2, contractFunc, taskFunc); err != nil {
+		zap.L().Error("Failed to fetch contract and tasks in parallel", zap.Error(err))
+		return err
+	}
+
+	switch contract.Type {
+	case enum.ContractTypeAdvertising:
+		advertiseDeliverables, err := scopeOfWork.Deliverables.ToAdvertisingDeliverable()
+		if err != nil {
+			zap.L().Error("Failed to convert deliverables to AffiliateDeliverable", zap.Error(err))
+			return err
+		}
+		for i, item := range advertiseDeliverables.AdvertisedItems {
+			if item.ID == nil {
+				continue
+			}
+			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeAdvertise]
+			if !exists {
+				break
+			}
+			if task, taskExists := taskMap[*item.ID]; taskExists && task.ContentInfo != nil {
+				if len(item.ContentIDs) > 0 {
+					advertiseDeliverables.AdvertisedItems[i].ContentIDs = []uuid.UUID{task.ContentInfo.ID}
+				} else {
+					advertiseDeliverables.AdvertisedItems[i].ContentIDs = append(advertiseDeliverables.AdvertisedItems[i].ContentIDs, task.ContentInfo.ID)
+				}
+			}
+		}
+		scopeOfWork.Deliverables.AdvertisingDeliverable = *advertiseDeliverables
+
+	case enum.ContractTypeAffiliate:
+		affiliateDeliverables, err := scopeOfWork.Deliverables.ToAffiliateDeliverable()
+		if err != nil {
+			zap.L().Error("Failed to convert deliverables to AffiliateDeliverable", zap.Error(err))
+			return err
+		}
+		for i, item := range affiliateDeliverables.AdvertisedItems {
+			if item.ID == nil {
+				continue
+			}
+			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeAdvertise]
+			if !exists {
+				break
+			}
+			if task, taskExists := taskMap[*item.ID]; taskExists && task.ContentInfo != nil {
+				if len(item.ContentIDs) > 0 {
+					affiliateDeliverables.AdvertisedItems[i].ContentIDs = []uuid.UUID{task.ContentInfo.ID}
+				} else {
+					affiliateDeliverables.AdvertisedItems[i].ContentIDs = append(affiliateDeliverables.AdvertisedItems[i].ContentIDs, task.ContentInfo.ID)
+				}
+			}
+		}
+		scopeOfWork.Deliverables.AffiliateDeliverable = *affiliateDeliverables
+
+	case enum.ContractTypeCoProduce:
+		coProducingDeliverables, err := scopeOfWork.Deliverables.ToCoProducingDeliverable()
+		if err != nil {
+			zap.L().Error("Failed to convert deliverables to CoProducingDeliverable", zap.Error(err))
+			return err
+		}
+		// Product tasks
+		for i, product := range coProducingDeliverables.Products {
+			if product.ID == nil {
+				continue
+			}
+			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeProduct]
+			if !exists {
+				break
+			}
+			if task, taskExists := taskMap[*product.ID]; taskExists && task.ProductInfo != nil {
+				if len(product.ProductIDs) > 0 {
+					coProducingDeliverables.Products[i].ProductIDs = []uuid.UUID{task.ProductInfo.ID}
+				} else {
+					coProducingDeliverables.Products[i].ProductIDs = append(coProducingDeliverables.Products[i].ProductIDs, task.ProductInfo.ID)
+				}
+			}
+		}
+
+		// Concept tasks
+		for i, concept := range coProducingDeliverables.Concepts {
+			if concept.ID == nil {
+				continue
+			}
+			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeConcept]
+			if !exists {
+				break
+			}
+			if task, taskExists := taskMap[*concept.ID]; taskExists && task.ContentInfo != nil {
+				if len(concept.ContentIDs) == 0 {
+					coProducingDeliverables.Concepts[i].ContentIDs = []uuid.UUID{task.ContentInfo.ID}
+				} else {
+					coProducingDeliverables.Concepts[i].ContentIDs = append(coProducingDeliverables.Concepts[i].ContentIDs, task.ContentInfo.ID)
+				}
+			}
+		}
+		scopeOfWork.Deliverables.CoProducingDeliverable = *coProducingDeliverables
+	}
+
+	if err := helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		updatedScopeOfWorkBytes, err := json.Marshal(scopeOfWork)
+		if err != nil {
+			zap.L().Error("Failed to marshal scope of work", zap.Error(err))
+			return err
+		}
+		return uow.Contracts().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", contractID)
+		}, map[string]any{"scope_of_work": updatedScopeOfWorkBytes})
+	}); err != nil {
+		zap.L().Error("Failed to update contract scope of work", zap.String("contract_id", contractID.String()), zap.Error(err))
+		return err
+	}
+
+	return nil
+}
+
+func (s *ContractService) unmarshalScopeOfWork(contract *model.Contract) (*dtos.ScopeOfWork, error) {
+	var scopeOfWorks dtos.ScopeOfWork
+	if err := json.Unmarshal(contract.ScopeOfWork, &scopeOfWorks); err != nil {
+		return nil, err
+	}
+	return &scopeOfWorks, nil
+}
+
+func NewContractService(
+	dbReg *gormrepository.DatabaseRegistry,
+	infraReg *infrastructure.InfrastructureRegistry,
+) iservice.ContractService {
 	return &ContractService{
-		contractRepository: repositoryRegistry.ContractRepository,
-		brandRepository:    repositoryRegistry.BrandRepository,
+		contractRepository: dbReg.ContractRepository,
+		brandRepository:    dbReg.BrandRepository,
+		taskRepository:     dbReg.TaskRepository,
+		unitOfWork:         infraReg.UnitOfWork,
 	}
 }

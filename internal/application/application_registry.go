@@ -107,12 +107,15 @@ func NewApplicationRegistry(
 		configs,
 		infrastructureRegistry.VaultService,
 	)
+	contractService := service.NewContractService(databaseRegistry, infrastructureRegistry)
+
 	contentService := service.NewContentService(
 		configs,
 		databaseRegistry,
 		infrastructureRegistry.UnitOfWork,
 		affiliateLinkService,
 		channelService,
+		contractService,
 	)
 
 	paymentTransactionService := service.NewPaymentTransactionService(
@@ -180,10 +183,10 @@ func NewApplicationRegistry(
 		DeviceTokenService:            service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository),
 		AuthService:                   service.NewAuthService(configs, jwtService, databaseRegistry.UserRepository, databaseRegistry.LoggedSessionRepository, service.NewDeviceTokenService(databaseRegistry.DeviceTokenRepository), infrastructureRegistry.RabbitMQ),
 		UserService:                   service.NewUserService(databaseRegistry.UserRepository, infrastructureRegistry.RabbitMQ),
-		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ, configs),
+		ProductService:                service.NewProductService(databaseRegistry, infrastructureRegistry.ThirdPartyStorage, infrastructureRegistry.RabbitMQ, configs, contractService),
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          stateTransferService,
-		ContractService:               service.NewContractService(databaseRegistry),
+		ContractService:               contractService,
 		CampaignService:               service.NewCampaignService(databaseRegistry),
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
@@ -284,6 +287,7 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 			r.DatabaseRegistry.ContractPaymentRepository,
 			r.NotificationService,
 			r.AlertManagerService,
+			r.StateTransferService,
 			r.InfrastructureRegistry.UnitOfWork,
 			r.InfrastructureRegistry.AsynqClient,
 		)

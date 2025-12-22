@@ -12991,6 +12991,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/info/{ghn-code}": {
+            "get": {
+                "description": "Fetch GHN order details for a given GHN order code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get GHN order info by GHN order code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Code of GHN order which is provided after create a standard order",
+                        "name": "ghn-code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrderInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ghn/mocking/gso-token": {
             "get": {
                 "description": "Retrieve GHN GSO Token using Service Token",
@@ -13125,11 +13175,6 @@ const docTemplate = `{
         },
         "/api/v1/ghn/order/info/{order-id}": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Fetch GHN order details for a given GHN order code",
                 "consumes": [
                     "application/json"
@@ -20251,28 +20296,28 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
+                        "format": "date",
                         "description": "Filter by deadline from date",
                         "name": "deadline_from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
+                        "format": "date",
                         "description": "Filter by deadline to date",
                         "name": "deadline_to_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
+                        "format": "date",
                         "description": "Filter by updated from date",
                         "name": "updated_from_date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "format": "date-time",
+                        "format": "date",
                         "description": "Filter by updated to date",
                         "name": "updated_to_date",
                         "in": "query"
@@ -21108,6 +21153,53 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/test/contracts/{id}/update-sow": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the scope of work for a specific contract based on its associated tasks.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Update Contract Scope of Work",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated contract scope of work",
+                        "schema": {}
+                    },
+                    "400": {
+                        "description": "Bad request due to invalid parameters",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -23016,6 +23108,12 @@ const docTemplate = `{
                 "_id": {
                     "type": "string"
                 },
+                "available_states": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
                 "calculate_weight": {
                     "type": "integer"
                 },
@@ -23139,6 +23237,9 @@ const docTemplate = `{
                 "from_district_id": {
                     "type": "integer"
                 },
+                "from_district_name": {
+                    "type": "string"
+                },
                 "from_hotline": {
                     "type": "string"
                 },
@@ -23177,11 +23278,17 @@ const docTemplate = `{
                 "from_province_id_v2": {
                     "type": "integer"
                 },
+                "from_province_name": {
+                    "type": "string"
+                },
                 "from_ward_code": {
                     "type": "string"
                 },
                 "from_ward_id_v2": {
                     "type": "integer"
+                },
+                "from_ward_name": {
+                    "type": "string"
                 },
                 "height": {
                     "type": "integer"
@@ -23338,6 +23445,9 @@ const docTemplate = `{
                 "return_district_id": {
                     "type": "integer"
                 },
+                "return_district_name": {
+                    "type": "string"
+                },
                 "return_location": {
                     "type": "object",
                     "properties": {
@@ -23373,11 +23483,17 @@ const docTemplate = `{
                 "return_province_id_v2": {
                     "type": "integer"
                 },
+                "return_province_name": {
+                    "type": "string"
+                },
                 "return_ward_code": {
                     "type": "string"
                 },
                 "return_ward_id_v2": {
                     "type": "integer"
+                },
+                "return_ward_name": {
+                    "type": "string"
                 },
                 "return_warehouse_id": {
                     "type": "integer"
@@ -23424,6 +23540,9 @@ const docTemplate = `{
                 "to_district_id": {
                     "type": "integer"
                 },
+                "to_district_name": {
+                    "type": "string"
+                },
                 "to_location": {
                     "type": "object",
                     "properties": {
@@ -23459,11 +23578,17 @@ const docTemplate = `{
                 "to_province_id_v2": {
                     "type": "integer"
                 },
+                "to_province_name": {
+                    "type": "string"
+                },
                 "to_ward_code": {
                     "type": "string"
                 },
                 "to_ward_id_v2": {
                     "type": "integer"
+                },
+                "to_ward_name": {
+                    "type": "string"
                 },
                 "transaction_ids": {
                     "type": "array",
@@ -24128,6 +24253,21 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ContentTypePost",
                 "ContentTypeVideo"
+            ]
+        },
+        "enum.ContractPaymentStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "PAID",
+                "OVERDUE",
+                "TERMINATED"
+            ],
+            "x-enum-varnames": [
+                "ContractPaymentStatusPending",
+                "ContractPaymentStatusPaid",
+                "ContractPaymentStatusOverdue",
+                "ContractPaymentStatusTerminated"
             ]
         },
         "enum.ContractType": {
@@ -31269,6 +31409,14 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Website Development Contract"
                 },
+                "contract_type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ContractType"
+                        }
+                    ],
+                    "example": "ADVERTISING"
+                },
                 "created_at": {
                     "type": "string",
                     "example": "2006-01-02T15:04:05Z07:00"
@@ -31285,16 +31433,28 @@ const docTemplate = `{
                     "type": "number",
                     "example": 50
                 },
+                "is_deposit": {
+                    "type": "boolean",
+                    "example": true
+                },
                 "note": {
                     "type": "string",
                     "example": "First installment payment"
+                },
+                "pay_now": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "payment_method": {
                     "type": "string",
                     "example": "BANK_TRANSFER"
                 },
                 "status": {
-                    "type": "string",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ContractPaymentStatus"
+                        }
+                    ],
                     "example": "PENDING"
                 },
                 "updated_at": {

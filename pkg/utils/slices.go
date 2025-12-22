@@ -101,3 +101,28 @@ func GetElementByFilter[T any](slice []T, predicate func(T) bool) *T {
 
 	return nil
 }
+
+// AppendSortedFunc inserts v into s using a custom comparison function.
+// compare returns:
+// < 0 if a < b
+// > 0 if a > b
+// == 0 if a == b
+func AppendSortedFunc[E any](s []E, v E, compare func(E, E) int) []E {
+	if len(s) == 0 {
+		return append(s, v)
+	}
+
+	// 1. Find the index using the custom compare function
+	i, _ := slices.BinarySearchFunc(s, v, compare)
+
+	// 2. Add space
+	s = append(s, v)
+
+	// 3. Shift elements
+	copy(s[i+1:], s[i:])
+
+	// 4. Place value
+	s[i] = v
+
+	return s
+}
