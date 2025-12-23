@@ -30,6 +30,9 @@ type ScheduleFilterRequest struct {
 	Status        *enum.ScheduleStatus `form:"status" validate:"omitempty,oneof=PENDING PROCESSING COMPLETED FAILED CANCELLED"`
 	ReferenceID   *uuid.UUID           `form:"reference_id" validate:"omitempty,uuid"`
 	ReferenceType *enum.ScheduleType   `form:"reference_type" validate:"omitempty"`
+	CreatedBy     *uuid.UUID           `form:"created_by" validate:"omitempty,uuid"` // Filter by creator (for role-based access)
+	ContentID     *uuid.UUID           `form:"content_id" validate:"omitempty,uuid"` // Filter by content ID
+	ChannelID     *uuid.UUID           `form:"channel_id" validate:"omitempty,uuid"` // Filter by channel ID
 	FromDate      *string              `form:"from_date" validate:"omitempty,datetime=2006-01-02"`
 	ToDate        *string              `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
 	Days          *int                 `form:"days" validate:"omitempty,min=1,max=90"` // Get schedules for next N days
@@ -55,4 +58,19 @@ type BatchScheduleItem struct {
 	ChannelID   string `json:"channel_id" validate:"required,uuid"`
 	ScheduledAt string `json:"scheduled_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
 	AutoPost    bool   `json:"auto_post"` // For FB/TikTok auto-publishing
+}
+
+// BatchScheduleSameTimeRequest for scheduling content to multiple channels with the same time
+type BatchScheduleSameTimeRequest struct {
+	ContentID   uuid.UUID `json:"content_id" validate:"required,uuid"`
+	ChannelIDs  []string  `json:"channel_ids" validate:"required,min=1,dive,uuid"`
+	ScheduledAt string    `json:"scheduled_at" validate:"required,datetime=2006-01-02T15:04:05Z07:00"`
+	AutoPost    bool      `json:"auto_post"` // For FB/TikTok auto-publishing
+	UserID      uuid.UUID `json:"-"`         // Set from JWT context
+}
+
+// GetSchedulesByContentRequest for getting schedules for a specific content
+type GetSchedulesByContentRequest struct {
+	ContentID uuid.UUID `json:"-" validate:"required,uuid"` // Set from path parameter
+	Status    *string   `form:"status" validate:"omitempty,oneof=PENDING PROCESSING COMPLETED FAILED CANCELLED"`
 }

@@ -71,3 +71,6 @@ type BatchScheduleFailureItem struct {
 	ChannelName string    `json:"channel_name,omitempty"`
 	Error       string    `json:"error"`
 }
+
+// SchedulePaginationResponse represents a paginated response for schedules.
+type SchedulePaginationResponse PaginationResponse[ScheduleItemResponse]

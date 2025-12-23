@@ -83,6 +83,17 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			return nil
 		})
 	}
+	if req.BlogFields != nil && req.BlogFields.AuthorID != uuid.Nil {
+		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
+			if exists, err := uow.Users().ExistsByID(ctx, req.BlogFields.AuthorID); err != nil {
+				zap.L().Error("Failed to check user existence", zap.Error(err))
+				return err
+			} else if !exists {
+				return errors.New("user not found")
+			}
+			return nil
+		})
+	}
 	utils.RunParallel(ctx, 3, validationFuncs...)
 
 	// Start transaction
@@ -102,6 +113,7 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		Type:            enum.ContentType(req.Type),
 		Status:          enum.ContentStatusDraft,
 		AIGeneratedText: req.AIGeneratedText,
+		CreatedBy:       &req.BlogFields.AuthorID,
 	}
 
 	if req.Description == nil || *req.Description == "" {
@@ -148,7 +160,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 
 	// Create blog if type is POST
 	if content.Type == enum.ContentTypePost && req.BlogFields != nil {
-
 		blog := &model.Blog{
 			ContentID: content.ID,
 			AuthorID:  req.BlogFields.AuthorID,
@@ -170,18 +181,6 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			ChannelID:      channelID,
 			AutoPostStatus: "PENDING",
 		}
-
-		// NOTE: Similarly, because the current frontend implementations only passed one channel per content creation flow.
-		// Thus, it is possible to just update the created affiliate link with the current content ID and channel ID.
-		// However, in the future, if multiple channels are supported in one content creation flow, it is necessary to revisit
-		// how to handle the affiliate link in the content body.
-		// if affiliateLink != nil {
-		// 	if err = uow.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-		// 		return db.Where("id = ?", affiliateLink.ID)
-		// 	}, map[string]any{"content_id": content.ID, "channel_id": channelID}); err != nil {
-		// 		zap.L().Error("Failed to associate affiliate link with content and channel", zap.Error(err))
-		// 	}
-		// }
 
 		if err = contentChannelRepo.Add(ctx, contentChannel); err != nil {
 			zap.L().Error("Failed to create content channel", zap.Error(err))
