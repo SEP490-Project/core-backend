@@ -260,6 +260,38 @@ definitions:
           type: string
         type: array
     type: object
+  dtos.ContentScheduleDetails:
+    properties:
+      channel_code:
+        type: string
+      channel_id:
+        type: string
+      channel_name:
+        type: string
+      content_channel_id:
+        type: string
+      content_id:
+        type: string
+      content_title:
+        type: string
+      content_type:
+        $ref: '#/definitions/enum.ContentType'
+      platform:
+        type: string
+      thumbnail_url:
+        type: string
+    type: object
+  dtos.ContractScheduleDetails:
+    properties:
+      brand_id:
+        type: string
+      brand_name:
+        type: string
+      contract_id:
+        type: string
+      contract_number:
+        type: string
+    type: object
   dtos.Deliverable:
     properties:
       advertised_items:
@@ -930,6 +962,43 @@ definitions:
     - milestone
     - percent
     type: object
+  dtos.ScheduleDTO:
+    properties:
+      content_details:
+        allOf:
+        - $ref: '#/definitions/dtos.ContentScheduleDetails'
+        description: Nested details based on schedule type
+      contract_details:
+        $ref: '#/definitions/dtos.ContractScheduleDetails'
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_by_name:
+        type: string
+      executed_at:
+        type: string
+      last_error:
+        type: string
+      max_retries:
+        type: integer
+      reference_id:
+        type: string
+      reference_type:
+        $ref: '#/definitions/enum.ReferenceType'
+      retry_count:
+        type: integer
+      schedule_id:
+        type: string
+      scheduled_at:
+        type: string
+      status:
+        $ref: '#/definitions/enum.ScheduleStatus'
+      type:
+        $ref: '#/definitions/enum.ScheduleType'
+      updated_at:
+        type: string
+    type: object
   dtos.ScopeOfWork:
     properties:
       deliverables:
@@ -1569,6 +1638,30 @@ definitions:
     - ReferenceTypeUser
     - ReferenceTypeBrand
     - ReferenceTypeOther
+  enum.ScheduleStatus:
+    enum:
+    - PENDING
+    - PROCESSING
+    - COMPLETED
+    - FAILED
+    - CANCELLED
+    type: string
+    x-enum-varnames:
+    - ScheduleStatusPending
+    - ScheduleStatusProcessing
+    - ScheduleStatusCompleted
+    - ScheduleStatusFailed
+    - ScheduleStatusCancelled
+  enum.ScheduleType:
+    enum:
+    - CONTENT_PUBLISH
+    - CONTRACT_NOTIFICATION
+    - OTHER
+    type: string
+    x-enum-varnames:
+    - ScheduleTypeContentPublish
+    - ScheduleTypeContractNotification
+    - ScheduleTypeOther
   enum.TaskType:
     enum:
     - PRODUCT
@@ -6164,6 +6257,8 @@ definitions:
         type: array
       created_at:
         type: string
+      created_by:
+        $ref: '#/definitions/responses.UserBrief'
       description:
         type: string
       id:
@@ -6184,6 +6279,8 @@ definitions:
         $ref: '#/definitions/enum.ContentType'
       updated_at:
         type: string
+      updated_by:
+        $ref: '#/definitions/responses.UserBrief'
     type: object
   responses.ContentPaginationResponse:
     properties:
@@ -6241,6 +6338,8 @@ definitions:
         type: array
       created_at:
         type: string
+      created_by:
+        $ref: '#/definitions/responses.UserBrief'
       description:
         type: string
       id:
@@ -6261,6 +6360,8 @@ definitions:
         $ref: '#/definitions/enum.ContentType'
       updated_at:
         type: string
+      updated_by:
+        $ref: '#/definitions/responses.UserBrief'
     type: object
   responses.ContentTrendPoint:
     properties:
@@ -8507,6 +8608,23 @@ definitions:
         type: array
       total:
         type: integer
+    type: object
+  responses.SchedulePaginationResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/responses.ScheduleItemResponse'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/responses.Pagination'
+      status:
+        type: string
+      status_code:
+        type: integer
+      success:
+        type: boolean
     type: object
   responses.ScheduleResponse:
     properties:
@@ -14988,242 +15106,6 @@ paths:
       summary: Get publishing status
       tags:
       - Content
-  /api/v1/content-schedules:
-    get:
-      consumes:
-      - application/json
-      description: Returns list of content schedules with filtering
-      parameters:
-      - description: Filter by reference ID (e.g. content channel ID)
-        in: query
-        name: reference_id
-        type: string
-      - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
-        in: query
-        name: status
-        type: string
-      - description: Filter schedules from this date (RFC3339)
-        in: query
-        name: from
-        type: string
-      - description: Filter schedules until this date (RFC3339)
-        in: query
-        name: to
-        type: string
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleListResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List content schedules
-      tags:
-      - Content Scheduling
-    post:
-      consumes:
-      - application/json
-      description: Creates a schedule for content to be published at a specific time
-      parameters:
-      - description: Schedule request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.ScheduleContentRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Schedule content for future publishing
-      tags:
-      - Content Scheduling
-  /api/v1/content-schedules/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Returns details of a specific schedule
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleItemResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get schedule details
-      tags:
-      - Content Scheduling
-  /api/v1/content-schedules/{id}/cancel:
-    post:
-      consumes:
-      - application/json
-      description: Cancels a pending schedule
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Cancel a scheduled content
-      tags:
-      - Content Scheduling
-  /api/v1/content-schedules/{id}/reschedule:
-    post:
-      consumes:
-      - application/json
-      description: Updates the scheduled time for content publishing
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reschedule request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.RescheduleContentRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Reschedule content
-      tags:
-      - Content Scheduling
-  /api/v1/content-schedules/upcoming:
-    get:
-      consumes:
-      - application/json
-      description: Returns content scheduled for the next N days
-      parameters:
-      - default: 7
-        description: Number of days to look ahead
-        in: query
-        name: days
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ScheduledContentItem'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get upcoming scheduled content
-      tags:
-      - Content Scheduling
   /api/v1/contents:
     get:
       consumes:
@@ -15369,53 +15251,6 @@ paths:
       summary: Create content draft
       tags:
       - Content
-  /api/v1/contents/{content_id}/schedules/batch:
-    post:
-      consumes:
-      - application/json
-      description: Creates schedules for content to be published to multiple channels
-        at specific times
-      parameters:
-      - description: Content ID
-        in: path
-        name: content_id
-        required: true
-        type: string
-      - description: Batch schedule request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.BatchScheduleRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.BatchScheduleResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Batch schedule content to multiple channels
-      tags:
-      - Content Scheduling
   /api/v1/contents/{id}:
     delete:
       consumes:
@@ -18360,6 +18195,28 @@ paths:
       security:
       - BearerAuth: []
       summary: Trigger location synchronization
+      tags:
+      - location
+  /api/v1/location/test:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Error message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Testing
       tags:
       - location
   /api/v1/location/wards/{district-id}:
@@ -21947,6 +21804,453 @@ paths:
       summary: Update a limited product variant
       tags:
       - Products.Variants
+  /api/v1/schedules:
+    get:
+      consumes:
+      - application/json
+      description: Returns list of schedules with filtering and pagination. Staff
+        can only see their own schedules.
+      parameters:
+      - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
+        in: query
+        name: status
+        type: string
+      - description: Filter by schedule type (CONTENT_PUBLISH, CONTRACT_NOTIFICATION,
+          OTHER)
+        in: query
+        name: reference_type
+        type: string
+      - description: Filter schedules from this date (YYYY-MM-DD)
+        in: query
+        name: from_date
+        type: string
+      - description: Filter schedules until this date (YYYY-MM-DD)
+        in: query
+        name: to_date
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.SchedulePaginationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List all schedules
+      tags:
+      - Schedules
+  /api/v1/schedules/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancels a pending schedule
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a schedule
+      tags:
+      - Schedules
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific schedule with type-specific information
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/dtos.ScheduleDTO'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get schedule details
+      tags:
+      - Schedules
+  /api/v1/schedules/contents:
+    get:
+      consumes:
+      - application/json
+      description: Returns list of content schedules with filtering
+      parameters:
+      - description: Filter by reference ID (e.g. content channel ID)
+        in: query
+        name: reference_id
+        type: string
+      - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
+        in: query
+        name: status
+        type: string
+      - description: Filter schedules from this date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter schedules until this date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: List content schedules
+      tags:
+      - Content Scheduling
+    post:
+      consumes:
+      - application/json
+      description: Creates a schedule for content to be published at a specific time
+      parameters:
+      - description: Schedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ScheduleContentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Schedule content for future publishing
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/contents/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns details of a specific schedule
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleItemResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get schedule details
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/contents/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancels a pending schedule
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Cancel a scheduled content
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/contents/{id}/reschedule:
+    post:
+      consumes:
+      - application/json
+      description: Updates the scheduled time for content publishing
+      parameters:
+      - description: Schedule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reschedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RescheduleContentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Reschedule content
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/contents/batch:
+    post:
+      consumes:
+      - application/json
+      description: Creates schedules for content to be published to multiple channels
+        at specific times
+      parameters:
+      - description: Content ID
+        in: path
+        name: content_id
+        required: true
+        type: string
+      - description: Batch schedule request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.BatchScheduleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.BatchScheduleResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Batch schedule content to multiple channels
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/contents/upcoming:
+    get:
+      consumes:
+      - application/json
+      description: Returns content scheduled for the next N days
+      parameters:
+      - default: 7
+        description: Number of days to look ahead
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ScheduledContentItem'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get upcoming scheduled content
+      tags:
+      - Content Scheduling
+  /api/v1/schedules/upcoming:
+    get:
+      consumes:
+      - application/json
+      description: Returns schedules for the next N days
+      parameters:
+      - default: 7
+        description: Number of days to look ahead
+        in: query
+        name: days
+        type: integer
+      - description: Filter by schedule type (CONTENT_PUBLISH, CONTRACT_NOTIFICATION,
+          OTHER)
+        in: query
+        name: type
+        type: string
+      - default: 50
+        description: Maximum number of results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/dtos.ScheduleDTO'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get upcoming schedules
+      tags:
+      - Schedules
   /api/v1/social/tiktok/creator-info:
     get:
       consumes:

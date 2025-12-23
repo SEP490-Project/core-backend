@@ -147,8 +147,11 @@ func preOrderFileAssurance(preOrder *model.PreOrder, targetState enum.PreOrderSt
 	return nil
 }
 
-func (t stateTransferService) MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
-	return helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+func (t stateTransferService) MoveTaskToState(ctx context.Context, uow irepository.UnitOfWork, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error {
+	if uow == nil {
+		uow = t.uow
+	}
+	return helper.WithTransaction(ctx, uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
 		// Use transactional repositories
 		taskRepo := uow.Tasks()
 
@@ -640,6 +643,8 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 	return nil
 }
 
+// region: ============== Content State Transfer ==============
+
 func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepository.UnitOfWork, contentID uuid.UUID, targetState enum.ContentStatus, updatedBy uuid.UUID) error {
 	// Use transactional repository from UnitOfWork
 	contentRepo := uow.Contents()
@@ -698,24 +703,7 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 		return errors.New("failed to update content state in DB: " + err.Error())
 	}
 
-	// 6. Side-effects: Expire affiliate links if content is unpublished
-	// If content is moved away from POSTED status, expire associated affiliate links
-	if currentState.Name() == enum.ContentStatusPosted && targetState != enum.ContentStatusPosted {
-		affiliateLinkRepo := uow.AffiliateLinks()
-		if err := affiliateLinkRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("content_id = ? AND status = ?", contentID, enum.AffiliateLinkStatusActive)
-		}, map[string]any{"status": enum.AffiliateLinkStatusExpired}); err != nil {
-			zap.L().Error("Failed to expire affiliate links (content unpublish)",
-				zap.String("content_id", contentID.String()),
-				zap.Error(err))
-			// Don't fail the entire transaction - log warning and continue
-			zap.L().Warn("Continuing content state change despite affiliate link update failure")
-		} else {
-			zap.L().Info("Expired affiliate links due to content unpublish",
-				zap.String("content_id", contentID.String()),
-				zap.String("new_status", string(targetState)))
-		}
-	}
+	// 6. Side-effects:
 
 	zap.L().Info("Content state transition successful",
 		zap.String("content_id", contentID.String()),
@@ -724,6 +712,44 @@ func (t stateTransferService) MoveContentToState(ctx context.Context, uow irepos
 
 	return nil
 }
+
+func (t *stateTransferService) handleContentSideEffects(
+	ctx context.Context, uow irepository.UnitOfWork, content *model.Content, currentState contentsm.ContentState,
+	_ *contentsm.ContentContext, targetState enum.ContentStatus, updatedBy uuid.UUID,
+) error {
+	// 1. Expire affiliate links if content is unpublished
+	// If content is moved away from POSTED status, expire associated affiliate links
+	if currentState.Name() == enum.ContentStatusPosted && targetState != enum.ContentStatusPosted {
+		affiliateLinkRepo := uow.AffiliateLinks()
+		if err := affiliateLinkRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("content_id = ? AND status = ?", content.ID, enum.AffiliateLinkStatusActive)
+		}, map[string]any{"status": enum.AffiliateLinkStatusExpired}); err != nil {
+			zap.L().Error("Failed to expire affiliate links (content unpublish)",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			// Don't fail the entire transaction - log warning and continue
+			zap.L().Warn("Continuing content state change despite affiliate link update failure")
+		} else {
+			zap.L().Info("Expired affiliate links due to content unpublish",
+				zap.String("content_id", content.ID.String()),
+				zap.String("new_status", string(targetState)))
+		}
+	}
+
+	// 2. Move Task state to DONE if content is POSTED and has associated Task
+	if targetState == enum.ContentStatusPosted && content.TaskID != nil {
+		if err := t.MoveTaskToState(ctx, uow, *content.TaskID, enum.TaskStatusDone, updatedBy); err != nil {
+			zap.L().Error("Failed to move associated Task to DONE (content posted)",
+				zap.String("content_id", content.ID.String()),
+				zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
+}
+
+// endregion
 
 // region: ============== Payment Transaction State Transfer ==============
 

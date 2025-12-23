@@ -26,6 +26,8 @@ type ContentResponse struct {
 	UpdatedAt         string                `json:"updated_at"`
 	Blog              *BlogResponse         `json:"blog,omitempty"`
 	ContentChannels   []ContentChannelBrief `json:"content_channels,omitempty"`
+	CreatedBy         *UserBrief            `json:"created_by,omitempty"`
+	UpdatedBy         *UserBrief            `json:"updated_by,omitempty"`
 }
 
 // ContentChannelBrief for nested content channel info
@@ -65,6 +67,8 @@ type ContentListResponse struct {
 	UpdatedAt         string                `json:"updated_at"`
 	Blog              *BlogResponse         `json:"blog,omitempty"`
 	ContentChannels   []ContentChannelBrief `json:"content_channels,omitempty"`
+	CreatedBy         *UserBrief            `json:"created_by,omitempty"`
+	UpdatedBy         *UserBrief            `json:"updated_by,omitempty"`
 }
 
 func (ContentResponse) ToResponse(content *model.Content, affiliateLinkBaseURL string) *ContentResponse {
@@ -142,6 +146,21 @@ func (ContentResponse) ToResponse(content *model.Content, affiliateLinkBaseURL s
 		}
 	}
 
+	if content.CreatedUser != nil {
+		resp.CreatedBy = &UserBrief{
+			ID:       content.CreatedUser.ID,
+			Username: content.CreatedUser.Username,
+			Email:    content.CreatedUser.Email,
+		}
+	}
+	if content.UpdatedUser != nil {
+		resp.UpdatedBy = &UserBrief{
+			ID:       content.UpdatedUser.ID,
+			Username: content.UpdatedUser.Username,
+			Email:    content.UpdatedUser.Email,
+		}
+	}
+
 	return resp
 
 }
@@ -208,6 +227,21 @@ func (ContentListResponse) ToResponse(content *model.Content, affiliateLinkBaseU
 			}
 
 			resp.ContentChannels = append(resp.ContentChannels, ccResp)
+		}
+	}
+
+	if content.CreatedUser != nil {
+		resp.CreatedBy = &UserBrief{
+			ID:       content.CreatedUser.ID,
+			Username: content.CreatedUser.Username,
+			Email:    content.CreatedUser.Email,
+		}
+	}
+	if content.UpdatedUser != nil {
+		resp.UpdatedBy = &UserBrief{
+			ID:       content.UpdatedUser.ID,
+			Username: content.UpdatedUser.Username,
+			Email:    content.UpdatedUser.Email,
 		}
 	}
 
