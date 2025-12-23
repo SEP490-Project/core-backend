@@ -375,20 +375,33 @@ func (s *contentScheduleService) CancelSchedule(ctx context.Context, scheduleID 
 
 // GetSchedule retrieves a schedule by ID
 func (s *contentScheduleService) GetSchedule(ctx context.Context, scheduleID uuid.UUID) (*responses.ScheduleItemResponse, error) {
-	scheduleDTO, err := s.scheduleRepo.GetScheduleByIDWithDetails(ctx, scheduleID)
+	scheduleDTO, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, scheduleID)
 	if err != nil || scheduleDTO == nil {
 		return nil, errors.New("schedule not found")
 	}
 
+	var contentChannelID, contentID, channelID uuid.UUID
+	var contentTitle, contentType, channelName, channelCode string
+
+	if scheduleDTO.ContentDetails != nil {
+		contentChannelID = scheduleDTO.ContentDetails.ContentChannelID
+		contentID = scheduleDTO.ContentDetails.ContentID
+		contentTitle = scheduleDTO.ContentDetails.ContentTitle
+		contentType = scheduleDTO.ContentDetails.ContentType.String()
+		channelID = scheduleDTO.ContentDetails.ChannelID
+		channelName = scheduleDTO.ContentDetails.ChannelName
+		channelCode = scheduleDTO.ContentDetails.ChannelCode
+	}
+
 	return &responses.ScheduleItemResponse{
 		ScheduleID:       scheduleDTO.ScheduleID,
-		ContentChannelID: scheduleDTO.ContentChannelID,
-		ContentID:        scheduleDTO.ContentID,
-		ContentTitle:     scheduleDTO.ContentTitle,
-		ContentType:      scheduleDTO.ContentType.String(),
-		ChannelID:        scheduleDTO.ChannelID,
-		ChannelName:      scheduleDTO.ChannelName,
-		ChannelCode:      scheduleDTO.ChannelCode,
+		ContentChannelID: contentChannelID,
+		ContentID:        contentID,
+		ContentTitle:     contentTitle,
+		ContentType:      contentType,
+		ChannelID:        channelID,
+		ChannelName:      channelName,
+		ChannelCode:      channelCode,
 		ScheduledAt:      scheduleDTO.ScheduledAt,
 		Status:           scheduleDTO.Status.String(),
 		RetryCount:       scheduleDTO.RetryCount,
@@ -413,16 +426,24 @@ func (s *contentScheduleService) GetUpcomingSchedules(ctx context.Context, days 
 	result := make([]responses.ScheduledContentItem, 0, len(schedules))
 	for _, schedule := range schedules {
 		// Get details for each schedule
-		scheduleDTO, err := s.scheduleRepo.GetScheduleByIDWithDetails(ctx, schedule.ID)
+		scheduleDTO, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, schedule.ID)
 		if err != nil || scheduleDTO == nil {
 			continue
 		}
 
+		var contentID uuid.UUID
+		var title, channelName string
+		if scheduleDTO.ContentDetails != nil {
+			contentID = scheduleDTO.ContentDetails.ContentID
+			title = scheduleDTO.ContentDetails.ContentTitle
+			channelName = scheduleDTO.ContentDetails.ChannelName
+		}
+
 		result = append(result, responses.ScheduledContentItem{
 			ScheduleID:  scheduleDTO.ScheduleID,
-			ContentID:   scheduleDTO.ContentID,
-			Title:       scheduleDTO.ContentTitle,
-			ChannelName: scheduleDTO.ChannelName,
+			ContentID:   contentID,
+			Title:       title,
+			ChannelName: channelName,
 			ScheduledAt: scheduleDTO.ScheduledAt,
 			Status:      scheduleDTO.Status.String(),
 			CreatedBy:   scheduleDTO.CreatedByName,
@@ -435,8 +456,8 @@ func (s *contentScheduleService) GetUpcomingSchedules(ctx context.Context, days 
 
 // ListSchedules returns schedules with filtering and pagination
 func (s *contentScheduleService) ListSchedules(ctx context.Context, filter *requests.ScheduleFilterRequest) (*responses.ScheduleListResponse, error) {
-	// Get schedules
-	schedules, total, err := s.scheduleRepo.GetSchedulesWithDetails(ctx, filter)
+	// Get schedules using content-specific repository method
+	schedules, total, err := s.scheduleRepo.GetContentSchedulesWithDetails(ctx, filter)
 	if err != nil {
 		return nil, errors.New("failed to get schedules")
 	}
@@ -444,15 +465,28 @@ func (s *contentScheduleService) ListSchedules(ctx context.Context, filter *requ
 	// Convert to response
 	items := make([]responses.ScheduleItemResponse, 0, len(schedules))
 	for _, dto := range schedules {
+		var contentChannelID, contentID, channelID uuid.UUID
+		var contentTitle, contentType, channelName, channelCode string
+
+		if dto.ContentDetails != nil {
+			contentChannelID = dto.ContentDetails.ContentChannelID
+			contentID = dto.ContentDetails.ContentID
+			contentTitle = dto.ContentDetails.ContentTitle
+			contentType = dto.ContentDetails.ContentType.String()
+			channelID = dto.ContentDetails.ChannelID
+			channelName = dto.ContentDetails.ChannelName
+			channelCode = dto.ContentDetails.ChannelCode
+		}
+
 		items = append(items, responses.ScheduleItemResponse{
 			ScheduleID:       dto.ScheduleID,
-			ContentChannelID: dto.ContentChannelID,
-			ContentID:        dto.ContentID,
-			ContentTitle:     dto.ContentTitle,
-			ContentType:      dto.ContentType.String(),
-			ChannelID:        dto.ChannelID,
-			ChannelName:      dto.ChannelName,
-			ChannelCode:      dto.ChannelCode,
+			ContentChannelID: contentChannelID,
+			ContentID:        contentID,
+			ContentTitle:     contentTitle,
+			ContentType:      contentType,
+			ChannelID:        channelID,
+			ChannelName:      channelName,
+			ChannelCode:      channelCode,
 			ScheduledAt:      dto.ScheduledAt,
 			Status:           dto.Status.String(),
 			RetryCount:       dto.RetryCount,

@@ -88,8 +88,8 @@ func (h *ContentScheduleHandler) raiseScheduleFailedAlert(ctx context.Context, p
 	}
 
 	contentTitle := "Unknown Content"
-	if schedule != nil {
-		contentTitle = schedule.ContentTitle
+	if schedule != nil && schedule.ContentDetails != nil {
+		contentTitle = schedule.ContentDetails.ContentTitle
 	}
 
 	// Raise alert via AlertManager

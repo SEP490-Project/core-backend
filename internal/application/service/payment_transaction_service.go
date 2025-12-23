@@ -23,9 +23,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/hibiken/asynq"
 	"strconv"
 	"time"
+
+	"github.com/hibiken/asynq"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
