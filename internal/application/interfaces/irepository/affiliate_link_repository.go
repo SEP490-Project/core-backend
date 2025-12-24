@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/domain/model"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // AffiliateLinkRepository defines the interface for affiliate link data access
@@ -38,4 +39,7 @@ type AffiliateLinkRepository interface {
 
 	// BulkMarkAsExpired marks multiple affiliate links as expired
 	BulkMarkAsExpired(ctx context.Context, ids []uuid.UUID) error
+
+	// GetIDsByCondition retrieves affiliate link IDs based on a dynamic filter condition
+	GetIDsByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB) ([]uuid.UUID, error)
 }

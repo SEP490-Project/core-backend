@@ -29,6 +29,8 @@ type ContractPaymentResponse struct {
 	BrandName             string                     `json:"brand_name" example:"Tech Solutions Inc."`
 	InstallmentPercentage float64                    `json:"installment_percentage" example:"50.0"`
 	Amount                float64                    `json:"amount" example:"5000.00"`
+	BaseAmount            float64                    `json:"base_amount" example:"4500.00"`
+	PerformanceAmount     float64                    `json:"performance_amount" example:"500.00"`
 	Breakdown             any                        `json:"breakdown,omitempty"`
 	Status                enum.ContractPaymentStatus `json:"status" example:"PENDING"`
 	DueDate               string                     `json:"due_date" example:"2024-07-15T00:00:00Z"`
@@ -53,6 +55,8 @@ func (ContractPaymentResponse) ToResponse(model *model.ContractPayment) *Contrac
 		ContractID:            model.ContractID.String(),
 		InstallmentPercentage: model.InstallmentPercentage,
 		Amount:                model.Amount,
+		BaseAmount:            model.BaseAmount,
+		PerformanceAmount:     model.PerformanceAmount,
 		Breakdown:             utils.PtrOrNil(breakdown),
 		Status:                model.Status,
 		DueDate:               utils.FormatLocalTime(&model.DueDate, utils.DateFormat),
@@ -201,9 +205,5 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 }
 
 // endregion
-
-type ContractPaymentDetailResponse struct {
-	ContractPaymentResponse
-}
 
 type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]

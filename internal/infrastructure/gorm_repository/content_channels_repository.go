@@ -5,10 +5,8 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-	"encoding/json"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -23,19 +21,18 @@ func NewContentChannelsRepository(db *gorm.DB) irepository.ContentChannelsReposi
 }
 
 func (r *contentChannelsRepository) GetMetricsByContentIDs(ctx context.Context, contentIDs []uuid.UUID) ([]model.ContentChannelMetrics, error) {
-	var rawMetrics []datatypes.JSON
+	type result struct {
+		Metrics model.ContentChannelMetrics `gorm:"type:jsonb;column:metrics"`
+	}
+	var results []result
 	if err := r.db.WithContext(ctx).
 		Model(&model.ContentChannel{}).
 		Where("content_id IN ?", contentIDs).
-		Find(&rawMetrics).Error; err != nil {
+		Where("metrics IS NOT NULL").
+		Select("metrics").
+		Scan(&results).Error; err != nil {
 		return nil, err
 	}
 
-	return utils.MapSlice(rawMetrics, func(raw datatypes.JSON) model.ContentChannelMetrics {
-		var metrics model.ContentChannelMetrics
-		if err := json.Unmarshal(raw, &metrics); err != nil {
-			return model.ContentChannelMetrics{}
-		}
-		return metrics
-	}), nil
+	return utils.MapSlice(results, func(r result) model.ContentChannelMetrics { return r.Metrics }), nil
 }

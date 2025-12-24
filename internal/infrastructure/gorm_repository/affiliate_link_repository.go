@@ -162,3 +162,18 @@ func (r *affiliateLinkRepository) BulkMarkAsExpired(ctx context.Context, ids []u
 		Where("id IN ?", ids).
 		Update("status", enum.AffiliateLinkStatusExpired).Error
 }
+
+func (r *affiliateLinkRepository) GetIDsByCondition(ctx context.Context, filter func(*gorm.DB) *gorm.DB) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	query := r.db.WithContext(ctx).Model(new(model.AffiliateLink))
+	if filter != nil {
+		query = filter(query)
+	}
+	if err := query.Pluck("id", &ids).Error; err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+// func (r *affiliateLinkRepository) Get
