@@ -103,7 +103,7 @@ func CalculateMonthlyPaymentDates(
 	for !due.After(endDate) {
 		// Calculate period boundaries for this month
 		periodStart := time.Date(current.Year(), current.Month(), 1, 0, 0, 0, 0, loc)
-		if periodStart.Before(startDate) {
+		if periodStart.Before(startDate) || len(results) == 0 {
 			periodStart = startDate
 		}
 		periodEnd := periodStart.AddDate(0, 1, 0) // First day of next month
@@ -131,7 +131,7 @@ func CalculateMonthlyPaymentDates(
 		lastPeriodEnd = startDate.AddDate(0, 0, -1)
 	}
 
-	if lastPeriodEnd.Before(endDate) && endDate.Sub(lastPaymentDate.DueDate).Hours() >= float64(24*minimumDayBeforeDueDate) {
+	if lastPeriodEnd.Before(endDate) {
 		results = append(results, PaymentDateResult{
 			DueDate:     endDate,
 			PeriodStart: lastPeriodEnd.AddDate(0, 0, 1),
@@ -250,7 +250,7 @@ func CalculateAnnualPaymentDates(
 		pEnd := time.Date(due.Year()+1, 1, 1, 0, 0, 0, 0, loc)
 
 		// Boundary Clamping: Ensure periods don't leak outside the contract
-		if pStart.Before(contractStartDate) {
+		if pStart.Before(contractStartDate) || len(results) == 0 {
 			pStart = contractStartDate
 		}
 		if pEnd.After(contractEndDate) {
