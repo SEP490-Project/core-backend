@@ -6500,6 +6500,9 @@ definitions:
       amount:
         example: 5000
         type: number
+      base_amount:
+        example: 4500
+        type: number
       brand_id:
         example: d4c3b2a1-0f9e-8d7c-6b5a-4c3b2a1f0e9d
         type: string
@@ -6544,6 +6547,9 @@ definitions:
       payment_method:
         example: BANK_TRANSFER
         type: string
+      performance_amount:
+        example: 500
+        type: number
       status:
         allOf:
         - $ref: '#/definitions/enum.ContractPaymentStatus'
