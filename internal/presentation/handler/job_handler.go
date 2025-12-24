@@ -147,6 +147,9 @@ func (h *JobHandler) TriggerContentMetricsPollerJob(c *gin.Context) {
 	if val := c.Query("async"); val == "false" {
 		isAsync = false
 	}
+	// Trigger CTR Aggregation Job to start aggregate affilaite link data first,
+	// This can be run asynchronously ctr_aggregation_job is more lightweight compared to content_metrics_poller_job
+	h.triggerJob(c, "ctr_aggregation_job", true)
 	h.triggerJob(c, "content_metrics_poller_job", isAsync)
 }
 
