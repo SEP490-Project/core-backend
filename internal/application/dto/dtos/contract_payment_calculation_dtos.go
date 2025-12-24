@@ -39,9 +39,10 @@ type AffiliatePaymentCalculation struct {
 	PeriodStart  time.Time               `json:"period_start"`
 	PeriodEnd    time.Time               `json:"period_end"`
 	TotalClicks  int64                   `json:"total_clicks"`
-	GrossPayment int64                   `json:"gross_payment"` // Before tax deduction
-	TaxAmount    int64                   `json:"tax_amount"`    // Tax withholding amount
-	NetPayment   int64                   `json:"net_payment"`   // After tax deduction (final payment)
+	BaseAmount   float64                 `json:"base_amount"`   // Divided amount based on contract total value
+	GrossPayment float64                 `json:"gross_payment"` // Before tax deduction
+	TaxAmount    float64                 `json:"tax_amount"`    // Tax withholding amount
+	NetPayment   float64                 `json:"net_payment"`   // After tax deduction (final payment)
 	Breakdown    []LevelPaymentBreakdown `json:"breakdown"`
 	CalculatedAt time.Time               `json:"calculated_at"`
 }
@@ -52,8 +53,8 @@ type LevelPaymentBreakdown struct {
 	Level        int     `json:"level"`          // Level number (1, 2, 3...)
 	ClicksInTier int64   `json:"clicks_in_tier"` // Number of clicks in this tier
 	Multiplier   float32 `json:"multiplier"`     // Rate multiplier for this tier
-	RatePerClick int     `json:"rate_per_click"` // base_per_click × multiplier
-	TierPayment  int64   `json:"tier_payment"`   // clicks_in_tier × rate_per_click
+	RatePerClick float64 `json:"rate_per_click"` // Multiplied Amount Per Click: base_per_click × multiplier
+	TierPayment  float64 `json:"tier_payment"`   // Multiplied Total Amount in this tier: clicks_in_tier × rate_per_click
 }
 
 // =============================================================================
@@ -66,6 +67,7 @@ type CoProducingPaymentCalculation struct {
 	ContractID       uuid.UUID                       `json:"contract_id"`
 	PeriodStart      time.Time                       `json:"period_start"`
 	PeriodEnd        time.Time                       `json:"period_end"`
+	BaseAmount       float64                         `json:"base_amount"`     // Divided amount based on contract total value
 	TotalRevenue     float64                         `json:"total_revenue"`   // Total revenue from limited products
 	CompanyPercent   int                             `json:"company_percent"` // Company's share percentage
 	BrandPercent     int                             `json:"brand_percent"`   // Brand/KOL's share percentage
@@ -101,4 +103,11 @@ func (p *PaymentPeriod) ContainsTime(t time.Time) bool {
 // IsCurrentPeriod checks if the payment period contains the current time.
 func (p *PaymentPeriod) IsCurrentPeriod() bool {
 	return p.ContainsTime(time.Now())
+}
+
+// LimitedProductRevenueResult holds the breakdown of limited product revenue
+type LimitedProductRevenueResult struct {
+	PreOrderRevenue float64 `json:"preorder_revenue"`
+	OrderRevenue    float64 `json:"order_revenue"`
+	TotalRevenue    float64 `json:"total_revenue"`
 }
