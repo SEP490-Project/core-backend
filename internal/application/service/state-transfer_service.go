@@ -24,6 +24,7 @@ import (
 	"core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/rabbitmq"
+	"core-backend/pkg/utils"
 	"errors"
 	"fmt"
 	"time"
@@ -35,24 +36,25 @@ import (
 )
 
 type stateTransferService struct {
-	contractRepository      irepository.GenericRepository[model.Contract]
-	campaignRepository      irepository.GenericRepository[model.Campaign]
-	milestoneRepository     irepository.GenericRepository[model.Milestone]
-	taskRepository          irepository.GenericRepository[model.Task]
-	productRepository       irepository.GenericRepository[model.Product]
-	orderRepository         irepository.GenericRepository[model.Order]
-	preOrderRepository      irepository.PreOrderRepository
-	variantRepository       irepository.GenericRepository[model.ProductVariant]
-	affiliateLinkRepository irepository.AffiliateLinkRepository
-	userRepository          irepository.GenericRepository[model.User]
-	notificationService     iservice.NotificationService
-	uow                     irepository.UnitOfWork
-	rabbitMQ                *rabbitmq.RabbitMQ
-	ghnProxy                iproxies.GHNProxy
-	adminConfig             config.AdminConfig
-	config                  *config.AppConfig
-	taskScheduler           *asynq.AsynqClient
-	asynqConfig             *config.AsynqConfig
+	contractRepository        irepository.GenericRepository[model.Contract]
+	contractPaymentRepository irepository.ContractPaymentRepository
+	campaignRepository        irepository.GenericRepository[model.Campaign]
+	milestoneRepository       irepository.GenericRepository[model.Milestone]
+	taskRepository            irepository.GenericRepository[model.Task]
+	productRepository         irepository.GenericRepository[model.Product]
+	orderRepository           irepository.GenericRepository[model.Order]
+	preOrderRepository        irepository.PreOrderRepository
+	variantRepository         irepository.GenericRepository[model.ProductVariant]
+	affiliateLinkRepository   irepository.AffiliateLinkRepository
+	userRepository            irepository.GenericRepository[model.User]
+	notificationService       iservice.NotificationService
+	uow                       irepository.UnitOfWork
+	rabbitMQ                  *rabbitmq.RabbitMQ
+	ghnProxy                  iproxies.GHNProxy
+	adminConfig               config.AdminConfig
+	config                    *config.AppConfig
+	taskScheduler             *asynq.AsynqClient
+	asynqConfig               *config.AsynqConfig
 }
 
 func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
@@ -1035,6 +1037,20 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 				return errors.New("failed to update contract to ACTIVE: " + err.Error())
 			}
 		}
+		// Update the next contract payment of a contract periodStart date to the current date
+		// trigger recalculation of payment amount based on actual performance from the current time
+		nextPayment, err := t.contractPaymentRepository.GetNextUnpaidContractPaymentFromCurrentPaymentID(ctx, contractPayment.ID)
+		if err == nil && nextPayment != nil {
+			curr := time.Now()
+			nextPayment.PeriodStart = utils.PtrOrNil(time.Date(curr.Year(), curr.Month(), curr.Day(), 0, 0, 0, 0, curr.Location()))
+			if err = contractPaymentRepo.Update(ctx, nextPayment); err != nil {
+				zap.L().Error("Failed to update next contract payment period start date to current date",
+					zap.String("current_payment_id", contractPayment.ID.String()),
+					zap.String("next_payment_id", nextPayment.ID.String()),
+					zap.Error(err))
+				// Not returning error for side effect failure
+			}
+		}
 
 	case enum.PaymentTransactionStatusFailed,
 		enum.PaymentTransactionStatusCancelled,
@@ -1453,24 +1469,25 @@ func NewStateTransferService(
 	configs *config.AppConfig,
 ) iservice.StateTransferService {
 	return &stateTransferService{
-		contractRepository:      dbReg.ContractRepository,
-		campaignRepository:      dbReg.CampaignRepository,
-		milestoneRepository:     dbReg.MilestoneRepository,
-		taskRepository:          dbReg.TaskRepository,
-		productRepository:       dbReg.ProductRepository,
-		affiliateLinkRepository: dbReg.AffiliateLinkRepository,
-		orderRepository:         dbReg.OrderRepository,
-		preOrderRepository:      dbReg.PreOrderRepository,
-		variantRepository:       dbReg.ProductVariantRepository,
-		userRepository:          dbReg.UserRepository,
-		notificationService:     notificationService,
-		uow:                     uow,
-		rabbitMQ:                rabbitmq,
-		ghnProxy:                ghnProxy,
-		config:                  configs,
-		adminConfig:             configs.AdminConfig,
-		taskScheduler:           taskScheduler,
-		asynqConfig:             &configs.Asynq,
+		contractRepository:        dbReg.ContractRepository,
+		contractPaymentRepository: dbReg.ContractPaymentRepository,
+		campaignRepository:        dbReg.CampaignRepository,
+		milestoneRepository:       dbReg.MilestoneRepository,
+		taskRepository:            dbReg.TaskRepository,
+		productRepository:         dbReg.ProductRepository,
+		affiliateLinkRepository:   dbReg.AffiliateLinkRepository,
+		orderRepository:           dbReg.OrderRepository,
+		preOrderRepository:        dbReg.PreOrderRepository,
+		variantRepository:         dbReg.ProductVariantRepository,
+		userRepository:            dbReg.UserRepository,
+		notificationService:       notificationService,
+		uow:                       uow,
+		rabbitMQ:                  rabbitmq,
+		ghnProxy:                  ghnProxy,
+		config:                    configs,
+		adminConfig:               configs.AdminConfig,
+		taskScheduler:             taskScheduler,
+		asynqConfig:               &configs.Asynq,
 	}
 }
 

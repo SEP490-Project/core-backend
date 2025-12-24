@@ -1,12 +1,10 @@
 package responses
 
 import (
-	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/pkg/utils"
-	"encoding/json"
 	"slices"
 	"strings"
 	"sync"
@@ -29,6 +27,8 @@ type ContractPaymentResponse struct {
 	BrandName             string                     `json:"brand_name" example:"Tech Solutions Inc."`
 	InstallmentPercentage float64                    `json:"installment_percentage" example:"50.0"`
 	Amount                float64                    `json:"amount" example:"5000.00"`
+	BaseAmount            float64                    `json:"base_amount" example:"4500.00"`
+	PerformanceAmount     float64                    `json:"performance_amount" example:"500.00"`
 	Breakdown             any                        `json:"breakdown,omitempty"`
 	Status                enum.ContractPaymentStatus `json:"status" example:"PENDING"`
 	DueDate               string                     `json:"due_date" example:"2024-07-15T00:00:00Z"`
@@ -45,15 +45,15 @@ func (ContractPaymentResponse) ToResponse(model *model.ContractPayment) *Contrac
 	if model == nil {
 		return nil
 	}
-	var breakdown dtos.GeneralPaymentBreakdown
-	json.Unmarshal(model.CalculationBreakdown, &breakdown)
 
 	response := &ContractPaymentResponse{
 		ID:                    model.ID.String(),
 		ContractID:            model.ContractID.String(),
 		InstallmentPercentage: model.InstallmentPercentage,
 		Amount:                model.Amount,
-		Breakdown:             utils.PtrOrNil(breakdown),
+		BaseAmount:            model.BaseAmount,
+		PerformanceAmount:     model.PerformanceAmount,
+		Breakdown:             utils.PtrOrNil(model.CalculationBreakdown),
 		Status:                model.Status,
 		DueDate:               utils.FormatLocalTime(&model.DueDate, utils.DateFormat),
 		PaymentMethod:         model.PaymentMethod.String(),
@@ -201,9 +201,5 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 }
 
 // endregion
-
-type ContractPaymentDetailResponse struct {
-	ContractPaymentResponse
-}
 
 type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]

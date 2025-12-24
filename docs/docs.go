@@ -31831,6 +31831,10 @@ const docTemplate = `{
                     "type": "number",
                     "example": 5000
                 },
+                "base_amount": {
+                    "type": "number",
+                    "example": 4500
+                },
                 "brand_id": {
                     "type": "string",
                     "example": "d4c3b2a1-0f9e-8d7c-6b5a-4c3b2a1f0e9d"
@@ -31891,6 +31895,10 @@ const docTemplate = `{
                 "payment_method": {
                     "type": "string",
                     "example": "BANK_TRANSFER"
+                },
+                "performance_amount": {
+                    "type": "number",
+                    "example": 500
                 },
                 "status": {
                     "allOf": [

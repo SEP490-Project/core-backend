@@ -195,7 +195,7 @@ func NewApplicationRegistry(
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
-		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, &configs.AdminConfig),
+		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, infrastructureRegistry.UnitOfWork, &configs.AdminConfig),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
 		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, notificationService),
 		ChannelService:                channelService,
