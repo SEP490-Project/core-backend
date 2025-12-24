@@ -15,6 +15,8 @@ type ContractPayment struct {
 	ContractID            uuid.UUID                  `json:"contract_id" gorm:"type:uuid;column:contract_id;not null"`
 	InstallmentPercentage float64                    `json:"installment_percentage" gorm:"column:installment_percentage;not null"`
 	Amount                float64                    `json:"amount" gorm:"column:amount;not null"`
+	BaseAmount            float64                    `json:"base_amount" gorm:"column:base_amount;not null"`
+	PerformanceAmount     float64                    `json:"performance_amount" gorm:"column:performance_amount"`
 	Status                enum.ContractPaymentStatus `json:"status" gorm:"column:status;not null;check:status IN ('PENDING','PAID','OVERDUE')"`
 	DueDate               time.Time                  `json:"due_date" gorm:"column:due_date;not null"`
 	PaymentMethod         enum.ContractPaymentMethod `json:"payment_method" gorm:"column:payment_method;not null;check:payment_method IN ('BANK_TRANSFER','CASH','CHECK')"`
