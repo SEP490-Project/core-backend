@@ -2,6 +2,7 @@ package irepository
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,12 +22,5 @@ type ContractPaymentCalculationRepository interface {
 	// associated with a contract within a payment period.
 	// Returns pre-order revenue, order revenue, and total.
 	// Used for CO_PRODUCING contract payment calculation.
-	GetLimitedProductRevenue(ctx context.Context, contractID uuid.UUID, periodStart, periodEnd time.Time) (*LimitedProductRevenueResult, error)
-}
-
-// LimitedProductRevenueResult holds the breakdown of limited product revenue
-type LimitedProductRevenueResult struct {
-	PreOrderRevenue float64 `json:"preorder_revenue"`
-	OrderRevenue    float64 `json:"order_revenue"`
-	TotalRevenue    float64 `json:"total_revenue"`
+	GetLimitedProductRevenue(ctx context.Context, contractID uuid.UUID, periodStart, periodEnd time.Time) (*dtos.LimitedProductRevenueResult, error)
 }

@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -22,19 +23,21 @@ type TieredPaymentCalculator struct{}
 // Returns gross payment and detailed breakdown per level.
 func (c *TieredPaymentCalculator) CalculateTieredPayment(
 	totalClicks int64,
-	baseRate int,
+	basePerClick int,
 	levels []dtos.Level,
-) (int64, []dtos.LevelPaymentBreakdown) {
-	// Sort levels by Level number (should already be sorted in production)
+) (totalAmount float64, breakdown []dtos.LevelPaymentBreakdown) {
+	// Sort levels by Level number
 	sortedLevels := make([]dtos.Level, len(levels))
 	copy(sortedLevels, levels)
+	sort.Slice(sortedLevels, func(i, j int) bool {
+		return sortedLevels[i].Level < sortedLevels[j].Level
+	})
 
-	var payment int64
-	var breakdown []dtos.LevelPaymentBreakdown
 	remainingClicks := totalClicks
-	previousMax := int64(0)
+	var previousMax int64 = 0
 
-	for _, level := range sortedLevels {
+	breakdown = make([]dtos.LevelPaymentBreakdown, len(levels))
+	for i, level := range sortedLevels {
 		if remainingClicks <= 0 {
 			break
 		}
@@ -44,17 +47,17 @@ func (c *TieredPaymentCalculator) CalculateTieredPayment(
 		clicksInTier := min(remainingClicks, tierCapacity)
 
 		// Calculate payment for this tier
-		ratePerClick := int(float32(baseRate) * level.Multiplier)
-		tierPayment := clicksInTier * int64(ratePerClick)
-		payment += tierPayment
+		ratePerClick := float64(basePerClick) * float64(level.Multiplier)
+		tierPayment := float64(clicksInTier) * ratePerClick
+		totalAmount += tierPayment
 
-		breakdown = append(breakdown, dtos.LevelPaymentBreakdown{
+		breakdown[i] = dtos.LevelPaymentBreakdown{
 			Level:        level.Level,
 			ClicksInTier: clicksInTier,
 			Multiplier:   level.Multiplier,
 			RatePerClick: ratePerClick,
 			TierPayment:  tierPayment,
-		})
+		}
 
 		remainingClicks -= clicksInTier
 		previousMax = level.MaxClicks
@@ -63,20 +66,16 @@ func (c *TieredPaymentCalculator) CalculateTieredPayment(
 	// If clicks exceed highest level, charge at highest multiplier
 	if remainingClicks > 0 && len(sortedLevels) > 0 {
 		highestLevel := sortedLevels[len(sortedLevels)-1]
-		ratePerClick := int(float32(baseRate) * highestLevel.Multiplier)
-		tierPayment := remainingClicks * int64(ratePerClick)
-		payment += tierPayment
+		ratePerClick := float64(basePerClick) * float64(highestLevel.Multiplier)
+		tierPayment := float64(remainingClicks) * ratePerClick
+		totalAmount += tierPayment
 
-		breakdown = append(breakdown, dtos.LevelPaymentBreakdown{
-			Level:        highestLevel.Level + 1, // Overflow tier
-			ClicksInTier: remainingClicks,
-			Multiplier:   highestLevel.Multiplier,
-			RatePerClick: ratePerClick,
-			TierPayment:  tierPayment,
-		})
+		breakdown[len(breakdown)-1].ClicksInTier += remainingClicks
+		breakdown[len(breakdown)-1].RatePerClick = ratePerClick
+		breakdown[len(breakdown)-1].TierPayment += tierPayment
 	}
 
-	return payment, breakdown
+	return totalAmount, breakdown
 }
 
 func TestTieredPaymentCalculation_SingleLevel(t *testing.T) {
@@ -369,15 +368,15 @@ type TaxWithholdingCalculator struct{}
 
 // CalculateTax calculates tax withholding based on threshold and rate.
 func (c *TaxWithholdingCalculator) CalculateTax(
-	grossPayment int64,
-	threshold int,
+	grossPayment float64,
+	threshold float64,
 	ratePercent int,
-) int64 {
-	if grossPayment <= int64(threshold) {
+) float64 {
+	if grossPayment <= threshold {
 		return 0
 	}
-	taxableAmount := grossPayment - int64(threshold)
-	return taxableAmount * int64(ratePercent) / 100
+	taxableAmount := grossPayment - threshold
+	return taxableAmount * float64(ratePercent) / 100
 }
 
 func TestTaxWithholdingCalculation(t *testing.T) {
@@ -385,10 +384,10 @@ func TestTaxWithholdingCalculation(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		grossPayment   int64
-		threshold      int
+		grossPayment   float64
+		threshold      float64
 		ratePercent    int
-		expectedTax    int64
+		expectedTax    float64
 		expectedNetPay int64
 	}{
 		{
