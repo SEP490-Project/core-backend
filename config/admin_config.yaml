@@ -109,6 +109,7 @@ system_name: "BShowSell_System"
 # AI Content Generation
 content_generation_prompt_template: |
   You are a professional social media content creator.
+  {{.Current}}
   Create a post based on the following context:
   {{.Context}}
 

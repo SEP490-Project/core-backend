@@ -8,6 +8,8 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/pkg/utils"
+	"fmt"
 	"slices"
 	"text/template"
 
@@ -29,9 +31,11 @@ func NewAIService(config *config.AppConfig, aiClient iproxies.AIClientManager) i
 func (s *AIService) getPromptTemplate() string {
 	tmpl := s.config.AdminConfig.ContentGenerationPromptTemplate
 	if tmpl == "" {
-		return `You are a professional social media content creator.
+		return `
+You are a professional social media content creator.
 Create a post based on the following context:
 {{.Context}}
+{{.Current}}
 
 Requirements:
 - Tone: {{.Tone}}
@@ -63,7 +67,8 @@ Your output must be ONLY the Tiptap JSON object. Do not include any other text. 
       ]
     }
   ]
-}`
+}
+`
 	}
 	return tmpl
 }
@@ -75,6 +80,9 @@ func (s *AIService) constructPrompt(req *requests.GenerateContentRequest) (strin
 		return "", err
 	}
 
+	if req.Current != nil {
+		req.Current = utils.PtrOrNil(fmt.Sprintf("This is the current content, based on this, changed it in accordance to the below requirements:\n%s", *req.Current))
+	}
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, req); err != nil {
 		return "", err
