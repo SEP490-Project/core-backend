@@ -14,19 +14,22 @@ import (
 
 // ContentScheduleHandler handles scheduled content publishing tasks
 type ContentScheduleHandler struct {
-	scheduleService iservice.ContentScheduleService
-	alertManager    iservice.AlertManagerService
+	contentScheduleService iservice.ContentScheduleService
+	scheduleService        iservice.ScheduleService
+	alertManager           iservice.AlertManagerService
 }
 
 // NewContentScheduleHandler creates a new content schedule handler
 
 func NewContentScheduleHandler(
-	scheduleService iservice.ContentScheduleService,
+	contentScheduleService iservice.ContentScheduleService,
+	scheduleService iservice.ScheduleService,
 	alertManager iservice.AlertManagerService,
 ) *ContentScheduleHandler {
 	return &ContentScheduleHandler{
-		scheduleService: scheduleService,
-		alertManager:    alertManager,
+		contentScheduleService: contentScheduleService,
+		scheduleService:        scheduleService,
+		alertManager:           alertManager,
 	}
 }
 
@@ -54,7 +57,7 @@ func (h *ContentScheduleHandler) ProcessTask(ctx context.Context, task *asynq.Ta
 		zap.Int("retry_count", payload.RetryCount))
 
 	// Execute the scheduled publish
-	err := h.scheduleService.ExecuteScheduledPublish(ctx, payload.ScheduleID)
+	err := h.contentScheduleService.ProcessSchedule(ctx, payload.ScheduleID)
 	if err != nil {
 		zap.L().Error("Failed to execute scheduled publish",
 			zap.Error(err),
@@ -79,7 +82,7 @@ func (h *ContentScheduleHandler) ProcessTask(ctx context.Context, task *asynq.Ta
 // raiseScheduleFailedAlert raises an alert when a scheduled publish fails
 func (h *ContentScheduleHandler) raiseScheduleFailedAlert(ctx context.Context, payload asynqtask.ContentScheduleTaskPayload, errorMessage string) {
 	// Get schedule details for the alert
-	schedule, err := h.scheduleService.GetScheduleByID(ctx, payload.ScheduleID)
+	schedule, err := h.scheduleService.GetByIDWithDetails(ctx, payload.ScheduleID)
 	if err != nil {
 		zap.L().Warn("Failed to get schedule details for alert",
 			zap.Error(err),
@@ -122,7 +125,8 @@ func (h *ContentScheduleHandler) HandleDLQ(ctx context.Context, task *asynq.Task
 		zap.Int("retry_count", payload.RetryCount))
 
 	// Update schedule status to FAILED
-	if err := h.scheduleService.UpdateScheduleStatus(ctx, payload.ScheduleID, enum.ScheduleStatusFailed); err != nil {
+	errMsg := "Scheduled publish permanently failed after all retries"
+	if err := h.scheduleService.UpdateStatusByID(ctx, payload.ScheduleID, enum.ScheduleStatusFailed, &errMsg); err != nil {
 		zap.L().Error("Failed to update schedule status to FAILED",
 			zap.Error(err),
 			zap.String("schedule_id", payload.ScheduleID.String()))

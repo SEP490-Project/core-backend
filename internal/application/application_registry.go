@@ -153,6 +153,8 @@ func NewApplicationRegistry(
 		infrastructureRegistry.UnitOfWork,
 	)
 
+	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
+
 	contentPublishingService := service.NewContentPublishingService(
 		infrastructureRegistry,
 		databaseRegistry,
@@ -160,11 +162,11 @@ func NewApplicationRegistry(
 		stateTransferService,
 		fileService,
 		notificationService,
+		scheduleService,
 		configs,
 	)
 
 	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
-	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
 		contentPublishingService,
