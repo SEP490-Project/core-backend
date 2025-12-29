@@ -1461,7 +1461,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
-	notificationService *NotificationService,
+	notificationService iservice.NotificationService,
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,

@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"fmt"
 	"time"
 
@@ -71,7 +72,7 @@ func buildOrderPaidNotification(ctx context.Context, cfg config.AppConfig, db *g
 	emailPayload := EmailNotificationPayload{
 		EmailSubject:      ptr.String(emailSubject),
 		EmailTemplateName: ptr.String(selectedTemplate),
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"OrderCode":       order.ID.String(),
 			"OrderDate":       order.CreatedAt.Format("02 Jan 2006 15:04"),
 			"TotalAmount":     totalFeeString,
@@ -97,7 +98,7 @@ func buildRefundRequestedNotification(ctx context.Context, _ config.AppConfig, d
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &(emailSubject),
 		EmailTemplateName: &(selectedTemplate),
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"RefundCode":   order.ID.String(),
 			"RequestDate":  order.UpdatedAt.Format("02 Jan 2006 15:04"),
 			"RefundAmount": fmt.Sprintf("%d VND", int(order.TotalAmount)),
@@ -130,7 +131,7 @@ func buildRefundRequestedNotification(ctx context.Context, _ config.AppConfig, d
 			CustomReceiver:    &staff.Email,
 			EmailSubject:      &emailSubject,
 			EmailTemplateName: &emailTemplateName,
-			EmailTemplateData: map[string]interface{}{
+			EmailTemplateData: map[string]any{
 				"StaffName":       staff.FullName,
 				"CustomerName":    order.FullName,
 				"OrderCode":       order.ID,
@@ -155,7 +156,7 @@ func buildRefundedNotification(ctx context.Context, _ config.AppConfig, _ *gorm.
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &selectedTemplate,
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"CustomerName":  order.FullName,
 			"OrderCode":     order.ID.String(),
 			"RefundAmount":  fmt.Sprintf("%d VND", int(order.TotalAmount)),
@@ -243,7 +244,7 @@ func buildCompensationRequestedNotification(_ context.Context, _ config.AppConfi
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &(emailSubject),
 		EmailTemplateName: &(selectedTemplate),
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"CustomerName":    order.FullName,
 			"OrderCode":       order.ID.String(),
 			"Reason":          order.GetLatestActionNote().Reason,
@@ -276,7 +277,7 @@ func buildCompensationRequestedNotification(_ context.Context, _ config.AppConfi
 		staffEmailPayload := EmailNotificationPayload{
 			EmailSubject:      &(emailSubject),
 			EmailTemplateName: &(emailTemplateName),
-			EmailTemplateData: map[string]interface{}{
+			EmailTemplateData: map[string]any{
 				"StaffName":       staff.FullName,
 				"CustomerName":    order.FullName,
 				"RequestTitle":    "Order Code:",
@@ -303,7 +304,7 @@ func buildCompensatedRequestNotification(_ context.Context, _ config.AppConfig, 
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &selectedTemplate,
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"CustomerName":      order.FullName,
 			"OrderCode":         order.ID.String(),
 			"BankAccount":       order.BankAccount,
@@ -352,7 +353,7 @@ func buildCompensationDenied(_ context.Context, _ config.AppConfig, _ *gorm.DB, 
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &selectedTemplate,
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"CustomerName":  order.FullName,
 			"OrderCode":     order.ID.String(),
 			"ApprovedAmout": fmt.Sprintf("%d VND", int(order.TotalAmount)),
@@ -374,7 +375,7 @@ func buildObligateRefund(_ context.Context, _ config.AppConfig, _ *gorm.DB, orde
 		CustomReceiver:    &order.Email,
 		EmailSubject:      &emailSubject,
 		EmailTemplateName: &selectedTemplate,
-		EmailTemplateData: map[string]interface{}{
+		EmailTemplateData: map[string]any{
 			"OrderCode":    order.ID.String(),
 			"RefundAmount": fmt.Sprintf("%d VND", int(order.TotalAmount)),
 			"RefundMethod": "Bank Transfer",
@@ -396,8 +397,8 @@ func buildObligateRefund(_ context.Context, _ config.AppConfig, _ *gorm.DB, orde
 // buildNotificationRequest is a helper to create the PublishNotificationRequest used by the notification service.
 func buildNotificationRequest(userID uuid.UUID, channel []string, emailPayload EmailNotificationPayload, pushPayload PushNotificationPayload) requests.PublishNotificationRequest {
 	return requests.PublishNotificationRequest{
-		UserID:   userID,
-		Channels: channel,
+		UserID: userID,
+		Types:  utils.MapSlice(channel, func(s string) enum.NotificationType { return enum.NotificationType(s) }),
 		//Push
 		Title: pushPayload.Title,
 		Body:  pushPayload.Body,

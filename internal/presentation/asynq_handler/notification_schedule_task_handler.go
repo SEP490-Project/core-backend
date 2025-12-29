@@ -63,18 +63,16 @@ func (h *NotificationScheduledHandler) ProcessTask(ctx context.Context, task *as
 		zap.Time("scheduled_at", payload.ScheduledAt))
 
 	// Create and publish notification request
-	var channels []string
+	var channels []enum.NotificationType = payload.Types
 	if utils.ContainsSlice(payload.Types, enum.NotificationTypeAll) {
-		channels = []string{enum.NotificationTypeEmail.String(), enum.NotificationTypePush.String(), enum.NotificationTypeInApp.String()}
-	} else {
-		channels = utils.MapSlice(payload.Types, func(nt enum.NotificationType) string { return nt.String() })
+		channels = []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypePush, enum.NotificationTypeInApp}
 	}
 	req := &requests.PublishNotificationRequest{
-		UserID:   payload.UserID,
-		Title:    payload.Title,
-		Body:     payload.Body,
-		Data:     payload.Data,
-		Channels: channels,
+		UserID: payload.UserID,
+		Title:  payload.Title,
+		Body:   payload.Body,
+		Data:   payload.Data,
+		Types:  channels,
 	}
 
 	// Handle template data if provided
@@ -103,7 +101,7 @@ func (h *NotificationScheduledHandler) ProcessTask(ctx context.Context, task *as
 					Status:      enum.ScheduleStatusProcessing,
 					CreatedBy:   payload.UserID,
 				}
-				createdScheduleMap[ch] = scheduleModel
+				createdScheduleMap[ch.String()] = scheduleModel
 				schedulesIDs = append(schedulesIDs, id)
 			}
 
