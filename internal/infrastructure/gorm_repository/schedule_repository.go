@@ -54,11 +54,15 @@ func (r *scheduleRepository) GetPendingByReferenceID(ctx context.Context, refere
 	return schedules, nil
 }
 
-// GetPendingSchedules returns all pending schedules that should be processed
-func (r *scheduleRepository) GetPendingSchedules(ctx context.Context, before time.Time) ([]*model.Schedule, error) {
+// GetAllPendingSchedules returns all pending schedules that should be processed
+func (r *scheduleRepository) GetAllPendingSchedules(ctx context.Context, before time.Time) ([]*model.Schedule, error) {
+	if before.IsZero() {
+		before = time.Now()
+	}
+
 	var schedules []*model.Schedule
 	if err := r.db.WithContext(ctx).
-		Where("status = ?", enum.ScheduleStatusPending.String()).
+		Where("status = ?", enum.ScheduleStatusPending).
 		Where("scheduled_at <= ?", before).
 		Where("deleted_at IS NULL").
 		Order("scheduled_at ASC").
@@ -92,14 +96,17 @@ func (r *scheduleRepository) GetSchedulesByStatus(ctx context.Context, status en
 	return schedules, total, nil
 }
 
-// GetSchedulesWithDetails returns schedules with basic details (generic, no JOINs)
+// GetSchedulesWithDetails returns schedules with details (uses conditional JOINs based on type)
 func (r *scheduleRepository) GetSchedulesWithDetails(ctx context.Context, filter *requests.ScheduleFilterRequest) ([]dtos.ScheduleDTO, int64, error) {
-	var results []dtos.ScheduleDTO
+	var rawResults []dtos.ContentScheduleRawDTO
 	var total int64
 
 	predicateQuery := func(db *gorm.DB) *gorm.DB {
 		db = db.
 			Joins("LEFT JOIN users u ON u.id = s.created_by").
+			Joins("LEFT JOIN content_channels cc ON cc.id = s.reference_id AND s.type = ?", enum.ScheduleTypeContentPublish).
+			Joins("LEFT JOIN contents c ON c.id = cc.content_id").
+			Joins("LEFT JOIN channels ch ON ch.id = cc.channel_id").
 			Where("s.deleted_at IS NULL")
 		if filter.Status != nil {
 			db = db.Where("s.status = ?", filter.Status.String())
@@ -125,6 +132,13 @@ func (r *scheduleRepository) GetSchedulesWithDetails(ctx context.Context, filter
 				db = db.Where("s.scheduled_at < ?", toDate)
 			}
 		}
+		// Content specific filters
+		if filter.ContentID != nil {
+			db = db.Where("c.id = ?", *filter.ContentID)
+		}
+		if filter.ChannelID != nil {
+			db = db.Where("ch.id = ?", *filter.ChannelID)
+		}
 		return db
 	}
 
@@ -148,102 +162,23 @@ func (r *scheduleRepository) GetSchedulesWithDetails(ctx context.Context, filter
 			s.created_at,
 			s.created_by,
 			s.updated_at,
-			u.username as created_by_name
-		`).
-		Offset((filter.Page - 1) * filter.Limit).
-		Limit(filter.Limit).
-		Order("s.scheduled_at ASC")
-	if err := query.Scan(&results).Error; err != nil {
-		zap.L().Error("Failed to get schedules with details", zap.Error(err))
-		return nil, 0, err
-	}
-
-	return results, total, nil
-}
-
-// GetContentSchedulesWithDetails returns content-specific schedules with full details
-func (r *scheduleRepository) GetContentSchedulesWithDetails(ctx context.Context, filter *requests.ScheduleFilterRequest) ([]dtos.ScheduleDTO, int64, error) {
-	var rawResults []dtos.ContentScheduleRawDTO
-	var total int64
-
-	predicateQuery := func(db *gorm.DB) *gorm.DB {
-		db = db.
-			Joins("JOIN content_channels cc ON cc.id = s.reference_id").
-			Joins("JOIN contents c ON c.id = cc.content_id").
-			Joins("JOIN channels ch ON ch.id = cc.channel_id").
-			Joins("LEFT JOIN users u ON u.id = s.created_by").
-			Where("s.deleted_at IS NULL").
-			Where("s.type = ?", enum.ScheduleTypeContentPublish)
-		if filter.Status != nil {
-			db = db.Where("s.status = ?", filter.Status.String())
-		}
-		if filter.ReferenceID != nil {
-			db = db.Where("s.reference_id = ?", *filter.ReferenceID)
-		}
-		if filter.CreatedBy != nil {
-			db = db.Where("s.created_by = ?", *filter.CreatedBy)
-		}
-		if filter.ContentID != nil {
-			db = db.Where("c.id = ?", *filter.ContentID)
-		}
-		if filter.ChannelID != nil {
-			db = db.Where("ch.id = ?", *filter.ChannelID)
-		}
-		if filter.FromDate != nil {
-			fromDate := utils.ParseLocalTimeWithFallback(*filter.FromDate, utils.TimeFormat)
-			if fromDate != nil {
-				db = db.Where("s.scheduled_at >= ?", fromDate)
-			}
-		}
-		if filter.ToDate != nil {
-			toDate := utils.ParseLocalTimeWithFallback(*filter.ToDate, utils.TimeFormat)
-			if toDate != nil {
-				db = db.Where("s.scheduled_at < ?", toDate)
-			}
-		}
-		return db
-	}
-
-	// Count total
-	if err := predicateQuery(r.db.WithContext(ctx).Table("schedules s")).Count(&total).Error; err != nil {
-		zap.L().Error("Failed to count content schedules with details", zap.Error(err))
-		return nil, 0, err
-	}
-
-	query := predicateQuery(r.db.WithContext(ctx).Table("schedules s")).
-		Select(`
-			s.id as schedule_id,
-			s.reference_id,
-			s.reference_type,
-			s.type,
-			s.reference_id as content_channel_id,
+			u.username as created_by_name,
 			c.id as content_id,
 			c.title as content_title,
 			c.type as content_type,
 			ch.id as channel_id,
 			ch.name as channel_name,
 			ch.code as channel_code,
-			ch.platform as platform,
-			c.thumbnail as thumbnail_url,
-			s.scheduled_at,
-			s.status,
-			s.retry_count,
-			s.last_error,
-			s.executed_at,
-			s.created_at,
-			s.created_by,
-			s.updated_at,
-			u.username as created_by_name
+			c.thumbnail_url
 		`).
 		Offset((filter.Page - 1) * filter.Limit).
 		Limit(filter.Limit).
 		Order("s.scheduled_at ASC")
 	if err := query.Scan(&rawResults).Error; err != nil {
-		zap.L().Error("Failed to get content schedules with details", zap.Error(err))
+		zap.L().Error("Failed to get schedules with details", zap.Error(err))
 		return nil, 0, err
 	}
 
-	// Convert raw results to structured DTOs
 	results := make([]dtos.ScheduleDTO, len(rawResults))
 	for i, raw := range rawResults {
 		results[i] = *raw.ToScheduleDTO()
@@ -300,41 +235,6 @@ func (r *scheduleRepository) CancelScheduleByReferenceID(ctx context.Context, re
 
 // GetScheduleByIDWithDetails returns a single schedule with basic details
 func (r *scheduleRepository) GetScheduleByIDWithDetails(ctx context.Context, id uuid.UUID) (*dtos.ScheduleDTO, error) {
-	var result dtos.ScheduleDTO
-
-	if err := r.db.WithContext(ctx).Table("schedules s").
-		Select(`
-			s.id as schedule_id,
-			s.reference_id,
-			s.reference_type,
-			s.type,
-			s.scheduled_at,
-			s.status,
-			s.retry_count,
-			s.last_error,
-			s.executed_at,
-			s.created_at,
-			s.created_by,
-			s.updated_at,
-			u.username as created_by_name
-		`).
-		Joins("LEFT JOIN users u ON u.id = s.created_by").
-		Where("s.id = ?", id).
-		Where("s.deleted_at IS NULL").
-		Scan(&result).Error; err != nil {
-		zap.L().Error("Failed to get schedule details by ID", zap.Error(err))
-		return nil, err
-	}
-
-	if result.ScheduleID == uuid.Nil {
-		return nil, nil
-	}
-
-	return &result, nil
-}
-
-// GetContentScheduleByIDWithDetails returns a content schedule with full details
-func (r *scheduleRepository) GetContentScheduleByIDWithDetails(ctx context.Context, id uuid.UUID) (*dtos.ScheduleDTO, error) {
 	var raw dtos.ContentScheduleRawDTO
 
 	if err := r.db.WithContext(ctx).Table("schedules s").
@@ -343,15 +243,6 @@ func (r *scheduleRepository) GetContentScheduleByIDWithDetails(ctx context.Conte
 			s.reference_id,
 			s.reference_type,
 			s.type,
-			s.reference_id as content_channel_id,
-			c.id as content_id,
-			c.title as content_title,
-			c.type as content_type,
-			ch.id as channel_id,
-			ch.name as channel_name,
-			ch.code as channel_code,
-			ch.platform as platform,
-			c.thumbnail as thumbnail_url,
 			s.scheduled_at,
 			s.status,
 			s.retry_count,
@@ -360,16 +251,23 @@ func (r *scheduleRepository) GetContentScheduleByIDWithDetails(ctx context.Conte
 			s.created_at,
 			s.created_by,
 			s.updated_at,
-			u.username as created_by_name
+			u.username as created_by_name,
+			c.id as content_id,
+			c.title as content_title,
+			c.type as content_type,
+			ch.id as channel_id,
+			ch.name as channel_name,
+			ch.code as channel_code,
+			c.thumbnail_url
 		`).
-		Joins("JOIN content_channels cc ON cc.id = s.reference_id").
-		Joins("JOIN contents c ON c.id = cc.content_id").
-		Joins("JOIN channels ch ON ch.id = cc.channel_id").
 		Joins("LEFT JOIN users u ON u.id = s.created_by").
+		Joins("LEFT JOIN content_channels cc ON cc.id = s.reference_id AND s.type = ?", enum.ScheduleTypeContentPublish).
+		Joins("LEFT JOIN contents c ON c.id = cc.content_id").
+		Joins("LEFT JOIN channels ch ON ch.id = cc.channel_id").
 		Where("s.id = ?", id).
 		Where("s.deleted_at IS NULL").
 		Scan(&raw).Error; err != nil {
-		zap.L().Error("Failed to get content schedule details by ID", zap.Error(err))
+		zap.L().Error("Failed to get schedule details by ID", zap.Error(err))
 		return nil, err
 	}
 
@@ -397,8 +295,7 @@ func (r *scheduleRepository) GetSchedulesByContentID(ctx context.Context, conten
 			ch.id as channel_id,
 			ch.name as channel_name,
 			ch.code as channel_code,
-			ch.platform as platform,
-			c.thumbnail as thumbnail_url,
+			c.thumbnail_url,
 			s.scheduled_at,
 			s.status,
 			s.retry_count,

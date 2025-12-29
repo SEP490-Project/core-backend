@@ -29,6 +29,8 @@ type CreateContentRequest struct {
 	//	  then automatically added it at the end of the body.
 	TrackingLink *string `json:"tracking_link,omitempty" validate:"omitempty,max=1000"`
 	// AffiliateLinkID *uuid.UUID `json:"affiliate_link_id,omitempty" validate:"omitempty,uuid"`
+
+	UserID uuid.UUID `json:"-"`
 }
 
 // UpdateContentRequest DTO for updating existing content

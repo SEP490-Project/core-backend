@@ -24,6 +24,7 @@ import (
 type ContentHandler struct {
 	contentService           iservice.ContentService
 	contentPublishingService iservice.ContentPublishingService
+	contentScheduleService   iservice.ContentScheduleService
 	stateTransferService     iservice.StateTransferService
 	channelService           iservice.ChannelService
 	unitOfWork               irepository.UnitOfWork
@@ -45,6 +46,7 @@ func NewContentHandler(
 	return &ContentHandler{
 		contentService:           appReg.ContentService,
 		contentPublishingService: appReg.ContentPublishingService,
+		contentScheduleService:   appReg.ContentScheduleService,
 		stateTransferService:     appReg.StateTransferService,
 		channelService:           appReg.ChannelService,
 		unitOfWork:               unitOfWork,
@@ -69,8 +71,13 @@ func NewContentHandler(
 //	@Security		BearerAuth
 //	@Router			/api/v1/contents [post]
 func (h *ContentHandler) Create(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(err.Error(), http.StatusUnauthorized))
+		return
+	}
 	var req requests.CreateContentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err = c.ShouldBindJSON(&req); err != nil {
 		zap.L().Error("Failed to bind CreateContentRequest", zap.Error(err))
 		response := responses.ErrorResponse("Invalid request format", http.StatusBadRequest)
 		c.JSON(http.StatusBadRequest, response)
@@ -80,6 +87,7 @@ func (h *ContentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse(http.StatusBadRequest, "Validation error", validationErrs...))
 		return
 	}
+	req.UserID = userID
 
 	uow := h.unitOfWork.Begin(c.Request.Context())
 	defer func() {

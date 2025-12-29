@@ -4,7 +4,6 @@ import (
 	"context"
 	"core-backend/config"
 	asynqtask "core-backend/internal/application/dto/asynq_tasks"
-	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
@@ -16,6 +15,7 @@ import (
 	asynqClient "core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -56,7 +56,7 @@ func NewContentScheduleService(
 }
 
 // ScheduleContent schedules content for future publishing via RabbitMQ delayed message
-func (s *contentScheduleService) ScheduleContent(ctx context.Context, req *requests.ScheduleContentRequest) (*responses.ScheduleResponse, error) {
+func (s *contentScheduleService) ScheduleContent(ctx context.Context, req *requests.ScheduleContentRequest) (*responses.ScheduleDetailResponse, error) {
 	currentTime := time.Now()
 	zap.L().Info("Scheduling content for publishing", zap.Any("request", req))
 
@@ -123,16 +123,17 @@ func (s *contentScheduleService) ScheduleContent(ctx context.Context, req *reque
 		zap.String("content_channel_id", req.ContentChannelID.String()),
 		zap.Time("scheduled_at", *scheduledAt))
 
-	return &responses.ScheduleResponse{
-		ScheduleID:       schedule.ID,
-		ContentChannelID: utils.DerefPtr(schedule.ReferenceID, uuid.Nil),
-		ScheduledAt:      *scheduledAt,
-		Status:           string(schedule.Status),
-	}, nil
+	// return &responses.ScheduleResponse{
+	// 	ScheduleID:       schedule.ID,
+	// 	ContentChannelID: utils.DerefPtr(schedule.ReferenceID, uuid.Nil),
+	// 	ScheduledAt:      *scheduledAt,
+	// 	Status:           string(schedule.Status),
+	// }, nil
+	return responses.ScheduleDetailResponse{}.ToResponse(schedule), nil
 }
 
 // BatchScheduleContent schedules content to multiple channels at once
-func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *requests.BatchScheduleRequest) (*responses.BatchScheduleResponse, error) {
+func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *requests.BatchScheduleRequest) (*responses.BatchContentScheduleResponse, error) {
 	zap.L().Info("Batch scheduling content",
 		zap.String("content_id", req.ContentID.String()),
 		zap.Int("schedule_count", len(req.Schedules)))
@@ -160,11 +161,11 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 	}
 
 	// 3. Process each schedule item
-	response := &responses.BatchScheduleResponse{
+	response := &responses.BatchContentScheduleResponse{
 		ContentID:         req.ContentID,
 		ContentTitle:      content.Title,
-		ScheduledChannels: make([]responses.BatchScheduleResultItem, 0),
-		FailedChannels:    make([]responses.BatchScheduleFailureItem, 0),
+		ScheduledChannels: make([]responses.BatchContentScheduleResultItem, 0),
+		FailedChannels:    make([]responses.BatchContentScheduleFailureItem, 0),
 	}
 
 	currentTime := time.Now()
@@ -172,7 +173,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 	for _, item := range req.Schedules {
 		channelID, parseErr := uuid.Parse(item.ChannelID)
 		if parseErr != nil {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID: uuid.Nil,
 				Error:     "invalid channel ID format",
 			})
@@ -182,7 +183,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 		// Find content channel for this channel
 		cc, exists := ccByChannelID[channelID]
 		if !exists {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID: channelID,
 				Error:     "content not assigned to this channel",
 			})
@@ -192,7 +193,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 		// Parse scheduled time
 		scheduledAt := utils.ParseLocalTimeWithFallback(item.ScheduledAt, time.RFC3339)
 		if scheduledAt == nil {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
 				Error:       "invalid scheduled_at format",
@@ -202,7 +203,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 
 		// Validate scheduled time is in the future
 		if scheduledAt.Before(currentTime) {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
 				Error:       "scheduled_at must be in the future",
@@ -213,7 +214,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 		// Check for existing pending schedule
 		existingSchedule, _ := s.scheduleRepo.GetByReferenceID(ctx, cc.ID)
 		if existingSchedule != nil && existingSchedule.Status == enum.ScheduleStatusPending {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
 				Error:       "channel already has a pending schedule",
@@ -223,16 +224,17 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 
 		// Create schedule
 		schedule := &model.Schedule{
-			ReferenceID: &cc.ID,
-			Type:        enum.ScheduleTypeContentPublish,
-			ScheduledAt: *scheduledAt,
-			Status:      enum.ScheduleStatusPending,
-			RetryCount:  0,
-			CreatedBy:   req.UserID,
+			ReferenceID:   &cc.ID,
+			ReferenceType: utils.PtrOrNil(enum.ReferenceTypeContent),
+			Type:          enum.ScheduleTypeContentPublish,
+			ScheduledAt:   *scheduledAt,
+			Status:        enum.ScheduleStatusPending,
+			RetryCount:    0,
+			CreatedBy:     req.UserID,
 		}
 
 		if err := s.scheduleRepo.Add(ctx, schedule); err != nil {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
 				Error:       "failed to create schedule",
@@ -244,7 +246,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 		if err := s.publishDelayedMessage(ctx, schedule); err != nil {
 			// Rollback schedule creation
 			_ = s.scheduleRepo.DeleteByID(ctx, schedule.ID)
-			response.FailedChannels = append(response.FailedChannels, responses.BatchScheduleFailureItem{
+			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
 				Error:       "failed to queue schedule: " + err.Error(),
@@ -253,7 +255,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 		}
 
 		// Success
-		response.ScheduledChannels = append(response.ScheduledChannels, responses.BatchScheduleResultItem{
+		response.ScheduledChannels = append(response.ScheduledChannels, responses.BatchContentScheduleResultItem{
 			ScheduleID:  schedule.ID,
 			ChannelID:   channelID,
 			ChannelName: cc.Channel.Name,
@@ -275,7 +277,7 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 }
 
 // RescheduleContent cancels existing schedule and creates a new one
-func (s *contentScheduleService) RescheduleContent(ctx context.Context, scheduleID uuid.UUID, req *requests.RescheduleContentRequest) (*responses.ScheduleResponse, error) {
+func (s *contentScheduleService) RescheduleContent(ctx context.Context, scheduleID uuid.UUID, req *requests.RescheduleContentRequest) (*responses.ScheduleDetailResponse, error) {
 	// 1. Get existing schedule
 	schedule, err := s.scheduleRepo.GetByID(ctx, scheduleID, nil)
 	if err != nil || schedule == nil {
@@ -334,174 +336,7 @@ func (s *contentScheduleService) RescheduleContent(ctx context.Context, schedule
 		zap.String("new_schedule_id", newSchedule.ID.String()),
 		zap.Time("new_scheduled_at", newScheduledAt))
 
-	return &responses.ScheduleResponse{
-		ScheduleID:       newSchedule.ID,
-		ContentChannelID: utils.DerefPtr(newSchedule.ReferenceID, uuid.Nil),
-		ScheduledAt:      newScheduledAt,
-		Status:           string(newSchedule.Status),
-	}, nil
-}
-
-// CancelSchedule cancels a pending schedule
-func (s *contentScheduleService) CancelSchedule(ctx context.Context, scheduleID uuid.UUID) error {
-	schedule, err := s.scheduleRepo.GetByID(ctx, scheduleID, nil)
-	if err != nil || schedule == nil {
-		return errors.New("schedule not found")
-	}
-
-	if schedule.Status != enum.ScheduleStatusPending {
-		return errors.New("only pending schedules can be cancelled")
-	}
-
-	// Cancel the Asynq task
-	uniqueKey := fmt.Sprintf("schedule:%s", scheduleID.String())
-	if s.taskScheduler != nil {
-		if err := s.taskScheduler.CancelTask(uniqueKey); err != nil {
-			// Log but don't fail - the task might have already been processed
-			zap.L().Warn("Failed to cancel Asynq task (may have already been processed)",
-				zap.String("task_id", uniqueKey),
-				zap.Error(err))
-		}
-	}
-
-	schedule.Status = enum.ScheduleStatusCancelled
-	if err := s.scheduleRepo.Update(ctx, schedule); err != nil {
-		return errors.New("failed to cancel schedule")
-	}
-
-	zap.L().Info("Schedule cancelled", zap.String("schedule_id", scheduleID.String()))
-	return nil
-}
-
-// GetSchedule retrieves a schedule by ID
-func (s *contentScheduleService) GetSchedule(ctx context.Context, scheduleID uuid.UUID) (*responses.ScheduleItemResponse, error) {
-	scheduleDTO, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, scheduleID)
-	if err != nil || scheduleDTO == nil {
-		return nil, errors.New("schedule not found")
-	}
-
-	var contentChannelID, contentID, channelID uuid.UUID
-	var contentTitle, contentType, channelName, channelCode string
-
-	if scheduleDTO.ContentDetails != nil {
-		contentChannelID = scheduleDTO.ContentDetails.ContentChannelID
-		contentID = scheduleDTO.ContentDetails.ContentID
-		contentTitle = scheduleDTO.ContentDetails.ContentTitle
-		contentType = scheduleDTO.ContentDetails.ContentType.String()
-		channelID = scheduleDTO.ContentDetails.ChannelID
-		channelName = scheduleDTO.ContentDetails.ChannelName
-		channelCode = scheduleDTO.ContentDetails.ChannelCode
-	}
-
-	return &responses.ScheduleItemResponse{
-		ScheduleID:       scheduleDTO.ScheduleID,
-		ContentChannelID: contentChannelID,
-		ContentID:        contentID,
-		ContentTitle:     contentTitle,
-		ContentType:      contentType,
-		ChannelID:        channelID,
-		ChannelName:      channelName,
-		ChannelCode:      channelCode,
-		ScheduledAt:      scheduleDTO.ScheduledAt,
-		Status:           scheduleDTO.Status.String(),
-		RetryCount:       scheduleDTO.RetryCount,
-		LastError:        scheduleDTO.LastError,
-		ExecutedAt:       scheduleDTO.ExecutedAt,
-		CreatedAt:        scheduleDTO.CreatedAt,
-		CreatedBy:        scheduleDTO.CreatedByName,
-		CreatedByID:      scheduleDTO.CreatedBy,
-	}, nil
-}
-
-// GetUpcomingSchedules returns schedules for the next N days
-func (s *contentScheduleService) GetUpcomingSchedules(ctx context.Context, days int) ([]responses.ScheduledContentItem, error) {
-	from := time.Now()
-	to := from.AddDate(0, 0, days)
-
-	schedules, err := s.scheduleRepo.GetUpcomingSchedules(ctx, from, to, 100)
-	if err != nil {
-		return nil, errors.New("failed to get upcoming schedules")
-	}
-
-	result := make([]responses.ScheduledContentItem, 0, len(schedules))
-	for _, schedule := range schedules {
-		// Get details for each schedule
-		scheduleDTO, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, schedule.ID)
-		if err != nil || scheduleDTO == nil {
-			continue
-		}
-
-		var contentID uuid.UUID
-		var title, channelName string
-		if scheduleDTO.ContentDetails != nil {
-			contentID = scheduleDTO.ContentDetails.ContentID
-			title = scheduleDTO.ContentDetails.ContentTitle
-			channelName = scheduleDTO.ContentDetails.ChannelName
-		}
-
-		result = append(result, responses.ScheduledContentItem{
-			ScheduleID:  scheduleDTO.ScheduleID,
-			ContentID:   contentID,
-			Title:       title,
-			ChannelName: channelName,
-			ScheduledAt: scheduleDTO.ScheduledAt,
-			Status:      scheduleDTO.Status.String(),
-			CreatedBy:   scheduleDTO.CreatedByName,
-			CreatedByID: scheduleDTO.CreatedBy,
-		})
-	}
-
-	return result, nil
-}
-
-// ListSchedules returns schedules with filtering and pagination
-func (s *contentScheduleService) ListSchedules(ctx context.Context, filter *requests.ScheduleFilterRequest) (*responses.ScheduleListResponse, error) {
-	// Get schedules using content-specific repository method
-	schedules, total, err := s.scheduleRepo.GetContentSchedulesWithDetails(ctx, filter)
-	if err != nil {
-		return nil, errors.New("failed to get schedules")
-	}
-
-	// Convert to response
-	items := make([]responses.ScheduleItemResponse, 0, len(schedules))
-	for _, dto := range schedules {
-		var contentChannelID, contentID, channelID uuid.UUID
-		var contentTitle, contentType, channelName, channelCode string
-
-		if dto.ContentDetails != nil {
-			contentChannelID = dto.ContentDetails.ContentChannelID
-			contentID = dto.ContentDetails.ContentID
-			contentTitle = dto.ContentDetails.ContentTitle
-			contentType = dto.ContentDetails.ContentType.String()
-			channelID = dto.ContentDetails.ChannelID
-			channelName = dto.ContentDetails.ChannelName
-			channelCode = dto.ContentDetails.ChannelCode
-		}
-
-		items = append(items, responses.ScheduleItemResponse{
-			ScheduleID:       dto.ScheduleID,
-			ContentChannelID: contentChannelID,
-			ContentID:        contentID,
-			ContentTitle:     contentTitle,
-			ContentType:      contentType,
-			ChannelID:        channelID,
-			ChannelName:      channelName,
-			ChannelCode:      channelCode,
-			ScheduledAt:      dto.ScheduledAt,
-			Status:           dto.Status.String(),
-			RetryCount:       dto.RetryCount,
-			LastError:        dto.LastError,
-			ExecutedAt:       dto.ExecutedAt,
-			CreatedAt:        dto.CreatedAt,
-			CreatedBy:        dto.CreatedByName,
-			CreatedByID:      dto.CreatedBy,
-		})
-	}
-
-	return &responses.ScheduleListResponse{
-		Schedules: items,
-		Total:     total,
-	}, nil
+	return responses.ScheduleDetailResponse{}.ToResponse(newSchedule), nil
 }
 
 // ProcessSchedule is called by the consumer to execute the scheduled publish
@@ -557,6 +392,27 @@ func (s *contentScheduleService) ProcessSchedule(ctx context.Context, scheduleID
 		zap.String("content_channel_id", schedule.ReferenceID.String()))
 
 	return nil
+}
+
+// region: ============== Private Methods ==============
+
+func (s *contentScheduleService) updateScheduleMetadataAsync(schedule *model.Schedule, taskInfo *asynq.TaskInfo) {
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			rawTaskInfo, err := json.Marshal(taskInfo)
+			if err != nil {
+				return fmt.Errorf("failed to marshal task info: %w", err)
+			}
+
+			return s.scheduleRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", schedule.ID)
+			}, map[string]any{"metadata": rawTaskInfo})
+		}); err != nil {
+			zap.L().Error("Failed to update schedule metadata asynchronously",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.Error(err))
+		}
+	}()
 }
 
 // handlePublishFailure handles publish failure with retry logic
@@ -642,7 +498,8 @@ func (s *contentScheduleService) publishDelayedMessage(ctx context.Context, sche
 	uniqueKey := fmt.Sprintf("schedule:%s", schedule.ID.String())
 
 	// Schedule the task with Asynq
-	_, err = s.taskScheduler.ScheduleTaskWithUniqueKey(
+	var taskInfo *asynq.TaskInfo
+	taskInfo, err = s.taskScheduler.ScheduleTaskWithUniqueKey(
 		ctx,
 		taskType,
 		payload,
@@ -655,6 +512,11 @@ func (s *contentScheduleService) publishDelayedMessage(ctx context.Context, sche
 		return errors.New("failed to schedule task: " + err.Error())
 	}
 
+	s.updateScheduleMetadataAsync(schedule, taskInfo)
+	// Update in-memory schedule object metadata
+	rawMetadata, err := json.Marshal(taskInfo)
+	schedule.Metadata = rawMetadata
+
 	zap.L().Info("Content schedule task created",
 		zap.String("schedule_id", schedule.ID.String()),
 		zap.String("unique_key", uniqueKey),
@@ -663,24 +525,4 @@ func (s *contentScheduleService) publishDelayedMessage(ctx context.Context, sche
 	return nil
 }
 
-// ExecuteScheduledPublish executes the scheduled content publishing
-// This is an alias for ProcessSchedule for clarity in consumer usage
-func (s *contentScheduleService) ExecuteScheduledPublish(ctx context.Context, scheduleID uuid.UUID) error {
-	return s.ProcessSchedule(ctx, scheduleID)
-}
-
-// GetScheduleByID returns schedule details by ID (for consumer)
-func (s *contentScheduleService) GetScheduleByID(ctx context.Context, scheduleID uuid.UUID) (*dtos.ScheduleDTO, error) {
-	return s.scheduleRepo.GetScheduleByIDWithDetails(ctx, scheduleID)
-}
-
-// UpdateScheduleStatus updates the status of a schedule
-func (s *contentScheduleService) UpdateScheduleStatus(ctx context.Context, scheduleID uuid.UUID, status enum.ScheduleStatus) error {
-	schedule, err := s.scheduleRepo.GetByID(ctx, scheduleID, nil)
-	if err != nil || schedule == nil {
-		return errors.New("schedule not found")
-	}
-
-	schedule.Status = status
-	return s.scheduleRepo.Update(ctx, schedule)
-}
+// endregion

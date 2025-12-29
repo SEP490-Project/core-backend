@@ -21,17 +21,14 @@ type ScheduleRepository interface {
 	// GetPendingByReferenceID returns all pending schedules for a reference ID
 	GetPendingByReferenceID(ctx context.Context, referenceID uuid.UUID) ([]*model.Schedule, error)
 
-	// GetPendingSchedules returns all pending schedules that should be processed
-	GetPendingSchedules(ctx context.Context, before time.Time) ([]*model.Schedule, error)
+	// GetAllPendingSchedules returns all pending schedules that should be processed
+	GetAllPendingSchedules(ctx context.Context, before time.Time) ([]*model.Schedule, error)
 
 	// GetSchedulesByStatus returns schedules by status
 	GetSchedulesByStatus(ctx context.Context, status enum.ScheduleStatus, pageSize, pageNumber int) ([]*model.Schedule, int64, error)
 
 	// GetSchedulesWithDetails returns schedules with details (uses conditional JOINs based on type)
 	GetSchedulesWithDetails(ctx context.Context, filter *requests.ScheduleFilterRequest) ([]dtos.ScheduleDTO, int64, error)
-
-	// GetContentSchedulesWithDetails returns content-specific schedules with full details
-	GetContentSchedulesWithDetails(ctx context.Context, filter *requests.ScheduleFilterRequest) ([]dtos.ScheduleDTO, int64, error)
 
 	// GetUpcomingSchedules returns upcoming schedules within a time range
 	GetUpcomingSchedules(ctx context.Context, from, to time.Time, limit int) ([]*model.Schedule, error)
@@ -44,9 +41,6 @@ type ScheduleRepository interface {
 
 	// GetScheduleByIDWithDetails returns a single schedule with full details
 	GetScheduleByIDWithDetails(ctx context.Context, id uuid.UUID) (*dtos.ScheduleDTO, error)
-
-	// GetContentScheduleByIDWithDetails returns a content schedule with full details
-	GetContentScheduleByIDWithDetails(ctx context.Context, id uuid.UUID) (*dtos.ScheduleDTO, error)
 
 	// UpdateScheduleStatus updates the status of a schedule
 	UpdateScheduleStatus(ctx context.Context, id uuid.UUID, status enum.ScheduleStatus, lastError *string) error
