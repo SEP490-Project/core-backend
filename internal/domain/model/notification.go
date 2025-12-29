@@ -14,11 +14,12 @@ import (
 
 // Notification represents a notification record with flexible JSONB metadata
 type Notification struct {
-	ID     uuid.UUID               `gorm:"type:uuid;primaryKey"`
-	UserID uuid.UUID               `gorm:"type:uuid;not null;index"`
-	Type   enum.NotificationType   `gorm:"type:varchar(50);not null;index"`
-	Status enum.NotificationStatus `gorm:"type:varchar(50);not null;index"`
-	IsRead bool                    `gorm:"default:false;not null;index"`
+	ID       uuid.UUID                 `gorm:"type:uuid;primaryKey"`
+	UserID   uuid.UUID                 `gorm:"type:uuid;not null;index"`
+	Type     enum.NotificationType     `gorm:"type:varchar(50);not null;index"`
+	Severity enum.NotificationSeverity `gorm:"type:varchar(50);not null;index"`
+	Status   enum.NotificationStatus   `gorm:"type:varchar(50);not null;index"`
+	IsRead   bool                      `gorm:"default:false;not null;index"`
 
 	// JSONB columns for flexible metadata
 	DeliveryAttempts JSONBDeliveryAttempts `gorm:"type:jsonb;not null;default:'[]'"`

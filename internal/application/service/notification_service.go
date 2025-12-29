@@ -26,8 +26,8 @@ const (
 	allProducerName   = "notification-all-producer"
 )
 
-// NotificationService implements notification monitoring operations
-type NotificationService struct {
+// notificationService implements notification monitoring operations
+type notificationService struct {
 	notificationRepo irepository.NotificationRepository
 	userRepo         irepository.UserRepository
 	rabbitmq         *rabbitmq.RabbitMQ
@@ -40,8 +40,8 @@ func NewNotificationService(
 	userRepo irepository.UserRepository,
 	rabbitmq *rabbitmq.RabbitMQ,
 	realTimeNotifier iservice.SSEService,
-) *NotificationService {
-	return &NotificationService{
+) iservice.NotificationService {
+	return &notificationService{
 		notificationRepo: notificationRepo,
 		userRepo:         userRepo,
 		rabbitmq:         rabbitmq,
@@ -50,7 +50,7 @@ func NewNotificationService(
 }
 
 // GetByID retrieves a notification by its ID
-func (s *NotificationService) GetByID(ctx context.Context, id uuid.UUID) (*model.Notification, error) {
+func (s *notificationService) GetByID(ctx context.Context, id uuid.UUID) (*model.Notification, error) {
 	zap.L().Info("Fetching notification by ID",
 		zap.String("notification_id", id.String()))
 
@@ -71,7 +71,7 @@ func (s *NotificationService) GetByID(ctx context.Context, id uuid.UUID) (*model
 }
 
 // GetByUser retrieves notifications for a specific user with pagination
-func (s *NotificationService) GetByUser(ctx context.Context, userID uuid.UUID, page, limit int) ([]*model.Notification, int64, error) {
+func (s *notificationService) GetByUser(ctx context.Context, userID uuid.UUID, page, limit int) ([]*model.Notification, int64, error) {
 	zap.L().Info("Fetching notifications for user",
 		zap.String("user_id", userID.String()),
 		zap.Int("page", page),
@@ -116,7 +116,7 @@ func (s *NotificationService) GetByUser(ctx context.Context, userID uuid.UUID, p
 }
 
 // GetByStatus retrieves notifications by status with pagination
-func (s *NotificationService) GetByStatus(ctx context.Context, status enum.NotificationStatus, page, limit int) ([]*model.Notification, int64, error) {
+func (s *notificationService) GetByStatus(ctx context.Context, status enum.NotificationStatus, page, limit int) ([]*model.Notification, int64, error) {
 	zap.L().Info("Fetching notifications by status",
 		zap.String("status", string(status)),
 		zap.Int("page", page),
@@ -165,7 +165,7 @@ func (s *NotificationService) GetByStatus(ctx context.Context, status enum.Notif
 }
 
 // GetFailedWithRetries retrieves notifications that failed after multiple retry attempts
-func (s *NotificationService) GetFailedWithRetries(ctx context.Context, minRetries int, page, limit int) ([]*model.Notification, int64, error) {
+func (s *notificationService) GetFailedWithRetries(ctx context.Context, minRetries int, page, limit int) ([]*model.Notification, int64, error) {
 	zap.L().Info("Fetching failed notifications with retries",
 		zap.Int("min_retries", minRetries),
 		zap.Int("page", page),
@@ -201,7 +201,7 @@ func (s *NotificationService) GetFailedWithRetries(ctx context.Context, minRetri
 }
 
 // GetByFilters retrieves notifications with multiple filter criteria
-func (s *NotificationService) GetByFilters(
+func (s *notificationService) GetByFilters(
 	ctx context.Context,
 	userID *uuid.UUID,
 	notificationType *enum.NotificationType,
@@ -302,10 +302,10 @@ func (s *NotificationService) GetByFilters(
 }
 
 // CreateAndPublishNotification creates notification records and publishes them to specified channels
-func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) (map[enum.NotificationType]uuid.UUID, error) {
+func (s *notificationService) CreateAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest) (map[enum.NotificationType]uuid.UUID, error) {
 	zap.L().Info("Creating and publishing notification to multiple channels",
 		zap.String("user_id", req.UserID.String()),
-		zap.Strings("channels", req.Channels))
+		zap.Any("types", req.Types))
 
 	// Verify user exists
 	user, err := s.validateUserExists(ctx, req.UserID, nil)
@@ -316,7 +316,7 @@ func (s *NotificationService) CreateAndPublishNotification(ctx context.Context, 
 }
 
 // CreateAndPublishEmail creates an email notification record and publishes it
-func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *requests.PublishEmailRequest) (uuid.UUID, error) {
+func (s *notificationService) CreateAndPublishEmail(ctx context.Context, req *requests.PublishEmailRequest) (uuid.UUID, error) {
 	zap.L().Info("Creating and publishing email notification",
 		zap.String("user_id", req.UserID.String()),
 		zap.String("to", req.To))
@@ -338,6 +338,7 @@ func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *re
 		UserID:        req.UserID,
 		Type:          enum.NotificationTypeEmail,
 		Status:        enum.NotificationStatusPending,
+		Severity:      enum.NotificationSeverityInfo,
 		RecipientInfo: model.JSONBRecipientInfo{Email: req.To},
 		ContentData:   model.JSONBContentData{Subject: req.Subject},
 	}
@@ -384,7 +385,7 @@ func (s *NotificationService) CreateAndPublishEmail(ctx context.Context, req *re
 }
 
 // CreateAndPublishPush creates a push notification record and publishes it
-func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *requests.PublishPushRequest) (uuid.UUID, error) {
+func (s *notificationService) CreateAndPublishPush(ctx context.Context, req *requests.PublishPushRequest) (uuid.UUID, error) {
 	zap.L().Info("Creating and publishing push notification",
 		zap.String("user_id", req.UserID.String()),
 		zap.String("title", req.Title))
@@ -397,10 +398,11 @@ func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *req
 	// Create notification record and consumer message
 	notificationID := uuid.New()
 	notification := &model.Notification{
-		ID:     notificationID,
-		UserID: req.UserID,
-		Type:   enum.NotificationTypePush,
-		Status: enum.NotificationStatusPending,
+		ID:       notificationID,
+		UserID:   req.UserID,
+		Type:     enum.NotificationTypePush,
+		Severity: enum.NotificationSeverityInfo,
+		Status:   enum.NotificationStatusPending,
 		RecipientInfo: model.JSONBRecipientInfo{
 			Tokens: []string{}, // Will be populated when sending
 		},
@@ -469,7 +471,7 @@ func (s *NotificationService) CreateAndPublishPush(ctx context.Context, req *req
 }
 
 // CreateAndPublishInApp creates an in-app notification record and publishes it
-func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *requests.PublishInAppRequest) (uuid.UUID, error) {
+func (s *notificationService) CreateAndPublishInApp(ctx context.Context, req *requests.PublishInAppRequest) (uuid.UUID, error) {
 	zap.L().Info("Creating and publishing in-app notification",
 		zap.String("user_id", req.UserID.String()),
 		zap.String("title", req.Title))
@@ -485,6 +487,7 @@ func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *re
 		ID:            notificationID,
 		UserID:        req.UserID,
 		Type:          enum.NotificationTypeInApp,
+		Severity:      req.Severity,
 		Status:        enum.NotificationStatusSent, // In-app notifications are immediately "sent"
 		IsRead:        false,
 		RecipientInfo: model.JSONBRecipientInfo{
@@ -512,7 +515,7 @@ func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *re
 			UserID:         req.UserID,
 			Title:          req.Title,
 			Message:        req.Body,
-			Type:           "info", // Default type
+			Severity:       req.Severity,
 			Data:           req.Data,
 			CreatedAt:      time.Now().Format(time.RFC3339),
 			ScheduleID:     req.ScheduleID,
@@ -538,20 +541,31 @@ func (s *NotificationService) CreateAndPublishInApp(ctx context.Context, req *re
 }
 
 // BroadcastToUser sends a unified notification to a specific user across specified channels
-func (s *NotificationService) BroadcastToUser(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string, channels []string) error {
-	zap.L().Info("Broadcasting notification to user",
-		zap.String("user_id", userID.String()),
-		zap.Strings("channels", channels))
+func (s *notificationService) BroadcastToUser(ctx context.Context, req *requests.BroadcastToUserRequest) error {
+	zap.L().Info("Broadcasting notification to user", zap.Any("request", req))
 
-	req := &requests.PublishNotificationRequest{
-		UserID:        userID,
-		Channels:      channels,
-		Title:         title,
-		Body:          body,
-		Data:          data,
-		EmailHTMLBody: &body, // Ensure body is passed to email channel
+	publishReq := &requests.PublishNotificationRequest{
+		UserID:   req.UserID,
+		Title:    req.Title,
+		Body:     req.Body,
+		Data:     req.Data,
+		Types:    req.Types,
+		Severity: req.Severity,
 	}
 
+	user, err := s.validateUserExists(ctx, publishReq.UserID, nil)
+	if err != nil {
+		return err
+	}
+	_, err = s.createAndPublishNotification(ctx, publishReq, user)
+	if err != nil {
+		return fmt.Errorf("failed to broadcast notification: %w", err)
+	}
+
+	return nil
+}
+
+func (s *notificationService) BroadcastToUserWithRequest(ctx context.Context, req *requests.PublishNotificationRequest) error {
 	user, err := s.validateUserExists(ctx, req.UserID, nil)
 	if err != nil {
 		return err
@@ -564,20 +578,7 @@ func (s *NotificationService) BroadcastToUser(ctx context.Context, userID uuid.U
 	return nil
 }
 
-func (s *NotificationService) BroadcastToUserWithRequest(ctx context.Context, req *requests.PublishNotificationRequest) error {
-	user, err := s.validateUserExists(ctx, req.UserID, nil)
-	if err != nil {
-		return err
-	}
-	_, err = s.createAndPublishNotification(ctx, req, user)
-	if err != nil {
-		return fmt.Errorf("failed to broadcast notification: %w", err)
-	}
-
-	return nil
-}
-
-func (s *NotificationService) BroadcastToRoleWithRequest(ctx context.Context, userRoles []enum.UserRole, req *requests.PublishNotificationRequest) error {
+func (s *notificationService) BroadcastToRoleWithRequest(ctx context.Context, userRoles []enum.UserRole, req *requests.PublishNotificationRequest) error {
 	zap.L().Info("Broadcasting notification to all user with role",
 		zap.Strings("role", utils.MapSlice(userRoles, func(r enum.UserRole) string { return r.String() })))
 
@@ -593,10 +594,17 @@ func (s *NotificationService) BroadcastToRoleWithRequest(ctx context.Context, us
 	}
 
 	for _, userID := range userIDs {
-		// Default to All channels when broadcasting to all users
-		channels := []string{"EMAIL", "PUSH", "IN_APP"}
+		// Default to All notificationTypes when broadcasting to all users
+		notificationTypes := []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypePush, enum.NotificationTypeInApp}
 
-		if err := s.BroadcastToUser(ctx, userID, req.Title, req.Body, req.Data, channels); err != nil {
+		if err := s.BroadcastToUser(ctx, &requests.BroadcastToUserRequest{
+			UserID:   userID,
+			Title:    req.Title,
+			Body:     req.Body,
+			Data:     req.Data,
+			Types:    notificationTypes,
+			Severity: utils.PtrOrNil(enum.NotificationSeverityInfo),
+		}); err != nil {
 			zap.L().Error("Failed to broadcast to user",
 				zap.String("user_id", userID.String()),
 				zap.Error(err))
@@ -606,25 +614,31 @@ func (s *NotificationService) BroadcastToRoleWithRequest(ctx context.Context, us
 }
 
 // BroadcastToAll sends a unified notification to all users (optionally filtered by role)
-func (s *NotificationService) BroadcastToAll(ctx context.Context, title, body string, data map[string]string, role *string) error {
-	zap.L().Info("Broadcasting notification to all users",
-		zap.Stringp("role", role))
+func (s *notificationService) BroadcastToAll(ctx context.Context, broadcastReq *requests.BroadcastToAllRequest) error {
+	zap.L().Info("Broadcasting notification to all users", zap.Any("request", broadcastReq))
 
 	userIDs, err := s.userRepo.GetUserIDsByFilter(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.
 			Where("is_active = ?", true).
 			Where("is_deleted = ?", false).
-			Where("role = ?", role)
+			Where("role = ?", broadcastReq.Role)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to fetch user IDs for broadcast: %w", err)
 	}
 	// Process batch
 	for _, userID := range userIDs {
-		// Default to All channels when broadcasting to all users
-		channels := []string{"EMAIL", "PUSH", "IN_APP"}
+		// Default to All notificationTypes when broadcasting to all users
+		notificationTypes := []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypePush, enum.NotificationTypeInApp}
 
-		if err := s.BroadcastToUser(ctx, userID, title, body, data, channels); err != nil {
+		if err := s.BroadcastToUser(ctx, &requests.BroadcastToUserRequest{
+			UserID:   userID,
+			Title:    broadcastReq.Title,
+			Body:     broadcastReq.Body,
+			Data:     broadcastReq.Data,
+			Types:    notificationTypes,
+			Severity: utils.PtrOrNil(enum.NotificationSeverityInfo),
+		}); err != nil {
 			zap.L().Error("Failed to broadcast to user",
 				zap.String("user_id", userID.String()),
 				zap.Error(err))
@@ -635,7 +649,7 @@ func (s *NotificationService) BroadcastToAll(ctx context.Context, title, body st
 }
 
 // RepublishFailedNotifications republishes failed notifications based on filter criteria
-func (s *NotificationService) RepublishFailedNotifications(ctx context.Context, req *requests.RepublishFailedNotificationRequest) (int, error) {
+func (s *notificationService) RepublishFailedNotifications(ctx context.Context, req *requests.RepublishFailedNotificationRequest) (int, error) {
 	zap.L().Info("Republishing failed notifications",
 		zap.Int("notification_ids_count", len(req.NotificationIDs)))
 
@@ -778,7 +792,7 @@ func (s *NotificationService) RepublishFailedNotifications(ctx context.Context, 
 }
 
 // MarkAsRead marks a notification as read
-func (s *NotificationService) MarkAsRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+func (s *notificationService) MarkAsRead(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	// Verify notification belongs to user
 	notification, err := s.notificationRepo.GetByID(ctx, id, nil)
 	if err != nil {
@@ -799,7 +813,7 @@ func (s *NotificationService) MarkAsRead(ctx context.Context, id uuid.UUID, user
 }
 
 // MarkAllAsRead marks all notifications as read for a user
-func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
+func (s *notificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUID) error {
 	if err := s.notificationRepo.MarkAllAsRead(ctx, userID); err != nil {
 		return err
 	}
@@ -813,11 +827,11 @@ func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID uuid.UUI
 // region: ============ Real-Time Notifications (Server-Sent Events) =============
 
 // SubscribeSSE subscribes a user to real-time notification updates
-func (s *NotificationService) SubscribeSSE(userID uuid.UUID) (<-chan iservice.SSEMessage, func()) {
+func (s *notificationService) SubscribeSSE(userID uuid.UUID) (<-chan iservice.SSEMessage, func()) {
 	return s.realTimeNotifier.Subscribe(userID)
 }
 
-func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error) {
+func (s *notificationService) GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error) {
 	zap.L().Info("NotificationService - GetUnreadCount called",
 		zap.String("user_id", userID.String()))
 
@@ -832,7 +846,7 @@ func (s *NotificationService) GetUnreadCount(ctx context.Context, userID uuid.UU
 
 // region: ============ Helper Methods =============
 
-func (s *NotificationService) validateUserExists(ctx context.Context, userID uuid.UUID, email *string) (*model.User, error) {
+func (s *notificationService) validateUserExists(ctx context.Context, userID uuid.UUID, email *string) (*model.User, error) {
 	user, err := s.userRepo.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 		if userID != uuid.Nil {
 			return db.Where("id = ?", userID)
@@ -851,7 +865,7 @@ func (s *NotificationService) validateUserExists(ctx context.Context, userID uui
 	return user, nil
 }
 
-func (s *NotificationService) sendEmailNotification(ctx context.Context, emailMessage *consumers.EmailNotificationMessage) error {
+func (s *notificationService) sendEmailNotification(ctx context.Context, emailMessage *consumers.EmailNotificationMessage) error {
 	emailProducer, err := s.rabbitmq.GetProducer(emailProducerName)
 	if err != nil {
 		zap.L().Error("Failed to get email producer",
@@ -869,7 +883,7 @@ func (s *NotificationService) sendEmailNotification(ctx context.Context, emailMe
 	return nil
 }
 
-func (s *NotificationService) sendPushNotification(ctx context.Context, pushMessage *consumers.PushNotificationMessage) error {
+func (s *notificationService) sendPushNotification(ctx context.Context, pushMessage *consumers.PushNotificationMessage) error {
 	pushProducer, err := s.rabbitmq.GetProducer(pushProducerName)
 	if err != nil {
 		zap.L().Error("Failed to get push producer",
@@ -888,7 +902,7 @@ func (s *NotificationService) sendPushNotification(ctx context.Context, pushMess
 	return nil
 }
 
-func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.UUID) {
+func (s *notificationService) pushUnreadCount(ctx context.Context, userID uuid.UUID) {
 	count, err := s.notificationRepo.CountUnread(ctx, userID, []enum.NotificationType{
 		enum.NotificationTypeEmail,
 		enum.NotificationTypePush,
@@ -904,18 +918,17 @@ func (s *NotificationService) pushUnreadCount(ctx context.Context, userID uuid.U
 	}
 }
 
-func (s *NotificationService) createAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest, user *model.User) (map[enum.NotificationType]uuid.UUID, error) {
+func (s *notificationService) createAndPublishNotification(ctx context.Context, req *requests.PublishNotificationRequest, user *model.User) (map[enum.NotificationType]uuid.UUID, error) {
 	var err error
 	// If All channel is included, use all channels
-	if utils.ContainsSlice(req.Channels, enum.NotificationTypeAll.String()) {
-		req.Channels = []string{enum.NotificationTypeEmail.String(), enum.NotificationTypePush.String(), enum.NotificationTypeInApp.String()}
+	if utils.ContainsSlice(req.Types, enum.NotificationTypeAll) {
+		req.Types = []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypePush, enum.NotificationTypeInApp}
 	}
 	// Process each channel
-	notificationsIDsByChannel := make(map[enum.NotificationType]uuid.UUID, len(req.Channels))
-	for _, channel := range req.Channels {
-		notificationType := enum.NotificationType(channel)
+	notificationsIDsByChannel := make(map[enum.NotificationType]uuid.UUID, len(req.Types))
+	for _, notificationType := range req.Types {
 		if !notificationType.IsValid() {
-			zap.L().Warn("Invalid notification channel", zap.String("channel", channel))
+			zap.L().Warn("Invalid notification channel", zap.String("notification_type", notificationType.String()))
 			continue
 		}
 
@@ -957,7 +970,7 @@ func (s *NotificationService) createAndPublishNotification(ctx context.Context, 
 
 		default:
 			zap.L().Warn("Unsupported notification channel, skipping requests",
-				zap.String("channel", channel),
+				zap.String("notification_type", notificationType.String()),
 				zap.Any("request", req))
 			continue
 		}

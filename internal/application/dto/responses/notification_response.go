@@ -13,6 +13,7 @@ type NotificationResponse struct {
 	ID               uuid.UUID                 `json:"id"`
 	UserID           uuid.UUID                 `json:"user_id"`
 	Type             enum.NotificationType     `json:"type"`
+	Severity         enum.NotificationSeverity `json:"severity"`
 	Status           enum.NotificationStatus   `json:"status"`
 	IsRead           bool                      `json:"is_read"`
 	DeliveryAttempts []model.DeliveryAttempt   `json:"delivery_attempts"`
@@ -37,6 +38,7 @@ func ToNotificationResponse(notification *model.Notification) NotificationRespon
 		UserID:           notification.UserID,
 		Type:             notification.Type,
 		Status:           notification.Status,
+		Severity:         notification.Severity,
 		IsRead:           notification.IsRead,
 		DeliveryAttempts: notification.DeliveryAttempts,
 		RecipientInfo:    notification.RecipientInfo,

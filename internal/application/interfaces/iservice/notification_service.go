@@ -51,7 +51,7 @@ type NotificationService interface {
 	SubscribeSSE(userID uuid.UUID) (<-chan SSEMessage, func())
 
 	// BroadcastToUser sends a unified notification to a specific user across specified channels
-	BroadcastToUser(ctx context.Context, userID uuid.UUID, title, body string, data map[string]string, channels []string) error
+	BroadcastToUser(ctx context.Context, req *requests.BroadcastToUserRequest) error
 
 	// BroadcastToUserWithRequest sends a unified notification to a specific user based on a request object
 	BroadcastToUserWithRequest(ctx context.Context, req *requests.PublishNotificationRequest) error
@@ -60,7 +60,7 @@ type NotificationService interface {
 	BroadcastToRoleWithRequest(ctx context.Context, userRoles []enum.UserRole, req *requests.PublishNotificationRequest) error
 
 	// BroadcastToAll sends a unified notification to all users (optionally filtered by role)
-	BroadcastToAll(ctx context.Context, title, body string, data map[string]string, role *string) error
+	BroadcastToAll(ctx context.Context, broadcastReq *requests.BroadcastToAllRequest) error
 
 	// GetUnreadCount retrieves the count of unread notifications for a user
 	GetUnreadCount(ctx context.Context, userID uuid.UUID) (int64, error)

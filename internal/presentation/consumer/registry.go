@@ -46,7 +46,7 @@ func NewConsumerRegistry(
 		ContentPublishConsumer:        NewContentPublishConsumer(appRegistry),
 		ContentPublishAllConsumer:     NewContentPublishAllConsumer(appRegistry),
 		CampaignCreateConsumer:        NewCampaignCreateConsumer(appRegistry),
-		ContentScheduleConsumer:       NewContentScheduleConsumer(appRegistry.ContentScheduleService, appRegistry.AlertManagerService),
+		ContentScheduleConsumer:       NewContentScheduleConsumer(appRegistry.ContentScheduleService, appRegistry.ScheduleService, appRegistry.AlertManagerService),
 		ContentViewConsumer: NewContentViewConsumer(
 			dbRegistry.KPIMetricsRepository,
 			dbRegistry.ContentChannelRepository,

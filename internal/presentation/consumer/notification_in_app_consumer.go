@@ -68,13 +68,20 @@ func (c *NotificationInAppConsumer) Handle(ctx context.Context, body []byte) err
 		zap.String("user_id", msg.UserID.String()),
 		zap.String("title", msg.Title))
 
+	severity := msg.Severity.String()
+	if severity == "" {
+		severity = enum.NotificationSeverityInfo.String()
+	}
+
 	// Send real-time event via SSE
 	// We send the full message data so the frontend can display a toast/popup
 	eventData := map[string]any{
 		"id":         msg.NotificationID,
+		"user_id":    msg.UserID,
 		"title":      msg.Title,
-		"message":    msg.Message,
-		"type":       msg.Type,
+		"body":       msg.Message,
+		"severity":   severity,
+		"type":       enum.NotificationTypeInApp,
 		"data":       msg.Data,
 		"created_at": msg.CreatedAt,
 	}
