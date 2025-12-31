@@ -19303,90 +19303,6 @@ const docTemplate = `{
             }
         },
         "/api/v1/schedules/contents": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns list of content schedules with filtering",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "List content schedules",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Filter by reference ID (e.g. content channel ID)",
-                        "name": "reference_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter schedules from this date (RFC3339)",
-                        "name": "from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter schedules until this date (RFC3339)",
-                        "name": "to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Items per page",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ScheduleListResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -19427,7 +19343,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                            "$ref": "#/definitions/responses.ScheduleDetailResponse"
                                         }
                                     }
                                 }
@@ -19503,7 +19419,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.BatchScheduleResponse"
+                                            "$ref": "#/definitions/responses.BatchContentScheduleResponse"
                                         }
                                     }
                                 }
@@ -19524,174 +19440,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/upcoming": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns content scheduled for the next N days",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Get upcoming scheduled content",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 7,
-                        "description": "Number of days to look ahead",
-                        "name": "days",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.ScheduledContentItem"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns details of a specific schedule",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Get schedule details",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Schedule ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ScheduleItemResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/{id}/cancel": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Cancels a pending schedule",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Cancel a scheduled content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Schedule ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -19747,7 +19495,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                            "$ref": "#/definitions/responses.ScheduleDetailResponse"
                                         }
                                     }
                                 }
@@ -23087,27 +22835,7 @@ const docTemplate = `{
                 "content_type": {
                     "$ref": "#/definitions/enum.ContentType"
                 },
-                "platform": {
-                    "type": "string"
-                },
                 "thumbnail_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.ContractScheduleDetails": {
-            "type": "object",
-            "properties": {
-                "brand_id": {
-                    "type": "string"
-                },
-                "brand_name": {
-                    "type": "string"
-                },
-                "contract_id": {
-                    "type": "string"
-                },
-                "contract_number": {
                     "type": "string"
                 }
             }
@@ -23441,6 +23169,32 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 1,
                     "example": 1
+                }
+            }
+        },
+        "dtos.NotificationScheduleDetails": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "to_user_email": {
+                    "type": "string"
+                },
+                "to_user_fullname": {
+                    "type": "string"
+                },
+                "to_user_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.NotificationType"
                 }
             }
         },
@@ -24112,9 +23866,6 @@ const docTemplate = `{
                         }
                     ]
                 },
-                "contract_details": {
-                    "$ref": "#/definitions/dtos.ContractScheduleDetails"
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -24130,8 +23881,8 @@ const docTemplate = `{
                 "last_error": {
                     "type": "string"
                 },
-                "max_retries": {
-                    "type": "integer"
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
                 },
                 "reference_id": {
                     "type": "string"
@@ -24633,7 +24384,8 @@ const docTemplate = `{
                 "AWAIT_BRAND",
                 "REJECTED",
                 "APPROVED",
-                "POSTED"
+                "POSTED",
+                "CANCELLED"
             ],
             "x-enum-varnames": [
                 "ContentStatusDraft",
@@ -24641,7 +24393,8 @@ const docTemplate = `{
                 "ContentStatusAwaitBrand",
                 "ContentStatusRejected",
                 "ContentStatusApproved",
-                "ContentStatusPosted"
+                "ContentStatusPosted",
+                "ContentStatusCancelled"
             ]
         },
         "enum.ContentType": {
@@ -24748,6 +24501,21 @@ const docTemplate = `{
                 "GHNDeliveryStatusDelivering",
                 "GHNDeliveryStatusDelivered",
                 "GHNDeliveryStatusCancel"
+            ]
+        },
+        "enum.NotificationSeverity": {
+            "type": "string",
+            "enum": [
+                "INFO",
+                "WARN",
+                "ERROR",
+                "SUCCESS"
+            ],
+            "x-enum-varnames": [
+                "NotificationSeverityInfo",
+                "NotificationSeverityWarn",
+                "NotificationSeverityError",
+                "NotificationSeveritySuccess"
             ]
         },
         "enum.NotificationStatus": {
@@ -26111,7 +25879,11 @@ const docTemplate = `{
                 },
                 "role": {
                     "description": "Optional: Filter by role",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.UserRole"
+                        }
+                    ]
                 },
                 "title": {
                     "type": "string"
@@ -26127,14 +25899,8 @@ const docTemplate = `{
             ],
             "properties": {
                 "body": {
-                    "type": "string"
-                },
-                "channels": {
-                    "description": "Optional: \"EMAIL\", \"PUSH\", \"IN_APP\"",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "string",
+                    "example": "Notification body content"
                 },
                 "data": {
                     "type": "object",
@@ -26142,11 +25908,30 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "severity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.NotificationSeverity"
+                        }
+                    ],
+                    "example": "INFO"
+                },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Title"
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/enum.NotificationType"
+                    },
+                    "example": [
+                        "EMAIL"
+                    ]
                 },
                 "user_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 }
             }
         },
@@ -27239,13 +27024,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Promote our new AI-powered product that enhances productivity."
                 },
+                "current": {
+                    "type": "string",
+                    "example": "Discover the future of work with our AI solutions."
+                },
                 "model": {
                     "type": "string",
                     "example": "gemini-2.5-flash-lite"
                 },
                 "platform": {
                     "type": "string",
-                    "example": "LinkedIn"
+                    "example": "Facebook"
                 },
                 "stream": {
                     "type": "boolean",
@@ -27678,7 +27467,7 @@ const docTemplate = `{
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/enum.NotificationType"
                     },
                     "example": [
                         "EMAIL",
@@ -27726,6 +27515,14 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "severity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.NotificationSeverity"
+                        }
+                    ],
+                    "example": "INFO"
                 },
                 "title": {
                     "type": "string",
@@ -29857,7 +29654,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleFailureItem": {
+        "responses.BatchContentScheduleFailureItem": {
             "type": "object",
             "properties": {
                 "channel_id": {
@@ -29871,7 +29668,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleResponse": {
+        "responses.BatchContentScheduleResponse": {
             "type": "object",
             "properties": {
                 "content_id": {
@@ -29883,13 +29680,13 @@ const docTemplate = `{
                 "failed_channels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.BatchScheduleFailureItem"
+                        "$ref": "#/definitions/responses.BatchContentScheduleFailureItem"
                     }
                 },
                 "scheduled_channels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.BatchScheduleResultItem"
+                        "$ref": "#/definitions/responses.BatchContentScheduleResultItem"
                     }
                 },
                 "total_failed": {
@@ -29900,7 +29697,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleResultItem": {
+        "responses.BatchContentScheduleResultItem": {
             "type": "object",
             "properties": {
                 "auto_post": {
@@ -32883,6 +32680,9 @@ const docTemplate = `{
                 "recipient_info": {
                     "$ref": "#/definitions/model.JSONBRecipientInfo"
                 },
+                "severity": {
+                    "$ref": "#/definitions/enum.NotificationSeverity"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.NotificationStatus"
                 },
@@ -34910,31 +34710,16 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ScheduleItemResponse": {
+        "responses.ScheduleDetailResponse": {
             "type": "object",
             "properties": {
-                "channel_code": {
-                    "description": "\"WEBSITE\", \"FACEBOOK\", \"TIKTOK\"",
-                    "type": "string"
-                },
-                "channel_id": {
-                    "type": "string"
-                },
-                "channel_name": {
-                    "type": "string"
-                },
-                "content_channel_id": {
-                    "type": "string"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "content_title": {
-                    "type": "string"
-                },
-                "content_type": {
-                    "description": "\"POST\", \"VIDEO\"",
-                    "type": "string"
+                "content_details": {
+                    "description": "Nested details based on schedule type",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.ContentScheduleDetails"
+                        }
+                    ]
                 },
                 "created_at": {
                     "type": "string"
@@ -34942,40 +34727,103 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
-                "created_by_id": {
+                "created_by_email": {
+                    "type": "string"
+                },
+                "created_by_name": {
                     "type": "string"
                 },
                 "executed_at": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "last_error": {
                     "type": "string"
                 },
+                "metadata": {},
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
                 "retry_count": {
                     "type": "integer"
-                },
-                "schedule_id": {
-                    "type": "string"
                 },
                 "scheduled_at": {
                     "type": "string"
                 },
                 "status": {
+                    "$ref": "#/definitions/enum.ScheduleStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ScheduleType"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "responses.ScheduleListResponse": {
+        "responses.ScheduleInfoResponse": {
             "type": "object",
             "properties": {
-                "schedules": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ScheduleItemResponse"
-                    }
+                "content_details": {
+                    "description": "Nested details based on schedule type",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.ContentScheduleDetails"
+                        }
+                    ]
                 },
-                "total": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_by_email": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "executed_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
+                "retry_count": {
                     "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ScheduleStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ScheduleType"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -34985,7 +34833,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.ScheduleItemResponse"
+                        "$ref": "#/definitions/responses.ScheduleInfoResponse"
                     }
                 },
                 "message": {
@@ -35002,38 +34850,6 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
-                }
-            }
-        },
-        "responses.ScheduleResponse": {
-            "type": "object",
-            "properties": {
-                "channel_name": {
-                    "type": "string"
-                },
-                "content_channel_id": {
-                    "type": "string"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "content_title": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "schedule_id": {
-                    "type": "string"
-                },
-                "scheduled_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
                 }
             }
         },
