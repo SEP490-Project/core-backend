@@ -589,20 +589,24 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 
 	current := time.Now()
 	// Perform DB update in a separate goroutine with retry to avoid blocking
-	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, func(ctx context.Context) error {
-		return helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-			return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Where("id = ?", payment.ID)
-			}, map[string]any{
-				"amount":                newTotalAmount,
-				"performance_amount":    performanceAmount,
-				"calculated_at":         &current,
-				"calculation_breakdown": breakdownJSON,
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			return helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+				return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+					return db.Where("id = ?", payment.ID)
+				}, map[string]any{
+					"amount":                newTotalAmount,
+					"performance_amount":    performanceAmount,
+					"calculated_at":         &current,
+					"calculation_breakdown": breakdownJSON,
+				})
 			})
-		})
-	}); err != nil {
-		return fmt.Errorf("failed to update payment after retries: %w", err)
-	}
+		}); err != nil {
+			zap.L().Error("Failed to update payment after retries",
+				zap.Error(err),
+				zap.String("payment_id", payment.ID.String()))
+		}
+	}()
 
 	// Update in-memory object as well
 	payment.Amount = newTotalAmount

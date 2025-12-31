@@ -524,7 +524,7 @@ func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context) 
 	result := make([]responses.ScheduledContentItem, 0, len(schedules))
 	for _, sch := range schedules {
 		// Get schedule details using content-specific method
-		detail, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, sch.ID)
+		detail, err := s.scheduleRepo.GetScheduleByIDWithDetails(ctx, sch.ID)
 		if err != nil || detail == nil {
 			continue
 		}

@@ -15,11 +15,21 @@ func (s *PostedState) Name() enum.ContentStatus {
 
 // Next validates and transitions to the next state
 func (s *PostedState) Next(ctx *ContentContext, nextState ContentState) error {
-	// Terminal state - no transitions allowed
-	return errors.New("invalid transition: POSTED is a terminal state, no further transitions allowed")
+	nextName := nextState.Name()
+
+	// Valid transitions: POSTED → CANCELLED only
+	// Note: When cancelling POSTED content, social media unpublish should be triggered
+	if nextName != enum.ContentStatusCancelled {
+		return errors.New("invalid transition: POSTED can only transition to CANCELLED")
+	}
+
+	ctx.SetState(nextState)
+	return nil
 }
 
-// AllowedTransitions returns valid next states (none for terminal state)
+// AllowedTransitions returns valid next states
 func (s *PostedState) AllowedTransitions() []enum.ContentStatus {
-	return []enum.ContentStatus{}
+	return []enum.ContentStatus{
+		enum.ContentStatusCancelled,
+	}
 }

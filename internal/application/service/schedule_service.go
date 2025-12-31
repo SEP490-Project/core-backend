@@ -46,22 +46,6 @@ func (s *scheduleService) GetByID(ctx context.Context, id uuid.UUID) (*model.Sch
 
 // GetByIDWithDetails retrieves a schedule by ID with additional details based on type
 func (s *scheduleService) GetByIDWithDetails(ctx context.Context, id uuid.UUID) (*dtos.ScheduleDTO, error) {
-	// First get the schedule to determine its type
-	schedule, err := s.scheduleRepo.GetByID(ctx, id, nil)
-	if err != nil {
-		zap.L().Error("Failed to get schedule by ID", zap.Error(err), zap.String("schedule_id", id.String()))
-		return nil, err
-	}
-	if schedule == nil {
-		return nil, errors.New("schedule not found")
-	}
-
-	// Based on schedule type, fetch with appropriate JOINs
-	if schedule.Type == enum.ScheduleTypeContentPublish {
-		return s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, id)
-	}
-
-	// For other types, return basic details
 	return s.scheduleRepo.GetScheduleByIDWithDetails(ctx, id)
 }
 
@@ -76,11 +60,6 @@ func (s *scheduleService) List(ctx context.Context, filter *requests.ScheduleFil
 	}
 	if filter.Limit > 100 {
 		filter.Limit = 100
-	}
-
-	// If filtering for content schedules specifically, use content-specific method
-	if filter.ReferenceType != nil && *filter.ReferenceType == enum.ScheduleTypeContentPublish {
-		return s.scheduleRepo.GetContentSchedulesWithDetails(ctx, filter)
 	}
 
 	return s.scheduleRepo.GetSchedulesWithDetails(ctx, filter)
@@ -156,6 +135,15 @@ func (s *scheduleService) UpdateStatus(ctx context.Context, schedule *model.Sche
 	}
 
 	return nil
+}
+
+// UpdateStatusByID updates the status of a schedule by ID
+func (s *scheduleService) UpdateStatusByID(ctx context.Context, id uuid.UUID, status enum.ScheduleStatus, errorMsg *string) error {
+	schedule, err := s.scheduleRepo.GetByID(ctx, id, nil)
+	if err != nil {
+		return err
+	}
+	return s.UpdateStatus(ctx, schedule, status, errorMsg)
 }
 
 // GetUpcoming returns upcoming schedules within the next N days
@@ -242,5 +230,5 @@ func (s *scheduleService) CancelByReferenceID(ctx context.Context, referenceID u
 
 // GetPendingSchedules returns all pending schedules that should be processed
 func (s *scheduleService) GetPendingSchedules(ctx context.Context) ([]*model.Schedule, error) {
-	return s.scheduleRepo.GetPendingSchedules(ctx, time.Now())
+	return s.scheduleRepo.GetAllPendingSchedules(ctx, time.Now())
 }

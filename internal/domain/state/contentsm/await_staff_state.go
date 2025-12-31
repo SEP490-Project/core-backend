@@ -17,9 +17,9 @@ func (s *AwaitStaffState) Name() enum.ContentStatus {
 func (s *AwaitStaffState) Next(ctx *ContentContext, nextState ContentState) error {
 	nextName := nextState.Name()
 
-	// Valid transitions: AWAIT_STAFF → APPROVED or REJECTED
-	if nextName != enum.ContentStatusApproved && nextName != enum.ContentStatusRejected {
-		return errors.New("invalid transition: AWAIT_STAFF can only transition to APPROVED or REJECTED")
+	// Valid transitions: AWAIT_STAFF → APPROVED, REJECTED, or CANCELLED
+	if nextName != enum.ContentStatusApproved && nextName != enum.ContentStatusRejected && nextName != enum.ContentStatusCancelled {
+		return errors.New("invalid transition: AWAIT_STAFF can only transition to APPROVED, REJECTED, or CANCELLED")
 	}
 
 	ctx.SetState(nextState)
@@ -31,5 +31,6 @@ func (s *AwaitStaffState) AllowedTransitions() []enum.ContentStatus {
 	return []enum.ContentStatus{
 		enum.ContentStatusApproved,
 		enum.ContentStatusRejected,
+		enum.ContentStatusCancelled,
 	}
 }

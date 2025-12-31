@@ -27,6 +27,9 @@ type ScheduleService interface {
 	// UpdateStatus updates the status of a schedule using model helpers
 	UpdateStatus(ctx context.Context, schedule *model.Schedule, status enum.ScheduleStatus, errorMsg *string) error
 
+	// UpdateStatusByID updates the status of a schedule by ID
+	UpdateStatusByID(ctx context.Context, id uuid.UUID, status enum.ScheduleStatus, errorMsg *string) error
+
 	// GetUpcoming returns upcoming schedules within the next N days
 	GetUpcoming(ctx context.Context, days int, scheduleType *enum.ScheduleType, limit int) ([]dtos.ScheduleDTO, error)
 

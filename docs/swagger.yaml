@@ -276,20 +276,7 @@ definitions:
         type: string
       content_type:
         $ref: '#/definitions/enum.ContentType'
-      platform:
-        type: string
       thumbnail_url:
-        type: string
-    type: object
-  dtos.ContractScheduleDetails:
-    properties:
-      brand_id:
-        type: string
-      brand_name:
-        type: string
-      contract_id:
-        type: string
-      contract_number:
         type: string
     type: object
   dtos.Deliverable:
@@ -521,6 +508,23 @@ definitions:
     - level
     - max_clicks
     - multiplier
+    type: object
+  dtos.NotificationScheduleDetails:
+    properties:
+      id:
+        type: string
+      is_read:
+        type: boolean
+      title:
+        type: string
+      to_user_email:
+        type: string
+      to_user_fullname:
+        type: string
+      to_user_id:
+        type: string
+      type:
+        $ref: '#/definitions/enum.NotificationType'
     type: object
   dtos.OrderInfo:
     properties:
@@ -968,8 +972,6 @@ definitions:
         allOf:
         - $ref: '#/definitions/dtos.ContentScheduleDetails'
         description: Nested details based on schedule type
-      contract_details:
-        $ref: '#/definitions/dtos.ContractScheduleDetails'
       created_at:
         type: string
       created_by:
@@ -980,8 +982,8 @@ definitions:
         type: string
       last_error:
         type: string
-      max_retries:
-        type: integer
+      notification_details:
+        $ref: '#/definitions/dtos.NotificationScheduleDetails'
       reference_id:
         type: string
       reference_type:
@@ -1368,6 +1370,7 @@ definitions:
     - REJECTED
     - APPROVED
     - POSTED
+    - CANCELLED
     type: string
     x-enum-varnames:
     - ContentStatusDraft
@@ -1376,6 +1379,7 @@ definitions:
     - ContentStatusRejected
     - ContentStatusApproved
     - ContentStatusPosted
+    - ContentStatusCancelled
   enum.ContentType:
     enum:
     - POST
@@ -1462,6 +1466,18 @@ definitions:
     - GHNDeliveryStatusDelivering
     - GHNDeliveryStatusDelivered
     - GHNDeliveryStatusCancel
+  enum.NotificationSeverity:
+    enum:
+    - INFO
+    - WARN
+    - ERROR
+    - SUCCESS
+    type: string
+    x-enum-varnames:
+    - NotificationSeverityInfo
+    - NotificationSeverityWarn
+    - NotificationSeverityError
+    - NotificationSeveritySuccess
   enum.NotificationStatus:
     enum:
     - PENDING
@@ -2427,8 +2443,9 @@ definitions:
           type: string
         type: object
       role:
+        allOf:
+        - $ref: '#/definitions/enum.UserRole'
         description: 'Optional: Filter by role'
-        type: string
       title:
         type: string
     required:
@@ -2438,19 +2455,27 @@ definitions:
   requests.BroadcastToUserRequest:
     properties:
       body:
+        example: Notification body content
         type: string
-      channels:
-        description: 'Optional: "EMAIL", "PUSH", "IN_APP"'
-        items:
-          type: string
-        type: array
       data:
         additionalProperties:
           type: string
         type: object
+      severity:
+        allOf:
+        - $ref: '#/definitions/enum.NotificationSeverity'
+        example: INFO
       title:
+        example: Title
         type: string
+      types:
+        example:
+        - EMAIL
+        items:
+          $ref: '#/definitions/enum.NotificationType'
+        type: array
       user_id:
+        example: 123e4567-e89b-12d3-a456-426614174000
         type: string
     required:
     - body
@@ -3274,11 +3299,14 @@ definitions:
       context:
         example: Promote our new AI-powered product that enhances productivity.
         type: string
+      current:
+        example: Discover the future of work with our AI solutions.
+        type: string
       model:
         example: gemini-2.5-flash-lite
         type: string
       platform:
-        example: LinkedIn
+        example: Facebook
         type: string
       stream:
         example: false
@@ -3590,7 +3618,7 @@ definitions:
         - PUSH
         - IN_APP
         items:
-          type: string
+          $ref: '#/definitions/enum.NotificationType'
         minItems: 1
         type: array
       custom_receivers:
@@ -3624,6 +3652,10 @@ definitions:
           type: string
         description: In case the notification is published through scheduling
         type: object
+      severity:
+        allOf:
+        - $ref: '#/definitions/enum.NotificationSeverity'
+        example: INFO
       title:
         example: Test Notification
         maxLength: 255
@@ -5159,7 +5191,7 @@ definitions:
       reach:
         type: integer
     type: object
-  responses.BatchScheduleFailureItem:
+  responses.BatchContentScheduleFailureItem:
     properties:
       channel_id:
         type: string
@@ -5168,7 +5200,7 @@ definitions:
       error:
         type: string
     type: object
-  responses.BatchScheduleResponse:
+  responses.BatchContentScheduleResponse:
     properties:
       content_id:
         type: string
@@ -5176,18 +5208,18 @@ definitions:
         type: string
       failed_channels:
         items:
-          $ref: '#/definitions/responses.BatchScheduleFailureItem'
+          $ref: '#/definitions/responses.BatchContentScheduleFailureItem'
         type: array
       scheduled_channels:
         items:
-          $ref: '#/definitions/responses.BatchScheduleResultItem'
+          $ref: '#/definitions/responses.BatchContentScheduleResultItem'
         type: array
       total_failed:
         type: integer
       total_scheduled:
         type: integer
     type: object
-  responses.BatchScheduleResultItem:
+  responses.BatchContentScheduleResultItem:
     properties:
       auto_post:
         type: boolean
@@ -7222,6 +7254,8 @@ definitions:
         $ref: '#/definitions/model.JSONBPlatformConfig'
       recipient_info:
         $ref: '#/definitions/model.JSONBRecipientInfo'
+      severity:
+        $ref: '#/definitions/enum.NotificationSeverity'
       status:
         $ref: '#/definitions/enum.NotificationStatus'
       type:
@@ -8569,57 +8603,86 @@ definitions:
       value:
         type: number
     type: object
-  responses.ScheduleItemResponse:
+  responses.ScheduleDetailResponse:
     properties:
-      channel_code:
-        description: '"WEBSITE", "FACEBOOK", "TIKTOK"'
-        type: string
-      channel_id:
-        type: string
-      channel_name:
-        type: string
-      content_channel_id:
-        type: string
-      content_id:
-        type: string
-      content_title:
-        type: string
-      content_type:
-        description: '"POST", "VIDEO"'
-        type: string
+      content_details:
+        allOf:
+        - $ref: '#/definitions/dtos.ContentScheduleDetails'
+        description: Nested details based on schedule type
       created_at:
         type: string
       created_by:
         type: string
-      created_by_id:
+      created_by_email:
+        type: string
+      created_by_name:
         type: string
       executed_at:
         type: string
+      id:
+        type: string
       last_error:
         type: string
+      metadata: {}
+      notification_details:
+        $ref: '#/definitions/dtos.NotificationScheduleDetails'
+      reference_id:
+        type: string
+      reference_type:
+        $ref: '#/definitions/enum.ReferenceType'
       retry_count:
         type: integer
-      schedule_id:
-        type: string
       scheduled_at:
         type: string
       status:
+        $ref: '#/definitions/enum.ScheduleStatus'
+      type:
+        $ref: '#/definitions/enum.ScheduleType'
+      updated_at:
         type: string
     type: object
-  responses.ScheduleListResponse:
+  responses.ScheduleInfoResponse:
     properties:
-      schedules:
-        items:
-          $ref: '#/definitions/responses.ScheduleItemResponse'
-        type: array
-      total:
+      content_details:
+        allOf:
+        - $ref: '#/definitions/dtos.ContentScheduleDetails'
+        description: Nested details based on schedule type
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_by_email:
+        type: string
+      created_by_name:
+        type: string
+      executed_at:
+        type: string
+      id:
+        type: string
+      last_error:
+        type: string
+      notification_details:
+        $ref: '#/definitions/dtos.NotificationScheduleDetails'
+      reference_id:
+        type: string
+      reference_type:
+        $ref: '#/definitions/enum.ReferenceType'
+      retry_count:
         type: integer
+      scheduled_at:
+        type: string
+      status:
+        $ref: '#/definitions/enum.ScheduleStatus'
+      type:
+        $ref: '#/definitions/enum.ScheduleType'
+      updated_at:
+        type: string
     type: object
   responses.SchedulePaginationResponse:
     properties:
       data:
         items:
-          $ref: '#/definitions/responses.ScheduleItemResponse'
+          $ref: '#/definitions/responses.ScheduleInfoResponse'
         type: array
       message:
         type: string
@@ -8631,27 +8694,6 @@ definitions:
         type: integer
       success:
         type: boolean
-    type: object
-  responses.ScheduleResponse:
-    properties:
-      channel_name:
-        type: string
-      content_channel_id:
-        type: string
-      content_id:
-        type: string
-      content_title:
-        type: string
-      created_at:
-        type: string
-      created_by:
-        type: string
-      schedule_id:
-        type: string
-      scheduled_at:
-        type: string
-      status:
-        type: string
     type: object
   responses.ScheduledContentItem:
     properties:
@@ -21931,58 +21973,6 @@ paths:
       tags:
       - Schedules
   /api/v1/schedules/contents:
-    get:
-      consumes:
-      - application/json
-      description: Returns list of content schedules with filtering
-      parameters:
-      - description: Filter by reference ID (e.g. content channel ID)
-        in: query
-        name: reference_id
-        type: string
-      - description: Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)
-        in: query
-        name: status
-        type: string
-      - description: Filter schedules from this date (RFC3339)
-        in: query
-        name: from
-        type: string
-      - description: Filter schedules until this date (RFC3339)
-        in: query
-        name: to
-        type: string
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 20
-        description: Items per page
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleListResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List content schedules
-      tags:
-      - Content Scheduling
     post:
       consumes:
       - application/json
@@ -22004,7 +21994,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ScheduleResponse'
+                  $ref: '#/definitions/responses.ScheduleDetailResponse'
               type: object
         "400":
           description: Bad Request
@@ -22021,73 +22011,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Schedule content for future publishing
-      tags:
-      - Content Scheduling
-  /api/v1/schedules/contents/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Returns details of a specific schedule
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ScheduleItemResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get schedule details
-      tags:
-      - Content Scheduling
-  /api/v1/schedules/contents/{id}/cancel:
-    post:
-      consumes:
-      - application/json
-      description: Cancels a pending schedule
-      parameters:
-      - description: Schedule ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Cancel a scheduled content
       tags:
       - Content Scheduling
   /api/v1/schedules/contents/{id}/reschedule:
@@ -22117,7 +22040,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.ScheduleResponse'
+                  $ref: '#/definitions/responses.ScheduleDetailResponse'
               type: object
         "400":
           description: Bad Request
@@ -22160,7 +22083,7 @@ paths:
             - $ref: '#/definitions/responses.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/responses.BatchScheduleResponse'
+                  $ref: '#/definitions/responses.BatchContentScheduleResponse'
               type: object
         "400":
           description: Bad Request
@@ -22177,40 +22100,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Batch schedule content to multiple channels
-      tags:
-      - Content Scheduling
-  /api/v1/schedules/contents/upcoming:
-    get:
-      consumes:
-      - application/json
-      description: Returns content scheduled for the next N days
-      parameters:
-      - default: 7
-        description: Number of days to look ahead
-        in: query
-        name: days
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ScheduledContentItem'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get upcoming scheduled content
       tags:
       - Content Scheduling
   /api/v1/schedules/upcoming:

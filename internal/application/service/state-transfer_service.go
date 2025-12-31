@@ -47,7 +47,9 @@ type stateTransferService struct {
 	variantRepository         irepository.GenericRepository[model.ProductVariant]
 	affiliateLinkRepository   irepository.AffiliateLinkRepository
 	userRepository            irepository.GenericRepository[model.User]
+	contentRepository         irepository.ContentRepository
 	notificationService       iservice.NotificationService
+	scheduleService           iservice.ScheduleService
 	uow                       irepository.UnitOfWork
 	rabbitMQ                  *rabbitmq.RabbitMQ
 	ghnProxy                  iproxies.GHNProxy
@@ -567,6 +569,27 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			return errors.New("cascade product inactivate failed: " + err.Error())
 		}
 
+		// Cancel contents associated with tasks in this campaign
+		// Use custom repository method to get content IDs (bypasses 100-record limit)
+		contentIDs, err := t.contentRepository.GetContentIDsByCampaignID(ctx, camp.ID, enum.ContentStatusCancelled)
+		if err != nil {
+			zap.L().Error("Failed to fetch content IDs for cancellation", zap.String("contract_id", contractID.String()), zap.Error(err))
+			// Don't fail the entire transaction - log warning and continue
+			zap.L().Warn("Continuing contract termination despite content fetch failure")
+		} else {
+			for _, contentID := range contentIDs {
+				if err := t.MoveContentToState(ctx, trx, contentID, enum.ContentStatusCancelled, updatedBy); err != nil {
+					zap.L().Warn("Failed to cancel content",
+						zap.String("content_id", contentID.String()),
+						zap.Error(err))
+					// Continue with other contents, don't fail entire operation
+				}
+			}
+			zap.L().Info("Cancelled contents due to contract termination",
+				zap.String("contract_id", contractID.String()),
+				zap.Int("content_count", len(contentIDs)))
+		}
+
 		// Batch expire affiliate links associated with this contract
 		if err := trx.AffiliateLinks().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("contract_id = ? AND status = ?", contractID, enum.AffiliateLinkStatusActive)
@@ -748,7 +771,72 @@ func (t *stateTransferService) handleContentSideEffects(
 		}
 	}
 
+	// 3. Handle CANCELLED state side effects
+	if targetState == enum.ContentStatusCancelled {
+		// 3a. Cancel any pending schedules for this content's channels
+		for _, cc := range content.ContentChannels {
+			if cc == nil {
+				continue
+			}
+			if err := t.scheduleService.CancelByReferenceID(ctx, cc.ID, updatedBy); err != nil {
+				zap.L().Warn("Failed to cancel schedule for content channel",
+					zap.String("content_channel_id", cc.ID.String()),
+					zap.Error(err))
+				// Continue with other channels, don't fail entire operation
+			}
+		}
+
+		// 3b. Trigger social media unpublish for POSTED content (placeholder)
+		if currentState.Name() == enum.ContentStatusPosted {
+			if err := t.triggerSocialMediaUnpublish(ctx, uow, content); err != nil {
+				zap.L().Warn("Failed to trigger social media unpublish",
+					zap.String("content_id", content.ID.String()),
+					zap.Error(err))
+				// Continue - don't fail the cancellation
+			}
+		}
+	}
+
 	return nil
+}
+
+// triggerSocialMediaUnpublish handles unpublishing content from social media platforms.
+// This is a placeholder for future implementation.
+//
+// TODO: Implement actual unpublish logic for each platform:
+// - Facebook: Use Graph API to delete/unpublish post
+// - TikTok: Use Content Posting API to delete video
+// - Instagram: Use Graph API to delete post
+//
+// Implementation considerations:
+// - Each platform has different unpublish endpoints
+// - Some platforms may not support programmatic unpublish
+// - May need to queue async unpublish jobs via RabbitMQ
+// - Should update content_channel.external_post_id and related fields
+func (t *stateTransferService) triggerSocialMediaUnpublish(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	content *model.Content,
+) error {
+	// Placeholder: Log the unpublish request for now
+	zap.L().Info("Social media unpublish triggered (not implemented)",
+		zap.String("content_id", content.ID.String()),
+		zap.String("content_type", string(content.Type)),
+		zap.Int("channel_count", len(content.ContentChannels)))
+
+	// Future implementation:
+	// for _, cc := range content.ContentChannels {
+	//     if cc.ExternalPostID != nil && *cc.ExternalPostID != "" {
+	//         switch strings.ToLower(cc.Channel.Code) {
+	//         case "facebook":
+	//             err := t.facebookProxy.UnpublishPost(ctx, *cc.ExternalPostID)
+	//         case "tiktok":
+	//             err := t.tiktokProxy.DeleteVideo(ctx, *cc.ExternalPostID)
+	//         }
+	//     }
+	// }
+
+	return nil // No-op for now
 }
 
 // endregion
@@ -1461,7 +1549,8 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 
 func NewStateTransferService(
 	dbReg *gormrepository.DatabaseRegistry,
-	notificationService *NotificationService,
+	notificationService iservice.NotificationService,
+	scheduleService iservice.ScheduleService,
 	uow irepository.UnitOfWork,
 	rabbitmq *rabbitmq.RabbitMQ,
 	ghnProxy iproxies.GHNProxy,
@@ -1480,7 +1569,9 @@ func NewStateTransferService(
 		preOrderRepository:        dbReg.PreOrderRepository,
 		variantRepository:         dbReg.ProductVariantRepository,
 		userRepository:            dbReg.UserRepository,
+		contentRepository:         dbReg.ContentRepository,
 		notificationService:       notificationService,
+		scheduleService:           scheduleService,
 		uow:                       uow,
 		rabbitMQ:                  rabbitmq,
 		ghnProxy:                  ghnProxy,
