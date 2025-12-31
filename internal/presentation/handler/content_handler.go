@@ -565,6 +565,23 @@ func (h *ContentHandler) PublishToAllChannels(c *gin.Context) {
 		return
 	}
 
+	// If content has existing schedules for this channel, reschedule them to now to prioritize immediate publishing
+	schedules, err := h.contentScheduleService.GetScheduleByContentID(c.Request.Context(), contentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get schedules", http.StatusInternalServerError))
+		return
+	}
+	if len(schedules) > 0 {
+		for _, schedule := range schedules {
+			h.contentScheduleService.RescheduleContent(c.Request.Context(), schedule.ScheduleID, &requests.RescheduleContentRequest{
+				ScheduledAt: utils.FormatLocalTime(utils.PtrOrNil(time.Now()), time.RFC3339),
+				UserID:      userID,
+			})
+		}
+		c.JSON(http.StatusAccepted, responses.SuccessResponse("Content has existing schedules for this channel. Rescheduled to publish immediately.", nil, nil))
+		return
+	}
+
 	// Get RabbitMQ producer
 	producer, err := h.rabbitmq.GetProducer("content-publish-all-producer")
 	if err != nil {
@@ -807,7 +824,8 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 		return
 	}
 
-	content, err := h.contentService.GetByID(c.Request.Context(), id)
+	// Use GetByIDPublic which filters status=POSTED at DB level
+	content, err := h.contentService.GetByIDPublic(c.Request.Context(), id)
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		message := "Failed to retrieve content"
@@ -818,12 +836,6 @@ func (h *ContentHandler) GetByIDPublic(c *gin.Context) {
 		}
 
 		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
-		return
-	}
-
-	// Check status
-	if content.Status != "POSTED" {
-		c.JSON(http.StatusNotFound, responses.ErrorResponse("Content not found", http.StatusNotFound))
 		return
 	}
 
@@ -926,6 +938,25 @@ func (h *ContentHandler) PublishToChannel(c *gin.Context) {
 	userID, err := extractUserID(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("User not authenticated", http.StatusUnauthorized))
+		return
+	}
+
+	// If content has existing schedules for this channel, reschedule them to now to prioritize immediate publishing
+	schedules, err := h.contentScheduleService.GetScheduleByContentID(c.Request.Context(), contentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to get schedules", http.StatusInternalServerError))
+		return
+	}
+	if len(schedules) > 0 {
+		for _, schedule := range schedules {
+			if schedule.ContentDetails.ChannelID == channelID {
+				h.contentScheduleService.RescheduleContent(c.Request.Context(), schedule.ScheduleID, &requests.RescheduleContentRequest{
+					ScheduledAt: utils.FormatLocalTime(utils.PtrOrNil(time.Now()), time.RFC3339),
+					UserID:      userID,
+				})
+			}
+		}
+		c.JSON(http.StatusAccepted, responses.SuccessResponse("Content has existing schedules for this channel. Rescheduled to publish immediately.", nil, nil))
 		return
 	}
 

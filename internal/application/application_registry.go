@@ -81,7 +81,9 @@ func NewApplicationRegistry(
 		sseService,
 	)
 
-	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, infrastructureRegistry.AsynqClient, configs)
+	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
+
+	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, scheduleService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, infrastructureRegistry.AsynqClient, configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -152,8 +154,6 @@ func NewApplicationRegistry(
 		databaseRegistry.LoggedSessionRepository,
 		infrastructureRegistry.UnitOfWork,
 	)
-
-	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
 
 	contentPublishingService := service.NewContentPublishingService(
 		infrastructureRegistry,
