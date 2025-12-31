@@ -1133,11 +1133,7 @@ func (r *Router) SetupScheduleRoutes(group *gin.RouterGroup) {
 		contentGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
 		{
 			contentGroup.POST("", contentScheduleHandler.ScheduleContent)
-			contentGroup.GET("", contentScheduleHandler.ListSchedules)
-			contentGroup.GET("/upcoming", contentScheduleHandler.GetUpcomingSchedules)
 			contentGroup.POST("/batch", contentScheduleHandler.BatchScheduleContent)
-			contentGroup.GET("/:id", contentScheduleHandler.GetSchedule)
-			contentGroup.POST("/:id/cancel", contentScheduleHandler.CancelSchedule)
 			contentGroup.POST("/:id/reschedule", contentScheduleHandler.RescheduleContent)
 		}
 	}

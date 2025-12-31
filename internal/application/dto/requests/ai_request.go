@@ -23,9 +23,10 @@ type GenerateRequest struct {
 }
 
 type GenerateContentRequest struct {
-	Context  string `json:"context" validate:"required" example:"Promote our new AI-powered product that enhances productivity."`
-	Tone     string `json:"tone" validate:"required" example:"Professional and engaging"`
-	Platform string `json:"platform" validate:"required" example:"LinkedIn"`
-	Model    string `json:"model" validate:"required" example:"gemini-2.5-flash-lite"`
-	Stream   bool   `json:"stream" example:"false"`
+	Context  string  `json:"context" validate:"required" example:"Promote our new AI-powered product that enhances productivity."`
+	Current  *string `json:"current,omitempty"  example:"Discover the future of work with our AI solutions."`
+	Tone     string  `json:"tone" validate:"required" example:"Professional and engaging"`
+	Platform string  `json:"platform" validate:"required" example:"Facebook"`
+	Model    string  `json:"model" validate:"required" example:"gemini-2.5-flash-lite"`
+	Stream   bool    `json:"stream" example:"false"`
 }

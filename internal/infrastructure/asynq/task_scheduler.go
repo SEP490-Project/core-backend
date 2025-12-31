@@ -153,13 +153,13 @@ func (ac *AsynqClient) ScheduleTaskWithUniqueKey(ctx context.Context, taskType s
 
 // CancelTask cancels a scheduled or pending task by its ID
 func (ac *AsynqClient) CancelTask(taskID string) error {
-	err := ac.inspector.DeleteTask("default", taskID)
+	err := ac.inspector.ArchiveTask("default", taskID)
 	if err != nil {
 		// Try other queues
-		if err2 := ac.inspector.DeleteTask("critical", taskID); err2 == nil {
+		if err2 := ac.inspector.ArchiveTask("critical", taskID); err2 == nil {
 			return nil
 		}
-		if err2 := ac.inspector.DeleteTask("low", taskID); err2 == nil {
+		if err2 := ac.inspector.ArchiveTask("low", taskID); err2 == nil {
 			return nil
 		}
 		zap.L().Error("Failed to cancel task", zap.String("task_id", taskID), zap.Error(err))

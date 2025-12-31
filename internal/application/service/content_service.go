@@ -26,7 +26,7 @@ import (
 
 type ContentService struct {
 	config               *config.AppConfig
-	contentRepo          irepository.GenericRepository[model.Content]
+	contentRepo          irepository.ContentRepository
 	blogRepo             irepository.GenericRepository[model.Blog]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	taskRepo             irepository.TaskRepository
@@ -113,7 +113,11 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		Type:            enum.ContentType(req.Type),
 		Status:          enum.ContentStatusDraft,
 		AIGeneratedText: req.AIGeneratedText,
-		CreatedBy:       &req.BlogFields.AuthorID,
+	}
+	if req.BlogFields != nil && req.BlogFields.AuthorID != uuid.Nil {
+		content.CreatedBy = &req.BlogFields.AuthorID
+	} else {
+		content.CreatedBy = &req.UserID
 	}
 
 	if req.Description == nil || *req.Description == "" {
@@ -140,18 +144,20 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 		}
 	}
 
-	creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
-		return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
-	})
 	var createdTags []model.Tag
-	createdTags, err = tagRepo.CreateIfNotExists(ctx, creatingTags)
-	if err != nil {
-		zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
-		return nil, errors.New("failed to create or retrieve tags")
+	if req.BlogFields != nil {
+		creatingTags := utils.MapSlice(req.BlogFields.Tags, func(tag string) model.Tag {
+			return model.Tag{Name: tag, CreatedByID: &req.BlogFields.AuthorID}
+		})
+		createdTags, err = tagRepo.CreateIfNotExists(ctx, creatingTags)
+		if err != nil {
+			zap.L().Error("Failed to create or retrieve tags", zap.Error(err))
+			return nil, errors.New("failed to create or retrieve tags")
+		}
+		content.Tags = utils.MapSlice(createdTags, func(tag model.Tag) string {
+			return tag.Name
+		})
 	}
-	content.Tags = utils.MapSlice(createdTags, func(tag model.Tag) string {
-		return tag.Name
-	})
 
 	if err = contentRepo.Add(ctx, content); err != nil {
 		zap.L().Error("Failed to create content", zap.Error(err))
@@ -233,6 +239,27 @@ func (s *ContentService) GetByID(ctx context.Context, id uuid.UUID) (*responses.
 	return responses.ContentResponse{}.ToResponse(content, s.config.Server.BaseURL), nil
 }
 
+// GetByIDPublic retrieves publicly accessible content by ID
+// Filters at DB level to only return POSTED content (more efficient than post-fetch check)
+func (s *ContentService) GetByIDPublic(ctx context.Context, id uuid.UUID) (*responses.ContentResponse, error) {
+	content, err := s.contentRepo.GetByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		return db.Where("id = ? AND status = ?", id, enum.ContentStatusPosted)
+	}, []string{"Blog", "Blog.Author", "ContentChannels.AffiliateLink", "ContentChannels.Channel", "Blog.Tags"})
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("content not found")
+		}
+		return nil, err
+	}
+
+	if content == nil {
+		return nil, errors.New("content not found")
+	}
+
+	return responses.ContentResponse{}.ToResponse(content, s.config.Server.BaseURL), nil
+}
+
 // Update updates existing content
 func (s *ContentService) Update(ctx context.Context, id uuid.UUID, req *requests.UpdateContentRequest) (*responses.ContentResponse, error) {
 	content, err := s.contentRepo.GetByID(ctx, id, nil)
@@ -277,7 +304,18 @@ func (s *ContentService) Delete(ctx context.Context, id uuid.UUID) error {
 		return errors.New("only DRAFT or REJECTED content can be deleted")
 	}
 
-	return s.contentRepo.Delete(ctx, content)
+	// return s.contentRepo.Delete(ctx, content)
+
+	return helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err := uow.Contents().Delete(ctx, content); err != nil {
+			zap.L().Error("Failed to delete content",
+				zap.String("content_id", id.String()),
+				zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
 }
 
 // Submit submits content for review with workflow routing

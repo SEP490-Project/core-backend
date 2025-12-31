@@ -24,7 +24,7 @@ func NewAsynqHandlerRegistry(
 	return &AsynqHandlerRegistry{
 		config:                       config,
 		client:                       client,
-		ContentScheduleHandler:       NewContentScheduleHandler(appReg.ContentScheduleService, appReg.AlertManagerService),
+		ContentScheduleHandler:       NewContentScheduleHandler(appReg.ContentScheduleService, appReg.ScheduleService, appReg.AlertManagerService),
 		NotificationScheduledHandler: NewNotificationScheduledHandler(appReg.NotificationService, appReg.InfrastructureRegistry.UnitOfWork),
 		CancelPaymentHandler:         NewCancelPaymentHandler(appReg.PaymentTransactionService, appReg.InfrastructureRegistry.UnitOfWork),
 		AutoReceiveOrderHandler:      NewAutoReceiveOrderHandler(appReg.OrderService),
