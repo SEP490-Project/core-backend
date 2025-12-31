@@ -31,7 +31,7 @@ type unitOfWork struct {
 	variantAttributeValueRepository irepository.GenericRepository[model.VariantAttributeValue]
 	modifiedHistoryRepository       irepository.GenericRepository[model.ModifiedHistory]
 	channelRepository               irepository.GenericRepository[model.Channel]
-	contentRepository               irepository.GenericRepository[model.Content]
+	contentRepository               irepository.ContentRepository
 	contentChannelRepository        irepository.ContentChannelsRepository
 	scheduleRepository              irepository.ScheduleRepository
 	blogRepository                  irepository.GenericRepository[model.Blog]
@@ -98,7 +98,7 @@ func (u *unitOfWork) Begin(ctx context.Context) irepository.UnitOfWork {
 	txUow.milestoneRepository = gormrepository.NewGenericRepository[model.Milestone](tx)
 	txUow.taskRepository = gormrepository.NewTaskRepository(tx)
 	txUow.channelRepository = gormrepository.NewGenericRepository[model.Channel](tx)
-	txUow.contentRepository = gormrepository.NewGenericRepository[model.Content](tx)
+	txUow.contentRepository = gormrepository.NewContentRepository(tx)
 	txUow.contentChannelRepository = gormrepository.NewContentChannelsRepository(tx)
 	txUow.scheduleRepository = gormrepository.NewScheduleRepository(tx)
 	txUow.blogRepository = gormrepository.NewGenericRepository[model.Blog](tx)
@@ -278,7 +278,7 @@ func (u *unitOfWork) Channels() irepository.GenericRepository[model.Channel] {
 	return u.channelRepository
 }
 
-func (u *unitOfWork) Contents() irepository.GenericRepository[model.Content] {
+func (u *unitOfWork) Contents() irepository.ContentRepository {
 	return u.contentRepository
 }
 

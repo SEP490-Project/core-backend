@@ -2,6 +2,7 @@ package iservice
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 
@@ -21,4 +22,7 @@ type ContentScheduleService interface {
 
 	// ProcessSchedule is called by the consumer to execute the scheduled publish
 	ProcessSchedule(ctx context.Context, scheduleID uuid.UUID) error
+
+	// GetScheduleByContentID retrieves schedule by content ID
+	GetScheduleByContentID(ctx context.Context, contentID uuid.UUID) ([]dtos.ScheduleDTO, error)
 }

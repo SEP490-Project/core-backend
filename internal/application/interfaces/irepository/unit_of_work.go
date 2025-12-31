@@ -25,7 +25,7 @@ type UnitOfWork interface {
 	Milestones() GenericRepository[model.Milestone]
 	Tasks() TaskRepository
 	Channels() GenericRepository[model.Channel]
-	Contents() GenericRepository[model.Content]
+	Contents() ContentRepository
 	ContentChannels() ContentChannelsRepository
 	Schedules() ScheduleRepository
 	Blogs() GenericRepository[model.Blog]
