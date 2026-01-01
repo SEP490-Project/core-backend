@@ -302,9 +302,9 @@ type ProductVariantResponse struct {
 	PreOrderLimit   *int                        `json:"pre_order_limit,omitempty"`
 	PreOrderCount   *int                        `json:"pre_order_count,omitempty"`
 	Capacity        float64                     `json:"capacity,omitempty"`
-	CapacityUnit    enum.CapacityUnit           `json:"capacity_unit,omitempty"`
-	ContainerType   enum.ContainerType          `json:"container_type,omitempty"`
-	DispenserType   enum.DispenserType          `json:"dispenser_type,omitempty"`
+	CapacityUnit    string                      `json:"capacity_unit,omitempty"`
+	ContainerType   string                      `json:"container_type,omitempty"`
+	DispenserType   string                      `json:"dispenser_type,omitempty"`
 	Uses            string                      `json:"uses,omitempty"`
 	ManufactureDate string                      `json:"manufacturing_date,omitempty"`
 	ExpiryDate      string                      `json:"expiry_date,omitempty"`
@@ -327,8 +327,8 @@ type ProductAttributesResponse struct {
 	Ingredient  string  `json:"ingredient,omitempty"`
 	Description *string `json:"description,omitempty"`
 	//Value
-	Value float64            `json:"value,omitempty"`
-	Unit  enum.AttributeUnit `json:"unit,omitempty"`
+	Value float64 `json:"value,omitempty"`
+	Unit  string  `json:"unit,omitempty"`
 }
 
 // ToProductVariantResponse converts a ProductVariant model to a ProductVariantResponse DTO.
@@ -709,14 +709,14 @@ func (ProductReviewUserInfo) ToProductReviewUserInfo(m *model.User) *ProductRevi
 }
 
 type ProductReviewProductInfo struct {
-	ID            uuid.UUID          `json:"id"`
-	CapacityUnit  enum.CapacityUnit  `json:"capacity_unit"`
-	ContainerType enum.ContainerType `json:"container_type"`
-	DispenserType enum.DispenserType `json:"dispenser_type"`
-	Weight        int                `json:"weight"`
-	Height        int                `json:"height"`
-	Length        int                `json:"length"`
-	Width         int                `json:"width"`
+	ID            uuid.UUID `json:"id"`
+	CapacityUnit  string    `json:"capacity_unit"`
+	ContainerType string    `json:"container_type"`
+	DispenserType string    `json:"dispenser_type"`
+	Weight        int       `json:"weight"`
+	Height        int       `json:"height"`
+	Length        int       `json:"length"`
+	Width         int       `json:"width"`
 
 	//Product stats
 	ProductID uuid.UUID `json:"product_id"`

@@ -366,7 +366,7 @@ func (h *NotificationHandler) RepublishFailed(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/notifications/sse [get]
 func (h *NotificationHandler) SubscribeSSE(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
+	/* userIDStr := c.GetString("user_id")
 	if userIDStr == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -375,6 +375,12 @@ func (h *NotificationHandler) SubscribeSSE(c *gin.Context) {
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}*/
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Invalid user ID", http.StatusUnauthorized))
 		return
 	}
 
