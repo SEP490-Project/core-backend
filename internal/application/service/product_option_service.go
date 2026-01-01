@@ -19,7 +19,7 @@ import (
 
 const (
 	productOptionsCacheKeyPrefix = "product_options:"
-	productOptionsCacheTTL       = 5 * time.Minute
+	productOptionsCacheTTL       = 30 * 24 * time.Hour
 )
 
 type ProductOptionService struct {
