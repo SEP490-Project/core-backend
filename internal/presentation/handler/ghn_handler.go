@@ -212,7 +212,6 @@ func (h *GHNHandler) GetOrderInfoByGhnCode(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse(err.Error(), http.StatusBadRequest))
 		return
 	}
-	result.Status = "storing"
 	availableStates, err := h.ghnProxy.GetAvailableNextActions(result)
 	if err != nil {
 		zap.L().Error("failed to get available next actions for GHN order", zap.Error(err), zap.String(", ghn-code: ", ghnCode))
@@ -387,6 +386,37 @@ func (h *GHNHandler) UpdateGHNDeliveryStatus(c *gin.Context) {
 	}
 	resp := responses.SuccessResponse("Updated GHN delivery status successfully", ptr.Int(http.StatusOK), result)
 	c.JSON(http.StatusOK, resp)
+}
+
+// MockCreateGHNOrder godoc
+//
+//	@Summary		Get GHN order info by GHN order code
+//	@Description	Fetch GHN order details for a given GHN order code
+//	@Tags			ghn
+//	@Accept			json
+//	@Produce		json
+//	@Param			order-id	path		string	true	"Code of GHN order which is provided after create a standard order"
+//	@Success		200			{object}	dtos.OrderInfo
+//	@Failure		400			{object}	map[string]string
+//	@Failure		500			{object}	map[string]string
+//	@Router			/api/v1/ghn/create-parcel/{order-id} [post]
+func (h *GHNHandler) MockCreateGHNOrder(c *gin.Context) {
+	orderIDStr := c.Param("order-id")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid order ID format", http.StatusBadRequest))
+		return
+	}
+
+	ctx := context.Background()
+	result, err := h.ghnProxy.CreateOrder(ctx, orderID)
+	if err != nil {
+		zap.L().Error("failed to create GHN order", zap.Error(err))
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse(fmt.Sprintf("failed to create GHN order: %s", err.Error()), http.StatusBadRequest))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("GHN order created successfully", ptr.Int(http.StatusOK), result))
 }
 
 // NewGHNHandler creates a new GHNHandler instance

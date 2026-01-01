@@ -23,7 +23,7 @@ database:
   port: 5432
   user: "postgres"
   password: "170504"
-  dbname: "sep490_demo_ver1"
+  dbname: "sep490_db_stag"
   sslmode: "disable"
   pool:
     max_open_conns: 100
@@ -108,7 +108,7 @@ rabbitmq:
   username: "admin"
   password: "170504"
   vhost: "/"
-  management_url: "http://localhost:15672"
+  management_url: "http://154.26.132.131:15672"
   reconnectDelayMs: 5000
   connectionTimeoutMs: 10000
   heartbeat: 30
@@ -176,7 +176,7 @@ gmail_smtp:
 
 # Firebase Cloud Messaging configuration
 firebase_fcm:
-  service_account_path: "C:/Users/0100882620/Desktop/Personal/firebase_service_account.json" # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
+  service_account_path: "/home/tgkhanhdev/Desktop/Project/firebase_service_account.json" # Set via FIREBASE_SERVICE_ACCOUNT_PATH env var
   project_id: "b-showsell" # Set via FIREBASE_PROJECT_ID env var
 
 # Notification settings

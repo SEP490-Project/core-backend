@@ -340,6 +340,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			//TET
 			ghnPublicGroup.POST("/order/status", ghnHandler.UpdateGHNDeliveryStatus)
+			ghnPublicGroup.POST("/create-parcel/:order-id", ghnHandler.MockCreateGHNOrder)
 		}
 		ghnMockingGroup := v1.Group("/ghn/mocking")
 		{
