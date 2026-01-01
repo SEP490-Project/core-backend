@@ -9,7 +9,7 @@ import (
 )
 
 type StateTransferService interface {
-	MoveTaskToState(ctx context.Context, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error
+	MoveTaskToState(ctx context.Context, uow irepository.UnitOfWork, taskID uuid.UUID, targetState enum.TaskStatus, updatedBy uuid.UUID) error
 	MoveProductToState(ctx context.Context, productID uuid.UUID, targetState enum.ProductStatus, updatedBy uuid.UUID) error
 	MoveMileStoneToState(ctx context.Context, mileStoneID uuid.UUID, targetState enum.MilestoneStatus, updatedBy uuid.UUID) error
 

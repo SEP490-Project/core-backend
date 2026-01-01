@@ -2,7 +2,11 @@ package gormrepository
 
 import (
 	"context"
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/irepository"
+	"core-backend/internal/domain/constant"
+	"core-backend/internal/domain/enum"
+	"core-backend/pkg/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,11 +42,11 @@ func (r *contractPaymentCalculationRepository) GetTotalClicksForContract(
 		SELECT COUNT(ce.id)
 		FROM affiliate_links al
 		JOIN click_events ce ON ce.affiliate_link_id = al.id
-		WHERE al.contract_id = ?
+		WHERE (al.contract_id = ? OR al.metadata ->> 'contract_id' = ?)
 			AND al.deleted_at IS NULL
 			AND ce.clicked_at >= ?
 			AND ce.clicked_at < ?
-	`, contractID, periodStart, periodEnd).Scan(&totalClicks).Error
+	`, contractID, contractID, periodStart, periodEnd).Scan(&totalClicks).Error
 
 	if err != nil {
 		return 0, err
@@ -66,12 +70,15 @@ func (r *contractPaymentCalculationRepository) GetLimitedProductRevenue(
 	ctx context.Context,
 	contractID uuid.UUID,
 	periodStart, periodEnd time.Time,
-) (*irepository.LimitedProductRevenueResult, error) {
-	result := &irepository.LimitedProductRevenueResult{}
+) (*dtos.LimitedProductRevenueResult, error) {
+	var preOrderRevenue, limitedOrderRevenue float64
+
+	tasks := make([]func(context.Context) error, 0)
 
 	// Get PreOrder revenue for limited products under this contract
 	// Path: contracts -> campaigns -> milestones -> tasks -> products -> product_variants -> pre_orders
-	err := r.db.WithContext(ctx).Raw(`
+	tasks = append(tasks, func(ctx context.Context) error {
+		query := `
 		SELECT COALESCE(SUM(po.total_amount), 0) as preorder_revenue
 		FROM pre_orders po
 		JOIN product_variants pv ON pv.id = po.variant_id
@@ -80,8 +87,8 @@ func (r *contractPaymentCalculationRepository) GetLimitedProductRevenue(
 		JOIN milestones m ON m.id = t.milestone_id
 		JOIN campaigns c ON c.id = m.campaign_id
 		WHERE c.contract_id = ?
-			AND p.type = 'LIMITED'
-			AND po.status = 'RECEIVED'
+			AND p.type = ?
+			AND po.status in ?
 			AND po.deleted_at IS NULL
 			AND p.deleted_at IS NULL
 			AND t.deleted_at IS NULL
@@ -89,15 +96,20 @@ func (r *contractPaymentCalculationRepository) GetLimitedProductRevenue(
 			AND c.deleted_at IS NULL
 			AND po.created_at >= ?
 			AND po.created_at < ?
-	`, contractID, periodStart, periodEnd).Scan(&result.PreOrderRevenue).Error
-
-	if err != nil {
-		return nil, err
-	}
+		`
+		return r.db.WithContext(ctx).Raw(
+			query,
+			contractID,
+			enum.ProductTypeLimited,
+			constant.ValidCompletedPreOrderStatus.ToStringSlice(),
+			periodStart, periodEnd,
+		).Scan(&preOrderRevenue).Error
+	})
 
 	// Get Order revenue for limited products under this contract
 	// Path: contracts -> campaigns -> milestones -> tasks -> products -> product_variants -> order_items -> orders
-	err = r.db.WithContext(ctx).Raw(`
+	tasks = append(tasks, func(ctx context.Context) error {
+		query := `
 		SELECT COALESCE(SUM(oi.subtotal), 0) as order_revenue
 		FROM orders o
 		JOIN order_items oi ON oi.order_id = o.id
@@ -107,24 +119,33 @@ func (r *contractPaymentCalculationRepository) GetLimitedProductRevenue(
 		JOIN milestones m ON m.id = t.milestone_id
 		JOIN campaigns c ON c.id = m.campaign_id
 		WHERE c.contract_id = ?
-			AND p.type = 'LIMITED'
-			AND o.status = 'RECEIVED'
-			AND o.order_type = 'LIMITED'
+			AND p.type = ?
+			AND o.status IN ?
+			AND o.order_type = ?
 			AND o.deleted_at IS NULL
-			AND oi.deleted_at IS NULL
 			AND p.deleted_at IS NULL
 			AND t.deleted_at IS NULL
 			AND m.deleted_at IS NULL
 			AND c.deleted_at IS NULL
 			AND o.created_at >= ?
 			AND o.created_at < ?
-	`, contractID, periodStart, periodEnd).Scan(&result.OrderRevenue).Error
-
-	if err != nil {
+		`
+		return r.db.WithContext(ctx).Raw(
+			query,
+			contractID,
+			enum.ProductTypeLimited,
+			constant.ValidCompletedOrderStatus.ToStringSlice(),
+			enum.ProductTypeLimited,
+			periodStart, periodEnd,
+		).Scan(&limitedOrderRevenue).Error
+	})
+	if err := utils.RunParallel(ctx, 2, tasks...); err != nil {
 		return nil, err
 	}
 
-	result.TotalRevenue = result.PreOrderRevenue + result.OrderRevenue
-
-	return result, nil
+	return &dtos.LimitedProductRevenueResult{
+		PreOrderRevenue: preOrderRevenue,
+		OrderRevenue:    limitedOrderRevenue,
+		TotalRevenue:    preOrderRevenue + limitedOrderRevenue,
+	}, nil
 }

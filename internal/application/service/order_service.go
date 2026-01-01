@@ -46,12 +46,12 @@ func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionB
 		return err
 	}
 	//If this after user action a stanbytime?
-	standByMinutes := o.config.AdminConfig.CensorshipIntervalMinutes
-	isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
-	if isAllow {
-		msg := fmt.Sprintf("You can only allow to do this action after %d mins after user action, remaining time: %s", standByMinutes, time.Until(order.UpdatedAt.Add(time.Duration(standByMinutes)*time.Minute)).String())
-		return errors.New(msg)
-	}
+	//standByMinutes := o.config.AdminConfig.CensorshipIntervalMinutes
+	//isAllow := order.UpdatedAt.Add(time.Duration(standByMinutes) * time.Minute).After(time.Now())
+	//if isAllow {
+	//	msg := fmt.Sprintf("You can only allow to do this action after %d mins after user action, remaining time: %s", standByMinutes, time.Until(order.UpdatedAt.Add(time.Duration(standByMinutes)*time.Minute)).String())
+	//	return errors.New(msg)
+	//}
 
 	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusRefunded, reason)
 	if err != nil {
@@ -285,7 +285,7 @@ func (o *orderService) MarkAsReadyToPickedUp(ctx context.Context, orderID, userI
 }
 
 func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.UUID) error {
-	order, user, err := o.lookupOrderAndUser(ctx, orderID, userID)
+	order, actionUser, err := o.lookupOrderAndUser(ctx, orderID, userID)
 	if err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 		return errors.New("only delivered orders can be marked as received")
 	}
 
-	err = MoveOrderStateUsingFSM(order, user, enum.OrderStatusReceived, nil)
+	err = MoveOrderStateUsingFSM(order, actionUser, enum.OrderStatusReceived, nil)
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,10 @@ func (o *orderService) MarkAsReceived(ctx context.Context, orderID, userID uuid.
 	}
 
 	go func() {
-		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyReceived, order, user)
+		if order.User.ID == uuid.Nil {
+			zap.L().Error("order owner not found when trying notify. Order ID: " + order.ID.String())
+		}
+		err = o.sendNotification(context.Background(), notiBuilder.OrderNotifyReceived, order, &order.User)
 		if err != nil {
 			zap.L().Error(err.Error())
 		}
@@ -995,9 +998,20 @@ func (o *orderService) lookupOrderAndUser(ctx context.Context, orderID, actionBy
 	if err != nil {
 		return nil, nil, err
 	}
-	user, err := o.userRepository.GetByID(ctx, actionBy, nil)
-	if err != nil {
-		return nil, nil, err
+
+	// If actionBy is zero value, treat as System user
+	var user *model.User
+	if actionBy == uuid.Nil {
+		user = &model.User{
+			ID:       uuid.UUID{},
+			FullName: o.config.AdminConfig.SystemName,
+			Email:    o.config.AdminConfig.SystemEmail,
+		}
+	} else {
+		user, err = o.userRepository.GetByID(ctx, actionBy, nil)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	return order, user, nil
 }

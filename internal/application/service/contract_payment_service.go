@@ -28,6 +28,7 @@ type contractPaymentService struct {
 	contractPaymentRepo    irepository.GenericRepository[model.ContractPayment]
 	contractRepo           irepository.GenericRepository[model.Contract]
 	paymentCalculationRepo irepository.ContractPaymentCalculationRepository
+	unitOfWork             irepository.UnitOfWork
 	config                 *config.AdminConfig
 }
 
@@ -190,6 +191,8 @@ func (c *contractPaymentService) GetContractPaymentsByFilter(ctx context.Context
 
 		// Pre-filter: only add task if payment might need recalculation
 		if c.shouldRecalculate(payment) {
+			zap.L().Info("Recalculating payment for contract payment",
+				zap.String("payment_id", payment.ID.String()))
 			tasks = append(tasks, func(ctx context.Context) error {
 				if err := c.recalculateIfNeeded(ctx, payment); err != nil {
 					mu.Lock()
@@ -255,6 +258,7 @@ func (c *contractPaymentService) CreateContractPaymentsFromContract(
 
 func NewContractPaymentService(
 	databaseRegistry *gormrepository.DatabaseRegistry,
+	unitOfWork irepository.UnitOfWork,
 	config *config.AdminConfig,
 ) iservice.ContractPaymentService {
 	return &contractPaymentService{
@@ -262,6 +266,7 @@ func NewContractPaymentService(
 		contractRepo:           databaseRegistry.ContractRepository,
 		paymentCalculationRepo: databaseRegistry.ContractPaymentCalculationRepository,
 		config:                 config,
+		unitOfWork:             unitOfWork,
 	}
 
 }
@@ -278,11 +283,17 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 	var tempDepositPercent float64
 	if contract.DepositPercent != nil {
 		tempDepositPercent = float64(*contract.DepositPercent)
+	} else if contract.DepositAmount != nil && *contract.DepositAmount == 0 {
+		var financialTerm dtos.FinancialTerms
+		if err = json.Unmarshal(contract.FinancialTerms, &financialTerm); err == nil {
+			tempDepositPercent = (float64(*contract.DepositAmount) / float64(*financialTerm.TotalCost)) * 100
+		}
 	}
 	depositContractPayment := &model.ContractPayment{
 		ContractID:            contract.ID,
 		InstallmentPercentage: tempDepositPercent,
 		Amount:                float64(*contract.DepositAmount),
+		BaseAmount:            float64(*contract.DepositAmount),
 		DueDate:               contract.StartDate,
 		PaymentMethod:         enum.ContractPaymentMethodBankTransfer,
 		Note:                  &depositNote,
@@ -349,6 +360,7 @@ func (c *contractPaymentService) processPaymentDateFromContract(
 				ContractID:            contract.ID,
 				InstallmentPercentage: float64(percent),
 				Amount:                float64(amount),
+				BaseAmount:            float64(amount),
 				DueDate:               res.DueDate,
 				PeriodStart:           &pStart,
 				PeriodEnd:             &pEnd,
@@ -405,6 +417,7 @@ Further performance cost will be calculated during the payment link creation pha
 				ContractID:            contract.ID,
 				InstallmentPercentage: percent,
 				Amount:                basePayment,
+				BaseAmount:            basePayment,
 				DueDate:               paymentResult.DueDate,
 				PeriodStart:           utils.PtrOrNil(paymentResult.PeriodStart),
 				PeriodEnd:             utils.PtrOrNil(paymentResult.PeriodEnd),
@@ -463,6 +476,7 @@ Further revenue distribution will be calculated during the payment link creation
 				ContractID:            contract.ID,
 				InstallmentPercentage: percent,
 				Amount:                basePayment,
+				BaseAmount:            basePayment,
 				DueDate:               paymentResult.DueDate,
 				PeriodStart:           &periodStart,
 				PeriodEnd:             &periodEnd,
@@ -507,9 +521,9 @@ func (c *contractPaymentService) shouldRecalculate(payment *model.ContractPaymen
 	}
 
 	// Check 5: Must be the CURRENT payment period
-	if !c.isCurrentPeriod(payment) {
-		return false
-	}
+	// if !c.isCurrentPeriod(payment) {
+	// 	return false
+	// }
 
 	return true
 }
@@ -536,7 +550,7 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 		return nil
 	}
 
-	var newAmount float64
+	var performanceAmount float64
 	var breakdownJSON []byte
 	var err error
 
@@ -546,7 +560,7 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 		if calcErr != nil {
 			return fmt.Errorf("failed to calculate affiliate payment: %w", calcErr)
 		}
-		newAmount = float64(calculation.NetPayment)
+		performanceAmount = calculation.NetPayment
 		breakdownJSON, err = json.Marshal(calculation)
 		if err != nil {
 			return fmt.Errorf("failed to marshal affiliate calculation breakdown: %w", err)
@@ -557,7 +571,7 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 		if calcErr != nil {
 			return fmt.Errorf("failed to calculate co-producing payment: %w", calcErr)
 		}
-		newAmount = calculation.BrandShare
+		performanceAmount = calculation.BrandShare
 		breakdownJSON, err = json.Marshal(calculation)
 		if err != nil {
 			return fmt.Errorf("failed to marshal co-producing calculation breakdown: %w", err)
@@ -568,24 +582,38 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 	}
 
 	// Only update if amount changed (avoid unnecessary DB writes)
-	if payment.Amount == newAmount && payment.CalculatedAt != nil {
+	newTotalAmount := payment.BaseAmount + performanceAmount
+	if payment.Amount == newTotalAmount && payment.CalculatedAt != nil {
 		return nil
 	}
 
-	// Update payment
-	now := time.Now()
-	payment.Amount = newAmount
-	payment.CalculatedAt = &now
-	payment.CalculationBreakdown = breakdownJSON
-
-	if err := c.contractPaymentRepo.Update(ctx, payment); err != nil {
-		return fmt.Errorf("failed to update payment with new calculation: %w", err)
+	current := time.Now()
+	// Perform DB update in a separate goroutine with retry to avoid blocking
+	if err := utils.RunWithRetry(ctx, utils.DefaultRetryOptions, func(ctx context.Context) error {
+		return helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", payment.ID)
+			}, map[string]any{
+				"amount":                newTotalAmount,
+				"performance_amount":    performanceAmount,
+				"calculated_at":         &current,
+				"calculation_breakdown": breakdownJSON,
+			})
+		})
+	}); err != nil {
+		return fmt.Errorf("failed to update payment after retries: %w", err)
 	}
+
+	// Update in-memory object as well
+	payment.Amount = newTotalAmount
+	payment.PerformanceAmount = performanceAmount
+	payment.CalculatedAt = &current
+	payment.CalculationBreakdown = breakdownJSON
 
 	zap.L().Info("Payment amount recalculated",
 		zap.String("payment_id", payment.ID.String()),
-		zap.Float64("new_amount", newAmount),
-		zap.String("contract_type", string(payment.Contract.Type)))
+		zap.Float64("new_amount", performanceAmount),
+		zap.String("contract_type", payment.Contract.Type.String()))
 
 	return nil
 }
@@ -617,10 +645,10 @@ func (c *contractPaymentService) calculateAffiliatePayment(
 	grossPayment, breakdown := c.calculateTieredPayment(totalClicks, terms.BasePerClick, terms.Levels)
 
 	// Apply tax withholding if applicable
-	var taxAmount int64
-	if grossPayment > int64(terms.TaxWithholding.Threshold) {
-		taxableAmount := grossPayment - int64(terms.TaxWithholding.Threshold)
-		taxAmount = taxableAmount * int64(terms.TaxWithholding.RatePercent) / 100
+	var taxAmount float64
+	if grossPayment > float64(terms.TaxWithholding.Threshold) {
+		taxableAmount := grossPayment - float64(terms.TaxWithholding.Threshold)
+		taxAmount = taxableAmount * float64(terms.TaxWithholding.RatePercent) / float64(100)
 	}
 
 	return &dtos.AffiliatePaymentCalculation{
@@ -628,6 +656,7 @@ func (c *contractPaymentService) calculateAffiliatePayment(
 		PeriodStart:  *payment.PeriodStart,
 		PeriodEnd:    *payment.PeriodEnd,
 		TotalClicks:  totalClicks,
+		BaseAmount:   payment.BaseAmount,
 		GrossPayment: grossPayment,
 		TaxAmount:    taxAmount,
 		NetPayment:   grossPayment - taxAmount,
@@ -640,9 +669,9 @@ func (c *contractPaymentService) calculateAffiliatePayment(
 // Returns gross payment and detailed breakdown per level.
 func (c *contractPaymentService) calculateTieredPayment(
 	totalClicks int64,
-	baseRate int,
+	basePerClick int,
 	levels []dtos.Level,
-) (int64, []dtos.LevelPaymentBreakdown) {
+) (totalAmount float64, breakdown []dtos.LevelPaymentBreakdown) {
 	// Sort levels by Level number
 	sortedLevels := make([]dtos.Level, len(levels))
 	copy(sortedLevels, levels)
@@ -650,32 +679,27 @@ func (c *contractPaymentService) calculateTieredPayment(
 		return sortedLevels[i].Level < sortedLevels[j].Level
 	})
 
-	var payment int64
-	var breakdown []dtos.LevelPaymentBreakdown
 	remainingClicks := totalClicks
-	previousMax := int64(0)
+	var previousMax int64 = 0
 
-	for _, level := range sortedLevels {
-		if remainingClicks <= 0 {
-			break
-		}
-
+	breakdown = make([]dtos.LevelPaymentBreakdown, len(sortedLevels))
+	for i, level := range sortedLevels {
 		// Calculate clicks in this tier
 		tierCapacity := level.MaxClicks - previousMax
-		clicksInTier := min(remainingClicks, tierCapacity)
+		clicksInTier := max(min(remainingClicks, tierCapacity), 0)
 
 		// Calculate payment for this tier
-		ratePerClick := int(float32(baseRate) * level.Multiplier)
-		tierPayment := clicksInTier * int64(ratePerClick)
-		payment += tierPayment
+		ratePerClick := float64(basePerClick) * float64(level.Multiplier)
+		tierPayment := float64(clicksInTier) * ratePerClick
+		totalAmount += tierPayment
 
-		breakdown = append(breakdown, dtos.LevelPaymentBreakdown{
+		breakdown[i] = dtos.LevelPaymentBreakdown{
 			Level:        level.Level,
 			ClicksInTier: clicksInTier,
 			Multiplier:   level.Multiplier,
 			RatePerClick: ratePerClick,
 			TierPayment:  tierPayment,
-		})
+		}
 
 		remainingClicks -= clicksInTier
 		previousMax = level.MaxClicks
@@ -684,20 +708,16 @@ func (c *contractPaymentService) calculateTieredPayment(
 	// If clicks exceed highest level, charge at highest multiplier
 	if remainingClicks > 0 && len(sortedLevels) > 0 {
 		highestLevel := sortedLevels[len(sortedLevels)-1]
-		ratePerClick := int(float32(baseRate) * highestLevel.Multiplier)
-		tierPayment := remainingClicks * int64(ratePerClick)
-		payment += tierPayment
+		ratePerClick := float64(basePerClick) * float64(highestLevel.Multiplier)
+		tierPayment := float64(remainingClicks) * ratePerClick
+		totalAmount += tierPayment
 
-		breakdown = append(breakdown, dtos.LevelPaymentBreakdown{
-			Level:        highestLevel.Level + 1, // Overflow tier
-			ClicksInTier: remainingClicks,
-			Multiplier:   highestLevel.Multiplier,
-			RatePerClick: ratePerClick,
-			TierPayment:  tierPayment,
-		})
+		breakdown[len(breakdown)-1].ClicksInTier += remainingClicks
+		breakdown[len(breakdown)-1].RatePerClick = ratePerClick
+		breakdown[len(breakdown)-1].TierPayment += tierPayment
 	}
 
-	return payment, breakdown
+	return totalAmount, breakdown
 }
 
 // calculateCoProducingPayment calculates the revenue distribution for a CO_PRODUCING contract.

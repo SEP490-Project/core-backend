@@ -20,7 +20,7 @@ type UnitOfWork interface {
 	Brands() GenericRepository[model.Brand]
 	LoggedSessions() GenericRepository[model.LoggedSession]
 	Contracts() ContractRepository
-	ContractPayments() GenericRepository[model.ContractPayment]
+	ContractPayments() ContractPaymentRepository
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
 	Tasks() TaskRepository

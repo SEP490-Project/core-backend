@@ -274,6 +274,7 @@ func (h *LocationHandler) TriggerLocationSync(c *gin.Context) {
 //	@Failure		400	{object}	map[string]string	"Error message"
 //	@Router			/api/v1/location/test [get]
 func (h *LocationHandler) Test(c *gin.Context) {
+
 	c.JSON(http.StatusOK, gin.H{"message": "Location handler is up"})
 }
 

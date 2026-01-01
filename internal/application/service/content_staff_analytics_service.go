@@ -523,17 +523,25 @@ func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context) 
 
 	result := make([]responses.ScheduledContentItem, 0, len(schedules))
 	for _, sch := range schedules {
-		// Get schedule details
-		detail, err := s.scheduleRepo.GetScheduleByIDWithDetails(ctx, sch.ID)
+		// Get schedule details using content-specific method
+		detail, err := s.scheduleRepo.GetContentScheduleByIDWithDetails(ctx, sch.ID)
 		if err != nil || detail == nil {
 			continue
 		}
 
+		var contentID uuid.UUID
+		var contentTitle, channelName string
+		if detail.ContentDetails != nil {
+			contentID = detail.ContentDetails.ContentID
+			contentTitle = detail.ContentDetails.ContentTitle
+			channelName = detail.ContentDetails.ChannelName
+		}
+
 		result = append(result, responses.ScheduledContentItem{
 			ScheduleID:  detail.ScheduleID,
-			ContentID:   detail.ContentID,
-			Title:       detail.ContentTitle,
-			ChannelName: detail.ChannelName,
+			ContentID:   contentID,
+			Title:       contentTitle,
+			ChannelName: channelName,
 			ScheduledAt: detail.ScheduledAt,
 			Status:      detail.Status.String(),
 			CreatedBy:   detail.CreatedByName,

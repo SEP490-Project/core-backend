@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
+	"core-backend/internal/domain/model"
 	"fmt"
 	"time"
 
@@ -872,15 +873,16 @@ func (r *contentStaffAnalyticsRepository) getContentByPerformance(ctx context.Co
 func (r *contentStaffAnalyticsRepository) GetScheduledContentCount(ctx context.Context, startDate, endDate time.Time) (int64, error) {
 	var count int64
 
-	if err := r.db.WithContext(ctx).Table("content_schedules cs").
-		Where("cs.deleted_at IS NULL").
-		Where("cs.scheduled_at >= ?", startDate).
-		Where("cs.scheduled_at < ?", endDate).
-		Where("cs.status IN ?", []string{"PENDING", "SCHEDULED"}).
+	if err := r.db.WithContext(ctx).Model(new(model.Schedule)).
+		Where("deleted_at IS NULL").
+		Where("scheduled_at >= ?", startDate).
+		Where("scheduled_at < ?", endDate).
+		Where("status IN ?", []enum.ScheduleStatus{enum.ScheduleStatusPending, enum.ScheduleStatusProcessing}).
 		Count(&count).Error; err != nil {
 		zap.L().Error("Failed to get scheduled content count", zap.Error(err))
 		return 0, err
 	}
+
 	return count, nil
 }
 

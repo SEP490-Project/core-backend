@@ -113,7 +113,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupContentStaffAnalyticsRoutes(v1)
 		r.SetupBrandPartnerAnalyticsRoutes(v1)
 		r.SetupAdminAnalyticsRoutes(v1)
-		r.SetupContentScheduleRoutes(v1)
+		r.SetupScheduleRoutes(v1)
 		r.SetupContentEngagementRoutes(v1)
 		r.SetupAlertRoutes(v1)
 		r.setupSystemRoutes(v1)
@@ -339,6 +339,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 
 			//TET
 			ghnPublicGroup.POST("/order/status", ghnHandler.UpdateGHNDeliveryStatus)
+			ghnPublicGroup.POST("/create-parcel/:order-id", ghnHandler.MockCreateGHNOrder)
 		}
 		ghnMockingGroup := v1.Group("/ghn/mocking")
 		{
@@ -1109,22 +1110,36 @@ func (r *Router) SetupContentStaffAnalyticsRoutes(group *gin.RouterGroup) {
 	}
 }
 
-// SetupContentScheduleRoutes sets up routes for content scheduling
-func (r *Router) SetupContentScheduleRoutes(group *gin.RouterGroup) {
-	scheduleHandler := r.handlerRegistry.ContentScheduleHandler
-	scheduleGroup := group.Group("/content-schedules")
+// SetupScheduleRoutes sets up routes for general and content scheduling
+func (r *Router) SetupScheduleRoutes(group *gin.RouterGroup) {
+	scheduleHandler := r.handlerRegistry.ScheduleHandler
+	contentScheduleHandler := r.handlerRegistry.ContentScheduleHandler
+
+	scheduleGroup := group.Group("/schedules")
 	{
-		// Protected routes (Content Staff, Marketing, Admin)
+		// General schedule routes (Admin, Marketing Manager, Content Staff)
 		protectedGroup := scheduleGroup.Group("")
 		protectedGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
 		protectedGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
 		{
-			protectedGroup.POST("", scheduleHandler.ScheduleContent)
 			protectedGroup.GET("", scheduleHandler.ListSchedules)
 			protectedGroup.GET("/upcoming", scheduleHandler.GetUpcomingSchedules)
 			protectedGroup.GET("/:id", scheduleHandler.GetSchedule)
-			protectedGroup.POST("/:id/cancel", scheduleHandler.CancelSchedule)
-			protectedGroup.POST("/:id/reschedule", scheduleHandler.RescheduleContent)
+			protectedGroup.DELETE("/:id", scheduleHandler.CancelSchedule)
+		}
+
+		// Content-specific schedule routes under /schedules/contents
+		contentGroup := scheduleGroup.Group("/contents")
+		contentGroup.Use(r.middlewareRegistry.Auth.RequireAuth())
+		contentGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
+		{
+			contentGroup.POST("", contentScheduleHandler.ScheduleContent)
+			contentGroup.GET("", contentScheduleHandler.ListSchedules)
+			contentGroup.GET("/upcoming", contentScheduleHandler.GetUpcomingSchedules)
+			contentGroup.POST("/batch", contentScheduleHandler.BatchScheduleContent)
+			contentGroup.GET("/:id", contentScheduleHandler.GetSchedule)
+			contentGroup.POST("/:id/cancel", contentScheduleHandler.CancelSchedule)
+			contentGroup.POST("/:id/reschedule", contentScheduleHandler.RescheduleContent)
 		}
 	}
 }
