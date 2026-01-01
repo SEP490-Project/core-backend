@@ -55,17 +55,34 @@ func InitDB() *gorm.DB {
 		gormLogger = &loggerImpl
 	}
 
+	gormConfig := &gorm.Config{
+		Logger:      gormLogger,
+		PrepareStmt: false,
+	}
+	pgDriverConfig := postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true,
+	}
+
 	var db *gorm.DB
 	var err error
 	zap.L().Debug("Attempting to connect to PostgreSQL database")
 	for i := range 5 {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
+		db, err = gorm.Open(postgres.New(pgDriverConfig), gormConfig)
 		if err == nil {
 			var sqlDB *sql.DB
 			sqlDB, err = db.DB()
 			if err != nil {
 				zap.L().Error("Failed to get database instance", zap.Error(err))
 			}
+
+			// Set connection pool settings
+			sqlDB.SetMaxOpenConns(dbCfg.Pool.MaxOpenConns)
+			sqlDB.SetMaxIdleConns(dbCfg.Pool.MaxIdleConns)
+			sqlDB.SetConnMaxLifetime(time.Second * time.Duration(dbCfg.Pool.ConnMaxLifetime))
+			sqlDB.SetConnMaxIdleTime(time.Second * time.Duration(dbCfg.Pool.ConnMaxIdleTime))
+
+			// Verify the connection via ping
 			err = sqlDB.Ping()
 			if err == nil {
 				zap.L().Info("Database connection verified successfully",

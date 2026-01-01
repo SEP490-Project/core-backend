@@ -25,6 +25,11 @@ database:
   password: "170504"
   dbname: "sep490_demo_ver1"
   sslmode: "disable"
+  pool:
+    max_open_conns: 100
+    max_idle_conns: 50
+    conn_max_lifetime: 1800 # seconds
+    conn_max_idle_time: 300 # seconds
 
 # Cache (Valkey/Redis)
 cache:
