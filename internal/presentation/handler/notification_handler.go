@@ -366,7 +366,7 @@ func (h *NotificationHandler) RepublishFailed(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/notifications/sse [get]
 func (h *NotificationHandler) SubscribeSSE(c *gin.Context) {
-	userIDStr := c.GetString("user_id")
+	/* userIDStr := c.GetString("user_id")
 	if userIDStr == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -375,6 +375,12 @@ func (h *NotificationHandler) SubscribeSSE(c *gin.Context) {
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}*/
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Invalid user ID", http.StatusUnauthorized))
 		return
 	}
 
@@ -488,7 +494,7 @@ func (h *NotificationHandler) BroadcastToUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.notificationService.BroadcastToUser(c.Request.Context(), req.UserID, req.Title, req.Body, req.Data, req.Channels); err != nil {
+	if err := h.notificationService.BroadcastToUser(c.Request.Context(), &req); err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))
 		return
 	}
@@ -521,7 +527,7 @@ func (h *NotificationHandler) BroadcastToAll(c *gin.Context) {
 	go func() {
 		// Create a background context since the request context will be cancelled
 		ctx := context.Background()
-		if err := h.notificationService.BroadcastToAll(ctx, req.Title, req.Body, req.Data, req.Role); err != nil {
+		if err := h.notificationService.BroadcastToAll(ctx, &req); err != nil {
 			zap.L().Error("Failed to broadcast to all users", zap.Error(err))
 		}
 	}()

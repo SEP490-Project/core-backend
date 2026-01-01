@@ -71,10 +71,10 @@ func (r *TaskRepository) GetListTasks(ctx context.Context, filter *requests.Task
 			db = db.Where("tasks.type = ?", *filter.Type)
 		}
 		if filter.HasContent != nil {
-			db = db.Where("(EXISTS (SELECT 1 FROM contents WHERE contents.task_id = tasks.id) = ?)", *filter.HasContent)
+			db = db.Where("(EXISTS (SELECT 1 FROM contents WHERE contents.task_id = tasks.id and contents.deleted_at is null) = ?)", *filter.HasContent)
 		}
 		if filter.HasProduct != nil {
-			db = db.Where("(EXISTS (SELECT 1 FROM products WHERE products.task_id = tasks.id) = ?)", *filter.HasProduct)
+			db = db.Where("(EXISTS (SELECT 1 FROM products WHERE products.task_id = tasks.id and products.deleted_at is null) = ?)", *filter.HasProduct)
 		}
 
 		sortBy := filter.SortBy

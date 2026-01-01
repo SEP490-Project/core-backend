@@ -17682,6 +17682,459 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/product-options": {
+            "get": {
+                "description": "Retrieve product options with optional filtering by type and pagination. Public endpoint.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Get product options",
+                "parameters": [
+                    {
+                        "enum": [
+                            "CAPACITY_UNIT",
+                            "CONTAINER_TYPE",
+                            "DISPENSER_TYPE",
+                            "ATTRIBUTE_UNIT"
+                        ],
+                        "type": "string",
+                        "description": "Filter by option type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter active options only (default: true)",
+                        "name": "active_only",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default: 100, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product options retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ProductOptionResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new product option. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Create product option",
+                "parameters": [
+                    {
+                        "description": "Product option data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CreateProductOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Product option created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ProductOptionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Product option code already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/product-options/type/{type}": {
+            "get": {
+                "description": "Retrieve all active product options for a specific type. Public endpoint with caching.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Get product options by type",
+                "parameters": [
+                    {
+                        "enum": [
+                            "CAPACITY_UNIT",
+                            "CONTAINER_TYPE",
+                            "DISPENSER_TYPE",
+                            "ATTRIBUTE_UNIT"
+                        ],
+                        "type": "string",
+                        "description": "Option type",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product options retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ProductOptionResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid option type",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/product-options/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a specific product option by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Get product option by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Product option ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product option retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ProductOptionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid product option ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product option not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete a product option. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Delete product option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Product option ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product option deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid product option ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product option not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing product option. Admin only.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProductOptions"
+                ],
+                "summary": "Update product option",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Product option ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Product option update data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProductOptionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product option updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ProductOptionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or validation error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - Admin only",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product option not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Product option code already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/products": {
             "get": {
                 "security": [
@@ -19303,90 +19756,6 @@ const docTemplate = `{
             }
         },
         "/api/v1/schedules/contents": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns list of content schedules with filtering",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "List content schedules",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Filter by reference ID (e.g. content channel ID)",
-                        "name": "reference_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by status (PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED)",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter schedules from this date (RFC3339)",
-                        "name": "from",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter schedules until this date (RFC3339)",
-                        "name": "to",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "Items per page",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ScheduleListResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            },
             "post": {
                 "security": [
                     {
@@ -19427,7 +19796,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                            "$ref": "#/definitions/responses.ScheduleDetailResponse"
                                         }
                                     }
                                 }
@@ -19503,7 +19872,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.BatchScheduleResponse"
+                                            "$ref": "#/definitions/responses.BatchContentScheduleResponse"
                                         }
                                     }
                                 }
@@ -19524,174 +19893,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/upcoming": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns content scheduled for the next N days",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Get upcoming scheduled content",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 7,
-                        "description": "Number of days to look ahead",
-                        "name": "days",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/responses.ScheduledContentItem"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns details of a specific schedule",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Get schedule details",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Schedule ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.ScheduleItemResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/schedules/contents/{id}/cancel": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Cancels a pending schedule",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Content Scheduling"
-                ],
-                "summary": "Cancel a scheduled content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Schedule ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -19747,7 +19948,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/responses.ScheduleResponse"
+                                            "$ref": "#/definitions/responses.ScheduleDetailResponse"
                                         }
                                     }
                                 }
@@ -23087,27 +23288,7 @@ const docTemplate = `{
                 "content_type": {
                     "$ref": "#/definitions/enum.ContentType"
                 },
-                "platform": {
-                    "type": "string"
-                },
                 "thumbnail_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.ContractScheduleDetails": {
-            "type": "object",
-            "properties": {
-                "brand_id": {
-                    "type": "string"
-                },
-                "brand_name": {
-                    "type": "string"
-                },
-                "contract_id": {
-                    "type": "string"
-                },
-                "contract_number": {
                     "type": "string"
                 }
             }
@@ -23441,6 +23622,32 @@ const docTemplate = `{
                     "type": "number",
                     "minimum": 1,
                     "example": 1
+                }
+            }
+        },
+        "dtos.NotificationScheduleDetails": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "to_user_email": {
+                    "type": "string"
+                },
+                "to_user_fullname": {
+                    "type": "string"
+                },
+                "to_user_id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.NotificationType"
                 }
             }
         },
@@ -24112,9 +24319,6 @@ const docTemplate = `{
                         }
                     ]
                 },
-                "contract_details": {
-                    "$ref": "#/definitions/dtos.ContractScheduleDetails"
-                },
                 "created_at": {
                     "type": "string"
                 },
@@ -24130,8 +24334,8 @@ const docTemplate = `{
                 "last_error": {
                     "type": "string"
                 },
-                "max_retries": {
-                    "type": "integer"
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
                 },
                 "reference_id": {
                     "type": "string"
@@ -24518,29 +24722,6 @@ const docTemplate = `{
                 "AlertTypeInfo"
             ]
         },
-        "enum.AttributeUnit": {
-            "type": "string",
-            "enum": [
-                "%",
-                "MG",
-                "G",
-                "ML",
-                "L",
-                "IU",
-                "PPM",
-                "NONE"
-            ],
-            "x-enum-varnames": [
-                "AttributeUnitPercent",
-                "AttributeUnitMG",
-                "AttributeUnitG",
-                "AttributeUnitML",
-                "AttributeUnitL",
-                "AttributeUnitIU",
-                "AttributeUnitPPM",
-                "AttributeUnitNone"
-            ]
-        },
         "enum.AutoPostStatus": {
             "type": "string",
             "enum": [
@@ -24556,23 +24737,6 @@ const docTemplate = `{
                 "AutoPostStatusPosted",
                 "AutoPostStatusFailed",
                 "AutoPostStatusSkipped"
-            ]
-        },
-        "enum.CapacityUnit": {
-            "type": "string",
-            "enum": [
-                "ML",
-                "L",
-                "G",
-                "KG",
-                "OZ"
-            ],
-            "x-enum-varnames": [
-                "CapacityUnitML",
-                "CapacityUnitL",
-                "CapacityUnitG",
-                "CapacityUnitKG",
-                "CapacityUnitOZ"
             ]
         },
         "enum.ConfigValueType": {
@@ -24598,33 +24762,6 @@ const docTemplate = `{
                 "ConfigValueTypeTime"
             ]
         },
-        "enum.ContainerType": {
-            "type": "string",
-            "enum": [
-                "BOTTLE",
-                "TUBE",
-                "JAR",
-                "STICK",
-                "PENCIL",
-                "COMPACT",
-                "PALLETE",
-                "SACHET",
-                "VIAL",
-                "ROLLER_BOTTLE"
-            ],
-            "x-enum-varnames": [
-                "ContainerTypeBottle",
-                "ContainerTypeTube",
-                "ContainerTypeJar",
-                "ContainerTypeStick",
-                "ContainerTypePencil",
-                "ContainerTypeCompact",
-                "ContainerTypePallete",
-                "ContainerTypeSachet",
-                "ContainerTypeVial",
-                "ContainerTypeRollerBottle"
-            ]
-        },
         "enum.ContentStatus": {
             "type": "string",
             "enum": [
@@ -24633,7 +24770,8 @@ const docTemplate = `{
                 "AWAIT_BRAND",
                 "REJECTED",
                 "APPROVED",
-                "POSTED"
+                "POSTED",
+                "CANCELLED"
             ],
             "x-enum-varnames": [
                 "ContentStatusDraft",
@@ -24641,7 +24779,8 @@ const docTemplate = `{
                 "ContentStatusAwaitBrand",
                 "ContentStatusRejected",
                 "ContentStatusApproved",
-                "ContentStatusPosted"
+                "ContentStatusPosted",
+                "ContentStatusCancelled"
             ]
         },
         "enum.ContentType": {
@@ -24683,27 +24822,6 @@ const docTemplate = `{
                 "ContractTypeAffiliate",
                 "ContractTypeAmbassador",
                 "ContractTypeCoProduce"
-            ]
-        },
-        "enum.DispenserType": {
-            "type": "string",
-            "enum": [
-                "PUMP",
-                "SPRAY",
-                "DROPPER",
-                "ROLL_ON",
-                "TWIST_UP",
-                "SQUEEZE",
-                "NONE"
-            ],
-            "x-enum-varnames": [
-                "DispenserTypePump",
-                "DispenserTypeSpray",
-                "DispenserTypeDropper",
-                "DispenserTypeRollOn",
-                "DispenserTypeTwistUp",
-                "DispenserTypeSqueeze",
-                "DispenserTypeNone"
             ]
         },
         "enum.FileStatus": {
@@ -24748,6 +24866,21 @@ const docTemplate = `{
                 "GHNDeliveryStatusDelivering",
                 "GHNDeliveryStatusDelivered",
                 "GHNDeliveryStatusCancel"
+            ]
+        },
+        "enum.NotificationSeverity": {
+            "type": "string",
+            "enum": [
+                "INFO",
+                "WARN",
+                "ERROR",
+                "SUCCESS"
+            ],
+            "x-enum-varnames": [
+                "NotificationSeverityInfo",
+                "NotificationSeverityWarn",
+                "NotificationSeverityError",
+                "NotificationSeveritySuccess"
             ]
         },
         "enum.NotificationStatus": {
@@ -25488,7 +25621,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "category": {
                     "$ref": "#/definitions/model.ProductCategory"
@@ -25497,13 +25630,13 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "description": {
                     "type": "string"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "expiry_date": {
                     "type": "string"
@@ -25764,10 +25897,10 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -25779,7 +25912,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "expiry_date": {
                     "type": "string"
@@ -25901,7 +26034,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "unit": {
-                    "$ref": "#/definitions/enum.AttributeUnit"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
@@ -26111,7 +26244,11 @@ const docTemplate = `{
                 },
                 "role": {
                     "description": "Optional: Filter by role",
-                    "type": "string"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.UserRole"
+                        }
+                    ]
                 },
                 "title": {
                     "type": "string"
@@ -26127,14 +26264,8 @@ const docTemplate = `{
             ],
             "properties": {
                 "body": {
-                    "type": "string"
-                },
-                "channels": {
-                    "description": "Optional: \"EMAIL\", \"PUSH\", \"IN_APP\"",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                    "type": "string",
+                    "example": "Notification body content"
                 },
                 "data": {
                     "type": "object",
@@ -26142,11 +26273,30 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "severity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.NotificationSeverity"
+                        }
+                    ],
+                    "example": "INFO"
+                },
                 "title": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Title"
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/enum.NotificationType"
+                    },
+                    "example": [
+                        "EMAIL"
+                    ]
                 },
                 "user_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
                 }
             }
         },
@@ -26177,54 +26327,15 @@ const docTemplate = `{
                     "example": 500
                 },
                 "capacity_unit": {
-                    "enum": [
-                        "ML",
-                        "L",
-                        "G",
-                        "KG",
-                        "OZ"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.CapacityUnit"
-                        }
-                    ]
+                    "type": "string",
+                    "example": "ML"
                 },
                 "container_type": {
-                    "enum": [
-                        "BOTTLE",
-                        "TUBE",
-                        "JAR",
-                        "STICK",
-                        "PENCIL",
-                        "COMPACT",
-                        "PALLETE",
-                        "SACHET",
-                        "VIAL",
-                        "ROLLER_BOTTLE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.ContainerType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "BOTTLE"
                 },
                 "dispenser_type": {
-                    "enum": [
-                        "PUMP",
-                        "SPRAY",
-                        "DROPPER",
-                        "ROLL_ON",
-                        "TWIST_UP",
-                        "SQUEEZE",
-                        "NONE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.DispenserType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "SPRAY"
                 },
                 "expiry_date": {
@@ -27002,6 +27113,48 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.CreateProductOptionRequest": {
+            "type": "object",
+            "required": [
+                "code",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1,
+                    "example": "FL_OZ"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "US fluid ounce measurement"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "example": "Fluid Ounce"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 6
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "CAPACITY_UNIT",
+                        "CONTAINER_TYPE",
+                        "DISPENSER_TYPE",
+                        "ATTRIBUTE_UNIT"
+                    ],
+                    "example": "CAPACITY_UNIT"
+                }
+            }
+        },
         "requests.CreateProductStoryRequest": {
             "type": "object",
             "properties": {
@@ -27187,21 +27340,7 @@ const docTemplate = `{
                     "example": "550e8400-e29b-41d4-a716-446655440001"
                 },
                 "unit": {
-                    "enum": [
-                        "%",
-                        "MG",
-                        "G",
-                        "ML",
-                        "L",
-                        "IU",
-                        "PPM",
-                        "NONE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.AttributeUnit"
-                        }
-                    ],
+                    "type": "string",
                     "example": "MG"
                 },
                 "value": {
@@ -27239,13 +27378,17 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Promote our new AI-powered product that enhances productivity."
                 },
+                "current": {
+                    "type": "string",
+                    "example": "Discover the future of work with our AI solutions."
+                },
                 "model": {
                     "type": "string",
                     "example": "gemini-2.5-flash-lite"
                 },
                 "platform": {
                     "type": "string",
-                    "example": "LinkedIn"
+                    "example": "Facebook"
                 },
                 "stream": {
                     "type": "boolean",
@@ -27678,7 +27821,7 @@ const docTemplate = `{
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/enum.NotificationType"
                     },
                     "example": [
                         "EMAIL",
@@ -27726,6 +27869,14 @@ const docTemplate = `{
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "severity": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.NotificationSeverity"
+                        }
+                    ],
+                    "example": "INFO"
                 },
                 "title": {
                     "type": "string",
@@ -28617,54 +28768,15 @@ const docTemplate = `{
                     "example": 500
                 },
                 "capacity_unit": {
-                    "enum": [
-                        "ML",
-                        "L",
-                        "G",
-                        "KG",
-                        "OZ"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.CapacityUnit"
-                        }
-                    ]
+                    "type": "string",
+                    "example": "ML"
                 },
                 "container_type": {
-                    "enum": [
-                        "BOTTLE",
-                        "TUBE",
-                        "JAR",
-                        "STICK",
-                        "PENCIL",
-                        "COMPACT",
-                        "PALLETE",
-                        "SACHET",
-                        "VIAL",
-                        "ROLLER_BOTTLE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.ContainerType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "BOTTLE"
                 },
                 "dispenser_type": {
-                    "enum": [
-                        "PUMP",
-                        "SPRAY",
-                        "DROPPER",
-                        "ROLL_ON",
-                        "TWIST_UP",
-                        "SQUEEZE",
-                        "NONE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.DispenserType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "SPRAY"
                 },
                 "expiry_date": {
@@ -28741,6 +28853,37 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateProductOptionRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 1,
+                    "example": "FL_OZ"
+                },
+                "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "US fluid ounce measurement"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "example": "Fluid Ounce"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 6
+                }
+            }
+        },
         "requests.UpdateProductRequest": {
             "type": "object",
             "properties": {
@@ -28774,54 +28917,15 @@ const docTemplate = `{
                     "example": 500
                 },
                 "capacity_unit": {
-                    "enum": [
-                        "ML",
-                        "L",
-                        "G",
-                        "KG",
-                        "OZ"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.CapacityUnit"
-                        }
-                    ]
+                    "type": "string",
+                    "example": "ML"
                 },
                 "container_type": {
-                    "enum": [
-                        "BOTTLE",
-                        "TUBE",
-                        "JAR",
-                        "STICK",
-                        "PENCIL",
-                        "COMPACT",
-                        "PALLETE",
-                        "SACHET",
-                        "VIAL",
-                        "ROLLER_BOTTLE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.ContainerType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "BOTTLE"
                 },
                 "dispenser_type": {
-                    "enum": [
-                        "PUMP",
-                        "SPRAY",
-                        "DROPPER",
-                        "ROLL_ON",
-                        "TWIST_UP",
-                        "SQUEEZE",
-                        "NONE"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/enum.DispenserType"
-                        }
-                    ],
+                    "type": "string",
                     "example": "SPRAY"
                 },
                 "expiry_date": {
@@ -29857,7 +29961,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleFailureItem": {
+        "responses.BatchContentScheduleFailureItem": {
             "type": "object",
             "properties": {
                 "channel_id": {
@@ -29871,7 +29975,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleResponse": {
+        "responses.BatchContentScheduleResponse": {
             "type": "object",
             "properties": {
                 "content_id": {
@@ -29883,13 +29987,13 @@ const docTemplate = `{
                 "failed_channels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.BatchScheduleFailureItem"
+                        "$ref": "#/definitions/responses.BatchContentScheduleFailureItem"
                     }
                 },
                 "scheduled_channels": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.BatchScheduleResultItem"
+                        "$ref": "#/definitions/responses.BatchContentScheduleResultItem"
                     }
                 },
                 "total_failed": {
@@ -29900,7 +30004,7 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.BatchScheduleResultItem": {
+        "responses.BatchContentScheduleResultItem": {
             "type": "object",
             "properties": {
                 "auto_post": {
@@ -32883,6 +32987,9 @@ const docTemplate = `{
                 "recipient_info": {
                     "$ref": "#/definitions/model.JSONBRecipientInfo"
                 },
+                "severity": {
+                    "$ref": "#/definitions/enum.NotificationSeverity"
+                },
                 "status": {
                     "$ref": "#/definitions/enum.NotificationStatus"
                 },
@@ -32985,19 +33092,19 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "category": {
                     "$ref": "#/definitions/responses.OrderItemCategoryResponse"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "description": {
                     "type": "string"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "expiry_date": {
                     "type": "string"
@@ -33708,7 +33815,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -33721,7 +33828,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "district_name": {
                     "type": "string"
@@ -33859,7 +33966,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "unit": {
-                    "$ref": "#/definitions/enum.AttributeUnit"
+                    "type": "string"
                 },
                 "value": {
                     "description": "Value",
@@ -33907,6 +34014,47 @@ const docTemplate = `{
                 },
                 "type": {
                     "$ref": "#/definitions/enum.ProductType"
+                }
+            }
+        },
+        "responses.ProductOptionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "ML"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Volume measurement in milliliters"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Milliliter"
+                },
+                "sort_order": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "type": {
+                    "type": "string",
+                    "example": "CAPACITY_UNIT"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-02T12:00:00Z"
                 }
             }
         },
@@ -34114,16 +34262,16 @@ const docTemplate = `{
                     "$ref": "#/definitions/responses.BrandResponse"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "category": {
                     "$ref": "#/definitions/responses.ProductCategoryResponse"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "height": {
                     "type": "integer"
@@ -34240,10 +34388,10 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "container_type": {
-                    "$ref": "#/definitions/enum.ContainerType"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -34255,7 +34403,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "dispenser_type": {
-                    "$ref": "#/definitions/enum.DispenserType"
+                    "type": "string"
                 },
                 "expiry_date": {
                     "type": "string"
@@ -34910,31 +35058,16 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ScheduleItemResponse": {
+        "responses.ScheduleDetailResponse": {
             "type": "object",
             "properties": {
-                "channel_code": {
-                    "description": "\"WEBSITE\", \"FACEBOOK\", \"TIKTOK\"",
-                    "type": "string"
-                },
-                "channel_id": {
-                    "type": "string"
-                },
-                "channel_name": {
-                    "type": "string"
-                },
-                "content_channel_id": {
-                    "type": "string"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "content_title": {
-                    "type": "string"
-                },
-                "content_type": {
-                    "description": "\"POST\", \"VIDEO\"",
-                    "type": "string"
+                "content_details": {
+                    "description": "Nested details based on schedule type",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.ContentScheduleDetails"
+                        }
+                    ]
                 },
                 "created_at": {
                     "type": "string"
@@ -34942,40 +35075,103 @@ const docTemplate = `{
                 "created_by": {
                     "type": "string"
                 },
-                "created_by_id": {
+                "created_by_email": {
+                    "type": "string"
+                },
+                "created_by_name": {
                     "type": "string"
                 },
                 "executed_at": {
                     "type": "string"
                 },
+                "id": {
+                    "type": "string"
+                },
                 "last_error": {
                     "type": "string"
                 },
+                "metadata": {},
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
                 "retry_count": {
                     "type": "integer"
-                },
-                "schedule_id": {
-                    "type": "string"
                 },
                 "scheduled_at": {
                     "type": "string"
                 },
                 "status": {
+                    "$ref": "#/definitions/enum.ScheduleStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ScheduleType"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "responses.ScheduleListResponse": {
+        "responses.ScheduleInfoResponse": {
             "type": "object",
             "properties": {
-                "schedules": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/responses.ScheduleItemResponse"
-                    }
+                "content_details": {
+                    "description": "Nested details based on schedule type",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dtos.ContentScheduleDetails"
+                        }
+                    ]
                 },
-                "total": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_by_email": {
+                    "type": "string"
+                },
+                "created_by_name": {
+                    "type": "string"
+                },
+                "executed_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "notification_details": {
+                    "$ref": "#/definitions/dtos.NotificationScheduleDetails"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "reference_type": {
+                    "$ref": "#/definitions/enum.ReferenceType"
+                },
+                "retry_count": {
                     "type": "integer"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/enum.ScheduleStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ScheduleType"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -34985,7 +35181,7 @@ const docTemplate = `{
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/responses.ScheduleItemResponse"
+                        "$ref": "#/definitions/responses.ScheduleInfoResponse"
                     }
                 },
                 "message": {
@@ -35002,38 +35198,6 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
-                }
-            }
-        },
-        "responses.ScheduleResponse": {
-            "type": "object",
-            "properties": {
-                "channel_name": {
-                    "type": "string"
-                },
-                "content_channel_id": {
-                    "type": "string"
-                },
-                "content_id": {
-                    "type": "string"
-                },
-                "content_title": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "created_by": {
-                    "type": "string"
-                },
-                "schedule_id": {
-                    "type": "string"
-                },
-                "scheduled_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
                 }
             }
         },
@@ -36194,7 +36358,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "capacity_unit": {
-                    "$ref": "#/definitions/enum.CapacityUnit"
+                    "type": "string"
                 },
                 "current_stock": {
                     "type": "integer"

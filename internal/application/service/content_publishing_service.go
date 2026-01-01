@@ -9,6 +9,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/irepository_third_party"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
@@ -30,12 +31,14 @@ type contentPublishingService struct {
 	contentRepo          irepository.GenericRepository[model.Content]
 	contentChannelRepo   irepository.GenericRepository[model.ContentChannel]
 	channelRepo          irepository.GenericRepository[model.Channel]
+	scheduleRepo         irepository.ScheduleRepository
 	facebookProxy        iproxies.FacebookProxy
 	tiktokProxy          iproxies.TikTokProxy
 	channelService       iservice.ChannelService
 	stateTransferService iservice.StateTransferService
 	fileService          iservice.FileService
 	notificationService  iservice.NotificationService
+	scheduleService      iservice.ScheduleService
 	s3Storage            irepository_third_party.S3Storage
 	s3StreamingStorage   irepository_third_party.S3StreamingStorage
 	uow                  irepository.UnitOfWork
@@ -44,48 +47,80 @@ type contentPublishingService struct {
 
 // PublishToChannel implements iservice.ContentPublishingService.
 func (s *contentPublishingService) PublishToChannel(ctx context.Context, contentID uuid.UUID, channelID uuid.UUID, userID uuid.UUID) (*responses.PublishContentResponse, error) {
+	var (
+		now              = time.Now()
+		content          *model.Content
+		channel          *model.Channel
+		accessToken      string
+		contentChannel   *model.ContentChannel
+		pendingSchedules []*model.Schedule
+		err              error
+	)
+
 	zap.L().Info("PublishToChannel called",
 		zap.String("content_id", contentID.String()),
 		zap.String("channel_id", channelID.String()),
-		zap.String("user_id", userID.String()))
+		zap.String("user_id", userID.String()),
+		zap.Time("timestamp", now))
 
-	// 1. Load content with preloads
-	content, err := s.contentRepo.GetByID(ctx, contentID, []string{"ContentChannels.AffiliateLink", "Task"})
-	if err != nil {
-		zap.L().Error("Failed to load content", zap.Error(err))
-		return nil, errors.New("content not found")
-	}
+	funcs := make([]func(ctx context.Context) error, 0)
+	funcs = append(funcs, func(ctx context.Context) error {
+		var funcErr error
+		content, funcErr = s.contentRepo.GetByID(ctx, contentID, []string{"ContentChannels.AffiliateLink", "Task"})
+		if funcErr != nil {
+			zap.L().Error("Failed to load content", zap.Error(funcErr))
+			return fmt.Errorf("content not found: %w", funcErr)
+		}
 
-	// 2. Validate content status (must be APPROVED)
-	if content.Status != enum.ContentStatusApproved {
-		zap.L().Warn("Content not approved for publishing",
-			zap.String("content_id", contentID.String()),
-			zap.String("status", string(content.Status)))
-		return nil, errors.New("content must be APPROVED before publishing")
-	}
+		if content.Status != enum.ContentStatusApproved {
+			zap.L().Warn("Content not approved for publishing",
+				zap.String("content_id", contentID.String()),
+				zap.String("status", string(content.Status)))
+			return errors.New("content must be APPROVED before publishing")
+		}
+		return nil
+	})
+	funcs = append(funcs, func(ctx context.Context) error {
+		var funcErr error
+		channel, funcErr = s.channelRepo.GetByID(ctx, channelID, nil)
+		if funcErr != nil {
+			zap.L().Error("Failed to load channel", zap.Error(funcErr))
+			return fmt.Errorf("channel not found: %w", funcErr)
+		}
 
-	// 3. Load channel with OAuth credentials
-	channel, err := s.channelRepo.GetByID(ctx, channelID, nil)
-	if err != nil {
-		zap.L().Error("Failed to load channel", zap.Error(err))
-		return nil, errors.New("channel not found")
-	}
-
-	// 4. Get decrypted access token
-	var accessToken string
-	if channel.Code != "WEBSITE" {
-		accessToken, err = s.channelService.GetDecryptedToken(ctx, channel.Name)
-		if err != nil {
+		if channel.Code == "WEBSITE" {
+			return nil
+		}
+		accessToken, funcErr = s.channelService.GetDecryptedToken(ctx, channel.Name)
+		if funcErr != nil {
 			zap.L().Error("Failed to decrypt access token",
 				zap.String("channel_name", channel.Name),
-				zap.Error(err))
-			return nil, fmt.Errorf("failed to decrypt access token: %w", err)
+				zap.Error(funcErr))
+			return fmt.Errorf("failed to decrypt access token: %w", funcErr)
 		}
-	}
 
-	// 5. Find or create ContentChannel record
-	contentChannel, err := s.findOrCreateContentChannel(ctx, contentID, channelID)
-	if err != nil {
+		return nil
+	})
+	funcs = append(funcs, func(ctx context.Context) error {
+		var funcErr error
+		contentChannel, funcErr = s.findOrCreateContentChannel(ctx, contentID, channelID)
+		if funcErr != nil {
+			return fmt.Errorf("failed to find or create content channel: %w", funcErr)
+		}
+		return nil
+	})
+	funcs = append(funcs, func(ctx context.Context) error {
+		var funcErr error
+		pendingSchedules, funcErr = s.scheduleRepo.GetPendingByReferenceID(ctx, contentID)
+		if funcErr != nil {
+			zap.L().Error("Failed to get pending schedules", zap.Error(funcErr))
+			// Optional: Not critical, so we don't return error
+		}
+		return nil
+	})
+
+	if err = utils.RunParallel(ctx, 4, funcs...); err != nil {
+		zap.L().Error("Failed to load content in parallel", zap.Error(err))
 		return nil, err
 	}
 
@@ -108,78 +143,76 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 
 	if err != nil {
 		// Update ContentChannel with error
-		uow := s.uow.Begin(ctx)
-		defer func() {
-			if r := recover(); r != nil {
-				uow.Rollback()
-				panic(r)
+		err = helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			if updateErr := uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", contentChannel.ID)
+			}, map[string]any{
+				"auto_post_status": enum.AutoPostStatusFailed,
+				"last_error":       err.Error(),
+			}); updateErr != nil {
+				zap.L().Error("Failed to update content channel with error", zap.Error(updateErr))
+				return updateErr
 			}
-		}()
 
-		errorMsg := err.Error()
-		contentChannel.AutoPostStatus = enum.AutoPostStatusFailed
-		contentChannel.LastError = &errorMsg
-
-		if updateErr := uow.ContentChannels().Update(ctx, contentChannel); updateErr != nil {
-			uow.Rollback()
-			zap.L().Error("Failed to update content channel with error", zap.Error(updateErr))
-		} else {
-			uow.Commit()
-		}
-
+			return nil
+		})
 		return nil, err
 	}
 
 	// 7-8. Update ContentChannel and Content status
-	uow := s.uow.Begin(ctx)
-	defer func() {
-		if r := recover(); r != nil {
+	err = helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Update ContentChannel with success
+		contentChannel.ExternalPostID = &externalPostID
+		contentChannel.ExternalPostURL = &postURL
+		contentChannel.ExternalPostType = externalPostType
+		contentChannel.PublishedAt = &now
+		contentChannel.AutoPostStatus = enum.AutoPostStatusPosted
+		contentChannel.LastError = nil
+
+		if err = uow.ContentChannels().Update(ctx, contentChannel); err != nil {
 			uow.Rollback()
-			panic(r)
+			zap.L().Error("Failed to update content channel after successful publish", zap.Error(err))
+			return fmt.Errorf("failed to update content channel: %w", err)
 		}
-	}()
 
-	// Update ContentChannel with success
-	now := time.Now()
-	contentChannel.ExternalPostID = &externalPostID
-	contentChannel.ExternalPostURL = &postURL
-	contentChannel.ExternalPostType = externalPostType
-	contentChannel.PublishedAt = &now
-	contentChannel.AutoPostStatus = enum.AutoPostStatusPosted
-	contentChannel.LastError = nil
+		// Check if all channels posted → update content status to POSTED
+		var allPosted bool
+		allPosted, err = s.checkAllChannelsPosted(ctx, uow, contentID)
+		if err != nil {
+			uow.Rollback()
+			zap.L().Error("Failed to check all channels posted", zap.Error(err))
+			return fmt.Errorf("failed to check channel status: %w", err)
+		}
 
-	if err = uow.ContentChannels().Update(ctx, contentChannel); err != nil {
-		uow.Rollback()
-		zap.L().Error("Failed to update content channel after successful publish", zap.Error(err))
-		return nil, fmt.Errorf("failed to update content channel: %w", err)
-	}
+		if allPosted {
+			if err = s.stateTransferService.MoveContentToState(ctx, uow, content.ID, enum.ContentStatusPosted, userID); err != nil {
+				uow.Rollback()
+				zap.L().Error("Failed to update content status to POSTED", zap.Error(err))
+				return fmt.Errorf("failed to update content status: %w", err)
+			}
+		}
 
-	// Check if all channels posted → update content status to POSTED
-	allPosted, err := s.checkAllChannelsPosted(ctx, uow, contentID)
+		if len(pendingSchedules) > 0 {
+			if err = s.scheduleService.CancelByReferenceID(ctx, contentID, userID); err != nil {
+				uow.Rollback()
+				zap.L().Error("Failed to cancel pending schedules", zap.Error(err))
+				return fmt.Errorf("failed to cancel pending schedules: %w", err)
+			}
+		}
+
+		return nil
+	})
 	if err != nil {
-		uow.Rollback()
-		zap.L().Error("Failed to check all channels posted", zap.Error(err))
-		return nil, fmt.Errorf("failed to check channel status: %w", err)
-	}
-
-	if allPosted {
-		if err := s.stateTransferService.MoveContentToState(ctx, uow, content.ID, enum.ContentStatusPosted, userID); err != nil {
-			uow.Rollback()
-			zap.L().Error("Failed to update content status to POSTED", zap.Error(err))
-			return nil, fmt.Errorf("failed to update content status: %w", err)
-		}
-	}
-
-	// Commit transaction
-	if err := uow.Commit(); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		zap.L().Error("Transaction failed during content publishing",
+			zap.Error(err))
+		return nil, err
 	}
 
 	zap.L().Info("Content published successfully",
 		zap.String("content_id", contentID.String()),
 		zap.String("channel_code", channel.Code),
-		zap.String("external_post_id", externalPostID))
+		zap.String("external_post_id", externalPostID),
+		zap.Duration("duration", time.Since(now)))
 
 	return &responses.PublishContentResponse{
 		ContentChannelID: contentChannel.ID,
@@ -781,18 +814,21 @@ func NewContentPublishingService(
 	stateTransferService iservice.StateTransferService,
 	fileService iservice.FileService,
 	notificationService iservice.NotificationService,
+	scheduleService iservice.ScheduleService,
 	config *config.AppConfig,
 ) iservice.ContentPublishingService {
 	return &contentPublishingService{
 		contentRepo:          databaseReg.ContentRepository,
 		contentChannelRepo:   databaseReg.ContentChannelRepository,
 		channelRepo:          databaseReg.ChannelRepository,
+		scheduleRepo:         databaseReg.ScheduleRepository,
 		facebookProxy:        infraReg.ProxiesRegistry.FacebookProxy,
 		tiktokProxy:          infraReg.ProxiesRegistry.TikTokProxy,
 		channelService:       channelService,
 		stateTransferService: stateTransferService,
 		fileService:          fileService,
 		notificationService:  notificationService,
+		scheduleService:      scheduleService,
 		s3Storage:            infraReg.ThirdPartyStorage.S3Storage,
 		s3StreamingStorage:   infraReg.ThirdPartyStorage.S3StreamStorage,
 		uow:                  infraReg.UnitOfWork,

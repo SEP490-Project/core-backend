@@ -20,6 +20,8 @@ func NewContentState(status enum.ContentStatus) (ContentState, error) {
 		return &ApprovedState{}, nil
 	case enum.ContentStatusPosted:
 		return &PostedState{}, nil
+	case enum.ContentStatusCancelled:
+		return &CancelledState{}, nil
 	default:
 		return nil, fmt.Errorf("unknown content status: %s", status)
 	}

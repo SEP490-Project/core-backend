@@ -17,9 +17,9 @@ func (s *ApprovedState) Name() enum.ContentStatus {
 func (s *ApprovedState) Next(ctx *ContentContext, nextState ContentState) error {
 	nextName := nextState.Name()
 
-	// Valid transition: APPROVED → POSTED
-	if nextName != enum.ContentStatusPosted {
-		return errors.New("invalid transition: APPROVED can only transition to POSTED")
+	// Valid transitions: APPROVED → POSTED or CANCELLED
+	if nextName != enum.ContentStatusPosted && nextName != enum.ContentStatusCancelled {
+		return errors.New("invalid transition: APPROVED can only transition to POSTED or CANCELLED")
 	}
 
 	ctx.SetState(nextState)
@@ -30,5 +30,6 @@ func (s *ApprovedState) Next(ctx *ContentContext, nextState ContentState) error 
 func (s *ApprovedState) AllowedTransitions() []enum.ContentStatus {
 	return []enum.ContentStatus{
 		enum.ContentStatusPosted,
+		enum.ContentStatusCancelled,
 	}
 }

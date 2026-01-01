@@ -60,6 +60,7 @@ type ApplicationRegistry struct {
 	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
 	SystemService                 iservice.SystemService
+	ProductOptionService          iservice.ProductOptionService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -81,7 +82,9 @@ func NewApplicationRegistry(
 		sseService,
 	)
 
-	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, infrastructureRegistry.AsynqClient, configs)
+	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
+
+	stateTransferService := service.NewStateTransferService(databaseRegistry, notificationService, scheduleService, infrastructureRegistry.UnitOfWork, infrastructureRegistry.RabbitMQ, infrastructureRegistry.ProxiesRegistry.GHNProxy, infrastructureRegistry.AsynqClient, configs)
 
 	affiliateLinkService := service.NewAffiliateLinkService(
 		databaseRegistry.AffiliateLinkRepository,
@@ -160,11 +163,11 @@ func NewApplicationRegistry(
 		stateTransferService,
 		fileService,
 		notificationService,
+		scheduleService,
 		configs,
 	)
 
 	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
-	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
 		contentPublishingService,
@@ -226,6 +229,7 @@ func NewApplicationRegistry(
 		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,
 		SystemService:                 service.NewSystemService(configs),
+		ProductOptionService:          service.NewProductOptionService(databaseRegistry.ProductOptionRepository, infrastructureRegistry.ValkeyCache),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),

@@ -14,11 +14,12 @@ const (
 	ContentStatusRejected   ContentStatus = "REJECTED"
 	ContentStatusApproved   ContentStatus = "APPROVED"
 	ContentStatusPosted     ContentStatus = "POSTED"
+	ContentStatusCancelled  ContentStatus = "CANCELLED"
 )
 
 func (cs ContentStatus) IsValid() bool {
 	switch cs {
-	case ContentStatusDraft, ContentStatusAwaitStaff, ContentStatusAwaitBrand, ContentStatusRejected, ContentStatusApproved, ContentStatusPosted:
+	case ContentStatusDraft, ContentStatusAwaitStaff, ContentStatusAwaitBrand, ContentStatusRejected, ContentStatusApproved, ContentStatusPosted, ContentStatusCancelled:
 		return true
 	}
 	return false

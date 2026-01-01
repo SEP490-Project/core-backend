@@ -21,6 +21,9 @@ type ContentService interface {
 	// GetByID retrieves content by ID with relationships
 	GetByID(ctx context.Context, id uuid.UUID) (*responses.ContentResponse, error)
 
+	// GetByIDPublic retrieves publicly accessible content by ID (status=POSTED only, filters at DB level)
+	GetByIDPublic(ctx context.Context, id uuid.UUID) (*responses.ContentResponse, error)
+
 	// Delete soft deletes content (DRAFT or REJECTED status only)
 	Delete(ctx context.Context, id uuid.UUID) error
 

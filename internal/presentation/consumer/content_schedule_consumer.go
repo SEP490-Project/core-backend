@@ -16,20 +16,23 @@ import (
 // ContentScheduleConsumer handles scheduled content publishing messages from RabbitMQ
 // These messages are delivered via x-delayed-message plugin at the scheduled time
 type ContentScheduleConsumer struct {
-	scheduleService iservice.ContentScheduleService
-	alertManager    iservice.AlertManagerService
-	validator       *validator.Validate
+	contentScheduleService iservice.ContentScheduleService
+	scheduleService        iservice.ScheduleService
+	alertManager           iservice.AlertManagerService
+	validator              *validator.Validate
 }
 
 // NewContentScheduleConsumer creates a new content schedule consumer
 func NewContentScheduleConsumer(
-	scheduleService iservice.ContentScheduleService,
+	contentScheduleService iservice.ContentScheduleService,
+	scheduleService iservice.ScheduleService,
 	alertManager iservice.AlertManagerService,
 ) *ContentScheduleConsumer {
 	return &ContentScheduleConsumer{
-		scheduleService: scheduleService,
-		alertManager:    alertManager,
-		validator:       validator.New(),
+		contentScheduleService: contentScheduleService,
+		scheduleService:        scheduleService,
+		alertManager:           alertManager,
+		validator:              validator.New(),
 	}
 }
 
@@ -65,7 +68,7 @@ func (c *ContentScheduleConsumer) Handle(ctx context.Context, body []byte) error
 		zap.Int("retry_count", msg.RetryCount))
 
 	// Execute the scheduled publish
-	err := c.scheduleService.ExecuteScheduledPublish(ctx, msg.ScheduleID)
+	err := c.contentScheduleService.ProcessSchedule(ctx, msg.ScheduleID)
 	if err != nil {
 		zap.L().Error("Failed to execute scheduled publish",
 			zap.Error(err),
@@ -90,7 +93,7 @@ func (c *ContentScheduleConsumer) Handle(ctx context.Context, body []byte) error
 // raiseScheduleFailedAlert raises an alert when a scheduled publish fails
 func (c *ContentScheduleConsumer) raiseScheduleFailedAlert(ctx context.Context, msg consumers.ContentScheduleMessage, errorMessage string) {
 	// Get schedule details for the alert
-	schedule, err := c.scheduleService.GetScheduleByID(ctx, msg.ScheduleID)
+	schedule, err := c.scheduleService.GetByIDWithDetails(ctx, msg.ScheduleID)
 	if err != nil {
 		zap.L().Warn("Failed to get schedule details for alert",
 			zap.Error(err),
@@ -132,7 +135,8 @@ func (c *ContentScheduleConsumer) HandleDLQ(ctx context.Context, body []byte) er
 		zap.Int("retry_count", msg.RetryCount))
 
 	// Update schedule status to FAILED
-	if err := c.scheduleService.UpdateScheduleStatus(ctx, msg.ScheduleID, enum.ScheduleStatusFailed); err != nil {
+	errMsg := "Scheduled publish permanently failed after all retries"
+	if err := c.scheduleService.UpdateStatusByID(ctx, msg.ScheduleID, enum.ScheduleStatusFailed, &errMsg); err != nil {
 		zap.L().Error("Failed to update schedule status to FAILED",
 			zap.Error(err),
 			zap.String("schedule_id", msg.ScheduleID.String()))

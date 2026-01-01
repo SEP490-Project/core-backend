@@ -106,6 +106,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupDeviceTokenRoutes(v1)
 		r.SetupNotificationRoutes(v1)
 		r.SetupTagRoutes(v1)
+		r.SetupProductOptionRoutes(v1)
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
@@ -743,6 +744,28 @@ func (r *Router) SetupTagRoutes(group *gin.RouterGroup) {
 	}
 }
 
+// SetupProductOptionRoutes sets up product options management routes
+func (r *Router) SetupProductOptionRoutes(group *gin.RouterGroup) {
+	productOptionHandler := r.handlerRegistry.ProductOptionHandler
+	productOptionsGroup := group.Group("/product-options")
+	{
+		// Public endpoints - no authentication required
+		productOptionsGroup.GET("", productOptionHandler.GetAll)
+		productOptionsGroup.GET("/type/:type", productOptionHandler.GetByType)
+
+		productOptionsGroup.GET("/:id", productOptionHandler.GetByID)
+
+		// Admin-only endpoints
+		adminGroup := productOptionsGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("", productOptionHandler.Create)
+			adminGroup.PATCH("/:id", productOptionHandler.Update)
+			adminGroup.DELETE("/:id", productOptionHandler.Delete)
+		}
+	}
+}
+
 // SetupWebSocketRoutes sets up WebSocket routes
 func (r *Router) SetupWebSocketRoutes(engine *gin.Engine, wsServer *WebSocketServer) {
 	engine.GET("/ws",
@@ -1134,11 +1157,7 @@ func (r *Router) SetupScheduleRoutes(group *gin.RouterGroup) {
 		contentGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, content))
 		{
 			contentGroup.POST("", contentScheduleHandler.ScheduleContent)
-			contentGroup.GET("", contentScheduleHandler.ListSchedules)
-			contentGroup.GET("/upcoming", contentScheduleHandler.GetUpcomingSchedules)
 			contentGroup.POST("/batch", contentScheduleHandler.BatchScheduleContent)
-			contentGroup.GET("/:id", contentScheduleHandler.GetSchedule)
-			contentGroup.POST("/:id/cancel", contentScheduleHandler.CancelSchedule)
 			contentGroup.POST("/:id/reschedule", contentScheduleHandler.RescheduleContent)
 		}
 	}
