@@ -52,12 +52,20 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
+	Host     string             `mapstructure:"host"`
+	Port     int                `mapstructure:"port"`
+	User     string             `mapstructure:"user"`
+	Password string             `mapstructure:"password"`
+	DBName   string             `mapstructure:"dbname"`
+	SSLMode  string             `mapstructure:"sslmode"`
+	Pool     DatabasePoolConfig `mapstructure:"pool"`
+}
+
+type DatabasePoolConfig struct {
+	MaxOpenConns    int `mapstructure:"max_open_conns"`
+	MaxIdleConns    int `mapstructure:"max_idle_conns"`
+	ConnMaxLifetime int `mapstructure:"conn_max_lifetime"`  // in seconds
+	ConnMaxIdleTime int `mapstructure:"conn_max_idle_time"` // in seconds
 }
 
 type CacheConfig struct {
@@ -407,6 +415,10 @@ func setDefaultValues() {
 	viper.SetDefault("database.password", "170504")
 	viper.SetDefault("database.dbname", "sep490_db_stag")
 	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.pool.max_open_conns", 25)
+	viper.SetDefault("database.pool.max_idle_conns", 25)
+	viper.SetDefault("database.pool.conn_max_lifetime", 300)
+	viper.SetDefault("database.pool.conn_max_idle_time", 300)
 
 	viper.SetDefault("cache.host", "localhost")
 	viper.SetDefault("cache.port", 6379)
