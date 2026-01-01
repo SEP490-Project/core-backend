@@ -1,5 +1,10 @@
 package enum
 
+// Deprecated: ContainerType is deprecated and will be removed in a future version.
+// Use the product_options table with type='CONTAINER_TYPE' instead.
+// Values are now stored as strings and managed via ProductOptionService.
+// See: internal/application/service/product_option_service.go
+
 import (
 	"database/sql/driver"
 	"fmt"
