@@ -78,7 +78,7 @@ func (oi *OrderItemRequest) ToModel(prdVariant model.ProductVariant, now time.Ti
 		m := map[string]any{
 			"attribute_id": vav.AttributeID,
 			"value":        vav.Value,
-			"unit":         vav.Unit.String(),
+			"unit":         vav.Unit,
 		}
 		if vav.Attribute != nil {
 			m["ingredient"] = vav.Attribute.Ingredient

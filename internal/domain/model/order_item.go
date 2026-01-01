@@ -1,7 +1,6 @@
 package model
 
 import (
-	"core-backend/internal/domain/enum"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,20 +17,20 @@ type OrderItem struct {
 	Subtotal  float64   `json:"subtotal" gorm:"column:subtotal;not null"`
 	UnitPrice float64   `json:"unit_price" gorm:"column:unit_price;not null"`
 
-	Capacity              *float64            `json:"capacity" gorm:"column:capacity"`
-	CapacityUnit          *enum.CapacityUnit  `json:"capacity_unit" gorm:"column:capacity_unit"`
-	ContainerType         *enum.ContainerType `json:"container_type" gorm:"type:varchar(255);column:container_type;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
-	DispenserType         *enum.DispenserType `json:"dispenser_type" gorm:"type:varchar(255);column:dispenser_type;check:dispenser_type in ('PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE')"`
-	Uses                  *string             `json:"uses" gorm:"type:text;column:uses"`
-	ManufactureDate       *time.Time          `json:"manufacturing_date" gorm:"column:manufacturing_date"`
-	ExpiryDate            *time.Time          `json:"expiry_date" gorm:"column:expiry_date"`
-	Instructions          *string             `json:"instructions" gorm:"type:text;column:instructions"`
-	AttributesDescription *datatypes.JSON     `json:"attributes_description" gorm:"column:attributes_description;type:jsonb" swaggerignore:"true"`
-	Weight                int                 `json:"weight" gorm:"column:weight"` // in grams
-	Height                int                 `json:"height" gorm:"column:height"` // in centimeters
-	Length                int                 `json:"length" gorm:"column:length"` // in centimeters
-	Width                 int                 `json:"width" gorm:"column:width"`   // in centimeters
-	IsReviewed            bool                `json:"is_reviewed" gorm:"column:is_review;default:false"`
+	Capacity              *float64        `json:"capacity" gorm:"column:capacity"`
+	CapacityUnit          *string         `json:"capacity_unit" gorm:"column:capacity_unit"`
+	ContainerType         *string         `json:"container_type" gorm:"type:varchar(255);column:container_type"`
+	DispenserType         *string         `json:"dispenser_type" gorm:"type:varchar(255);column:dispenser_type"`
+	Uses                  *string         `json:"uses" gorm:"type:text;column:uses"`
+	ManufactureDate       *time.Time      `json:"manufacturing_date" gorm:"column:manufacturing_date"`
+	ExpiryDate            *time.Time      `json:"expiry_date" gorm:"column:expiry_date"`
+	Instructions          *string         `json:"instructions" gorm:"type:text;column:instructions"`
+	AttributesDescription *datatypes.JSON `json:"attributes_description" gorm:"column:attributes_description;type:jsonb" swaggerignore:"true"`
+	Weight                int             `json:"weight" gorm:"column:weight"` // in grams
+	Height                int             `json:"height" gorm:"column:height"` // in centimeters
+	Length                int             `json:"length" gorm:"column:length"` // in centimeters
+	Width                 int             `json:"width" gorm:"column:width"`   // in centimeters
+	IsReviewed            bool            `json:"is_reviewed" gorm:"column:is_review;default:false"`
 
 	//product fields
 	ProductName string     `json:"product_name" gorm:"column:product_name;not null"`

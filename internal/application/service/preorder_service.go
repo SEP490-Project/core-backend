@@ -679,10 +679,18 @@ func preOrderToPayOSItemsWithTotalPrice(preOrder model.PreOrder) ([]dtos.PayOSIt
 	total := 0
 
 	// Build variant descriptive string (e.g. "250ML - Bottle - Spray")
+	containerTypeStr := ""
+	if preOrder.ContainerType != nil {
+		containerTypeStr = utils.ToTitleCase(*preOrder.ContainerType)
+	}
+	dispenserTypeStr := ""
+	if preOrder.DispenserType != nil {
+		dispenserTypeStr = utils.ToTitleCase(*preOrder.DispenserType)
+	}
 	variantPropConcat := fmt.Sprintf("%v", preOrder.Capacity) +
 		utils.ToTitleCase(*preOrder.CapacityUnit) + " - " +
-		utils.ToTitleCase(preOrder.ContainerType.String()) + " - " +
-		utils.ToTitleCase(preOrder.DispenserType.String())
+		containerTypeStr + " - " +
+		dispenserTypeStr
 
 	// Build readable item name (e.g. "Shampoo (250ML - Bottle - Spray)")
 	variantName := utils.ToTitleCase(preOrder.ProductVariant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)
@@ -704,10 +712,18 @@ func toPaymentItemRequestWithTotalPrice(preOrder model.PreOrder) ([]requests.Pay
 	total := int64(0)
 
 	// Build variant descriptive string (e.g. "250ML - Bottle - Spray")
+	containerTypeStr := ""
+	if preOrder.ContainerType != nil {
+		containerTypeStr = utils.ToTitleCase(*preOrder.ContainerType)
+	}
+	dispenserTypeStr := ""
+	if preOrder.DispenserType != nil {
+		dispenserTypeStr = utils.ToTitleCase(*preOrder.DispenserType)
+	}
 	variantPropConcat := fmt.Sprintf("%v", preOrder.Capacity) +
 		utils.ToTitleCase(*preOrder.CapacityUnit) + " - " +
-		utils.ToTitleCase(preOrder.ContainerType.String()) + " - " +
-		utils.ToTitleCase(preOrder.DispenserType.String())
+		containerTypeStr + " - " +
+		dispenserTypeStr
 
 	// Build readable item name (e.g. "Shampoo (250ML - Bottle - Spray)")
 	variantName := utils.ToTitleCase(preOrder.ProductVariant.Product.Name) + fmt.Sprintf(" (%s)", variantPropConcat)

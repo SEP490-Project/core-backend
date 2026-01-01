@@ -1,7 +1,6 @@
 package requests
 
 import (
-	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"time"
 
@@ -9,9 +8,9 @@ import (
 )
 
 type CreateVariantAttributeValueRequest struct {
-	Value       float64            `json:"value" validate:"required,min=0.1" example:"10.5"`
-	Unit        enum.AttributeUnit `json:"unit" validate:"required,oneof=% MG G ML L IU PPM NONE" example:"MG"`
-	AttributeID uuid.UUID          `json:"attribute_id" validate:"required" example:"550e8400-e29b-41d4-a716-446655440001"`
+	Value       float64   `json:"value" validate:"required,min=0.1" example:"10.5"`
+	Unit        string    `json:"unit" validate:"required" example:"MG"`
+	AttributeID uuid.UUID `json:"attribute_id" validate:"required" example:"550e8400-e29b-41d4-a716-446655440001"`
 }
 
 func (v *CreateVariantAttributeValueRequest) ToModel() *model.VariantAttributeValue {
