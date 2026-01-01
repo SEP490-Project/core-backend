@@ -31,16 +31,16 @@ type ProductOverviewResponse struct {
 
 // VariantMini lightweight projection of a variant.
 type VariantMini struct {
-	ID           uuid.UUID         `json:"id"`
-	Price        float64           `json:"price"`
-	IsDefault    bool              `json:"is_default"`
-	CurrentStock *int              `json:"current_stock"`
-	Capacity     float64           `json:"capacity"`
-	CapacityUnit enum.CapacityUnit `json:"capacity_unit"`
-	Weight       int               `json:"weight"` // in grams
-	Height       int               `json:"height"` // in centimeters
-	Length       int               `json:"length"` // in centimeters
-	Width        int               `json:"width"`  //
+	ID           uuid.UUID `json:"id"`
+	Price        float64   `json:"price"`
+	IsDefault    bool      `json:"is_default"`
+	CurrentStock *int      `json:"current_stock"`
+	Capacity     float64   `json:"capacity"`
+	CapacityUnit string    `json:"capacity_unit"`
+	Weight       int       `json:"weight"` // in grams
+	Height       int       `json:"height"` // in centimeters
+	Length       int       `json:"length"` // in centimeters
+	Width        int       `json:"width"`  //
 
 }
 

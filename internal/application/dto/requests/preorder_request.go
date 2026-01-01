@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -32,7 +31,7 @@ func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress,
 		m := map[string]any{
 			"attribute_id": vav.AttributeID,
 			"value":        vav.Value,
-			"unit":         vav.Unit.String(),
+			"unit":         vav.Unit,
 		}
 		if vav.Attribute != nil {
 			m["ingredient"] = vav.Attribute.Ingredient
@@ -69,7 +68,7 @@ func (p PreOrderRequest) ToModel(user model.User, address model.ShippingAddress,
 		DistrictName:          address.DistrictName,
 		WardName:              address.WardName,
 		Capacity:              &variant.Capacity,
-		CapacityUnit:          ptr.String(variant.CapacityUnit.String()),
+		CapacityUnit:          &variant.CapacityUnit,
 		ContainerType:         &variant.ContainerType,
 		DispenserType:         &variant.DispenserType,
 		Uses:                  &variant.Uses,

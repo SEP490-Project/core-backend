@@ -58,6 +58,7 @@ type HandlerRegistry struct {
 	SystemHandler                 *SystemHandler
 	AsynqHandler                  *AsynqHandler
 	CacheHandler                  *CacheHandler
+	ProductOptionHandler          *ProductOptionHandler
 }
 
 func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConfig *config.AppConfig) *HandlerRegistry {
@@ -111,5 +112,6 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		SystemHandler:                 NewSystemHandler(applicationReg.SystemService),
 		AsynqHandler:                  NewAsynqHandler(applicationReg.InfrastructureRegistry.AsynqClient),
 		CacheHandler:                  NewCacheHandler(applicationReg.InfrastructureRegistry.ValkeyCache),
+		ProductOptionHandler:          NewProductOptionHandler(applicationReg.ProductOptionService, applicationReg.InfrastructureRegistry.UnitOfWork),
 	}
 }

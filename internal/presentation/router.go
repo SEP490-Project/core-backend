@@ -106,6 +106,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.SetupDeviceTokenRoutes(v1)
 		r.SetupNotificationRoutes(v1)
 		r.SetupTagRoutes(v1)
+		r.SetupProductOptionRoutes(v1)
 		r.SetupAffiliateLinkRoutes(v1)
 		r.SetupAffiliateLinkAnalyticsRoutes(v1)
 		r.SetupMarketingAnalyticsRoutes(v1)
@@ -738,6 +739,28 @@ func (r *Router) SetupTagRoutes(group *gin.RouterGroup) {
 		viewGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin, content, marketing, sales, brand, customer))
 		{
 			viewGroup.GET("", tagHandler.GetByFilter)
+		}
+	}
+}
+
+// SetupProductOptionRoutes sets up product options management routes
+func (r *Router) SetupProductOptionRoutes(group *gin.RouterGroup) {
+	productOptionHandler := r.handlerRegistry.ProductOptionHandler
+	productOptionsGroup := group.Group("/product-options")
+	{
+		// Public endpoints - no authentication required
+		productOptionsGroup.GET("", productOptionHandler.GetAll)
+		productOptionsGroup.GET("/type/:type", productOptionHandler.GetByType)
+
+		productOptionsGroup.GET("/:id", productOptionHandler.GetByID)
+
+		// Admin-only endpoints
+		adminGroup := productOptionsGroup.Group("")
+		adminGroup.Use(r.middlewareRegistry.Auth.RequireRole(admin))
+		{
+			adminGroup.POST("", productOptionHandler.Create)
+			adminGroup.PATCH("/:id", productOptionHandler.Update)
+			adminGroup.DELETE("/:id", productOptionHandler.Delete)
 		}
 	}
 }

@@ -1270,26 +1270,6 @@ definitions:
     - AlertTypeWarning
     - AlertTypeError
     - AlertTypeInfo
-  enum.AttributeUnit:
-    enum:
-    - '%'
-    - MG
-    - G
-    - ML
-    - L
-    - IU
-    - PPM
-    - NONE
-    type: string
-    x-enum-varnames:
-    - AttributeUnitPercent
-    - AttributeUnitMG
-    - AttributeUnitG
-    - AttributeUnitML
-    - AttributeUnitL
-    - AttributeUnitIU
-    - AttributeUnitPPM
-    - AttributeUnitNone
   enum.AutoPostStatus:
     enum:
     - PENDING
@@ -1304,20 +1284,6 @@ definitions:
     - AutoPostStatusPosted
     - AutoPostStatusFailed
     - AutoPostStatusSkipped
-  enum.CapacityUnit:
-    enum:
-    - ML
-    - L
-    - G
-    - KG
-    - OZ
-    type: string
-    x-enum-varnames:
-    - CapacityUnitML
-    - CapacityUnitL
-    - CapacityUnitG
-    - CapacityUnitKG
-    - CapacityUnitOZ
   enum.ConfigValueType:
     enum:
     - STRING
@@ -1338,30 +1304,6 @@ definitions:
     - ConfigValueTypeTipTapJSON
     - ConfigValueTypeArray
     - ConfigValueTypeTime
-  enum.ContainerType:
-    enum:
-    - BOTTLE
-    - TUBE
-    - JAR
-    - STICK
-    - PENCIL
-    - COMPACT
-    - PALLETE
-    - SACHET
-    - VIAL
-    - ROLLER_BOTTLE
-    type: string
-    x-enum-varnames:
-    - ContainerTypeBottle
-    - ContainerTypeTube
-    - ContainerTypeJar
-    - ContainerTypeStick
-    - ContainerTypePencil
-    - ContainerTypeCompact
-    - ContainerTypePallete
-    - ContainerTypeSachet
-    - ContainerTypeVial
-    - ContainerTypeRollerBottle
   enum.ContentStatus:
     enum:
     - DRAFT
@@ -1412,24 +1354,6 @@ definitions:
     - ContractTypeAffiliate
     - ContractTypeAmbassador
     - ContractTypeCoProduce
-  enum.DispenserType:
-    enum:
-    - PUMP
-    - SPRAY
-    - DROPPER
-    - ROLL_ON
-    - TWIST_UP
-    - SQUEEZE
-    - NONE
-    type: string
-    x-enum-varnames:
-    - DispenserTypePump
-    - DispenserTypeSpray
-    - DispenserTypeDropper
-    - DispenserTypeRollOn
-    - DispenserTypeTwistUp
-    - DispenserTypeSqueeze
-    - DispenserTypeNone
   enum.FileStatus:
     enum:
     - PENDING
@@ -2033,17 +1957,17 @@ definitions:
       capacity:
         type: number
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       category:
         $ref: '#/definitions/model.ProductCategory'
       category_id:
         type: string
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       description:
         type: string
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       expiry_date:
         type: string
       height:
@@ -2213,9 +2137,9 @@ definitions:
       capacity:
         type: number
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       created_at:
         type: string
       created_by:
@@ -2223,7 +2147,7 @@ definitions:
       current_stock:
         type: integer
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       expiry_date:
         type: string
       height:
@@ -2304,7 +2228,7 @@ definitions:
       id:
         type: string
       unit:
-        $ref: '#/definitions/enum.AttributeUnit'
+        type: string
       updated_at:
         type: string
       value:
@@ -2497,41 +2421,14 @@ definitions:
         minimum: 0
         type: number
       capacity_unit:
-        allOf:
-        - $ref: '#/definitions/enum.CapacityUnit'
-        enum:
-        - ML
-        - L
-        - G
-        - KG
-        - OZ
+        example: ML
+        type: string
       container_type:
-        allOf:
-        - $ref: '#/definitions/enum.ContainerType'
-        enum:
-        - BOTTLE
-        - TUBE
-        - JAR
-        - STICK
-        - PENCIL
-        - COMPACT
-        - PALLETE
-        - SACHET
-        - VIAL
-        - ROLLER_BOTTLE
         example: BOTTLE
+        type: string
       dispenser_type:
-        allOf:
-        - $ref: '#/definitions/enum.DispenserType'
-        enum:
-        - PUMP
-        - SPRAY
-        - DROPPER
-        - ROLL_ON
-        - TWIST_UP
-        - SQUEEZE
-        - NONE
         example: SPRAY
+        type: string
       expiry_date:
         example: "2025-10-01T00:00:00Z"
         type: string
@@ -3126,6 +3023,39 @@ definitions:
     required:
     - name
     type: object
+  requests.CreateProductOptionRequest:
+    properties:
+      code:
+        example: FL_OZ
+        maxLength: 50
+        minLength: 1
+        type: string
+      description:
+        example: US fluid ounce measurement
+        maxLength: 500
+        type: string
+      name:
+        example: Fluid Ounce
+        maxLength: 100
+        minLength: 1
+        type: string
+      sort_order:
+        example: 6
+        minimum: 0
+        type: integer
+      type:
+        enum:
+        - CAPACITY_UNIT
+        - CONTAINER_TYPE
+        - DISPENSER_TYPE
+        - ATTRIBUTE_UNIT
+        example: CAPACITY_UNIT
+        type: string
+    required:
+    - code
+    - name
+    - type
+    type: object
   requests.CreateProductStoryRequest:
     properties:
       variant_id:
@@ -3263,18 +3193,8 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440001
         type: string
       unit:
-        allOf:
-        - $ref: '#/definitions/enum.AttributeUnit'
-        enum:
-        - '%'
-        - MG
-        - G
-        - ML
-        - L
-        - IU
-        - PPM
-        - NONE
         example: MG
+        type: string
       value:
         example: 10.5
         minimum: 0.1
@@ -4319,41 +4239,14 @@ definitions:
         minimum: 0
         type: number
       capacity_unit:
-        allOf:
-        - $ref: '#/definitions/enum.CapacityUnit'
-        enum:
-        - ML
-        - L
-        - G
-        - KG
-        - OZ
+        example: ML
+        type: string
       container_type:
-        allOf:
-        - $ref: '#/definitions/enum.ContainerType'
-        enum:
-        - BOTTLE
-        - TUBE
-        - JAR
-        - STICK
-        - PENCIL
-        - COMPACT
-        - PALLETE
-        - SACHET
-        - VIAL
-        - ROLLER_BOTTLE
         example: BOTTLE
+        type: string
       dispenser_type:
-        allOf:
-        - $ref: '#/definitions/enum.DispenserType'
-        enum:
-        - PUMP
-        - SPRAY
-        - DROPPER
-        - ROLL_ON
-        - TWIST_UP
-        - SQUEEZE
-        - NONE
         example: SPRAY
+        type: string
       expiry_date:
         example: "2025-10-01T00:00:00Z"
         type: string
@@ -4409,6 +4302,30 @@ definitions:
       parent_category_id:
         type: string
     type: object
+  requests.UpdateProductOptionRequest:
+    properties:
+      code:
+        example: FL_OZ
+        maxLength: 50
+        minLength: 1
+        type: string
+      description:
+        example: US fluid ounce measurement
+        maxLength: 500
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Fluid Ounce
+        maxLength: 100
+        minLength: 1
+        type: string
+      sort_order:
+        example: 6
+        minimum: 0
+        type: integer
+    type: object
   requests.UpdateProductRequest:
     properties:
       brand_id:
@@ -4434,41 +4351,14 @@ definitions:
         minimum: 0
         type: number
       capacity_unit:
-        allOf:
-        - $ref: '#/definitions/enum.CapacityUnit'
-        enum:
-        - ML
-        - L
-        - G
-        - KG
-        - OZ
+        example: ML
+        type: string
       container_type:
-        allOf:
-        - $ref: '#/definitions/enum.ContainerType'
-        enum:
-        - BOTTLE
-        - TUBE
-        - JAR
-        - STICK
-        - PENCIL
-        - COMPACT
-        - PALLETE
-        - SACHET
-        - VIAL
-        - ROLLER_BOTTLE
         example: BOTTLE
+        type: string
       dispenser_type:
-        allOf:
-        - $ref: '#/definitions/enum.DispenserType'
-        enum:
-        - PUMP
-        - SPRAY
-        - DROPPER
-        - ROLL_ON
-        - TWIST_UP
-        - SQUEEZE
-        - NONE
         example: SPRAY
+        type: string
       expiry_date:
         example: "2025-10-01T00:00:00Z"
         type: string
@@ -7323,15 +7213,15 @@ definitions:
       capacity:
         type: number
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       category:
         $ref: '#/definitions/responses.OrderItemCategoryResponse'
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       description:
         type: string
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       expiry_date:
         type: string
       height:
@@ -7804,7 +7694,7 @@ definitions:
       confirmation_image:
         type: string
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       created_at:
         type: string
       deleted_at:
@@ -7813,7 +7703,7 @@ definitions:
       description:
         type: string
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       district_name:
         type: string
       email:
@@ -7906,7 +7796,7 @@ definitions:
         description: Attribute
         type: string
       unit:
-        $ref: '#/definitions/enum.AttributeUnit'
+        type: string
       value:
         description: Value
         type: number
@@ -7938,6 +7828,36 @@ definitions:
         type: string
       type:
         $ref: '#/definitions/enum.ProductType'
+    type: object
+  responses.ProductOptionResponse:
+    properties:
+      code:
+        example: ML
+        type: string
+      created_at:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      description:
+        example: Volume measurement in milliliters
+        type: string
+      id:
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      is_active:
+        example: true
+        type: boolean
+      name:
+        example: Milliliter
+        type: string
+      sort_order:
+        example: 1
+        type: integer
+      type:
+        example: CAPACITY_UNIT
+        type: string
+      updated_at:
+        example: "2024-01-02T12:00:00Z"
+        type: string
     type: object
   responses.ProductOverviewResponse:
     properties:
@@ -8076,13 +7996,13 @@ definitions:
       brand:
         $ref: '#/definitions/responses.BrandResponse'
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       category:
         $ref: '#/definitions/responses.ProductCategoryResponse'
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       height:
         type: integer
       id:
@@ -8159,9 +8079,9 @@ definitions:
       capacity:
         type: number
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       container_type:
-        $ref: '#/definitions/enum.ContainerType'
+        type: string
       created_at:
         type: string
       current_stock:
@@ -8169,7 +8089,7 @@ definitions:
       description:
         type: string
       dispenser_type:
-        $ref: '#/definitions/enum.DispenserType'
+        type: string
       expiry_date:
         type: string
       height:
@@ -9495,7 +9415,7 @@ definitions:
       capacity:
         type: number
       capacity_unit:
-        $ref: '#/definitions/enum.CapacityUnit'
+        type: string
       current_stock:
         type: integer
       height:
@@ -20856,6 +20776,291 @@ paths:
       summary: 3.1-[Self-Delivery] Mark preorder as delivered (Staff)
       tags:
       - Preorders.States
+  /api/v1/product-options:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve product options with optional filtering by type and pagination.
+        Public endpoint.
+      parameters:
+      - description: Filter by option type
+        enum:
+        - CAPACITY_UNIT
+        - CONTAINER_TYPE
+        - DISPENSER_TYPE
+        - ATTRIBUTE_UNIT
+        in: query
+        name: type
+        type: string
+      - description: 'Filter active options only (default: true)'
+        in: query
+        name: active_only
+        type: boolean
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 100, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product options retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ProductOptionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get product options
+      tags:
+      - ProductOptions
+    post:
+      consumes:
+      - application/json
+      description: Create a new product option. Admin only.
+      parameters:
+      - description: Product option data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CreateProductOptionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Product option created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ProductOptionResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Product option code already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Create product option
+      tags:
+      - ProductOptions
+  /api/v1/product-options/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete a product option. Admin only.
+      parameters:
+      - description: Product option ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product option deleted successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Invalid product option ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product option not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete product option
+      tags:
+      - ProductOptions
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific product option by its ID
+      parameters:
+      - description: Product option ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product option retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ProductOptionResponse'
+              type: object
+        "400":
+          description: Invalid product option ID
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product option not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get product option by ID
+      tags:
+      - ProductOptions
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing product option. Admin only.
+      parameters:
+      - description: Product option ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product option update data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProductOptionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product option updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ProductOptionResponse'
+              type: object
+        "400":
+          description: Invalid request or validation error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Product option not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "409":
+          description: Product option code already exists
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Update product option
+      tags:
+      - ProductOptions
+  /api/v1/product-options/type/{type}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all active product options for a specific type. Public
+        endpoint with caching.
+      parameters:
+      - description: Option type
+        enum:
+        - CAPACITY_UNIT
+        - CONTAINER_TYPE
+        - DISPENSER_TYPE
+        - ATTRIBUTE_UNIT
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product options retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ProductOptionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Invalid option type
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      summary: Get product options by type
+      tags:
+      - ProductOptions
   /api/v1/products:
     get:
       consumes:

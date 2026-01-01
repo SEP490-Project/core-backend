@@ -583,7 +583,7 @@ func convertOrderItemRequestToApplicationDeliveryFeeItem(ctx context.Context, it
 		if err != nil {
 			return nil, fmt.Errorf("product variant not found, id: %s", item.VariantID.String())
 		}
-		variantPropConcat := fmt.Sprintf("%d", variant.Capacity) + utils.ToTitleCase(variant.CapacityUnit.String()) + " - " + utils.ToTitleCase(variant.ContainerType.String()) + " - " + utils.ToTitleCase(variant.DispenserType.String())
+		variantPropConcat := fmt.Sprintf("%d", variant.Capacity) + utils.ToTitleCase(variant.CapacityUnit) + " - " + utils.ToTitleCase(variant.ContainerType) + " - " + utils.ToTitleCase(variant.DispenserType)
 		variantName := utils.ToTitleCase(variant.Product.Name) + fmt.Sprintf(" (%s) ", variantPropConcat)
 
 		appDeliveryFeeItem := dtos.ApplicationDeliveryFeeItem{

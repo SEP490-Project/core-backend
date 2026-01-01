@@ -1,7 +1,6 @@
 package model
 
 import (
-	"core-backend/internal/domain/enum"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,20 +14,20 @@ type ProductVariant struct {
 	Price        float64   `json:"price" gorm:"column:price;not null"`
 	CurrentStock *int      `json:"current_stock" gorm:"column:current_stock"`
 
-	Capacity        float64            `json:"capacity" gorm:"column:capacity"`
-	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit" gorm:"column:capacity_unit;not null;check:capacity_unit in ('ML', 'L', 'G', 'KG', 'OZ')"`
-	ContainerType   enum.ContainerType `json:"container_type" gorm:"column:container_type;not null;check:container_type in ('BOTTLE', 'TUBE', 'JAR', 'STICK', 'PENCIL', 'COMPACT', 'PALLETE', 'SACHET', 'VIAL', 'ROLLER_BOTTLE')"`
-	DispenserType   enum.DispenserType `json:"dispenser_type" gorm:"column:dispenser_type;not null;check:dispenser_type in ('PUMP', 'SPRAY', 'DROPPER', 'ROLL_ON', 'TWIST_UP', 'SQUEEZE', 'NONE')"`
-	Uses            string             `json:"uses" gorm:"type:text;column:uses"`
-	ManufactureDate *time.Time         `json:"manufacturing_date" gorm:"column:manufactring_date"`
-	ExpiryDate      *time.Time         `json:"expiry_date" gorm:"column:expiry_date"`
-	Instructions    string             `json:"instructions" gorm:"type:text;column:instructions"`
-	IsDefault       bool               `json:"is_default" gorm:"column:is_default;not null;default:false"`
-	CreatedAt       time.Time          `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt       time.Time          `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt       gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
-	CreatedByID     uuid.UUID          `json:"created_by" gorm:"column:created_by;not null"`
-	UpdatedByID     *uuid.UUID         `json:"updated_by" gorm:"column:updated_by"`
+	Capacity        float64        `json:"capacity" gorm:"column:capacity"`
+	CapacityUnit    string         `json:"capacity_unit" gorm:"column:capacity_unit;not null"`
+	ContainerType   string         `json:"container_type" gorm:"column:container_type;not null"`
+	DispenserType   string         `json:"dispenser_type" gorm:"column:dispenser_type;not null"`
+	Uses            string         `json:"uses" gorm:"type:text;column:uses"`
+	ManufactureDate *time.Time     `json:"manufacturing_date" gorm:"column:manufactring_date"`
+	ExpiryDate      *time.Time     `json:"expiry_date" gorm:"column:expiry_date"`
+	Instructions    string         `json:"instructions" gorm:"type:text;column:instructions"`
+	IsDefault       bool           `json:"is_default" gorm:"column:is_default;not null;default:false"`
+	CreatedAt       time.Time      `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt       time.Time      `json:"updated_at" gorm:"column:updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
+	CreatedByID     uuid.UUID      `json:"created_by" gorm:"column:created_by;not null"`
+	UpdatedByID     *uuid.UUID     `json:"updated_by" gorm:"column:updated_by"`
 
 	Weight int `json:"weight" gorm:"column:weight"` // in grams
 	Height int `json:"height" gorm:"column:height"` // in centimeters
