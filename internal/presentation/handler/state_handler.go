@@ -111,7 +111,7 @@ func (h *StateHandler) UpdateTaskState(c *gin.Context) {
 		return
 	}
 
-	if err := h.MoveTaskToState(c.Request.Context(), id, target, userID); err != nil {
+	if err := h.MoveTaskToState(c.Request.Context(), nil, id, target, userID); err != nil {
 		// naive mapping of errors; customize if you propagate error kinds
 		c.JSON(http.StatusConflict, responses.ErrorResponse("failed to move task: "+err.Error(), http.StatusConflict))
 		return

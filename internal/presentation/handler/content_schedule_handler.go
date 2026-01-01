@@ -37,12 +37,20 @@ func NewContentScheduleHandler(scheduleService iservice.ContentScheduleService) 
 //	@Failure		401		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules [post]
+//	@Router			/api/v1/schedules/contents [post]
 func (h *ContentScheduleHandler) ScheduleContent(c *gin.Context) {
 	var req requests.ScheduleContentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
+	}
+
+	// Get user ID from context
+	userIDStr, exists := c.Get("user_id")
+	if exists {
+		if userID, err := uuid.Parse(userIDStr.(string)); err == nil {
+			req.UserID = userID
+		}
 	}
 
 	schedule, err := h.scheduleService.ScheduleContent(c.Request.Context(), &req)
@@ -69,29 +77,17 @@ func (h *ContentScheduleHandler) ScheduleContent(c *gin.Context) {
 //	@Failure		401			{object}	responses.APIResponse
 //	@Failure		500			{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/contents/{content_id}/schedules/batch [post]
+//	@Router			/api/v1/schedules/contents/batch [post]
 func (h *ContentScheduleHandler) BatchScheduleContent(c *gin.Context) {
-	contentIDStr := c.Param("content_id")
-	contentID, err := uuid.Parse(contentIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid content ID", http.StatusBadRequest))
-		return
-	}
-
 	var req requests.BatchScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request: "+err.Error(), http.StatusBadRequest))
 		return
 	}
-
-	req.ContentID = contentID
-
 	// Get user ID from context
-	userIDStr, exists := c.Get("user_id")
-	if exists {
-		if userID, err := uuid.Parse(userIDStr.(string)); err == nil {
-			req.UserID = userID
-		}
+	userID, err := extractUserID(c)
+	if err == nil {
+		req.UserID = userID
 	}
 
 	result, err := h.scheduleService.BatchScheduleContent(c.Request.Context(), &req)
@@ -116,7 +112,7 @@ func (h *ContentScheduleHandler) BatchScheduleContent(c *gin.Context) {
 //	@Failure		400	{object}	responses.APIResponse
 //	@Failure		404	{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules/{id} [get]
+//	@Router			/api/v1/schedules/contents/{id} [get]
 func (h *ContentScheduleHandler) GetSchedule(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -150,7 +146,7 @@ func (h *ContentScheduleHandler) GetSchedule(c *gin.Context) {
 //	@Success		200				{object}	responses.APIResponse{data=responses.ScheduleListResponse}
 //	@Failure		400				{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules [get]
+//	@Router			/api/v1/schedules/contents [get]
 func (h *ContentScheduleHandler) ListSchedules(c *gin.Context) {
 	var filter requests.ScheduleFilterRequest
 	if err := c.ShouldBindQuery(&filter); err != nil {
@@ -179,7 +175,7 @@ func (h *ContentScheduleHandler) ListSchedules(c *gin.Context) {
 //	@Failure		400	{object}	responses.APIResponse
 //	@Failure		404	{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules/{id}/cancel [post]
+//	@Router			/api/v1/schedules/contents/{id}/cancel [post]
 func (h *ContentScheduleHandler) CancelSchedule(c *gin.Context) {
 	id, err := extractParamID(c, "id")
 	if err != nil {
@@ -208,7 +204,7 @@ func (h *ContentScheduleHandler) CancelSchedule(c *gin.Context) {
 //	@Failure		400		{object}	responses.APIResponse
 //	@Failure		404		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules/{id}/reschedule [post]
+//	@Router			/api/v1/schedules/contents/{id}/reschedule [post]
 func (h *ContentScheduleHandler) RescheduleContent(c *gin.Context) {
 	id, err := extractParamID(c, "id")
 	if err != nil {
@@ -242,7 +238,7 @@ func (h *ContentScheduleHandler) RescheduleContent(c *gin.Context) {
 //	@Success		200		{object}	responses.APIResponse{data=[]responses.ScheduledContentItem}
 //	@Failure		400		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/content-schedules/upcoming [get]
+//	@Router			/api/v1/schedules/contents/upcoming [get]
 func (h *ContentScheduleHandler) GetUpcomingSchedules(c *gin.Context) {
 	days := 7 // default
 	if daysQuery := c.Query("days"); daysQuery != "" {

@@ -338,7 +338,7 @@ func (s *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 		for i, m := range metrics {
 			itemComp.ExpectedMetrics[i] = m
 			val, _ := strconv.ParseFloat(m.Target, 64)
-			utils.AddValueToMap(comparison.ExpectedMetrics, m.Metric, val)
+			utils.AddValueToMap(comparison.ExpectedMetrics, strings.ToLower(m.Metric), val)
 		}
 
 		// Realistic Metrics
@@ -376,33 +376,34 @@ func (s *CampaignService) calculateMetricsComparison(ctx context.Context, contra
 			if err == nil {
 				for _, cm := range contentMetrics {
 					for k, v := range cm.CurrentMapped {
-						utils.AddValueToMap(itemComp.RealisticMetrics, k.String(), v)
+						utils.AddValueToMap(itemComp.RealisticMetrics, strings.ToLower(k.String()), v)
 					}
 				}
 			}
 		}
 
 		// 3. Affiliate
-		if trackingLink != "" {
+		if trackingLink != "" && len(contentIDs) > 0 {
 			// Find AffiliateLink by tracking URL
-			affiliateLinks, _, _ := s.affiliateLinkRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
-				return db.Where("tracking_url = ?", trackingLink)
-			}, nil, 1, 1)
+			affiliateLinkIDs, _ := s.affiliateLinkRepo.GetIDsByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.
+					Where("tracking_url = ?", trackingLink).
+					Where("deleted_at IS NULL").
+					Where("metadata ->> 'content_id' IN ?", contentIDs)
+			})
 
-			if len(affiliateLinks) > 0 {
-				linkID := affiliateLinks[0].ID
+			if len(affiliateLinkIDs) > 0 {
 				// Query KPI Metrics
-				metrics, _ := s.kpiMetricsRepo.GetAggregatedMetrics(ctx, linkID, enum.KPIReferenceTypeAffiliateLink, nil)
-
+				metrics, _ := s.kpiMetricsRepo.GetAggregatedMetricsByReferenceIDs(ctx, affiliateLinkIDs, enum.KPIReferenceTypeAffiliateLink, nil)
 				for k, v := range metrics {
-					utils.AddValueToMap(itemComp.RealisticMetrics, k.String(), v)
+					utils.AddValueToMap(itemComp.RealisticMetrics, strings.ToLower(k.String()), v)
 				}
 			}
 		}
 
 		// Aggregate item realistic metrics to total
 		for k, v := range itemComp.RealisticMetrics {
-			utils.AddValueToMap(comparison.RealisticMetrics, k, v)
+			utils.AddValueToMap(comparison.RealisticMetrics, strings.ToLower(k), v)
 		}
 
 		comparison.Items = append(comparison.Items, itemComp)

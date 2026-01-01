@@ -32,11 +32,15 @@ type Content struct {
 	UpdatedAt         *time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt         gorm.DeletedAt     `json:"deleted_at" gorm:"index"`
 	Tags              ContentTag         `json:"tags,omitempty" gorm:"type:jsonb"`
+	CreatedBy         *uuid.UUID         `json:"created_by,omitempty" gorm:"type:uuid"`
+	UpdatedBy         *uuid.UUID         `json:"updated_by,omitempty" gorm:"type:uuid"`
 
 	// Relationships
 	Task            *Task             `json:"task,omitempty" gorm:"foreignKey:TaskID;constraint:OnDelete:SET NULL"`
 	Blog            *Blog             `json:"blog,omitempty" gorm:"foreignKey:ContentID;constraint:OnDelete:CASCADE"`
 	ContentChannels []*ContentChannel `json:"content_channels,omitempty" gorm:"foreignKey:ContentID"`
+	CreatedUser     *User             `json:"created_user,omitempty" gorm:"foreignKey:CreatedBy;constraint:OnDelete:SET NULL"`
+	UpdatedUser     *User             `json:"updated_user,omitempty" gorm:"foreignKey:UpdatedBy;constraint:OnDelete:SET NULL"`
 }
 
 func (Content) TableName() string { return "contents" }

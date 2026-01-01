@@ -55,6 +55,7 @@ type ApplicationRegistry struct {
 	AIService                     iservice.AIService
 	SSEService                    iservice.SSEService
 	WebhookDataService            iservice.WebhookDataService
+	ScheduleService               iservice.ScheduleService
 	ContentScheduleService        iservice.ContentScheduleService
 	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
@@ -163,6 +164,7 @@ func NewApplicationRegistry(
 	)
 
 	alertManagerService := service.NewAlertManagerService(databaseRegistry.SystemAlertRepository)
+	scheduleService := service.NewScheduleService(databaseRegistry.ScheduleRepository, infrastructureRegistry.AsynqClient)
 	contentScheduleService := service.NewContentScheduleService(
 		databaseRegistry,
 		contentPublishingService,
@@ -193,7 +195,7 @@ func NewApplicationRegistry(
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository),
-		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, &configs.AdminConfig),
+		ContractPaymentService:        service.NewContractPaymentService(databaseRegistry, infrastructureRegistry.UnitOfWork, &configs.AdminConfig),
 		ConceptService:                service.NewConceptService(databaseRegistry.ConceptRepository),
 		OrderService:                  service.NewOrderService(configs, databaseRegistry, infrastructureRegistry, paymentTransactionService, notificationService),
 		ChannelService:                channelService,
@@ -219,6 +221,7 @@ func NewApplicationRegistry(
 		AIService:                     service.NewAIService(configs, infrastructureRegistry.ProxiesRegistry.AIClientManager),
 		SSEService:                    sseService,
 		WebhookDataService:            service.NewWebhookDataService(databaseRegistry.WebhookDataRepository, infrastructureRegistry.UnitOfWork),
+		ScheduleService:               scheduleService,
 		ContentScheduleService:        contentScheduleService,
 		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,

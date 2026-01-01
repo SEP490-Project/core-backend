@@ -636,7 +636,7 @@ func (s *ContractService) UpdateContractScopeOfWorkWithReferencinnTaskIDs(
 			if item.ID == nil {
 				continue
 			}
-			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeAdvertise]
+			taskMap, exists := scopeOfWorkItemIDTypeMap[constant.ScopeOfWorkIDTypeAffiliate]
 			if !exists {
 				break
 			}
