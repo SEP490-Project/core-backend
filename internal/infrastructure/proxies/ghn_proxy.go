@@ -451,7 +451,7 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 
 func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, order *model.Order) error {
 	webhookURL := fmt.Sprintf(
-		"https://api.bshowsell.site/api/v1/ghn/webhook?status=%s&code=%s",
+		"http://localhost:8080/api/v1/ghn/webhook?status=%s&code=%s",
 		string(deliveryStatus),
 		*order.GHNOrderCode,
 	)
@@ -721,6 +721,7 @@ func doGHNRequest[T any](ctx context.Context, method, url string, headers map[st
 }
 
 func getAvailableState(currentState string) (map[string]bool, error) {
+	currentState = strings.ToLower(currentState)
 	switch currentState {
 	case "ready_to_pick":
 		return map[string]bool{
