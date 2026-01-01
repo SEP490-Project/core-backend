@@ -60,6 +60,7 @@ type ApplicationRegistry struct {
 	ContentEngagementService      iservice.ContentEngagementService
 	AlertManagerService           iservice.AlertManagerService
 	SystemService                 iservice.SystemService
+	ProductOptionService          iservice.ProductOptionService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -228,6 +229,7 @@ func NewApplicationRegistry(
 		ContentEngagementService:      contentEngagementService,
 		AlertManagerService:           alertManagerService,
 		SystemService:                 service.NewSystemService(configs),
+		ProductOptionService:          service.NewProductOptionService(databaseRegistry.ProductOptionRepository, infrastructureRegistry.ValkeyCache),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),

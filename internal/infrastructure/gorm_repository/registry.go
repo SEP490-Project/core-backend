@@ -80,10 +80,11 @@ type DatabaseRegistry struct {
 	// Reviews
 	ReviewRepository irepository.GenericRepository[model.ProductReview]
 	// Webhooks
-	WebhookDataRepository  irepository.GenericRepository[model.WebhookData]
-	VariantImageRepository irepository.GenericRepository[model.VariantImage]
-	SystemAlertRepository  irepository.SystemAlertRepository
-	ScheduleRepository     irepository.ScheduleRepository
+	WebhookDataRepository   irepository.GenericRepository[model.WebhookData]
+	VariantImageRepository  irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository   irepository.SystemAlertRepository
+	ScheduleRepository      irepository.ScheduleRepository
+	ProductOptionRepository irepository.ProductOptionRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -136,5 +137,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
 		ScheduleRepository:                   NewScheduleRepository(db),
 		SystemAlertRepository:                NewSystemAlertRepository(db),
+		ProductOptionRepository:              NewProductOptionRepository(db),
 	}
 }
