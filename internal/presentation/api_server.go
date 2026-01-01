@@ -217,7 +217,7 @@ func (s *APIServer) Stop() error {
 	// Stop infrastructure services
 	s.infrastructureRegistry.StopServices()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	return s.server.Shutdown(shutdownCtx)

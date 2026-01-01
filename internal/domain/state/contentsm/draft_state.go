@@ -17,9 +17,9 @@ func (s *DraftState) Name() enum.ContentStatus {
 func (s *DraftState) Next(ctx *ContentContext, nextState ContentState) error {
 	nextName := nextState.Name()
 
-	// Valid transitions: DRAFT → AWAIT_STAFF or AWAIT_BRAND
-	if nextName != enum.ContentStatusAwaitStaff && nextName != enum.ContentStatusAwaitBrand {
-		return errors.New("invalid transition: DRAFT can only transition to AWAIT_STAFF or AWAIT_BRAND")
+	// Valid transitions: DRAFT → AWAIT_STAFF, AWAIT_BRAND, or CANCELLED
+	if nextName != enum.ContentStatusAwaitStaff && nextName != enum.ContentStatusAwaitBrand && nextName != enum.ContentStatusCancelled {
+		return errors.New("invalid transition: DRAFT can only transition to AWAIT_STAFF, AWAIT_BRAND, or CANCELLED")
 	}
 
 	ctx.SetState(nextState)
@@ -31,5 +31,6 @@ func (s *DraftState) AllowedTransitions() []enum.ContentStatus {
 	return []enum.ContentStatus{
 		enum.ContentStatusAwaitStaff,
 		enum.ContentStatusAwaitBrand,
+		enum.ContentStatusCancelled,
 	}
 }

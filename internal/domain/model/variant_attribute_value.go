@@ -1,7 +1,6 @@
 package model
 
 import (
-	"core-backend/internal/domain/enum"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,14 +9,14 @@ import (
 )
 
 type VariantAttributeValue struct {
-	ID          uuid.UUID          `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
-	VariantID   uuid.UUID          `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
-	AttributeID uuid.UUID          `json:"attribute_id" gorm:"type:uuid;column:attribute_id;not null"`
-	Value       float64            `json:"value" gorm:"column:value;not null"`
-	Unit        enum.AttributeUnit `json:"unit" gorm:"column:unit;not null;check:unit in ('%', 'MG', 'G', 'ML', 'L', 'IU', 'PPM', 'NONE')"`
-	CreatedAt   time.Time          `json:"created_at" gorm:"column:created_at"`
-	UpdatedAt   time.Time          `json:"updated_at" gorm:"column:updated_at"`
-	DeletedAt   gorm.DeletedAt     `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
+	ID          uuid.UUID      `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
+	VariantID   uuid.UUID      `json:"variant_id" gorm:"type:uuid;column:variant_id;not null"`
+	AttributeID uuid.UUID      `json:"attribute_id" gorm:"type:uuid;column:attribute_id;not null"`
+	Value       float64        `json:"value" gorm:"column:value;not null"`
+	Unit        string         `json:"unit" gorm:"column:unit;not null"`
+	CreatedAt   time.Time      `json:"created_at" gorm:"column:created_at"`
+	UpdatedAt   time.Time      `json:"updated_at" gorm:"column:updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"deleted_at" gorm:"column:deleted_at;index" swaggerignore:"true"`
 
 	// Relationships
 	Variant   *ProductVariant   `gorm:"foreignKey:VariantID"`

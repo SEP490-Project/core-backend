@@ -22,7 +22,7 @@ type DatabaseRegistry struct {
 	MilestoneRepository       irepository.GenericRepository[model.Milestone]
 	TaskRepository            irepository.TaskRepository
 	ChannelRepository         irepository.GenericRepository[model.Channel]
-	ContentRepository         irepository.GenericRepository[model.Content]
+	ContentRepository         irepository.ContentRepository
 	ContentChannelRepository  irepository.ContentChannelsRepository
 	ContentCommentRepository  irepository.GenericRepository[model.ContentComment]
 	BlogRepository            irepository.GenericRepository[model.Blog]
@@ -80,10 +80,11 @@ type DatabaseRegistry struct {
 	// Reviews
 	ReviewRepository irepository.GenericRepository[model.ProductReview]
 	// Webhooks
-	WebhookDataRepository  irepository.GenericRepository[model.WebhookData]
-	VariantImageRepository irepository.GenericRepository[model.VariantImage]
-	SystemAlertRepository  irepository.SystemAlertRepository
-	ScheduleRepository     irepository.ScheduleRepository
+	WebhookDataRepository   irepository.GenericRepository[model.WebhookData]
+	VariantImageRepository  irepository.GenericRepository[model.VariantImage]
+	SystemAlertRepository   irepository.SystemAlertRepository
+	ScheduleRepository      irepository.ScheduleRepository
+	ProductOptionRepository irepository.ProductOptionRepository
 }
 
 func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
@@ -106,7 +107,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		AdminConfigRepository:                NewGenericRepository[model.Config](db),
 		VariantAttributeRepository:           NewGenericRepository[model.VariantAttribute](db),
 		ChannelRepository:                    NewGenericRepository[model.Channel](db),
-		ContentRepository:                    NewGenericRepository[model.Content](db),
+		ContentRepository:                    NewContentRepository(db),
 		ContentChannelRepository:             NewContentChannelsRepository(db),
 		ContentCommentRepository:             NewGenericRepository[model.ContentComment](db),
 		BlogRepository:                       NewGenericRepository[model.Blog](db),
@@ -136,5 +137,6 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		VariantImageRepository:               NewGenericRepository[model.VariantImage](db),
 		ScheduleRepository:                   NewScheduleRepository(db),
 		SystemAlertRepository:                NewSystemAlertRepository(db),
+		ProductOptionRepository:              NewProductOptionRepository(db),
 	}
 }

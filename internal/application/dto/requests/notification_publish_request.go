@@ -8,11 +8,12 @@ import (
 
 // PublishNotificationRequest represents a request to publish a notification to one or many channels
 type PublishNotificationRequest struct {
-	UserID   uuid.UUID         `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Channels []string          `json:"channels" validate:"required,min=1,dive,oneof=EMAIL PUSH IN_APP" example:"EMAIL,PUSH,IN_APP"`
-	Title    string            `json:"title" validate:"required,min=1,max=255" example:"Test Notification"`
-	Body     string            `json:"body" validate:"required,min=1" example:"This is a test notification message"`
-	Data     map[string]string `json:"data,omitempty" example:"key1:value1,key2:value2"`
+	UserID   uuid.UUID                  `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Types    []enum.NotificationType    `json:"channels" validate:"required,min=1,dive,oneof=EMAIL PUSH IN_APP" example:"EMAIL,PUSH,IN_APP"`
+	Title    string                     `json:"title" validate:"required,min=1,max=255" example:"Test Notification"`
+	Body     string                     `json:"body" validate:"required,min=1" example:"This is a test notification message"`
+	Data     map[string]string          `json:"data,omitempty" example:"key1:value1,key2:value2"`
+	Severity *enum.NotificationSeverity `json:"severity,omitempty" validate:"omitempty" example:"INFO"`
 
 	// Email-specific fields (used when EMAIL channel is included)
 	CustomReceiver    *string        `json:"custom_receivers,omitempty" validate:"omitempty,email" example:"abc@gmail.com"`
@@ -82,6 +83,11 @@ func (r *PublishNotificationRequest) ToInAppRequest() *PublishInAppRequest {
 	if ok {
 		resp.ScheduleID = &tempID
 	}
+	if r.Severity != nil {
+		resp.Severity = *r.Severity
+	} else {
+		resp.Severity = enum.NotificationSeverityInfo
+	}
 	return resp
 }
 
@@ -122,10 +128,11 @@ type PublishPushRequest struct {
 
 // PublishInAppRequest represents a request to publish an in-app notification
 type PublishInAppRequest struct {
-	UserID uuid.UUID         `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
-	Title  string            `json:"title" validate:"required,min=1,max=255" example:"Test In-App Notification"`
-	Body   string            `json:"body" validate:"required,min=1" example:"This is a test in-app notification"`
-	Data   map[string]string `json:"data,omitempty"`
+	UserID   uuid.UUID                 `json:"user_id" validate:"required" example:"123e4567-e89b-12d3-a456-426614174000"`
+	Title    string                    `json:"title" validate:"required,min=1,max=255" example:"Test In-App Notification"`
+	Body     string                    `json:"body" validate:"required,min=1" example:"This is a test in-app notification"`
+	Data     map[string]string         `json:"data,omitempty"`
+	Severity enum.NotificationSeverity `json:"severity,omitempty" validate:"omitempty" example:"INFO"`
 
 	// In case the notification is published through scheduling
 	ScheduleID *uuid.UUID `json:"schedule_id,omitempty" validate:"omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`

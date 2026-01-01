@@ -454,7 +454,7 @@ func (j *DailyJob) raiseAlert(ctx context.Context, req *AlertInfoRequest, notify
 				"reference_type": req.ReferenceType.String(),
 				"reference_id":   req.ReferenceID.String(),
 			},
-			Channels: []string{enum.NotificationTypeInApp.String()},
+			Types: []enum.NotificationType{enum.NotificationTypeInApp},
 		}
 		if err := j.notificationService.BroadcastToRoleWithRequest(ctx, notifyUserRoles, &notificationRequest); err != nil {
 			zap.L().Error("Failed to broadcast in-app notification to specified role",

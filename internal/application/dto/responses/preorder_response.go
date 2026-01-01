@@ -1,7 +1,6 @@
 package responses
 
 import (
-	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"time"
 
@@ -51,15 +50,15 @@ type PreOrdersProps struct {
 	UserNote    *string                    `json:"user_note,omitempty"`
 
 	// Variant Info
-	Capacity              *float64            `json:"capacity"`
-	CapacityUnit          *string             `json:"capacity_unit"`
-	ContainerType         *enum.ContainerType `json:"container_type"`
-	DispenserType         *enum.DispenserType `json:"dispenser_type"`
-	Uses                  *string             `json:"uses"`
-	ManufactureDate       *time.Time          `json:"manufacturing_date"`
-	ExpiryDate            *time.Time          `json:"expiry_date"`
-	Instructions          *string             `json:"instructions"`
-	AttributesDescription *datatypes.JSON     `json:"attributes_description" swaggerignore:"true"`
+	Capacity              *float64        `json:"capacity"`
+	CapacityUnit          *string         `json:"capacity_unit"`
+	ContainerType         *string         `json:"container_type"`
+	DispenserType         *string         `json:"dispenser_type"`
+	Uses                  *string         `json:"uses"`
+	ManufactureDate       *time.Time      `json:"manufacturing_date"`
+	ExpiryDate            *time.Time      `json:"expiry_date"`
+	Instructions          *string         `json:"instructions"`
+	AttributesDescription *datatypes.JSON `json:"attributes_description" swaggerignore:"true"`
 
 	Weight     int  `json:"weight"`
 	Height     int  `json:"height"`

@@ -1,7 +1,6 @@
 package responses
 
 import (
-	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"time"
 
@@ -121,23 +120,23 @@ func (OrderResponse) ToResponseList(source []model.Order, payments map[uuid.UUID
 
 // * OrderItemResponse ============================== OrderItem.Response (Start) ==============================
 type OrderItemResponse struct {
-	ID              uuid.UUID          `json:"id"`
-	Quantity        int                `json:"quantity"`
-	Subtotal        float64            `json:"subtotal"`
-	UnitPrice       float64            `json:"unit_price"`
-	Capacity        *float64           `json:"capacity"`
-	CapacityUnit    enum.CapacityUnit  `json:"capacity_unit"`
-	ContainerType   enum.ContainerType `json:"container_type"`
-	DispenserType   enum.DispenserType `json:"dispenser_type"`
-	Uses            *string            `json:"uses"`
-	ManufactureDate *time.Time         `json:"manufacturing_date"`
-	ExpiryDate      *time.Time         `json:"expiry_date"`
-	Instructions    *string            `json:"instructions"`
-	Weight          int                `json:"weight"`
-	Height          int                `json:"height"`
-	Length          int                `json:"length"`
-	Width           int                `json:"width"`
-	IsReviewed      bool               `json:"is_reviewed"`
+	ID              uuid.UUID  `json:"id"`
+	Quantity        int        `json:"quantity"`
+	Subtotal        float64    `json:"subtotal"`
+	UnitPrice       float64    `json:"unit_price"`
+	Capacity        *float64   `json:"capacity"`
+	CapacityUnit    string     `json:"capacity_unit"`
+	ContainerType   string     `json:"container_type"`
+	DispenserType   string     `json:"dispenser_type"`
+	Uses            *string    `json:"uses"`
+	ManufactureDate *time.Time `json:"manufacturing_date"`
+	ExpiryDate      *time.Time `json:"expiry_date"`
+	Instructions    *string    `json:"instructions"`
+	Weight          int        `json:"weight"`
+	Height          int        `json:"height"`
+	Length          int        `json:"length"`
+	Width           int        `json:"width"`
+	IsReviewed      bool       `json:"is_reviewed"`
 
 	//product fields
 	ProductName       string                  `json:"product_name"`
@@ -225,16 +224,16 @@ func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
 		return nil
 	}
 
-	// safe derefs for pointer enum fields
-	var capacityUnit enum.CapacityUnit
+	// safe derefs for pointer string fields
+	var capacityUnit string
 	if oi.CapacityUnit != nil {
 		capacityUnit = *oi.CapacityUnit
 	}
-	var containerType enum.ContainerType
+	var containerType string
 	if oi.ContainerType != nil {
 		containerType = *oi.ContainerType
 	}
-	var dispenserType enum.DispenserType
+	var dispenserType string
 	if oi.DispenserType != nil {
 		dispenserType = *oi.DispenserType
 	}

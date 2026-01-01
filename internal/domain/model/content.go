@@ -169,3 +169,35 @@ func (ct ContentTag) Value() (driver.Value, error) {
 }
 
 // endregion
+
+// region: ======== Content Status Helpers ========
+
+// IsPubliclyAccessible checks if content can be accessed by public
+// Only POSTED content is publicly accessible
+func (c *Content) IsPubliclyAccessible() bool {
+	return c.Status == enum.ContentStatusPosted
+}
+
+// IsProcessable checks if content can be used for affiliate links, views, etc.
+// Content must be POSTED or APPROVED to be processable
+func (c *Content) IsProcessable() bool {
+	return c.Status == enum.ContentStatusPosted || c.Status == enum.ContentStatusApproved
+}
+
+// IsCancelled checks if content has been cancelled
+func (c *Content) IsCancelled() bool {
+	return c.Status == enum.ContentStatusCancelled
+}
+
+// CanTransitionTo checks if content can transition to the target state
+// This is a lightweight check without FSM context - full validation done by FSM
+func (c *Content) CanTransitionTo(targetStatus enum.ContentStatus) bool {
+	// CANCELLED is terminal - no transitions allowed
+	if c.Status == enum.ContentStatusCancelled {
+		return false
+	}
+	// Other validations handled by FSM
+	return true
+}
+
+// endregion
