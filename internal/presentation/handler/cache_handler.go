@@ -443,7 +443,7 @@ func (h *CacheHandler) SetKey(c *gin.Context) {
 //	@Failure		400		{object}	responses.APIResponse
 //	@Failure		500		{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/admin/cache/flush [delete]
+//	@Router			/api/v1/admin/cache/keys/flush [delete]
 func (h *CacheHandler) FlushDatabase(c *gin.Context) {
 	if h.valkeyCache == nil || h.valkeyCache.GetClient() == nil {
 		c.JSON(http.StatusServiceUnavailable, responses.ErrorResponse("Cache service not available", http.StatusServiceUnavailable))
