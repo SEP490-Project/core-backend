@@ -60,8 +60,8 @@ func InitDB() *gorm.DB {
 		PrepareStmt: false,
 	}
 	pgDriverConfig := postgres.Config{
-		DSN:                  dsn,
-		PreferSimpleProtocol: true,
+		DSN: dsn,
+		// PreferSimpleProtocol: true,
 	}
 
 	var db *gorm.DB
