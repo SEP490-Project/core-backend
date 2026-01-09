@@ -6,22 +6,31 @@
 -- Step 1: Create the product_options table
 CREATE TABLE IF NOT EXISTS product_options (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type VARCHAR(50) NOT NULL CHECK (type IN ('CAPACITY_UNIT', 'CONTAINER_TYPE', 'DISPENSER_TYPE', 'ATTRIBUTE_UNIT')),
+    type VARCHAR(50) NOT NULL CHECK (
+        type IN (
+            'CAPACITY_UNIT',
+            'CONTAINER_TYPE',
+            'DISPENSER_TYPE',
+            'ATTRIBUTE_UNIT'
+        )
+    ),
     code VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     sort_order INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    
-    UNIQUE(type, code)
+
+    UNIQUE (type, code)
 );
 
 -- Step 2: Create indexes for efficient querying
-CREATE INDEX IF NOT EXISTS idx_product_options_type_active ON product_options(type, is_active) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_product_options_code ON product_options(code);
+CREATE INDEX IF NOT EXISTS idx_product_options_type_active ON product_options (
+    type, is_active
+) WHERE deleted_at IS NULL ;
+CREATE INDEX IF NOT EXISTS idx_product_options_code ON product_options (code) ;
 
 -- Step 3: Seed initial data from existing enum values
 INSERT INTO product_options (type, code, name, sort_order) VALUES
@@ -62,21 +71,21 @@ INSERT INTO product_options (type, code, name, sort_order) VALUES
 ('ATTRIBUTE_UNIT', 'IU', 'International Unit', 6),
 ('ATTRIBUTE_UNIT', 'PPM', 'Parts Per Million', 7),
 ('ATTRIBUTE_UNIT', 'NONE', 'None', 8)
-ON CONFLICT (type, code) DO NOTHING;
+ON CONFLICT (type, code) DO NOTHING ;
 
 -- Step 4: Remove CHECK constraints from existing tables (allows any string value)
 -- Note: These constraints reference the old enum values
 
-ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_capacity_unit_check;
-ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_container_type_check;
-ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_dispenser_type_check;
+ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_capacity_unit_check ;
+ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_container_type_check ;
+ALTER TABLE product_variants DROP CONSTRAINT IF EXISTS product_variants_dispenser_type_check ;
 
-ALTER TABLE variant_attribute_values DROP CONSTRAINT IF EXISTS variant_attribute_values_unit_check;
+ALTER TABLE variant_attribute_values DROP CONSTRAINT IF EXISTS variant_attribute_values_unit_check ;
 
-ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_capacity_unit_check;
-ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_container_type_check;
-ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_dispenser_type_check;
+ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_capacity_unit_check ;
+ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_container_type_check ;
+ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_dispenser_type_check ;
 
-ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_capacity_unit_check;
-ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_container_type_check;
-ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_dispenser_type_check;
+ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_capacity_unit_check ;
+ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_container_type_check ;
+ALTER TABLE pre_orders DROP CONSTRAINT IF EXISTS pre_orders_dispenser_type_check ;
