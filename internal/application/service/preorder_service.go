@@ -15,6 +15,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/internal/domain/state/preordersm"
 	"core-backend/internal/infrastructure"
+	"core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"crypto/hmac"
@@ -45,6 +46,9 @@ type preOrderService struct {
 	paymentTransactionService    iservice.PaymentTransactionService
 	stateTransferService         iservice.StateTransferService
 	notificationService          iservice.NotificationService
+	scheduleRepository           irepository.ScheduleRepository
+	taskScheduler                *asynq.AsynqClient
+	asynqConfig                  *config.AsynqConfig
 }
 
 func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
@@ -121,6 +125,9 @@ func (p preOrderService) ObligateRefund(ctx context.Context, preOrderID, actionB
 
 func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID, updatedBy uuid.UUID) error {
 	err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, enum.PreOrderStatusReceived, updatedBy, nil, nil)
+
+	// publish delay message to asynq
+
 	if err != nil {
 		return err
 	}
@@ -637,6 +644,9 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		paymentTransactionService:    paymentTransactionSvc,
 		stateTransferService:         stateTransferService,
 		notificationService:          notificationService,
+		scheduleRepository:           dbRegistry.ScheduleRepository,
+		taskScheduler:                registry.AsynqClient,
+		asynqConfig:                  &cfg.Asynq,
 	}
 }
 

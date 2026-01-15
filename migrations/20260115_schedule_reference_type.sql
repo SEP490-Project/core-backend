@@ -1,0 +1,5 @@
+ALTER TYPE reference_type
+    ADD VALUE 'PRE_ORDER_AUTO_RECEIVE';
+
+ALTER TYPE reference_type
+    ADD VALUE 'PRE_ORDER_AUTO_RECEIVE';
