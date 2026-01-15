@@ -48,6 +48,8 @@ asynq:
     notification_schedule: "task:notification:schedule"
     cancel_payment_schedule: "task:payment:cancel"
     auto_receive_order: "task:order:auto-receive"
+    preorder_opening: "task:order:preorder-opening"
+    preorder_auto_receive: "task:order:preorder-auto-receive"
 
 # JWT configuration
 jwt:

@@ -25,12 +25,13 @@ import (
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/internal/infrastructure/rabbitmq"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	githubAsynq "github.com/hibiken/asynq"
+	gAsynq "github.com/hibiken/asynq"
 	"go.uber.org/zap"
 	"gorm.io/gorm" // added for UpdateByCondition filter closure
 )
@@ -49,6 +50,7 @@ type stateTransferService struct {
 	userRepository            irepository.GenericRepository[model.User]
 	contentRepository         irepository.ContentRepository
 	notificationService       iservice.NotificationService
+	scheduleRepo              irepository.ScheduleRepository
 	scheduleService           iservice.ScheduleService
 	uow                       irepository.UnitOfWork
 	rabbitMQ                  *rabbitmq.RabbitMQ
@@ -109,30 +111,91 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		return err
 	}
 
-	if err := t.preOrderRepository.Update(ctx, preOrder); err != nil {
-		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("failed to update PreOrder state: " + err.Error())
-	}
+	err = helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err := uow.PreOrder().Update(ctx, preOrder); err != nil {
+			zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
+			return errors.New("failed to update PreOrder state: " + err.Error())
+		}
 
-	// notification
-	go func() {
-		ctxBg := context.Background()
-		preorderNotiStatus, err := ConvertPreOrderToNotificationType(preOrder)
-		if err != nil {
-			zap.L().Error("error when convert preOrder to NotificationType", zap.Error(err))
-		}
-		payloads, err := notification_builder.BuildPreOrderNotifications(ctxBg, *t.config, t.uow.DB(), preorderNotiStatus, preOrder, actionUser)
-		if err != nil {
-			zap.L().Error("no notification builder for preorder status", zap.Error(err))
-		}
-		for _, p := range payloads {
-			_, err = t.notificationService.CreateAndPublishNotification(ctxBg, &p)
-			if err != nil {
-				zap.L().Error("Failed to send notification", zap.Error(err))
+		// schedule to auto update status after opening day
+		if targetState == enum.PreOrderStatusPreOrdered {
+			openDay := limitedProduct.AvailabilityStartDate
+			//isSelfPickedUp := preOrder.IsSelfPickedUp
+			//limitedProduct := preOrder.ProductVariant.Product.Limited
+
+			preOrderOpeningSchedule := &model.Schedule{
+				ReferenceID:   &preOrder.ID,
+				Type:          enum.ScheduleTypeOther,
+				ReferenceType: utils.PtrOrNil(enum.ReferenceTypePreOrderOpening),
+				ScheduledAt:   openDay,
+				Status:        enum.ScheduleStatusPending,
+				RetryCount:    0,
+				CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
 			}
+
+			if err := uow.Schedules().Add(ctx, preOrderOpeningSchedule); err != nil {
+				zap.L().Error("Failed to create PreOrder opening schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
+				return errors.New("failed to create PreOrder opening schedule: " + err.Error())
+			}
+
+			// publish to asynq
+			t.publishPreOrderOpeningDelayMessage(ctx, preOrderOpeningSchedule, uow)
 		}
-	}()
-	return nil
+
+		// Schedule auto-receive when preorder is delivered (not self-pickup)
+		// For self-pickup, we use AwaitingPickup -> Received flow
+		if targetState == enum.PreOrderStatusDelivered {
+			// Get auto-receive interval from config (default 30 days)
+			autoReceiveIntervalDays := t.adminConfig.AutoReceivePreOrderIntervalDays
+			if autoReceiveIntervalDays <= 0 {
+				autoReceiveIntervalDays = 30 // Default to 30 days
+			}
+			scheduledAt := time.Now().Add(time.Duration(autoReceiveIntervalDays) * 24 * time.Hour)
+
+			preOrderAutoReceiveSchedule := &model.Schedule{
+				ReferenceID:   &preOrder.ID,
+				Type:          enum.ScheduleTypeOther,
+				ReferenceType: utils.PtrOrNil(enum.ReferenceTypePreOrderAutoReceive),
+				ScheduledAt:   scheduledAt,
+				Status:        enum.ScheduleStatusPending,
+				RetryCount:    0,
+				CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
+			}
+
+			if err := uow.Schedules().Add(ctx, preOrderAutoReceiveSchedule); err != nil {
+				zap.L().Error("Failed to create PreOrder auto-receive schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
+				return errors.New("failed to create PreOrder auto-receive schedule: " + err.Error())
+			}
+
+			// publish to asynq
+			t.publishPreOrderAutoReceiveDelayMessage(ctx, preOrderAutoReceiveSchedule, uow)
+		}
+
+		// notification
+		go func() {
+			ctxBg := context.Background()
+
+			//notifcation
+			preorderNotiStatus, err := ConvertPreOrderToNotificationType(preOrder)
+			if err != nil {
+				zap.L().Error("error when convert preOrder to NotificationType", zap.Error(err))
+			}
+			payloads, err := notification_builder.BuildPreOrderNotifications(ctxBg, *t.config, t.uow.DB(), preorderNotiStatus, preOrder, actionUser)
+			if err != nil {
+				zap.L().Error("no notification builder for preorder status", zap.Error(err))
+			}
+			for _, p := range payloads {
+				_, err = t.notificationService.CreateAndPublishNotification(ctxBg, &p)
+				if err != nil {
+					zap.L().Error("Failed to send notification", zap.Error(err))
+				}
+			}
+		}()
+
+		return nil
+	})
+
+	return err
 }
 
 // preOrderFileAssurance (Special case): proof of delivery file is required when moving to Delivered/Received
@@ -1043,12 +1106,13 @@ func (t stateTransferService) MoveOrderToState(ctx context.Context, orderID uuid
 		if targetState == enum.OrderStatusConfirmed && ghnOrderCode != "" {
 			order.GHNOrderCode = &ghnOrderCode
 		}
+
 		if err = uow.Order().Update(ctx, order); err != nil {
 			zap.L().Error("Failed to update order state", zap.Error(err))
 			return fmt.Errorf("failed to update order state: %w", err)
 		}
 
-		// send notification
+		// 6) send notification
 		orderNotiStatus, err := ConvertToNotificationType(order)
 		if err != nil {
 			return err
@@ -1499,8 +1563,8 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 			payload,
 			processAt,
 			uniqueKey,
-			githubAsynq.Queue("default"),
-			githubAsynq.MaxRetry(10),
+			gAsynq.Queue("default"),
+			gAsynq.MaxRetry(10),
 		); schErr != nil {
 			zap.L().Error("Failed to schedule auto receive order task",
 				zap.Error(schErr),
@@ -1570,6 +1634,7 @@ func NewStateTransferService(
 		variantRepository:         dbReg.ProductVariantRepository,
 		userRepository:            dbReg.UserRepository,
 		contentRepository:         dbReg.ContentRepository,
+		scheduleRepo:              dbReg.ScheduleRepository,
 		notificationService:       notificationService,
 		scheduleService:           scheduleService,
 		uow:                       uow,
@@ -1681,4 +1746,126 @@ func ConvertPreOrderToNotificationType(preorder *model.PreOrder) (notification_b
 	default:
 		return "", fmt.Errorf("unrecognized preorder status: %s", status)
 	}
+}
+
+func (t stateTransferService) publishPreOrderOpeningDelayMessage(ctx context.Context, schedule *model.Schedule, uow irepository.UnitOfWork) error {
+	if t.taskScheduler == nil {
+		return errors.New("task scheduler not initialized")
+	}
+	if t.asynqConfig == nil {
+		return errors.New("asynq config not initialized")
+	}
+	if schedule == nil {
+		return errors.New("schedule is nil")
+	}
+	if schedule.ReferenceID == nil || *schedule.ReferenceID == uuid.Nil {
+		return errors.New("schedule reference id is required")
+	}
+
+	includes := []string{"ProductVariant", "ProductVariant.Product", "ProductVariant.Product.Limited"}
+	preOrder, err := uow.PreOrder().GetByID(ctx, *schedule.ReferenceID, includes)
+	if err != nil {
+		return fmt.Errorf("pre-order not found for schedule reference id: %s", schedule.ReferenceID.String())
+	}
+
+	payload := asynqtask.PreOrderOpeningTaskPayload{
+		PreOrderID: preOrder.ID,
+	}
+
+	taskType := t.asynqConfig.TaskTypes.PreOrderOpening
+	if taskType == "" {
+		taskType = "task:order:preorder-opening"
+	}
+
+	taskInfo, err := t.taskScheduler.ScheduleTaskWithUniqueKey(
+		ctx,
+		taskType,
+		payload,
+		schedule.ScheduledAt,
+		fmt.Sprintf("preorder-opening:%s", preOrder.ID.String()),
+		gAsynq.Queue("default"),
+		gAsynq.MaxRetry(10),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to schedule preorder opening task: %w", err)
+	}
+	t.updateScheduleMetadataAsync(schedule, taskInfo)
+	zap.L().Info("Scheduled PreOrder opening task",
+		zap.String("preorder_id", preOrder.ID.String()),
+		zap.Time("start_at", schedule.ScheduledAt),
+		zap.String("task_type", taskType),
+	)
+
+	return nil
+}
+
+func (t stateTransferService) updateScheduleMetadataAsync(schedule *model.Schedule, taskInfo *gAsynq.TaskInfo) {
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			rawTaskInfo, err := json.Marshal(taskInfo)
+			if err != nil {
+				return fmt.Errorf("failed to marshal task info: %w", err)
+			}
+
+			return t.scheduleRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", schedule.ID)
+			}, map[string]any{"metadata": rawTaskInfo})
+		}); err != nil {
+			zap.L().Error("Failed to update schedule metadata asynchronously",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.Error(err))
+		}
+	}()
+}
+
+func (t stateTransferService) publishPreOrderAutoReceiveDelayMessage(ctx context.Context, schedule *model.Schedule, uow irepository.UnitOfWork) error {
+	if t.taskScheduler == nil {
+		return errors.New("task scheduler not initialized")
+	}
+	if t.asynqConfig == nil {
+		return errors.New("asynq config not initialized")
+	}
+	if schedule == nil {
+		return errors.New("schedule is nil")
+	}
+	if schedule.ReferenceID == nil || *schedule.ReferenceID == uuid.Nil {
+		return errors.New("schedule reference id is required")
+	}
+
+	preOrder, err := uow.PreOrder().GetByID(ctx, *schedule.ReferenceID, nil)
+	if err != nil {
+		return fmt.Errorf("pre-order not found for schedule reference id: %s", schedule.ReferenceID.String())
+	}
+
+	payload := asynqtask.PreOrderAutoReceiveTaskPayload{
+		PreOrderID: preOrder.ID,
+	}
+
+	taskType := t.asynqConfig.TaskTypes.PreOrderAutoReceive
+	if taskType == "" {
+		taskType = "task:order:preorder-auto-receive"
+	}
+
+	taskInfo, err := t.taskScheduler.ScheduleTaskWithUniqueKey(
+		ctx,
+		taskType,
+		payload,
+		schedule.ScheduledAt,
+		fmt.Sprintf("preorder-auto-receive:%s", preOrder.ID.String()),
+		gAsynq.Queue("default"),
+		gAsynq.MaxRetry(10),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to schedule preorder auto-receive task: %w", err)
+	}
+	t.updateScheduleMetadataAsync(schedule, taskInfo)
+	zap.L().Info("Scheduled PreOrder auto-receive task",
+		zap.String("preorder_id", preOrder.ID.String()),
+		zap.Time("scheduled_at", schedule.ScheduledAt),
+		zap.String("task_type", taskType),
+	)
+
+	return nil
 }

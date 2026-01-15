@@ -184,24 +184,29 @@ func (s AlertStatus) String() string { return string(s) }
 type ReferenceType string
 
 const (
-	ReferenceTypeContentChannel ReferenceType = "CONTENT_CHANNEL"
-	ReferenceTypeNotification   ReferenceType = "NOTIFICATION"
-	ReferenceTypeContent        ReferenceType = "CONTENT"
-	ReferenceTypeSchedule       ReferenceType = "SCHEDULE"
-	ReferenceTypeMilestone      ReferenceType = "MILESTONE"
-	ReferenceTypeCampaign       ReferenceType = "CAMPAIGN"
-	ReferenceTypeContract       ReferenceType = "CONTRACT"
-	ReferenceTypeOrder          ReferenceType = "ORDER"
-	ReferenceTypeUser           ReferenceType = "USER"
-	ReferenceTypeBrand          ReferenceType = "BRAND"
-	ReferenceTypeOther          ReferenceType = "OTHER"
+	ReferenceTypeContentChannel      ReferenceType = "CONTENT_CHANNEL"
+	ReferenceTypeNotification        ReferenceType = "NOTIFICATION"
+	ReferenceTypeContent             ReferenceType = "CONTENT"
+	ReferenceTypeSchedule            ReferenceType = "SCHEDULE"
+	ReferenceTypeMilestone           ReferenceType = "MILESTONE"
+	ReferenceTypeCampaign            ReferenceType = "CAMPAIGN"
+	ReferenceTypeContract            ReferenceType = "CONTRACT"
+	ReferenceTypeOrder               ReferenceType = "ORDER"
+	ReferenceTypeUser                ReferenceType = "USER"
+	ReferenceTypeBrand               ReferenceType = "BRAND"
+	ReferenceTypePaymentTransaction  ReferenceType = "PAYMENT_TRANSACTION"
+	ReferenceTypePreOrderOpening     ReferenceType = "PRE_ORDER_OPENING"
+	ReferenceTypePreOrderAutoReceive ReferenceType = "PRE_ORDER_AUTO_RECEIVE"
+	ReferenceTypeOrderAutoReceive    ReferenceType = "ORDER_AUTO_RECEIVE"
+	ReferenceTypeOther               ReferenceType = "OTHER"
 )
 
 func (r ReferenceType) IsValid() bool {
 	switch r {
 	case ReferenceTypeContent, ReferenceTypeSchedule, ReferenceTypeMilestone,
 		ReferenceTypeCampaign, ReferenceTypeContract, ReferenceTypeOrder,
-		ReferenceTypeUser, ReferenceTypeBrand:
+		ReferenceTypeUser, ReferenceTypeBrand, ReferenceTypePaymentTransaction,
+		ReferenceTypePreOrderOpening:
 		return true
 	}
 	return false
