@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
@@ -29,6 +30,7 @@ type PayOsHandler struct {
 	payosProxy                iproxies.PayOSProxy
 	unitOfWork                irepository.UnitOfWork
 	webhookDataService        iservice.WebhookDataService
+	scheduleService           iservice.ScheduleService
 	validator                 *validator.Validate
 }
 
@@ -38,6 +40,7 @@ func NewPayOsHandler(
 	stateTransferService iservice.StateTransferService,
 	webhookDataService iservice.WebhookDataService,
 	payosProxy iproxies.PayOSProxy,
+	scheduleService iservice.ScheduleService,
 	unitOfWork irepository.UnitOfWork,
 ) *PayOsHandler {
 	validator := validator.New()
@@ -49,6 +52,7 @@ func NewPayOsHandler(
 		payosProxy:                payosProxy,
 		unitOfWork:                unitOfWork,
 		webhookDataService:        webhookDataService,
+		scheduleService:           scheduleService,
 		validator:                 validator,
 	}
 }
@@ -147,6 +151,7 @@ func (h *PayOsHandler) GetPaymentInfo(c *gin.Context) {
 func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	// Read raw body for signature verification
 	bodyBytes, err := io.ReadAll(c.Request.Body)
+	ctx := c.Request.Context()
 	if err != nil {
 		zap.L().Error("Failed to read webhook body", zap.Error(err))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
@@ -167,7 +172,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		eventType := "payment.unknown"
 		webhookData.EventType = &eventType
 		webhookData.MarkFailed("Failed to parse webhook payload: " + err.Error())
-		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+		h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook payload"})
 		return
 	}
@@ -185,7 +190,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	if err != nil {
 		zap.L().Error("Failed to marshal webhook data", zap.Error(err))
 		webhookData.MarkFailed("Failed to marshal webhook data: " + err.Error())
-		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+		h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid webhook data"})
 		return
 	}
@@ -195,13 +200,13 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 			zap.Int64("order_code", webhookPayload.Data.OrderCode),
 			zap.String("signature", webhookPayload.Signature))
 		webhookData.MarkFailed("Invalid webhook signature")
-		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+		h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid signature"})
 		return
 	}
 
 	// Begin transaction for webhook processing
-	uow := h.unitOfWork.Begin(c.Request.Context())
+	uow := h.unitOfWork.Begin(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			uow.Rollback()
@@ -210,19 +215,18 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 	}()
 
 	// Process webhook
-	if err = h.paymentTransactionService.ProcessWebhook(c.Request.Context(), uow, &webhookPayload); err != nil {
+	if err = h.paymentTransactionService.ProcessWebhook(ctx, uow, &webhookPayload); err != nil {
 		uow.Rollback()
 		zap.L().Error("Failed to process webhook", zap.Error(err))
 		webhookData.MarkFailed("Failed to process webhook: " + err.Error())
-		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+		h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 		// Still return 200 to acknowledge receipt, but log the error
 		c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": err.Error()})
 		return
 	}
 
 	// After processing payment transaction, find the updated transaction and trigger state transition
-	// transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), strconv.Itoa(webhookPayload.Data.OrderCode))
-	transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(c.Request.Context(), utils.ToString(webhookPayload.Data.OrderCode))
+	transaction, err := h.paymentTransactionService.GetPaymentTransactionByOrderCode(ctx, utils.ToString(webhookPayload.Data.OrderCode))
 	if err == nil && transaction != nil {
 		// Use StateTransferService to handle state transition and side effects
 
@@ -237,7 +241,7 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 		newStatus := dtos.MapPayOSStatusString(payosStatus)
 
 		if stateErr := h.stateTransferService.MovePaymentTransactionToState(
-			c.Request.Context(),
+			ctx,
 			uow,
 			transaction.ID,
 			newStatus,
@@ -249,24 +253,33 @@ func (h *PayOsHandler) HandleWebhook(c *gin.Context) {
 				zap.String("status", string(transaction.Status)),
 				zap.Error(stateErr))
 			webhookData.MarkFailed("Failed to update related entities: " + stateErr.Error())
-			h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+			h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 			c.JSON(http.StatusInternalServerError, gin.H{"status": "received", "error": "Failed to update related entities"})
 			return
 		}
+
+		// cancel scheduler async
+		go func() {
+			ctxBg := context.Background()
+			err := h.scheduleService.CancelByReferenceID(ctxBg, transaction.ID, uuid.Nil)
+			if err != nil {
+				zap.L().Error("Failed to cancel payos schedule", zap.Error(err))
+			}
+		}()
 	}
 
 	// Commit transaction
 	if err := uow.Commit(); err != nil {
 		zap.L().Error("Failed to commit webhook transaction", zap.Error(err))
 		webhookData.MarkFailed("Failed to commit transaction: " + err.Error())
-		h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+		h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 		c.JSON(http.StatusOK, gin.H{"status": "received", "error": "Failed to commit transaction"})
 		return
 	}
 
 	// Mark webhook as processed and store
 	webhookData.MarkProcessed()
-	h.webhookDataService.SaveWebhookData(c.Request.Context(), true, webhookData)
+	h.webhookDataService.SaveWebhookData(ctx, true, webhookData)
 
 	zap.L().Info("Webhook processed successfully", zap.Int64("order_code", webhookPayload.Data.OrderCode))
 	c.JSON(http.StatusOK, gin.H{"status": "success"})

@@ -21,6 +21,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hibiken/asynq"
@@ -213,12 +214,13 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 
 	// Create a new schedule record (or reuse non-pending schedule by creating a new one).
 	cancelSchedule := &model.Schedule{
-		ReferenceID: &paymentTransaction.ID,
-		Type:        enum.ScheduleTypeOther,
-		ScheduledAt: scheduledAt,
-		Status:      enum.ScheduleStatusPending,
-		RetryCount:  0,
-		CreatedBy:   utils.DerefPtr(req.PayerID, uuid.Nil),
+		ReferenceID:   &paymentTransaction.ID,
+		Type:          enum.ScheduleTypeOther,
+		ReferenceType: utils.PtrOrNil(enum.ReferenceTypePaymentTransaction),
+		ScheduledAt:   scheduledAt,
+		Status:        enum.ScheduleStatusPending,
+		RetryCount:    0,
+		CreatedBy:     utils.DerefPtr(req.PayerID, uuid.Nil),
 	}
 
 	if err := uow.Schedules().Add(ctx, cancelSchedule); err != nil {
@@ -718,7 +720,7 @@ func (s *paymentTransactionService) publishCancelPaymentDelayMessage(ctx context
 	// Unique key prevents duplicates for the same schedule.
 	uniqueKey := fmt.Sprintf("schedule:%s", schedule.ID.String())
 
-	_, err = s.taskScheduler.ScheduleTaskWithUniqueKey(
+	taskInfo, err := s.taskScheduler.ScheduleTaskWithUniqueKey(
 		ctx,
 		taskType,
 		payload,
@@ -731,6 +733,7 @@ func (s *paymentTransactionService) publishCancelPaymentDelayMessage(ctx context
 		return fmt.Errorf("failed to schedule cancel payment task: %w", err)
 	}
 
+	s.updateScheduleMetadataAsync(schedule, taskInfo)
 	zap.L().Info("Cancel payment schedule task created",
 		zap.String("schedule_id", schedule.ID.String()),
 		zap.String("payment_transaction_id", paymentTransaction.ID.String()),
@@ -738,4 +741,23 @@ func (s *paymentTransactionService) publishCancelPaymentDelayMessage(ctx context
 		zap.Time("scheduled_at", schedule.ScheduledAt))
 
 	return nil
+}
+
+func (s *paymentTransactionService) updateScheduleMetadataAsync(schedule *model.Schedule, taskInfo *asynq.TaskInfo) {
+	go func() {
+		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
+			rawTaskInfo, err := json.Marshal(taskInfo)
+			if err != nil {
+				return fmt.Errorf("failed to marshal task info: %w", err)
+			}
+
+			return s.scheduleRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", schedule.ID)
+			}, map[string]any{"metadata": rawTaskInfo})
+		}); err != nil {
+			zap.L().Error("Failed to update schedule metadata asynchronously",
+				zap.String("schedule_id", schedule.ID.String()),
+				zap.Error(err))
+		}
+	}()
 }
