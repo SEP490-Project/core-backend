@@ -60,8 +60,9 @@ type AdminConfig struct {
 	ContractPaymentNotificationHour   int `mapstructure:"contract_payment_notification_hour"`
 
 	// Order - PreOrder
-	CensorshipIntervalMinutes     int `mapstructure:"censorship_interval_minutes"`
-	AutoReceiveOrderIntervalHours int `mapstructure:"auto_receive_order_interval_hours"`
+	CensorshipIntervalMinutes          int `mapstructure:"censorship_interval_minutes"`
+	AutoReceiveOrderIntervalHours      int `mapstructure:"auto_receive_order_interval_hours"`
+	AutoReceivePreOrderIntervalDays    int `mapstructure:"auto_receive_preorder_interval_days"` // Default 30 days
 
 	// Products
 	ProductMaximumVariants int `mapstructure:"product_maximum_variants"`

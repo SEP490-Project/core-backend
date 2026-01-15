@@ -246,7 +246,14 @@ func (g *ghnProxy) CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx conte
 		}
 
 		resp, err := doGHNRequest[dtos.DeliveryFeeSuccess](ctx, http.MethodPost, deliveryFeePath, headers, body)
-		deliveryFee = *resp
+		if err != nil {
+			zap.L().Info("failed to calculate delivery price, use default: 23.450k", zap.Error(err))
+			deliveryFee = dtos.DeliveryFeeSuccess{}
+			deliveryFee.Total = 23450
+			deliveryFee.ServiceFee = 23450
+		} else {
+			deliveryFee = *resp
+		}
 		return err
 	})
 
