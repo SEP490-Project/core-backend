@@ -239,6 +239,112 @@ func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Addresses fetched successfully", ptr.Int(http.StatusOK), respList))
 }
 
+// UpdateUserAddress godoc
+//
+//	@Summary		Update a shipping address for the authenticated user
+//	@Description	Update an existing shipping address belonging to the authenticated user
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			address-id	path		string							true	"Address ID"
+//	@Param			body		body		requests.UpdateAddressRequest	true	"Address update payload"
+//	@Success		200			{object}	responses.ShippingAddressResponse	"Address updated"
+//	@Failure		400			{object}	map[string]string
+//	@Failure		401			{object}	map[string]string
+//	@Failure		404			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/location/address/{address-id} [put]
+func (h *LocationHandler) UpdateUserAddress(c *gin.Context) {
+	addressIDStr := c.Param("address-id")
+	if addressIDStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("address-id is required", http.StatusBadRequest))
+		return
+	}
+
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid address-id format", http.StatusBadRequest))
+		return
+	}
+
+	var req requests.UpdateAddressRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp := responses.ErrorResponse("invalid request body: "+err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, resp)
+		return
+	}
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	addr, err := h.locationService.UpdateUserAddress(userID, addressID, req)
+	if err != nil {
+		statusCode := http.StatusBadRequest
+		if err.Error() == "address not found" || err.Error() == "user not found" {
+			statusCode = http.StatusNotFound
+		} else if err.Error() == "address does not belong to user" {
+			statusCode = http.StatusForbidden
+		}
+		resp := responses.ErrorResponse(fmt.Sprintf("failed to update address: %s", err.Error()), statusCode)
+		c.JSON(statusCode, resp)
+		return
+	}
+
+	resp := responses.ShippingAddressResponse{}.ToResponse(addr)
+	c.JSON(http.StatusOK, responses.SuccessResponse("Address updated successfully", ptr.Int(http.StatusOK), resp))
+}
+
+// DeleteUserAddress godoc
+//
+//	@Summary		Delete a shipping address for the authenticated user
+//	@Description	Soft delete an existing shipping address belonging to the authenticated user
+//	@Tags			location
+//	@Accept			json
+//	@Produce		json
+//	@Param			address-id	path		string	true	"Address ID"
+//	@Success		200			{object}	map[string]string	"Address deleted"
+//	@Failure		400			{object}	map[string]string
+//	@Failure		401			{object}	map[string]string
+//	@Failure		404			{object}	map[string]string
+//	@Security		BearerAuth
+//	@Router			/api/v1/location/address/{address-id} [delete]
+func (h *LocationHandler) DeleteUserAddress(c *gin.Context) {
+	addressIDStr := c.Param("address-id")
+	if addressIDStr == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("address-id is required", http.StatusBadRequest))
+		return
+	}
+
+	addressID, err := uuid.Parse(addressIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid address-id format", http.StatusBadRequest))
+		return
+	}
+
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	if err := h.locationService.DeleteUserAddress(userID, addressID); err != nil {
+		statusCode := http.StatusBadRequest
+		if err.Error() == "address not found" || err.Error() == "user not found" {
+			statusCode = http.StatusNotFound
+		} else if err.Error() == "address does not belong to user" {
+			statusCode = http.StatusForbidden
+		}
+		resp := responses.ErrorResponse(fmt.Sprintf("failed to delete address: %s", err.Error()), statusCode)
+		c.JSON(statusCode, resp)
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Address deleted successfully", ptr.Int(http.StatusOK), nil))
+}
+
 // TriggerLocationSync godoc
 //
 //	@Summary		Trigger location synchronization

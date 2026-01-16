@@ -309,6 +309,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			locationGroup.GET("/wards/:district-id", locationHandler.GetWards)
 			// Address management for authenticated users
 			locationGroup.POST("/address", locationHandler.InputUserAddress)
+			locationGroup.PUT("/address/:address-id", locationHandler.UpdateUserAddress)
+			locationGroup.DELETE("/address/:address-id", locationHandler.DeleteUserAddress)
 			locationGroup.PATCH("/address/:address-id/default", locationHandler.SetAddressAsDefault)
 			locationGroup.GET("/addresses", locationHandler.GetUserAddresses)
 		}
