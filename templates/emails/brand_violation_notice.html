@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Brand Violation Notice</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #dc3545;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 10px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .amount {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Contract Violation Notice</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          We regret to inform you that a violation has been recorded against your contract
+          <strong>#{{.ContractNumber}}</strong>.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Violation Reason:</strong></p>
+          <p>{{.ViolationReason}}</p>
+        </div>
+
+        <div class="info-box">
+          <p><strong>Penalty Amount Due:</strong></p>
+          <p class="amount">{{.Currency}} {{.PenaltyAmount}}</p>
+          <p><small>Based on: {{.CalculationFormula}}</small></p>
+        </div>
+
+        <p>
+          To resolve this violation, please pay the penalty amount within
+          <strong>{{.PaymentDeadlineDays}} days</strong>.
+        </p>
+
+        <p>
+          <a href="{{.PaymentLink}}" class="button">Pay Penalty Now</a>
+        </p>
+
+        <p>
+          If you believe this violation was issued in error, please contact our support team immediately.
+        </p>
+
+        <p>
+          <a href="{{.SupportLink}}" class="button" style="background-color: #6c757d;">Contact Support</a>
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

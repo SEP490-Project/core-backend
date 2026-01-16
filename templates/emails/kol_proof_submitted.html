@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Refund Proof Submitted</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>Refund Proof Received</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.KOLName}},</p>
+
+        <p>
+          We have received your proof of refund for contract
+          <strong>#{{.ContractNumber}}</strong>.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Submission Details:</strong></p>
+          <p>Submitted: {{.SubmissionDate}}</p>
+          <p>Amount: {{.Currency}} {{.RefundAmount}}</p>
+        </div>
+
+        <p>
+          Your proof is now under review. Our team will verify the refund within
+          <strong>{{.ReviewDeadlineDays}} business days</strong>.
+        </p>
+
+        <p>
+          You will be notified once the review is complete.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
