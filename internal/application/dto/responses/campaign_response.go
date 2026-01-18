@@ -129,7 +129,7 @@ func (cdr CampaignDetailsResponse) ToCampaignDetailsResponse(model *model.Campai
 		RejectReason:        model.RejectReason,
 		Milestones:          milestones,
 		NumberOfTasks:       totalTasks,
-		PercentageCompleted: percentageCompleted,
+		PercentageCompleted: utils.RoundFloat(percentageCompleted, 2),
 		CreatedAt:           utils.FormatLocalTime(&model.CreatedAt, ""),
 		UpdatedAt:           utils.FormatLocalTime(&model.UpdatedAt, ""),
 	}
