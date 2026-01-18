@@ -15,7 +15,7 @@ type UserService interface {
 	// GetUsers retrieves a paginated list of users with optional filters.
 	GetUsers(ctx context.Context, filterRequest *requests.UserFilterRequest) ([]*responses.UserListResponse, int64, error)
 	// UpdateUserStatus updates the active status of a user.
-	UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error
+	UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool, updatedBy uuid.UUID) error
 	// UpdateUserRole updates the role of a user.
 	UpdateUserRole(ctx context.Context, userID uuid.UUID, role string) error
 	// DeleteUser soft deletes a user.

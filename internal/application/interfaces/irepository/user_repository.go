@@ -11,4 +11,5 @@ import (
 type UserRepository interface {
 	GenericRepository[model.User]
 	GetUserIDsByFilter(ctx context.Context, filter func(*gorm.DB) *gorm.DB) ([]uuid.UUID, error)
+	GetContractIDsByUserBrandID(ctx context.Context, userbrandID uuid.UUID) ([]uuid.UUID, error)
 }
