@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/internal/application/service/helper"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure/rabbitmq"
@@ -24,8 +25,10 @@ import (
 )
 
 type userService struct {
-	userRepository irepository.GenericRepository[model.User]
-	rabbitmq       *rabbitmq.RabbitMQ
+	userRepository       irepository.UserRepository
+	stateTransferService iservice.StateTransferService
+	rabbitmq             *rabbitmq.RabbitMQ
+	unitOfWork           irepository.UnitOfWork
 }
 
 // ActivateBrandUser implements iservice.UserService.
@@ -34,8 +37,12 @@ func (s *userService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 		zap.String("user_id", userID.String()),
 	)
 
-	userRepo := unitOfWork.Users()
-	brandRepo := unitOfWork.Brands()
+	var (
+		userRepo             = unitOfWork.Users()
+		brandRepo            = unitOfWork.Brands()
+		generatedPassword    string
+		isGeneratingPassword = false
+	)
 
 	filters := func(db *gorm.DB) *gorm.DB {
 		return db.Joins("inner join brands on brands.user_id = users.id").
@@ -51,50 +58,59 @@ func (s *userService) ActivateBrandUser(ctx context.Context, userID uuid.UUID, u
 		return errors.New("brand user not found or already active")
 	}
 
-	var generatedPassword string
-	generatedPassword, err = utils.GenerateRandomPassword(16)
-	if err != nil {
-		zap.L().Error("Failed to generate password for brand user activation",
-			zap.String("user_id", userID.String()),
-			zap.Error(err))
-		return errors.New("failed to generate password for brand user activation")
+	if brandUsers.PasswordHash != "" && brandUsers.PasswordHash == "<placeholder>" {
+		isGeneratingPassword = true
+		generatedPassword, err = utils.GenerateRandomPassword(16)
+		if err != nil {
+			zap.L().Error("Failed to generate password for brand user activation",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
+			return errors.New("failed to generate password for brand user activation")
+		}
+		var hashedPassword []byte
+		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(generatedPassword), bcrypt.DefaultCost)
+		if err != nil {
+			zap.L().Error("Failed to hash password for brand user activation",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
+			return errors.New("failed to hash password for brand user activation")
+		}
+		brandUsers.PasswordHash = string(hashedPassword)
 	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(generatedPassword), bcrypt.DefaultCost)
-	if err != nil {
-		zap.L().Error("Failed to hash password for brand user activation",
-			zap.String("user_id", userID.String()),
-			zap.Error(err))
-		return errors.New("failed to hash password for brand user activation")
-	}
-	brandUsers.PasswordHash = string(hashedPassword)
-	brandUsers.IsActive = true
-	if brandUsers.Brand.Status == enum.BrandStatusActive {
-		zap.L().Info("Brand is already active during user activation, skipped brand status update",
+	if brandUsers.Brand != nil && brandUsers.Brand.Status == enum.BrandStatusActive {
+		zap.L().Debug("Brand is already active during user activation, skipped brand status update",
 			zap.String("user_id", userID.String()),
 			zap.String("brand_id", brandUsers.Brand.ID.String()))
-		return nil
+	} else if brandUsers.Brand != nil && brandUsers.Brand.Status != enum.BrandStatusActive {
+		if err = brandRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", brandUsers.Brand.ID)
+		}, map[string]any{"status": enum.BrandStatusActive}); err != nil {
+			zap.L().Error("Failed to update brand status during user activation",
+				zap.String("user_id", userID.String()),
+				zap.String("brand_id", brandUsers.Brand.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to update brand status during user activation")
+		}
 	}
 
-	brandUsers.Brand.Status = enum.BrandStatusActive
+	brand := *brandUsers.Brand
+	brandUsers.IsActive = true
+	brandUsers.Brand = nil // Clear brand to avoid unnecessary update
 	if err = userRepo.Update(ctx, brandUsers); err != nil {
 		zap.L().Error("Failed to activate brand user",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("failed to activate brand user")
 	}
-	if err = brandRepo.Update(ctx, brandUsers.Brand); err != nil {
-		zap.L().Error("Failed to update brand status during user activation",
-			zap.String("user_id", userID.String()),
-			zap.String("brand_id", brandUsers.Brand.ID.String()),
-			zap.Error(err))
-		return errors.New("failed to update brand status during user activation")
-	}
-	err = s.sendBrandAccountCreatedEmail(ctx, brandUsers.Brand, brandUsers, generatedPassword)
-	if err != nil {
-		zap.L().Error("Failed to send brand account created email",
-			zap.String("user_id", userID.String()),
-			zap.Error(err))
-		return errors.New("failed to send brand account created email")
+
+	if isGeneratingPassword {
+		err = s.sendBrandAccountCreatedEmail(ctx, &brand, brandUsers, generatedPassword)
+		if err != nil {
+			zap.L().Error("Failed to send brand account created email",
+				zap.String("user_id", userID.String()),
+				zap.Error(err))
+			return errors.New("failed to send brand account created email")
+		}
 	}
 
 	zap.L().Info("Brand user activated successfully",
@@ -160,33 +176,91 @@ func (s *userService) GetUsers(ctx context.Context, filterRequest *requests.User
 }
 
 // UpdateUserStatus updates a user's active status
-func (s *userService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool) error {
+func (s *userService) UpdateUserStatus(ctx context.Context, userID uuid.UUID, isActive bool, updatedBy uuid.UUID) error {
 	zap.L().Info("Updating user status",
 		zap.String("user_id", userID.String()),
 		zap.Bool("is_active", isActive))
 
-	// user, err := s.userRepository.GetByID(userID)
-	user, err := s.userRepository.GetByID(ctx, userID, nil)
-	if err != nil || user == nil {
+	var (
+		user        *model.User
+		contractIDs []uuid.UUID
+		oldStatus   bool
+		err         error
+	)
+
+	getUserFunc := func(ctx context.Context) error {
+		var subErr error
+		user, subErr = s.userRepository.GetByID(ctx, userID, nil)
+		if subErr != nil || user == nil {
+			zap.L().Error("Failed to find user for status update",
+				zap.String("user_id", userID.String()),
+				zap.Error(subErr))
+			return errors.New("user not found")
+		}
+		oldStatus = user.IsActive
+		return nil
+	}
+	getBrandContractIDsFunc := func(ctx context.Context) error {
+		var subErr error
+		contractIDs, subErr = s.userRepository.GetContractIDsByUserBrandID(ctx, userID)
+		if subErr != nil {
+			zap.L().Error("Failed to find contract IDs for user",
+				zap.String("user_id", userID.String()),
+				zap.Error(subErr))
+			return errors.New("failed to find contract IDs for user")
+		}
+		return nil
+	}
+	if err = utils.RunParallel(ctx, 2, getUserFunc, getBrandContractIDsFunc); err != nil {
 		zap.L().Error("Failed to find user for status update",
 			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("user not found")
 	}
 
-	oldStatus := user.IsActive
+	if err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.Users().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", userID)
+		}, map[string]any{"is_active": isActive}); err != nil {
+			zap.L().Error("Failed to update user status",
+				zap.String("user_id", userID.String()),
+				zap.Bool("old_status", oldStatus),
+				zap.Bool("new_status", isActive),
+				zap.Error(err))
+			return errors.New("failed to update user status")
+		}
 
-	updateFields := map[string]any{
-		"is_active": isActive,
-	}
-	filters := func(db *gorm.DB) *gorm.DB {
-		return db.Where("id = ?", userID)
-	}
-	if err := s.userRepository.UpdateByCondition(ctx, filters, updateFields); err != nil {
-		zap.L().Error("Failed to update user status",
+		if err = uow.Brands().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("user_id = ?", userID)
+		}, map[string]any{"status": enum.BrandStatusInactive}); err != nil {
+			zap.L().Error("Failed to update brand status",
+				zap.String("user_id", userID.String()),
+				zap.Bool("old_status", oldStatus),
+				zap.Bool("new_status", isActive),
+				zap.Error(err))
+			return errors.New("failed to update brand status")
+		}
+
+		for _, contractID := range contractIDs {
+			if err = s.stateTransferService.MoveContractToState(ctx, uow, contractID, enum.ContractStatusTerminated, updatedBy); err != nil {
+				zap.L().Error("Failed to move contract to TERMINATED state",
+					zap.String("contract_id", contractID.String()),
+					zap.Error(err))
+				return errors.New("failed to move contract to TERMINATED state")
+			}
+			zap.L().Debug("Contract moved to TERMINATED state due to user deactivation",
+				zap.String("contract_id", contractID.String()))
+		}
+		zap.L().Debug("All associated contracts processed for user status update",
 			zap.String("user_id", userID.String()),
 			zap.Bool("old_status", oldStatus),
 			zap.Bool("new_status", isActive),
+			zap.Int("contract_count", len(contractIDs)))
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed during user status update",
+			zap.String("user_id", userID.String()),
 			zap.Error(err))
 		return errors.New("failed to update user status")
 	}
@@ -497,8 +571,8 @@ func (s *userService) sendBrandAccountCreatedEmail(
 		"BrandID":                 brand.ID.String(),
 		"SupportEmail":            "support@yourplatform.com",
 		"SupportPhone":            "+1 (555) 123-4567",
-		"PrivacyPolicyURL":        "https://bshowsell.site/privacy",
-		"TermsOfServiceURL":       "https://bshowsell.site/terms",
+		"PrivacyPolicyURL":        "https://bshowsell.site/privacy-policy",
+		"TermsOfServiceURL":       "https://bshowsell.site/terms-of-service",
 		"UnsubscribeURL":          "https://api.bshowsell.site/api/v1/user/unsubscribe",
 	}
 
@@ -522,11 +596,15 @@ func (s *userService) sendBrandAccountCreatedEmail(
 // endregion
 
 func NewUserService(
-	userRepository irepository.GenericRepository[model.User],
+	userRepository irepository.UserRepository,
+	stateTransferService iservice.StateTransferService,
 	rabbitmq *rabbitmq.RabbitMQ,
+	unitOfWork irepository.UnitOfWork,
 ) iservice.UserService {
 	return &userService{
-		userRepository: userRepository,
-		rabbitmq:       rabbitmq,
+		userRepository:       userRepository,
+		stateTransferService: stateTransferService,
+		rabbitmq:             rabbitmq,
+		unitOfWork:           unitOfWork,
 	}
 }
