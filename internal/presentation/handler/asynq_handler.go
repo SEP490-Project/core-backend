@@ -30,7 +30,7 @@ func NewAsynqHandler(asynqClient *asynq.AsynqClient) *AsynqHandler {
 //
 //	@Summary		Get Asynq Overview
 //	@Description	Returns an overview of Asynq queues, tasks, and status
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.AsynqOverviewResponse}
@@ -115,7 +115,7 @@ func (h *AsynqHandler) GetOverview(c *gin.Context) {
 //
 //	@Summary		List Asynq Tasks
 //	@Description	Returns tasks in a specific queue and state
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			queue	query		string	true	"Queue name (default, critical, low)"
@@ -225,7 +225,7 @@ func (h *AsynqHandler) ListTasks(c *gin.Context) {
 //
 //	@Summary		Get Task Details
 //	@Description	Returns details of a specific task
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			queue	query		string	true	"Queue name"
@@ -290,7 +290,7 @@ func (h *AsynqHandler) GetTaskDetails(c *gin.Context) {
 //
 //	@Summary		Delete/Cancel Task
 //	@Description	Deletes or cancels a task (for scheduled, pending, retry, or archived tasks)
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.AsynqDeleteTaskRequest	true	"Delete task request"
@@ -350,7 +350,7 @@ func (h *AsynqHandler) DeleteTask(c *gin.Context) {
 //
 //	@Summary		Run Task Immediately
 //	@Description	Forces a scheduled or retry task to run immediately
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.AsynqRunTaskRequest	true	"Run task request"
@@ -394,7 +394,7 @@ func (h *AsynqHandler) RunTask(c *gin.Context) {
 //
 //	@Summary		Archive Task
 //	@Description	Archives a task (moves it to archived state)
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.AsynqArchiveTaskRequest	true	"Archive task request"
@@ -438,7 +438,7 @@ func (h *AsynqHandler) ArchiveTask(c *gin.Context) {
 //
 //	@Summary		Pause Queue
 //	@Description	Pauses task processing in a queue
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.AsynqQueueActionRequest	true	"Pause queue request"
@@ -476,7 +476,7 @@ func (h *AsynqHandler) PauseQueue(c *gin.Context) {
 //
 //	@Summary		Unpause Queue
 //	@Description	Resumes task processing in a paused queue
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.AsynqQueueActionRequest	true	"Unpause queue request"
@@ -514,7 +514,7 @@ func (h *AsynqHandler) UnpauseQueue(c *gin.Context) {
 //
 //	@Summary		Get Queue Statistics
 //	@Description	Returns detailed statistics for a specific queue
-//	@Tags			Asynq Admin
+//	@Tags			Admin.Asynq
 //	@Accept			json
 //	@Produce		json
 //	@Param			queue	query		string	true	"Queue name"

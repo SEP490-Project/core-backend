@@ -372,13 +372,13 @@ func (h *LocationHandler) TriggerLocationSync(c *gin.Context) {
 
 // TriggerLocationSync godoc
 //
-//	@Summary		Testing
-//	@Tags			location
-//	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	map[string]string	"Success message"
-//	@Failure		400	{object}	map[string]string	"Error message"
-//	@Router			/api/v1/location/test [get]
+//	@Summary	Testing
+//	@Tags		location
+//	@Accept		json
+//	@Produce	json
+//	@Success	200	{object}	map[string]string	"Success message"
+//	@Failure	400	{object}	map[string]string	"Error message"
+//	@Router		/api/v1/location/test [get]
 func (h *LocationHandler) Test(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Location handler is up"})
