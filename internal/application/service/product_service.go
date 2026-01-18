@@ -1148,6 +1148,420 @@ func (p productService) GetProductsPaginationV2Partial(page, limit int, search, 
 	return productResponses, int(total), nil
 }
 
+// =================================================================================================
+// STANDARD PRODUCTS PAGINATION
+// =================================================================================================
+
+// GetStandardProductsPagination returns paginated standard products with full details (for admin/staff)
+func (p productService) GetStandardProductsPagination(ctx context.Context, req requests.StandardProductListRequest) ([]responses.ProductResponseV2, int, error) {
+	zap.L().Debug("Fetching standard products with pagination",
+		zap.Int("page", req.Page),
+		zap.Int("limit", req.Limit),
+	)
+
+	page := req.Page
+	limit := req.Limit
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		// Filter by STANDARD type only
+		db = db.Where("products.type = ?", enum.ProductTypeStandard)
+
+		if req.Search != nil && *req.Search != "" {
+			db = db.Where("products.name ILIKE ?", "%"+*req.Search+"%")
+		}
+
+		if req.CategoryID != nil && *req.CategoryID != "" {
+			if cid, err := uuid.Parse(*req.CategoryID); err == nil {
+				db = db.Where("products.category_id = ?", cid)
+			}
+		}
+
+		if req.BrandID != nil && *req.BrandID != "" {
+			if bid, err := uuid.Parse(*req.BrandID); err == nil {
+				db = db.Where("products.brand_id = ?", bid)
+			}
+		}
+
+		if req.UserID != nil && *req.UserID != "" {
+			if uid, err := uuid.Parse(*req.UserID); err == nil {
+				db = db.Joins("JOIN brands ON brands.id = products.brand_id").
+					Where("brands.user_id = ?", uid)
+			}
+		}
+
+		if req.Status != nil && *req.Status != "" {
+			db = db.Where("products.status = ?", *req.Status)
+		}
+
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories",
+		"CreatedBy",
+		"UpdatedBy",
+	}
+
+	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, page)
+	if err != nil {
+		zap.L().Error("Failed to fetch standard products", zap.Error(err))
+		return nil, 0, err
+	}
+
+	productResponses := make([]responses.ProductResponseV2, 0, len(products))
+	for i := range products {
+		resp := responses.ProductResponseV2{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
+	}
+
+	zap.L().Info("Retrieved standard products", zap.Int("returned", len(productResponses)), zap.Int("total", int(total)))
+	return productResponses, int(total), nil
+}
+
+// GetStandardProductsPaginationPartial returns paginated standard products with partial details (for public)
+func (p productService) GetStandardProductsPaginationPartial(ctx context.Context, req requests.StandardProductListRequest) ([]responses.ProductResponseV2Partial, int, error) {
+	zap.L().Debug("Fetching standard products (partial) with pagination",
+		zap.Int("page", req.Page),
+		zap.Int("limit", req.Limit),
+	)
+
+	page := req.Page
+	limit := req.Limit
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		// Filter by STANDARD type only and active products for public view
+		db = db.Where("products.type = ?", enum.ProductTypeStandard).
+			Where("products.is_active = ?", true).
+			Where("products.status = ?", enum.ProductStatusActived)
+
+		if req.Search != nil && *req.Search != "" {
+			db = db.Where("products.name ILIKE ?", "%"+*req.Search+"%")
+		}
+
+		if req.CategoryID != nil && *req.CategoryID != "" {
+			if cid, err := uuid.Parse(*req.CategoryID); err == nil {
+				db = db.Where("products.category_id = ?", cid)
+			}
+		}
+
+		if req.BrandID != nil && *req.BrandID != "" {
+			if bid, err := uuid.Parse(*req.BrandID); err == nil {
+				db = db.Where("products.brand_id = ?", bid)
+			}
+		}
+
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories",
+	}
+
+	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, page)
+	if err != nil {
+		zap.L().Error("Failed to fetch standard products (partial)", zap.Error(err))
+		return nil, 0, err
+	}
+
+	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
+	for i := range products {
+		resp := responses.ProductResponseV2Partial{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
+	}
+
+	zap.L().Info("Retrieved standard products (partial)", zap.Int("returned", len(productResponses)), zap.Int("total", int(total)))
+	return productResponses, int(total), nil
+}
+
+// =================================================================================================
+// LIMITED PRODUCTS PAGINATION
+// =================================================================================================
+
+// GetLimitedProductsPagination returns paginated limited products with full details (for admin/staff)
+// Supports special filters:
+// - FilterPreOrder: products where NOW() is between PremiereDate and AvailabilityStartDate
+// - FilterOrder: products where NOW() is between AvailabilityStartDate and AvailabilityEndDate
+// - Date range filters for PremiereDate, AvailabilityStartDate, AvailabilityEndDate
+func (p productService) GetLimitedProductsPagination(ctx context.Context, req requests.LimitedProductListRequest) ([]responses.ProductResponseV2, int, error) {
+	zap.L().Debug("Fetching limited products with pagination",
+		zap.Int("page", req.Page),
+		zap.Int("limit", req.Limit),
+	)
+
+	page := req.Page
+	limit := req.Limit
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		// Filter by LIMITED type only and join with limited_products
+		db = db.Where("products.type = ?", enum.ProductTypeLimited).
+			Joins("JOIN limited_products lp ON lp.id = products.id")
+
+		if req.Search != nil && *req.Search != "" {
+			db = db.Where("products.name ILIKE ?", "%"+*req.Search+"%")
+		}
+
+		if req.CategoryID != nil && *req.CategoryID != "" {
+			if cid, err := uuid.Parse(*req.CategoryID); err == nil {
+				db = db.Where("products.category_id = ?", cid)
+			}
+		}
+
+		if req.BrandID != nil && *req.BrandID != "" {
+			if bid, err := uuid.Parse(*req.BrandID); err == nil {
+				db = db.Where("products.brand_id = ?", bid)
+			}
+		}
+
+		if req.UserID != nil && *req.UserID != "" {
+			if uid, err := uuid.Parse(*req.UserID); err == nil {
+				db = db.Joins("JOIN brands ON brands.id = products.brand_id").
+					Where("brands.user_id = ?", uid)
+			}
+		}
+
+		if req.Status != nil && *req.Status != "" {
+			db = db.Where("products.status = ?", *req.Status)
+		}
+
+		// PreOrder window filter: current time is between PremiereDate and AvailabilityStartDate
+		if req.FilterPreOrder != nil && *req.FilterPreOrder {
+			db = db.Where("lp.premiere_date <= NOW()").
+				Where("lp.availability_start_date > NOW()")
+		}
+
+		// Order window filter: current time is between AvailabilityStartDate and AvailabilityEndDate
+		if req.FilterOrder != nil && *req.FilterOrder {
+			db = db.Where("lp.availability_start_date <= NOW()").
+				Where("lp.availability_end_date > NOW()")
+		}
+
+		// Date range filters for PremiereDate
+		if req.PremiereDateFrom != nil && *req.PremiereDateFrom != "" {
+			if t := parseTime(req.PremiereDateFrom); !t.IsZero() {
+				db = db.Where("lp.premiere_date >= ?", t)
+			}
+		}
+		if req.PremiereDateTo != nil && *req.PremiereDateTo != "" {
+			if t := parseTime(req.PremiereDateTo); !t.IsZero() {
+				db = db.Where("lp.premiere_date <= ?", t)
+			}
+		}
+
+		// Date range filters for AvailabilityStartDate
+		if req.AvailabilityStartDateFrom != nil && *req.AvailabilityStartDateFrom != "" {
+			if t := parseTime(req.AvailabilityStartDateFrom); !t.IsZero() {
+				db = db.Where("lp.availability_start_date >= ?", t)
+			}
+		}
+		if req.AvailabilityStartDateTo != nil && *req.AvailabilityStartDateTo != "" {
+			if t := parseTime(req.AvailabilityStartDateTo); !t.IsZero() {
+				db = db.Where("lp.availability_start_date <= ?", t)
+			}
+		}
+
+		// Date range filters for AvailabilityEndDate
+		if req.AvailabilityEndDateFrom != nil && *req.AvailabilityEndDateFrom != "" {
+			if t := parseTime(req.AvailabilityEndDateFrom); !t.IsZero() {
+				db = db.Where("lp.availability_end_date >= ?", t)
+			}
+		}
+		if req.AvailabilityEndDateTo != nil && *req.AvailabilityEndDateTo != "" {
+			if t := parseTime(req.AvailabilityEndDateTo); !t.IsZero() {
+				db = db.Where("lp.availability_end_date <= ?", t)
+			}
+		}
+
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories",
+		"CreatedBy",
+		"UpdatedBy",
+		"Limited",
+		"Limited.Concept",
+	}
+
+	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, page)
+	if err != nil {
+		zap.L().Error("Failed to fetch limited products", zap.Error(err))
+		return nil, 0, err
+	}
+
+	productResponses := make([]responses.ProductResponseV2, 0, len(products))
+	for i := range products {
+		resp := responses.ProductResponseV2{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
+	}
+
+	zap.L().Info("Retrieved limited products", zap.Int("returned", len(productResponses)), zap.Int("total", int(total)))
+	return productResponses, int(total), nil
+}
+
+// GetLimitedProductsPaginationPartial returns paginated limited products with partial details (for public)
+// Supports special filters:
+// - FilterPreOrder: products where NOW() is between PremiereDate and AvailabilityStartDate
+// - FilterOrder: products where NOW() is between AvailabilityStartDate and AvailabilityEndDate
+func (p productService) GetLimitedProductsPaginationPartial(ctx context.Context, req requests.LimitedProductListRequest) ([]responses.ProductResponseV2Partial, int, error) {
+	zap.L().Debug("Fetching limited products (partial) with pagination",
+		zap.Int("page", req.Page),
+		zap.Int("limit", req.Limit),
+	)
+
+	page := req.Page
+	limit := req.Limit
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	filter := func(db *gorm.DB) *gorm.DB {
+		// Filter by LIMITED type only, active products for public view
+		db = db.Where("products.type = ?", enum.ProductTypeLimited).
+			Where("products.is_active = ?", true).
+			Where("products.status = ?", enum.ProductStatusActived).
+			Joins("JOIN limited_products lp ON lp.id = products.id")
+
+		if req.Search != nil && *req.Search != "" {
+			db = db.Where("products.name ILIKE ?", "%"+*req.Search+"%")
+		}
+
+		if req.CategoryID != nil && *req.CategoryID != "" {
+			if cid, err := uuid.Parse(*req.CategoryID); err == nil {
+				db = db.Where("products.category_id = ?", cid)
+			}
+		}
+
+		if req.BrandID != nil && *req.BrandID != "" {
+			if bid, err := uuid.Parse(*req.BrandID); err == nil {
+				db = db.Where("products.brand_id = ?", bid)
+			}
+		}
+
+		// PreOrder window filter: current time is between PremiereDate and AvailabilityStartDate
+		if req.FilterPreOrder != nil && *req.FilterPreOrder {
+			db = db.Where("lp.premiere_date <= NOW()").
+				Where("lp.availability_start_date > NOW()")
+		}
+
+		// Order window filter: current time is between AvailabilityStartDate and AvailabilityEndDate
+		if req.FilterOrder != nil && *req.FilterOrder {
+			db = db.Where("lp.availability_start_date <= NOW()").
+				Where("lp.availability_end_date > NOW()")
+		}
+
+		// Date range filters for PremiereDate
+		if req.PremiereDateFrom != nil && *req.PremiereDateFrom != "" {
+			if t := parseTime(req.PremiereDateFrom); !t.IsZero() {
+				db = db.Where("lp.premiere_date >= ?", t)
+			}
+		}
+		if req.PremiereDateTo != nil && *req.PremiereDateTo != "" {
+			if t := parseTime(req.PremiereDateTo); !t.IsZero() {
+				db = db.Where("lp.premiere_date <= ?", t)
+			}
+		}
+
+		// Date range filters for AvailabilityStartDate
+		if req.AvailabilityStartDateFrom != nil && *req.AvailabilityStartDateFrom != "" {
+			if t := parseTime(req.AvailabilityStartDateFrom); !t.IsZero() {
+				db = db.Where("lp.availability_start_date >= ?", t)
+			}
+		}
+		if req.AvailabilityStartDateTo != nil && *req.AvailabilityStartDateTo != "" {
+			if t := parseTime(req.AvailabilityStartDateTo); !t.IsZero() {
+				db = db.Where("lp.availability_start_date <= ?", t)
+			}
+		}
+
+		// Date range filters for AvailabilityEndDate
+		if req.AvailabilityEndDateFrom != nil && *req.AvailabilityEndDateFrom != "" {
+			if t := parseTime(req.AvailabilityEndDateFrom); !t.IsZero() {
+				db = db.Where("lp.availability_end_date >= ?", t)
+			}
+		}
+		if req.AvailabilityEndDateTo != nil && *req.AvailabilityEndDateTo != "" {
+			if t := parseTime(req.AvailabilityEndDateTo); !t.IsZero() {
+				db = db.Where("lp.availability_end_date <= ?", t)
+			}
+		}
+
+		return db.Order("products.created_at DESC").Order("products.id")
+	}
+
+	includes := []string{
+		"Brand",
+		"Variants",
+		"Variants.Images",
+		"Category",
+		"Category.ParentCategory",
+		"Category.ChildCategories",
+		"Limited",
+	}
+
+	products, total, err := p.repository.GetAll(ctx, filter, includes, limit, page)
+	if err != nil {
+		zap.L().Error("Failed to fetch limited products (partial)", zap.Error(err))
+		return nil, 0, err
+	}
+
+	productResponses := make([]responses.ProductResponseV2Partial, 0, len(products))
+	for i := range products {
+		resp := responses.ProductResponseV2Partial{}
+		productResponses = append(productResponses, *resp.ToProductResponseV2(&products[i]))
+	}
+
+	zap.L().Info("Retrieved limited products (partial)", zap.Int("returned", len(productResponses)), zap.Int("total", int(total)))
+	return productResponses, int(total), nil
+}
+
 func (p productService) GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error) {
 	ctx := context.Background()
 	res := responses.ProductDetailResponse{}

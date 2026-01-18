@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm/clause"
 
 	"github.com/google/uuid"
@@ -49,6 +50,75 @@ type preOrderService struct {
 	scheduleRepository           irepository.ScheduleRepository
 	taskScheduler                *asynq.AsynqClient
 	asynqConfig                  *config.AsynqConfig
+}
+
+func (p preOrderService) GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error) {
+	var breakdowns []responses.PriceBreakdown
+
+	include := []string{
+		"ProductVariant",
+		"ProductVariant.Product",
+		"ProductVariant.Product.Task",
+		"ProductVariant.Product.Task.Milestone",
+		"ProductVariant.Product.Task.Milestone.Campaign",
+		"ProductVariant.Product.Task.Milestone.Campaign.Contract",
+	}
+
+	preOrder, err := p.preOrderRepository.GetByID(ctx, preOrderID, include)
+	if err != nil {
+		return nil, err
+	}
+
+	financialTerm := p.getFinancialTerms(preOrder)
+
+	kolPercentVal, isKOLPctExists, err := getJSONKey(*financialTerm, "profit_split_kol_percent")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse KOL percentage: %w", err)
+	}
+	if !isKOLPctExists {
+		return breakdowns, nil
+	}
+
+	companyPercentVal, isCompPctExists, err := getJSONKey(*financialTerm, "profit_split_company_percent")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse company percentage: %w", err)
+	}
+	if !isCompPctExists {
+		return breakdowns, nil
+	}
+
+	// Convert interface{} to int (JSON numbers come as float64)
+	kolPercent := toInt(kolPercentVal)
+	companyPercent := toInt(companyPercentVal)
+
+	// Calculate amounts based on item subtotal
+	itemTotal := preOrder.TotalAmount
+	kolAmount := itemTotal * float64(kolPercent) / 100.0
+	companyAmount := itemTotal * float64(companyPercent) / 100.0
+
+	breakdown := responses.PriceBreakdown{
+		ItemID:            preOrder.ID,
+		CompanyPercentage: companyPercent,
+		KOLPercentage:     kolPercent,
+		CompanyAmount:     companyAmount,
+		KOLAmount:         kolAmount,
+	}
+
+	breakdowns = append(breakdowns, breakdown)
+	return breakdowns, nil
+}
+
+func (p preOrderService) getFinancialTerms(item *model.PreOrder) *datatypes.JSON {
+	if item != nil ||
+		item.ProductVariant == nil ||
+		item.ProductVariant.Product == nil ||
+		item.ProductVariant.Product.Task == nil ||
+		item.ProductVariant.Product.Task.Milestone == nil ||
+		item.ProductVariant.Product.Task.Milestone.Campaign == nil ||
+		item.ProductVariant.Product.Task.Milestone.Campaign.Contract == nil {
+
+	}
+	return &item.ProductVariant.Product.Task.Milestone.Campaign.Contract.FinancialTerms
 }
 
 func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
@@ -756,188 +826,74 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 ) ([]responses.PreOrderResponse, int, error) {
 
 	ctx := context.Background()
-
-	// build filter
-	filter := func(db *gorm.DB) *gorm.DB {
-		q := db
-
-		if search != "" {
-			isUUID := false
-			if _, err := uuid.Parse(search); err == nil {
-				isUUID = true
-			}
-			if isUUID {
-				q = q.Where(`
-					(
-						pre_orders.id = ?
-						OR EXISTS (
-							SELECT 1
-							FROM payment_transactions pt
-							WHERE pt.reference_id = pre_orders.id
-							  AND pt.reference_type = ?
-							  AND pt.id = ?
-						)
-					)
-				`, search, enum.PaymentTransactionReferenceTypePreOrder, search)
-			} else {
-				like := "%" + search + "%"
-				q = q.Where(`
-					(
-						pre_orders.id::text ILIKE ?
-						OR EXISTS (
-							SELECT 1
-							FROM payment_transactions pt
-							WHERE pt.reference_id = pre_orders.id
-							  AND pt.reference_type = ?
-							  AND (
-									pt.id::text ILIKE ?
-									OR pt.payos_metadata->>'bin' ILIKE ?
-							  )
-						)
-					)
-				`, like, enum.PaymentTransactionReferenceTypePreOrder, like, like)
-			}
-		}
-
-		if fullName != "" {
-			q = q.Where("full_name ILIKE ?", "%"+fullName+"%")
-		}
-
-		if phone != "" {
-			q = q.Where("phone_number ILIKE ?", "%"+phone+"%")
-		}
-
-		if provinceID != "" {
-			q = q.Where("ghn_province_id = ?", provinceID)
-		}
-
-		if districtID != "" {
-			q = q.Where("ghn_district_id = ?", districtID)
-		}
-
-		if wardCode != "" {
-			q = q.Where("ghn_ward_code = ?", wardCode)
-		}
-
-		// if len(statuses) > 0 {
-		// 	q = q.Where("status IN ?", statuses)
-		// }
-		if len(statuses) > 0 {
-			q = q.Where("pre_orders.status IN ?", statuses)
-		}
-
-		return q
-	}
-
-	includes := []string{
-		"ProductVariant.Images",
-		"Brand",
-		"Category",
-		"ProductVariant.Product",
-		"ProductVariant.Product.Limited",
-	}
-
-	poRows, total, err := s.GetPreOrdersWithPayment(ctx, filter, includes, limit, page)
+	preOrders, total, err := s.preOrderRepository.GetStaffAvailablePreOrdersWithPagination(ctx, limit, page, search, fullName, phone, provinceID, districtID, wardCode, statuses)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// build DTO response
-	responsesList := make([]responses.PreOrderResponse, 0, len(poRows))
+	// If no preorders - return early
+	if len(preOrders) == 0 {
+		return []responses.PreOrderResponse{}, total, nil
+	}
 
-	for _, r := range poRows {
+	if s.paymentTransactionRepository == nil || s.paymentTransactionRepository.DB() == nil {
+		zap.L().Warn("paymentTransactionRepository not available, returning preorders without transaction enrichment")
+		// Convert to response without payment enrichment
+		return toPreOrderResponseList(preOrders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
+	}
 
-		var pm *model.PaymentTransaction
-		if r.PaymentID != nil {
-			pm = &model.PaymentTransaction{
-				ID:        *r.PaymentID,
-				Amount:    r.PaymentAmount,
-				Method:    *r.PaymentMethod,
-				Status:    enum.PaymentTransactionStatus(*r.PaymentStatus),
-				CreatedAt: *r.PaymentCreatedAt,
+	// Collect preorder IDs
+	preOrderIDs := make([]uuid.UUID, 0, len(preOrders))
+	for _, po := range preOrders {
+		preOrderIDs = append(preOrderIDs, po.ID)
+	}
+
+	// Load payment transactions referencing these preorders
+	var transactions []model.PaymentTransaction
+	if err := s.paymentTransactionRepository.DB().WithContext(ctx).
+		Model(&model.PaymentTransaction{}).
+		Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypePreOrder, preOrderIDs).
+		Find(&transactions).Error; err != nil {
+		zap.L().Error("Failed to fetch payment transactions for staff preorders", zap.Error(err))
+		return toPreOrderResponseList(preOrders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
+	}
+
+	// Choose latest transaction per preorder by UpdatedAt
+	paymentsMap := make(map[uuid.UUID]model.PaymentTransaction)
+	for _, tx := range transactions {
+		existing, ok := paymentsMap[tx.ReferenceID]
+		if !ok || tx.UpdatedAt.After(existing.UpdatedAt) {
+			paymentsMap[tx.ReferenceID] = tx
+		}
+	}
+
+	// Attach latest payment info back to preorders (transient fields) - keep for compatibility but not required for DTO
+	for i := range preOrders {
+		if pt, ok := paymentsMap[preOrders[i].ID]; ok {
+			preOrders[i].PaymentID = &pt.ID
+			if pt.PayOSMetadata != nil {
+				preOrders[i].PaymentBin = &pt.PayOSMetadata.Bin
 			}
 		}
-
-		responsesList = append(responsesList,
-			responses.PreOrderResponse{}.ToPreOrderResponse(r.PreOrder, pm),
-		)
 	}
 
-	return responsesList, total, nil
+	// Convert model preorders to response DTOs using payment map
+	preOrderResponses := toPreOrderResponseList(preOrders, paymentsMap)
+
+	return preOrderResponses, total, nil
 }
 
-type PreOrderWithPayment struct {
-	model.PreOrder
-
-	PaymentID        *uuid.UUID `gorm:"column:pm_id"`
-	PaymentAmount    *float64   `gorm:"column:pm_amount"`
-	PaymentMethod    *string    `gorm:"column:pm_method"`
-	PaymentStatus    *string    `gorm:"column:pm_status"`
-	PaymentCreatedAt *time.Time `gorm:"column:pm_created_at"`
-}
-
-func (s preOrderService) GetPreOrdersWithPayment(
-	ctx context.Context,
-	filter func(*gorm.DB) *gorm.DB,
-	includes []string,
-	limit, page int,
-) ([]PreOrderWithPayment, int, error) {
-
-	var total int64
-
-	// Step 1: count BEFORE JOIN (avoid inflated count)
-	countDB := s.db.WithContext(ctx).Model(&model.PreOrder{})
-	if filter != nil {
-		countDB = filter(countDB)
+// toPreOrderResponseList converts a list of PreOrder models to PreOrderResponse DTOs
+func toPreOrderResponseList(preOrders []model.PreOrder, paymentsMap map[uuid.UUID]model.PaymentTransaction) []responses.PreOrderResponse {
+	result := make([]responses.PreOrderResponse, 0, len(preOrders))
+	for _, po := range preOrders {
+		var pm *model.PaymentTransaction
+		if pt, ok := paymentsMap[po.ID]; ok {
+			pm = &pt
+		}
+		result = append(result, responses.PreOrderResponse{}.ToPreOrderResponse(po, pm))
 	}
-	if err := countDB.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// Step 2: full JOIN query
-	db := s.db.WithContext(ctx).
-		Table("pre_orders").
-		Select(`
-            pre_orders.*,
-            pm.id AS pm_id,
-            pm.amount AS pm_amount,
-            pm.method AS pm_method,
-            pm.status AS pm_status,
-            pm.created_at AS pm_created_at
-        `).
-		Joins(`
-            LEFT JOIN payment_transactions pm 
-            ON pm.reference_id = pre_orders.id 
-            AND pm.reference_type = ?
-        `, enum.PaymentTransactionReferenceTypePreOrder)
-
-	if filter != nil {
-		db = filter(db)
-	}
-
-	// Preload relationships (must attach Model)
-	db = db.Model(&model.PreOrder{})
-
-	db = db.Order("pre_orders.created_at DESC")
-
-	for _, inc := range includes {
-		db = db.Preload(inc)
-	}
-
-	if page <= 0 {
-		page = 1
-	}
-
-	if limit > 0 {
-		db = db.Limit(limit).Offset((page - 1) * limit)
-	}
-
-	var rows []PreOrderWithPayment
-	if err := db.Find(&rows).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return rows, int(total), nil
+	return result
 }
 
 func MovePreOrderStateUsingFSM(preorder *model.PreOrder, lp *model.LimitedProduct, user *model.User, newStatus enum.PreOrderStatus, reason *string) error {

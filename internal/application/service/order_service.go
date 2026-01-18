@@ -16,12 +16,14 @@ import (
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -38,6 +40,143 @@ type orderService struct {
 	ghnProxy                     iproxies.GHNProxy
 	paymentTransactionService    iservice.PaymentTransactionService
 	notificationService          iservice.NotificationService
+}
+
+func (o *orderService) GetOrderPricePercentage(ctx context.Context, orderID uuid.UUID, orderType string) ([]responses.PriceBreakdown, error) {
+	var breakdowns []responses.PriceBreakdown
+
+	if orderType == "LIMITED" {
+		orderIncludes := []string{
+			"OrderItems",
+			"OrderItems.Variant",
+			"OrderItems.Variant.Product",
+			"OrderItems.Variant.Product.Task",
+			"OrderItems.Variant.Product.Task.Milestone",
+			"OrderItems.Variant.Product.Task.Milestone.Campaign",
+			"OrderItems.Variant.Product.Task.Milestone.Campaign.Contract",
+		}
+
+		order, err := o.orderRepository.GetByID(ctx, orderID, orderIncludes)
+		if err != nil {
+			return nil, err
+		}
+
+		if order == nil {
+			return nil, errors.New("order not found")
+		}
+
+		for _, item := range order.OrderItems {
+			financialTerm := getFinancialTerms(&item)
+			if financialTerm == nil {
+				continue
+			}
+
+			kolPercentVal, isKOLPctExists, err := getJSONKey(*financialTerm, "profit_split_kol_percent")
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse KOL percentage: %w", err)
+			}
+			if !isKOLPctExists {
+				continue
+			}
+
+			companyPercentVal, isCompPctExists, err := getJSONKey(*financialTerm, "profit_split_company_percent")
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse company percentage: %w", err)
+			}
+			if !isCompPctExists {
+				continue
+			}
+
+			// Convert interface{} to int (JSON numbers come as float64)
+			kolPercent := toInt(kolPercentVal)
+			companyPercent := toInt(companyPercentVal)
+
+			// Calculate amounts based on item subtotal
+			itemTotal := item.Subtotal
+			kolAmount := itemTotal * float64(kolPercent) / 100.0
+			companyAmount := itemTotal * float64(companyPercent) / 100.0
+
+			breakdown := responses.PriceBreakdown{
+				ItemID:            item.ID,
+				CompanyPercentage: companyPercent,
+				KOLPercentage:     kolPercent,
+				CompanyAmount:     companyAmount,
+				KOLAmount:         kolAmount,
+			}
+
+			breakdowns = append(breakdowns, breakdown)
+		}
+
+	} else if orderType == "STANDARD" {
+		orderIncludes := []string{
+			"OrderItems",
+		}
+		// Implementation for STANDARD orders can be added here
+		order, err := o.orderRepository.GetByID(ctx, orderID, orderIncludes)
+		if err != nil {
+			return nil, err
+		}
+
+		if order == nil {
+			return nil, errors.New("order not found")
+		}
+
+		for _, item := range order.OrderItems {
+			breakdown := responses.PriceBreakdown{
+				ItemID:            item.ID,
+				CompanyPercentage: 100,
+				KOLPercentage:     0,
+				CompanyAmount:     item.Subtotal,
+				KOLAmount:         float64(0),
+			}
+			breakdowns = append(breakdowns, breakdown)
+		}
+
+	}
+
+	return breakdowns, nil
+}
+
+// toInt converts an interface{} (typically float64 from JSON) to int
+func toInt(val interface{}) int {
+	switch v := val.(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	case int64:
+		return int(v)
+	default:
+		return 0
+	}
+}
+
+func getFinancialTerms(item *model.OrderItem) *datatypes.JSON {
+	if item == nil ||
+		item.Variant.ID == uuid.Nil ||
+		item.Variant.Product == nil ||
+		item.Variant.Product.Task == nil ||
+		item.Variant.Product.Task.Milestone == nil ||
+		item.Variant.Product.Task.Milestone.Campaign == nil ||
+		item.Variant.Product.Task.Milestone.Campaign.Contract == nil {
+		return nil
+	}
+
+	return &item.Variant.Product.Task.Milestone.Campaign.Contract.FinancialTerms
+}
+
+func getJSONKey(j datatypes.JSON, key string) (interface{}, bool, error) {
+	if len(j) == 0 {
+		return nil, false, nil
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(j, &data); err != nil {
+		return nil, false, err
+	}
+
+	val, ok := data[key]
+	return val, ok, nil
 }
 
 func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
@@ -818,7 +957,6 @@ func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, se
 		Where("reference_type = ? AND reference_id IN (?)", enum.PaymentTransactionReferenceTypeOrder, orderIDs).
 		Find(&transactions).Error; err != nil {
 		zap.L().Error("Failed to fetch payment transactions for staff orders", zap.Error(err))
-		// non-fatal: return orders without enrichment (convert to DTO)
 		return responses.OrderResponse{}.ToResponseList(orders, map[uuid.UUID]model.PaymentTransaction{}), total, nil
 	}
 
