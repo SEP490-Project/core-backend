@@ -34,4 +34,5 @@ type PreOrderService interface {
 	ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error
 
 	OpeningPreOrderEarly(ctx context.Context, uow irepository.UnitOfWork, productID uuid.UUID, updatedBy uuid.UUID) error
+	GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error)
 }

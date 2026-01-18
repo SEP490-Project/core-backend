@@ -143,6 +143,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			optionalGroup.Use(r.middlewareRegistry.Auth.RequireAuthOptional())
 			{
 				optionalGroup.GET("/v2", productHandler.GetAllProductsV2)
+				optionalGroup.GET("/standard", productHandler.GetAllStandardProducts)
+				optionalGroup.GET("/limited", productHandler.GetAllLimitedProducts)
 			}
 
 			productsGroup.GET("/:id", productHandler.GetProductDetail)
@@ -256,6 +258,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			ordersGroup.POST("/:orderID/refund", orderHandler.RequestRefund)
 			// Customer: request compensation for an order
 			ordersGroup.POST("/:orderID/compensation", orderHandler.RequestCompensation)
+			ordersGroup.GET("/:orderID/price-breakdown", orderHandler.GetOrderPricePercentage)
 		}
 
 		// Staffs
@@ -309,6 +312,8 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			locationGroup.GET("/wards/:district-id", locationHandler.GetWards)
 			// Address management for authenticated users
 			locationGroup.POST("/address", locationHandler.InputUserAddress)
+			locationGroup.PUT("/address/:address-id", locationHandler.UpdateUserAddress)
+			locationGroup.DELETE("/address/:address-id", locationHandler.DeleteUserAddress)
 			locationGroup.PATCH("/address/:address-id/default", locationHandler.SetAddressAsDefault)
 			locationGroup.GET("/addresses", locationHandler.GetUserAddresses)
 		}
@@ -363,6 +368,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			preOrderGroup.POST("/:id/compensation", preOrderHandler.RequestCompensation)
 			preOrderGroup.POST("/refund/:preOrderID", preOrderHandler.PreOrderRefundRequest)
 			preOrderGroup.POST("/self-delivering/:id/received", preOrderHandler.MarkPreOrderAsReceived)
+			preOrderGroup.GET("/:preOrderID/price-breakdown", preOrderHandler.GetPreOrderPricePercentage)
 		}
 
 		// Staffs

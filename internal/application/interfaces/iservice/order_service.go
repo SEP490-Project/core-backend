@@ -39,4 +39,6 @@ type OrderService interface {
 	//Request Compensation - By Customer
 	RequestCompensation(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error
 	ProcessCompensation(ctx context.Context, orderID, actionBy uuid.UUID, isApproved bool, reason, fileURL *string) error
+
+	GetOrderPricePercentage(ctx context.Context, orderID uuid.UUID, orderType string) ([]responses.PriceBreakdown, error)
 }

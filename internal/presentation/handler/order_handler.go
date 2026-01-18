@@ -202,6 +202,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	//*3 Initiate payment
 	paymentTx, err := h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, req.SuccessURL, req.CancelURL, uow)
+	// paymentTx, err := h.orderService.PayOrder(ctx, order.ID, deliveryFee.Total, req.SuccessURL, req.CancelURL, uow)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to initiate payment: "+err.Error(), http.StatusBadRequest))
@@ -1160,6 +1161,56 @@ func (h *OrderHandler) ObligateEarlyRefund(c *gin.Context) {
 	})
 	c.JSON(http.StatusOK, resp)
 
+}
+
+// GetOrderPricePercentage godoc
+//
+//	@Summary		Get order price breakdown with profit split percentages
+//	@Description	Returns breakdown of each order item with company and KOL percentage splits and amounts
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Param			orderID		path		string	true	"Order ID (UUID)"
+//	@Param			orderType	query		string	true	"Order type (LIMITED or STANDARD)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.PriceBreakdown}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/orders/{orderID}/price-breakdown [get]
+func (h *OrderHandler) GetOrderPricePercentage(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Extract order ID from path
+	orderIDStr := c.Param("orderID")
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid order ID format", http.StatusBadRequest))
+		return
+	}
+
+	// Extract order type from query
+	orderType := c.Query("orderType")
+	if orderType == "" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("orderType query parameter is required", http.StatusBadRequest))
+		return
+	}
+
+	// Validate order type
+	orderType = strings.ToUpper(orderType)
+	if orderType != "LIMITED" && orderType != "STANDARD" {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("orderType must be either LIMITED or STANDARD", http.StatusBadRequest))
+		return
+	}
+
+	// Call service
+	breakdowns, err := h.orderService.GetOrderPricePercentage(ctx, orderID, orderType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to get order price breakdown: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Order price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
 }
 
 func (h *OrderHandler) handleFileUpload(c *gin.Context, userID uuid.UUID, fileHeader *multipart.FileHeader) (*string, error) {

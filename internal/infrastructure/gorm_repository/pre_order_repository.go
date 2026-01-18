@@ -5,7 +5,6 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -18,7 +17,7 @@ type PreOrderRepository struct {
 	*genericRepository[model.PreOrder]
 }
 
-func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.PreOrder, int, error) {
+func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, statuses []string) ([]model.PreOrder, int, error) {
 	pageNum := page
 	pageSize := limit
 	if pageNum < 1 {
@@ -29,111 +28,167 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 	}
 	offset := (pageNum - 1) * pageSize
 
-	var validStatus *enum.PreOrderStatus
-	if status != "" {
-		s := enum.PreOrderStatus(status)
-		if s.IsValid() {
-			validStatus = &s
+	// Build base query
+	db := r.db.WithContext(ctx).Model(&model.PreOrder{})
+
+	// Validate and filter by statuses
+	var validStatuses []string
+	for _, s := range statuses {
+		s = strings.TrimSpace(s)
+		st := enum.PreOrderStatus(s)
+		if st.IsValid() {
+			validStatuses = append(validStatuses, string(st))
 		}
 	}
 
-	whereClauses := make([]string, 0)
-	args := make([]any, 0)
-
-	// exclude PENDING by default to match staff view behavior
-	// whereClauses = append(whereClauses, "pre_orders.status <> ?")
-	// args = append(args, enum.PreOrderStatusPending)
-
-	// if validStatus != nil && *validStatus != enum.PreOrderStatusPending {
-	// 	whereClauses = append(whereClauses, "pre_orders.status = ?")
-	// 	args = append(args, *validStatus)
-	// }
-
-	if validStatus != nil {
-		whereClauses = append(whereClauses, "pre_orders.status = ?")
-		args = append(args, *validStatus)
+	if len(validStatuses) > 0 {
+		db = db.Where("pre_orders.status IN ?", validStatuses)
 	}
 
+	// Search by preorder ID or payment transaction ID/bin
 	if search != "" {
-		whereClauses = append(whereClauses, "(pre_orders.id::text ILIKE ? OR pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)")
-		like := "%" + search + "%"
-		args = append(args, like, like, like)
+		isUUID := false
+		if _, err := uuid.Parse(search); err == nil {
+			isUUID = true
+		}
+
+		if isUUID {
+			// If search is a valid UUID → exact match on preorder ID or payment transaction ID
+			db = db.Where(`(
+				pre_orders.id = ? 
+				OR EXISTS (
+					SELECT 1 FROM payment_transactions pt 
+					WHERE pt.reference_id = pre_orders.id 
+					AND pt.reference_type = 'PREORDER' 
+					AND pt.id = ?
+				)
+			)`, search, search)
+		} else {
+			// Otherwise use ILIKE for partial matches
+			like := "%" + search + "%"
+			db = db.Where(`(
+				pre_orders.id::text ILIKE ? 
+				OR EXISTS (
+					SELECT 1 FROM payment_transactions pt 
+					WHERE pt.reference_id = pre_orders.id 
+					AND pt.reference_type = 'PREORDER' 
+					AND (pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)
+				)
+			)`, like, like, like)
+		}
 	}
+
 	if fullName != "" {
-		whereClauses = append(whereClauses, "pre_orders.full_name ILIKE ?")
-		args = append(args, "%"+fullName+"%")
+		db = db.Where("pre_orders.full_name ILIKE ?", "%"+fullName+"%")
 	}
 	if phone != "" {
-		whereClauses = append(whereClauses, "pre_orders.phone_number ILIKE ?")
-		args = append(args, "%"+phone+"%")
+		db = db.Where("pre_orders.phone_number ILIKE ?", "%"+phone+"%")
 	}
 	if provinceID != "" {
 		if pid, err := strconv.Atoi(provinceID); err == nil {
-			whereClauses = append(whereClauses, "pre_orders.ghn_province_id = ?")
-			args = append(args, pid)
+			db = db.Where("pre_orders.ghn_province_id = ?", pid)
 		}
 	}
 	if districtID != "" {
 		if did, err := strconv.Atoi(districtID); err == nil {
-			whereClauses = append(whereClauses, "pre_orders.ghn_district_id = ?")
-			args = append(args, did)
+			db = db.Where("pre_orders.ghn_district_id = ?", did)
 		}
 	}
 	if wardCode != "" {
-		whereClauses = append(whereClauses, "pre_orders.ghn_ward_code = ?")
-		args = append(args, wardCode)
+		db = db.Where("pre_orders.ghn_ward_code = ?", wardCode)
 	}
 
-	whereSQL := strings.Join(whereClauses, " AND ")
-
-	type preOrderWithTotal struct {
-		model.PreOrder
-		PaymentID  *uuid.UUID `gorm:"column:payment_id"`
-		Bin        *string    `gorm:"column:bin"`
-		TotalCount int64      `gorm:"column:total_count"`
-	}
-
-	sql := fmt.Sprintf(`SELECT pre_orders.*, pt.id AS payment_id, pt.payos_metadata->>'bin' AS bin, COUNT(*) OVER() AS total_count FROM pre_orders LEFT JOIN payment_transactions pt ON pt.reference_id = pre_orders.id AND pt.reference_type = 'PREORDER' WHERE %s ORDER BY pre_orders.created_at DESC LIMIT ? OFFSET ?`, whereSQL)
-	args = append(args, pageSize, offset)
-
-	var rows []preOrderWithTotal
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
-		zap.L().Error("Failed to execute staff preorders raw query", zap.Error(err))
+	// Count total before pagination
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		zap.L().Error("Failed to count staff preorders", zap.Error(err))
 		return nil, 0, err
 	}
 
-	if len(rows) == 0 {
+	if total == 0 {
 		return []model.PreOrder{}, 0, nil
 	}
 
-	total := int(rows[0].TotalCount)
-	preorders := make([]model.PreOrder, 0, len(rows))
-	preorderIDs := make([]uuid.UUID, 0, len(rows))
-	paymentMap := make(map[uuid.UUID]*uuid.UUID)
-	binMap := make(map[uuid.UUID]*string)
-	for _, r2 := range rows {
-		preorders = append(preorders, r2.PreOrder)
-		preorderIDs = append(preorderIDs, r2.ID)
-		if r2.PaymentID != nil {
-			paymentMap[r2.ID] = r2.PaymentID
-			binMap[r2.ID] = r2.Bin
+	// Fetch preorders with includes/preloads
+	var preorders []model.PreOrder
+	includes := []string{
+		"ProductVariant",
+		"ProductVariant.Images",
+		"ProductVariant.Product",
+		"ProductVariant.Product.Limited",
+		"Brand",
+		"Category",
+	}
+
+	queryDB := r.db.WithContext(ctx).Model(&model.PreOrder{})
+
+	// Re-apply filters for the actual query
+	if len(validStatuses) > 0 {
+		queryDB = queryDB.Where("pre_orders.status IN ?", validStatuses)
+	}
+	if search != "" {
+		isUUID := false
+		if _, err := uuid.Parse(search); err == nil {
+			isUUID = true
+		}
+		if isUUID {
+			queryDB = queryDB.Where(`(
+				pre_orders.id = ? 
+				OR EXISTS (
+					SELECT 1 FROM payment_transactions pt 
+					WHERE pt.reference_id = pre_orders.id 
+					AND pt.reference_type = 'PREORDER' 
+					AND pt.id = ?
+				)
+			)`, search, search)
 		} else {
-			paymentMap[r2.ID] = nil
-			binMap[r2.ID] = nil
+			like := "%" + search + "%"
+			queryDB = queryDB.Where(`(
+				pre_orders.id::text ILIKE ? 
+				OR EXISTS (
+					SELECT 1 FROM payment_transactions pt 
+					WHERE pt.reference_id = pre_orders.id 
+					AND pt.reference_type = 'PREORDER' 
+					AND (pt.id::text ILIKE ? OR pt.payos_metadata->>'bin' ILIKE ?)
+				)
+			)`, like, like, like)
 		}
 	}
-
-	// Attach transient payment fields
-	for i := range preorders {
-		if pid := paymentMap[preorders[i].ID]; pid != nil {
-			preorders[i].PaymentID = pid
-		}
-		if b := binMap[preorders[i].ID]; b != nil {
-			preorders[i].PaymentBin = b
+	if fullName != "" {
+		queryDB = queryDB.Where("pre_orders.full_name ILIKE ?", "%"+fullName+"%")
+	}
+	if phone != "" {
+		queryDB = queryDB.Where("pre_orders.phone_number ILIKE ?", "%"+phone+"%")
+	}
+	if provinceID != "" {
+		if pid, err := strconv.Atoi(provinceID); err == nil {
+			queryDB = queryDB.Where("pre_orders.ghn_province_id = ?", pid)
 		}
 	}
+	if districtID != "" {
+		if did, err := strconv.Atoi(districtID); err == nil {
+			queryDB = queryDB.Where("pre_orders.ghn_district_id = ?", did)
+		}
+	}
+	if wardCode != "" {
+		queryDB = queryDB.Where("pre_orders.ghn_ward_code = ?", wardCode)
+	}
 
-	return preorders, total, nil
+	// Apply preloads
+	for _, inc := range includes {
+		queryDB = queryDB.Preload(inc)
+	}
+
+	// Order and paginate
+	if err := queryDB.Order("pre_orders.created_at DESC").
+		Limit(pageSize).
+		Offset(offset).
+		Find(&preorders).Error; err != nil {
+		zap.L().Error("Failed to fetch staff preorders", zap.Error(err))
+		return nil, 0, err
+	}
+
+	return preorders, int(total), nil
 }
 
 func (r *PreOrderRepository) GetPreOrderCountsAndTotalAmountByStatuses(ctx context.Context, statuses []enum.PreOrderStatus, productIDs []uuid.UUID) (count int64, totalAmount float64, err error) {

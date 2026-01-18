@@ -11,6 +11,6 @@ import (
 // PreOrderRepository extends GenericRepository for PreOrder with custom query methods
 type PreOrderRepository interface {
 	GenericRepository[model.PreOrder]
-	GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, status, fullName, phone, provinceID, districtID, wardCode string) ([]model.PreOrder, int, error)
+	GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, statuses []string) ([]model.PreOrder, int, error)
 	GetPreOrderCountsAndTotalAmountByStatuses(ctx context.Context, statuses []enum.PreOrderStatus, productIDs []uuid.UUID) (count int64, totalAmount float64, err error)
 }
