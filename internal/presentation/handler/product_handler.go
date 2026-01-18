@@ -313,6 +313,300 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 	}
 }
 
+// GetAllStandardProducts godoc
+//
+//	@Summary		Get All Standard Products
+//	@Description	Get paginated list of STANDARD products. Admin/Staff get full view, others get partial view.
+//	@Tags			Products.Standard
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit		query		int		false	"Number of items per page"		default(10)
+//	@Param			page		query		int		false	"Page number"					default(1)
+//	@Param			search		query		string	false	"Search term for product name"
+//	@Param			category_id	query		string	false	"Filter by category UUID"
+//	@Param			brand_id		query		string	false	"Filter by brand UUID"
+//	@Param			user_id			query		string	false	"Filter by brand owner user UUID"
+//	@Param			status		query		string	false	"Filter by product status"		Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Success		200			{object}	object{data=[]responses.ProductResponseV2,pagination=responses.Pagination}	"Standard products retrieved successfully"
+//	@Failure		400			{object}	object{error=string}	"Bad request"
+//	@Failure		500			{object}	object{error=string}	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/standard [get]
+func (h *ProductHandler) GetAllStandardProducts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Parse query parameters
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := c.Query("search")
+	categoryID := c.Query("category_id")
+	brandID := c.Query("brand_id")
+	userID := c.Query("user_id")
+	status := c.Query("status")
+
+	// Validate status if provided
+	if status != "" {
+		validStatuses := map[string]bool{
+			string(enum.ProductStatusDraft):     true,
+			string(enum.ProductStatusSubmitted): true,
+			string(enum.ProductStatusRevision):  true,
+			string(enum.ProductStatusActived):   true,
+			string(enum.ProductStatusInactived): true,
+		}
+		if !validStatuses[status] {
+			resp := responses.ErrorResponse("invalid product status filter", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+	}
+
+	req := requests.StandardProductListRequest{
+		Page:       page,
+		Limit:      limit,
+		Search:     ptr.String(search),
+		CategoryID: ptr.String(categoryID),
+		BrandID:    ptr.String(brandID),
+		UserID:     ptr.String(userID),
+		Status:     ptr.String(status),
+	}
+
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleBrandPartner, enum.UserRoleSalesStaff}
+
+	var (
+		products any
+		total    int
+		svcErr   error
+	)
+
+	if IsAllowRole(c, allowFullViewRoles) {
+		var res []responses.ProductResponseV2
+		res, total, svcErr = h.productService.GetStandardProductsPagination(ctx, req)
+		products = res
+	} else {
+		var res []responses.ProductResponseV2Partial
+		res, total, svcErr = h.productService.GetStandardProductsPaginationPartial(ctx, req)
+		products = res
+	}
+
+	if svcErr != nil {
+		resp := responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, resp)
+		return
+	}
+
+	totalPages := total / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	if IsAllowRole(c, allowFullViewRoles) {
+		data, ok := products.([]responses.ProductResponseV2)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse("Standard products retrieved successfully", http.StatusOK, data, pagination)
+		c.JSON(http.StatusOK, resp)
+	} else {
+		dataPartial, ok := products.([]responses.ProductResponseV2Partial)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse("Standard products retrieved successfully", http.StatusOK, dataPartial, pagination)
+		c.JSON(http.StatusOK, resp)
+	}
+}
+
+// GetAllLimitedProducts godoc
+//
+//	@Summary		Get All Limited Products
+//	@Description	Get paginated list of LIMITED products with special date filters for PreOrder and Order windows.
+//	@Description	- FilterPreOrder=true: Returns products where current time is between PremiereDate and AvailabilityStartDate (preorder window)
+//	@Description	- FilterOrder=true: Returns products where current time is between AvailabilityStartDate and AvailabilityEndDate (order window)
+//	@Tags			Products.Limited
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit						query		int		false	"Number of items per page"									default(10)
+//	@Param			page						query		int		false	"Page number"												default(1)
+//	@Param			search						query		string	false	"Search term for product name"
+//	@Param			category_id					query		string	false	"Filter by category UUID"
+//	@Param			brand_id					query		string	false	"Filter by brand UUID"
+//	@Param			user_id						query		string	false	"Filter by brand owner user UUID"
+//	@Param			status						query		string	false	"Filter by product status"									Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			filter_preorder				query		boolean	false	"Filter products in PreOrder window (between PremiereDate and AvailabilityStartDate)"
+//	@Param			filter_order				query		boolean	false	"Filter products in Order window (between AvailabilityStartDate and AvailabilityEndDate)"
+//	@Param			premiere_date_from			query		string	false	"Filter PremiereDate from (ISO8601)"						example("2023-10-01T00:00:00Z")
+//	@Param			premiere_date_to			query		string	false	"Filter PremiereDate to (ISO8601)"							example("2023-10-31T23:59:59Z")
+//	@Param			availability_start_date_from	query	string	false	"Filter AvailabilityStartDate from (ISO8601)"				example("2023-10-01T00:00:00Z")
+//	@Param			availability_start_date_to	query		string	false	"Filter AvailabilityStartDate to (ISO8601)"					example("2023-10-31T23:59:59Z")
+//	@Param			availability_end_date_from	query		string	false	"Filter AvailabilityEndDate from (ISO8601)"					example("2023-10-01T00:00:00Z")
+//	@Param			availability_end_date_to	query		string	false	"Filter AvailabilityEndDate to (ISO8601)"					example("2023-10-31T23:59:59Z")
+//	@Success		200							{object}	object{data=[]responses.ProductResponseV2,pagination=responses.Pagination}	"Limited products retrieved successfully"
+//	@Failure		400							{object}	object{error=string}	"Bad request"
+//	@Failure		500							{object}	object{error=string}	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/products/limited [get]
+func (h *ProductHandler) GetAllLimitedProducts(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Parse query parameters
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	search := c.Query("search")
+	categoryID := c.Query("category_id")
+	brandID := c.Query("brand_id")
+	userID := c.Query("user_id")
+	status := c.Query("status")
+
+	// Parse boolean filters
+	filterPreOrderStr := c.Query("filter_preorder")
+	filterOrderStr := c.Query("filter_order")
+
+	var filterPreOrder, filterOrder *bool
+	if filterPreOrderStr != "" {
+		v := strings.ToLower(filterPreOrderStr) == "true"
+		filterPreOrder = &v
+	}
+	if filterOrderStr != "" {
+		v := strings.ToLower(filterOrderStr) == "true"
+		filterOrder = &v
+	}
+
+	// Parse date range filters
+	premiereDateFrom := c.Query("premiere_date_from")
+	premiereDateTo := c.Query("premiere_date_to")
+	availabilityStartDateFrom := c.Query("availability_start_date_from")
+	availabilityStartDateTo := c.Query("availability_start_date_to")
+	availabilityEndDateFrom := c.Query("availability_end_date_from")
+	availabilityEndDateTo := c.Query("availability_end_date_to")
+
+	// Validate status if provided
+	if status != "" {
+		validStatuses := map[string]bool{
+			string(enum.ProductStatusDraft):     true,
+			string(enum.ProductStatusSubmitted): true,
+			string(enum.ProductStatusRevision):  true,
+			string(enum.ProductStatusActived):   true,
+			string(enum.ProductStatusInactived): true,
+		}
+		if !validStatuses[status] {
+			resp := responses.ErrorResponse("invalid product status filter", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, resp)
+			return
+		}
+	}
+
+	req := requests.LimitedProductListRequest{
+		Page:                      page,
+		Limit:                     limit,
+		Search:                    ptr.String(search),
+		CategoryID:                ptr.String(categoryID),
+		BrandID:                   ptr.String(brandID),
+		UserID:                    ptr.String(userID),
+		Status:                    ptr.String(status),
+		FilterPreOrder:            filterPreOrder,
+		FilterOrder:               filterOrder,
+		PremiereDateFrom:          ptr.String(premiereDateFrom),
+		PremiereDateTo:            ptr.String(premiereDateTo),
+		AvailabilityStartDateFrom: ptr.String(availabilityStartDateFrom),
+		AvailabilityStartDateTo:   ptr.String(availabilityStartDateTo),
+		AvailabilityEndDateFrom:   ptr.String(availabilityEndDateFrom),
+		AvailabilityEndDateTo:     ptr.String(availabilityEndDateTo),
+	}
+
+	allowFullViewRoles := []enum.UserRole{enum.UserRoleAdmin, enum.UserRoleBrandPartner, enum.UserRoleSalesStaff}
+
+	var (
+		products any
+		total    int
+		svcErr   error
+	)
+
+	if IsAllowRole(c, allowFullViewRoles) {
+		var res []responses.ProductResponseV2
+		res, total, svcErr = h.productService.GetLimitedProductsPagination(ctx, req)
+		products = res
+	} else {
+		var res []responses.ProductResponseV2Partial
+		res, total, svcErr = h.productService.GetLimitedProductsPaginationPartial(ctx, req)
+		products = res
+	}
+
+	if svcErr != nil {
+		resp := responses.ErrorResponse(svcErr.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, resp)
+		return
+	}
+
+	totalPages := total / limit
+	if total%limit != 0 {
+		totalPages++
+	}
+
+	pagination := responses.Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      int64(total),
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1,
+	}
+
+	if IsAllowRole(c, allowFullViewRoles) {
+		data, ok := products.([]responses.ProductResponseV2)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse("Limited products retrieved successfully", http.StatusOK, data, pagination)
+		c.JSON(http.StatusOK, resp)
+	} else {
+		dataPartial, ok := products.([]responses.ProductResponseV2Partial)
+		if !ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal type assertion error"})
+			return
+		}
+		resp := responses.NewPaginationResponse("Limited products retrieved successfully", http.StatusOK, dataPartial, pagination)
+		c.JSON(http.StatusOK, resp)
+	}
+}
+
 // GetProductsByTask godoc
 //
 //	@Summary		Get Products By Task
@@ -1522,6 +1816,7 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	var req requests.ProductReviewFilter
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest,
+		
 			responses.ErrorResponse("invalid query parameters", http.StatusBadRequest))
 		return
 	}

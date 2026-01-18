@@ -169,8 +169,8 @@ func buildRefundedNotification(ctx context.Context, _ config.AppConfig, _ *gorm.
 		EmailHTMLBody: nil,
 	}
 	pushPayload := PushNotificationPayload{
-		Title: "Ding Ding Ding 💰... Your Refund Has Been Approved!",
-		Body:  "",
+		Title: "Your Refund Has Been Approved!",
+		Body:  "Thank you for your patience.",
 		Data:  pushDataForOrder(order),
 	}
 	resp = append(resp, buildNotificationRequest(order.UserID, channelEmailPush, emailPayload, pushPayload))

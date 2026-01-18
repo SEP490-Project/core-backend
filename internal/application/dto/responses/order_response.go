@@ -381,3 +381,11 @@ func (OrderItemReview) ToResponse(review *model.ProductReview) *OrderItemReview 
 // ======================================== OrderItem.Review (END) ========================================
 
 //* ============================== OrderItem.Response (END) ==============================
+
+type PriceBreakdown struct {
+	ItemID            uuid.UUID `json:"item_id"`
+	CompanyPercentage int       `json:"company_percentage"`
+	KOLPercentage     int       `json:"kol_percentage"`
+	CompanyAmount     float64   `json:"company_amount"`
+	KOLAmount         float64   `json:"kol_amount"`
+}
