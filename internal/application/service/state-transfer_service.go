@@ -145,12 +145,12 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		// Schedule auto-receive when preorder is delivered (not self-pickup)
 		// For self-pickup, we use AwaitingPickup -> Received flow
 		if targetState == enum.PreOrderStatusDelivered {
-			// Get auto-receive interval from config (default 30 days)
-			autoReceiveIntervalDays := t.adminConfig.AutoReceivePreOrderIntervalDays
-			if autoReceiveIntervalDays <= 0 {
-				autoReceiveIntervalDays = 30 // Default to 30 days
+			// Get auto-receive interval from config (default 30 days = 2592000000ms)
+			autoReceiveIntervalMs := t.adminConfig.AutoReceivePreOrderIntervalMs
+			if autoReceiveIntervalMs <= 0 {
+				autoReceiveIntervalMs = 2592000000 // Default to 30 days in milliseconds
 			}
-			scheduledAt := time.Now().Add(time.Duration(autoReceiveIntervalDays) * 24 * time.Hour)
+			scheduledAt := time.Now().Add(time.Duration(autoReceiveIntervalMs) * time.Millisecond)
 
 			preOrderAutoReceiveSchedule := &model.Schedule{
 				ReferenceID:   &preOrder.ID,
@@ -436,6 +436,11 @@ func (t stateTransferService) MoveProductToState(ctx context.Context, productID 
 	if err := trx.Commit(); err != nil {
 		zap.L().Error("Failed to commit transaction in MoveProductToState", zap.Error(err))
 		return errors.New("transaction commit failed: " + err.Error())
+	}
+
+	// Schedule limited product announcements after successful commit (for LIMITED products only)
+	if targetState == enum.ProductStatusActived && product.Type == enum.ProductTypeLimited && product.Limited != nil {
+		go t.scheduleLimitedProductAnnouncements(context.Background(), product)
 	}
 
 	return nil
@@ -1547,7 +1552,7 @@ func (t stateTransferService) handleOrderStatusSideEffect(
 			break
 		}
 
-		delay := time.Duration(t.config.AdminConfig.AutoReceiveOrderIntervalHours) * time.Hour
+		delay := time.Duration(t.config.AdminConfig.AutoReceiveOrderIntervalMs) * time.Millisecond
 		processAt := time.Now().Add(delay)
 
 		payload := asynqtask.AutoReceiveOrderTaskPayload{OrderID: order.ID}
@@ -1868,4 +1873,100 @@ func (t stateTransferService) publishPreOrderAutoReceiveDelayMessage(ctx context
 	)
 
 	return nil
+}
+
+// scheduleLimitedProductAnnouncements schedules notification announcements for LIMITED products
+// when they are activated. It schedules notifications at:
+// - 3 days before PremiereDate
+// - 1 day before PremiereDate
+// - 3 days before AvailabilityStartDate
+// - 1 day before AvailabilityStartDate
+func (t stateTransferService) scheduleLimitedProductAnnouncements(ctx context.Context, product *model.Product) {
+	if t.taskScheduler == nil || t.asynqConfig == nil {
+		zap.L().Warn("Asynq not configured; skip scheduling limited product announcements",
+			zap.String("product_id", product.ID.String()))
+		return
+	}
+
+	if product.Limited == nil {
+		zap.L().Warn("Product does not have limited info; skip scheduling announcements",
+			zap.String("product_id", product.ID.String()))
+		return
+	}
+
+	limited := product.Limited
+	now := time.Now()
+
+	taskType := t.asynqConfig.TaskTypes.LimitedProductAnnouncement
+	if taskType == "" {
+		taskType = "task:product:limited-announcement"
+	}
+
+	// Define announcement schedules: (days before, announcement type, target date)
+	type announcementSchedule struct {
+		daysBefore       int
+		announcementType asynqtask.LimitedProductAnnouncementType
+		targetDate       time.Time
+		dateLabel        string
+	}
+
+	schedules := []announcementSchedule{
+		{3, asynqtask.AnnouncementTypePremiereDate3Days, limited.PremiereDate, "premiere"},
+		{1, asynqtask.AnnouncementTypePremiereDate1Day, limited.PremiereDate, "premiere"},
+		{3, asynqtask.AnnouncementTypeAvailability3Days, limited.AvailabilityStartDate, "availability"},
+		{1, asynqtask.AnnouncementTypeAvailability1Day, limited.AvailabilityStartDate, "availability"},
+	}
+
+	for _, sched := range schedules {
+		scheduledAt := sched.targetDate.AddDate(0, 0, -sched.daysBefore)
+
+		// Skip if the scheduled time is in the past
+		if scheduledAt.Before(now) {
+			zap.L().Info("Skipping limited product announcement (scheduled time in past)",
+				zap.String("product_id", product.ID.String()),
+				zap.String("announcement_type", string(sched.announcementType)),
+				zap.Time("scheduled_at", scheduledAt),
+				zap.Time("target_date", sched.targetDate))
+			continue
+		}
+
+		payload := asynqtask.LimitedProductAnnouncementPayload{
+			ProductID:        product.ID,
+			ProductName:      product.Name,
+			AnnouncementType: sched.announcementType,
+			TargetDate:       sched.targetDate,
+			ScheduledAt:      scheduledAt,
+		}
+
+		uniqueKey := fmt.Sprintf("product:limited-announcement:%s:%s",
+			product.ID.String(), string(sched.announcementType))
+
+		_, err := t.taskScheduler.ScheduleTaskWithUniqueKey(
+			ctx,
+			taskType,
+			payload,
+			scheduledAt,
+			uniqueKey,
+			gAsynq.Queue("default"),
+			gAsynq.MaxRetry(5),
+		)
+
+		if err != nil {
+			zap.L().Error("Failed to schedule limited product announcement",
+				zap.String("product_id", product.ID.String()),
+				zap.String("announcement_type", string(sched.announcementType)),
+				zap.Time("scheduled_at", scheduledAt),
+				zap.Error(err))
+			continue
+		}
+
+		zap.L().Info("Scheduled limited product announcement",
+			zap.String("product_id", product.ID.String()),
+			zap.String("product_name", product.Name),
+			zap.String("announcement_type", string(sched.announcementType)),
+			zap.Int("days_before", sched.daysBefore),
+			zap.String("date_type", sched.dateLabel),
+			zap.Time("scheduled_at", scheduledAt),
+			zap.Time("target_date", sched.targetDate))
+	}
 }

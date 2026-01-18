@@ -248,6 +248,271 @@ func (l locationService) GetUserAddresses(userID uuid.UUID) ([]model.ShippingAdd
 	return addresses, nil
 }
 
+func (l locationService) UpdateUserAddress(userID uuid.UUID, addressID uuid.UUID, addressReq requests.UpdateAddressRequest) (*model.ShippingAddress, error) {
+	ctx := context.Background()
+
+	// Check user exists
+	isExisted, _ := l.userRepo.ExistsByID(ctx, userID)
+	if !isExisted {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	// Check if address exists and belongs to user
+	existingAddress, err := l.shippingAddressRepo.GetByID(ctx, addressID, nil)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("address not found")
+		}
+		return nil, fmt.Errorf("failed to fetch address: %w", err)
+	}
+	if existingAddress == nil {
+		return nil, fmt.Errorf("address not found")
+	}
+	if existingAddress.UserID != userID {
+		return nil, fmt.Errorf("address does not belong to user")
+	}
+
+	// Prepare location fields
+	var ward model.Ward
+	var dist model.District
+	var province model.Province
+
+	// Validate GHN location fields when provided
+	ghnWardCode := existingAddress.GhnWardCode
+	if addressReq.GhnWardCode != nil {
+		ghnWardCode = *addressReq.GhnWardCode
+	}
+
+	ghnDistrictID := existingAddress.GhnDistrictID
+	if addressReq.GhnDistrictID != nil {
+		ghnDistrictID = *addressReq.GhnDistrictID
+	}
+
+	ghnProvinceID := existingAddress.GhnProvinceID
+	if addressReq.GhnProvinceID != nil {
+		ghnProvinceID = *addressReq.GhnProvinceID
+	}
+
+	if ghnWardCode != "" {
+		wardInclude := []string{"District"}
+		w, err := l.wardRepo.GetByID(ctx, ghnWardCode, wardInclude)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("ward with code '%s' not found", ghnWardCode)
+			}
+			return nil, fmt.Errorf("failed to fetch ward %s: %w", ghnWardCode, err)
+		}
+		if w == nil {
+			return nil, fmt.Errorf("ward with code '%s' not found", ghnWardCode)
+		}
+		ward = *w
+
+		if ghnDistrictID != 0 && ward.DistrictID != ghnDistrictID {
+			return nil, fmt.Errorf("ward '%s' (code=%s) does not belong to district %d", ward.Name, ward.Code, ghnDistrictID)
+		}
+
+		if ghnProvinceID != 0 {
+			dInclude := []string{"Province"}
+			d, err := l.districtRepo.GetByID(ctx, ward.DistrictID, dInclude)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, fmt.Errorf("district %d not found", ward.DistrictID)
+				}
+				return nil, fmt.Errorf("failed to fetch district %d: %w", ward.DistrictID, err)
+			}
+			if d == nil {
+				return nil, fmt.Errorf("district %d not found", ward.DistrictID)
+			}
+			dist = *d
+			if dist.ProvinceID != ghnProvinceID {
+				return nil, fmt.Errorf("ward '%s' (code=%s) belongs to district %d which does not belong to province %d", ward.Name, ward.Code, dist.ID, ghnProvinceID)
+			}
+			province = dist.Province
+		} else {
+			d, err := l.districtRepo.GetByID(ctx, ward.DistrictID, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch district %d: %w", ward.DistrictID, err)
+			}
+			if d == nil {
+				return nil, fmt.Errorf("district %d not found", ward.DistrictID)
+			}
+			dist = *d
+		}
+	} else if ghnDistrictID != 0 {
+		d, err := l.districtRepo.GetByID(ctx, ghnDistrictID, []string{"Province"})
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("district %d not found", ghnDistrictID)
+			}
+			return nil, fmt.Errorf("failed to fetch district %d: %w", ghnDistrictID, err)
+		}
+		if d == nil {
+			return nil, fmt.Errorf("district %d not found", ghnDistrictID)
+		}
+		dist = *d
+		if ghnProvinceID != 0 && dist.ProvinceID != ghnProvinceID {
+			return nil, fmt.Errorf("district %d does not belong to province %d", dist.ID, ghnProvinceID)
+		}
+		if ghnProvinceID != 0 {
+			province = dist.Province
+		}
+	} else if ghnProvinceID != 0 {
+		p, err := l.provinceRepo.GetByID(ctx, ghnProvinceID, nil)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("province %d not found", ghnProvinceID)
+			}
+			return nil, fmt.Errorf("failed to fetch province %d: %w", ghnProvinceID, err)
+		}
+		if p == nil {
+			return nil, fmt.Errorf("province %d not found", ghnProvinceID)
+		}
+		province = *p
+	}
+
+	// Persist address update inside a DB transaction
+	var updatedAddress *model.ShippingAddress
+	err = l.shippingAddressRepo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Handle is_default flag
+		if addressReq.IsDefault != nil && *addressReq.IsDefault {
+			if err := tx.Model(&model.ShippingAddress{}).
+				Where("user_id = ? AND is_default = ?", userID, true).
+				Update("is_default", false).Error; err != nil {
+				return err
+			}
+		}
+
+		// Build updates map
+		updates := make(map[string]interface{})
+
+		if addressReq.AddressType != "" {
+			updates["type"] = addressReq.AddressType
+		}
+		if addressReq.FullName != "" {
+			updates["full_name"] = addressReq.FullName
+		}
+		if addressReq.PhoneNumber != "" {
+			updates["phone_number"] = addressReq.PhoneNumber
+		}
+		if addressReq.Email != "" {
+			updates["email"] = addressReq.Email
+		}
+		if addressReq.Street != "" {
+			updates["street"] = addressReq.Street
+		}
+		if addressReq.AddressLine2 != "" {
+			updates["address_line2"] = addressReq.AddressLine2
+		}
+		if addressReq.City != "" {
+			updates["city"] = addressReq.City
+		}
+		if addressReq.PostalCode != nil {
+			updates["postal_code"] = addressReq.PostalCode
+		}
+		if addressReq.Country != nil {
+			updates["country"] = addressReq.Country
+		}
+		if addressReq.IsDefault != nil {
+			updates["is_default"] = *addressReq.IsDefault
+		}
+		if addressReq.GhnProvinceID != nil {
+			updates["ghn_province_id"] = *addressReq.GhnProvinceID
+		}
+		if addressReq.GhnDistrictID != nil {
+			updates["ghn_district_id"] = *addressReq.GhnDistrictID
+		}
+		if addressReq.GhnWardCode != nil {
+			updates["ghn_ward_code"] = *addressReq.GhnWardCode
+		}
+
+		// Update location names if GHN fields were provided
+		if province.Name != "" {
+			updates["province_name"] = province.Name
+		}
+		if dist.Name != "" {
+			updates["district_name"] = dist.Name
+		}
+		if ward.Name != "" {
+			updates["ward_name"] = ward.Name
+		}
+
+		if len(updates) > 0 {
+			if err := tx.Model(&model.ShippingAddress{}).
+				Where("id = ?", addressID).
+				Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+
+		// Fetch updated address
+		if err := tx.Where("id = ?", addressID).First(&updatedAddress).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("Failed to update address: %s", err))
+		return nil, err
+	}
+
+	return updatedAddress, nil
+}
+
+func (l locationService) DeleteUserAddress(userID uuid.UUID, addressID uuid.UUID) error {
+	ctx := context.Background()
+
+	// Check user exists
+	isExisted, _ := l.userRepo.ExistsByID(ctx, userID)
+	if !isExisted {
+		return fmt.Errorf("user not found")
+	}
+
+	// Check if address exists and belongs to user
+	existingAddress, err := l.shippingAddressRepo.GetByID(ctx, addressID, nil)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("address not found")
+		}
+		return fmt.Errorf("failed to fetch address: %w", err)
+	}
+	if existingAddress == nil {
+		return fmt.Errorf("address not found")
+	}
+	if existingAddress.UserID != userID {
+		return fmt.Errorf("address does not belong to user")
+	}
+
+	// Soft delete the address
+	err = l.shippingAddressRepo.DB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&model.ShippingAddress{}, "id = ?", addressID).Error; err != nil {
+			return err
+		}
+
+		// If deleted address was default, set another address as default
+		if existingAddress.IsDefault {
+			var nextDefault model.ShippingAddress
+			if err := tx.Where("user_id = ? AND deleted_at IS NULL", userID).
+				Order("updated_at DESC").
+				First(&nextDefault).Error; err == nil {
+				tx.Model(&model.ShippingAddress{}).
+					Where("id = ?", nextDefault.ID).
+					Update("is_default", true)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		zap.L().Error(fmt.Sprintf("Failed to delete address: %s", err))
+		return err
+	}
+
+	return nil
+}
+
 func NewLocationService(dbRegistry *gormrepository.DatabaseRegistry) iservice.LocationService {
 	return &locationService{
 		shippingAddressRepo: dbRegistry.ShippingAddressRepository,

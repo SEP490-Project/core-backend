@@ -87,7 +87,8 @@ daily_cron_job_worker_count: "7"
 
 # Order - PreOrder
 censorship_interval_minutes: 5
-auto_receive_order_interval_hours: 72
+auto_receive_order_interval_ms: 259200000      # 72 hours = 72 * 60 * 60 * 1000 ms
+auto_receive_preorder_interval_ms: 2592000000  # 30 days = 30 * 24 * 60 * 60 * 1000 ms
 
 #Products
 product_maximum_variants: 5

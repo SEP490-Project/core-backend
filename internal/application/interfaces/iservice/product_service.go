@@ -17,6 +17,15 @@ type ProductService interface {
 	GetProductsPagination(limit, offset int, search string, categoryID string, productType string) ([]*responses.ProductResponse, int, error)
 	GetProductsPaginationV2(page, limit int, search, categoryID, brandID string, userID string, productType string, productStatuses []string, isPreOrderOnly bool) ([]responses.ProductResponseV2, int, error)
 	GetProductsPaginationV2Partial(page, limit int, search string, categoryID string, brandID string, productType string, isPreOrderOnly bool) ([]responses.ProductResponseV2Partial, int, error)
+
+	// Separated Standard Products API
+	GetStandardProductsPagination(ctx context.Context, req requests.StandardProductListRequest) ([]responses.ProductResponseV2, int, error)
+	GetStandardProductsPaginationPartial(ctx context.Context, req requests.StandardProductListRequest) ([]responses.ProductResponseV2Partial, int, error)
+
+	// Separated Limited Products API with date filters
+	GetLimitedProductsPagination(ctx context.Context, req requests.LimitedProductListRequest) ([]responses.ProductResponseV2, int, error)
+	GetLimitedProductsPaginationPartial(ctx context.Context, req requests.LimitedProductListRequest) ([]responses.ProductResponseV2Partial, int, error)
+
 	GetProductDetail(id uuid.UUID) (*responses.ProductDetailResponse, error)
 	// Reviews
 	AddProductReview(ctx context.Context, userID uuid.UUID, req requests.AddProductReviewRequest, uow irepository.UnitOfWork) (*responses.ProductReviewResponse, error)

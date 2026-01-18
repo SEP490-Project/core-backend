@@ -16,6 +16,8 @@ type LocationService interface {
 
 	// Delivery Services
 	InputUserAddress(userID uuid.UUID, addressReq requests.InputAddressRequest) (*model.ShippingAddress, error)
+	UpdateUserAddress(userID uuid.UUID, addressID uuid.UUID, addressReq requests.UpdateAddressRequest) (*model.ShippingAddress, error)
+	DeleteUserAddress(userID uuid.UUID, addressID uuid.UUID) error
 	SetAddressAsDefault(userID string, addressID string) error
 	GetUserAddresses(userID uuid.UUID) ([]model.ShippingAddress, error)
 }

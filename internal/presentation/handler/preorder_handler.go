@@ -955,6 +955,41 @@ func (p *PreOrderHandler) OpeningPreOrderEarly(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Pre-order opened early successfully", ptr.Int(http.StatusOK), nil))
 }
 
+// GetPreOrderPricePercentage godoc
+//
+//	@Summary		Get preorder price breakdown with profit split percentages
+//	@Description	Returns breakdown of the preorder with company and KOL percentage splits and amounts
+//	@Tags			Preorders
+//	@Accept			json
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Success		200			{object}	responses.APIResponse{data=[]responses.PriceBreakdown}
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/{preOrderID}/price-breakdown [get]
+func (p *PreOrderHandler) GetPreOrderPricePercentage(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Extract preorder ID from path
+	preOrderIDStr := c.Param("preOrderID")
+	preOrderID, err := uuid.Parse(preOrderIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("invalid preorder ID format", http.StatusBadRequest))
+		return
+	}
+
+	// Call service
+	breakdowns, err := p.preOrderService.GetPreOrderPricePercentage(ctx, preOrderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to get preorder price breakdown: "+err.Error(), http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
+}
+
 func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService:      preOrderService,

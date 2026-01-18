@@ -143,3 +143,48 @@ type UpdateLimitedProductRequest struct {
 	AvailabilityEndDate   *string    `json:"availability_end_date" validate:"omitempty" example:"2023-10-31T10:00"`
 	AchievableQuantity    *int       `json:"achievable_quantity" validate:"omitempty,min=1" example:"1"`
 }
+
+/*===========================PRODUCT LIST FILTERS=====================================*/
+
+// StandardProductListRequest represents filter options for standard products
+type StandardProductListRequest struct {
+	Page       int     `form:"page" json:"page" validate:"omitempty,min=1" example:"1"`
+	Limit      int     `form:"limit" json:"limit" validate:"omitempty,min=1,max=100" example:"10"`
+	Search     *string `form:"search" json:"search" validate:"omitempty,max=255" example:"laptop"`
+	CategoryID *string `form:"category_id" json:"category_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	BrandID    *string `form:"brand_id" json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	UserID     *string `form:"user_id" json:"user_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Status     *string `form:"status" json:"status" validate:"omitempty" example:"ACTIVED"`
+}
+
+// LimitedProductListRequest represents filter options for limited products
+// Includes special date filters for PreOrder and Order availability windows
+type LimitedProductListRequest struct {
+	Page       int     `form:"page" json:"page" validate:"omitempty,min=1" example:"1"`
+	Limit      int     `form:"limit" json:"limit" validate:"omitempty,min=1,max=100" example:"10"`
+	Search     *string `form:"search" json:"search" validate:"omitempty,max=255" example:"limited edition"`
+	CategoryID *string `form:"category_id" json:"category_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	BrandID    *string `form:"brand_id" json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	UserID     *string `form:"user_id" json:"user_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Status     *string `form:"status" json:"status" validate:"omitempty" example:"ACTIVED"`
+
+	// PreOrder window filter: products where current time is between PremiereDate and AvailabilityStartDate
+	// When true, returns products available for pre-ordering
+	FilterPreOrder *bool `form:"filter_preorder" json:"filter_preorder" validate:"omitempty" example:"true"`
+
+	// Order window filter: products where current time is between AvailabilityStartDate and AvailabilityEndDate
+	// When true, returns products available for regular ordering
+	FilterOrder *bool `form:"filter_order" json:"filter_order" validate:"omitempty" example:"false"`
+
+	// Date range filters for PremiereDate (for preorder window)
+	PremiereDateFrom *string `form:"premiere_date_from" json:"premiere_date_from" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
+	PremiereDateTo   *string `form:"premiere_date_to" json:"premiere_date_to" validate:"omitempty" example:"2023-10-31T23:59:59Z"`
+
+	// Date range filters for AvailabilityStartDate
+	AvailabilityStartDateFrom *string `form:"availability_start_date_from" json:"availability_start_date_from" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
+	AvailabilityStartDateTo   *string `form:"availability_start_date_to" json:"availability_start_date_to" validate:"omitempty" example:"2023-10-31T23:59:59Z"`
+
+	// Date range filters for AvailabilityEndDate
+	AvailabilityEndDateFrom *string `form:"availability_end_date_from" json:"availability_end_date_from" validate:"omitempty" example:"2023-10-01T00:00:00Z"`
+	AvailabilityEndDateTo   *string `form:"availability_end_date_to" json:"availability_end_date_to" validate:"omitempty" example:"2023-10-31T23:59:59Z"`
+}
