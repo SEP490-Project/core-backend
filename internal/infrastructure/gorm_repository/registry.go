@@ -9,26 +9,27 @@ import (
 )
 
 type DatabaseRegistry struct {
-	GormDatabase              *gorm.DB
-	UserRepository            irepository.UserRepository
-	LoggedSessionRepository   irepository.GenericRepository[model.LoggedSession]
-	ProductRepository         irepository.GenericRepository[model.Product]
-	ProductVariantRepository  irepository.GenericRepository[model.ProductVariant]
-	BrandRepository           irepository.GenericRepository[model.Brand]
-	ProductCategoryRepository irepository.GenericRepository[model.ProductCategory]
-	ContractRepository        irepository.ContractRepository
-	ContractPaymentRepository irepository.ContractPaymentRepository
-	CampaignRepository        irepository.GenericRepository[model.Campaign]
-	MilestoneRepository       irepository.GenericRepository[model.Milestone]
-	TaskRepository            irepository.TaskRepository
-	ChannelRepository         irepository.GenericRepository[model.Channel]
-	ContentRepository         irepository.ContentRepository
-	ContentChannelRepository  irepository.ContentChannelsRepository
-	ContentCommentRepository  irepository.GenericRepository[model.ContentComment]
-	BlogRepository            irepository.GenericRepository[model.Blog]
-	ModifiedHistoryRepository irepository.GenericRepository[model.ModifiedHistory]
-	AdminConfigRepository     irepository.GenericRepository[model.Config]
-	TagRepository             irepository.TagRepository
+	GormDatabase                *gorm.DB
+	UserRepository              irepository.UserRepository
+	LoggedSessionRepository     irepository.GenericRepository[model.LoggedSession]
+	ProductRepository           irepository.GenericRepository[model.Product]
+	ProductVariantRepository    irepository.GenericRepository[model.ProductVariant]
+	BrandRepository             irepository.GenericRepository[model.Brand]
+	ProductCategoryRepository   irepository.GenericRepository[model.ProductCategory]
+	ContractRepository          irepository.ContractRepository
+	ContractPaymentRepository   irepository.ContractPaymentRepository
+	ContractViolationRepository irepository.ContractViolationRepository
+	CampaignRepository          irepository.GenericRepository[model.Campaign]
+	MilestoneRepository         irepository.GenericRepository[model.Milestone]
+	TaskRepository              irepository.TaskRepository
+	ChannelRepository           irepository.GenericRepository[model.Channel]
+	ContentRepository           irepository.ContentRepository
+	ContentChannelRepository    irepository.ContentChannelsRepository
+	ContentCommentRepository    irepository.GenericRepository[model.ContentComment]
+	BlogRepository              irepository.GenericRepository[model.Blog]
+	ModifiedHistoryRepository   irepository.GenericRepository[model.ModifiedHistory]
+	AdminConfigRepository       irepository.GenericRepository[model.Config]
+	TagRepository               irepository.TagRepository
 
 	//Limited Product and Concept
 	LimitedProductRepository   irepository.GenericRepository[model.LimitedProduct]
@@ -98,6 +99,7 @@ func NewDatabaseRegistry(db *gorm.DB) *DatabaseRegistry {
 		ProductCategoryRepository:            NewGenericRepository[model.ProductCategory](db),
 		ContractRepository:                   NewContractRepository(db),
 		ContractPaymentRepository:            NewContractPaymentRepository(db),
+		ContractViolationRepository:          NewContractViolationRepository(db),
 		CampaignRepository:                   NewGenericRepository[model.Campaign](db),
 		MilestoneRepository:                  NewGenericRepository[model.Milestone](db),
 		TaskRepository:                       NewTaskRepository(db),

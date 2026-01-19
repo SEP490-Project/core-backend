@@ -24,9 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hibiken/asynq"
 	"strconv"
 	"time"
+
+	"github.com/hibiken/asynq"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -185,7 +186,7 @@ func (s *paymentTransactionService) GeneratePaymentLink(ctx context.Context, uow
 	paymentTransaction.GatewayID = payosResp.PaymentLinkID
 
 	// 8. Persist to database using UnitOfWork
-	if err := uow.PaymentTransaction().Add(ctx, paymentTransaction); err != nil {
+	if err = uow.PaymentTransaction().Add(ctx, paymentTransaction); err != nil {
 		zap.L().Error("Failed to save payment transaction", zap.Error(err))
 		// Attempt to cancel the PayOS link since we couldn't save it
 		go func() {
@@ -312,6 +313,12 @@ func (s *paymentTransactionService) CancelPaymentLink(ctx context.Context, uow i
 	}
 
 	// 4. Update status and metadata
+	transaction, err = paymentTransactionRepo.GetByID(ctx, transaction.ID, nil)
+	if err != nil {
+		zap.L().Error("Failed to load payment transaction", zap.Error(err))
+		return fmt.Errorf("failed to load transaction: %w", err)
+	}
+
 	if transaction.PayOSMetadata != nil {
 		now := time.Now()
 		transaction.PayOSMetadata.CancelledAt = &now
@@ -632,6 +639,18 @@ func (s *paymentTransactionService) validateReferenceIDAndPayerID(ctx context.Co
 			zap.L().Warn("Pre-order not found", zap.String("reference_id", req.ReferenceID.String()))
 			return errors.New("pre-order not found")
 		}
+	case enum.PaymentTransactionReferenceTypeContractViolation:
+		if exists, err := uow.ContractViolations().ExistsByID(ctx, req.ReferenceID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Contract violation not found", zap.String("reference_id", req.ReferenceID.String()))
+				return errors.New("contract violation not found")
+			}
+			zap.L().Error("Failed to validate contract violation reference ID", zap.Error(err))
+		} else if !exists {
+			zap.L().Warn("Contract violation not found", zap.String("reference_id", req.ReferenceID.String()))
+			return errors.New("contract violation not found")
+		}
+
 	default:
 		zap.L().Error("Invalid reference type", zap.String("reference_type", req.ReferenceType.String()))
 		return errors.New("invalid reference type")

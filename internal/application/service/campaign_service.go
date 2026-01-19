@@ -12,10 +12,12 @@ import (
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/logging"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,13 +29,14 @@ import (
 )
 
 type CampaignService struct {
-	campaignRepo       irepository.GenericRepository[model.Campaign]
-	contractRepo       irepository.GenericRepository[model.Contract]
-	orderRepo          irepository.OrderRepository
-	preOrderRepo       irepository.PreOrderRepository
-	contentChannelRepo irepository.ContentChannelsRepository
-	affiliateLinkRepo  irepository.AffiliateLinkRepository
-	kpiMetricsRepo     irepository.KPIMetricsRepository
+	campaignRepo        irepository.GenericRepository[model.Campaign]
+	contractRepo        irepository.GenericRepository[model.Contract]
+	contractPaymentRepo irepository.ContractPaymentRepository
+	orderRepo           irepository.OrderRepository
+	preOrderRepo        irepository.PreOrderRepository
+	contentChannelRepo  irepository.ContentChannelsRepository
+	affiliateLinkRepo   irepository.AffiliateLinkRepository
+	kpiMetricsRepo      irepository.KPIMetricsRepository
 }
 
 // SetRejectReason implements iservice.CampaignService.
@@ -585,6 +588,22 @@ func (s *CampaignService) CreateCampaignFromContract(
 		zap.L().Error("Failed to retrieve created campaign", zap.Error(err))
 		return nil, err
 	}
+
+	// Trigger Async Linking of Milestones to Payments
+	requestID := logging.GetRequestID()
+	go func() {
+		bgCtx := context.Background()
+		payments, _, err := s.contractPaymentRepo.GetAll(bgCtx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("contract_id = ?", contractID)
+		}, nil, 0, 0)
+
+		if err != nil {
+			zap.L().Error("Async Link: Failed to fetch payments", zap.Error(err))
+			return
+		}
+
+		s.linkMilestonesToPaymentsAsync(requestID, contractID, createdCampaign.Milestones, payments)
+	}()
 
 	response := responses.CampaignDetailsResponse{}.ToCampaignDetailsResponse(createdCampaign)
 	zap.L().Info("Successfully created campaign", zap.Any("campaign", response))
@@ -1207,12 +1226,96 @@ func NewCampaignService(
 	dbReg *gormrepository.DatabaseRegistry,
 ) iservice.CampaignService {
 	return &CampaignService{
-		campaignRepo:       dbReg.CampaignRepository,
-		contractRepo:       dbReg.ContractRepository,
-		orderRepo:          dbReg.OrderRepository,
-		preOrderRepo:       dbReg.PreOrderRepository,
-		contentChannelRepo: dbReg.ContentChannelRepository,
-		affiliateLinkRepo:  dbReg.AffiliateLinkRepository,
-		kpiMetricsRepo:     dbReg.KPIMetricsRepository,
+		campaignRepo:        dbReg.CampaignRepository,
+		contractRepo:        dbReg.ContractRepository,
+		contractPaymentRepo: dbReg.ContractPaymentRepository,
+		orderRepo:           dbReg.OrderRepository,
+		preOrderRepo:        dbReg.PreOrderRepository,
+		contentChannelRepo:  dbReg.ContentChannelRepository,
+		affiliateLinkRepo:   dbReg.AffiliateLinkRepository,
+		kpiMetricsRepo:      dbReg.KPIMetricsRepository,
 	}
+}
+
+// linkMilestonesToPaymentsAsync links milestones to contract payments in a background process
+func (s *CampaignService) linkMilestonesToPaymentsAsync(
+	requestID string,
+	contractID uuid.UUID,
+	milestones []*model.Milestone,
+	payments []model.ContractPayment,
+) {
+	ctx := context.Background()
+	// Set request ID for tracing
+	logging.SetRequestID(requestID)
+
+	zap.L().Info("Linking milestones to payments (Async)",
+		zap.String("request_id", requestID),
+		zap.String("contract_id", contractID.String()),
+		zap.Int("milestones_count", len(milestones)),
+		zap.Int("payments_count", len(payments)))
+
+	if len(milestones) == 0 || len(payments) == 0 {
+		return
+	}
+
+	// Fetch contract to get start date for filtering deposit
+	contract, err := s.contractRepo.GetByID(ctx, contractID, nil)
+	if err != nil {
+		zap.L().Error("Async Link: Failed to get contract", zap.Error(err))
+		return
+	}
+
+	regularPayments := s.filterRegularPayments(payments, contract.StartDate)
+
+	// Sort milestones by EndDate
+	slices.SortFunc(milestones, func(i, j *model.Milestone) int {
+		return i.DueDate.Compare(j.DueDate)
+	})
+
+	// Sort payments by DueDate
+	slices.SortFunc(regularPayments, func(i, j model.ContractPayment) int {
+		return i.DueDate.Compare(j.DueDate)
+	})
+
+	zap.L().Info("Async Link: Regular payments filtered",
+		zap.Int("total", len(payments)),
+		zap.Int("regular", len(regularPayments)))
+
+	// Match 1:1
+	count := 0
+	limit := min(len(milestones), len(regularPayments))
+	for i := range limit {
+		milestone := milestones[i]
+		payment := regularPayments[i]
+
+		// Update payment with milestone ID
+		payment.MilestoneID = &milestone.ID
+		if err := s.contractPaymentRepo.Update(ctx, &payment); err != nil {
+			zap.L().Error("Async Link: Failed to update payment",
+				zap.String("payment_id", payment.ID.String()),
+				zap.String("milestone_id", milestone.ID.String()),
+				zap.Error(err))
+		} else {
+			count++
+		}
+	}
+
+	zap.L().Info("Async Link: Completed linking",
+		zap.Int("linked_count", count))
+}
+
+// filterRegularPayments excludes deposit payments from the list
+func (s *CampaignService) filterRegularPayments(payments []model.ContractPayment, contractStartDate time.Time) []model.ContractPayment {
+	var regular []model.ContractPayment
+	for _, p := range payments {
+		if p.IsDeposit {
+			continue
+		}
+		// Fallback: if DueDate equals StartDate, treat as deposit
+		if p.DueDate.Equal(contractStartDate) || p.DueDate.Before(contractStartDate) {
+			continue
+		}
+		regular = append(regular, p)
+	}
+	return regular
 }

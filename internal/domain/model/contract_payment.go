@@ -13,6 +13,7 @@ import (
 type ContractPayment struct {
 	ID                    uuid.UUID                  `json:"id" gorm:"type:uuid;column:id;primaryKey;default"`
 	ContractID            uuid.UUID                  `json:"contract_id" gorm:"type:uuid;column:contract_id;not null"`
+	MilestoneID           *uuid.UUID                 `json:"milestone_id" gorm:"type:uuid;column:milestone_id"` // Links payment to campaign milestone
 	InstallmentPercentage float64                    `json:"installment_percentage" gorm:"column:installment_percentage;not null"`
 	Amount                float64                    `json:"amount" gorm:"column:amount;not null"`
 	BaseAmount            float64                    `json:"base_amount" gorm:"column:base_amount;not null"`
@@ -43,7 +44,8 @@ type ContractPayment struct {
 	LockedRevenue *float64   `json:"locked_revenue" gorm:"column:locked_revenue;type:decimal(15,2)"`
 
 	// Relationships
-	Contract *Contract `json:"-" gorm:"foreignKey:ContractID"`
+	Contract  *Contract  `json:"-" gorm:"foreignKey:ContractID"`
+	Milestone *Milestone `json:"-" gorm:"foreignKey:MilestoneID"` // Related milestone (if linked)
 }
 
 func (ContractPayment) TableName() string { return "contract_payments" }

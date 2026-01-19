@@ -31,6 +31,24 @@ func NewContractState(state enum.ContractStatus) ContractState {
 		return &CompletedState{}
 	case enum.ContractStatusTerminated:
 		return &TerminatedState{}
+	// Brand violation states
+	case enum.ContractStatusBrandViolated:
+		return &BrandViolatedState{}
+	case enum.ContractStatusBrandPenaltyPending:
+		return &BrandPenaltyPendingState{}
+	case enum.ContractStatusBrandPenaltyPaid:
+		return &BrandPenaltyPaidState{}
+	// KOL violation states
+	case enum.ContractStatusKOLViolated:
+		return &KOLViolatedState{}
+	case enum.ContractStatusKOLRefundPending:
+		return &KOLRefundPendingState{}
+	case enum.ContractStatusKOLProofSubmitted:
+		return &KOLProofSubmittedState{}
+	case enum.ContractStatusKOLProofRejected:
+		return &KOLProofRejectedState{}
+	case enum.ContractStatusKOLRefundApproved:
+		return &KOLRefundApprovedState{}
 	default:
 		return nil
 	}
