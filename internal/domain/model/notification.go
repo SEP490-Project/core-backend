@@ -38,6 +38,10 @@ func (n *Notification) BeforeCreate(tx *gorm.DB) error {
 	if n.ID == uuid.Nil {
 		n.ID = uuid.New()
 	}
+	if n.Severity == "" || !n.Severity.IsValid() {
+		n.Severity = enum.NotificationSeverityInfo
+	}
+
 	return nil
 }
 
