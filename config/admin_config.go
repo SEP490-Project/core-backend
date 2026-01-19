@@ -95,6 +95,10 @@ type AdminConfig struct {
 
 	// Cache TTLs
 	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"`
+
+	// Contract Violation Settings
+	ViolationProofMaxAttempts int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
+	ViolationProofReviewDays  int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -181,6 +185,10 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 
 	adminViper.SetDefault("contract_payment_allowed_overdue_days", 5)
 	adminViper.SetDefault("contract_payment_notification_hour", 8)
+
+	// Contract Violation Settings
+	adminViper.SetDefault("violation_proof_max_attempts", 3)
+	adminViper.SetDefault("violation_proof_review_days", 7)
 
 	//Mock
 	//products

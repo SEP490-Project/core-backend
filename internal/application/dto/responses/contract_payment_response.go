@@ -170,15 +170,21 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 			index := 0
 			for k, p := range payments {
 				resp := mapper.ToResponse(p)
-				if resp != nil {
-					// Apply PayNow logic: Only true for the first item in the sorted group
-					if utils.ContainsSlice(endStatuses, resp.Status) {
-						index++
-					} else {
-						resp.PayNow = (k == index)
-					}
-					groupRes = append(groupRes, *resp)
+				if resp == nil {
+					continue
 				}
+				// Apply PayNow logic: Only true for the first item in the sorted group
+				if utils.ContainsSlice(endStatuses, resp.Status) {
+					index++
+				} else {
+					// resp.PayNow = (k == index)
+					if k == index {
+						resp.PayNow = true
+					} else {
+						resp.Status = enum.ContractPaymentStatusNotStarted
+					}
+				}
+				groupRes = append(groupRes, *resp)
 			}
 			tempResults[idx] = groupRes
 		}()

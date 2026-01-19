@@ -8,6 +8,7 @@ import (
 type ContractPaymentStatus string
 
 const (
+	ContractPaymentStatusNotStarted ContractPaymentStatus = "NOT_STARTED"
 	ContractPaymentStatusPending    ContractPaymentStatus = "PENDING"
 	ContractPaymentStatusPaid       ContractPaymentStatus = "PAID"
 	ContractPaymentStatusOverdue    ContractPaymentStatus = "OVERDUE"

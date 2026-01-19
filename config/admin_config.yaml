@@ -164,6 +164,10 @@ affiliate_url_format: "{base_url}/f/{hash}"
 # Cache settings
 content_view_unique_cache_ttl_hours: 24
 
+# Contract Violation Settings
+violation_proof_max_attempts: 3  # Max times KOL can resubmit rejected proof
+violation_proof_review_days: 7   # Days brand has to review proof before auto-approval
+
 term_of_service: |
   {
     "type": "doc",

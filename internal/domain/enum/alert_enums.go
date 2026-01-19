@@ -66,6 +66,15 @@ const (
 	// Admin Alerts
 	AlertCategorySystemHealth  AlertCategory = "SYSTEM_HEALTH"
 	AlertCategorySecurityIssue AlertCategory = "SECURITY_ISSUE"
+
+	// Contract Violation Alerts
+	AlertCategoryViolationDetected   AlertCategory = "VIOLATION_DETECTED"
+	AlertCategoryPenaltyPaymentDue   AlertCategory = "PENALTY_PAYMENT_DUE"
+	AlertCategoryRefundRequired      AlertCategory = "REFUND_REQUIRED"
+	AlertCategoryProofSubmitted      AlertCategory = "PROOF_SUBMITTED"
+	AlertCategoryProofReviewRequired AlertCategory = "PROOF_REVIEW_REQUIRED"
+	AlertCategoryViolationResolved   AlertCategory = "VIOLATION_RESOLVED"
+	AlertCategoryViolationEscalated  AlertCategory = "VIOLATION_ESCALATED"
 )
 
 func (c AlertCategory) IsValid() bool {
@@ -74,7 +83,10 @@ func (c AlertCategory) IsValid() bool {
 		AlertCategoryScheduleFailed, AlertCategoryPendingApproval, AlertCategoryDeadlineApproaching,
 		AlertCategoryMilestoneDeadline, AlertCategoryCampaignDeadline, AlertCategoryBudgetExceeded,
 		AlertCategoryOrderIssue, AlertCategoryPaymentOverdue,
-		AlertCategorySystemHealth, AlertCategorySecurityIssue:
+		AlertCategorySystemHealth, AlertCategorySecurityIssue,
+		AlertCategoryViolationDetected, AlertCategoryPenaltyPaymentDue, AlertCategoryRefundRequired,
+		AlertCategoryProofSubmitted, AlertCategoryProofReviewRequired, AlertCategoryViolationResolved,
+		AlertCategoryViolationEscalated:
 		return true
 	}
 	return false
@@ -191,6 +203,7 @@ const (
 	ReferenceTypeMilestone           ReferenceType = "MILESTONE"
 	ReferenceTypeCampaign            ReferenceType = "CAMPAIGN"
 	ReferenceTypeContract            ReferenceType = "CONTRACT"
+	ReferenceTypeContractViolation   ReferenceType = "CONTRACT_VIOLATION"
 	ReferenceTypeOrder               ReferenceType = "ORDER"
 	ReferenceTypeUser                ReferenceType = "USER"
 	ReferenceTypeBrand               ReferenceType = "BRAND"
@@ -206,7 +219,7 @@ func (r ReferenceType) IsValid() bool {
 	case ReferenceTypeContent, ReferenceTypeSchedule, ReferenceTypeMilestone,
 		ReferenceTypeCampaign, ReferenceTypeContract, ReferenceTypeOrder,
 		ReferenceTypeUser, ReferenceTypeBrand, ReferenceTypePaymentTransaction,
-		ReferenceTypePreOrderOpening:
+		ReferenceTypePreOrderOpening, ReferenceTypeContractViolation:
 		return true
 	}
 	return false
