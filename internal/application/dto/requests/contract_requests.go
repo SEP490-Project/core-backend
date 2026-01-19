@@ -28,12 +28,15 @@ type CreateContractRequest struct {
 	ParentContractID *string `json:"parent_contract_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 
 	// Contract basic information
-	Title          string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
-	Type           string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
-	Status         *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
-	DepositPercent *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
-	DepositAmount  *int    `json:"deposit_amount" validate:"omitempty,min=0" example:"3000000"`
-	IsDepositPaid  bool    `json:"is_deposit_paid" validate:"omitempty" example:"false"`
+	Title  string  `json:"title" validate:"required,min=2,max=255" example:"Social Media Promotion Contract"`
+	Type   string  `json:"type" validate:"required,oneof=ADVERTISING AFFILIATE BRAND_AMBASSADOR CO_PRODUCING" example:"ADVERTISING"`
+	Status *string `json:"status" validate:"omitempty,oneof=DRAFT ACTIVE COMPLETED TERMINATED" example:"DRAFT"`
+
+	// Deposit Information
+	DepositPercent  *int    `json:"deposit_percent" validate:"omitempty,min=0,max=100" example:"30"`
+	DepositAmount   *int    `json:"deposit_amount" validate:"omitempty,min=0" example:"3000000"`
+	IsDepositPaid   bool    `json:"is_deposit_paid" validate:"omitempty" example:"false"`
+	DepositProofURL *string `json:"deposit_proof_url" validate:"omitempty,url" example:"https://example.com/deposits/proof.pdf"`
 
 	// Brand information (stored in contract for record-keeping)
 	BrandID                string  `json:"brand_id" validate:"required,uuid4" example:"660e8400-e29b-41d4-a716-446655440000"`
@@ -44,7 +47,7 @@ type CreateContractRequest struct {
 	// KOL/Representative information (the other party in the contract)
 	RepresentativeName              string  `json:"representative_name" validate:"required,min=2,max=255" example:"Jane Smith"`
 	RepresentativeRole              *string `json:"representative_role" validate:"omitempty,max=255" example:"Influencer"`
-	RepresentativePhone             *string `json:"representative_phone" validate:"omitempty,e164" example:"+84901234567"`
+	RepresentativePhone             *string `json:"representative_phone" validate:"omitempty" example:"+84901234567"`
 	RepresentativeEmail             *string `json:"representative_email" validate:"omitempty,email,max=255" example:"jane.smith@example.com"`
 	RepresentativeTaxNumber         *string `json:"representative_tax_number" validate:"omitempty,max=100" example:"TAX654321"`
 	RepresentativeBankName          *string `json:"representative_bank_name" validate:"omitempty,max=255" example:"First National Bank"`
@@ -134,8 +137,9 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 			}
 
 			if r.DepositAmount == nil || *r.DepositAmount <= 0 {
-				calculatedAmount := int(float64((advertisingFinancialTerms.TotalCost * *r.DepositPercent) / 100))
-				r.DepositAmount = &calculatedAmount
+				r.DepositAmount = utils.PtrOrNil(int(float64((advertisingFinancialTerms.TotalCost * *r.DepositPercent) / 100)))
+			} else if (r.DepositPercent == nil || *r.DepositPercent <= 0) && r.DepositAmount != nil && *r.DepositAmount > 0 {
+				r.DepositPercent = utils.PtrOrNil(int(math.Round((float64(*r.DepositAmount) / float64(advertisingFinancialTerms.TotalCost)) * 100)))
 			}
 
 			for _, schedule := range advertisingFinancialTerms.Schedules {
@@ -331,6 +335,7 @@ func (r *CreateContractRequest) ToContract(ctx context.Context) (*model.Contract
 		DepositPercent:                  r.DepositPercent,
 		DepositAmount:                   r.DepositAmount,
 		IsDepositPaid:                   &r.IsDepositPaid,
+		DepositProofURL:                 r.DepositProofURL,
 		StartDate:                       r.StartDate,
 		EndDate:                         r.EndDate,
 		Currency:                        r.Currency,
@@ -587,6 +592,12 @@ func CreateContractRequestValidator(sl validator.StructLevel) {
 	if !contractType.IsValid() {
 		sl.ReportError(contract.Type, "type", "Type", "contracttype", "")
 		return
+	}
+
+	// Validate Is Deposit Paid and Proof URL
+	if contract.IsDepositPaid &&
+		(contract.DepositProofURL == nil || *contract.DepositProofURL == "") {
+		sl.ReportError(contract.DepositProofURL, "deposit_proof_url", "DepositProofURL", "depositproofurl", "deposit proof URL must be provided if deposit is marked as paid")
 	}
 
 	var wg sync.WaitGroup
