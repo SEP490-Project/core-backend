@@ -63,7 +63,7 @@ func (h *NotificationScheduledHandler) ProcessTask(ctx context.Context, task *as
 		zap.Time("scheduled_at", payload.ScheduledAt))
 
 	// Create and publish notification request
-	var channels []enum.NotificationType = payload.Types
+	channels := payload.Types
 	if utils.ContainsSlice(payload.Types, enum.NotificationTypeAll) {
 		channels = []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypePush, enum.NotificationTypeInApp}
 	}

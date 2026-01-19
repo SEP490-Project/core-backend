@@ -30,7 +30,7 @@ func NewCacheHandler(valkeyCache *persistence.ValkeyCache) *CacheHandler {
 //
 //	@Summary		Get Cache Overview
 //	@Description	Returns cache statistics and connection info
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.CacheOverviewResponse}
@@ -111,7 +111,7 @@ func (h *CacheHandler) GetOverview(c *gin.Context) {
 //
 //	@Summary		List Cache Keys
 //	@Description	Returns cache keys matching a pattern
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			pattern	query		string	false	"Key pattern (* for all, prefix:* for prefix match)"	default(*)
@@ -204,7 +204,7 @@ func (h *CacheHandler) GetKeys(c *gin.Context) {
 //
 //	@Summary		Get Cache Key Value
 //	@Description	Returns the value of a specific cache key
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			key	path		string	true	"Cache key"
@@ -271,7 +271,7 @@ func (h *CacheHandler) GetKey(c *gin.Context) {
 //
 //	@Summary		Delete Cache Key
 //	@Description	Deletes one or more cache keys
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CacheDeleteKeyRequest	true	"Delete key request"
@@ -316,7 +316,7 @@ func (h *CacheHandler) DeleteKey(c *gin.Context) {
 //
 //	@Summary		Delete Cache Keys by Pattern
 //	@Description	Deletes all cache keys matching a pattern
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CacheDeletePatternRequest	true	"Delete pattern request"
@@ -389,7 +389,7 @@ func (h *CacheHandler) DeleteByPattern(c *gin.Context) {
 //
 //	@Summary		Set Cache Key
 //	@Description	Sets a cache key with an optional TTL
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CacheSetKeyRequest	true	"Set key request"
@@ -435,7 +435,7 @@ func (h *CacheHandler) SetKey(c *gin.Context) {
 //
 //	@Summary		Flush Cache Database
 //	@Description	Deletes all keys in the current database (USE WITH CAUTION)
-//	@Tags			Cache Admin
+//	@Tags			Admin.Cache
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.CacheFlushRequest	true	"Flush request"

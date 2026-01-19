@@ -26,6 +26,7 @@ import (
 type ContractService struct {
 	brandRepository    irepository.GenericRepository[model.Brand]
 	contractRepository irepository.GenericRepository[model.Contract]
+	violationRepo      irepository.ContractViolationRepository
 	taskRepository     irepository.TaskRepository
 	unitOfWork         irepository.UnitOfWork
 }
@@ -91,7 +92,7 @@ func (s *ContractService) GetContractsByUserID(
 
 		return db
 	}
-	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand", "Campaign", "ContractPayments"}, 0, 0)
+	contracts, totalCount, err := s.contractRepository.GetAll(ctx, query, []string{"Brand", "Campaign", "ContractPayments"}, filterRequest.Limit, filterRequest.Page)
 	if err != nil {
 		zap.L().Error("Failed to retrieve campaigns by user ID",
 			zap.String("user_id", userID.String()),
@@ -334,7 +335,42 @@ func (s *ContractService) GetContractByID(ctx context.Context, contractID uuid.U
 		return nil, errors.New("failed to fetch contract")
 	}
 
-	return responses.ContractResponse{}.ToContractResponse(contract, nil)
+	response, err := responses.ContractResponse{}.ToContractResponse(contract, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate Violation if appropriate status
+	if s.isViolationStatus(contract.Status) {
+		violation, err := s.violationRepo.FindActiveByContractID(ctx, contractID)
+		if err == nil && violation != nil {
+			response.Violation = responses.ViolationResponse{}.ToViolationResponse(violation)
+		} else if err != nil && err.Error() != "no active violation found for contract" {
+			// Log but don't fail the request (optional field)
+			zap.L().Warn("Failed to fetch violation for contract",
+				zap.String("contract_id", contractID.String()),
+				zap.Error(err))
+		}
+	}
+
+	return response, nil
+}
+
+// isViolationStatus helper to check if we should fetch violation
+func (s *ContractService) isViolationStatus(status enum.ContractStatus) bool {
+	switch status {
+	case enum.ContractStatusBrandViolated,
+		enum.ContractStatusBrandPenaltyPending,
+		enum.ContractStatusBrandPenaltyPaid,
+		enum.ContractStatusKOLViolated,
+		enum.ContractStatusKOLRefundPending,
+		enum.ContractStatusKOLProofSubmitted,
+		enum.ContractStatusKOLProofRejected,
+		enum.ContractStatusKOLRefundApproved,
+		enum.ContractStatusTerminated:
+		return true
+	}
+	return false
 }
 
 // GetContractsByBrandID implements iservice.ContractService.
@@ -600,6 +636,9 @@ func (s *ContractService) UpdateContractScopeOfWorkWithReferencinnTaskIDs(
 		zap.L().Error("Failed to fetch contract and tasks in parallel", zap.Error(err))
 		return err
 	}
+	zap.L().Debug("Task with scope of work IDs",
+		zap.Any("scope_of_work_item_id_type_map", scopeOfWorkItemIDTypeMap),
+		zap.Any("task_with_scope_of_work", taskWithScopeOfWork))
 
 	switch contract.Type {
 	case enum.ContractTypeAdvertising:
@@ -726,6 +765,7 @@ func NewContractService(
 	return &ContractService{
 		contractRepository: dbReg.ContractRepository,
 		brandRepository:    dbReg.BrandRepository,
+		violationRepo:      dbReg.ContractViolationRepository,
 		taskRepository:     dbReg.TaskRepository,
 		unitOfWork:         infraReg.UnitOfWork,
 	}

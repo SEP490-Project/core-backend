@@ -608,57 +608,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/cache/flush": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes all keys in the current database (USE WITH CAUTION)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Cache Admin"
-                ],
-                "summary": "Flush Cache Database",
-                "parameters": [
-                    {
-                        "description": "Flush request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.CacheFlushRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/cache/keys": {
             "get": {
                 "security": [
@@ -851,6 +800,57 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/requests.CacheDeletePatternRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/cache/keys/flush": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes all keys in the current database (USE WITH CAUTION)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Cache Admin"
+                ],
+                "summary": "Flush Cache Database",
+                "parameters": [
+                    {
+                        "description": "Flush request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CacheFlushRequest"
                         }
                     }
                 ],
@@ -12428,6 +12428,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/ghn/create-parcel/{order-id}": {
+            "post": {
+                "description": "Fetch GHN order details for a given GHN order code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ghn"
+                ],
+                "summary": "Get GHN order info by GHN order code",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Code of GHN order which is provided after create a standard order",
+                        "name": "order-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dtos.OrderInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/ghn/delivery/calculate-by-dimension": {
             "post": {
                 "security": [
@@ -13539,6 +13589,144 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/location/address/{address-id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing shipping address belonging to the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Update a shipping address for the authenticated user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address ID",
+                        "name": "address-id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Address update payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateAddressRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Address updated",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ShippingAddressResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete an existing shipping address belonging to the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "location"
+                ],
+                "summary": "Delete a shipping address for the authenticated user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address ID",
+                        "name": "address-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Address deleted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -15541,81 +15729,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/orders/staff/{orderID}/compensation": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Orders[Staff].States"
-                ],
-                "summary": "Process compensation (staff)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Order ID (UUID)",
-                        "name": "orderID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "true|false",
-                        "name": "isApproved",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Reason (optional)",
-                        "name": "reason",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "file",
-                        "description": "Confirmation / Evidence file (such as transaction bill)",
-                        "name": "file",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/orders/staff/{orderID}/confirmation": {
+        "/api/v1/orders/staff/{orderID}/censorship": {
             "post": {
                 "security": [
                     {
@@ -15680,6 +15794,80 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/staff/{orderID}/compensation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Approve or reject a compensation request. Accepts optional reason and optional confirmation file. Provide isApproved form field (true/false).",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders[Staff].States"
+                ],
+                "summary": "Process compensation (staff)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "true|false",
+                        "name": "isApproved",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason (optional)",
+                        "name": "reason",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Confirmation / Evidence file (such as transaction bill)",
+                        "name": "file",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     },
                     "401": {
@@ -15887,6 +16075,83 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/orders/{orderID}/price-breakdown": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns breakdown of each order item with company and KOL percentage splits and amounts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Get order price breakdown with profit split percentages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Order ID (UUID)",
+                        "name": "orderID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order type (LIMITED or STANDARD)",
+                        "name": "orderType",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.PriceBreakdown"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -17682,6 +17947,76 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/preorders/{preOrderID}/price-breakdown": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns breakdown of the preorder with company and KOL percentage splits and amounts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Preorders"
+                ],
+                "summary": "Get preorder price breakdown with profit split percentages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PreOrder ID (UUID)",
+                        "name": "preOrderID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.PriceBreakdown"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/product-options": {
             "get": {
                 "description": "Retrieve product options with optional filtering by type and pagination. Public endpoint.",
@@ -17910,11 +18245,6 @@ const docTemplate = `{
         },
         "/api/v1/product-options/{id}": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Retrieve a specific product option by its ID",
                 "consumes": [
                     "application/json"
@@ -18227,6 +18557,173 @@ const docTemplate = `{
             }
         },
         "/api/v1/products/limited": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of LIMITED products with special date filters for PreOrder and Order windows.\n- FilterPreOrder=true: Returns products where current time is between PremiereDate and AvailabilityStartDate (preorder window)\n- FilterOrder=true: Returns products where current time is between AvailabilityStartDate and AvailabilityEndDate (order window)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Limited"
+                ],
+                "summary": "Get All Limited Products",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term for product name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category UUID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by brand UUID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by brand owner user UUID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "SUBMITTED",
+                            "REVISION",
+                            "APPROVED",
+                            "ACTIVED",
+                            "INACTIVED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by product status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter products in PreOrder window (between PremiereDate and AvailabilityStartDate)",
+                        "name": "filter_preorder",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter products in Order window (between AvailabilityStartDate and AvailabilityEndDate)",
+                        "name": "filter_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-01T00:00:00Z\"",
+                        "description": "Filter PremiereDate from (ISO8601)",
+                        "name": "premiere_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-31T23:59:59Z\"",
+                        "description": "Filter PremiereDate to (ISO8601)",
+                        "name": "premiere_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-01T00:00:00Z\"",
+                        "description": "Filter AvailabilityStartDate from (ISO8601)",
+                        "name": "availability_start_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-31T23:59:59Z\"",
+                        "description": "Filter AvailabilityStartDate to (ISO8601)",
+                        "name": "availability_start_date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-01T00:00:00Z\"",
+                        "description": "Filter AvailabilityEndDate from (ISO8601)",
+                        "name": "availability_end_date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-10-31T23:59:59Z\"",
+                        "description": "Filter AvailabilityEndDate to (ISO8601)",
+                        "name": "availability_end_date_to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Limited products retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductResponseV2"
+                                    }
+                                },
+                                "pagination": {
+                                    "$ref": "#/definitions/responses.Pagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -18864,6 +19361,119 @@ const docTemplate = `{
             }
         },
         "/api/v1/products/standard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of STANDARD products. Admin/Staff get full view, others get partial view.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Products.Standard"
+                ],
+                "summary": "Get All Standard Products",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term for product name",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by category UUID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by brand UUID",
+                        "name": "brand_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by brand owner user UUID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "DRAFT",
+                            "SUBMITTED",
+                            "REVISION",
+                            "APPROVED",
+                            "ACTIVED",
+                            "INACTIVED"
+                        ],
+                        "type": "string",
+                        "description": "Filter by product status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Standard products retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/responses.ProductResponseV2"
+                                    }
+                                },
+                                "pagination": {
+                                    "$ref": "#/definitions/responses.Pagination"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -25076,6 +25686,10 @@ const docTemplate = `{
                 "ORDER",
                 "USER",
                 "BRAND",
+                "PAYMENT_TRANSACTION",
+                "PRE_ORDER_OPENING",
+                "PRE_ORDER_AUTO_RECEIVE",
+                "ORDER_AUTO_RECEIVE",
                 "OTHER"
             ],
             "x-enum-varnames": [
@@ -25089,6 +25703,10 @@ const docTemplate = `{
                 "ReferenceTypeOrder",
                 "ReferenceTypeUser",
                 "ReferenceTypeBrand",
+                "ReferenceTypePaymentTransaction",
+                "ReferenceTypePreOrderOpening",
+                "ReferenceTypePreOrderAutoReceive",
+                "ReferenceTypeOrderAutoReceive",
                 "ReferenceTypeOther"
             ]
         },
@@ -28321,6 +28939,64 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "requests.UpdateAddressRequest": {
+            "type": "object",
+            "properties": {
+                "address_line_2": {
+                    "type": "string",
+                    "example": "Apartment, suite, unit, building, floor, etc."
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "ghn_district_id": {
+                    "type": "integer",
+                    "example": 3176
+                },
+                "ghn_province_id": {
+                    "description": "from GHN",
+                    "type": "integer",
+                    "example": 202
+                },
+                "ghn_ward_code": {
+                    "type": "string",
+                    "example": "21015"
+                },
+                "is_default": {
+                    "type": "boolean"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "postal_code": {
+                    "type": "string"
+                },
+                "street": {
+                    "type": "string"
+                },
+                "type": {
+                    "enum": [
+                        "BILLING",
+                        "SHIPPING"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.AddressType"
+                        }
+                    ],
+                    "example": "SHIPPING"
                 }
             }
         },
@@ -33951,6 +34627,26 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "width": {
+                    "type": "integer"
+                }
+            }
+        },
+        "responses.PriceBreakdown": {
+            "type": "object",
+            "properties": {
+                "company_amount": {
+                    "type": "number"
+                },
+                "company_percentage": {
+                    "type": "integer"
+                },
+                "item_id": {
+                    "type": "string"
+                },
+                "kol_amount": {
+                    "type": "number"
+                },
+                "kol_percentage": {
                     "type": "integer"
                 }
             }

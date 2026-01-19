@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Proof Auto-Approved</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #cce5ff;
+        color: #004085;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .notice-box {
+        background-color: #cce5ff;
+        border: 1px solid #004085;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .auto-icon {
+        font-size: 48px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🤖 Proof Auto-Approved</h2>
+      </div>
+      <div class="content">
+        <div class="auto-icon">⏱️ ✓</div>
+        
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          The refund proof for contract <strong>#{{.ContractNumber}}</strong> has been
+          <strong>automatically approved</strong> due to the review deadline passing.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Violation Details:</strong></p>
+          <p>Contract Number: {{.ContractNumber}}</p>
+          <p>Refund Amount: {{.Currency}} {{.RefundAmount}}</p>
+          <p>Proof Submitted: {{.SubmissionDate}}</p>
+          <p>Auto-Approval Date: {{.AutoApprovalDate}}</p>
+        </div>
+
+        <div class="notice-box">
+          <p><strong>What This Means:</strong></p>
+          <p>
+            The review period of <strong>{{.ReviewDays}} days</strong> has elapsed
+            without manual review. As per our policy, the proof has been
+            automatically approved.
+          </p>
+        </div>
+
+        <p>
+          The contract violation has been resolved and the contract status
+          has been updated accordingly.
+        </p>
+
+        <p>
+          If you believe this was in error or have any questions, please
+          contact our support team at <a href="{{.SupportLink}}">{{.SupportLink}}</a>.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

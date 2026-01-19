@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>KOL Violation Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .alert-box {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .action-button {
+        display: inline-block;
+        background-color: #dc3545;
+        color: white !important;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .warning-icon {
+        font-size: 48px;
+        color: #dc3545;
+        text-align: center;
+      }
+      .amount-highlight {
+        font-size: 20px;
+        font-weight: bold;
+        color: #dc3545;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🚨 KOL Violation Reported</h2>
+      </div>
+      <div class="content">
+        <div class="warning-icon">⚠️</div>
+        
+        <p>Dear Staff,</p>
+
+        <p>
+          A KOL violation has been reported and requires attention.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Contract Details:</strong></p>
+          <p>Contract Number: {{.ContractNumber}}</p>
+          <p>Brand: {{.BrandName}}</p>
+          <p>KOL: {{.KOLName}}</p>
+          <p>Campaign: {{.CampaignName}}</p>
+          <p>Reported By: {{.ReportedBy}}</p>
+          <p>Report Date: {{.ReportDate}}</p>
+        </div>
+
+        <div class="alert-box">
+          <p><strong>Violation Details:</strong></p>
+          <p>Reason: {{.ViolationReason}}</p>
+          <p class="amount-highlight">Refund Amount Required: {{.Currency}} {{.RefundAmount}}</p>
+        </div>
+
+        <p><strong>Next Steps:</strong></p>
+        <ol>
+          <li>Review the violation report</li>
+          <li>Contact the KOL if needed for clarification</li>
+          <li>Monitor the refund proof submission</li>
+          <li>Review submitted proof within {{.ReviewDays}} days</li>
+        </ol>
+
+        <p style="text-align: center;">
+          <a href="{{.ViolationLink}}" class="action-button">View Violation Details</a>
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

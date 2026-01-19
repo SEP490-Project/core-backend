@@ -25,7 +25,7 @@ func NewMarketingAnalyticsHandler(marketingAnalyticsService iservice.MarketingAn
 //
 //	@Summary		Get active brands count
 //	@Description	Returns the total count of brands with status = 'ACTIVE'
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=int64}
 //	@Failure		500	{object}	responses.APIResponse
@@ -50,7 +50,7 @@ func (h *MarketingAnalyticsHandler) GetActiveBrandsCount(c *gin.Context) {
 //
 //	@Summary		Get active campaigns count
 //	@Description	Returns the total count of campaigns with status = 'RUNNING'
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=int64}
 //	@Failure		500	{object}	responses.APIResponse
@@ -75,7 +75,7 @@ func (h *MarketingAnalyticsHandler) GetActiveCampaignsCount(c *gin.Context) {
 //
 //	@Summary		Get draft campaigns count
 //	@Description	Returns the count of campaigns with status = 'DRAFT' and contract_id IS NOT NULL
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=int64}
 //	@Failure		500	{object}	responses.APIResponse
@@ -100,7 +100,7 @@ func (h *MarketingAnalyticsHandler) GetDraftCampaignsCount(c *gin.Context) {
 //
 //	@Summary		Get monthly contract revenue
 //	@Description	Returns total revenue from paid contract payments for specified month
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
 //	@Param			year	query		int	true	"Year (e.g., 2024)"	minimum(2000)	maximum(2100)
@@ -140,7 +140,7 @@ func (h *MarketingAnalyticsHandler) GetMonthlyContractRevenue(c *gin.Context) {
 //
 //	@Summary		Get top brands by revenue
 //	@Description	Returns top 4 brands by total revenue (contract payments + standard product sales)
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
 //	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
@@ -181,7 +181,7 @@ func (h *MarketingAnalyticsHandler) GetTopBrandsByRevenue(c *gin.Context) {
 //
 //	@Summary		Get revenue breakdown by contract type
 //	@Description	Returns revenue breakdown by 4 contract types (ADVERTISING, AFFILIATE, BRAND_AMBASSADOR, CO_PRODUCING) + standard products
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
 //	@Param			filter_type	query		string	true	"Filter type"							Enums(MONTH, QUARTER, YEAR)
@@ -222,7 +222,7 @@ func (h *MarketingAnalyticsHandler) GetRevenueByContractType(c *gin.Context) {
 //
 //	@Summary		Get campaigns approaching deadline
 //	@Description	Returns campaigns with status = 'RUNNING' and end_date within specified days
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
 //	@Param			days	query		int	false	"Days before deadline (default: 10)"	minimum(1)	maximum(365)
@@ -258,7 +258,7 @@ func (h *MarketingAnalyticsHandler) GetUpcomingDeadlineCampaigns(c *gin.Context)
 //
 //	@Summary		Get marketing analytics dashboard
 //	@Description	Returns aggregated analytics data including counts, revenue, top brands, and upcoming deadlines
-//	@Tags			Analytics/MarketingStaffs
+//	@Tags			Analytics.Marketing
 //	@Accept			json
 //	@Produce		json
 //	@Param			year	query		int	false	"Year (defaults to current)"	minimum(2000)	maximum(2100)

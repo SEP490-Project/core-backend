@@ -27,7 +27,7 @@ func NewContentStaffAnalyticsHandler(dashboardService iservice.ContentStaffAnaly
 //
 //	@Summary		Get content staff dashboard
 //	@Description	Returns complete dashboard with metrics, charts, schedules, and alerts
-//	@Tags			Content Dashboard
+//	@Tags			Analytics.Content
 //	@Accept			json
 //	@Produce		json
 //	@Param			period		query		string	false	"Period preset (TODAY, YESTERDAY, THIS_WEEK, LAST_WEEK, THIS_MONTH, LAST_MONTH, THIS_QUARTER, THIS_YEAR, LAST_7_DAYS, LAST_30_DAYS, CUSTOM)"	default(LAST_30_DAYS)
@@ -68,7 +68,7 @@ func (h *ContentStaffAnalyticsHandler) GetDashboard(c *gin.Context) {
 //
 //	@Summary		Get channel details
 //	@Description	Returns detailed metrics for a specific channel
-//	@Tags			Content Dashboard
+//	@Tags			Analytics.Content
 //	@Accept			json
 //	@Produce		json
 //	@Param			id						path		string	true	"Channel ID"

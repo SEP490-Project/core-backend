@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Penalty Payment Required</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .payment-button {
+        display: inline-block;
+        background-color: #dc3545;
+        color: white !important;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .payment-button:hover {
+        background-color: #c82333;
+      }
+      .warning-icon {
+        font-size: 48px;
+        color: #dc3545;
+        text-align: center;
+      }
+      .amount-highlight {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc3545;
+        text-align: center;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>⚠️ Penalty Payment Required</h2>
+      </div>
+      <div class="content">
+        <div class="warning-icon">💳</div>
+        
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          Following the termination of contract <strong>#{{.ContractNumber}}</strong>,
+          a penalty payment is required as per our terms and conditions.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Violation Details:</strong></p>
+          <p>Contract Number: {{.ContractNumber}}</p>
+          <p>Violation Reason: {{.ViolationReason}}</p>
+          <p>Violation Date: {{.ViolationDate}}</p>
+        </div>
+
+        <div class="amount-highlight">
+          Penalty Amount: {{.Currency}} {{.PenaltyAmount}}
+        </div>
+
+        <p style="text-align: center;">
+          Please click the button below to complete your payment:
+        </p>
+
+        <p style="text-align: center;">
+          <a href="{{.PaymentLink}}" class="payment-button">Pay Now</a>
+        </p>
+
+        <p style="font-size: 12px; color: #666;">
+          This payment link will expire on <strong>{{.ExpiryDate}}</strong>.
+          Please complete the payment before expiration.
+        </p>
+
+        <p>
+          If you believe this penalty is in error, please contact our support team
+          immediately at <a href="{{.SupportLink}}">{{.SupportLink}}</a>.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
