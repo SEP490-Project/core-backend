@@ -21,12 +21,14 @@ type CronJobRegistry struct {
 	DailyJob                CronJob
 	CronScheduler           *cron.Cron
 	jobs                    map[string]CronJob
+	adminConfig             *config.AdminConfig
 }
 
 func NewCronJobRegistry(dbReg *gormrepository.DatabaseRegistry, db *gorm.DB, adminConfig *config.AdminConfig) *CronJobRegistry {
 	registry := &CronJobRegistry{
 		CronScheduler: cron.New(cron.WithSeconds()),
 		jobs:          make(map[string]CronJob),
+		adminConfig:   adminConfig,
 	}
 
 	registry.CTRAggregationJob = NewCTRAggregationJob(
@@ -97,4 +99,13 @@ func (r *CronJobRegistry) RestartAllJobs(adminConfig *config.AdminConfig) error 
 		}
 	}
 	return nil
+}
+
+func (r *CronJobRegistry) RestartJob(name string) error {
+	job, ok := r.jobs[name]
+	if !ok {
+		return nil // Job not found, ignore
+	}
+	zap.L().Info("Restarting job from registry", zap.String("job_name", name))
+	return job.Restart(r.adminConfig)
 }
