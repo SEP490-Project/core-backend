@@ -25,7 +25,9 @@ func (r *contractRepository) GetContractIDByTaskID(ctx context.Context, taskID u
 
 	query := r.db.WithContext(ctx).Model(new(model.Contract)).
 		Select("contracts.id").
-		Joins("JOIN tasks ON tasks.contract_id = contracts.id").
+		Joins("JOIN campaigns ON campaigns.contract_id = contracts.id").
+		Joins("JOIN milestones ON milestones.campaign_id = campaigns.id").
+		Joins("JOIN tasks ON tasks.milestone_id = milestones.id").
 		Where("tasks.id = ?", taskID).
 		Distinct("contracts.id")
 	if err = query.Scan(&contractID).Error; err != nil {
