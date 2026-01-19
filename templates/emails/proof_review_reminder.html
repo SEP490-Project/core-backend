@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Proof Review Reminder</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .warning-box {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .action-button {
+        display: inline-block;
+        background-color: #007bff;
+        color: white !important;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .countdown {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc3545;
+        text-align: center;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>⏰ Proof Review Reminder</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.BrandName}},</p>
+
+        <p>
+          This is a reminder that refund proof for contract
+          <strong>#{{.ContractNumber}}</strong> is pending your review.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Proof Details:</strong></p>
+          <p>Contract Number: {{.ContractNumber}}</p>
+          <p>Submitted By: {{.KOLName}}</p>
+          <p>Submission Date: {{.SubmissionDate}}</p>
+          <p>Refund Amount: {{.Currency}} {{.RefundAmount}}</p>
+        </div>
+
+        <div class="warning-box">
+          <p><strong>⚠️ Auto-Approval Warning:</strong></p>
+          <p>
+            If the proof is not reviewed within <strong>{{.DaysRemaining}} days</strong>
+            (by {{.AutoApprovalDate}}), it will be <strong>automatically approved</strong>.
+          </p>
+        </div>
+
+        <div class="countdown">
+          {{.DaysRemaining}} Days Remaining
+        </div>
+
+        <p style="text-align: center;">
+          <a href="{{.ReviewLink}}" class="action-button">Review Proof Now</a>
+        </p>
+
+        <p>
+          Please review the submitted proof and either approve or reject it
+          before the auto-approval deadline.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

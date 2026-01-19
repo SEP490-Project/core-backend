@@ -26,21 +26,23 @@ import (
 )
 
 type DailyJob struct {
-	contractRepo         irepository.GenericRepository[model.Contract]
-	contractPaymentRepo  irepository.GenericRepository[model.ContractPayment]
-	notificationService  iservice.NotificationService
-	alertService         iservice.AlertManagerService
-	stateTransferService iservice.StateTransferService
-	unitOfWork           irepository.UnitOfWork
-	asynqClient          *asynqClient.AsynqClient
-	appConfig            *config.AppConfig
-	db                   *gorm.DB
-	cronScheduler        *cron.Cron
-	cronExpr             string
-	enabled              bool
-	entryID              cron.EntryID
-	lastRunTime          *time.Time
-	workerPool           *gorountine.WorkerPool
+	contractRepo          irepository.GenericRepository[model.Contract]
+	contractPaymentRepo   irepository.GenericRepository[model.ContractPayment]
+	contractViolationRepo irepository.ContractViolationRepository
+	notificationService   iservice.NotificationService
+	alertService          iservice.AlertManagerService
+	stateTransferService  iservice.StateTransferService
+	violationService      iservice.ViolationService
+	unitOfWork            irepository.UnitOfWork
+	asynqClient           *asynqClient.AsynqClient
+	appConfig             *config.AppConfig
+	db                    *gorm.DB
+	cronScheduler         *cron.Cron
+	cronExpr              string
+	enabled               bool
+	entryID               cron.EntryID
+	lastRunTime           *time.Time
+	workerPool            *gorountine.WorkerPool
 }
 
 func NewDailyJob(
@@ -49,9 +51,11 @@ func NewDailyJob(
 	db *gorm.DB,
 	contractRepo irepository.GenericRepository[model.Contract],
 	contractPaymentRepo irepository.GenericRepository[model.ContractPayment],
+	contractViolationRepo irepository.ContractViolationRepository,
 	notificationService iservice.NotificationService,
 	alertService iservice.AlertManagerService,
 	stateTransferService iservice.StateTransferService,
+	violationService iservice.ViolationService,
 	unitOfWork irepository.UnitOfWork,
 	asynqClient *asynqClient.AsynqClient,
 ) CronJob {
@@ -61,19 +65,21 @@ func NewDailyJob(
 	}
 
 	return &DailyJob{
-		cronScheduler:        cronScheduler,
-		cronExpr:             cronExpr,
-		enabled:              appConfig.AdminConfig.DailyCronJobEnabled,
-		contractRepo:         contractRepo,
-		contractPaymentRepo:  contractPaymentRepo,
-		db:                   db,
-		appConfig:            appConfig,
-		asynqClient:          asynqClient,
-		notificationService:  notificationService,
-		alertService:         alertService,
-		stateTransferService: stateTransferService,
-		unitOfWork:           unitOfWork,
-		workerPool:           gorountine.NewWorkerPool(context.Background(), appConfig.AdminConfig.DailyCronJobWorkerCount),
+		cronScheduler:         cronScheduler,
+		cronExpr:              cronExpr,
+		enabled:               appConfig.AdminConfig.DailyCronJobEnabled,
+		contractRepo:          contractRepo,
+		contractPaymentRepo:   contractPaymentRepo,
+		contractViolationRepo: contractViolationRepo,
+		db:                    db,
+		appConfig:             appConfig,
+		asynqClient:           asynqClient,
+		notificationService:   notificationService,
+		alertService:          alertService,
+		stateTransferService:  stateTransferService,
+		violationService:      violationService,
+		unitOfWork:            unitOfWork,
+		workerPool:            gorountine.NewWorkerPool(context.Background(), appConfig.AdminConfig.DailyCronJobWorkerCount),
 	}
 }
 
@@ -106,6 +112,8 @@ func (j *DailyJob) Run() {
 	j.workerPool.Start()
 
 	j.workerPool.Submit(j.registerContractPaymentOverdue)
+	j.workerPool.Submit(j.checkViolationProofAutoApproval)
+	j.workerPool.Submit(j.checkViolationProofReviewReminder)
 
 	j.workerPool.Close()
 	j.workerPool.Wait()
@@ -277,11 +285,40 @@ func (j *DailyJob) scheduleOverdueNotification(
 			stringData[key] = utils.ToString(value)
 		}
 
-		// Terminate the contract immediately after sending the notification
+		// Initiate brand violation for non-payment (BEFORE termination)
+		violationReason := fmt.Sprintf(
+			"Contract terminated due to non-payment. Payments were overdue for %d days (max allowed: %d days).",
+			daysOverdue,
+			j.appConfig.AdminConfig.ContractPaymentAllowedOverdueDays,
+		)
+		// Use uuid.Nil as reportedBy since this is a system-initiated violation
+		if _, err = j.violationService.InitiateBrandViolation(ctx, contract.ID, uuid.Nil, violationReason); err != nil {
+			zap.L().Error("Failed to initiate brand violation before contract termination",
+				zap.String("contract_id", contract.ID.String()),
+				zap.Error(err))
+
+			j.raiseAlert(ctx, &AlertInfoRequest{
+				Type:          enum.AlertTypeError,
+				Category:      enum.AlertCategoryViolationDetected,
+				Severity:      enum.AlertSeverityHigh,
+				Title:         "Brand Violation Creation Failed",
+				Description:   fmt.Sprintf("Failed to create violation record for overdue contract %s", contractNumber),
+				ReferenceID:   contract.ID,
+				ReferenceType: enum.ReferenceTypeContract,
+				TargetRoles:   []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleAdmin},
+			}, nil, []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleAdmin})
+			// Proceed to termination anyway
+		} else {
+			zap.L().Info("Brand violation initiated for overdue contract",
+				zap.String("contract_id", contract.ID.String()),
+				zap.String("violation_reason", violationReason))
+		}
+
+		// Transition to BRAND_VIOLATED state instead of TERMINATED
 		if err = helper.WithTransaction(ctx, j.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-			return j.stateTransferService.MoveContractToState(ctx, uow, contract.ID, enum.ContractStatusTerminated, uuid.Nil)
+			return j.stateTransferService.MoveContractToState(ctx, uow, contract.ID, enum.ContractStatusBrandViolated, uuid.Nil)
 		}); err != nil {
-			zap.L().Error("Failed to terminate contract after overdue notification",
+			zap.L().Error("Failed to transition contract to brand violation state",
 				zap.String("contract_id", contract.ID.String()),
 				zap.Error(err))
 
@@ -289,8 +326,8 @@ func (j *DailyJob) scheduleOverdueNotification(
 				Type:          enum.AlertTypeError,
 				Category:      enum.AlertCategoryContractTerminateFailed,
 				Severity:      enum.AlertSeverityHigh,
-				Title:         "Contract Termination Failed",
-				Description:   "Failed to terminate contract after overdue notification",
+				Title:         "Contract Violation Transition Failed",
+				Description:   "Failed to transition contract to brand violation state after overdue notification",
 				ReferenceID:   contract.ID,
 				ReferenceType: enum.ReferenceTypeContract,
 				TargetRoles:   []enum.UserRole{enum.UserRoleContentStaff, enum.UserRoleAdmin},
@@ -304,7 +341,7 @@ func (j *DailyJob) scheduleOverdueNotification(
 			Body:         notiBodyBuilder.String(),
 			Data:         stringData,
 			Types:        channels,
-			TemplateName: "contract_termination",
+			TemplateName: "contract_terminated",
 			Subject:      fmt.Sprintf("URGENT: Contract Termination Notice - %s", contractNumber),
 			TemplateData: data,
 			ScheduleIDs:  nil,
@@ -391,7 +428,296 @@ func (j *DailyJob) scheduleOverdueNotification(
 
 // endregion 2.
 
+// region: 3. ======== Violation Proof Auto-Approval ========
+
+// checkViolationProofAutoApproval automatically approves KOL violation proofs
+// that have been pending for longer than the configured review period
+func (j *DailyJob) checkViolationProofAutoApproval(ctx context.Context) error {
+	requestID := uuid.New().String()
+	zap.L().Info("DailyJob - Checking for violation proofs to auto-approve...",
+		zap.String("request_id", requestID))
+
+	// Calculate cutoff date: proofs submitted before this date will be auto-approved
+	reviewDays := j.appConfig.AdminConfig.ViolationProofReviewDays
+	if reviewDays <= 0 {
+		reviewDays = 7 // Default to 7 days
+	}
+	cutoffDate := time.Now().AddDate(0, 0, -reviewDays)
+
+	zap.L().Debug("DailyJob - Auto-approval cutoff date",
+		zap.String("request_id", requestID),
+		zap.Time("cutoff_date", cutoffDate),
+		zap.Int("review_days", reviewDays))
+
+	// Find violations with pending proofs that are overdue
+	violations, err := j.contractViolationRepo.FindProofsOverdueForAutoApproval(ctx, cutoffDate)
+	if err != nil {
+		zap.L().Error("DailyJob - Failed to find violations for auto-approval",
+			zap.String("request_id", requestID),
+			zap.Error(err))
+		return err
+	}
+
+	if len(violations) == 0 {
+		zap.L().Info("DailyJob - No violation proofs found for auto-approval",
+			zap.String("request_id", requestID))
+		return nil
+	}
+
+	zap.L().Info("DailyJob - Found violations for auto-approval",
+		zap.String("request_id", requestID),
+		zap.Int("count", len(violations)))
+
+	// Process each violation
+	var autoApprovedCount int
+	for _, violation := range violations {
+		if err := j.processViolationAutoApproval(ctx, requestID, violation); err != nil {
+			zap.L().Error("DailyJob - Failed to auto-approve violation proof",
+				zap.String("request_id", requestID),
+				zap.String("violation_id", violation.ID.String()),
+				zap.Error(err))
+			// Continue processing other violations
+			continue
+		}
+		autoApprovedCount++
+	}
+
+	zap.L().Info("DailyJob - Violation proof auto-approval completed",
+		zap.String("request_id", requestID),
+		zap.Int("total_processed", len(violations)),
+		zap.Int("auto_approved", autoApprovedCount))
+
+	return nil
+}
+
+// processViolationAutoApproval handles the auto-approval of a single violation
+func (j *DailyJob) processViolationAutoApproval(ctx context.Context, requestID string, violation *model.ContractViolation) error {
+	zap.L().Info("DailyJob - Auto-approving violation proof",
+		zap.String("request_id", requestID),
+		zap.String("violation_id", violation.ID.String()),
+		zap.String("contract_id", violation.ContractID.String()))
+
+	// Auto-approve the proof using ViolationService
+	if err := j.violationService.AutoApproveProof(ctx, violation.ID); err != nil {
+		return fmt.Errorf("failed to auto-approve proof: %w", err)
+	}
+
+	// Move contract to KOL_REFUND_APPROVED state using UnitOfWork
+	if err := helper.WithTransaction(ctx, j.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		return j.stateTransferService.MoveContractToState(ctx, uow, violation.ContractID, enum.ContractStatusKOLRefundApproved, uuid.Nil)
+	}); err != nil {
+		zap.L().Error("DailyJob - Failed to move contract to KOL_REFUND_APPROVED",
+			zap.String("request_id", requestID),
+			zap.String("violation_id", violation.ID.String()),
+			zap.String("contract_id", violation.ContractID.String()),
+			zap.Error(err))
+
+		// Raise an alert for manual intervention
+		j.raiseAlert(ctx, &AlertInfoRequest{
+			Type:          enum.AlertTypeError,
+			Category:      enum.AlertCategoryViolationDetected,
+			Severity:      enum.AlertSeverityHigh,
+			Title:         "Violation Auto-Approval State Transition Failed",
+			Description:   fmt.Sprintf("Auto-approved violation %s but failed to transition contract %s to KOL_REFUND_APPROVED", violation.ID.String(), violation.ContractID.String()),
+			ReferenceID:   violation.ID,
+			ReferenceType: enum.ReferenceTypeContractViolation,
+			TargetRoles:   []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleAdmin},
+		}, nil, []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleAdmin})
+
+		return err
+	}
+
+	// Send notifications to both parties
+	j.sendViolationProofAutoApprovedNotification(ctx, requestID, violation)
+
+	zap.L().Info("DailyJob - Violation proof auto-approved and contract transitioned",
+		zap.String("request_id", requestID),
+		zap.String("violation_id", violation.ID.String()),
+		zap.String("contract_id", violation.ContractID.String()))
+
+	return nil
+}
+
+// sendViolationProofAutoApprovedNotification sends notification about auto-approved proof
+func (j *DailyJob) sendViolationProofAutoApprovedNotification(ctx context.Context, requestID string, violation *model.ContractViolation) {
+	// Get contract with brand and KOL details
+	contract, err := j.contractRepo.GetByID(ctx, violation.ContractID, []string{"Brand", "Brand.User", "KOL", "KOL.User"})
+	if err != nil {
+		zap.L().Error("DailyJob - Failed to get contract for notification",
+			zap.String("request_id", requestID),
+			zap.String("violation_id", violation.ID.String()),
+			zap.Error(err))
+		return
+	}
+
+	contractNumber := "N/A"
+	if contract.ContractNumber != nil {
+		contractNumber = *contract.ContractNumber
+	}
+
+	reviewDays := j.appConfig.AdminConfig.ViolationProofReviewDays
+	if reviewDays <= 0 {
+		reviewDays = 7
+	}
+
+	// Build notification content
+	title := "Refund Proof Auto-Approved"
+	body := fmt.Sprintf("The refund proof for contract %s has been automatically approved after %d days without review.",
+		contractNumber, reviewDays)
+
+	data := map[string]string{
+		"violation_id":    violation.ID.String(),
+		"contract_id":     contract.ID.String(),
+		"contract_number": contractNumber,
+		"reference_type":  enum.ReferenceTypeContractViolation.String(),
+		"reference_id":    violation.ID.String(),
+	}
+
+	channels := []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail}
+
+	// Notify brand owner
+	if contract.Brand != nil && contract.Brand.UserID != nil {
+		templateData := map[string]any{
+			"BrandName":      contract.Brand.Name,
+			"ContractNumber": contractNumber,
+			"ReviewDays":     reviewDays,
+			"RefundAmount":   fmt.Sprintf("%.2f", violation.RefundAmount),
+			"SupportLink":    j.appConfig.Server.BaseFrontendURL + "/support",
+			"CurrentYear":    time.Now().Year(),
+		}
+
+		notificationPayload := &asynqtask.ScheduledNotificationPayload{
+			UserID:       *contract.Brand.UserID,
+			Title:        title,
+			Body:         body,
+			Data:         data,
+			Types:        channels,
+			TemplateName: "proof_auto_approved",
+			Subject:      fmt.Sprintf("Refund Proof Auto-Approved - Contract %s", contractNumber),
+			TemplateData: templateData,
+		}
+
+		taskType := j.appConfig.Asynq.TaskTypes.NotificationSchedule
+		uniqueKey := fmt.Sprintf("violation:auto_approved:brand:%s:%s",
+			violation.ID.String(), time.Now().Format(utils.TimestampStringFormat))
+
+		if _, err := j.asynqClient.ScheduleTaskWithUniqueKey(ctx, taskType, notificationPayload, time.Now(), uniqueKey); err != nil {
+			zap.L().Error("DailyJob - Failed to schedule auto-approval notification to brand",
+				zap.String("request_id", requestID),
+				zap.Error(err))
+		}
+	}
+
+	// Notify KOL (marketing staff)
+	staffRoles := []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleContentStaff}
+	staffNotification := requests.PublishNotificationRequest{
+		Title: title,
+		Body:  body,
+		Data:  data,
+		Types: []enum.NotificationType{enum.NotificationTypeInApp},
+	}
+	if err := j.notificationService.BroadcastToRoleWithRequest(ctx, staffRoles, &staffNotification); err != nil {
+		zap.L().Error("DailyJob - Failed to broadcast auto-approval notification to staff",
+			zap.String("request_id", requestID),
+			zap.Error(err))
+	}
+}
+
+// endregion 3.
+
 // endregion 1.
+
+// checkViolationProofReviewReminder sends reminders for proofs approaching auto-approval
+func (j *DailyJob) checkViolationProofReviewReminder(ctx context.Context) error {
+	requestID := uuid.New().String()
+	zap.L().Info("DailyJob - Checking for violation proof review reminders...",
+		zap.String("request_id", requestID))
+
+	reviewDays := j.appConfig.AdminConfig.ViolationProofReviewDays
+	if reviewDays <= 0 {
+		reviewDays = 7
+	}
+
+	// Reminder window: submitted 1 day before auto-approval cutoff
+	// Cutoff is (Now - ReviewDays). Approaching cutoff means submitted slightly *after* cutoff.
+	// Specifically: SubmittedAt = Now - (ReviewDays - 1).
+	daysUntilAutoApprove := 1
+	targetSubmissionDate := time.Now().AddDate(0, 0, -(reviewDays - daysUntilAutoApprove))
+
+	filterFunc := func(db *gorm.DB) *gorm.DB {
+		return db.Where("proof_status = ?", enum.ViolationProofStatusPending).
+			Where("proof_submitted_at::date = ?::date", targetSubmissionDate)
+	}
+
+	violations, _, err := j.contractViolationRepo.GetAll(ctx, filterFunc, nil, 1000, 1)
+	if err != nil {
+		zap.L().Error("DailyJob - Failed to find violations for reminder", zap.Error(err))
+		return err
+	}
+
+	if len(violations) == 0 {
+		return nil
+	}
+
+	zap.L().Info("DailyJob - Found violations for reminder", zap.Int("count", len(violations)))
+
+	for _, v := range violations {
+		j.sendViolationProofReviewReminder(ctx, requestID, &v, daysUntilAutoApprove)
+	}
+
+	return nil
+}
+
+// sendViolationProofReviewReminder sends notification to staff about pending proof
+func (j *DailyJob) sendViolationProofReviewReminder(ctx context.Context, requestID string, violation *model.ContractViolation, daysLeft int) {
+	contract, err := j.contractRepo.GetByID(ctx, violation.ContractID, []string{"Brand"})
+	if err != nil {
+		zap.L().Error("DailyJob - Failed to get contract for reminder", zap.Error(err))
+		return
+	}
+
+	contractNumber := "N/A"
+	if contract.ContractNumber != nil {
+		contractNumber = *contract.ContractNumber
+	}
+
+	zap.L().Info("DailyJob - Sending review reminder",
+		zap.String("request_id", requestID),
+		zap.String("violation_id", violation.ID.String()))
+
+	title := "Reminder: Refund Proof Auto-Approval Imminent"
+	body := fmt.Sprintf("Refund proof for contract %s will be auto-approved in %d day(s). Please review it.", contractNumber, daysLeft)
+
+	data := map[string]string{
+		"violation_id":    violation.ID.String(),
+		"contract_id":     contract.ID.String(),
+		"contract_number": contractNumber,
+		"days_left":       fmt.Sprintf("%d", daysLeft),
+	}
+
+	templateData := map[string]any{
+		"ContractNumber": contractNumber,
+		"DaysLeft":       daysLeft,
+		"BrandName":      contract.Brand.Name,
+		"SubmittedAt":    utils.FormatLocalTime(violation.ProofSubmittedAt, utils.DateFormat),
+		"SupportLink":    j.appConfig.Server.BaseFrontendURL + "/admin/dashboard",
+		"CurrentYear":    time.Now().Year(),
+	}
+
+	notificationReq := requests.PublishNotificationRequest{
+		Title:             title,
+		Body:              body,
+		Data:              data,
+		Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+		EmailTemplateName: utils.PtrOrNil("proof_review_reminder"),
+		EmailTemplateData: templateData,
+	}
+
+	roles := []enum.UserRole{enum.UserRoleSalesStaff, enum.UserRoleContentStaff}
+	if err := j.notificationService.BroadcastToRoleWithRequest(ctx, roles, &notificationReq); err != nil {
+		zap.L().Error("DailyJob - Failed to broadcast review reminder", zap.Error(err))
+	}
+}
 
 // region: 1 ======= Helper Methods ========
 

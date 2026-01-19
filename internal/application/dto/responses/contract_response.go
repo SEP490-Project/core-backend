@@ -19,13 +19,19 @@ type ContractResponse struct {
 	ContractNumber string `json:"contract_number" example:"CONTRACT-2023-001"`
 	Type           string `json:"type" example:"ADVERTISING"`
 	Status         string `json:"status" example:"ACTIVE"`
-	DepositPercent *int   `json:"deposit_percent,omitempty" example:"30"`
-	DepositAmount  *int   `json:"deposit_amount,omitempty" example:"3000000"`
-	IsDepositPaid  *bool  `json:"is_deposit_paid,omitempty" example:"true"`
+
+	// Deposit information
+	DepositPercent  *int    `json:"deposit_percent,omitempty" example:"30"`
+	DepositAmount   *int    `json:"deposit_amount,omitempty" example:"3000000"`
+	IsDepositPaid   *bool   `json:"is_deposit_paid,omitempty" example:"true"`
+	DepositProofURL *string `json:"deposit_proof_url,omitempty" example:"https://example.com/deposits/proof.pdf"`
 
 	HasCampaign  bool       `json:"has_campaign,omitempty" example:"true"`
 	CampaignID   *uuid.UUID `json:"campaign_id,omitempty" example:"770e8400-e29b-41d4-a716-446655440000"`
 	CampaignName *string    `json:"campaign_name,omitempty" example:"Summer Sale Campaign"`
+
+	// Violation Info (populated if contract is in violation status)
+	Violation *ViolationResponse `json:"violation,omitempty"`
 
 	// Brand information (from relationship)
 	Brand *BrandSummary `json:"brand,omitempty"`
@@ -106,14 +112,15 @@ func (ContractResponse) ToContractResponse(contract *model.Contract, filter *req
 
 	response := &ContractResponse{
 		ID:                              contract.ID.String(),
-		Title:                           safeString(contract.Title),
-		ContractNumber:                  safeString(contract.ContractNumber),
+		Title:                           utils.DerefPtr(contract.Title, ""),
+		ContractNumber:                  utils.DerefPtr(contract.ContractNumber, ""),
 		Type:                            string(contract.Type),
 		Status:                          string(contract.Status),
 		DepositPercent:                  contract.DepositPercent,
 		DepositAmount:                   contract.DepositAmount,
 		IsDepositPaid:                   contract.IsDepositPaid,
-		RepresentativeName:              safeString(contract.RepresentativeName),
+		DepositProofURL:                 contract.DepositProofURL,
+		RepresentativeName:              utils.DerefPtr(contract.RepresentativeName, ""),
 		RepresentativeRole:              contract.RepresentativeRole,
 		RepresentativePhone:             contract.RepresentativePhone,
 		RepresentativeEmail:             contract.RepresentativeEmail,
@@ -186,8 +193,8 @@ func (ContractResponse) ToContractResponse(contract *model.Contract, filter *req
 	if contract.ParentContract != nil {
 		response.ParentContract = &ContractSummary{
 			ID:             contract.ParentContract.ID.String(),
-			Title:          safeString(contract.ParentContract.Title),
-			ContractNumber: safeString(contract.ParentContract.ContractNumber),
+			Title:          utils.DerefPtr(contract.ParentContract.Title, ""),
+			ContractNumber: utils.DerefPtr(contract.ParentContract.ContractNumber, ""),
 			Type:           string(contract.ParentContract.Type),
 			Status:         string(contract.ParentContract.Status),
 			StartDate:      utils.FormatLocalTime(&contract.ParentContract.StartDate, ""),
@@ -235,8 +242,8 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 
 	response := &ContractListResponse{
 		ID:             contract.ID.String(),
-		Title:          safeString(contract.Title),
-		ContractNumber: safeString(contract.ContractNumber),
+		Title:          utils.DerefPtr(contract.Title, ""),
+		ContractNumber: utils.DerefPtr(contract.ContractNumber, ""),
 		Type:           string(contract.Type),
 		Status:         string(contract.Status),
 		StartDate:      utils.FormatLocalTime(&contract.StartDate, ""),
@@ -263,14 +270,6 @@ func ToContractListResponse(contract *model.Contract) *ContractListResponse {
 	}
 
 	return response
-}
-
-// Helper function to safely dereference string pointers
-func safeString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 // ContractPaginationResponse represents a paginated response for contracts

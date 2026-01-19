@@ -96,6 +96,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 		r.setupContractRoutes(v1)
 		r.setupCampaignRoutes(v1)
 		r.SetupContractPaymentRoutes(v1)
+		r.SetupViolationRoutes(v1)
 		r.SetupModifiedHistoryRouter(v1)
 		r.SetupAdminConfigRouter(v1)
 		r.setupJobRoutes(v1)
@@ -579,6 +580,82 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		{
 			brandGroup.GET("/profile", contractPaymentHandler.GetContractPaymentByProfile)
 		}
+	}
+}
+
+// SetupViolationRoutes sets up routes for contract violation handling
+func (r *Router) SetupViolationRoutes(group *gin.RouterGroup) {
+	violationHandler := r.handlerRegistry.ViolationHandler
+
+	// 1. Contract-specific violation routes (Nested under /contracts/:id)
+	contractGroup := group.Group("/contracts")
+	{
+		contractIDGroup := contractGroup.Group("/:id")
+
+		// Report Brand Violation (Marketing)
+		contractIDGroup.POST("/report-brand-violation",
+			r.middlewareRegistry.Auth.RequireRole(marketing, admin),
+			violationHandler.InitiateBrandViolation,
+		)
+
+		// Report KOL Violation (Brand)
+		contractIDGroup.POST("/report-kol-violation",
+			r.middlewareRegistry.Auth.RequireRole(brand),
+			violationHandler.InitiateKOLViolation,
+		)
+
+		// Get violation details (All involved)
+		contractIDGroup.GET("/violation",
+			r.middlewareRegistry.Auth.RequireRole(brand, marketing, admin),
+			violationHandler.GetViolationByContract,
+		)
+
+		// Violation sub-resources
+		violationSubGroup := contractIDGroup.Group("/violation")
+		{
+			// Create penalty payment (Brand)
+			violationSubGroup.POST("/create-penalty-payment",
+				r.middlewareRegistry.Auth.RequireRole(brand),
+				violationHandler.CreatePenaltyPayment,
+			)
+
+			// Submit proof (Marketing/Admin)
+			violationSubGroup.POST("/submit-proof",
+				r.middlewareRegistry.Auth.RequireRole(marketing, admin),
+				violationHandler.SubmitRefundProof,
+			)
+
+			// Review proof (Brand)
+			violationSubGroup.POST("/review-proof",
+				r.middlewareRegistry.Auth.RequireRole(brand),
+				violationHandler.ReviewRefundProof,
+			)
+
+			// Resolve (Admin/Marketing)
+			violationSubGroup.POST("/resolve",
+				r.middlewareRegistry.Auth.RequireRole(admin, marketing),
+				violationHandler.ResolveViolation,
+			)
+
+			// Calculations
+			violationSubGroup.GET("/calculate/brand",
+				r.middlewareRegistry.Auth.RequireRole(marketing, admin, brand),
+				violationHandler.CalculateBrandPenalty,
+			)
+			violationSubGroup.GET("/calculate/kol",
+				r.middlewareRegistry.Auth.RequireRole(marketing, admin, brand),
+				violationHandler.CalculateKOLRefund,
+			)
+		}
+	}
+
+	// 2. Global violation list (for marketing/admin)
+	violationsGroup := group.Group("/violations")
+	{
+		violationsGroup.GET("",
+			r.middlewareRegistry.Auth.RequireRole(admin, marketing),
+			violationHandler.ListViolations,
+		)
 	}
 }
 

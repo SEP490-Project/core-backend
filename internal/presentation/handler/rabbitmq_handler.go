@@ -29,7 +29,7 @@ func NewRabbitMQHandler(managementService *rabbitmq.ManagementService, rmq *rabb
 //
 //	@Summary		Get RabbitMQ Overview
 //	@Description	Returns an overview of RabbitMQ queues, exchanges, and message counts
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.RabbitMQOverviewResponse}
@@ -129,7 +129,7 @@ func (h *RabbitMQHandler) GetOverview(c *gin.Context) {
 //
 //	@Summary		List RabbitMQ Queues
 //	@Description	Returns all RabbitMQ queues with their message counts and status
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			type			query		string	false	"Filter by queue type (main, retry, dead_letter, delayed, all)"
@@ -236,7 +236,7 @@ func (h *RabbitMQHandler) ListQueues(c *gin.Context) {
 //
 //	@Summary		List RabbitMQ Queue Groups
 //	@Description	Returns queues grouped by their main queue (main + retry + DLQ)
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=[]responses.RabbitMQQueueGroupResponse}
@@ -321,7 +321,7 @@ func (h *RabbitMQHandler) ListQueueGroups(c *gin.Context) {
 //
 //	@Summary		Get Queue Details
 //	@Description	Returns detailed information about a specific queue
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			queueName	path		string	true	"Queue name"
@@ -382,7 +382,7 @@ func (h *RabbitMQHandler) GetQueue(c *gin.Context) {
 //
 //	@Summary		Get Messages from Queue
 //	@Description	Returns messages from a queue without consuming them (peek)
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			queueName	path		string	true	"Queue name"
@@ -461,7 +461,7 @@ func (h *RabbitMQHandler) GetQueueMessages(c *gin.Context) {
 //
 //	@Summary		List RabbitMQ Exchanges
 //	@Description	Returns all RabbitMQ exchanges
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=[]responses.RabbitMQExchangeResponse}
@@ -504,7 +504,7 @@ func (h *RabbitMQHandler) ListExchanges(c *gin.Context) {
 //
 //	@Summary		Purge Queue
 //	@Description	Removes all messages from a queue
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			queueName	path		string	true	"Queue name"
@@ -551,7 +551,7 @@ func (h *RabbitMQHandler) PurgeQueue(c *gin.Context) {
 //
 //	@Summary		Retry Dead Letter Queue Messages
 //	@Description	Moves messages from a DLQ back to the main queue for retry using a shovel
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.RabbitMQRetryDLQRequest	true	"Retry request"
@@ -604,7 +604,7 @@ func (h *RabbitMQHandler) RetryDLQ(c *gin.Context) {
 //
 //	@Summary		List Shovels
 //	@Description	Returns all active shovels in the vhost
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=[]responses.RabbitMQShovelStatusResponse}
@@ -645,7 +645,7 @@ func (h *RabbitMQHandler) ListShovels(c *gin.Context) {
 //
 //	@Summary		Delete Shovel
 //	@Description	Deletes a shovel by name
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			shovelName	path		string	true	"Shovel name"
@@ -677,7 +677,7 @@ func (h *RabbitMQHandler) DeleteShovel(c *gin.Context) {
 //
 //	@Summary		Publish Message
 //	@Description	Publishes a message to an exchange (for testing/debugging)
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Param			request	body		requests.RabbitMQPublishMessageRequest	true	"Message to publish"
@@ -734,7 +734,7 @@ func (h *RabbitMQHandler) PublishMessage(c *gin.Context) {
 //
 //	@Summary		Get RabbitMQ Health
 //	@Description	Returns the health status of RabbitMQ connection and management API
-//	@Tags			RabbitMQ Admin
+//	@Tags			Admin.RabbitMQ
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.RabbitMQHealthResponse}

@@ -22,12 +22,12 @@ func NewSystemHandler(systemService iservice.SystemService) *SystemHandler {
 //
 //	@Summary		Get System Specs
 //	@Description	Returns the system specifications and runtime statistics
-//	@Tags			System
+//	@Tags			Admin.System
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.SystemSpecsResponse}
 //	@Failure		500	{object}	responses.APIResponse
-//	@Router			/admin/system/specs [get]
+//	@Router			/api/v1/admin/system/specs [get]
 //	@Security		BearerAuth
 func (h *SystemHandler) GetSystemSpecs(c *gin.Context) {
 	specs, err := h.systemService.GetSystemSpecs(c.Request.Context())
