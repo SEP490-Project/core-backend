@@ -51,6 +51,7 @@ asynq:
     preorder_opening: "task:order:preorder-opening"
     preorder_auto_receive: "task:order:preorder-auto-receive"
     limited_product_announcement: "task:product:limited-announcement"
+    auto_close_milestone: "task:milestone:auto-close"
 
 # JWT configuration
 jwt:
