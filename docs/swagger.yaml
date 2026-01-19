@@ -1221,13 +1221,6 @@ definitions:
     - PAYMENT_OVERDUE
     - SYSTEM_HEALTH
     - SECURITY_ISSUE
-    - VIOLATION_DETECTED
-    - PENALTY_PAYMENT_DUE
-    - REFUND_REQUIRED
-    - PROOF_SUBMITTED
-    - PROOF_REVIEW_REQUIRED
-    - VIOLATION_RESOLVED
-    - VIOLATION_ESCALATED
     type: string
     x-enum-varnames:
     - AlertCategoryContentRejected
@@ -1245,13 +1238,6 @@ definitions:
     - AlertCategoryPaymentOverdue
     - AlertCategorySystemHealth
     - AlertCategorySecurityIssue
-    - AlertCategoryViolationDetected
-    - AlertCategoryPenaltyPaymentDue
-    - AlertCategoryRefundRequired
-    - AlertCategoryProofSubmitted
-    - AlertCategoryProofReviewRequired
-    - AlertCategoryViolationResolved
-    - AlertCategoryViolationEscalated
   enum.AlertSeverity:
     enum:
     - LOW
@@ -1485,17 +1471,11 @@ definitions:
     - ORDER
     - CONTRACT_PAYMENT
     - PREORDER
-    - PENALTY
-    - REFUND
-    - CONTRACT_VIOLATION
     type: string
     x-enum-varnames:
     - PaymentTransactionReferenceTypeOrder
     - PaymentTransactionReferenceTypeContractPayment
     - PaymentTransactionReferenceTypePreOrder
-    - PaymentTransactionReferenceTypePenalty
-    - PaymentTransactionReferenceTypeRefund
-    - PaymentTransactionReferenceTypeContractViolation
   enum.PlatformType:
     enum:
     - IOS
@@ -1581,10 +1561,13 @@ definitions:
     - MILESTONE
     - CAMPAIGN
     - CONTRACT
-    - CONTRACT_VIOLATION
     - ORDER
     - USER
     - BRAND
+    - PAYMENT_TRANSACTION
+    - PRE_ORDER_OPENING
+    - PRE_ORDER_AUTO_RECEIVE
+    - ORDER_AUTO_RECEIVE
     - OTHER
     type: string
     x-enum-varnames:
@@ -1595,10 +1578,13 @@ definitions:
     - ReferenceTypeMilestone
     - ReferenceTypeCampaign
     - ReferenceTypeContract
-    - ReferenceTypeContractViolation
     - ReferenceTypeOrder
     - ReferenceTypeUser
     - ReferenceTypeBrand
+    - ReferenceTypePaymentTransaction
+    - ReferenceTypePreOrderOpening
+    - ReferenceTypePreOrderAutoReceive
+    - ReferenceTypeOrderAutoReceive
     - ReferenceTypeOther
   enum.ScheduleStatus:
     enum:
@@ -1652,24 +1638,6 @@ definitions:
     - UserRoleSalesStaff
     - UserRoleCustomer
     - UserRoleBrandPartner
-  enum.ViolationProofStatus:
-    enum:
-    - PENDING
-    - APPROVED
-    - REJECTED
-    type: string
-    x-enum-varnames:
-    - ViolationProofStatusPending
-    - ViolationProofStatusApproved
-    - ViolationProofStatusRejected
-  enum.ViolationType:
-    enum:
-    - BRAND
-    - KOL
-    type: string
-    x-enum-varnames:
-    - ViolationTypeBrand
-    - ViolationTypeKOL
   handler.CalculateDeliveryPriceByDimensionRequest:
     properties:
       items:
@@ -2902,14 +2870,10 @@ definitions:
         minimum: 0
         type: integer
       deposit_percent:
-        description: Deposit Information
         example: 30
         maximum: 100
         minimum: 0
         type: integer
-      deposit_proof_url:
-        example: https://example.com/deposits/proof.pdf
-        type: string
       end_date:
         example: "2023-12-31T23:59:59Z"
         type: string
@@ -3301,16 +3265,6 @@ definitions:
     required:
     - model
     - prompt
-    type: object
-  requests.InitiateViolationRequest:
-    properties:
-      reason:
-        description: ContractID is now taken from URL param
-        maxLength: 2000
-        minLength: 10
-        type: string
-    required:
-    - reason
     type: object
   requests.InputAddressRequest:
     properties:
@@ -3854,21 +3808,6 @@ definitions:
         maxLength: 2000
         type: string
     type: object
-  requests.ReviewRefundProofRequest:
-    properties:
-      action:
-        description: ViolationID is inferred from ContractID in URL
-        enum:
-        - APPROVE
-        - REJECT
-        type: string
-      reject_reason:
-        maxLength: 1000
-        minLength: 10
-        type: string
-    required:
-    - action
-    type: object
   requests.ScheduleContentRequest:
     properties:
       content_channel_id:
@@ -3902,17 +3841,6 @@ definitions:
     - email
     - password
     - username
-    type: object
-  requests.SubmitRefundProofRequest:
-    properties:
-      message:
-        maxLength: 1000
-        type: string
-      proof_url:
-        description: ViolationID is inferred from ContractID in URL
-        type: string
-    required:
-    - proof_url
     type: object
   requests.UpdateAddressProfileRequest:
     properties:
@@ -3986,6 +3914,45 @@ definitions:
     - street
     - type
     - user_id
+    type: object
+  requests.UpdateAddressRequest:
+    properties:
+      address_line_2:
+        example: Apartment, suite, unit, building, floor, etc.
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      ghn_district_id:
+        example: 3176
+        type: integer
+      ghn_province_id:
+        description: from GHN
+        example: 202
+        type: integer
+      ghn_ward_code:
+        example: "21015"
+        type: string
+      is_default:
+        type: boolean
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      street:
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/enum.AddressType'
+        enum:
+        - BILLING
+        - SHIPPING
+        example: SHIPPING
     type: object
   requests.UpdateAdminConfigRequest:
     properties:
@@ -5872,15 +5839,6 @@ definitions:
       suggested_campaign:
         $ref: '#/definitions/responses.SuggestedCampaign'
     type: object
-  responses.CampaignSummaryResponse:
-    properties:
-      id:
-        type: string
-      name:
-        type: string
-      status:
-        type: string
-    type: object
   responses.ChannelDetailsResponse:
     properties:
       affiliate_stats:
@@ -6604,12 +6562,8 @@ definitions:
         example: 3000000
         type: integer
       deposit_percent:
-        description: Deposit information
         example: 30
         type: integer
-      deposit_proof_url:
-        example: https://example.com/deposits/proof.pdf
-        type: string
       end_date:
         example: "2006-01-02 15:04:05"
         type: string
@@ -6684,10 +6638,6 @@ definitions:
       updated_at:
         example: "2006-01-02 15:04:05"
         type: string
-      violation:
-        allOf:
-        - $ref: '#/definitions/responses.ViolationResponse'
-        description: Violation Info (populated if contract is in violation status)
     type: object
   responses.ContractSummary:
     properties:
@@ -6712,21 +6662,6 @@ definitions:
       type:
         example: ADVERTISING
         type: string
-    type: object
-  responses.ContractSummaryResponse:
-    properties:
-      brand_id:
-        type: string
-      brand_name:
-        type: string
-      contract_number:
-        type: string
-      id:
-        type: string
-      status:
-        type: string
-      total_value:
-        type: number
     type: object
   responses.ContractsSummary:
     properties:
@@ -7179,19 +7114,6 @@ definitions:
         description: Value from previous period
       value:
         description: int64, float64
-    type: object
-  responses.MilestoneBreakdownDTO:
-    properties:
-      id:
-        type: string
-      linked_payment_id:
-        type: string
-      name:
-        type: string
-      percentage:
-        type: number
-      status:
-        type: string
     type: object
   responses.MilestoneResponse:
     properties:
@@ -7692,21 +7614,6 @@ definitions:
           type: object
         type: array
     type: object
-  responses.PaymentBreakdownDTO:
-    properties:
-      amount:
-        type: number
-      due_date:
-        type: string
-      id:
-        type: string
-      is_deposit:
-        type: boolean
-      milestone_id:
-        type: string
-      status:
-        type: string
-    type: object
   responses.PaymentTransactionPaginationResponse:
     properties:
       data:
@@ -7926,6 +7833,19 @@ definitions:
       weight:
         type: integer
       width:
+        type: integer
+    type: object
+  responses.PriceBreakdown:
+    properties:
+      company_amount:
+        type: number
+      company_percentage:
+        type: integer
+      item_id:
+        type: string
+      kol_amount:
+        type: number
+      kol_percentage:
         type: integer
     type: object
   responses.ProductAttributesResponse:
@@ -9576,121 +9496,6 @@ definitions:
       width:
         type: integer
     type: object
-  responses.ViolationCalculationResponse:
-    properties:
-      calculation_formula:
-        description: Calculation breakdown
-        type: string
-      completed_milestones:
-        type: integer
-      contract_id:
-        type: string
-      contract_total_value:
-        type: number
-      milestone_details:
-        items:
-          $ref: '#/definitions/responses.MilestoneBreakdownDTO'
-        type: array
-      payment_details:
-        items:
-          $ref: '#/definitions/responses.PaymentBreakdownDTO'
-        type: array
-      penalty_amount:
-        type: number
-      penalty_percentage:
-        description: Brand violation specific
-        type: number
-      refund_amount:
-        description: KOL violation specific
-        type: number
-      total_milestones:
-        type: integer
-      total_paid_by_brand:
-        type: number
-    type: object
-  responses.ViolationListResponse:
-    properties:
-      brand_id:
-        type: string
-      brand_name:
-        type: string
-      campaign_id:
-        type: string
-      campaign_name:
-        type: string
-      contract_id:
-        type: string
-      contract_number:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_resolved:
-        type: boolean
-      penalty_amount:
-        type: number
-      proof_status:
-        $ref: '#/definitions/enum.ViolationProofStatus'
-      reason:
-        type: string
-      refund_amount:
-        type: number
-      type:
-        $ref: '#/definitions/enum.ViolationType'
-    type: object
-  responses.ViolationResponse:
-    properties:
-      campaign:
-        $ref: '#/definitions/responses.CampaignSummaryResponse'
-      campaign_id:
-        type: string
-      completed_milestones:
-        type: integer
-      contract:
-        allOf:
-        - $ref: '#/definitions/responses.ContractSummaryResponse'
-        description: Related data
-      contract_id:
-        type: string
-      created_at:
-        description: Audit
-        type: string
-      id:
-        type: string
-      is_resolved:
-        type: boolean
-      penalty_amount:
-        description: Financial details
-        type: number
-      proof_review_note:
-        type: string
-      proof_reviewed_at:
-        type: string
-      proof_status:
-        allOf:
-        - $ref: '#/definitions/enum.ViolationProofStatus'
-        description: Proof handling
-      proof_submitted_at:
-        type: string
-      proof_url:
-        type: string
-      reason:
-        type: string
-      refund_amount:
-        type: number
-      resolved_at:
-        description: Resolution
-        type: string
-      total_milestones:
-        type: integer
-      total_paid_by_brand:
-        type: number
-      type:
-        $ref: '#/definitions/enum.ViolationType'
-      updated_at:
-        type: string
-    type: object
   responses.WardResponse:
     properties:
       CanUpdateCOD:
@@ -9775,6 +9580,32 @@ info:
   title: SEP490 Core Backend API
   version: "1.0"
 paths:
+  /admin/system/specs:
+    get:
+      consumes:
+      - application/json
+      description: Returns the system specifications and runtime statistics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.SystemSpecsResponse'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get System Specs
+      tags:
+      - System
   /api/v1/admin/asynq/overview:
     get:
       consumes:
@@ -9808,7 +9639,7 @@ paths:
       - BearerAuth: []
       summary: Get Asynq Overview
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/queues/pause:
     patch:
       consumes:
@@ -9840,7 +9671,7 @@ paths:
       - BearerAuth: []
       summary: Pause Queue
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/queues/stats:
     get:
       consumes:
@@ -9876,7 +9707,7 @@ paths:
       - BearerAuth: []
       summary: Get Queue Statistics
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/queues/unpause:
     patch:
       consumes:
@@ -9908,7 +9739,7 @@ paths:
       - BearerAuth: []
       summary: Unpause Queue
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/tasks:
     delete:
       consumes:
@@ -9941,7 +9772,7 @@ paths:
       - BearerAuth: []
       summary: Delete/Cancel Task
       tags:
-      - Admin.Asynq
+      - Asynq Admin
     get:
       consumes:
       - application/json
@@ -9997,7 +9828,7 @@ paths:
       - BearerAuth: []
       summary: List Asynq Tasks
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/tasks/archive:
     patch:
       consumes:
@@ -10029,7 +9860,7 @@ paths:
       - BearerAuth: []
       summary: Archive Task
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/tasks/details:
     get:
       consumes:
@@ -10074,7 +9905,7 @@ paths:
       - BearerAuth: []
       summary: Get Task Details
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/asynq/tasks/run:
     post:
       consumes:
@@ -10106,7 +9937,7 @@ paths:
       - BearerAuth: []
       summary: Run Task Immediately
       tags:
-      - Admin.Asynq
+      - Asynq Admin
   /api/v1/admin/cache/keys:
     delete:
       consumes:
@@ -10138,7 +9969,7 @@ paths:
       - BearerAuth: []
       summary: Delete Cache Key
       tags:
-      - Admin.Cache
+      - Cache Admin
     get:
       consumes:
       - application/json
@@ -10178,7 +10009,7 @@ paths:
       - BearerAuth: []
       summary: List Cache Keys
       tags:
-      - Admin.Cache
+      - Cache Admin
     post:
       consumes:
       - application/json
@@ -10209,7 +10040,7 @@ paths:
       - BearerAuth: []
       summary: Set Cache Key
       tags:
-      - Admin.Cache
+      - Cache Admin
   /api/v1/admin/cache/keys/{key}:
     get:
       consumes:
@@ -10249,7 +10080,7 @@ paths:
       - BearerAuth: []
       summary: Get Cache Key Value
       tags:
-      - Admin.Cache
+      - Cache Admin
   /api/v1/admin/cache/keys/by-pattern:
     delete:
       consumes:
@@ -10281,7 +10112,7 @@ paths:
       - BearerAuth: []
       summary: Delete Cache Keys by Pattern
       tags:
-      - Admin.Cache
+      - Cache Admin
   /api/v1/admin/cache/keys/flush:
     delete:
       consumes:
@@ -10313,7 +10144,7 @@ paths:
       - BearerAuth: []
       summary: Flush Cache Database
       tags:
-      - Admin.Cache
+      - Cache Admin
   /api/v1/admin/cache/overview:
     get:
       consumes:
@@ -10347,7 +10178,7 @@ paths:
       - BearerAuth: []
       summary: Get Cache Overview
       tags:
-      - Admin.Cache
+      - Cache Admin
   /api/v1/admin/rabbitmq/dlq/retry:
     post:
       consumes:
@@ -10393,7 +10224,7 @@ paths:
       - BearerAuth: []
       summary: Retry Dead Letter Queue Messages
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/exchanges:
     get:
       consumes:
@@ -10429,7 +10260,7 @@ paths:
       - BearerAuth: []
       summary: List RabbitMQ Exchanges
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/health:
     get:
       consumes:
@@ -10464,7 +10295,7 @@ paths:
       - BearerAuth: []
       summary: Get RabbitMQ Health
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/overview:
     get:
       consumes:
@@ -10499,7 +10330,7 @@ paths:
       - BearerAuth: []
       summary: Get RabbitMQ Overview
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/publish:
     post:
       consumes:
@@ -10539,7 +10370,7 @@ paths:
       - BearerAuth: []
       summary: Publish Message
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/queues:
     get:
       consumes:
@@ -10588,7 +10419,7 @@ paths:
       - BearerAuth: []
       summary: List RabbitMQ Queues
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/queues/{queueName}:
     get:
       consumes:
@@ -10632,7 +10463,7 @@ paths:
       - BearerAuth: []
       summary: Get Queue Details
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/queues/{queueName}/messages:
     get:
       consumes:
@@ -10691,7 +10522,7 @@ paths:
       - BearerAuth: []
       summary: Get Messages from Queue
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/queues/{queueName}/purge:
     delete:
       consumes:
@@ -10735,7 +10566,7 @@ paths:
       - BearerAuth: []
       summary: Purge Queue
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/queues/grouped:
     get:
       consumes:
@@ -10771,7 +10602,7 @@ paths:
       - BearerAuth: []
       summary: List RabbitMQ Queue Groups
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/shovels:
     get:
       consumes:
@@ -10807,7 +10638,7 @@ paths:
       - BearerAuth: []
       summary: List Shovels
       tags:
-      - Admin.RabbitMQ
+      - RabbitMQ Admin
   /api/v1/admin/rabbitmq/shovels/{shovelName}:
     delete:
       consumes:
@@ -10846,33 +10677,7 @@ paths:
       - BearerAuth: []
       summary: Delete Shovel
       tags:
-      - Admin.RabbitMQ
-  /api/v1/admin/system/specs:
-    get:
-      consumes:
-      - application/json
-      description: Returns the system specifications and runtime statistics
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.SystemSpecsResponse'
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get System Specs
-      tags:
-      - Admin.System
+      - RabbitMQ Admin
   /api/v1/affiliate-links:
     get:
       description: Retrieve a paginated list of affiliate links with optional filtering
@@ -11487,7 +11292,7 @@ paths:
       - BearerAuth: []
       summary: Get Campaigns Summary
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/contracts:
     get:
       consumes:
@@ -11521,7 +11326,7 @@ paths:
       - BearerAuth: []
       summary: Get Contracts Summary
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/dashboard:
     get:
       consumes:
@@ -11570,7 +11375,7 @@ paths:
       - BearerAuth: []
       summary: Get Admin Dashboard
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/health:
     get:
       consumes:
@@ -11605,7 +11410,7 @@ paths:
       - BearerAuth: []
       summary: Get System Health
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/revenue:
     get:
       consumes:
@@ -11657,7 +11462,7 @@ paths:
       - BearerAuth: []
       summary: Get Platform Revenue
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/user-growth:
     get:
       consumes:
@@ -11714,7 +11519,7 @@ paths:
       - BearerAuth: []
       summary: Get User Growth
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/admin/users:
     get:
       consumes:
@@ -11766,7 +11571,7 @@ paths:
       - BearerAuth: []
       summary: Get Users Overview
       tags:
-      - Analytics.Admin
+      - Admin Analytics
   /api/v1/analytics/affiliate-links/by-channel:
     get:
       consumes:
@@ -11807,7 +11612,7 @@ paths:
       - BearerAuth: []
       summary: Get analytics metrics grouped by channel
       tags:
-      - Analytics.AffiliateLinks
+      - Analytics/AffiliateLinks
   /api/v1/analytics/affiliate-links/by-contract/{contract_id}:
     get:
       consumes:
@@ -11863,7 +11668,7 @@ paths:
       - BearerAuth: []
       summary: Get analytics metrics for a specific contract
       tags:
-      - Analytics.AffiliateLinks
+      - Analytics/AffiliateLinks
   /api/v1/analytics/affiliate-links/dashboard:
     get:
       consumes:
@@ -11905,7 +11710,7 @@ paths:
       - BearerAuth: []
       summary: Get dashboard metrics with parallel aggregation
       tags:
-      - Analytics.AffiliateLinks
+      - Analytics/AffiliateLinks
   /api/v1/analytics/affiliate-links/time-series/{affiliate_link_id}:
     get:
       consumes:
@@ -11966,7 +11771,7 @@ paths:
       - BearerAuth: []
       summary: Get time-series data for a specific affiliate link
       tags:
-      - Analytics.AffiliateLinks
+      - Analytics/AffiliateLinks
   /api/v1/analytics/affiliate-links/top-performers:
     get:
       consumes:
@@ -12024,7 +11829,7 @@ paths:
       - BearerAuth: []
       summary: Get top performing affiliate links
       tags:
-      - Analytics.AffiliateLinks
+      - Analytics/AffiliateLinks
   /api/v1/analytics/brand-partner/affiliates:
     get:
       consumes:
@@ -12067,7 +11872,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Affiliate Metrics
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/campaigns:
     get:
       consumes:
@@ -12121,7 +11926,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Campaign Metrics
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/content:
     get:
       consumes:
@@ -12164,7 +11969,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Content Metrics
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/contracts:
     get:
       consumes:
@@ -12210,7 +12015,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Contract Details
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/dashboard:
     get:
       consumes:
@@ -12255,7 +12060,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand Partner Dashboard
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/revenue-trend:
     get:
       consumes:
@@ -12304,7 +12109,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Revenue Trend
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/top-products:
     get:
       consumes:
@@ -12353,7 +12158,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Top Products
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/brand-partner/top-rating-products:
     get:
       consumes:
@@ -12402,7 +12207,7 @@ paths:
       - BearerAuth: []
       summary: Get Brand's Top Rating Products
       tags:
-      - Analytics.BrandPartner
+      - Brand Partner Analytics
   /api/v1/analytics/content/channels/{id}:
     get:
       consumes:
@@ -12470,7 +12275,7 @@ paths:
       - BearerAuth: []
       summary: Get channel details
       tags:
-      - Analytics.Content
+      - Content Dashboard
   /api/v1/analytics/contents/dashboard:
     get:
       consumes:
@@ -12528,7 +12333,7 @@ paths:
       - BearerAuth: []
       summary: Get content staff dashboard
       tags:
-      - Analytics.Content
+      - Content Dashboard
   /api/v1/analytics/marketing/active-brands:
     get:
       description: Returns the total count of brands with status = 'ACTIVE'
@@ -12553,7 +12358,7 @@ paths:
       - BearerAuth: []
       summary: Get active brands count
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/active-campaigns:
     get:
       description: Returns the total count of campaigns with status = 'RUNNING'
@@ -12578,7 +12383,7 @@ paths:
       - BearerAuth: []
       summary: Get active campaigns count
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/dashboard:
     get:
       consumes:
@@ -12622,7 +12427,7 @@ paths:
       - BearerAuth: []
       summary: Get marketing analytics dashboard
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/draft-campaigns:
     get:
       description: Returns the count of campaigns with status = 'DRAFT' and contract_id
@@ -12648,7 +12453,7 @@ paths:
       - BearerAuth: []
       summary: Get draft campaigns count
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/monthly-revenue:
     get:
       consumes:
@@ -12695,7 +12500,7 @@ paths:
       - BearerAuth: []
       summary: Get monthly contract revenue
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/revenue-by-type:
     get:
       consumes:
@@ -12755,7 +12560,7 @@ paths:
       - BearerAuth: []
       summary: Get revenue breakdown by contract type
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/top-brands:
     get:
       consumes:
@@ -12817,7 +12622,7 @@ paths:
       - BearerAuth: []
       summary: Get top brands by revenue
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/marketing/upcoming-deadlines:
     get:
       consumes:
@@ -12857,7 +12662,7 @@ paths:
       - BearerAuth: []
       summary: Get campaigns approaching deadline
       tags:
-      - Analytics.Marketing
+      - Analytics/MarketingStaffs
   /api/v1/analytics/sales/financials/dashboard:
     get:
       consumes:
@@ -12935,7 +12740,7 @@ paths:
       - BearerAuth: []
       summary: Get Sales Staff Financials Dashboard
       tags:
-      - Analytics.Sales
+      - SalesStaffAnalytics
   /api/v1/analytics/sales/financials/growth:
     get:
       consumes:
@@ -12977,7 +12782,7 @@ paths:
       - BearerAuth: []
       summary: Get Revenue Growth
       tags:
-      - Analytics.Sales
+      - SalesStaffAnalytics
   /api/v1/analytics/sales/financials/trend:
     get:
       consumes:
@@ -13031,7 +12836,7 @@ paths:
       - BearerAuth: []
       summary: Get Revenue Trend
       tags:
-      - Analytics.Sales
+      - SalesStaffAnalytics
   /api/v1/analytics/sales/orders/dashboard:
     get:
       consumes:
@@ -13099,7 +12904,7 @@ paths:
       - BearerAuth: []
       summary: Get Sales Staff Orders Dashboard
       tags:
-      - Analytics.Sales
+      - SalesStaffAnalytics
   /api/v1/analytics/sales/orders/trend:
     get:
       consumes:
@@ -13149,7 +12954,7 @@ paths:
       - BearerAuth: []
       summary: Get Orders Trend
       tags:
-      - Analytics.Sales
+      - SalesStaffAnalytics
   /api/v1/auth/change-password:
     post:
       consumes:
@@ -16850,116 +16655,6 @@ paths:
       summary: Approve contract
       tags:
       - Contracts
-  /api/v1/contracts/{id}/report-brand-violation:
-    post:
-      consumes:
-      - application/json
-      description: Creates a brand violation record and transitions contract to BRAND_VIOLATED
-        status
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Violation data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.InitiateViolationRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Violation created successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Active violation already exists
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Initiate brand violation
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/report-kol-violation:
-    post:
-      consumes:
-      - application/json
-      description: Creates a KOL violation record and transitions contract to KOL_VIOLATED
-        status
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Violation data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.InitiateViolationRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Violation created successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "409":
-          description: Active violation already exists
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Initiate KOL violation
-      tags:
-      - Contract Violations
   /api/v1/contracts/{id}/scope-of-work:
     get:
       consumes:
@@ -17055,318 +16750,6 @@ paths:
       summary: Update Contract State
       tags:
       - State Transfer
-  /api/v1/contracts/{id}/violation:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves active violation for a contract
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Violation details
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid contract ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: No active violation found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get violation by contract
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/calculate/brand:
-    get:
-      consumes:
-      - application/json
-      description: Calculates the penalty amount for a brand violation
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Calculation result
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationCalculationResponse'
-              type: object
-        "400":
-          description: Invalid contract ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Calculate brand penalty
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/calculate/kol:
-    get:
-      consumes:
-      - application/json
-      description: Calculates the refund amount for a KOL violation
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Calculation result
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationCalculationResponse'
-              type: object
-        "400":
-          description: Invalid contract ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Contract not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Calculate KOL refund
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/create-penalty-payment:
-    post:
-      consumes:
-      - application/json
-      description: Creates a PayOS payment link for brand penalty and transitions
-        to BRAND_PENALTY_PENDING
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment link created
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.PayOSLinkResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Violation not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Create penalty payment link
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/resolve:
-    post:
-      consumes:
-      - application/json
-      description: Marks a violation as resolved and terminates the contract
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Violation resolved
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Invalid contract ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Violation not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Resolve violation
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/review-proof:
-    post:
-      consumes:
-      - application/json
-      description: Brand reviews KOL's refund proof (approve/reject)
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Review data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.ReviewRefundProofRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Proof reviewed
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Violation not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Review refund proof
-      tags:
-      - Contract Violations
-  /api/v1/contracts/{id}/violation/submit-proof:
-    post:
-      consumes:
-      - application/json
-      description: Marketing Staff submits proof of refund for Brand approval
-      parameters:
-      - description: Contract ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Proof data
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/requests.SubmitRefundProofRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Proof submitted
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Violation not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Submit refund proof
-      tags:
-      - Contract Violations
   /api/v1/contracts/async:
     post:
       consumes:
@@ -18747,6 +18130,97 @@ paths:
       summary: Create a new shipping address for the authenticated user
       tags:
       - location
+  /api/v1/location/address/{address-id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete an existing shipping address belonging to the authenticated
+        user
+      parameters:
+      - description: Address ID
+        in: path
+        name: address-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Address deleted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a shipping address for the authenticated user
+      tags:
+      - location
+    put:
+      consumes:
+      - application/json
+      description: Update an existing shipping address belonging to the authenticated
+        user
+      parameters:
+      - description: Address ID
+        in: path
+        name: address-id
+        required: true
+        type: string
+      - description: Address update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Address updated
+          schema:
+            $ref: '#/definitions/responses.ShippingAddressResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a shipping address for the authenticated user
+      tags:
+      - location
   /api/v1/location/address/{address-id}/default:
     patch:
       consumes:
@@ -19581,6 +19055,54 @@ paths:
       summary: Request compensation for an order
       tags:
       - Orders.States
+  /api/v1/orders/{orderID}/price-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: Returns breakdown of each order item with company and KOL percentage
+        splits and amounts
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Order type (LIMITED or STANDARD)
+        in: query
+        name: orderType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.PriceBreakdown'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get order price breakdown with profit split percentages
+      tags:
+      - Orders
   /api/v1/orders/{orderID}/refund:
     post:
       consumes:
@@ -20974,6 +20496,49 @@ paths:
       - BearerAuth: []
       tags:
       - Preorders
+  /api/v1/preorders/{preOrderID}/price-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: Returns breakdown of the preorder with company and KOL percentage
+        splits and amounts
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.PriceBreakdown'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get preorder price breakdown with profit split percentages
+      tags:
+      - Preorders
   /api/v1/preorders/refund/{preOrderID}:
     post:
       consumes:
@@ -22019,6 +21584,124 @@ paths:
       tags:
       - Products.Variants
   /api/v1/products/limited:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get paginated list of LIMITED products with special date filters for PreOrder and Order windows.
+        - FilterPreOrder=true: Returns products where current time is between PremiereDate and AvailabilityStartDate (preorder window)
+        - FilterOrder=true: Returns products where current time is between AvailabilityStartDate and AvailabilityEndDate (order window)
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: Filter by brand UUID
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by brand owner user UUID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by product status
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        in: query
+        name: status
+        type: string
+      - description: Filter products in PreOrder window (between PremiereDate and
+          AvailabilityStartDate)
+        in: query
+        name: filter_preorder
+        type: boolean
+      - description: Filter products in Order window (between AvailabilityStartDate
+          and AvailabilityEndDate)
+        in: query
+        name: filter_order
+        type: boolean
+      - description: Filter PremiereDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: premiere_date_from
+        type: string
+      - description: Filter PremiereDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: premiere_date_to
+        type: string
+      - description: Filter AvailabilityStartDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: availability_start_date_from
+        type: string
+      - description: Filter AvailabilityStartDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: availability_start_date_to
+        type: string
+      - description: Filter AvailabilityEndDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: availability_end_date_from
+        type: string
+      - description: Filter AvailabilityEndDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: availability_end_date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Limited products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponseV2'
+                type: array
+              pagination:
+                $ref: '#/definitions/responses.Pagination'
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Limited Products
+      tags:
+      - Products.Limited
     post:
       consumes:
       - application/json
@@ -22434,6 +22117,82 @@ paths:
       tags:
       - Products
   /api/v1/products/standard:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of STANDARD products. Admin/Staff get full view,
+        others get partial view.
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: Filter by brand UUID
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by brand owner user UUID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by product status
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Standard products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponseV2'
+                type: array
+              pagination:
+                $ref: '#/definitions/responses.Pagination'
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Standard Products
+      tags:
+      - Products.Standard
     post:
       consumes:
       - application/json
@@ -24736,107 +24495,6 @@ paths:
       summary: Create Variant Attribute
       tags:
       - Products.Variants.Attributes
-  /api/v1/violations:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves a paginated list of contract violations with filtering
-      parameters:
-      - description: Filter by violation type (BRAND/KOL)
-        in: query
-        name: type
-        type: string
-      - description: Filter by resolution status
-        in: query
-        name: is_resolved
-        type: boolean
-      - description: Filter by proof status
-        in: query
-        name: proof_status
-        type: string
-      - description: Filter by contract ID
-        in: query
-        name: contract_id
-        type: string
-      - description: Filter by campaign ID
-        in: query
-        name: campaign_id
-        type: string
-      - description: 'Page number (default: 1)'
-        in: query
-        name: page
-        type: integer
-      - description: 'Page size (default: 10, max: 100)'
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Violations list
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/responses.ViolationListResponse'
-                  type: array
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: List violations
-      tags:
-      - Contract Violations
-  /api/v1/violations/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves detailed information about a contract violation
-      parameters:
-      - description: Violation ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Violation details
-          schema:
-            allOf:
-            - $ref: '#/definitions/responses.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/responses.ViolationResponse'
-              type: object
-        "400":
-          description: Invalid violation ID
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "404":
-          description: Violation not found
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Get violation details
-      tags:
-      - Contract Violations
   /health:
     get:
       consumes:

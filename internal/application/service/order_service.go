@@ -124,10 +124,10 @@ func (o *orderService) GetOrderPricePercentage(ctx context.Context, orderID uuid
 		for _, item := range order.OrderItems {
 			breakdown := responses.PriceBreakdown{
 				ItemID:            item.ID,
-				CompanyPercentage: 100,
-				KOLPercentage:     0,
-				CompanyAmount:     item.Subtotal,
-				KOLAmount:         float64(0),
+				CompanyPercentage: 0,
+				KOLPercentage:     100,
+				CompanyAmount:     0,
+				KOLAmount:         item.Subtotal,
 			}
 			breakdowns = append(breakdowns, breakdown)
 		}
