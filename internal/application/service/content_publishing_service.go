@@ -646,7 +646,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 	// This will only required one step.
 	initReq := &dtos.TikTokVideoInitRequest{
 		PostInfo: dtos.TikTokPostInfo{
-			PrivacyLevel:       dtos.TikTokPrivacyLevelSelfOnly,
+			PrivacyLevel:       dtos.TikTokPrivacyLevelPublicToEveryone,
 			Title:              videoInfo.Title,
 			DisableDuet:        creatorInfo.Data.DuetDisabled,
 			DisableStitch:      creatorInfo.Data.StitchDisabled,
