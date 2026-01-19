@@ -25,7 +25,7 @@ func NewSalesStaffAnalyticsHandler(service iservice.SalesStaffAnalyticsService) 
 //
 //	@Summary		Get Sales Staff Financials Dashboard
 //	@Description	Get aggregated financial metrics, charts, and top lists
-//	@Tags			SalesStaffAnalytics
+//	@Tags			Analytics.Sales
 //	@Accept			json
 //	@Produce		json
 //	@Param			from_date		query		string	false	"From Date (YYYY-MM-DD)"
@@ -61,7 +61,7 @@ func (h *SalesStaffAnalyticsHandler) GetFinancialsDashboard(c *gin.Context) {
 //
 //	@Summary		Get Sales Staff Orders Dashboard
 //	@Description	Get aggregated order metrics, charts, and top lists
-//	@Tags			SalesStaffAnalytics
+//	@Tags			Analytics.Sales
 //	@Accept			json
 //	@Produce		json
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
@@ -96,7 +96,7 @@ func (h *SalesStaffAnalyticsHandler) GetOrdersDashboard(c *gin.Context) {
 //
 //	@Summary		Get Revenue Trend
 //	@Description	Get revenue trend charts
-//	@Tags			SalesStaffAnalytics
+//	@Tags			Analytics.Sales
 //	@Accept			json
 //	@Produce		json
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
@@ -128,7 +128,7 @@ func (h *SalesStaffAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 //
 //	@Summary		Get Orders Trend
 //	@Description	Get orders trend charts
-//	@Tags			SalesStaffAnalytics
+//	@Tags			Analytics.Sales
 //	@Accept			json
 //	@Produce		json
 //	@Param			from_date	query		string	false	"From Date (YYYY-MM-DD)"
@@ -160,7 +160,7 @@ func (h *SalesStaffAnalyticsHandler) GetOrdersTrend(c *gin.Context) {
 //
 //	@Summary		Get Revenue Growth
 //	@Description	Get revenue growth percentage
-//	@Tags			SalesStaffAnalytics
+//	@Tags			Analytics.Sales
 //	@Accept			json
 //	@Produce		json
 //	@Param			compare_with	query		string	false	"Compare With (previous day/week/month/quarter/year)"	enums(day, week, month, quarter, year)

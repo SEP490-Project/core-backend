@@ -21,6 +21,7 @@ type UnitOfWork interface {
 	LoggedSessions() GenericRepository[model.LoggedSession]
 	Contracts() ContractRepository
 	ContractPayments() ContractPaymentRepository
+	ContractViolations() ContractViolationRepository
 	Campaigns() GenericRepository[model.Campaign]
 	Milestones() GenericRepository[model.Milestone]
 	Tasks() TaskRepository

@@ -6,6 +6,7 @@ import (
 	asynqtask "core-backend/internal/application/dto/asynq_tasks"
 	"core-backend/internal/application/dto/consumers"
 	"core-backend/internal/application/dto/dtos"
+	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
@@ -37,28 +38,29 @@ import (
 )
 
 type stateTransferService struct {
-	contractRepository        irepository.GenericRepository[model.Contract]
-	contractPaymentRepository irepository.ContractPaymentRepository
-	campaignRepository        irepository.GenericRepository[model.Campaign]
-	milestoneRepository       irepository.GenericRepository[model.Milestone]
-	taskRepository            irepository.GenericRepository[model.Task]
-	productRepository         irepository.GenericRepository[model.Product]
-	orderRepository           irepository.GenericRepository[model.Order]
-	preOrderRepository        irepository.PreOrderRepository
-	variantRepository         irepository.GenericRepository[model.ProductVariant]
-	affiliateLinkRepository   irepository.AffiliateLinkRepository
-	userRepository            irepository.GenericRepository[model.User]
-	contentRepository         irepository.ContentRepository
-	notificationService       iservice.NotificationService
-	scheduleRepo              irepository.ScheduleRepository
-	scheduleService           iservice.ScheduleService
-	uow                       irepository.UnitOfWork
-	rabbitMQ                  *rabbitmq.RabbitMQ
-	ghnProxy                  iproxies.GHNProxy
-	adminConfig               config.AdminConfig
-	config                    *config.AppConfig
-	taskScheduler             *asynq.AsynqClient
-	asynqConfig               *config.AsynqConfig
+	contractRepository          irepository.GenericRepository[model.Contract]
+	contractPaymentRepository   irepository.ContractPaymentRepository
+	contractViolationRepository irepository.ContractViolationRepository
+	campaignRepository          irepository.GenericRepository[model.Campaign]
+	milestoneRepository         irepository.GenericRepository[model.Milestone]
+	taskRepository              irepository.GenericRepository[model.Task]
+	productRepository           irepository.GenericRepository[model.Product]
+	orderRepository             irepository.GenericRepository[model.Order]
+	preOrderRepository          irepository.PreOrderRepository
+	variantRepository           irepository.GenericRepository[model.ProductVariant]
+	affiliateLinkRepository     irepository.AffiliateLinkRepository
+	userRepository              irepository.GenericRepository[model.User]
+	contentRepository           irepository.ContentRepository
+	notificationService         iservice.NotificationService
+	scheduleRepo                irepository.ScheduleRepository
+	scheduleService             iservice.ScheduleService
+	uow                         irepository.UnitOfWork
+	rabbitMQ                    *rabbitmq.RabbitMQ
+	ghnProxy                    iproxies.GHNProxy
+	adminConfig                 config.AdminConfig
+	config                      *config.AppConfig
+	taskScheduler               *asynq.AsynqClient
+	asynqConfig                 *config.AsynqConfig
 }
 
 func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
@@ -609,12 +611,34 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 
 	// Side-effects after state transitioning
 	switch targetState {
+	case enum.ContractStatusBrandPenaltyPaid, enum.ContractStatusKOLRefundApproved:
+		if targetState == enum.ContractStatusBrandPenaltyPaid {
+			zap.L().Info("Brand penalty paid - preparing for contract termination",
+				zap.String("contract_id", contractID.String()))
+		} else {
+			zap.L().Info("KOL refund approved - preparing for contract termination",
+				zap.String("contract_id", contractID.String()))
+		}
+
+		// Auto-transition to TERMINATED
+		zap.L().Info("Auto-transitioning contract to TERMINATED from "+targetState.String(), zap.String("contract_id", contractID.String()))
+		if err := t.MoveContractToState(ctx, trx, contractID, enum.ContractStatusTerminated, updatedBy); err != nil {
+			return err
+		}
+
 	// Terminate contract -> cascade cancel related campaign, milestones, tasks, contents, and products
 	case enum.ContractStatusTerminated:
 		if contract.Campaign == nil {
 			break
 		}
 		camp := contract.Campaign
+		if err := milestoneRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("campaign_id = ? AND status <> ?", camp.ID, enum.MilestoneStatusCancelled)
+		}, map[string]any{"status": enum.MilestoneStatusCancelled}); err != nil {
+			zap.L().Error("Failed cancel milestones (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
+			return errors.New("cascade milestone cancel failed: " + err.Error())
+		}
+
 		// Batch cancel milestones
 		if err := milestoneRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 			return db.Where("campaign_id = ? AND status <> ?", camp.ID, enum.MilestoneStatusCancelled)
@@ -624,14 +648,17 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		}
 		// Batch cancel tasks
 		if err := taskRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("milestone_id IN (?) AND status <> ?", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", camp.ID), enum.TaskStatusCancelled)
+			return db.Where("milestone_id = ? AND status <> ?", camp.ID, enum.TaskStatusCancelled)
 		}, map[string]any{"status": enum.TaskStatusCancelled}); err != nil {
 			zap.L().Error("Failed cancel tasks (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
 			return errors.New("cascade task cancel failed: " + err.Error())
 		}
 		// Batch inactivate products
 		if err := productRepo.UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
-			return db.Where("task_id IN (?) AND status <> ?", db.Select("t.id").Table("tasks as t").Where("t.milestone_id IN (?)", db.Select("id").Model(&model.Milestone{}).Where("campaign_id = ?", camp.ID)), enum.ProductStatusInactived)
+			var taskIDs []any
+			_ = trx.DB().Model(new(model.Task)).Where("milestone_id = ?", camp.ID).Pluck("id", &taskIDs).Error
+			return db.
+				Where("products.task_id IN (?) AND products.status <> ?", taskIDs, enum.ProductStatusInactived)
 		}, map[string]any{"status": enum.ProductStatusInactived}); err != nil {
 			zap.L().Error("Failed inactivate products (contract)", zap.String("contract_id", contractID.String()), zap.Error(err))
 			return errors.New("cascade product inactivate failed: " + err.Error())
@@ -704,6 +731,58 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			}
 		}
 
+	case enum.ContractStatusKOLProofRejected:
+		zap.L().Info("KOL proof rejected - KOL may resubmit",
+			zap.String("contract_id", contractID.String()))
+
+		// Send notification to KOL about proof rejection
+		go func() {
+			ctxBg := context.Background()
+			contract, err := t.contractRepository.GetByID(ctxBg, contractID, nil)
+			if err != nil {
+				zap.L().Error("Failed to get contract for proof rejection notification", zap.Error(err))
+				return
+			}
+
+			if contract.RepresentativeEmail != nil {
+				// Find User by email
+				user, err := t.userRepository.GetByCondition(ctxBg, func(db *gorm.DB) *gorm.DB {
+					return db.Where("email = ?", *contract.RepresentativeEmail)
+				}, nil)
+
+				if err == nil && user != nil {
+					contractNumber := "N/A"
+					if contract.ContractNumber != nil {
+						contractNumber = *contract.ContractNumber
+					}
+
+					templateData := map[string]any{
+						"KOLName":        user.FullName,
+						"ContractNumber": contractNumber,
+						"SupportLink":    t.config.Server.BaseFrontendURL + "/support",
+						"CurrentYear":    time.Now().Year(),
+					}
+
+					req := requests.PublishNotificationRequest{
+						UserID:            user.ID,
+						Title:             "Refund Proof Rejected",
+						Body:              fmt.Sprintf("Your refund proof for contract %s has been rejected. Please review and resubmit.", contractNumber),
+						Data:              map[string]string{"contract_id": contractID.String()},
+						Types:             []enum.NotificationType{enum.NotificationTypeEmail, enum.NotificationTypeInApp},
+						EmailTemplateName: utils.PtrOrNil("kol_proof_rejected"),
+						EmailTemplateData: templateData,
+					}
+					if _, err = t.notificationService.CreateAndPublishNotification(ctxBg, &req); err != nil {
+						zap.L().Error("Failed to send proof rejection notification", zap.Error(err))
+					}
+				} else {
+					zap.L().Warn("Could not find KOL user by representative email",
+						zap.String("email", *contract.RepresentativeEmail),
+						zap.Error(err))
+				}
+			}
+		}()
+
 	case enum.ContractStatusApproved:
 		// Create contract payment based on the contract by publishing to RabbitMQ exchange
 		contractCreatePaymentProducer, err := t.rabbitMQ.GetProducer("contract-create-payment-producer")
@@ -724,6 +803,37 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		zap.L().Info("Successfully published contract create payment message",
 			zap.String("contract_id", contractID.String()),
 			zap.String("user_id", updatedBy.String()))
+
+	// Brand Violation Flow - notify brand and staff about violation status changes
+	case enum.ContractStatusBrandViolated:
+		zap.L().Info("Contract moved to BRAND_VIOLATED state",
+			zap.String("contract_id", contractID.String()),
+			zap.String("brand_id", contract.BrandID.String()))
+		// Notification to brand will be handled by violation service
+
+	case enum.ContractStatusBrandPenaltyPending:
+		zap.L().Info("Contract moved to BRAND_PENALTY_PENDING state - payment link should be sent",
+			zap.String("contract_id", contractID.String()))
+
+	// Brand penalty paid log handled above in merge case
+
+	// KOL Violation Flow - notify KOL and staff about refund status changes
+	case enum.ContractStatusKOLViolated:
+		zap.L().Info("Contract moved to KOL_VIOLATED state",
+			zap.String("contract_id", contractID.String()))
+		// Notification to KOL will be handled by violation service
+
+	case enum.ContractStatusKOLRefundPending:
+		zap.L().Info("Contract moved to KOL_REFUND_PENDING state - waiting for KOL proof",
+			zap.String("contract_id", contractID.String()))
+
+	case enum.ContractStatusKOLProofSubmitted:
+		zap.L().Info("KOL proof submitted - awaiting admin review",
+			zap.String("contract_id", contractID.String()))
+
+	// KOL proof rejected log handled above in merge case
+
+	// KOL refund approved log handled above in merge case
 
 	default:
 		zap.L().Debug("There are no side-effects to be applied to the contract after transitioning",
@@ -994,6 +1104,17 @@ func (t stateTransferService) MovePaymentTransactionToState(ctx context.Context,
 			return errors.New("unable to find pre-order: " + err.Error())
 		}
 		transactionCtx.PreOrder = preorder
+
+	case enum.PaymentTransactionReferenceTypeContractViolation:
+		var violation *model.ContractViolation
+		violation, err = t.contractViolationRepository.GetByID(ctx, transaction.ReferenceID, []string{"Contract"})
+		if err != nil {
+			zap.L().Error("Failed to load contract violation",
+				zap.String("violation_id", transaction.ReferenceID.String()),
+				zap.Error(err))
+			return errors.New("unable to find contract violation: " + err.Error())
+		}
+		transactionCtx.ContractViolation = violation
 	}
 
 	// 4. Initialize target state
@@ -1156,6 +1277,8 @@ func (t stateTransferService) handlePaymentTransactionSideEffects(
 		return t.handleOrderSideEffect(ctx, uow, transactionCtx.Order, targetState, updatedBy)
 	case enum.PaymentTransactionReferenceTypePreOrder:
 		return t.handlePreOrderSideEffect(ctx, uow, transactionCtx.PreOrder, targetState, updatedBy)
+	case enum.PaymentTransactionReferenceTypeContractViolation:
+		return t.handleContractViolationSideEffect(ctx, uow, transactionCtx.ContractViolation, targetState, updatedBy)
 	default:
 		zap.L().Warn("Unknown reference type, skipping side effects",
 			zap.String("reference_type", string(transactionCtx.ReferenceType)))
@@ -1501,6 +1624,130 @@ func (t stateTransferService) handlePreOrderSideEffect(
 
 }
 
+// handleContractViolationSideEffect handles contract violation penalty payment completion
+func (t stateTransferService) handleContractViolationSideEffect(
+	ctx context.Context,
+	uow irepository.UnitOfWork,
+	violation *model.ContractViolation,
+	transactionStatus enum.PaymentTransactionStatus,
+	updatedBy uuid.UUID,
+) error {
+	if violation == nil {
+		return errors.New("contract violation is nil")
+	}
+
+	contractViolationRepo := uow.ContractViolations()
+
+	switch transactionStatus {
+	case enum.PaymentTransactionStatusCompleted:
+		zap.L().Info("Processing brand penalty payment completion",
+			zap.String("violation_id", violation.ID.String()),
+			zap.String("contract_id", violation.ContractID.String()))
+
+		// Mark violation as resolved
+		now := time.Now()
+		violation.ResolvedAt = &now
+		if updatedBy != uuid.Nil {
+			violation.ResolvedBy = &updatedBy
+			violation.UpdatedBy = &updatedBy
+		}
+
+		if err := contractViolationRepo.Update(ctx, violation); err != nil {
+			zap.L().Error("Failed to mark violation as resolved",
+				zap.String("violation_id", violation.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to mark violation as resolved: " + err.Error())
+		}
+
+		// Transition contract to BRAND_PENALTY_PAID state
+		// This should trigger auto-transition to TERMINATED via FSM side effects
+		if err := t.MoveContractToState(ctx, uow, violation.ContractID, enum.ContractStatusBrandPenaltyPaid, updatedBy); err != nil {
+			zap.L().Error("Failed to move contract to BRAND_PENALTY_PAID",
+				zap.String("contract_id", violation.ContractID.String()),
+				zap.Error(err))
+			return errors.New("failed to update contract status: " + err.Error())
+		}
+
+		zap.L().Info("Brand penalty payment processed, contract moved to BRAND_PENALTY_PAID",
+			zap.String("violation_id", violation.ID.String()),
+			zap.String("contract_id", violation.ContractID.String()))
+
+		// Send notification asynchronously
+		go func() {
+			ctxBg := context.Background()
+
+			// Get contract with brand details for notification
+			contract, err := t.contractRepository.GetByID(ctxBg, violation.ContractID, []string{"Brand", "Brand.User"})
+			if err != nil {
+				zap.L().Error("Failed to get contract for penalty payment notification", zap.Error(err))
+				return
+			}
+
+			if contract.Brand != nil && contract.Brand.UserID != nil {
+				contractNumber := "N/A"
+				if contract.ContractNumber != nil {
+					contractNumber = *contract.ContractNumber
+				}
+
+				templateData := map[string]any{
+					"BrandName":      contract.Brand.Name,
+					"ContractNumber": contractNumber,
+					"SupportLink":    t.config.Server.BaseFrontendURL + "/support",
+					"CurrentYear":    time.Now().Year(),
+				}
+
+				notificationReq := requests.PublishNotificationRequest{
+					UserID: *contract.Brand.UserID,
+					Title:  "Penalty Payment Received",
+					Body:   fmt.Sprintf("Your penalty payment for contract %s has been received. The violation has been resolved.", contractNumber),
+					Data: map[string]string{
+						"violation_id":    violation.ID.String(),
+						"contract_id":     contract.ID.String(),
+						"contract_number": contractNumber,
+						"reference_type":  enum.ReferenceTypeContractViolation.String(),
+						"reference_id":    violation.ID.String(),
+					},
+					Types:             []enum.NotificationType{enum.NotificationTypeInApp, enum.NotificationTypeEmail},
+					EmailTemplateName: utils.PtrOrNil("brand_penalty_paid"),
+					EmailTemplateData: templateData,
+				}
+
+				if _, err := t.notificationService.CreateAndPublishNotification(ctxBg, &notificationReq); err != nil {
+					zap.L().Error("Failed to send penalty payment confirmation notification", zap.Error(err))
+				}
+			}
+		}()
+
+	case enum.PaymentTransactionStatusFailed, enum.PaymentTransactionStatusCancelled, enum.PaymentTransactionStatusExpired:
+		zap.L().Warn("Brand penalty payment failed/cancelled/expired",
+			zap.String("violation_id", violation.ID.String()),
+			zap.String("transaction_status", string(transactionStatus)))
+		// Payment not completed - remove payment_transaction_id reference in contract violation
+		if err := uow.ContractViolations().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", violation.ID)
+		}, map[string]any{"payment_transaction_id": nil}); err != nil {
+			zap.L().Error("Failed to clear payment transaction reference from violation",
+				zap.String("violation_id", violation.ID.String()),
+				zap.Error(err))
+			return errors.New("failed to clear payment transaction reference: " + err.Error())
+		}
+
+		zap.L().Info("Cleared payment transaction reference from contract violation due to payment failure",
+			zap.String("violation_id", violation.ID.String()),
+			zap.String("transaction_status", string(transactionStatus)))
+
+	default:
+		zap.L().Debug("No contract violation side-effect for transaction status",
+			zap.String("transaction_status", string(transactionStatus)))
+	}
+
+	zap.L().Info("Contract violation side-effect processing completed",
+		zap.String("violation_id", violation.ID.String()),
+		zap.String("transaction_status", string(transactionStatus)))
+
+	return nil
+}
+
 // handleOrderStatusSideEffect: handler side effect of OrderStatus itself
 func (t stateTransferService) handleOrderStatusSideEffect(
 	ctx context.Context,
@@ -1627,28 +1874,29 @@ func NewStateTransferService(
 	configs *config.AppConfig,
 ) iservice.StateTransferService {
 	return &stateTransferService{
-		contractRepository:        dbReg.ContractRepository,
-		contractPaymentRepository: dbReg.ContractPaymentRepository,
-		campaignRepository:        dbReg.CampaignRepository,
-		milestoneRepository:       dbReg.MilestoneRepository,
-		taskRepository:            dbReg.TaskRepository,
-		productRepository:         dbReg.ProductRepository,
-		affiliateLinkRepository:   dbReg.AffiliateLinkRepository,
-		orderRepository:           dbReg.OrderRepository,
-		preOrderRepository:        dbReg.PreOrderRepository,
-		variantRepository:         dbReg.ProductVariantRepository,
-		userRepository:            dbReg.UserRepository,
-		contentRepository:         dbReg.ContentRepository,
-		scheduleRepo:              dbReg.ScheduleRepository,
-		notificationService:       notificationService,
-		scheduleService:           scheduleService,
-		uow:                       uow,
-		rabbitMQ:                  rabbitmq,
-		ghnProxy:                  ghnProxy,
-		config:                    configs,
-		adminConfig:               configs.AdminConfig,
-		taskScheduler:             taskScheduler,
-		asynqConfig:               &configs.Asynq,
+		contractRepository:          dbReg.ContractRepository,
+		contractPaymentRepository:   dbReg.ContractPaymentRepository,
+		contractViolationRepository: dbReg.ContractViolationRepository,
+		campaignRepository:          dbReg.CampaignRepository,
+		milestoneRepository:         dbReg.MilestoneRepository,
+		taskRepository:              dbReg.TaskRepository,
+		productRepository:           dbReg.ProductRepository,
+		affiliateLinkRepository:     dbReg.AffiliateLinkRepository,
+		orderRepository:             dbReg.OrderRepository,
+		preOrderRepository:          dbReg.PreOrderRepository,
+		variantRepository:           dbReg.ProductVariantRepository,
+		userRepository:              dbReg.UserRepository,
+		contentRepository:           dbReg.ContentRepository,
+		notificationService:         notificationService,
+		scheduleRepo:                dbReg.ScheduleRepository,
+		scheduleService:             scheduleService,
+		uow:                         uow,
+		rabbitMQ:                    rabbitmq,
+		ghnProxy:                    ghnProxy,
+		config:                      configs,
+		adminConfig:                 configs.AdminConfig,
+		taskScheduler:               taskScheduler,
+		asynqConfig:                 &configs.Asynq,
 	}
 }
 

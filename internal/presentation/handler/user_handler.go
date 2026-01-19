@@ -227,11 +227,14 @@ func (h *UserHandler) GetUserByID(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/users/{id}/status [put]
 func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
-	userIDParam := c.Param("id")
-	userID, err := uuid.Parse(userIDParam)
+	updatedUserID, err := extractUserID(c)
 	if err != nil {
-		response := responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest)
-		c.JSON(http.StatusBadRequest, response)
+		responses := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, responses)
+	}
+	userID, err := extractParamID(c, "id")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid user ID: "+err.Error(), http.StatusBadRequest))
 		return
 	}
 
@@ -248,7 +251,7 @@ func (h *UserHandler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, *request.IsActive)
+	err = h.userService.UpdateUserStatus(c.Request.Context(), userID, *request.IsActive, updatedUserID)
 	if err != nil {
 		response := responses.ErrorResponse("Failed to update user status: "+err.Error(), http.StatusInternalServerError)
 		c.JSON(http.StatusInternalServerError, response)

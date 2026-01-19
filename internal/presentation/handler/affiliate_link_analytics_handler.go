@@ -24,7 +24,7 @@ func NewAffiliateLinkAnalyticsHandler(analyticsService iservice.AffiliateLinkAna
 //
 //	@Summary		Get analytics metrics for a specific contract
 //	@Description	Retrieves click metrics, CTR, top channels, and top links for a contract
-//	@Tags			Analytics/AffiliateLinks
+//	@Tags			Analytics.AffiliateLinks
 //	@Accept			json
 //	@Produce		json
 //	@Param			contract_id	path		string	true	"Contract ID"			format(uuid)
@@ -86,7 +86,7 @@ func (h *AffiliateLinkAnalyticsHandler) GetMetricsByContract(c *gin.Context) {
 //
 //	@Summary		Get analytics metrics grouped by channel
 //	@Description	Retrieves aggregated metrics for all channels with comparison data
-//	@Tags			Analytics/AffiliateLinks
+//	@Tags			Analytics.AffiliateLinks
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601)"	format(date-time)
@@ -122,7 +122,7 @@ func (h *AffiliateLinkAnalyticsHandler) GetMetricsByChannel(c *gin.Context) {
 //
 //	@Summary		Get time-series data for a specific affiliate link
 //	@Description	Retrieves time-bucketed click data for trend analysis
-//	@Tags			Analytics/AffiliateLinks
+//	@Tags			Analytics.AffiliateLinks
 //	@Accept			json
 //	@Produce		json
 //	@Param			affiliate_link_id	path		string	true	"Affiliate Link ID"		format(uuid)
@@ -169,7 +169,7 @@ func (h *AffiliateLinkAnalyticsHandler) GetTimeSeriesData(c *gin.Context) {
 //
 //	@Summary		Get top performing affiliate links
 //	@Description	Retrieves ranked list of best performing links based on sorting criteria
-//	@Tags			Analytics/AffiliateLinks
+//	@Tags			Analytics.AffiliateLinks
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601)"	format(date-time)
@@ -207,7 +207,7 @@ func (h *AffiliateLinkAnalyticsHandler) GetTopPerformers(c *gin.Context) {
 //
 //	@Summary		Get dashboard metrics with parallel aggregation
 //	@Description	Retrieves overview metrics, top contracts, channels, recent activity, and trends
-//	@Tags			Analytics/AffiliateLinks
+//	@Tags			Analytics.AffiliateLinks
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601)"	format(date-time)

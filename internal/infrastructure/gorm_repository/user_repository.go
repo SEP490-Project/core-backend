@@ -35,3 +35,18 @@ func (u *userRepository) GetUserIDsByFilter(ctx context.Context, filter func(*go
 
 	return userIDs, nil
 }
+
+func (u *userRepository) GetContractIDsByUserBrandID(ctx context.Context, userbrandID uuid.UUID) ([]uuid.UUID, error) {
+	query := u.db.WithContext(ctx).Model(new(model.Brand))
+	contractIDs := make([]uuid.UUID, 0)
+
+	if err := query.
+		Where("brands.user_id = ?", userbrandID).
+		Joins("JOIN contracts ON contracts.brand_id = brands.id").
+		Pluck("contracts.id", &contractIDs).
+		Error; err != nil {
+		return nil, err
+	}
+
+	return contractIDs, nil
+}

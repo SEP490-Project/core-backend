@@ -1564,6 +1564,10 @@ definitions:
     - ORDER
     - USER
     - BRAND
+    - PAYMENT_TRANSACTION
+    - PRE_ORDER_OPENING
+    - PRE_ORDER_AUTO_RECEIVE
+    - ORDER_AUTO_RECEIVE
     - OTHER
     type: string
     x-enum-varnames:
@@ -1577,6 +1581,10 @@ definitions:
     - ReferenceTypeOrder
     - ReferenceTypeUser
     - ReferenceTypeBrand
+    - ReferenceTypePaymentTransaction
+    - ReferenceTypePreOrderOpening
+    - ReferenceTypePreOrderAutoReceive
+    - ReferenceTypeOrderAutoReceive
     - ReferenceTypeOther
   enum.ScheduleStatus:
     enum:
@@ -3906,6 +3914,45 @@ definitions:
     - street
     - type
     - user_id
+    type: object
+  requests.UpdateAddressRequest:
+    properties:
+      address_line_2:
+        example: Apartment, suite, unit, building, floor, etc.
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      ghn_district_id:
+        example: 3176
+        type: integer
+      ghn_province_id:
+        description: from GHN
+        example: 202
+        type: integer
+      ghn_ward_code:
+        example: "21015"
+        type: string
+      is_default:
+        type: boolean
+      phone_number:
+        type: string
+      postal_code:
+        type: string
+      street:
+        type: string
+      type:
+        allOf:
+        - $ref: '#/definitions/enum.AddressType'
+        enum:
+        - BILLING
+        - SHIPPING
+        example: SHIPPING
     type: object
   requests.UpdateAdminConfigRequest:
     properties:
@@ -7788,6 +7835,19 @@ definitions:
       width:
         type: integer
     type: object
+  responses.PriceBreakdown:
+    properties:
+      company_amount:
+        type: number
+      company_percentage:
+        type: integer
+      item_id:
+        type: string
+      kol_amount:
+        type: number
+      kol_percentage:
+        type: integer
+    type: object
   responses.ProductAttributesResponse:
     properties:
       description:
@@ -9878,38 +9938,6 @@ paths:
       summary: Run Task Immediately
       tags:
       - Asynq Admin
-  /api/v1/admin/cache/flush:
-    delete:
-      consumes:
-      - application/json
-      description: Deletes all keys in the current database (USE WITH CAUTION)
-      parameters:
-      - description: Flush request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/requests.CacheFlushRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Flush Cache Database
-      tags:
-      - Cache Admin
   /api/v1/admin/cache/keys:
     delete:
       consumes:
@@ -10083,6 +10111,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Delete Cache Keys by Pattern
+      tags:
+      - Cache Admin
+  /api/v1/admin/cache/keys/flush:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes all keys in the current database (USE WITH CAUTION)
+      parameters:
+      - description: Flush request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.CacheFlushRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Flush Cache Database
       tags:
       - Cache Admin
   /api/v1/admin/cache/overview:
@@ -17347,6 +17407,39 @@ paths:
       summary: Get GHN delivery services by district ID (public endpoint)
       tags:
       - ghn
+  /api/v1/ghn/create-parcel/{order-id}:
+    post:
+      consumes:
+      - application/json
+      description: Fetch GHN order details for a given GHN order code
+      parameters:
+      - description: Code of GHN order which is provided after create a standard order
+        in: path
+        name: order-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.OrderInfo'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get GHN order info by GHN order code
+      tags:
+      - ghn
   /api/v1/ghn/delivery/calculate-by-dimension:
     post:
       consumes:
@@ -18035,6 +18128,97 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a new shipping address for the authenticated user
+      tags:
+      - location
+  /api/v1/location/address/{address-id}:
+    delete:
+      consumes:
+      - application/json
+      description: Soft delete an existing shipping address belonging to the authenticated
+        user
+      parameters:
+      - description: Address ID
+        in: path
+        name: address-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Address deleted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a shipping address for the authenticated user
+      tags:
+      - location
+    put:
+      consumes:
+      - application/json
+      description: Update an existing shipping address belonging to the authenticated
+        user
+      parameters:
+      - description: Address ID
+        in: path
+        name: address-id
+        required: true
+        type: string
+      - description: Address update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Address updated
+          schema:
+            $ref: '#/definitions/responses.ShippingAddressResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a shipping address for the authenticated user
       tags:
       - location
   /api/v1/location/address/{address-id}/default:
@@ -18871,6 +19055,54 @@ paths:
       summary: Request compensation for an order
       tags:
       - Orders.States
+  /api/v1/orders/{orderID}/price-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: Returns breakdown of each order item with company and KOL percentage
+        splits and amounts
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: Order type (LIMITED or STANDARD)
+        in: query
+        name: orderType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.PriceBreakdown'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get order price breakdown with profit split percentages
+      tags:
+      - Orders
   /api/v1/orders/{orderID}/refund:
     post:
       consumes:
@@ -19135,56 +19367,7 @@ paths:
       summary: Get staff-available orders with pagination
       tags:
       - Orders[Staff]
-  /api/v1/orders/staff/{orderID}/compensation:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Approve or reject a compensation request. Accepts optional reason
-        and optional confirmation file. Provide isApproved form field (true/false).
-      parameters:
-      - description: Order ID (UUID)
-        in: path
-        name: orderID
-        required: true
-        type: string
-      - description: true|false
-        in: formData
-        name: isApproved
-        required: true
-        type: string
-      - description: Reason (optional)
-        in: formData
-        name: reason
-        type: string
-      - description: Confirmation / Evidence file (such as transaction bill)
-        in: formData
-        name: file
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
-      summary: Process compensation (staff)
-      tags:
-      - Orders[Staff].States
-  /api/v1/orders/staff/{orderID}/confirmation:
+  /api/v1/orders/staff/{orderID}/censorship:
     post:
       consumes:
       - application/json
@@ -19233,6 +19416,55 @@ paths:
       security:
       - BearerAuth: []
       summary: Censor an order (confirm or cancel)
+      tags:
+      - Orders[Staff].States
+  /api/v1/orders/staff/{orderID}/compensation:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Approve or reject a compensation request. Accepts optional reason
+        and optional confirmation file. Provide isApproved form field (true/false).
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: orderID
+        required: true
+        type: string
+      - description: true|false
+        in: formData
+        name: isApproved
+        required: true
+        type: string
+      - description: Reason (optional)
+        in: formData
+        name: reason
+        type: string
+      - description: Confirmation / Evidence file (such as transaction bill)
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Process compensation (staff)
       tags:
       - Orders[Staff].States
   /api/v1/orders/staff/{orderID}/obligate-refund:
@@ -20264,6 +20496,49 @@ paths:
       - BearerAuth: []
       tags:
       - Preorders
+  /api/v1/preorders/{preOrderID}/price-breakdown:
+    get:
+      consumes:
+      - application/json
+      description: Returns breakdown of the preorder with company and KOL percentage
+        splits and amounts
+      parameters:
+      - description: PreOrder ID (UUID)
+        in: path
+        name: preOrderID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.PriceBreakdown'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get preorder price breakdown with profit split percentages
+      tags:
+      - Preorders
   /api/v1/preorders/refund/{preOrderID}:
     post:
       consumes:
@@ -20956,8 +21231,6 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/responses.APIResponse'
-      security:
-      - BearerAuth: []
       summary: Get product option by ID
       tags:
       - ProductOptions
@@ -21311,6 +21584,124 @@ paths:
       tags:
       - Products.Variants
   /api/v1/products/limited:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Get paginated list of LIMITED products with special date filters for PreOrder and Order windows.
+        - FilterPreOrder=true: Returns products where current time is between PremiereDate and AvailabilityStartDate (preorder window)
+        - FilterOrder=true: Returns products where current time is between AvailabilityStartDate and AvailabilityEndDate (order window)
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: Filter by brand UUID
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by brand owner user UUID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by product status
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        in: query
+        name: status
+        type: string
+      - description: Filter products in PreOrder window (between PremiereDate and
+          AvailabilityStartDate)
+        in: query
+        name: filter_preorder
+        type: boolean
+      - description: Filter products in Order window (between AvailabilityStartDate
+          and AvailabilityEndDate)
+        in: query
+        name: filter_order
+        type: boolean
+      - description: Filter PremiereDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: premiere_date_from
+        type: string
+      - description: Filter PremiereDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: premiere_date_to
+        type: string
+      - description: Filter AvailabilityStartDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: availability_start_date_from
+        type: string
+      - description: Filter AvailabilityStartDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: availability_start_date_to
+        type: string
+      - description: Filter AvailabilityEndDate from (ISO8601)
+        example: '"2023-10-01T00:00:00Z"'
+        in: query
+        name: availability_end_date_from
+        type: string
+      - description: Filter AvailabilityEndDate to (ISO8601)
+        example: '"2023-10-31T23:59:59Z"'
+        in: query
+        name: availability_end_date_to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Limited products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponseV2'
+                type: array
+              pagination:
+                $ref: '#/definitions/responses.Pagination'
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Limited Products
+      tags:
+      - Products.Limited
     post:
       consumes:
       - application/json
@@ -21726,6 +22117,82 @@ paths:
       tags:
       - Products
   /api/v1/products/standard:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of STANDARD products. Admin/Staff get full view,
+        others get partial view.
+      parameters:
+      - default: 10
+        description: Number of items per page
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Search term for product name
+        in: query
+        name: search
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: Filter by brand UUID
+        in: query
+        name: brand_id
+        type: string
+      - description: Filter by brand owner user UUID
+        in: query
+        name: user_id
+        type: string
+      - description: Filter by product status
+        enum:
+        - DRAFT
+        - SUBMITTED
+        - REVISION
+        - APPROVED
+        - ACTIVED
+        - INACTIVED
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Standard products retrieved successfully
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/responses.ProductResponseV2'
+                type: array
+              pagination:
+                $ref: '#/definitions/responses.Pagination'
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Standard Products
+      tags:
+      - Products.Standard
     post:
       consumes:
       - application/json
