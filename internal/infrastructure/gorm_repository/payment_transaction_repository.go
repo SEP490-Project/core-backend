@@ -280,3 +280,16 @@ func (p *paymentTransactionRepository) GetReferenceContractPaymentByIDs(ctx cont
 	}
 	return contractPaymentsMap, nil
 }
+
+func (p *paymentTransactionRepository) GetPaymentTransactionByOrderCode(ctx context.Context, orderCode string) (*model.PaymentTransaction, error) {
+	var paymentTransaction model.PaymentTransaction
+	// db := p.db.WithContext(ctx).Model(new(model.PaymentTransaction))
+	if err := p.db.WithContext(ctx).
+		Model(new(model.PaymentTransaction)).
+		Where("payment_transactions.payos_metadata->>'order_code' = ?", orderCode).
+		First(&paymentTransaction).Error; err != nil {
+		return nil, err
+	}
+
+	return &paymentTransaction, nil
+}

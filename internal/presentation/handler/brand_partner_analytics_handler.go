@@ -23,7 +23,7 @@ func NewBrandPartnerAnalyticsHandler(analyticsService iservice.BrandPartnerAnaly
 //
 //	@Summary		Get Brand Partner Dashboard
 //	@Description	Returns comprehensive analytics dashboard for Brand Partner including overview metrics, top products, campaigns, content, revenue trend, affiliate metrics, and contracts
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			year	query		int	false	"Year for filtering (defaults to current year)"
@@ -62,7 +62,7 @@ func (h *BrandPartnerAnalyticsHandler) GetDashboard(c *gin.Context) {
 //
 //	@Summary		Get Brand's Top Products
 //	@Description	Returns top products by revenue for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -102,7 +102,7 @@ func (h *BrandPartnerAnalyticsHandler) GetTopProducts(c *gin.Context) {
 //
 //	@Summary		Get Brand's Top Rating Products
 //	@Description	Returns top-rated products for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -142,7 +142,7 @@ func (h *BrandPartnerAnalyticsHandler) GetTopRatingProducts(c *gin.Context) {
 //
 //	@Summary		Get Brand's Campaign Metrics
 //	@Description	Returns campaign performance metrics for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -183,7 +183,7 @@ func (h *BrandPartnerAnalyticsHandler) GetCampaignMetrics(c *gin.Context) {
 //
 //	@Summary		Get Brand's Content Metrics
 //	@Description	Returns content performance metrics summary for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -222,7 +222,7 @@ func (h *BrandPartnerAnalyticsHandler) GetContentMetrics(c *gin.Context) {
 //
 //	@Summary		Get Brand's Revenue Trend
 //	@Description	Returns revenue time-series data for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -262,7 +262,7 @@ func (h *BrandPartnerAnalyticsHandler) GetRevenueTrend(c *gin.Context) {
 //
 //	@Summary		Get Brand's Affiliate Metrics
 //	@Description	Returns affiliate link performance metrics for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -301,7 +301,7 @@ func (h *BrandPartnerAnalyticsHandler) GetAffiliateMetrics(c *gin.Context) {
 //
 //	@Summary		Get Brand's Contract Details
 //	@Description	Returns contract details for the brand partner
-//	@Tags			Brand Partner Analytics
+//	@Tags			Analytics.BrandPartner
 //	@Accept			json
 //	@Produce		json
 //	@Param			status	query		string	false	"Filter by contract status (DRAFT, PENDING, ACTIVE, COMPLETED, CANCELLED)"

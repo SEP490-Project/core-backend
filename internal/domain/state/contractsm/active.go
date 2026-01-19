@@ -19,6 +19,9 @@ func (a ActiveState) Next(ctx *ContractContext, next ContractState) error {
 
 func (a ActiveState) AllowedTransitions() map[enum.ContractStatus]struct{} {
 	return map[enum.ContractStatus]struct{}{
-		enum.ContractStatusTerminated: {},
+		enum.ContractStatusTerminated:    {},
+		enum.ContractStatusCompleted:     {},
+		enum.ContractStatusBrandViolated: {},
+		enum.ContractStatusKOLViolated:   {},
 	}
 }

@@ -447,7 +447,7 @@ func GeneratePerformanceTrackingTask(
 	return responses.SuggestedTask{
 		Name:        taskName,
 		Description: description,
-		Type:        enum.TaskTypeContent,
+		Type:        enum.TaskTypeOther,
 		Deadline:    dueDate,
 	}
 }
@@ -661,26 +661,32 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 	}
 
 	switch contract.Type {
-	case enum.ContractTypeAdvertising, enum.ContractTypeAffiliate:
+	case enum.ContractTypeAffiliate:
 		for i := range sow.Deliverables.AdvertisedItems {
 			item := &sow.Deliverables.AdvertisedItems[i]
-			addCandidate(item.ID, item.Name, "AdvertisedItem", item.Platform, &item.TaskIDs, nil, &item.ContentIDs)
+			addCandidate(item.ID, item.Name, constant.ScopeOfWorkIDTypeAffiliate.String(), item.Platform, &item.TaskIDs, nil, &item.ContentIDs)
+		}
+
+	case enum.ContractTypeAdvertising:
+		for i := range sow.Deliverables.AdvertisedItems {
+			item := &sow.Deliverables.AdvertisedItems[i]
+			addCandidate(item.ID, item.Name, constant.ScopeOfWorkIDTypeAdvertise.String(), item.Platform, &item.TaskIDs, nil, &item.ContentIDs)
 		}
 
 	case enum.ContractTypeAmbassador:
 		for i := range sow.Deliverables.Events {
 			item := &sow.Deliverables.Events[i]
-			addCandidate(item.ID, item.Name, "Event", "", &item.TaskIDs, nil, nil)
+			addCandidate(item.ID, item.Name, constant.ScopeOfWorkIDTypeEvent.String(), "", &item.TaskIDs, nil, nil)
 		}
 
 	case enum.ContractTypeCoProduce:
 		for i := range sow.Deliverables.Products {
 			item := &sow.Deliverables.Products[i]
-			addCandidate(item.ID, item.Name, "Product", "", &item.TaskIDs, &item.ProductIDs, nil)
+			addCandidate(item.ID, item.Name, constant.ScopeOfWorkIDTypeProduct.String(), "", &item.TaskIDs, &item.ProductIDs, nil)
 		}
 		for i := range sow.Deliverables.Concepts {
 			item := &sow.Deliverables.Concepts[i]
-			addCandidate(item.ID, item.Name, "Concept", item.Platform, &item.TaskIDs, &item.ProductIDs, nil)
+			addCandidate(item.ID, item.Name, constant.ScopeOfWorkIDTypeConcept.String(), item.Platform, &item.TaskIDs, &item.ProductIDs, nil)
 		}
 	}
 
@@ -707,7 +713,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 			// Single Item Rule: If there is only one candidate, assign all unassigned tasks to it
 			if len(candidates) == 1 {
 				cand := &candidates[0]
-				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), contract.Type.String(), *cand.ID)
+				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), cand.Type, *cand.ID)
 				t.ScopeOfWorkItemID = &idStr
 				*cand.TaskIDs = append(*cand.TaskIDs, t.ID)
 				updateRelatedIDs(t, cand.ProductIDs, cand.ContentIDs)
@@ -729,7 +735,7 @@ func MapTasksToScopeOfWork(contract *model.Contract, milestones []*model.Milesto
 
 			// Threshold for assignment (e.g., 40 points)
 			if bestMatch != nil && bestScore >= 40 {
-				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), contract.Type.String(), *bestMatch.ID)
+				idStr := fmt.Sprintf("%s|%s|%d", contract.ID.String(), bestMatch.Type, *bestMatch.ID)
 				t.ScopeOfWorkItemID = &idStr
 
 				// Add to TaskIDs

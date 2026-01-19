@@ -483,11 +483,15 @@ func (s *notificationService) CreateAndPublishInApp(ctx context.Context, req *re
 
 	// Create notification record
 	notificationID := uuid.New()
+	severity := enum.NotificationSeverityInfo
+	if req.Severity.IsValid() {
+		severity = req.Severity
+	}
 	notification := &model.Notification{
 		ID:            notificationID,
 		UserID:        req.UserID,
 		Type:          enum.NotificationTypeInApp,
-		Severity:      req.Severity,
+		Severity:      severity,
 		Status:        enum.NotificationStatusSent, // In-app notifications are immediately "sent"
 		IsRead:        false,
 		RecipientInfo: model.JSONBRecipientInfo{
@@ -515,7 +519,7 @@ func (s *notificationService) CreateAndPublishInApp(ctx context.Context, req *re
 			UserID:         req.UserID,
 			Title:          req.Title,
 			Message:        req.Body,
-			Severity:       req.Severity,
+			Severity:       severity,
 			Data:           req.Data,
 			CreatedAt:      time.Now().Format(time.RFC3339),
 			ScheduleID:     req.ScheduleID,

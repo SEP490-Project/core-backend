@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Violation Resolved</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .success-icon {
+        font-size: 48px;
+        color: #28a745;
+        text-align: center;
+      }
+      .resolution-box {
+        background-color: #d4edda;
+        border: 1px solid #28a745;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>✅ Violation Resolved</h2>
+      </div>
+      <div class="content">
+        <div class="success-icon">✓</div>
+        
+        <p>Dear {{.RecipientName}},</p>
+
+        <p>
+          We are pleased to inform you that the contract violation for
+          <strong>#{{.ContractNumber}}</strong> has been successfully resolved.
+        </p>
+
+        <div class="info-box">
+          <p><strong>Violation Summary:</strong></p>
+          <p>Contract Number: {{.ContractNumber}}</p>
+          <p>Violation Type: {{.ViolationType}}</p>
+          <p>Reported Date: {{.ReportedDate}}</p>
+          <p>Resolution Date: {{.ResolutionDate}}</p>
+        </div>
+
+        <div class="resolution-box">
+          <p><strong>Resolution Details:</strong></p>
+          <p>Resolution Method: {{.ResolutionMethod}}</p>
+          {{if .AmountSettled}}
+          <p>Amount Settled: {{.Currency}} {{.AmountSettled}}</p>
+          {{end}}
+          {{if .ResolutionNote}}
+          <p>Note: {{.ResolutionNote}}</p>
+          {{end}}
+        </div>
+
+        <p>
+          The contract has been terminated as per our terms and conditions.
+          All related activities have been concluded.
+        </p>
+
+        <p>
+          If you have any questions regarding this resolution, please
+          contact our support team at <a href="{{.SupportLink}}">{{.SupportLink}}</a>.
+        </p>
+
+        <p>
+          We appreciate your cooperation throughout this process and look
+          forward to the possibility of working with you again in the future.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>

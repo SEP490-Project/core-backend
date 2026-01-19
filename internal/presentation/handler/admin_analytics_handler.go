@@ -23,7 +23,7 @@ func NewAdminAnalyticsHandler(analyticsService iservice.AdminAnalyticsService) *
 //
 //	@Summary		Get Admin Dashboard
 //	@Description	Returns comprehensive platform-wide analytics dashboard for Admin including user metrics, revenue breakdown, contracts, campaigns, and growth trends
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Param			year	query		int	false	"Year for filtering (defaults to current year)"
@@ -57,7 +57,7 @@ func (h *AdminAnalyticsHandler) GetDashboard(c *gin.Context) {
 //
 //	@Summary		Get Users Overview
 //	@Description	Returns user statistics including role breakdown and growth trends
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Param			role		query		string	false	"Filter by user role (ADMIN, MARKETING_STAFF, SALES_STAFF, CONTENT_STAFF, BRAND_PARTNER, CUSTOMER)"
@@ -92,7 +92,7 @@ func (h *AdminAnalyticsHandler) GetUsersOverview(c *gin.Context) {
 //
 //	@Summary		Get Platform Revenue
 //	@Description	Returns platform-wide revenue analytics including breakdown by source and trends
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -127,7 +127,7 @@ func (h *AdminAnalyticsHandler) GetPlatformRevenue(c *gin.Context) {
 //
 //	@Summary		Get System Health
 //	@Description	Returns system health metrics including database, cache, and queue status
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.SystemHealthResponse}
@@ -152,7 +152,7 @@ func (h *AdminAnalyticsHandler) GetSystemHealth(c *gin.Context) {
 //
 //	@Summary		Get User Growth
 //	@Description	Returns user registration growth over time
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Param			start_date	query		string	false	"Start date (ISO 8601 format)"
@@ -188,7 +188,7 @@ func (h *AdminAnalyticsHandler) GetUserGrowth(c *gin.Context) {
 //
 //	@Summary		Get Contracts Summary
 //	@Description	Returns contract statistics including status breakdown and values
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.ContractsSummary}
@@ -213,7 +213,7 @@ func (h *AdminAnalyticsHandler) GetContractsSummary(c *gin.Context) {
 //
 //	@Summary		Get Campaigns Summary
 //	@Description	Returns campaign statistics including status breakdown and content counts
-//	@Tags			Admin Analytics
+//	@Tags			Analytics.Admin
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	responses.APIResponse{data=responses.AdminCampaignsSummary}

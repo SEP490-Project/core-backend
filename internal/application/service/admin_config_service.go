@@ -4,6 +4,7 @@ import (
 	"context"
 	"core-backend/config"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/ijob"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
@@ -24,6 +25,7 @@ type AdminConfigService struct {
 	adminConfig *config.AdminConfig
 	configRepo  irepository.GenericRepository[model.Config]
 	listeners   []func()
+	jobRegistry ijob.JobRegistry
 }
 
 // RegisterListener implements iservice.AdminConfigService.
@@ -35,6 +37,62 @@ func (a *AdminConfigService) RegisterListener(listener func()) {
 func (a *AdminConfigService) notifyListeners() {
 	for _, listener := range a.listeners {
 		go listener() // Run in goroutine to avoid blocking
+	}
+}
+
+// findStructFieldByKey finds the struct field by its mapstructure tag
+func (a *AdminConfigService) findStructFieldByKey(key string) (reflect.StructField, bool) {
+	typ := reflect.TypeFor[config.AdminConfig]()
+	key = strings.ToLower(key)
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		tag := strings.ToLower(field.Tag.Get("mapstructure"))
+		if tag == key {
+			return field, true
+		}
+	}
+	return reflect.StructField{}, false
+}
+
+// triggerJobsForKey checks if a config key has a "job" tag and triggers those jobs
+func (a *AdminConfigService) triggerJobsForKey(key string) {
+	if a.jobRegistry == nil {
+		zap.L().Debug("No job registry, skipping job trigger")
+		return
+	}
+
+	field, ok := a.findStructFieldByKey(key)
+	if !ok {
+		return
+	}
+
+	jobTag := field.Tag.Get("job")
+	if jobTag == "" {
+		return
+	}
+
+	// Split by comma to support multiple jobs
+	jobNames := strings.SplitSeq(jobTag, ",")
+	for jobName := range jobNames {
+		jobName = strings.TrimSpace(jobName)
+		if jobName == "" {
+			continue
+		}
+
+		zap.L().Info("Triggering job restart from config change",
+			zap.String("config_key", key),
+			zap.String("job_name", jobName))
+
+		go func(name string) {
+			if err := a.jobRegistry.RestartJob(name); err != nil {
+				zap.L().Error("Failed to restart job from config change",
+					zap.String("job_name", name),
+					zap.Error(err))
+			} else {
+				zap.L().Info("Successfully restarted job from config change",
+					zap.String("job_name", name))
+			}
+		}(jobName)
 	}
 }
 
@@ -107,18 +165,17 @@ func (a *AdminConfigService) GetAllConfig(ctx context.Context) ([]responses.Admi
 func (a *AdminConfigService) GetConfigByKey(ctx context.Context, key string) (*responses.AdminConfigResponse, error) {
 	zap.L().Info("Fetching configuration by key", zap.String("key", key))
 
-	structKey := utils.ToStructFieldName(key)
-	reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(structKey)
-
-	if !reflectVal.IsValid() {
-		zap.L().Warn("Configuration not found in struct", zap.String("key", structKey))
+	field, ok := a.findStructFieldByKey(key)
+	if !ok {
+		zap.L().Warn("Configuration not found in struct", zap.String("key", key))
 		return nil, fmt.Errorf("configuration with key %s not found", key)
 	}
 
+	reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(field.Name)
+
 	// Default from struct
 	value := fmt.Sprintf("%v", reflectVal.Interface())
-	typeField, _ := reflect.TypeOf(a.adminConfig).Elem().FieldByName(structKey)
-	valueType := determineValueType(typeField, value)
+	valueType := determineValueType(field, value)
 
 	response := &responses.AdminConfigResponse{
 		Key:       key,
@@ -171,13 +228,12 @@ func (a *AdminConfigService) GetConfigValueByKey(ctx context.Context, key string
 	}
 
 	// Fallback to struct
-	structKey := utils.ToStructFieldName(key)
-	reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(structKey)
-
-	if !reflectVal.IsValid() {
+	field, ok := a.findStructFieldByKey(key)
+	if !ok {
 		return "", fmt.Errorf("configuration with key %s not found", key)
 	}
 
+	reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(field.Name)
 	return fmt.Sprintf("%v", reflectVal.Interface()), nil
 }
 
@@ -208,12 +264,12 @@ func (a *AdminConfigService) GetConfigValuesByKeys(ctx context.Context, keys []s
 		}
 
 		// Fallback to struct
-		structKey := utils.ToStructFieldName(key)
-		reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(structKey)
-		if !reflectVal.IsValid() {
-			zap.L().Warn("Configuration not found", zap.String("key", structKey))
+		field, ok := a.findStructFieldByKey(key)
+		if !ok {
+			zap.L().Warn("Configuration not found", zap.String("key", key))
 			continue
 		}
+		reflectVal := reflect.ValueOf(a.adminConfig).Elem().FieldByName(field.Name)
 		values[utils.ToSnakeCase(key)] = fmt.Sprintf("%v", reflectVal.Interface())
 	}
 
@@ -228,13 +284,12 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 		zap.String("updated_by", updatedBy.String()))
 
 	// 1. Validate against struct
-	structKey := utils.ToStructFieldName(key)
-	field, ok := reflect.TypeOf(a.adminConfig).Elem().FieldByName(structKey)
+	field, ok := a.findStructFieldByKey(key)
 	if !ok {
 		return fmt.Errorf("invalid config key: %s", key)
 	}
 
-	if err := utils.SetStringToReflectValue(a.adminConfig, key, value, false); err != nil {
+	if err := utils.SetStringToReflectValue(a.adminConfig, field.Name, value, true); err != nil {
 		return fmt.Errorf("validation failed for key '%s': %w", key, err)
 	}
 
@@ -278,6 +333,9 @@ func (a *AdminConfigService) UpdateConfigByKey(ctx context.Context, key string, 
 	// 4. Notify listeners
 	a.notifyListeners()
 
+	// 5. Trigger jobs if config has job tag
+	a.triggerJobsForKey(key)
+
 	return nil
 }
 
@@ -289,7 +347,11 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 
 	// 1. Validation Phase
 	for key, value := range configs {
-		if err := utils.SetStringToReflectValue(a.adminConfig, key, value, false); err != nil {
+		field, ok := a.findStructFieldByKey(key)
+		if !ok {
+			return fmt.Errorf("invalid config key: %s", key)
+		}
+		if err := utils.SetStringToReflectValue(a.adminConfig, field.Name, value, true); err != nil {
 			return fmt.Errorf("validation failed for key '%s': %w", key, err)
 		}
 	}
@@ -321,7 +383,6 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 		existingMap[cfg.Key] = &model.Config{ID: cfg.ID} // Just need to know it exists
 	}
 
-	reflectConfig := reflect.TypeOf(a.adminConfig).Elem()
 	for key, value := range configs {
 		if _, exists := existingMap[key]; exists {
 			// Update
@@ -332,8 +393,7 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 			}
 		} else {
 			// Create
-			structKey := utils.ToStructFieldName(key)
-			field, _ := reflectConfig.FieldByName(structKey)
+			field, _ := a.findStructFieldByKey(key)
 
 			newConfig := &model.Config{
 				Key:         key,
@@ -349,11 +409,17 @@ func (a *AdminConfigService) UpdateConfigs(ctx context.Context, configs map[stri
 
 	// 3. In-Memory Update Phase
 	for key, value := range configs {
-		_ = utils.SetStringToReflectValue(a.adminConfig, key, value, false)
+		field, _ := a.findStructFieldByKey(key)
+		_ = utils.SetStringToReflectValue(a.adminConfig, field.Name, value, true)
 	}
 
 	// 4. Notify listeners
 	a.notifyListeners()
+
+	// 5. Trigger jobs for all updated keys with job tags
+	for key := range configs {
+		a.triggerJobsForKey(key)
+	}
 
 	return nil
 }
@@ -385,7 +451,7 @@ func determineValueType(sf reflect.StructField, value string) enum.ConfigValueTy
 	case reflect.Slice, reflect.Array:
 		return enum.ConfigValueTypeArray
 	case reflect.Struct:
-		if sf.Type == reflect.TypeOf(time.Time{}) {
+		if sf.Type == reflect.TypeFor[time.Time]() {
 			return enum.ConfigValueTypeTime
 		}
 		return enum.ConfigValueTypeJSON
@@ -396,9 +462,14 @@ func determineValueType(sf reflect.StructField, value string) enum.ConfigValueTy
 	}
 }
 
-func NewAdminConfigService(adminConfig *config.AdminConfig, configRepo irepository.GenericRepository[model.Config]) iservice.AdminConfigService {
+func NewAdminConfigService(
+	adminConfig *config.AdminConfig,
+	configRepo irepository.GenericRepository[model.Config],
+	jobRegistry ijob.JobRegistry,
+) iservice.AdminConfigService {
 	return &AdminConfigService{
 		adminConfig: adminConfig,
 		configRepo:  configRepo,
+		jobRegistry: jobRegistry,
 	}
 }
