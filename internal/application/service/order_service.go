@@ -179,6 +179,73 @@ func getJSONKey(j datatypes.JSON, key string) (interface{}, bool, error) {
 	return val, ok, nil
 }
 
+// calculateOrderRevenues computes company and KOL revenue for an order
+// For STANDARD orders: KOL gets 100% of total, company gets 0
+// For LIMITED orders: revenue split based on contract financial terms
+func (o *orderService) calculateOrderRevenues(ctx context.Context, order *model.Order) (companyRevenue, kolRevenue float64) {
+	if order == nil {
+		return 0, 0
+	}
+
+	// For STANDARD orders, KOL gets 100%
+	if order.OrderType == string(enum.ProductTypeStandard) {
+		return 0, order.TotalAmount
+	}
+
+	// For LIMITED orders, need to load contract financial terms
+	if order.OrderType != string(enum.ProductTypeLimited) {
+		// Unknown order type, default to KOL gets all
+		return 0, order.TotalAmount
+	}
+
+	// Load order with full chain to get financial terms
+	orderIncludes := []string{
+		"OrderItems",
+		"OrderItems.Variant",
+		"OrderItems.Variant.Product",
+		"OrderItems.Variant.Product.Task",
+		"OrderItems.Variant.Product.Task.Milestone",
+		"OrderItems.Variant.Product.Task.Milestone.Campaign",
+		"OrderItems.Variant.Product.Task.Milestone.Campaign.Contract",
+	}
+
+	orderWithDetails, err := o.orderRepository.GetByID(ctx, order.ID, orderIncludes)
+	if err != nil || orderWithDetails == nil {
+		zap.L().Warn("Failed to load order details for revenue calculation", zap.Error(err), zap.String("orderID", order.ID.String()))
+		return 0, order.TotalAmount
+	}
+
+	// Calculate revenue from all order items
+	for _, item := range orderWithDetails.OrderItems {
+		financialTerm := getFinancialTerms(&item)
+		if financialTerm == nil {
+			// No contract found, assume KOL gets all for this item
+			kolRevenue += item.Subtotal
+			continue
+		}
+
+		kolPercentVal, isKOLPctExists, err := getJSONKey(*financialTerm, "profit_split_kol_percent")
+		if err != nil || !isKOLPctExists {
+			kolRevenue += item.Subtotal
+			continue
+		}
+
+		companyPercentVal, isCompPctExists, err := getJSONKey(*financialTerm, "profit_split_company_percent")
+		if err != nil || !isCompPctExists {
+			kolRevenue += item.Subtotal
+			continue
+		}
+
+		kolPercent := toInt(kolPercentVal)
+		companyPercent := toInt(companyPercentVal)
+
+		kolRevenue += item.Subtotal * float64(kolPercent) / 100.0
+		companyRevenue += item.Subtotal * float64(companyPercent) / 100.0
+	}
+
+	return companyRevenue, kolRevenue
+}
+
 func (o *orderService) ObligateEarlyRefund(ctx context.Context, orderID, actionBy uuid.UUID, reason, fileURL *string) error {
 	order, user, err := o.lookupOrderAndUser(ctx, orderID, actionBy)
 	if err != nil {
@@ -979,8 +1046,18 @@ func (o *orderService) GetStaffAvailableOrdersWithPagination(limit, page int, se
 		}
 	}
 
-	// Convert model orders to response DTOs using payment map
-	orderResponses := responses.OrderResponse{}.ToResponseList(orders, paymentsMap)
+	// Calculate company and KOL revenue for each order
+	companyRevenues := make(map[uuid.UUID]float64)
+	kolRevenues := make(map[uuid.UUID]float64)
+
+	for _, order := range orders {
+		companyRev, kolRev := o.calculateOrderRevenues(ctx, &order)
+		companyRevenues[order.ID] = companyRev
+		kolRevenues[order.ID] = kolRev
+	}
+
+	// Convert model orders to response DTOs using payment map and revenue maps
+	orderResponses := responses.OrderResponse{}.ToResponseListWithRevenue(orders, paymentsMap, companyRevenues, kolRevenues)
 
 	return orderResponses, total, nil
 }
