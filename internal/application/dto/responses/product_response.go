@@ -124,8 +124,8 @@ func (l LimitedProductResponse) ToLimitedProductResponse(m *model.LimitedProduct
 func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *ProductDetailResponse {
 	// IDs & Brand
 	d.ID = m.ID
-	d.BrandID = *m.BrandID
 	if m.Brand != nil {
+		d.BrandID = *m.BrandID
 		d.BrandName = m.Brand.Name
 		d.BrandLogoURL = m.Brand.LogoURL // *string
 	}
@@ -470,9 +470,9 @@ func (pvr ProductVariantResponse) ToFullProductVariantResponse(variant *model.Pr
 type ProductResponseV2 struct {
 	ID               uuid.UUID                 `json:"id"`
 	BrandID          uuid.UUID                 `json:"brand_id"`
-	BrandLogoURL     *string                   `json:"brand_logo_url,omitempty"`
-	BrandName        string                    `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL     *[]string                 `json:"thumbnail_url,omitempty"` // optional
+	BrandLogoURL     *string                   `json:"brand_logo_url"`
+	BrandName        string                    `json:"brand_name"`    // optional
+	ThumbnailURL     *[]string                 `json:"thumbnail_url"` // optional
 	IsActive         bool                      `json:"is_active"`
 	CreatedAt        string                    `json:"created_at"` // FE parse về Date
 	UpdatedAt        string                    `json:"updated_at"`
@@ -483,9 +483,10 @@ type ProductResponseV2 struct {
 	AverageRating    float64                   `json:"average_rating"`
 	LimitedAttribute *LimitedProductResponse   `json:"limited_product"`
 	Category         ProductCategoryResponse   `json:"category"`
-	Variants         []*ProductVariantResponse `json:"variants,omitempty"`
+	Variants         []*ProductVariantResponse `json:"variants"`
 	CreatedBy        *UserListResponse         `json:"created_by"`
 	UpdatedBy        *UserListResponse         `json:"updated_by"`
+	BrandPlaceHolder *string                   `json:"brand_place_holder"`
 }
 
 // ToProductResponseV2 converts a Product model to a ProductResponse DTO.
@@ -497,11 +498,12 @@ func (pr *ProductResponseV2) ToProductResponseV2(m *model.Product) *ProductRespo
 
 	return &ProductResponseV2{
 		ID:      m.ID,
-		BrandID: *m.BrandID,
+		BrandID: utils.IfNotNil(m.BrandID, func(bid *uuid.UUID) uuid.UUID { return *bid }),
 
 		// Brand
-		BrandName:    utils.IfNotNil(m.Brand, func(b *model.Brand) string { return b.Name }),
-		BrandLogoURL: utils.IfNotNil(m.Brand, func(b *model.Brand) *string { return b.LogoURL }),
+		BrandName:        utils.IfNotNil(m.Brand, func(b *model.Brand) string { return b.Name }),
+		BrandLogoURL:     utils.IfNotNil(m.Brand, func(b *model.Brand) *string { return b.LogoURL }),
+		BrandPlaceHolder: m.BrandPlaceHolder,
 
 		// Basic
 		Name:             m.Name,

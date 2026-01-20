@@ -22,6 +22,9 @@ type PreOrdersProps struct {
 	TotalAmount float64   `json:"total_amount"`
 	Status      string    `json:"status"`
 
+	CompanyRevenue *float64 `json:"company_revenue,omitempty"`
+	KOLRevenue     *float64 `json:"kol_revenue,omitempty"`
+
 	// Bank Info
 	BankAccount       string `json:"user_bank_account"`
 	BankName          string `json:"user_bank_name"`
