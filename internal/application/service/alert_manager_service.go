@@ -143,7 +143,7 @@ func (s *alertManagerService) GetAlert(ctx context.Context, alertID uuid.UUID) (
 
 // GetActiveAlerts returns all active alerts
 func (s *alertManagerService) GetActiveAlerts(ctx context.Context, category *enum.AlertCategory, severity *enum.AlertSeverity) ([]*model.SystemAlert, error) {
-	return s.alertRepo.GetActiveAlerts(ctx, category, severity)
+	return s.alertRepo.GetActiveAlerts(ctx, category, severity, nil, nil, nil)
 }
 
 // GetAlertsWithPagination returns alerts with pagination

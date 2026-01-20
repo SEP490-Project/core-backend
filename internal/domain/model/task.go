@@ -45,33 +45,13 @@ func (t *Task) BeforeCreate(_ *gorm.DB) (err error) {
 	return nil
 }
 
-// func (t *Task) BeforeUpdate(tx *gorm.DB) (err error) {
-// 	var oldTask Task
-// 	if err := tx.First(&oldTask, "id = ?", t.ID).Preload("Milestone", "Milestone.Tasks").Error; err != nil {
-// 		return err
-// 	}
-// 	if oldTask.Status != t.Status {
-// 		totalTasks := len(t.Milestone.Tasks)
-// 		totalCompletedTasks := 0
-// 		for _, task := range t.Milestone.Tasks {
-// 			if task.Status == enum.TaskStatusDone {
-// 				totalCompletedTasks++
-// 			}
-// 		}
-// 		if t.Status == enum.TaskStatusDone {
-// 			t.Milestone.CompletionPercentage = float64(totalCompletedTasks+1) / float64(totalTasks) * 100
-// 		} else if oldTask.Status == enum.TaskStatusDone && t.Status != enum.TaskStatusDone {
-// 			t.Milestone.CompletionPercentage = float64(totalCompletedTasks-1) / float64(totalTasks) * 100
-// 		}
-// 		if t.Milestone.CompletionPercentage < 0 {
-// 			t.Milestone.CompletionPercentage = 0
-// 		} else if t.Milestone.CompletionPercentage > 100 {
-// 			t.Milestone.CompletionPercentage = 100
-// 		}
-// 	}
+func (t *Task) AfterSave(tx *gorm.DB) (err error) {
+	return t.SyncMilestoneProgress(tx)
+}
 
-// 	return nil
-// }
+func (t *Task) AfterDelete(tx *gorm.DB) (err error) {
+	return t.SyncMilestoneProgress(tx)
+}
 
 // Validate ensures the Task has a valid enum combination before persisting.
 func (t *Task) Validate() error {
@@ -82,4 +62,39 @@ func (t *Task) Validate() error {
 		return gorm.ErrInvalidData
 	}
 	return nil
+}
+
+func (t *Task) SyncMilestoneProgress(tx *gorm.DB) error {
+	percentageExpr := `
+		COALESCE(
+			(
+				SELECT 
+					(COUNT(*) FILTER (WHERE status = 'DONE')::NUMERIC / NULLIF(COUNT(*), 0)::NUMERIC) * 100
+				FROM tasks 
+				WHERE tasks.milestone_id = milestones.id 
+				AND tasks.deleted_at IS NULL
+			), 
+			0
+		)
+	`
+
+	completedAtExpr := `
+		CASE 
+			WHEN (
+				SELECT COUNT(*) > 0 AND COUNT(*) = COUNT(*) FILTER (WHERE status = 'DONE')
+				FROM tasks 
+				WHERE tasks.milestone_id = milestones.id 
+				AND tasks.deleted_at IS NULL
+			) 
+			THEN COALESCE(completed_at, NOW()) 
+			ELSE NULL 
+		END
+	`
+
+	return tx.Model(&Milestone{}).
+		Where("id = ?", t.MilestoneID).
+		Updates(map[string]interface{}{
+			"completion_percentage": gorm.Expr(percentageExpr),
+			"completed_at":          gorm.Expr(completedAtExpr),
+		}).Error
 }

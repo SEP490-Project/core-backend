@@ -13,6 +13,7 @@ import (
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
 	"encoding/json"
+	"sort"
 	"sync"
 	"time"
 
@@ -137,7 +138,7 @@ func (s *contentStaffAnalyticsService) GetDashboard(ctx context.Context, filter 
 
 		// Upcoming Schedule
 		func(ctx context.Context) error {
-			schedule, err := s.getUpcomingSchedule(ctx)
+			schedule, err := s.getUpcomingSchedule(ctx, filter.GetUpcomingSchedulesInDays())
 			if err != nil {
 				return err
 			}
@@ -322,6 +323,33 @@ func (s *contentStaffAnalyticsService) getChannelMetrics(
 		}
 		zap.L().Debug("Channel fetched metrics", zap.String("channel", m.ChannelName),
 			zap.Any("fetched_metrics", m.FetchedMetrics), zap.Any("mapped_metrics", m.MappedMetrics))
+
+		// if card.TotalReach == 0 {
+		// 	// 1. Check MappedMetrics (KPI) for explicit REACH
+		// 	if m.MappedMetrics != nil {
+		// 		if r, ok := m.MappedMetrics[string(enum.KPIValueTypeReach)]; ok {
+		// 			card.TotalReach = int64(r)
+		// 		}
+		// 	}
+
+		// 	// 2. Fallback to FetchedMetrics (Platform specific) if still 0
+		// 	// Use common keys for reach/impressions
+		// 	if card.TotalReach == 0 && m.FetchedMetrics != nil {
+		// 		// Try common reach keys
+		// 		keys := []string{
+		// 			"reach", "total_reach", "unique_impressions", "impressions", constant.FacebookPostMetrics.PostMediaView,
+		// 			constant.FacebookVideoMetrics.PostImpressionsUnique, constant.TikTokVideoMetrics.ViewCount,
+		// 		}
+		// 		for _, key := range keys {
+		// 			if val, ok := m.FetchedMetrics[key]; ok {
+		// 				if v, ok := val.(float64); ok {
+		// 					card.TotalReach = int64(v)
+		// 					break
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		// Calculate growth compared to previous period
 		if prev, ok := previousMap[m.ChannelID]; ok {
@@ -511,41 +539,42 @@ func (s *contentStaffAnalyticsService) getBottomContent(
 }
 
 // getUpcomingSchedule fetches upcoming scheduled content
-func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context) ([]responses.ScheduledContentItem, error) {
-	// Get schedules for the next 7 days
-	from := time.Now()
-	to := from.AddDate(0, 0, 7)
-
-	schedules, err := s.scheduleRepo.GetUpcomingSchedules(ctx, from, to, 10)
+func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context, upcomingDays int) ([]responses.ScheduledContentItem, error) {
+	schedules, _, err := s.scheduleRepo.GetSchedulesWithDetails(ctx, &requests.ScheduleFilterRequest{
+		Days:          &upcomingDays,
+		Status:        utils.PtrOrNil(enum.ScheduleStatusPending),
+		ReferenceType: utils.PtrOrNil(enum.ReferenceTypeContentChannel),
+		PaginationRequest: requests.PaginationRequest{
+			Page:      1,
+			Limit:     10,
+			SortBy:    "scheduled_at",
+			SortOrder: "asc",
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]responses.ScheduledContentItem, 0, len(schedules))
 	for _, sch := range schedules {
-		// Get schedule details using content-specific method
-		detail, err := s.scheduleRepo.GetScheduleByIDWithDetails(ctx, sch.ID)
-		if err != nil || detail == nil {
-			continue
-		}
-
+		// Get schedule schs using content-specific method
 		var contentID uuid.UUID
 		var contentTitle, channelName string
-		if detail.ContentDetails != nil {
-			contentID = detail.ContentDetails.ContentID
-			contentTitle = detail.ContentDetails.ContentTitle
-			channelName = detail.ContentDetails.ChannelName
+		if sch.ContentDetails != nil {
+			contentID = sch.ContentDetails.ContentID
+			contentTitle = sch.ContentDetails.ContentTitle
+			channelName = sch.ContentDetails.ChannelName
 		}
 
 		result = append(result, responses.ScheduledContentItem{
-			ScheduleID:  detail.ScheduleID,
+			ScheduleID:  sch.ScheduleID,
 			ContentID:   contentID,
 			Title:       contentTitle,
 			ChannelName: channelName,
-			ScheduledAt: detail.ScheduledAt,
-			Status:      detail.Status.String(),
-			CreatedBy:   detail.CreatedByName,
-			CreatedByID: detail.CreatedBy,
+			ScheduledAt: sch.ScheduledAt,
+			Status:      sch.Status.String(),
+			CreatedBy:   sch.CreatedByName,
+			CreatedByID: sch.CreatedBy,
 		})
 	}
 
@@ -554,16 +583,13 @@ func (s *contentStaffAnalyticsService) getUpcomingSchedule(ctx context.Context) 
 
 // getActiveAlerts fetches active alerts for the user
 func (s *contentStaffAnalyticsService) getActiveAlerts(ctx context.Context, userID uuid.UUID) ([]responses.AlertItem, error) {
-	alerts, err := s.alertRepo.GetActiveAlerts(ctx, nil, nil)
+	alerts, err := s.alertRepo.GetActiveAlerts(ctx, nil, nil, []enum.UserRole{enum.UserRoleContentStaff}, &userID, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	result := make([]responses.AlertItem, 0, len(alerts))
 	for _, alert := range alerts {
-		// Check if user has acknowledged this alert
-		isAcknowledged, _ := s.alertRepo.IsAlertAcknowledgedByUser(ctx, alert.ID, userID)
-
 		item := responses.AlertItem{
 			ID:          alert.ID,
 			Type:        string(alert.Type),
@@ -572,7 +598,7 @@ func (s *contentStaffAnalyticsService) getActiveAlerts(ctx context.Context, user
 			Title:       alert.Title,
 			Description: alert.Description,
 			CreatedAt:   *alert.CreatedAt,
-			IsRead:      isAcknowledged,
+			IsRead:      alert.IsAcknowledged(),
 		}
 
 		if alert.ReferenceID != nil {
@@ -731,6 +757,7 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 				if err := json.Unmarshal(channel.Metrics, &metrics); err == nil {
 					mu.Lock()
 					response.FetchedMetrics = metrics.CurrentFetched
+					response.LastSyncedAt = metrics.LastUpdatedAt
 					mu.Unlock()
 				}
 			}
@@ -762,7 +789,8 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 		},
 		// Top Content
 		func(ctx context.Context) error {
-			topContent, err := s.dashboardRepo.GetTopContentByPerformance(ctx, 5, currentRange.Start, currentRange.End, &channelID)
+			limit := filter.GetTopContentLimit()
+			topContent, err := s.dashboardRepo.GetTopContentByPerformance(ctx, limit, currentRange.Start, currentRange.End, &channelID)
 			if err != nil {
 				zap.L().Warn("Failed to get channel top content", zap.Error(err))
 				return nil
@@ -791,7 +819,8 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 		},
 		// Recent Content
 		func(ctx context.Context) error {
-			recentContent, err := s.getChannelRecentContent(ctx, channelID, 10)
+			limit := filter.GetRecentContentLimit()
+			recentContent, err := s.getChannelRecentContent(ctx, channelID, limit, currentRange.Start, currentRange.End)
 			if err != nil {
 				zap.L().Warn("Failed to get channel recent content", zap.Error(err))
 				return nil
@@ -876,6 +905,11 @@ func (s *contentStaffAnalyticsService) getChannelContentTrend(
 		})
 	}
 
+	// Sort by date
+	sort.Slice(trend, func(i, j int) bool {
+		return trend[i].Date.Before(trend[j].Date)
+	})
+
 	return trend, nil
 }
 
@@ -884,11 +918,14 @@ func (s *contentStaffAnalyticsService) getChannelRecentContent(
 	ctx context.Context,
 	channelID uuid.UUID,
 	limit int,
+	startDate, endDate time.Time,
 ) ([]responses.ChannelRecentContentItem, error) {
 	// Get recent content channels with content preloaded
 	contentChannels, _, err := s.contentChannelRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.Where("channel_id = ?", channelID).
-			Order("created_at DESC")
+			Where("published_at >= ?", startDate).
+			Where("published_at < ?", endDate).
+			Order("published_at DESC")
 	}, []string{"Content"}, limit, 1)
 	if err != nil {
 		return nil, err
@@ -1002,21 +1039,36 @@ func (s *contentStaffAnalyticsService) getChannelFollowersCount(
 	}
 
 	var currentFollowers int64
+	// Try to get from real-time fetched metrics first
 	if channel.Metrics != nil {
-		var metrics map[string]any
+		var metrics model.ContentChannelMetrics
 		if err := json.Unmarshal(channel.Metrics, &metrics); err == nil {
-			if f, ok := metrics["followers"].(float64); ok {
-				currentFollowers = int64(f)
-			} else if f, ok := metrics["page_fan_count"].(float64); ok {
+			if f, ok := metrics.CurrentMapped[enum.KPIValueTypeFollowers]; ok {
 				currentFollowers = int64(f)
 			}
 		}
 	}
 
-	// TODO: Get previous period followers for trend calculation
-	// For now, return current followers without trend
+	// If not found in JSONB, try to get from KPI metrics (latest)
+	if currentFollowers == 0 {
+		currentFollowers, _ = s.dashboardRepo.GetChannelFollowers(ctx, channelID, currentRange.End)
+	}
 
-	return currentFollowers, nil
+	// Get previous period followers for trend calculation
+	previousFollowers, _ := s.dashboardRepo.GetChannelFollowers(ctx, channelID, previousRange.End)
+
+	var trend *responses.TrendIndicator
+	if previousFollowers > 0 || currentFollowers > 0 {
+		change := float64(currentFollowers - previousFollowers)
+		percent := calculateGrowth(currentFollowers, previousFollowers)
+		trend = &responses.TrendIndicator{
+			Value:      change,
+			Percentage: percent,
+			Direction:  getGrowthDirection(percent),
+		}
+	}
+
+	return currentFollowers, trend
 }
 
 // mapTrendDataToTimeSeries converts DTO trend data to response format

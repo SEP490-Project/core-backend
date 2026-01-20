@@ -24,52 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/admin/system/specs": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns the system specifications and runtime statistics",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Get System Specs",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/responses.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/responses.SystemSpecsResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/asynq/overview": {
             "get": {
                 "security": [
@@ -85,7 +39,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Get Asynq Overview",
                 "responses": {
@@ -143,7 +97,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Pause Queue",
                 "parameters": [
@@ -194,7 +148,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Get Queue Statistics",
                 "parameters": [
@@ -255,7 +209,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Unpause Queue",
                 "parameters": [
@@ -306,7 +260,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "List Asynq Tasks",
                 "parameters": [
@@ -396,7 +350,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Delete/Cancel Task",
                 "parameters": [
@@ -447,7 +401,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Archive Task",
                 "parameters": [
@@ -498,7 +452,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Get Task Details",
                 "parameters": [
@@ -572,7 +526,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Asynq Admin"
+                    "Admin.Asynq"
                 ],
                 "summary": "Run Task Immediately",
                 "parameters": [
@@ -623,7 +577,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "List Cache Keys",
                 "parameters": [
@@ -689,7 +643,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Set Cache Key",
                 "parameters": [
@@ -738,7 +692,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Delete Cache Key",
                 "parameters": [
@@ -789,7 +743,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Delete Cache Keys by Pattern",
                 "parameters": [
@@ -840,7 +794,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Flush Cache Database",
                 "parameters": [
@@ -891,7 +845,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Get Cache Key Value",
                 "parameters": [
@@ -958,7 +912,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Cache Admin"
+                    "Admin.Cache"
                 ],
                 "summary": "Get Cache Overview",
                 "responses": {
@@ -1016,7 +970,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Retry Dead Letter Queue Messages",
                 "parameters": [
@@ -1091,7 +1045,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "List RabbitMQ Exchanges",
                 "responses": {
@@ -1152,7 +1106,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Get RabbitMQ Health",
                 "responses": {
@@ -1210,7 +1164,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Get RabbitMQ Overview",
                 "responses": {
@@ -1268,7 +1222,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Publish Message",
                 "parameters": [
@@ -1331,7 +1285,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "List RabbitMQ Queues",
                 "parameters": [
@@ -1412,7 +1366,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "List RabbitMQ Queue Groups",
                 "responses": {
@@ -1473,7 +1427,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Get Queue Details",
                 "parameters": [
@@ -1546,7 +1500,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Get Messages from Queue",
                 "parameters": [
@@ -1640,7 +1594,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Purge Queue",
                 "parameters": [
@@ -1713,7 +1667,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "List Shovels",
                 "responses": {
@@ -1774,7 +1728,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "RabbitMQ Admin"
+                    "Admin.RabbitMQ"
                 ],
                 "summary": "Delete Shovel",
                 "parameters": [
@@ -1809,6 +1763,52 @@ const docTemplate = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/system/specs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the system specifications and runtime statistics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin.System"
+                ],
+                "summary": "Get System Specs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.SystemSpecsResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -2799,7 +2799,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get Campaigns Summary",
                 "responses": {
@@ -2857,7 +2857,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get Contracts Summary",
                 "responses": {
@@ -2915,7 +2915,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get Admin Dashboard",
                 "parameters": [
@@ -2993,7 +2993,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get System Health",
                 "responses": {
@@ -3051,7 +3051,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get Platform Revenue",
                 "parameters": [
@@ -3135,7 +3135,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get User Growth",
                 "parameters": [
@@ -3228,7 +3228,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Admin Analytics"
+                    "Analytics.Admin"
                 ],
                 "summary": "Get Users Overview",
                 "parameters": [
@@ -3312,7 +3312,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/AffiliateLinks"
+                    "Analytics.AffiliateLinks"
                 ],
                 "summary": "Get analytics metrics grouped by channel",
                 "parameters": [
@@ -3380,7 +3380,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/AffiliateLinks"
+                    "Analytics.AffiliateLinks"
                 ],
                 "summary": "Get analytics metrics for a specific contract",
                 "parameters": [
@@ -3468,7 +3468,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/AffiliateLinks"
+                    "Analytics.AffiliateLinks"
                 ],
                 "summary": "Get dashboard metrics with parallel aggregation",
                 "parameters": [
@@ -3536,7 +3536,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/AffiliateLinks"
+                    "Analytics.AffiliateLinks"
                 ],
                 "summary": "Get time-series data for a specific affiliate link",
                 "parameters": [
@@ -3631,7 +3631,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/AffiliateLinks"
+                    "Analytics.AffiliateLinks"
                 ],
                 "summary": "Get top performing affiliate links",
                 "parameters": [
@@ -3720,7 +3720,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Affiliate Metrics",
                 "parameters": [
@@ -3792,7 +3792,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Campaign Metrics",
                 "parameters": [
@@ -3879,7 +3879,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Content Metrics",
                 "parameters": [
@@ -3951,7 +3951,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Contract Details",
                 "parameters": [
@@ -4026,7 +4026,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand Partner Dashboard",
                 "parameters": [
@@ -4098,7 +4098,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Revenue Trend",
                 "parameters": [
@@ -4179,7 +4179,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Top Products",
                 "parameters": [
@@ -4260,7 +4260,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Brand Partner Analytics"
+                    "Analytics.BrandPartner"
                 ],
                 "summary": "Get Brand's Top Rating Products",
                 "parameters": [
@@ -4326,7 +4326,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/analytics/content/channels/{id}": {
+        "/api/v1/analytics/contents/channels/{id}": {
             "get": {
                 "security": [
                     {
@@ -4341,7 +4341,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Content Dashboard"
+                    "Analytics.Content"
                 ],
                 "summary": "Get channel details",
                 "parameters": [
@@ -4448,7 +4448,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Content Dashboard"
+                    "Analytics.Content"
                 ],
                 "summary": "Get content staff dashboard",
                 "parameters": [
@@ -4536,7 +4536,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get active brands count",
                 "responses": {
@@ -4580,7 +4580,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get active campaigns count",
                 "responses": {
@@ -4627,7 +4627,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get marketing analytics dashboard",
                 "parameters": [
@@ -4694,7 +4694,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get draft campaigns count",
                 "responses": {
@@ -4741,7 +4741,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get monthly contract revenue",
                 "parameters": [
@@ -4814,7 +4814,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get revenue breakdown by contract type",
                 "parameters": [
@@ -4905,7 +4905,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get top brands by revenue",
                 "parameters": [
@@ -4999,7 +4999,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Analytics/MarketingStaffs"
+                    "Analytics.Marketing"
                 ],
                 "summary": "Get campaigns approaching deadline",
                 "parameters": [
@@ -5064,7 +5064,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "SalesStaffAnalytics"
+                    "Analytics.Sales"
                 ],
                 "summary": "Get Sales Staff Financials Dashboard",
                 "parameters": [
@@ -5183,7 +5183,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "SalesStaffAnalytics"
+                    "Analytics.Sales"
                 ],
                 "summary": "Get Revenue Growth",
                 "parameters": [
@@ -5251,7 +5251,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "SalesStaffAnalytics"
+                    "Analytics.Sales"
                 ],
                 "summary": "Get Revenue Trend",
                 "parameters": [
@@ -5337,7 +5337,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "SalesStaffAnalytics"
+                    "Analytics.Sales"
                 ],
                 "summary": "Get Sales Staff Orders Dashboard",
                 "parameters": [
@@ -5443,7 +5443,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "SalesStaffAnalytics"
+                    "Analytics.Sales"
                 ],
                 "summary": "Get Orders Trend",
                 "parameters": [
@@ -11597,6 +11597,182 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contracts/{id}/report-brand-violation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a brand violation record and transitions contract to BRAND_VIOLATED status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Initiate brand violation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Violation data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.InitiateViolationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Violation created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Active violation already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/report-kol-violation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a KOL violation record and transitions contract to KOL_VIOLATED status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Initiate KOL violation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Violation data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.InitiateViolationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Violation created successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Active violation already exists",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/contracts/{id}/scope-of-work": {
             "get": {
                 "security": [
@@ -11729,6 +11905,517 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Invalid state transition",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves active violation for a contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Get violation by contract",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Violation details",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No active violation found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/calculate/brand": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Calculates the penalty amount for a brand violation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Calculate brand penalty",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Calculation result",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationCalculationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/calculate/kol": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Calculates the refund amount for a KOL violation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Calculate KOL refund",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Calculation result",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationCalculationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contract not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/create-penalty-payment": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a PayOS payment link for brand penalty and transitions to BRAND_PENALTY_PENDING",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Create penalty payment link",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment link created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.PayOSLinkResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Violation not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/resolve": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a violation as resolved and terminates the contract",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Resolve violation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Violation resolved",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid contract ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Violation not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/review-proof": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Brand reviews KOL's refund proof (approve/reject)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Review refund proof",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Review data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReviewRefundProofRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Proof reviewed",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Violation not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/contracts/{id}/violation/submit-proof": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marketing Staff submits proof of refund for Brand approval",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Submit refund proof",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contract ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Proof data",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.SubmitRefundProofRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Proof submitted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Violation not found",
                         "schema": {
                             "$ref": "#/definitions/responses.APIResponse"
                         }
@@ -22270,6 +22957,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/test/contracts/update-all-contracts-sow": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the scope of work for all contracts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Update All Contract Scope of Work",
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated all contract scope of work",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test/contracts/{id}/update-sow": {
             "put": {
                 "security": [
@@ -22339,6 +23058,38 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {}
+                    }
+                }
+            }
+        },
+        "/api/v1/test/sync-milestone-completion": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Triggers a synchronization of milestone completion percentages across all campaigns.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Sync Milestone Completion Percentage",
+                "responses": {
+                    "200": {
+                        "description": "Successfully synced milestone completion percentages",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
                     }
                 }
             }
@@ -23365,6 +24116,172 @@ const docTemplate = `{
                                     "type": "string"
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/violations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a paginated list of contract violations with filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "List violations",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by violation type (BRAND/KOL)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by resolution status",
+                        "name": "is_resolved",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by proof status",
+                        "name": "proof_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by contract ID",
+                        "name": "contract_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by campaign ID",
+                        "name": "campaign_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 10, max: 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Violations list",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/responses.ViolationListResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/violations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves detailed information about a contract violation",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contract Violations"
+                ],
+                "summary": "Get violation details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Violation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Violation details",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/responses.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/responses.ViolationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid violation ID",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Violation not found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
                         }
                     }
                 }
@@ -25271,7 +26188,14 @@ const docTemplate = `{
                 "ORDER_ISSUE",
                 "PAYMENT_OVERDUE",
                 "SYSTEM_HEALTH",
-                "SECURITY_ISSUE"
+                "SECURITY_ISSUE",
+                "VIOLATION_DETECTED",
+                "PENALTY_PAYMENT_DUE",
+                "REFUND_REQUIRED",
+                "PROOF_SUBMITTED",
+                "PROOF_REVIEW_REQUIRED",
+                "VIOLATION_RESOLVED",
+                "VIOLATION_ESCALATED"
             ],
             "x-enum-varnames": [
                 "AlertCategoryContentRejected",
@@ -25288,7 +26212,14 @@ const docTemplate = `{
                 "AlertCategoryOrderIssue",
                 "AlertCategoryPaymentOverdue",
                 "AlertCategorySystemHealth",
-                "AlertCategorySecurityIssue"
+                "AlertCategorySecurityIssue",
+                "AlertCategoryViolationDetected",
+                "AlertCategoryPenaltyPaymentDue",
+                "AlertCategoryRefundRequired",
+                "AlertCategoryProofSubmitted",
+                "AlertCategoryProofReviewRequired",
+                "AlertCategoryViolationResolved",
+                "AlertCategoryViolationEscalated"
             ]
         },
         "enum.AlertSeverity": {
@@ -25407,12 +26338,14 @@ const docTemplate = `{
         "enum.ContractPaymentStatus": {
             "type": "string",
             "enum": [
+                "NOT_STARTED",
                 "PENDING",
                 "PAID",
                 "OVERDUE",
                 "TERMINATED"
             ],
             "x-enum-varnames": [
+                "ContractPaymentStatusNotStarted",
                 "ContractPaymentStatusPending",
                 "ContractPaymentStatusPaid",
                 "ContractPaymentStatusOverdue",
@@ -25574,12 +26507,14 @@ const docTemplate = `{
             "enum": [
                 "ORDER",
                 "CONTRACT_PAYMENT",
-                "PREORDER"
+                "PREORDER",
+                "CONTRACT_VIOLATION"
             ],
             "x-enum-varnames": [
                 "PaymentTransactionReferenceTypeOrder",
                 "PaymentTransactionReferenceTypeContractPayment",
-                "PaymentTransactionReferenceTypePreOrder"
+                "PaymentTransactionReferenceTypePreOrder",
+                "PaymentTransactionReferenceTypeContractViolation"
             ]
         },
         "enum.PlatformType": {
@@ -25683,6 +26618,7 @@ const docTemplate = `{
                 "MILESTONE",
                 "CAMPAIGN",
                 "CONTRACT",
+                "CONTRACT_VIOLATION",
                 "ORDER",
                 "USER",
                 "BRAND",
@@ -25700,6 +26636,7 @@ const docTemplate = `{
                 "ReferenceTypeMilestone",
                 "ReferenceTypeCampaign",
                 "ReferenceTypeContract",
+                "ReferenceTypeContractViolation",
                 "ReferenceTypeOrder",
                 "ReferenceTypeUser",
                 "ReferenceTypeBrand",
@@ -25772,6 +26709,30 @@ const docTemplate = `{
                 "UserRoleSalesStaff",
                 "UserRoleCustomer",
                 "UserRoleBrandPartner"
+            ]
+        },
+        "enum.ViolationProofStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+            ],
+            "x-enum-varnames": [
+                "ViolationProofStatusPending",
+                "ViolationProofStatusApproved",
+                "ViolationProofStatusRejected"
+            ]
+        },
+        "enum.ViolationType": {
+            "type": "string",
+            "enum": [
+                "BRAND",
+                "KOL"
+            ],
+            "x-enum-varnames": [
+                "ViolationTypeBrand",
+                "ViolationTypeKOL"
             ]
         },
         "handler.CalculateDeliveryPriceByDimensionRequest": {
@@ -27531,10 +28492,15 @@ const docTemplate = `{
                     "example": 3000000
                 },
                 "deposit_percent": {
+                    "description": "Deposit Information",
                     "type": "integer",
                     "maximum": 100,
                     "minimum": 0,
                     "example": 30
+                },
+                "deposit_proof_url": {
+                    "type": "string",
+                    "example": "https://example.com/deposits/proof.pdf"
                 },
                 "end_date": {
                     "type": "string",
@@ -28040,6 +29006,20 @@ const docTemplate = `{
                 "stream": {
                     "type": "boolean",
                     "example": false
+                }
+            }
+        },
+        "requests.InitiateViolationRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "description": "ContractID is now taken from URL param",
+                    "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 10
                 }
             }
         },
@@ -28805,6 +29785,27 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ReviewRefundProofRequest": {
+            "type": "object",
+            "required": [
+                "action"
+            ],
+            "properties": {
+                "action": {
+                    "description": "ViolationID is inferred from ContractID in URL",
+                    "type": "string",
+                    "enum": [
+                        "APPROVE",
+                        "REJECT"
+                    ]
+                },
+                "reject_reason": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "minLength": 10
+                }
+            }
+        },
         "requests.ScheduleContentRequest": {
             "type": "object",
             "required": [
@@ -28848,6 +29849,22 @@ const docTemplate = `{
                     "maxLength": 50,
                     "minLength": 3,
                     "example": "john_doe"
+                }
+            }
+        },
+        "requests.SubmitRefundProofRequest": {
+            "type": "object",
+            "required": [
+                "proof_url"
+            ],
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "proof_url": {
+                    "description": "ViolationID is inferred from ContractID in URL",
+                    "type": "string"
                 }
             }
         },
@@ -29360,7 +30377,15 @@ const docTemplate = `{
                         "ACTIVE",
                         "COMPLETED",
                         "TERMINATED",
-                        "INACTIVE"
+                        "INACTIVE",
+                        "BRAND_VIOLATED",
+                        "BRAND_PENALTY_PENDING",
+                        "BRAND_PENALTY_PAID",
+                        "KOL_VIOLATED",
+                        "KOL_REFUND_PENDING",
+                        "KOL_PROOF_SUBMITTED",
+                        "KOL_PROOF_REJECTED",
+                        "KOL_REFUND_APPROVED"
                     ],
                     "example": "TERMINATED"
                 }
@@ -31670,6 +32695,20 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.CampaignSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.ChannelDetailsResponse": {
             "type": "object",
             "properties": {
@@ -31714,6 +32753,10 @@ const docTemplate = `{
                 },
                 "followers_trend": {
                     "$ref": "#/definitions/responses.TrendIndicator"
+                },
+                "last_synced_at": {
+                    "description": "Last channel metrics sync time",
+                    "type": "string"
                 },
                 "mapped_metrics": {
                     "description": "Standardized mapped metrics",
@@ -32743,8 +33786,13 @@ const docTemplate = `{
                     "example": 3000000
                 },
                 "deposit_percent": {
+                    "description": "Deposit information",
                     "type": "integer",
                     "example": 30
+                },
+                "deposit_proof_url": {
+                    "type": "string",
+                    "example": "https://example.com/deposits/proof.pdf"
                 },
                 "end_date": {
                     "type": "string",
@@ -32845,6 +33893,14 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string",
                     "example": "2006-01-02 15:04:05"
+                },
+                "violation": {
+                    "description": "Violation Info (populated if contract is in violation status)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ViolationResponse"
+                        }
+                    ]
                 }
             }
         },
@@ -32878,6 +33934,29 @@ const docTemplate = `{
                 "type": {
                     "type": "string",
                     "example": "ADVERTISING"
+                }
+            }
+        },
+        "responses.ContractSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_value": {
+                    "type": "number"
                 }
             }
         },
@@ -33548,6 +34627,26 @@ const docTemplate = `{
                 },
                 "value": {
                     "description": "int64, float64"
+                }
+            }
+        },
+        "responses.MilestoneBreakdownDTO": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "linked_payment_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "percentage": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -34305,6 +35404,29 @@ const docTemplate = `{
                             }
                         }
                     }
+                }
+            }
+        },
+        "responses.PaymentBreakdownDTO": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_deposit": {
+                    "type": "boolean"
+                },
+                "milestone_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
                 }
             }
         },
@@ -37082,6 +38204,228 @@ const docTemplate = `{
                 },
                 "width": {
                     "type": "integer"
+                }
+            }
+        },
+        "responses.ViolationCalculationResponse": {
+            "type": "object",
+            "properties": {
+                "calculation_formula": {
+                    "description": "Calculation breakdown",
+                    "type": "string"
+                },
+                "completed_milestones": {
+                    "type": "integer"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_total_value": {
+                    "type": "number"
+                },
+                "milestone_details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.MilestoneBreakdownDTO"
+                    }
+                },
+                "payment_details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PaymentBreakdownDTO"
+                    }
+                },
+                "penalty_amount": {
+                    "type": "number"
+                },
+                "penalty_percentage": {
+                    "description": "Brand violation specific",
+                    "type": "number"
+                },
+                "refund_amount": {
+                    "description": "KOL violation specific",
+                    "type": "number"
+                },
+                "total_milestones": {
+                    "type": "integer"
+                },
+                "total_paid_by_brand": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.ViolationListResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "campaign_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_resolved": {
+                    "type": "boolean"
+                },
+                "penalty_amount": {
+                    "type": "number"
+                },
+                "proof_status": {
+                    "$ref": "#/definitions/enum.ViolationProofStatus"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ViolationType"
+                }
+            }
+        },
+        "responses.ViolationPaymentData": {
+            "type": "object",
+            "properties": {
+                "accountName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "bin": {
+                    "type": "string"
+                },
+                "checkoutUrl": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "expiredAt": {
+                    "type": "integer"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "paymentLinkId": {
+                    "type": "string"
+                },
+                "qrCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ViolationResponse": {
+            "type": "object",
+            "properties": {
+                "campaign": {
+                    "$ref": "#/definitions/responses.CampaignSummaryResponse"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "completed_milestones": {
+                    "type": "integer"
+                },
+                "contract": {
+                    "description": "Related data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ContractSummaryResponse"
+                        }
+                    ]
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Audit",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_resolved": {
+                    "type": "boolean"
+                },
+                "payment_data": {
+                    "$ref": "#/definitions/responses.ViolationPaymentData"
+                },
+                "penalty_amount": {
+                    "description": "Financial details",
+                    "type": "number"
+                },
+                "proof_attempts": {
+                    "type": "integer"
+                },
+                "proof_review_note": {
+                    "type": "string"
+                },
+                "proof_reviewed_at": {
+                    "type": "string"
+                },
+                "proof_reviewed_by": {
+                    "type": "string"
+                },
+                "proof_status": {
+                    "description": "Proof handling",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ViolationProofStatus"
+                        }
+                    ]
+                },
+                "proof_submitted_at": {
+                    "type": "string"
+                },
+                "proof_submitted_by": {
+                    "type": "string"
+                },
+                "proof_url": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "resolved_at": {
+                    "description": "Resolution",
+                    "type": "string"
+                },
+                "total_milestones": {
+                    "type": "integer"
+                },
+                "total_paid_by_brand": {
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ViolationType"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
