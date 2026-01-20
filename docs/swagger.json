@@ -4319,7 +4319,7 @@
                 }
             }
         },
-        "/api/v1/analytics/content/channels/{id}": {
+        "/api/v1/analytics/contents/channels/{id}": {
             "get": {
                 "security": [
                     {
@@ -22263,6 +22263,38 @@
                 }
             }
         },
+        "/api/v1/test/contracts/update-all-contracts-sow": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the scope of work for all contracts",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Update All Contract Scope of Work",
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated all contract scope of work",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/test/contracts/{id}/update-sow": {
             "put": {
                 "security": [
@@ -22332,6 +22364,38 @@
                     "200": {
                         "description": "OK",
                         "schema": {}
+                    }
+                }
+            }
+        },
+        "/api/v1/test/sync-milestone-completion": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Triggers a synchronization of milestone completion percentages across all campaigns.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Test"
+                ],
+                "summary": "Sync Milestone Completion Percentage",
+                "responses": {
+                    "200": {
+                        "description": "Successfully synced milestone completion percentages",
+                        "schema": {}
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
                     }
                 }
             }
@@ -25400,12 +25464,14 @@
         "enum.ContractPaymentStatus": {
             "type": "string",
             "enum": [
+                "NOT_STARTED",
                 "PENDING",
                 "PAID",
                 "OVERDUE",
                 "TERMINATED"
             ],
             "x-enum-varnames": [
+                "ContractPaymentStatusNotStarted",
                 "ContractPaymentStatusPending",
                 "ContractPaymentStatusPaid",
                 "ContractPaymentStatusOverdue",
@@ -25567,12 +25633,22 @@
             "enum": [
                 "ORDER",
                 "CONTRACT_PAYMENT",
+<<<<<<< HEAD
                 "PREORDER"
+=======
+                "PREORDER",
+                "CONTRACT_VIOLATION"
+>>>>>>> bdea438 (refactor: update Swagger docs and format code)
             ],
             "x-enum-varnames": [
                 "PaymentTransactionReferenceTypeOrder",
                 "PaymentTransactionReferenceTypeContractPayment",
+<<<<<<< HEAD
                 "PaymentTransactionReferenceTypePreOrder"
+=======
+                "PaymentTransactionReferenceTypePreOrder",
+                "PaymentTransactionReferenceTypeContractViolation"
+>>>>>>> bdea438 (refactor: update Swagger docs and format code)
             ]
         },
         "enum.PlatformType": {
@@ -29353,7 +29429,15 @@
                         "ACTIVE",
                         "COMPLETED",
                         "TERMINATED",
-                        "INACTIVE"
+                        "INACTIVE",
+                        "BRAND_VIOLATED",
+                        "BRAND_PENALTY_PENDING",
+                        "BRAND_PENALTY_PAID",
+                        "KOL_VIOLATED",
+                        "KOL_REFUND_PENDING",
+                        "KOL_PROOF_SUBMITTED",
+                        "KOL_PROOF_REJECTED",
+                        "KOL_REFUND_APPROVED"
                     ],
                     "example": "TERMINATED"
                 }
@@ -37078,6 +37162,231 @@
                 }
             }
         },
+<<<<<<< HEAD
+=======
+        "responses.ViolationCalculationResponse": {
+            "type": "object",
+            "properties": {
+                "calculation_formula": {
+                    "description": "Calculation breakdown",
+                    "type": "string"
+                },
+                "completed_milestones": {
+                    "type": "integer"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_total_value": {
+                    "type": "number"
+                },
+                "milestone_details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.MilestoneBreakdownDTO"
+                    }
+                },
+                "payment_details": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.PaymentBreakdownDTO"
+                    }
+                },
+                "penalty_amount": {
+                    "type": "number"
+                },
+                "penalty_percentage": {
+                    "description": "Brand violation specific",
+                    "type": "number"
+                },
+                "refund_amount": {
+                    "description": "KOL violation specific",
+                    "type": "number"
+                },
+                "total_milestones": {
+                    "type": "integer"
+                },
+                "total_paid_by_brand": {
+                    "type": "number"
+                }
+            }
+        },
+        "responses.ViolationListResponse": {
+            "type": "object",
+            "properties": {
+                "brand_id": {
+                    "type": "string"
+                },
+                "brand_name": {
+                    "type": "string"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "campaign_name": {
+                    "type": "string"
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "contract_number": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_resolved": {
+                    "type": "boolean"
+                },
+                "penalty_amount": {
+                    "type": "number"
+                },
+                "proof_status": {
+                    "$ref": "#/definitions/enum.ViolationProofStatus"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ViolationType"
+                }
+            }
+        },
+        "responses.ViolationPaymentData": {
+            "type": "object",
+            "properties": {
+                "accountName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "number"
+                },
+                "bin": {
+                    "type": "string"
+                },
+                "checkoutUrl": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "expiredAt": {
+                    "type": "integer"
+                },
+                "orderCode": {
+                    "type": "integer"
+                },
+                "paymentLinkId": {
+                    "type": "string"
+                },
+                "qrCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.ViolationResponse": {
+            "type": "object",
+            "properties": {
+                "campaign": {
+                    "$ref": "#/definitions/responses.CampaignSummaryResponse"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "completed_milestones": {
+                    "type": "integer"
+                },
+                "contract": {
+                    "description": "Related data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/responses.ContractSummaryResponse"
+                        }
+                    ]
+                },
+                "contract_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Audit",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_resolved": {
+                    "type": "boolean"
+                },
+                "payment_data": {
+                    "$ref": "#/definitions/responses.ViolationPaymentData"
+                },
+                "penalty_amount": {
+                    "description": "Financial details",
+                    "type": "number"
+                },
+                "proof_attempts": {
+                    "type": "integer"
+                },
+                "proof_review_note": {
+                    "type": "string"
+                },
+                "proof_reviewed_at": {
+                    "type": "string"
+                },
+                "proof_reviewed_by": {
+                    "type": "string"
+                },
+                "proof_status": {
+                    "description": "Proof handling",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/enum.ViolationProofStatus"
+                        }
+                    ]
+                },
+                "proof_submitted_at": {
+                    "type": "string"
+                },
+                "proof_submitted_by": {
+                    "type": "string"
+                },
+                "proof_url": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "resolved_at": {
+                    "description": "Resolution",
+                    "type": "string"
+                },
+                "total_milestones": {
+                    "type": "integer"
+                },
+                "total_paid_by_brand": {
+                    "type": "number"
+                },
+                "type": {
+                    "$ref": "#/definitions/enum.ViolationType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+>>>>>>> bdea438 (refactor: update Swagger docs and format code)
         "responses.WardResponse": {
             "type": "object",
             "properties": {

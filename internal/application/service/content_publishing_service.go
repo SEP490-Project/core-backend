@@ -143,8 +143,9 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 
 	if err != nil {
 		// Update ContentChannel with error
-		err = helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
-			if updateErr := uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+		var updateErr error
+		updateErr = helper.WithTransaction(ctx, s.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			if updateErr = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 				return db.Where("id = ?", contentChannel.ID)
 			}, map[string]any{
 				"auto_post_status": enum.AutoPostStatusFailed,
@@ -241,8 +242,8 @@ func (s *contentPublishingService) PublishToAllChannels(ctx context.Context, con
 
 	response := &responses.PublishAllChannelsResponse{
 		TotalChannels: len(content.ContentChannels),
-		Results:       []responses.PublishContentResponse{},
-		Errors:        []responses.PublishChannelError{},
+		Results:       make([]responses.PublishContentResponse, len(content.ContentChannels)),
+		Errors:        make([]responses.PublishChannelError, len(content.ContentChannels)),
 	}
 
 	// Publish to each channel
@@ -261,9 +262,24 @@ func (s *contentPublishingService) PublishToAllChannels(ctx context.Context, con
 				ChannelName: channelName,
 				Error:       err.Error(),
 			})
-		} else {
+		} else if result != nil {
 			response.SuccessCount++
 			response.Results = append(response.Results, *result)
+		} else {
+			zap.L().Warn("PublishToChannel returned nil result without error",
+				zap.String("content_id", contentID.String()),
+				zap.String("channel_id", cc.ChannelID.String()))
+			channel, _ := s.channelRepo.GetByID(ctx, cc.ChannelID, nil)
+			channelName := "Unknown"
+			if channel != nil {
+				channelName = channel.Name
+			}
+			response.FailureCount++
+			response.Errors = append(response.Errors, responses.PublishChannelError{
+				ChannelID:   cc.ChannelID,
+				ChannelName: channelName,
+				Error:       "unknown error",
+			})
 		}
 	}
 
@@ -646,7 +662,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 	// This will only required one step.
 	initReq := &dtos.TikTokVideoInitRequest{
 		PostInfo: dtos.TikTokPostInfo{
-			PrivacyLevel:       dtos.TikTokPrivacyLevelPublicToEveryone,
+			PrivacyLevel:       dtos.TikTokPrivacyLevelSelfOnly,
 			Title:              videoInfo.Title,
 			DisableDuet:        creatorInfo.Data.DuetDisabled,
 			DisableStitch:      creatorInfo.Data.StitchDisabled,
@@ -690,7 +706,10 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 
 	// 5. Send init request to TikTok
 	initResp, err := s.tiktokProxy.InitVideoPost(ctx, accessToken, initReq)
-	if err != nil {
+	if err != nil || initResp.Error.Message != "" {
+		if err == nil {
+			err = fmt.Errorf("%s: %s", initResp.Error.Code, initResp.Error.Message)
+		}
 		return "", "", fmt.Errorf("failed to init TikTok video post: %w", err)
 	}
 

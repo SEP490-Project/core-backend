@@ -246,8 +246,8 @@ func (h *LocationHandler) GetUserAddresses(c *gin.Context) {
 //	@Tags			location
 //	@Accept			json
 //	@Produce		json
-//	@Param			address-id	path		string							true	"Address ID"
-//	@Param			body		body		requests.UpdateAddressRequest	true	"Address update payload"
+//	@Param			address-id	path		string								true	"Address ID"
+//	@Param			body		body		requests.UpdateAddressRequest		true	"Address update payload"
 //	@Success		200			{object}	responses.ShippingAddressResponse	"Address updated"
 //	@Failure		400			{object}	map[string]string
 //	@Failure		401			{object}	map[string]string
@@ -304,7 +304,7 @@ func (h *LocationHandler) UpdateUserAddress(c *gin.Context) {
 //	@Tags			location
 //	@Accept			json
 //	@Produce		json
-//	@Param			address-id	path		string	true	"Address ID"
+//	@Param			address-id	path		string				true	"Address ID"
 //	@Success		200			{object}	map[string]string	"Address deleted"
 //	@Failure		400			{object}	map[string]string
 //	@Failure		401			{object}	map[string]string
