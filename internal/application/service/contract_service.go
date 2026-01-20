@@ -13,6 +13,7 @@ import (
 	"core-backend/internal/domain/model"
 	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
+	"core-backend/pkg/gorountine"
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
@@ -25,7 +26,7 @@ import (
 
 type ContractService struct {
 	brandRepository    irepository.GenericRepository[model.Brand]
-	contractRepository irepository.GenericRepository[model.Contract]
+	contractRepository irepository.ContractRepository
 	violationRepo      irepository.ContractViolationRepository
 	taskRepository     irepository.TaskRepository
 	unitOfWork         irepository.UnitOfWork
@@ -756,6 +757,35 @@ func (s *ContractService) unmarshalScopeOfWork(contract *model.Contract) (*dtos.
 		return nil, err
 	}
 	return &scopeOfWorks, nil
+}
+
+func (s *ContractService) UpdateAllContractScopeOfWorkWithReferencinnTaskIDs(ctx context.Context) error {
+	// s.contractRepository.GetAllContractIDs(ctx)
+	ids, err := s.contractRepository.GetAllContractIDs(ctx)
+	if err != nil {
+		zap.L().Error("Failed to get all contract IDs", zap.Error(err))
+		return err
+	}
+
+	workerPool := gorountine.NewWorkerPool(ctx, 5)
+	workerPool.Start()
+
+	for _, id := range ids {
+		workerPool.Submit(func(ctx context.Context) error {
+			return s.UpdateContractScopeOfWorkWithReferencinnTaskIDs(ctx, id)
+		})
+	}
+	workerPool.Close()
+	workerPool.Wait()
+	if workerPool.HasErrors() {
+		zap.L().Error("Update all contracts scope of work item with some failed",
+			zap.Errors("errors", workerPool.Errors()),
+			zap.Int("total", len(ids)),
+			zap.Int("success", len(ids)-len(workerPool.Errors())),
+			zap.Int("failed", len(workerPool.Errors())))
+	}
+
+	return nil
 }
 
 func NewContractService(

@@ -284,3 +284,24 @@ func (h *TestHandler) UpdateContractScopeOfWork(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Contract scope of work updated successfully", nil, nil))
 }
+
+// UpdateAllContractScopeOfWork godoc
+//
+//	@Summary		Update All Contract Scope of Work
+//	@Description	Updates the scope of work for all contracts
+//	@Tags			Test
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	any						"Successfully updated all contract scope of work"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/test/contracts/update-all-contracts-sow [put]
+func (h *TestHandler) UpdateAllContractScopeOfWork(c *gin.Context) {
+	if err := h.applicationReg.ContractService.UpdateAllContractScopeOfWorkWithReferencinnTaskIDs(c.Request.Context()); err != nil {
+		zap.L().Error("Failed to update all contract scope of work", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to update all contract scope of work", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("All contract scope of work updated successfully", nil, nil))
+}

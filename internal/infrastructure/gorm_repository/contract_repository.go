@@ -35,3 +35,10 @@ func (r *contractRepository) GetContractIDByTaskID(ctx context.Context, taskID u
 	}
 	return contractID, nil
 }
+
+func (r *contractRepository) GetAllContractIDs(ctx context.Context) (contractIDs []uuid.UUID, err error) {
+	if err = r.db.WithContext(ctx).Model(new(model.Contract)).Pluck("id", &contractIDs).Error; err != nil {
+		return nil, err
+	}
+	return contractIDs, nil
+}
