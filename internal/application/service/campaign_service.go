@@ -11,6 +11,7 @@ import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/logging"
 	"core-backend/pkg/utils"
@@ -37,6 +38,7 @@ type CampaignService struct {
 	contentChannelRepo  irepository.ContentChannelsRepository
 	affiliateLinkRepo   irepository.AffiliateLinkRepository
 	kpiMetricsRepo      irepository.KPIMetricsRepository
+	unitOfWork          irepository.UnitOfWork
 }
 
 // SetRejectReason implements iservice.CampaignService.
@@ -676,6 +678,43 @@ func (s *CampaignService) CreateInternalCampaign(
 	return response, nil
 }
 
+func (s *CampaignService) SyncAllMilestoneCompletionPercentage(ctx context.Context) error {
+	return helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		percentageExpr := `
+		COALESCE(
+			(
+				SELECT 
+					(COUNT(*) FILTER (WHERE status = 'DONE')::NUMERIC / NULLIF(COUNT(*), 0)::NUMERIC) * 100
+				FROM tasks 
+				WHERE tasks.milestone_id = milestones.id 
+				AND tasks.deleted_at IS NULL
+			), 
+			0
+		)
+	`
+
+		completedAtExpr := `
+		CASE 
+			WHEN (
+				SELECT COUNT(*) > 0 AND COUNT(*) = COUNT(*) FILTER (WHERE status = 'DONE')
+				FROM tasks 
+				WHERE tasks.milestone_id = milestones.id 
+				AND tasks.deleted_at IS NULL
+			) 
+			THEN COALESCE(completed_at, NOW()) 
+			ELSE NULL 
+		END
+	`
+
+		return uow.DB().WithContext(ctx).Model(new(model.Milestone)).
+			Where("deleted_at IS NULL").
+			Updates(map[string]any{
+				"completion_percentage": gorm.Expr(percentageExpr),
+				"completed_at":          gorm.Expr(completedAtExpr),
+			}).Error
+	})
+}
+
 // region: ======= Suggest Campaign from Contract  =======
 
 // SuggestCampaignFromContract implements iservice.CampaignService.
@@ -1224,6 +1263,7 @@ func (s *CampaignService) extractCoProducingStructure(
 
 func NewCampaignService(
 	dbReg *gormrepository.DatabaseRegistry,
+	infraReg *infrastructure.InfrastructureRegistry,
 ) iservice.CampaignService {
 	return &CampaignService{
 		campaignRepo:        dbReg.CampaignRepository,
@@ -1234,6 +1274,7 @@ func NewCampaignService(
 		contentChannelRepo:  dbReg.ContentChannelRepository,
 		affiliateLinkRepo:   dbReg.AffiliateLinkRepository,
 		kpiMetricsRepo:      dbReg.KPIMetricsRepository,
+		unitOfWork:          infraReg.UnitOfWork,
 	}
 }
 

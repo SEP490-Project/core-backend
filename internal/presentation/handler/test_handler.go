@@ -305,3 +305,23 @@ func (h *TestHandler) UpdateAllContractScopeOfWork(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("All contract scope of work updated successfully", nil, nil))
 }
+
+// SyncMilestoneCompletionPercentage godoc
+//
+//	@Summary		Sync Milestone Completion Percentage
+//	@Description	Triggers a synchronization of milestone completion percentages across all campaigns.
+//	@Tags			Test
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	any						"Successfully synced milestone completion percentages"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/test/sync-milestone-completion [post]
+func (h *TestHandler) SyncMilestoneCompletionPercentage(c *gin.Context) {
+	if err := h.applicationReg.CampaignService.SyncAllMilestoneCompletionPercentage(c.Request.Context()); err != nil {
+		zap.L().Error("Failed to sync milestone completion percentage", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to sync milestone completion percentage", http.StatusInternalServerError))
+		return
+	}
+	c.JSON(http.StatusOK, responses.SuccessResponse("Milestone completion percentages synced successfully", nil, nil))
+}

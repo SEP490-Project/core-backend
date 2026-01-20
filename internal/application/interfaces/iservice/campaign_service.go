@@ -59,4 +59,6 @@ type CampaignService interface {
 
 	// SetRejectReason sets the rejection reason for a campaign.
 	SetRejectReason(ctx context.Context, uow irepository.UnitOfWork, campaignID uuid.UUID, reason string, updatedBy uuid.UUID) error
+
+	SyncAllMilestoneCompletionPercentage(ctx context.Context) error
 }
