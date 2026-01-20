@@ -171,14 +171,9 @@ func (p *productService) UpdateProduct(ctx context.Context, productID uuid.UUID,
 	}
 
 	// Validate and apply brand change
-	if update.BrandID != nil {
-		if exists, err := p.brandRepo.ExistsByID(ctx, *update.BrandID); err != nil {
-			zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", update.BrandID.String()))
-			return nil, errors.New("could not verify brand existence")
-		} else if !exists {
-			return nil, errors.New("brand not found")
-		}
-		product.BrandID = update.BrandID
+	if update.BrandPlaceHolder != nil {
+		trimmed := strings.TrimSpace(*update.BrandPlaceHolder)
+		product.BrandPlaceHolder = &trimmed
 	}
 
 	// Validate and apply category change
@@ -705,7 +700,7 @@ func (p productService) CreateStandardProduct(dto *requests.CreateStandardProduc
 	}
 
 	// Reload with relations
-	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Brand", "Category", "Variants"})
+	saved, err := p.repository.GetByID(ctx, entity.ID, []string{"Category", "Variants"})
 	if err != nil {
 		zap.L().Warn("created product but failed to reload with relations", zap.Error(err))
 		saved = entity
@@ -725,13 +720,13 @@ func (p productService) standardProductValidation(ctx context.Context, dto *requ
 		return errors.New("null request")
 	}
 
-	// Validate brand existence
-	if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
-		zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
-		return errors.New("could not verify brand existence")
-	} else if !exists {
-		return errors.New("brand not found")
-	}
+	// Validate brand existence (Standard product does not require brand existence)
+	//if exists, err := p.brandRepo.ExistsByID(ctx, dto.BrandID); err != nil {
+	//	zap.L().Info("failed verifying brand existence", zap.Error(err), zap.String("brand_id", dto.BrandID.String()))
+	//	return errors.New("could not verify brand existence")
+	//} else if !exists {
+	//	return errors.New("brand not found")
+	//}
 
 	// Validate category existence
 	if exists, err := p.categoryRepo.ExistsByID(ctx, dto.CategoryID); err != nil {

@@ -20,6 +20,8 @@ type OrderResponse struct {
 	BankAccountHolder string `json:"bank_account_holder"`
 
 	TotalAmount       float64                     `json:"total_amount"`
+	CompanyRevenue    *float64                    `json:"company_revenue,omitempty"`
+	KOLRevenue        *float64                    `json:"kol_revenue,omitempty"`
 	FullName          string                      `json:"full_name"`
 	PhoneNumber       string                      `json:"phone_number"`
 	Email             string                      `json:"email"`
@@ -112,6 +114,31 @@ func (OrderResponse) ToResponseList(source []model.Order, payments map[uuid.UUID
 			pt = &p
 		}
 		res = append(res, *OrderResponse{}.ToResponse(&o, pt))
+	}
+	return res
+}
+
+func (OrderResponse) ToResponseListWithRevenue(source []model.Order, payments map[uuid.UUID]model.PaymentTransaction, companyRevenues map[uuid.UUID]float64, kolRevenues map[uuid.UUID]float64) []OrderResponse {
+	if len(source) == 0 {
+		return []OrderResponse{}
+	}
+	res := make([]OrderResponse, 0, len(source))
+	for _, o := range source {
+		var pt *model.PaymentTransaction
+		if p, ok := payments[o.ID]; ok {
+			pt = &p
+		}
+		resp := OrderResponse{}.ToResponse(&o, pt)
+
+		// Set revenue fields if available
+		if companyRev, ok := companyRevenues[o.ID]; ok {
+			resp.CompanyRevenue = &companyRev
+		}
+		if kolRev, ok := kolRevenues[o.ID]; ok {
+			resp.KOLRevenue = &kolRev
+		}
+
+		res = append(res, *resp)
 	}
 	return res
 }
