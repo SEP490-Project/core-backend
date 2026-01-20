@@ -121,6 +121,54 @@ func (p preOrderService) getFinancialTerms(item *model.PreOrder) *datatypes.JSON
 	return &item.ProductVariant.Product.Task.Milestone.Campaign.Contract.FinancialTerms
 }
 
+// calculatePreOrderRevenues computes company and KOL revenue for a preorder
+// PreOrders are always for LIMITED products, so we use contract financial terms
+func (p preOrderService) calculatePreOrderRevenues(ctx context.Context, preOrder *model.PreOrder) (companyRevenue, kolRevenue float64) {
+	if preOrder == nil {
+		return 0, 0
+	}
+
+	// Load preorder with full chain to get financial terms
+	include := []string{
+		"ProductVariant",
+		"ProductVariant.Product",
+		"ProductVariant.Product.Task",
+		"ProductVariant.Product.Task.Milestone",
+		"ProductVariant.Product.Task.Milestone.Campaign",
+		"ProductVariant.Product.Task.Milestone.Campaign.Contract",
+	}
+
+	preOrderWithDetails, err := p.preOrderRepository.GetByID(ctx, preOrder.ID, include)
+	if err != nil || preOrderWithDetails == nil {
+		zap.L().Warn("Failed to load preorder details for revenue calculation", zap.Error(err), zap.String("preOrderID", preOrder.ID.String()))
+		return 0, preOrder.TotalAmount
+	}
+
+	financialTerm := p.getFinancialTerms(preOrderWithDetails)
+	if financialTerm == nil {
+		// No contract found, assume KOL gets all
+		return 0, preOrder.TotalAmount
+	}
+
+	kolPercentVal, isKOLPctExists, err := getJSONKey(*financialTerm, "profit_split_kol_percent")
+	if err != nil || !isKOLPctExists {
+		return 0, preOrder.TotalAmount
+	}
+
+	companyPercentVal, isCompPctExists, err := getJSONKey(*financialTerm, "profit_split_company_percent")
+	if err != nil || !isCompPctExists {
+		return 0, preOrder.TotalAmount
+	}
+
+	kolPercent := toInt(kolPercentVal)
+	companyPercent := toInt(companyPercentVal)
+
+	kolRevenue = preOrder.TotalAmount * float64(kolPercent) / 100.0
+	companyRevenue = preOrder.TotalAmount * float64(companyPercent) / 100.0
+
+	return companyRevenue, kolRevenue
+}
+
 func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
 	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
 	if err != nil {
@@ -877,8 +925,18 @@ func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 		}
 	}
 
-	// Convert model preorders to response DTOs using payment map
-	preOrderResponses := toPreOrderResponseList(preOrders, paymentsMap)
+	// Calculate company and KOL revenue for each preorder
+	companyRevenues := make(map[uuid.UUID]float64)
+	kolRevenues := make(map[uuid.UUID]float64)
+
+	for _, preOrder := range preOrders {
+		companyRev, kolRev := s.calculatePreOrderRevenues(ctx, &preOrder)
+		companyRevenues[preOrder.ID] = companyRev
+		kolRevenues[preOrder.ID] = kolRev
+	}
+
+	// Convert model preorders to response DTOs using payment map and revenue maps
+	preOrderResponses := toPreOrderResponseListWithRevenue(preOrders, paymentsMap, companyRevenues, kolRevenues)
 
 	return preOrderResponses, total, nil
 }
@@ -892,6 +950,29 @@ func toPreOrderResponseList(preOrders []model.PreOrder, paymentsMap map[uuid.UUI
 			pm = &pt
 		}
 		result = append(result, responses.PreOrderResponse{}.ToPreOrderResponse(po, pm))
+	}
+	return result
+}
+
+// toPreOrderResponseListWithRevenue converts a list of PreOrder models to PreOrderResponse DTOs with revenue data
+func toPreOrderResponseListWithRevenue(preOrders []model.PreOrder, paymentsMap map[uuid.UUID]model.PaymentTransaction, companyRevenues, kolRevenues map[uuid.UUID]float64) []responses.PreOrderResponse {
+	result := make([]responses.PreOrderResponse, 0, len(preOrders))
+	for _, po := range preOrders {
+		var pm *model.PaymentTransaction
+		if pt, ok := paymentsMap[po.ID]; ok {
+			pm = &pt
+		}
+		resp := responses.PreOrderResponse{}.ToPreOrderResponse(po, pm)
+
+		// Set revenue fields if available
+		if companyRev, ok := companyRevenues[po.ID]; ok {
+			resp.CompanyRevenue = &companyRev
+		}
+		if kolRev, ok := kolRevenues[po.ID]; ok {
+			resp.KOLRevenue = &kolRev
+		}
+
+		result = append(result, resp)
 	}
 	return result
 }

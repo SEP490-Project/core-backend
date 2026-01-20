@@ -21,10 +21,10 @@ type ProductListRequest struct {
 
 // CreateStandardProductRequest represents create product request
 type CreateStandardProductRequest struct {
-	BrandID     uuid.UUID `json:"brand_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	CategoryID  uuid.UUID `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
-	Name        string    `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
-	Description *string   `json:"description" validate:"omitempty,max=1000" example:"Product description"`
+	BrandPlaceHolder string    `json:"brand_place_holder" validate:"required,min=1,max=255" example:"Brand XYZ"`
+	CategoryID       uuid.UUID `json:"category_id" validate:"required,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name             string    `json:"name" validate:"required,min=1,max=255" example:"Product Name"`
+	Description      *string   `json:"description" validate:"omitempty,max=1000" example:"Product description"`
 }
 
 // UpdateProductRequest represents update product request
@@ -32,7 +32,9 @@ type UpdateProductRequest struct {
 	Name        *string `json:"name" validate:"omitempty,min=1,max=255" example:"Updated Product Name"`
 	Description *string `json:"description" validate:"omitempty,max=1000" example:"Updated product description"`
 
-	BrandID    *uuid.UUID `json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	//BrandID *uuid.UUID `json:"brand_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	BrandPlaceHolder *string `json:"brand_place_holder" validate:"required,min=1,max=255" example:"Brand XYZ"`
+
 	CategoryID *uuid.UUID `json:"category_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 	//Type       *enum.ProductType `json:"type" validate:"omitempty,oneof=STANDARD LIMITED" example:"STANDARD"`
 }
@@ -42,13 +44,14 @@ func (d *CreateStandardProductRequest) ToStandardModel(createdBy uuid.UUID) *mod
 		return nil
 	}
 	return &model.Product{
-		BrandID:     &d.BrandID,
-		CategoryID:  d.CategoryID,
-		TaskID:      nil,
-		Name:        d.Name,
-		Description: d.Description,
-		Type:        enum.ProductTypeStandard,
-		CreatedByID: createdBy,
+		//BrandID:     &d.BrandID,
+		CategoryID:       d.CategoryID,
+		TaskID:           nil,
+		Name:             d.Name,
+		Description:      d.Description,
+		Type:             enum.ProductTypeStandard,
+		BrandPlaceHolder: &d.BrandPlaceHolder,
+		CreatedByID:      createdBy,
 	}
 }
 
