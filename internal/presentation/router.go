@@ -1098,6 +1098,7 @@ func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
 		testGroup.GET("/tiktok/get-creator-info", testHandler.TikTokGetCreatorInfo)
 		testGroup.POST("/migrate-sow-ids", testHandler.MigrateScopeOfWorkIDs)
 		testGroup.PUT("/contracts/:id/update-sow", testHandler.UpdateContractScopeOfWork)
+		testGroup.PUT("/contracts/update-all-contracts-sow", testHandler.UpdateAllContractScopeOfWork)
 	}
 }
 
