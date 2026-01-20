@@ -206,7 +206,7 @@ func NewApplicationRegistry(
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          stateTransferService,
 		ContractService:               contractService,
-		CampaignService:               service.NewCampaignService(databaseRegistry),
+		CampaignService:               service.NewCampaignService(databaseRegistry, infrastructureRegistry),
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository, infrastructureRegistry.CronJobsRegistry),
