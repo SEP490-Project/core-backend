@@ -149,7 +149,9 @@ func (s *violationService) InitiateBrandViolation(
 		CompletedMilestones:  calculation.CompletedMilestones,
 		TotalMilestones:      calculation.TotalMilestones,
 		CalculationBreakdown: breakdownJSON,
-		CreatedBy:            &reportedBy,
+	}
+	if reportedBy != uuid.Nil {
+		violation.CreatedBy = &reportedBy
 	}
 
 	if err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
