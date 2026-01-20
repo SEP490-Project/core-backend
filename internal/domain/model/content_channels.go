@@ -114,6 +114,7 @@ type ContentChannelMetrics struct {
 	CurrentMapped  map[enum.KPIValueType]float64 `json:"current_mapped"`  // Mapped metrics for KPIs
 	LastFetched    map[string]any                `json:"last_fetched"`    // Values from previous fetch
 	LastMapped     map[enum.KPIValueType]float64 `json:"last_mapped"`     // Mapped metrics from previous fetch
+	LastUpdatedAt  *time.Time                    `json:"last_updated_at"` // When metrics were last updated
 }
 
 // region: ======== Website-Specific Metrics Helpers ========

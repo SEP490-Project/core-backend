@@ -7,6 +7,7 @@ import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/pkg/utils"
 	"fmt"
 	"time"
 
@@ -605,6 +606,10 @@ func (r *contentStaffAnalyticsRepository) GetTrendData(ctx context.Context, star
 		enum.AutoPostStatusPosted.String(),
 	}
 
+	zap.L().Debug("GetTrendData query",
+		zap.String("query", query),
+		zap.Any("args", args),
+		zap.String("channel_id", utils.DerefPtr(channelID, uuid.Nil).String()))
 	if channelID != nil {
 		query += " AND cc.channel_id = ?"
 		args = append(args, *channelID)
@@ -954,4 +959,26 @@ func (r *contentStaffAnalyticsRepository) GetChannelMappedMetrics(ctx context.Co
 	}
 
 	return metrics, nil
+}
+
+// GetChannelFollowers returns the followers count for a channel at a specific time (or latest before)
+func (r *contentStaffAnalyticsRepository) GetChannelFollowers(ctx context.Context, channelID uuid.UUID, atTime time.Time) (int64, error) {
+	var followers float64
+
+	// Get the latest recorded followers count before or at atTime
+	err := r.db.WithContext(ctx).Table("kpi_metrics").
+		Select("value").
+		Where("reference_id = ?", channelID).
+		Where("reference_type = ?", enum.KPIReferenceTypeChannel).
+		Where("type = ?", enum.KPIValueTypeFollowers).
+		Where("recorded_date <= ?", atTime).
+		Order("recorded_date DESC").
+		Limit(1).
+		Scan(&followers).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(followers), nil
 }

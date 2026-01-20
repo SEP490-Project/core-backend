@@ -29,7 +29,7 @@ type ScheduleFilterRequest struct {
 	PaginationRequest
 	Status        *enum.ScheduleStatus `form:"status" validate:"omitempty,oneof=PENDING PROCESSING COMPLETED FAILED CANCELLED"`
 	ReferenceID   *uuid.UUID           `form:"reference_id" validate:"omitempty,uuid"`
-	ReferenceType *enum.ScheduleType   `form:"reference_type" validate:"omitempty"`
+	ReferenceType *enum.ReferenceType  `form:"reference_type" validate:"omitempty"`
 	CreatedBy     *uuid.UUID           `form:"created_by" validate:"omitempty,uuid"` // Filter by creator (for role-based access)
 	ContentID     *uuid.UUID           `form:"content_id" validate:"omitempty,uuid"` // Filter by content ID
 	ChannelID     *uuid.UUID           `form:"channel_id" validate:"omitempty,uuid"` // Filter by channel ID
