@@ -46,6 +46,10 @@ func (sa *SystemAlert) BeforeCreate(_ *gorm.DB) error {
 	return nil
 }
 
+func (sa *SystemAlert) IsAcknowledged() bool {
+	return sa.Acknowledgement != nil
+}
+
 // IsActive checks if the alert is active
 func (sa *SystemAlert) IsActive() bool {
 	return sa.Status == enum.AlertStatusActive

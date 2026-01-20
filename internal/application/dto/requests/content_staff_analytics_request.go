@@ -15,9 +15,10 @@ type ContentDashboardFilterRequest struct {
 	ToDate   *string `form:"to_date" validate:"omitempty,datetime=2006-01-02"`
 
 	// Optional filters
-	ChannelID   *string `form:"channel_id" validate:"omitempty,uuid"`
-	ContentType *string `form:"content_type" validate:"omitempty,oneof=POST VIDEO"`
-	CampaignID  *string `form:"campaign_id" validate:"omitempty,uuid"`
+	ChannelID               *string `form:"channel_id" validate:"omitempty,uuid"`
+	ContentType             *string `form:"content_type" validate:"omitempty,oneof=POST VIDEO"`
+	CampaignID              *string `form:"campaign_id" validate:"omitempty,uuid"`
+	UpcomingSchedulesInDays *int    `form:"upcoming_schedules_in_days" validate:"omitempty,min=1,max=90"`
 
 	// Chart granularity
 	TrendGranularity *string `form:"trend_granularity" validate:"omitempty,oneof=HOUR DAY WEEK MONTH"`
@@ -87,6 +88,14 @@ func (r *ContentDashboardFilterRequest) GetBottomContentLimit() int {
 		return *r.BottomContentLimit
 	}
 	return 5
+}
+
+// GetUpcomingSchedulesInDays returns the upcoming schedules in days with default of 7 days
+func (r *ContentDashboardFilterRequest) GetUpcomingSchedulesInDays() int {
+	if r.UpcomingSchedulesInDays != nil {
+		return *r.UpcomingSchedulesInDays
+	}
+	return 7
 }
 
 // ChannelDetailsRequest represents the filter parameters for channel details

@@ -185,6 +185,9 @@ type AlertsResponse struct {
 
 // ChannelDetailsResponse represents detailed metrics for a specific channel
 type ChannelDetailsResponse struct {
+	// Last channel metrics sync time
+	LastSyncedAt *time.Time `json:"last_synced_at,omitempty"`
+
 	// Channel information
 	Channel ChannelInfo `json:"channel"`
 

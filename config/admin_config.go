@@ -60,9 +60,9 @@ type AdminConfig struct {
 	ContractPaymentNotificationHour   int `mapstructure:"contract_payment_notification_hour"`
 
 	// Order - PreOrder
-	CensorshipIntervalMinutes          int   `mapstructure:"censorship_interval_minutes"`
-	AutoReceiveOrderIntervalMs         int64 `mapstructure:"auto_receive_order_interval_ms"`          // Milliseconds (default: 72 hours = 259200000ms)
-	AutoReceivePreOrderIntervalMs      int64 `mapstructure:"auto_receive_preorder_interval_ms"`       // Milliseconds (default: 30 days = 2592000000ms)
+	CensorshipIntervalMinutes     int   `mapstructure:"censorship_interval_minutes"`
+	AutoReceiveOrderIntervalMs    int64 `mapstructure:"auto_receive_order_interval_ms"`    // Milliseconds (default: 72 hours = 259200000ms)
+	AutoReceivePreOrderIntervalMs int64 `mapstructure:"auto_receive_preorder_interval_ms"` // Milliseconds (default: 30 days = 2592000000ms)
 
 	// Products
 	ProductMaximumVariants int `mapstructure:"product_maximum_variants"`
@@ -194,7 +194,7 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	//products
 	adminViper.SetDefault("product_maximum_variants", 3)
 	//orders - Auto receive intervals in milliseconds
-	adminViper.SetDefault("auto_receive_order_interval_ms", 259200000)    // 72 hours = 72 * 60 * 60 * 1000 ms
+	adminViper.SetDefault("auto_receive_order_interval_ms", 259200000)     // 72 hours = 72 * 60 * 60 * 1000 ms
 	adminViper.SetDefault("auto_receive_preorder_interval_ms", 2592000000) // 30 days = 30 * 24 * 60 * 60 * 1000 ms
 }
 
