@@ -932,6 +932,7 @@ func (s *CampaignService) SyncAllMilestoneCompletionPercentage(ctx context.Conte
 func (s *CampaignService) SuggestCampaignFromContract(
 	ctx context.Context,
 	contractID uuid.UUID,
+	updatedByID *uuid.UUID,
 ) (*responses.CampaignSuggestionResponse, error) {
 	zap.L().Info("Suggesting campaign from contract", zap.String("contract_id", contractID.String()))
 
@@ -979,11 +980,11 @@ func (s *CampaignService) SuggestCampaignFromContract(
 	case "ADVERTISING":
 		suggestedCampaign, err = s.extractAdvertisingTasks(ctx, scopeOfWorks, contract)
 	case "AFFILIATE":
-		suggestedCampaign, err = s.extractAffiliateTasks(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractAffiliateTasks(ctx, scopeOfWorks, contract, updatedByID)
 	case "BRAND_AMBASSADOR":
 		suggestedCampaign, err = s.extractBrandAmbassadorTasks(ctx, scopeOfWorks, contract)
 	case "CO_PRODUCING":
-		suggestedCampaign, err = s.extractCoProducingStructure(ctx, scopeOfWorks, contract)
+		suggestedCampaign, err = s.extractCoProducingStructure(ctx, scopeOfWorks, contract, updatedByID)
 	default:
 		zap.L().Error("Unsupported contract type", zap.String("contract_id", contractID.String()), zap.String("type", string(contract.Type)))
 		return nil, errors.New("unsupported contract type")
@@ -1205,6 +1206,7 @@ func (s *CampaignService) extractAffiliateTasks(
 	_ context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
+	updatedByID *uuid.UUID,
 ) (*responses.SuggestedCampaign, error) {
 	// Validate contract
 	if err := helper.ValidateContractForSuggestion(contract); err != nil {
@@ -1273,7 +1275,7 @@ func (s *CampaignService) extractAffiliateTasks(
 	}
 
 	// Assign tasks to milestones using affiliate strategy
-	assignedMilestones := helper.AssignAffiliateTasksToMilestones(contentTasks, milestones, deliverables.TrackingLink)
+	assignedMilestones := helper.AssignAffiliateTasksToMilestones(contentTasks, milestones, deliverables.TrackingLink, updatedByID)
 
 	// Generate campaign name
 	campaignName := "Affiliate Marketing Campaign"
@@ -1394,6 +1396,7 @@ func (s *CampaignService) extractCoProducingStructure(
 	_ context.Context,
 	scopeOfWork dtos.ScopeOfWork,
 	contract *model.Contract,
+	updatedByID *uuid.UUID,
 ) (*responses.SuggestedCampaign, error) {
 	// Convert to type-safe deliverables
 	deliverables, err := scopeOfWork.Deliverables.ToCoProducingDeliverable()
@@ -1451,7 +1454,7 @@ func (s *CampaignService) extractCoProducingStructure(
 	}
 
 	// Assign tasks to milestones (all dev tasks to first milestone, sales review to others)
-	milestones = helper.AssignCoProducingTasksToMilestones(allDevelopmentTasks, milestones, productNames)
+	milestones = helper.AssignCoProducingTasksToMilestones(allDevelopmentTasks, milestones, productNames, updatedByID)
 
 	campaignName := "Co-Production Campaign"
 	if contract.Title != nil {

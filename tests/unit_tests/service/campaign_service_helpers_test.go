@@ -608,7 +608,7 @@ func TestAssignAffiliateTasksToMilestones(t *testing.T) {
 
 	trackingLink := "https://affiliate.example.com/track?ref=12345"
 
-	result := helper.AssignAffiliateTasksToMilestones(contentTasks, milestones, trackingLink)
+	result := helper.AssignAffiliateTasksToMilestones(contentTasks, milestones, trackingLink, nil)
 
 	// First milestone should have all content tasks
 	assert.Equal(t, 3, len(result[0].Tasks), "First milestone should have all content tasks")
@@ -640,7 +640,7 @@ func TestAssignCoProducingTasksToMilestones(t *testing.T) {
 
 	productNames := []string{"Product A", "Product B"}
 
-	result := helper.AssignCoProducingTasksToMilestones(developmentTasks, milestones, productNames)
+	result := helper.AssignCoProducingTasksToMilestones(developmentTasks, milestones, productNames, nil)
 
 	// First milestone should have all development tasks
 	assert.Equal(t, 4, len(result[0].Tasks), "First milestone should have all development tasks")
@@ -664,7 +664,7 @@ func TestGeneratePerformanceTrackingTask_Affiliate(t *testing.T) {
 
 	trackingLink := "https://affiliate.example.com/track?ref=12345"
 
-	task := helper.GeneratePerformanceTrackingTask(milestone, "AFFILIATE", trackingLink)
+	task := helper.GeneratePerformanceTrackingTask(milestone, "AFFILIATE", trackingLink, nil)
 
 	assert.Contains(t, task.Name, "Review")
 	assert.Contains(t, task.Name, "CTR")
@@ -685,7 +685,7 @@ func TestGeneratePerformanceTrackingTask_CoProducing(t *testing.T) {
 
 	productNames := "Smartwatch Pro, Fitness Band"
 
-	task := helper.GeneratePerformanceTrackingTask(milestone, "CO_PRODUCING", productNames)
+	task := helper.GeneratePerformanceTrackingTask(milestone, "CO_PRODUCING", productNames, nil)
 
 	assert.Contains(t, task.Name, "Review")
 	assert.Contains(t, task.Name, "Sales")
