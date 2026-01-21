@@ -647,7 +647,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 	}
 
 	// Preload relationships
-	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task"}
+	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task", "CreatedUser", "UpdatedUser"}
 
 	// Execute query
 	contents, total, err := s.contentRepo.GetAll(ctx, filterFunc, includes, req.Limit, req.Page)
