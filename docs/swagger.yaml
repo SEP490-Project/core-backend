@@ -2102,6 +2102,8 @@ definitions:
         type: number
       brand_id:
         type: string
+      brand_place_holder:
+        type: string
       category:
         $ref: '#/definitions/model.ProductCategory'
       category_id:
@@ -3137,8 +3139,10 @@ definitions:
     type: object
   requests.CreateStandardProductRequest:
     properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
+      brand_place_holder:
+        example: Brand XYZ
+        maxLength: 255
+        minLength: 1
         type: string
       category_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -3153,7 +3157,7 @@ definitions:
         minLength: 1
         type: string
     required:
-    - brand_id
+    - brand_place_holder
     - category_id
     - name
     type: object
@@ -4527,8 +4531,12 @@ definitions:
     type: object
   requests.UpdateProductRequest:
     properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
+      brand_place_holder:
+        description: BrandID *uuid.UUID `json:"brand_id" validate:"omitempty,uuid"
+          example:"550e8400-e29b-41d4-a716-446655440000"`
+        example: Brand XYZ
+        maxLength: 255
+        minLength: 1
         type: string
       category_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -4542,6 +4550,8 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
+    required:
+    - brand_place_holder
     type: object
   requests.UpdateProductVariantRequest:
     properties:
@@ -7593,6 +7603,8 @@ definitions:
         type: string
       city:
         type: string
+      company_revenue:
+        type: number
       confirmation_image:
         type: string
       created_at:
@@ -7615,6 +7627,8 @@ definitions:
         type: string
       is_self_picked_up:
         type: boolean
+      kol_revenue:
+        type: number
       order_items:
         items:
           $ref: '#/definitions/responses.OrderItemResponse'
@@ -7995,6 +8009,8 @@ definitions:
         $ref: '#/definitions/responses.OrderItemCategoryResponse'
       city:
         type: string
+      company_revenue:
+        type: number
       confirmation_image:
         type: string
       container_type:
@@ -8037,6 +8053,8 @@ definitions:
         type: boolean
       is_self_picked_up:
         type: boolean
+      kol_revenue:
+        type: number
       length:
         type: integer
       limited_properties:
@@ -8261,6 +8279,8 @@ definitions:
         type: string
       brand_name:
         description: optional
+        type: string
+      brand_place_holder:
         type: string
       category:
         $ref: '#/definitions/responses.ProductCategoryResponse'
@@ -15393,6 +15413,36 @@ paths:
       tags:
       - Admin Config
   /api/v1/configs/{key}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a config by its key
+      parameters:
+      - description: Config Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get config by key
+      tags:
+      - Admin Config
     put:
       consumes:
       - application/json
@@ -15427,6 +15477,37 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a config value
+      tags:
+      - Admin Config
+  /api/v1/configs/public/{key}/value:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a config value by its key
+      parameters:
+      - description: Config Key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Config value retrieved successfully
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get config value by key
       tags:
       - Admin Config
   /api/v1/configs/public/privacy-policy:

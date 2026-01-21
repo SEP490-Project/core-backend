@@ -8799,6 +8799,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/configs/public/{key}/value": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a config value by its key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get config value by key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Config Key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Config value retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/configs/representative": {
             "get": {
                 "security": [
@@ -8846,6 +8895,53 @@ const docTemplate = `{
             }
         },
         "/api/v1/configs/{key}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a config by its key",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Config"
+                ],
+                "summary": "Get config by key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Config Key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Config retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.APIResponse"
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
@@ -27614,6 +27710,9 @@ const docTemplate = `{
                 "brand_id": {
                     "type": "string"
                 },
+                "brand_place_holder": {
+                    "type": "string"
+                },
                 "category": {
                     "$ref": "#/definitions/model.ProductCategory"
                 },
@@ -29050,14 +29149,16 @@ const docTemplate = `{
         "requests.CreateStandardProductRequest": {
             "type": "object",
             "required": [
-                "brand_id",
+                "brand_place_holder",
                 "category_id",
                 "name"
             ],
             "properties": {
-                "brand_id": {
+                "brand_place_holder": {
                     "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Brand XYZ"
                 },
                 "category_id": {
                     "type": "string",
@@ -30935,10 +31036,16 @@ const docTemplate = `{
         },
         "requests.UpdateProductRequest": {
             "type": "object",
+            "required": [
+                "brand_place_holder"
+            ],
             "properties": {
-                "brand_id": {
+                "brand_place_holder": {
+                    "description": "BrandID *uuid.UUID ` + "`" + `json:\"brand_id\" validate:\"omitempty,uuid\" example:\"550e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Brand XYZ"
                 },
                 "category_id": {
                     "type": "string",
@@ -35410,6 +35517,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "company_revenue": {
+                    "type": "number"
+                },
                 "confirmation_image": {
                     "type": "string"
                 },
@@ -35442,6 +35552,9 @@ const docTemplate = `{
                 },
                 "is_self_picked_up": {
                     "type": "boolean"
+                },
+                "kol_revenue": {
+                    "type": "number"
                 },
                 "order_items": {
                     "type": "array",
@@ -36012,6 +36125,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "company_revenue": {
+                    "type": "number"
+                },
                 "confirmation_image": {
                     "type": "string"
                 },
@@ -36073,6 +36189,9 @@ const docTemplate = `{
                 },
                 "is_self_picked_up": {
                     "type": "boolean"
+                },
+                "kol_revenue": {
+                    "type": "number"
                 },
                 "length": {
                     "type": "integer"
@@ -36405,6 +36524,9 @@ const docTemplate = `{
                 },
                 "brand_name": {
                     "description": "optional",
+                    "type": "string"
+                },
+                "brand_place_holder": {
                     "type": "string"
                 },
                 "category": {
