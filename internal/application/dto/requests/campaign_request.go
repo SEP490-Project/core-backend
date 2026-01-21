@@ -36,6 +36,25 @@ type UpdateCampaignRequest struct {
 
 	// Metadata fields (not exposed in JSON)
 	UpdatedBy *uuid.UUID `json:"-" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+
+	Milestones []UpdateMilestoneCampaignRequest `json:"milestones" validate:"dive"`
+}
+
+type UpdateMilestoneCampaignRequest struct {
+	ID          *string                     `json:"id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Description *string                     `json:"description" validate:"omitempty,max=1000" example:"Milestone for initial launch."`
+	DueDate     *time.Time                  `json:"due_date" validate:"omitempty" example:"2023-06-15T00:00:00Z"`
+	Tasks       []UpdateTaskCampaignRequest `json:"tasks" validate:"dive"`
+}
+
+type UpdateTaskCampaignRequest struct {
+	ID                *string    `json:"id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Name              *string    `json:"name" validate:"omitempty,min=3,max=255" example:"Design Banner Ads"`
+	Description       any        `json:"description" validate:"omitempty"`
+	Deadline          *time.Time `json:"deadline" validate:"omitempty" example:"2023-06-10T00:00:00Z"`
+	Type              *string    `json:"type" validate:"omitempty,oneof=PRODUCT CONTENT EVENT OTHER" example:"PRODUCT"`
+	AssignedToID      *string    `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	ScopeOfWorkItemID *string    `json:"scope_of_work_item_id" example:"550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1"`
 }
 
 func (r UpdateCampaignRequest) ToExistingModel(existing *model.Campaign) (*model.Campaign, error) {

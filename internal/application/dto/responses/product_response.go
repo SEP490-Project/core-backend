@@ -82,16 +82,17 @@ func (pr *ProductResponse) ToProductResponse(m *model.Product) *ProductResponse 
 /*===========================PRODUCTS DETAIL=====================================*/
 
 type ProductDetailResponse struct {
-	ID           uuid.UUID               `json:"id"`
-	BrandID      uuid.UUID               `json:"brand_id"`
-	BrandLogoURL *string                 `json:"brand_logo_url,omitempty"`
-	BrandName    string                  `json:"brand_name,omitempty"`    // optional
-	ThumbnailURL *[]string               `json:"thumbnail_url,omitempty"` // optional
-	IsActive     bool                    `json:"is_active"`
-	Status       enum.ProductStatus      `json:"status"`
-	Category     ProductCategoryResponse `json:"category"`
-	Description  string                  `json:"description"`
-	Name         string                  `json:"name"`
+	ID               uuid.UUID               `json:"id"`
+	BrandID          uuid.UUID               `json:"brand_id"`
+	BrandLogoURL     *string                 `json:"brand_logo_url,omitempty"`
+	BrandName        string                  `json:"brand_name,omitempty"` // optional
+	BrandPlaceHolder *string                 `json:"brand_place_holder"`
+	ThumbnailURL     *[]string               `json:"thumbnail_url,omitempty"` // optional
+	IsActive         bool                    `json:"is_active"`
+	Status           enum.ProductStatus      `json:"status"`
+	Category         ProductCategoryResponse `json:"category"`
+	Description      string                  `json:"description"`
+	Name             string                  `json:"name"`
 	//Price            float64                  `json:"price"`
 	Type             enum.ProductType         `json:"type"`
 	LimitedAttribute *LimitedProductResponse  `json:"limited_product"`
@@ -129,6 +130,7 @@ func (d ProductDetailResponse) ToProductDetailResponse(m *model.Product) *Produc
 		d.BrandName = m.Brand.Name
 		d.BrandLogoURL = m.Brand.LogoURL // *string
 	}
+	d.BrandPlaceHolder = m.BrandPlaceHolder
 
 	// Basic
 	d.Name = m.Name
@@ -209,10 +211,10 @@ func (ProductReviewResponse) ToResponse(m *model.ProductReview) *ProductReviewRe
 			nameFmt := "%s - (Ingredient: %s)"
 			var ingredientConcat string
 
-			rawJson := m.OrderItem.AttributesDescription
-			if rawJson != nil {
-				var attrs []map[string]interface{}
-				if err := json.Unmarshal(*rawJson, &attrs); err != nil {
+			rawJSON := m.OrderItem.AttributesDescription
+			if rawJSON != nil {
+				var attrs []map[string]any
+				if err := json.Unmarshal(*rawJSON, &attrs); err != nil {
 					ingredientConcat = ""
 				}
 
@@ -684,6 +686,7 @@ type ProductResponseTop5Newest struct {
 }
 
 // =======================ProductReviewResponseStaff (Start)=======================
+
 type ProductReviewResponseStaff struct {
 	UserInfo      *ProductReviewUserInfo    `json:"user_info"`
 	Product       *ProductReviewProductInfo `json:"product"`
