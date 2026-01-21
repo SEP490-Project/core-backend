@@ -143,6 +143,8 @@ type FacebookPagePost struct {
 	Reactions   *FacebookSummaryCount `json:"reactions,omitempty"`
 	Comments    *FacebookSummaryCount `json:"comments,omitempty"`
 	Shares      *FacebookSharesCount  `json:"shares,omitempty"`
+	// insights
+	Insights    *FacebookPostInsights `json:"insights,omitempty"`
 	Attachments *FacebookAttachments  `json:"attachments,omitempty"`
 }
 
@@ -157,6 +159,9 @@ type FacebookSummaryCount struct {
 type FacebookSharesCount struct {
 	Count int `json:"count"`
 }
+
+// FacebookPostInsights represents insights data for a Facebook post
+type FacebookPostInsights FacebookPageInsightsResponse
 
 // FacebookAttachments represents media attachments on a post
 type FacebookAttachments struct {
@@ -175,4 +180,10 @@ type FacebookAttachment struct {
 type FacebookAttachmentTarget struct {
 	ID  string `json:"id"`
 	URL string `json:"url,omitempty"`
+}
+
+// FacebookPagePostIDFromVideoID represents the response from querying a post ID by video ID
+type FacebookPagePostIDFromVideoID struct {
+	ID          string `json:"id"`
+	PageStoryID string `json:"page_story_id"`
 }

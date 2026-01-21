@@ -475,7 +475,7 @@ func (s *contentPublishingService) publishTextPostToFacebook(ctx context.Context
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
 
 	// Save external post ID asynchronously
-	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeText)
+	go s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeText)
 
 	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeText), nil
 }
@@ -497,7 +497,12 @@ func (s *contentPublishingService) publishSinglePhotoPostToFacebook(ctx context.
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
 
 	// Save external post ID asynchronously
-	s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeSingleImage)
+	go s.saveExternalPostIDAsync(ctx, contentChannelID, resp.ID, postURL, enum.ExternalPostTypeSingleImage)
+	go s.saveUploadMetadataAsync(ctx, contentChannelID,
+		&model.ContentChannelMetadata{PhotoIDs: []string{resp.ID}},
+		enum.ExternalPostTypeSingleImage,
+	)
+
 	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeSingleImage), nil
 }
 
@@ -506,7 +511,7 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 	ctx context.Context, contentChannelID uuid.UUID, accessToken, pageID string, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
-	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
+	go s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeSingleImage)
 
 	// Step 1: Upload each image to get media_fbid
 	attachedMedia := make([]string, len(parseResult.ImageURLs))
@@ -558,6 +563,9 @@ func (s *contentPublishingService) publishMultiPhotoPostToFacebook(
 		zap.L().Error("Failed to create multi-photo post", zap.Error(err))
 		return "", "", nil, fmt.Errorf("failed to create multi-photo post: %w", err)
 	}
+	go s.saveUploadMetadataAsync(ctx, contentChannelID, &model.ContentChannelMetadata{
+		PhotoIDs: attachedMedia,
+	}, enum.ExternalPostTypeMultiImage)
 
 	postURL := fmt.Sprintf("https://www.facebook.com/%s", resp.ID)
 	return resp.ID, postURL, utils.PtrOrNil(enum.ExternalPostTypeMultiImage), nil
@@ -571,7 +579,7 @@ func (s *contentPublishingService) publishVideoPostToFacebook(
 	ctx context.Context, contentChannelID, channelID uuid.UUID, accessToken, pageID string, content *model.Content, parseResult *tiptap.TiptapParseResult,
 ) (string, string, *enum.ExternalPostType, error) {
 	// Step 0: Save external post ID asynchronously (without external ID or URL yet)
-	s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeVideo)
+	go s.saveExternalPostIDAsync(ctx, contentChannelID, "", "", enum.ExternalPostTypeVideo)
 
 	// Step 1: Extract video info from content body
 	videoInfo, err := content.GetVideoBody(channelID, s.config.Server.BaseURL)
@@ -643,7 +651,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatus,
 		Type:         &contentType,
 	}
-	s.saveUploadMetadataAsync(ctx, contentChannel.ID, initialMetadata, enum.ExternalPostTypeVideo)
+	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, initialMetadata, enum.ExternalPostTypeVideo)
 
 	// 1. Get creator info (required - validates token and gets allowed privacy levels)
 	creatorInfo, err := s.tiktokProxy.GetCreatorInfo(ctx, accessToken)
@@ -732,7 +740,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatusProcessing,
 		Type:         &contentType,
 	}
-	s.saveUploadMetadataAsync(ctx, contentChannel.ID, updatedMetadata, enum.ExternalPostTypeVideo)
+	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, updatedMetadata, enum.ExternalPostTypeVideo)
 
 	// Return empty external_post_id and URL since the upload is not yet complete
 	// The TikTokStatusPollerJob will set these when upload completes
@@ -771,6 +779,9 @@ func (s *contentPublishingService) saveExternalPostIDAsync(
 			"external_post_url":  externalPostURL,
 			"auto_post_status":   enum.AutoPostStatusInProgress,
 			"external_post_type": externalPostType,
+			// "metadata": &model.ContentChannelMetadata{
+			// 	PhotoIDs: []string{}
+			// }
 		}); err != nil {
 			zap.L().Error("Failed to save external post ID asynchronously", zap.Error(err))
 			return fmt.Errorf("failed to save external post ID: %w", err)
