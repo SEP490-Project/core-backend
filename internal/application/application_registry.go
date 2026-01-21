@@ -62,6 +62,7 @@ type ApplicationRegistry struct {
 	SystemService                 iservice.SystemService
 	ProductOptionService          iservice.ProductOptionService
 	ViolationService              iservice.ViolationService
+	CoProducingRefundService      iservice.CoProducingRefundService
 
 	//Manual Scheduler Trigger
 	LocationSchedule scheduler.TaskScheduler
@@ -243,6 +244,7 @@ func NewApplicationRegistry(
 		SystemService:                 service.NewSystemService(configs),
 		ProductOptionService:          service.NewProductOptionService(databaseRegistry.ProductOptionRepository, infrastructureRegistry.ValkeyCache),
 		ViolationService:              violationService,
+		CoProducingRefundService:      service.NewCoProducingRefundService(databaseRegistry, infrastructureRegistry.UnitOfWork, notificationService, configs, &configs.AdminConfig, infrastructureRegistry.DB),
 
 		//Manual Scheduler Trigger
 		LocationSchedule: scheduler.NewLocationSyncScheduler(configs, infrastructureRegistry.DB),
@@ -312,6 +314,7 @@ func (r *ApplicationRegistry) RegisterApplicationLayerJobs() {
 			r.AlertManagerService,
 			r.StateTransferService,
 			r.ViolationService,
+			r.CoProducingRefundService,
 			r.InfrastructureRegistry.UnitOfWork,
 			r.InfrastructureRegistry.AsynqClient,
 		)
