@@ -246,3 +246,67 @@ func (h *AdminConfigHandler) GetPrivacyPolicy(c *gin.Context) {
 	resposne := responses.SuccessResponse("Successfully retrieved privacy policy", utils.IntPtr(http.StatusOK), configResponse.Value)
 	c.JSON(http.StatusOK, resposne)
 }
+
+// GetConfigValueByKey godoc
+//
+//	@Summary		Get config value by key
+//	@Description	Retrieve a config value by its key
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Param			key	path		string					true	"Config Key"
+//	@Success		200	{object}	responses.APIResponse	"Config value retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Bad Request"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/configs/public/{key}/value [get]
+func (h *AdminConfigHandler) GetConfigValueByKey(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		response := responses.ErrorResponse("Config key is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	value, err := h.adminConfigService.GetConfigValueByKey(c.Request.Context(), key)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get config value: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resposne := responses.SuccessResponse("Successfully retrieved config value", utils.IntPtr(http.StatusOK), value)
+	c.JSON(http.StatusOK, resposne)
+}
+
+// GetConfigByKey godoc
+//
+//	@Summary		Get config by key
+//	@Description	Retrieve a config by its key
+//	@Tags			Admin Config
+//	@Accept			json
+//	@Produce		json
+//	@Param			key	path		string					true	"Config Key"
+//	@Success		200	{object}	responses.APIResponse	"Config retrieved successfully"
+//	@Failure		400	{object}	responses.APIResponse	"Bad Request"
+//	@Failure		500	{object}	responses.APIResponse	"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/configs/{key} [get]
+func (h *AdminConfigHandler) GetConfigByKey(c *gin.Context) {
+	key := c.Param("key")
+	if key == "" {
+		response := responses.ErrorResponse("Config key is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	configResponse, err := h.adminConfigService.GetConfigByKey(c.Request.Context(), key)
+	if err != nil {
+		response := responses.ErrorResponse("Failed to get config value: "+err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resposne := responses.SuccessResponse("Successfully retrieved config value", utils.IntPtr(http.StatusOK), configResponse)
+	c.JSON(http.StatusOK, resposne)
+}
