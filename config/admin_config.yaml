@@ -168,6 +168,10 @@ content_view_unique_cache_ttl_hours: 24
 violation_proof_max_attempts: 3  # Max times KOL can resubmit rejected proof
 violation_proof_review_days: 7   # Days brand has to review proof before auto-approval
 
+# CO_PRODUCING Refund Settings
+co_producing_refund_proof_max_attempts: 3  # Max times Marketing Staff can resubmit rejected refund proof
+co_producing_refund_review_days: 7         # Days brand has to review refund proof before auto-approval
+
 term_of_service: |
   {
     "type": "doc",
