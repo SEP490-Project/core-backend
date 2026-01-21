@@ -41,8 +41,11 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 	// =========================================================================
 	type BaseStats struct {
 		TotalRevenue         float64
-		TotalStandardRevenue float64
+		TotalStandardRevenue float64 
 		TotalLimitedRevenue  float64
+		StandardNetRevenue   float64 // Standard orders without shipping fee
+		LimitedGrossRevenue  float64 // Limited orders + PreOrders (including shipping)
+		LimitedNetRevenue    float64 // Limited orders + PreOrders * KOL percentage (without shipping)
 		OrderRevenue         float64
 		PreOrderRevenue      float64
 		TotalCount           int64
@@ -55,11 +58,11 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 	var returningCount, newCount int64
 	var totalRefund float64
 
-	err := utils.RunParallel(ctx, 3,
+	err := utils.RunParallel(ctx, 4,
 		func(ctx context.Context) error {
 			query := `
 		WITH valid_orders AS (
-			SELECT user_id, total_amount, order_type, 'ORDER' as source
+			SELECT user_id, total_amount, order_type, shipping_fee, 'ORDER' as source
 			FROM orders
 			WHERE status IN ? 
 				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
@@ -67,7 +70,7 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 				AND deleted_at IS NULL
 		),
 		valid_pre_orders AS (
-			SELECT user_id, total_amount, 'LIMITED' as order_type, 'PRE_ORDER' as source
+			SELECT user_id, total_amount, 'LIMITED' as order_type, 0 as shipping_fee, 'PRE_ORDER' as source
 			FROM pre_orders
 			WHERE status IN ? 
 				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
@@ -88,6 +91,8 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 			COALESCE(SUM(total_amount), 0) as total_revenue,
 			COALESCE(SUM(CASE WHEN order_type = 'STANDARD' THEN total_amount ELSE 0 END), 0) as total_standard_revenue,
 			COALESCE(SUM(CASE WHEN order_type = 'LIMITED' OR source = 'PRE_ORDER' THEN total_amount ELSE 0 END), 0) as total_limited_revenue,
+			COALESCE(SUM(CASE WHEN order_type = 'STANDARD' THEN total_amount - shipping_fee ELSE 0 END), 0) as standard_net_revenue,
+			COALESCE(SUM(CASE WHEN order_type = 'LIMITED' OR source = 'PRE_ORDER' THEN total_amount ELSE 0 END), 0) as limited_gross_revenue,
 			COALESCE(SUM(CASE WHEN source = 'ORDER' THEN total_amount ELSE 0 END), 0) as order_revenue,
 			COALESCE(SUM(CASE WHEN source = 'PRE_ORDER' THEN total_amount ELSE 0 END), 0) as pre_order_revenue,
 			COUNT(*) as total_count,
@@ -100,6 +105,57 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 				completedOrderStatuses, from, from, from, to, to, to,
 				completedPreOrderStatuses, from, from, from, to, to, to,
 			).Scan(&stats).Error
+		},
+		func(ctx context.Context) error {
+			// Calculate Limited Net Revenue (KOL share) for Orders with LIMITED type
+			// Join through: order_items -> product_variants -> products -> tasks -> milestones -> campaigns -> contracts
+			limitedOrderNetQuery := `
+		WITH limited_order_items AS (
+			SELECT 
+				oi.unit_price * oi.quantity as item_total,
+				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent
+			FROM orders o
+			JOIN order_items oi ON o.id = oi.order_id
+			JOIN product_variants pv ON oi.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE o.status IN ?
+				AND o.order_type = 'LIMITED'
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
+				AND o.deleted_at IS NULL
+		),
+		pre_order_items AS (
+			SELECT 
+				po.total_amount as item_total,
+				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent
+			FROM pre_orders po
+			JOIN product_variants pv ON po.variant_id = pv.id
+			JOIN products p ON pv.product_id = p.id
+			LEFT JOIN tasks t ON p.task_id = t.id
+			LEFT JOIN milestones m ON t.milestone_id = m.id
+			LEFT JOIN campaigns camp ON m.campaign_id = camp.id
+			LEFT JOIN contracts c ON camp.contract_id = c.id
+			WHERE po.status IN ?
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at >= ?)
+				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR po.created_at <= ?)
+				AND po.deleted_at IS NULL
+		),
+		combined AS (
+			SELECT item_total, kol_percent FROM limited_order_items
+			UNION ALL
+			SELECT item_total, kol_percent FROM pre_order_items
+		)
+		SELECT COALESCE(SUM(item_total * kol_percent / 100.0), 0)
+		FROM combined
+	`
+			return r.db.WithContext(ctx).Raw(limitedOrderNetQuery,
+				completedOrderStatuses, from, from, from, to, to, to,
+				completedPreOrderStatuses, from, from, from, to, to, to,
+			).Scan(&stats.LimitedNetRevenue).Error
 		},
 		func(ctx context.Context) error {
 			returningQuery := `
@@ -191,6 +247,9 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 	result.TotalSoldRevenue = stats.TotalRevenue
 	result.TotalStandardRevenue = stats.TotalStandardRevenue
 	result.TotalLimitedRevenue = stats.TotalLimitedRevenue
+	result.StandardNetRevenue = stats.StandardNetRevenue
+	result.LimitedGrossRevenue = stats.LimitedGrossRevenue
+	result.LimitedNetRevenue = stats.LimitedNetRevenue
 	result.TotalRefund = totalRefund
 	result.ReturningCustomerCount = returningCount
 	result.NewCustomerCount = newCount
@@ -396,6 +455,7 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, fro
 	}
 
 	// Helper to generate series
+	// Generate series backwards from 'to' date to ensure alignment with date range boundaries
 	generateSeries := func(sourceType, orderType string, statuses any, table string) ([]responses.SalesTimeSeriesPoint, error) {
 		var points []responses.SalesTimeSeriesPoint
 		var q string
@@ -415,12 +475,14 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, fro
 			`
 			args = []any{from, sourceType, statuses, from, from, from, to, to, to}
 		} else {
+			// Generate series backwards from 'to' to 'from' to align with date range boundaries
+			// This ensures the last point is at 'to' date and points go backwards by interval
 			q = `
 				WITH dates AS (
 					SELECT generate_series(
-						date_trunc(?, ?::timestamp),
-						date_trunc(?, ?::timestamp),
-						?::interval
+						date_trunc('day', ?::timestamp),
+						date_trunc('day', ?::timestamp),
+						('-1 ' || ?)::interval
 					) as date
 				)
 				SELECT 
@@ -428,13 +490,14 @@ func (r *SalesStaffAnalyticsRepository) GetRevenueTrend(ctx context.Context, fro
 					COALESCE(SUM(t.total_amount), 0) as value, 
 					? as type
 				FROM dates
-				LEFT JOIN ` + table + ` t ON date_trunc(?, t.created_at) = dates.date
+				LEFT JOIN ` + table + ` t ON t.created_at >= dates.date
+					AND t.created_at < dates.date + ('1 ' || ?)::interval
 					AND t.status IN ? 
 					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at >= ?)
 					AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR t.created_at <= ?)
 					AND t.deleted_at IS NULL
 			`
-			args = []any{interval, from, interval, to, "1 " + interval, sourceType, interval, statuses, from, from, from, to, to, to}
+			args = []any{to, from, interval, sourceType, interval, statuses, from, from, from, to, to, to}
 		}
 
 		if orderType != "" {
