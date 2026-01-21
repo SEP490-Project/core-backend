@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Refund Proof Auto-Approved</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .header {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 10px;
+        text-align: center;
+        border-radius: 5px 5px 0 0;
+      }
+      .content {
+        padding: 20px;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 20px;
+      }
+      .info-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .notice-box {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin: 15px 0;
+      }
+      .amount {
+        font-size: 20px;
+        font-weight: bold;
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>⏰ Refund Proof Auto-Approved</h2>
+      </div>
+      <div class="content">
+        <p>Dear {{.RecipientName}},</p>
+
+        <div class="notice-box">
+          <p>
+            The refund proof for contract <strong>#{{.ContractNumber}}</strong> has been
+            <strong>automatically approved</strong> because the review deadline of
+            <strong>{{.ReviewDeadlineDays}} days</strong> has passed without a response.
+          </p>
+        </div>
+
+        <div class="info-box">
+          <p><strong>Refund Details:</strong></p>
+          <p>Contract: #{{.ContractNumber}}</p>
+          <p>Brand: {{.BrandName}}</p>
+          <p>Refund Amount: <span class="amount">{{.Currency}} {{.RefundAmount}}</span></p>
+          <p>Submitted At: {{.SubmissionDate}}</p>
+          <p>Auto-Approved At: {{.ApprovedDate}}</p>
+        </div>
+
+        <p>
+          The refund workflow for this payment period is now complete.
+        </p>
+      </div>
+      <div class="footer">
+        <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
