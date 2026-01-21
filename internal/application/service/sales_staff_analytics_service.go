@@ -283,21 +283,18 @@ func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requ
 
 	// 1. If both provided, use them
 	if req.FromDate != nil && req.ToDate != nil {
-		return *req.FromDate, *req.ToDate, nil
+		return startOfDay(*req.FromDate), endOfDay(*req.ToDate), nil
 	}
 
-	// 2. If only FromDate provided, ToDate = Now
+	// 2. If only FromDate provided → ToDate = today end
 	if req.FromDate != nil {
-		return *req.FromDate, now, nil
+		return startOfDay(*req.FromDate), endOfDay(now), nil
 	}
 
-	// 3. If only ToDate provided, or neither provided, calculate Start based on End (or Now) and PeriodGap
-	end := time.Date(
-		now.Year(), now.Month(), now.Day(),
-		0, 0, 0, 0, now.Location(),
-	)
+	// 3. Base end = today end
+	end := endOfDay(now)
 	if req.ToDate != nil {
-		end = *req.ToDate
+		end = endOfDay(*req.ToDate)
 	}
 
 	var start time.Time
@@ -330,11 +327,9 @@ func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requ
 				start = limitStart
 			}
 		case "all":
-			start = time.Time{} // Zero time
-			end = time.Now()
-
+			start = time.Time{}
+			end = endOfDay(now)
 		default:
-			// Default fallback (e.g. 1 month)
 			start = end.AddDate(0, -1, 0)
 		}
 	}
@@ -352,11 +347,30 @@ func (s *SalesStaffAnalyticsService) getDateRange(ctx context.Context, req *requ
 			start = end.AddDate(-1, 0, 0)
 		default: // Default fallback (e.g. 1 month)
 			start = end.AddDate(0, -1, 0)
-
 		}
 	}
 
+	// 🔒 Final normalization
+	if !start.IsZero() {
+		start = startOfDay(start)
+	}
+	end = endOfDay(end)
+
 	return start, end, nil
+}
+
+func startOfDay(t time.Time) time.Time {
+	return time.Date(
+		t.Year(), t.Month(), t.Day(),
+		0, 0, 1, 0, t.Location(),
+	)
+}
+
+func endOfDay(t time.Time) time.Time {
+	return time.Date(
+		t.Year(), t.Month(), t.Day(),
+		23, 59, 59, 0, t.Location(),
+	)
 }
 
 func (s *SalesStaffAnalyticsService) getPreviousPeriod(from, to time.Time) (time.Time, time.Time) {

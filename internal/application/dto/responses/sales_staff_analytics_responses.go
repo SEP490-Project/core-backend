@@ -22,6 +22,9 @@ type FinancialsSummary struct {
 	TotalSoldRevenue       float64    `json:"total_sold_revenue"`
 	TotalStandardRevenue   float64    `json:"standard_revenue"`
 	TotalLimitedRevenue    float64    `json:"limited_revenue"`
+	StandardNetRevenue     float64    `json:"standard_net_revenue"`     // Standard orders without shipping fee
+	LimitedGrossRevenue    float64    `json:"limited_gross_revenue"`    // Limited orders + PreOrders (including shipping)
+	LimitedNetRevenue      float64    `json:"limited_net_revenue"`      // Limited orders + PreOrders * KOL percentage (without shipping)
 	TotalRefund            float64    `json:"total_refund"`
 	RevenueGrowth          float64    `json:"revenue_growth"` // Compared to previous period
 	AverageOrderValue      AOVMetrics `json:"average_order_value"`
