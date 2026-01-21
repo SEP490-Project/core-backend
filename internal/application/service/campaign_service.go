@@ -118,6 +118,217 @@ func (s *CampaignService) UpdateCampaign(ctx context.Context, uow irepository.Un
 		return nil, err
 	}
 
+	// 4. Update Milestones and Tasks
+	if len(request.Milestones) > 0 {
+		var contract *model.Contract
+		if existing.ContractID != uuid.Nil {
+			c, err := s.contractRepo.GetByID(ctx, existing.ContractID, nil)
+			if err != nil {
+				zap.L().Warn("Failed to fetch contract for campaign update", zap.Error(err))
+			} else {
+				contract = c
+			}
+		}
+
+		milestoneRepo := uow.Milestones()
+		taskRepo := uow.Tasks()
+
+		updatedByID := uuid.Nil
+		if request.UpdatedBy != nil {
+			updatedByID = *request.UpdatedBy
+		}
+
+		var contractDirty bool
+
+		// Pre-fetch all IDs to optimize checking
+		var milestoneIDs []uuid.UUID
+		var taskIDs []uuid.UUID
+		for _, mr := range request.Milestones {
+			if mr.ID != nil {
+				if id, err := uuid.Parse(*mr.ID); err == nil {
+					milestoneIDs = append(milestoneIDs, id)
+				}
+			}
+			for _, tr := range mr.Tasks {
+				if tr.ID != nil {
+					if id, err := uuid.Parse(*tr.ID); err == nil {
+						taskIDs = append(taskIDs, id)
+					}
+				}
+			}
+		}
+
+		existingMilestoneMap := make(map[uuid.UUID]*model.Milestone)
+		if len(milestoneIDs) > 0 {
+			ms, _, err := milestoneRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id IN ?", milestoneIDs)
+			}, nil, 0, 0)
+			if err == nil {
+				for _, m := range ms {
+					existingMilestoneMap[m.ID] = &m
+				}
+			}
+		}
+
+		existingTaskMap := make(map[uuid.UUID]*model.Task)
+		if len(taskIDs) > 0 {
+			ts, _, err := taskRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id IN ?", taskIDs)
+			}, nil, 0, 0)
+			if err == nil {
+				for _, t := range ts {
+					existingTaskMap[t.ID] = &t
+				}
+			}
+		}
+
+		var milestonesToUpsert []*model.Milestone
+		var tasksToUpsert []*model.Task
+
+		for _, mr := range request.Milestones {
+			var milestone *model.Milestone
+
+			if mr.ID != nil {
+				if msID, err := uuid.Parse(*mr.ID); err == nil {
+					if ex, ok := existingMilestoneMap[msID]; ok {
+						milestone = ex
+					}
+				}
+			}
+
+			if milestone == nil {
+				milestone = &model.Milestone{
+					ID:          uuid.New(),
+					CampaignID:  campaignID,
+					Status:      enum.MilestoneStatusNotStarted,
+					CreatedByID: updatedByID,
+				}
+				if mr.DueDate != nil {
+					milestone.DueDate = *mr.DueDate
+				} else {
+					milestone.DueDate = time.Now().AddDate(0, 0, 7)
+				}
+			}
+
+			// Apply updates
+			if mr.Description != nil {
+				milestone.Description = mr.Description
+			}
+			if mr.DueDate != nil {
+				milestone.DueDate = *mr.DueDate
+			}
+
+			// Tasks
+			var milestoneTasks []*model.Task
+			for _, tr := range mr.Tasks {
+				var task *model.Task
+				var isNewTask bool
+
+				if tr.ID != nil {
+					if tID, err := uuid.Parse(*tr.ID); err == nil {
+						if ex, ok := existingTaskMap[tID]; ok {
+							task = ex
+						}
+					}
+				}
+
+				if task == nil {
+					isNewTask = true
+					task = &model.Task{
+						ID:          uuid.New(),
+						MilestoneID: milestone.ID,
+						Status:      enum.TaskStatusToDo,
+						Type:        enum.TaskTypeOther,
+						CreatedByID: updatedByID,
+					}
+					if tr.Deadline != nil {
+						task.Deadline = *tr.Deadline
+					} else {
+						task.Deadline = milestone.DueDate
+					}
+				}
+
+				// Apply updates
+				if tr.Name != nil {
+					task.Name = *tr.Name
+				}
+				if tr.Deadline != nil {
+					task.Deadline = *tr.Deadline
+				}
+				if tr.Type != nil {
+					task.Type = enum.TaskType(*tr.Type)
+				}
+				if tr.AssignedToID != nil {
+					if aID, err := uuid.Parse(*tr.AssignedToID); err == nil {
+						task.AssignedToID = &aID
+					}
+				}
+				if tr.Description != nil {
+					if descBytes, err := json.Marshal(tr.Description); err == nil {
+						task.Description = descBytes
+					}
+				}
+				if tr.ScopeOfWorkItemID != nil && contract != nil {
+					sowID := *tr.ScopeOfWorkItemID
+					if strings.Count(sowID, "|") != 2 {
+						sowID = fmt.Sprintf("%s|%s|%s", contract.ID.String(), contract.Type.String(), sowID)
+					}
+					task.ScopeOfWorkItemID = &sowID
+				} else if isNewTask && tr.ScopeOfWorkItemID == nil {
+					// Ensure nil for new tasks if not provided, allowing helper to map
+					task.ScopeOfWorkItemID = nil
+				}
+
+				milestoneTasks = append(milestoneTasks, task)
+			}
+
+			// Attach tasks to milestone for SOW helper
+			milestone.Tasks = milestoneTasks
+			milestonesToUpsert = append(milestonesToUpsert, milestone)
+		}
+
+		// Run mapping logic on all milestones/tasks at once
+		if contract != nil {
+			if err := helper.MapTasksToScopeOfWork(contract, milestonesToUpsert); err != nil {
+				zap.L().Warn("Failed to map tasks to SOW during update", zap.Error(err))
+			} else {
+				contractDirty = true
+			}
+		}
+
+		// Collect all tasks after mapping
+		for _, m := range milestonesToUpsert {
+			tasksToUpsert = append(tasksToUpsert, m.Tasks...)
+		}
+
+		// Bulk Upsert Milestones
+		// Conflict: ID. Updates: description, due_date
+		if len(milestonesToUpsert) > 0 {
+			if _, err := milestoneRepo.BulkUpsert(ctx, milestonesToUpsert, 100, []string{"id"}, []string{"description", "due_date"}); err != nil {
+				zap.L().Error("Failed to bulk upsert milestones", zap.Error(err))
+				return nil, errors.New("failed to update milestones")
+			}
+		}
+
+		// Bulk Upsert Tasks
+		// Conflict: ID. Updates: name, deadline, type, assigned_to, description, scope_of_work_item_id
+		// Note: assigned_to is db column, AssignedToID is struct field. GORM maps them.
+		// snake_case columns required for BulkUpsert helper which uses raw SQL clause.Column
+		if len(tasksToUpsert) > 0 {
+			if _, err := taskRepo.BulkUpsert(ctx, tasksToUpsert, 100, []string{"id"},
+				[]string{"name", "deadline", "type", "assigned_to", "description", "scope_of_work_item_id", "milestone_id"}); err != nil {
+				zap.L().Error("Failed to bulk upsert tasks", zap.Error(err))
+				return nil, errors.New("failed to update tasks")
+			}
+		}
+
+		if contract != nil && contractDirty {
+			if err := s.contractRepo.Update(ctx, contract); err != nil {
+				zap.L().Error("Failed to update contract SOW after task mapping", zap.Error(err))
+			}
+		}
+	}
+
 	zap.L().Info("Successfully updated campaign")
 	return s.GetCampaignDetailsByID(ctx, campaignID)
 }

@@ -50,3 +50,17 @@ func (u *userRepository) GetContractIDsByUserBrandID(ctx context.Context, userbr
 
 	return contractIDs, nil
 }
+
+func (u *userRepository) GetUserFullnameByID(ctx context.Context, userID uuid.UUID) (string, error) {
+	var userFullname struct {
+		FullName string
+	}
+	err := u.db.WithContext(ctx).
+		Where("id = ?", userID).
+		Select("full_name").
+		First(&userFullname).Error
+	if err != nil {
+		return "", err
+	}
+	return userFullname.FullName, nil
+}

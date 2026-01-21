@@ -4171,6 +4171,10 @@ definitions:
         type: string
       endDate:
         type: string
+      milestones:
+        items:
+          $ref: '#/definitions/requests.UpdateMilestoneCampaignRequest'
+        type: array
       name:
         example: Summer Sale Campaign
         maxLength: 255
@@ -4496,6 +4500,23 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  requests.UpdateMilestoneCampaignRequest:
+    properties:
+      description:
+        example: Milestone for initial launch.
+        maxLength: 1000
+        type: string
+      due_date:
+        example: "2023-06-15T00:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/requests.UpdateTaskCampaignRequest'
+        type: array
+    type: object
   requests.UpdateProductCategoryRequest:
     properties:
       description:
@@ -4658,6 +4679,35 @@ definitions:
         example: Technology
         maxLength: 255
         minLength: 1
+        type: string
+    type: object
+  requests.UpdateTaskCampaignRequest:
+    properties:
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      deadline:
+        example: "2023-06-10T00:00:00Z"
+        type: string
+      description: {}
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Banner Ads
+        maxLength: 255
+        minLength: 3
+        type: string
+      scope_of_work_item_id:
+        example: 550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1
+        type: string
+      type:
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        example: PRODUCT
         type: string
     type: object
   requests.UpdateTaskRequest:

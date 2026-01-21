@@ -81,8 +81,8 @@ func (s *violationService) InitiateBrandViolation(
 		zap.String("request_id", requestID),
 		zap.String("contract_id", contractID.String()))
 
-	// Get contract with payments
-	contract, err := s.contractRepo.GetByID(ctx, contractID, []string{"ContractPayments"})
+	// Get contract with payments and brand
+	contract, err := s.contractRepo.GetByID(ctx, contractID, []string{"ContractPayments", "Brand"})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}
@@ -180,13 +180,30 @@ func (s *violationService) InitiateBrandViolation(
 		zap.Float64("penalty_amount", violation.PenaltyAmount))
 
 	// Send notification
+	contractNumber := "N/A"
+	if contract.ContractNumber != nil {
+		contractNumber = *contract.ContractNumber
+	}
+	brandName := "Brand"
+	if contract.Brand != nil {
+		brandName = contract.Brand.Name
+	}
+
 	s.sendNotification(ctx, contractID, "Contract Violation Notice",
-		fmt.Sprintf("A violation has been reported for contract. Reason: %s", reason),
+		fmt.Sprintf("A violation has been reported for contract %s. Reason: %s", contractNumber, reason),
 		reason,
 		utils.PtrOrNil("brand_violation_notice"),
 		map[string]any{
-			"Reason":        reason,
-			"PenaltyAmount": fmt.Sprintf("%.2f", violation.PenaltyAmount),
+			"BrandName":           brandName,
+			"ContractNumber":      contractNumber,
+			"ViolationReason":     reason,
+			"PenaltyAmount":       fmt.Sprintf("%.2f", violation.PenaltyAmount),
+			"CalculationFormula":  calculation.CalculationFormula,
+			"PaymentDeadlineDays": s.config.AdminConfig.ViolationPaymentDeadlineDays,
+			"PaymentLink":         fmt.Sprintf("%s/manage/brand/contracts/%s", s.config.Server.BaseFrontendURL, contractID.String()),
+			"SupportLink":         s.config.Server.BaseFrontendURL + "/support",
+			"CurrentYear":         time.Now().Year(),
+			"Currency":            "VND",
 		},
 		violation.ID,
 		enum.ViolationTypeBrand,
@@ -208,8 +225,8 @@ func (s *violationService) InitiateKOLViolation(
 		zap.String("request_id", requestID),
 		zap.String("contract_id", contractID.String()))
 
-	// Get contract
-	contract, err := s.contractRepo.GetByID(ctx, contractID, []string{"ContractPayments"})
+	// Get contract along with Brand
+	contract, err := s.contractRepo.GetByID(ctx, contractID, []string{"ContractPayments", "Brand"})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}
@@ -233,13 +250,15 @@ func (s *violationService) InitiateKOLViolation(
 		return nil, fmt.Errorf("failed to calculate refund: %w", err)
 	}
 
-	// Get campaign ID if exists
+	// Get campaign ID and Name if exists
 	var campaignID *uuid.UUID
+	var campaignName string
 	campaigns, _, err := s.campaignRepo.GetAll(ctx, func(db *gorm.DB) *gorm.DB {
 		return db.Where("contract_id = ?", contractID)
 	}, nil, 1, 1)
 	if err == nil && len(campaigns) > 0 {
 		campaignID = &campaigns[0].ID
+		campaignName = campaigns[0].Name
 	}
 
 	// Create breakdown data for audit
@@ -300,6 +319,23 @@ func (s *violationService) InitiateKOLViolation(
 		zap.String("violation_id", violation.ID.String()),
 		zap.Float64("refund_amount", violation.RefundAmount))
 
+	// Get Reporter Name
+	var reportedByName string
+	reporter, err := s.userRepo.GetByID(ctx, reportedBy, nil)
+	if err == nil && reporter != nil {
+		reportedByName = reporter.FullName
+	}
+
+	contractNumber := "N/A"
+	if contract.ContractNumber != nil {
+		contractNumber = *contract.ContractNumber
+	}
+	brandName := "Brand"
+	if contract.Brand != nil {
+		brandName = contract.Brand.Name
+	}
+	kolName := utils.DerefPtr(contract.RepresentativeName, "KOL Partner")
+
 	// Send notification to all Marketing Staff
 	s.notificationService.BroadcastToRoleWithRequest(ctx, []enum.UserRole{enum.UserRoleMarketingStaff}, &requests.PublishNotificationRequest{
 		Title: "Contract Violation Reported",
@@ -311,10 +347,15 @@ func (s *violationService) InitiateKOLViolation(
 		Types:             []enum.NotificationType{enum.NotificationTypeInApp},
 		EmailTemplateName: utils.PtrOrNil("kol_violation_reported"),
 		EmailTemplateData: map[string]any{
-			"Reason":        reason,
-			"PenaltyAmount": fmt.Sprintf("%.2f", violation.PenaltyAmount),
-			"RefundAmount":  fmt.Sprintf("%.2f", violation.RefundAmount),
-			"TotalAmount":   fmt.Sprintf("%.2f", violation.PenaltyAmount+violation.RefundAmount),
+			"ContractNumber":  contractNumber,
+			"BrandName":       brandName,
+			"KOLName":         kolName,
+			"CampaignName":    campaignName,
+			"ReportedBy":      reportedByName,
+			"ReportDate":      time.Now().Format("2006-01-02"),
+			"ViolationReason": reason,
+			"Currency":        "VND",
+			"RefundAmount":    fmt.Sprintf("%.2f", violation.RefundAmount),
 		},
 	})
 
@@ -394,6 +435,7 @@ func (s *violationService) sendNotification(
 		templateData["BrandName"] = recipientName // Or generic Name
 		templateData["RecipientName"] = recipientName
 		templateData["ContractNumber"] = contractNumber
+		templateData["ViolationType"] = string(violationType)
 		templateData["SupportLink"] = s.config.Server.BaseFrontendURL + "/support"
 		templateData["CurrentYear"] = time.Now().Year()
 		templateData["Reason"] = reason
@@ -522,12 +564,18 @@ func (s *violationService) CreatePenaltyPayment(
 		fmt.Sprintf("Please pay the penalty for contract %s violation. Amount: %.2f", contractNumber, violation.PenaltyAmount),
 		"",
 		utils.PtrOrNil("brand_penalty_payment_link"),
-		map[string]any{"BrandName": contract.Brand.Name,
-			"ContractNumber": contractNumber,
-			"PaymentLink":    paymentResp.CheckoutURL,
-			"Amount":         fmt.Sprintf("%.2f", violation.PenaltyAmount),
-			"SupportLink":    s.config.Server.BaseFrontendURL + "/support",
-			"CurrentYear":    time.Now().Year()},
+		map[string]any{
+			"BrandName":       contract.Brand.Name,
+			"ContractNumber":  contractNumber,
+			"ViolationReason": violation.Reason,
+			"ViolationDate":   violation.CreatedAt.Format("2006-01-02"),
+			"Currency":        paymentResp.Currency,
+			"PenaltyAmount":   fmt.Sprintf("%.2f", violation.PenaltyAmount),
+			"PaymentLink":     paymentResp.CheckoutURL,
+			"ExpiryDate":      time.Unix(paymentResp.ExpiredAt, 0).Format("2006-01-02 15:04 MST"),
+			"SupportLink":     s.config.Server.BaseFrontendURL + "/support",
+			"CurrentYear":     time.Now().Year(),
+		},
 		*request.ViolationID,
 		enum.ViolationTypeBrand,
 		nil,
@@ -677,32 +725,50 @@ func (s *violationService) ReviewRefundProof(
 			"The KOL refund proof has been approved. The violation is resolved.",
 			"Refund Approved",
 			utils.PtrOrNil("violation_resolved"),
-			map[string]any{},
+			map[string]any{
+				"ReportedDate":   violation.CreatedAt.Format("2006-01-02"),
+				"ResolutionDate": violation.ResolvedAt.Format("2006-01-02"),
+				"AmountSettled":  fmt.Sprintf("%.2f", violation.RefundAmount),
+				"ResolutionNote": utils.DerefPtr(req.RejectReason, "No reason provided"),
+				"Currency":       "VND",
+			},
 			violation.ID,
 			enum.ViolationTypeBrand,
 			nil,
 		)
 
+		var reviewerFullName string
+		reviewerFullName, err = s.userRepo.GetUserFullnameByID(ctx, reviewedBy)
+		if err != nil {
+			zap.L().Error("Failed to get reviewer full name", zap.Error(err))
+			reviewerFullName = "Brand Partner"
+		}
 		// Notify Staff: Proof Approved (Broadcast)
 		s.sendNotification(ctx, violation.ContractID, "Refund Proof Approved",
-			"Refund proof has been approved by admin.",
+			"Refund proof has been approved by brand.",
 			"Proof Approved",
-			utils.PtrOrNil("proof_approved"),
+			utils.PtrOrNil("kol_proof_approved"),
 			map[string]any{
-				"ViolationID": violation.ID.String(),
+				"ViolationID":  violation.ID.String(),
+				"Currency":     "VND",
+				"RefundAmount": fmt.Sprintf("%.2f", violation.RefundAmount),
+				"ReviewerName": reviewerFullName,
+				"ApprovalDate": time.Now().Format(utils.TimeFormat),
 			},
 			violation.ID,
 			enum.ViolationTypeKOL,
 			violation.ProofSubmittedBy,
 		)
 	} else {
-		// Notify KOL: Proof Rejected
+		// Notify marketing staff: Proof Rejected
 		s.sendNotification(ctx, violation.ContractID, "Refund Proof Rejected",
 			fmt.Sprintf("Your refund proof was rejected. Reason: %s", utils.DerefPtr(req.RejectReason, "N/A")),
 			"Proof Rejected",
-			utils.PtrOrNil("proof_rejected"),
+			utils.PtrOrNil("kol_proof_rejected"),
 			map[string]any{
-				"RejectReason": utils.DerefPtr(req.RejectReason, "N/A"),
+				"RejectReason":      utils.DerefPtr(req.RejectReason, "N/A"),
+				"RemainingAttempts": s.config.AdminConfig.ViolationProofMaxAttempts - violation.ProofAttempts,
+				"DashboardLink":     fmt.Sprintf("%s/manage/marketing/contracts/%s", s.config.Server.BaseFrontendURL, violation.ContractID.String()),
 			},
 			violation.ID,
 			enum.ViolationTypeKOL,
