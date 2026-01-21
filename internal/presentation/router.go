@@ -567,6 +567,8 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		marketingGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 		{
 			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
+			// CO_PRODUCING refund proof submission (Marketing Staff submits proof)
+			marketingGroup.POST("/:contract_payment_id/refund-proof", contractPaymentHandler.SubmitRefundProof)
 		}
 
 		viewGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
@@ -579,6 +581,10 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		brandGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(brand))
 		{
 			brandGroup.GET("/profile", contractPaymentHandler.GetContractPaymentByProfile)
+			// CO_PRODUCING refund endpoints for Brand
+			brandGroup.GET("/refunds", contractPaymentHandler.GetRefundPayments)
+			brandGroup.GET("/refunds/pending", contractPaymentHandler.GetPendingRefundProofs)
+			brandGroup.POST("/:contract_payment_id/refund-proof/review", contractPaymentHandler.ReviewRefundProof)
 		}
 	}
 }

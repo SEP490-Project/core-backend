@@ -43,9 +43,22 @@ type ContractPayment struct {
 	LockedClicks  *int64     `json:"locked_clicks" gorm:"column:locked_clicks"`
 	LockedRevenue *float64   `json:"locked_revenue" gorm:"column:locked_revenue;type:decimal(15,2)"`
 
+	// Refund workflow fields (for CO_PRODUCING contracts when net amount < 0)
+	RefundAmount       float64    `json:"refund_amount" gorm:"column:refund_amount;type:decimal(15,2);default:0"`
+	RefundProofURL     *string    `json:"refund_proof_url" gorm:"type:text;column:refund_proof_url"`
+	RefundProofNote    *string    `json:"refund_proof_note" gorm:"type:text;column:refund_proof_note"`
+	RefundSubmittedAt  *time.Time `json:"refund_submitted_at" gorm:"column:refund_submitted_at"`
+	RefundSubmittedBy  *uuid.UUID `json:"refund_submitted_by" gorm:"type:uuid;column:refund_submitted_by"`
+	RefundReviewedAt   *time.Time `json:"refund_reviewed_at" gorm:"column:refund_reviewed_at"`
+	RefundReviewedBy   *uuid.UUID `json:"refund_reviewed_by" gorm:"type:uuid;column:refund_reviewed_by"`
+	RefundRejectReason *string    `json:"refund_reject_reason" gorm:"type:text;column:refund_reject_reason"`
+	RefundAttempts     int        `json:"refund_attempts" gorm:"column:refund_attempts;default:0"`
+
 	// Relationships
-	Contract  *Contract  `json:"-" gorm:"foreignKey:ContractID"`
-	Milestone *Milestone `json:"-" gorm:"foreignKey:MilestoneID"` // Related milestone (if linked)
+	Contract        *Contract  `json:"-" gorm:"foreignKey:ContractID"`
+	Milestone       *Milestone `json:"-" gorm:"foreignKey:MilestoneID"` // Related milestone (if linked)
+	RefundSubmitter *User      `json:"-" gorm:"foreignKey:RefundSubmittedBy"`
+	RefundReviewer  *User      `json:"-" gorm:"foreignKey:RefundReviewedBy"`
 }
 
 func (ContractPayment) TableName() string { return "contract_payments" }
@@ -67,4 +80,30 @@ func (cp *ContractPayment) BeforeCreate(tx *gorm.DB) error {
 	}
 
 	return nil
+}
+
+// IsInRefundFlow returns true if the payment is in any refund workflow status
+func (cp *ContractPayment) IsInRefundFlow() bool {
+	return cp.Status.IsRefundStatus()
+}
+
+// CanSubmitRefundProof returns true if refund proof can be submitted by Marketing Staff
+func (cp *ContractPayment) CanSubmitRefundProof() bool {
+	return cp.Status == enum.ContractPaymentStatusKOLPending ||
+		cp.Status == enum.ContractPaymentStatusKOLProofRejected
+}
+
+// CanReviewRefundProof returns true if Brand can review the proof
+func (cp *ContractPayment) CanReviewRefundProof() bool {
+	return cp.Status == enum.ContractPaymentStatusKOLProofSubmitted
+}
+
+// CanGeneratePaymentLink returns true if payment link can be generated
+// Payment link is only allowed after the due date to prevent early payment exploitation
+func (cp *ContractPayment) CanGeneratePaymentLink() bool {
+	if cp.Status != enum.ContractPaymentStatusPending {
+		return false
+	}
+	now := time.Now()
+	return !now.Before(cp.DueDate)
 }

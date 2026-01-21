@@ -99,6 +99,10 @@ type AdminConfig struct {
 	// Contract Violation Settings
 	ViolationProofMaxAttempts int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
 	ViolationProofReviewDays  int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
+
+	// CO_PRODUCING Refund Settings
+	CoProducingRefundProofMaxAttempts int `mapstructure:"co_producing_refund_proof_max_attempts"`          // Max times Marketing can resubmit rejected proof
+	CoProducingRefundReviewDays       int `mapstructure:"co_producing_refund_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -189,6 +193,10 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	// Contract Violation Settings
 	adminViper.SetDefault("violation_proof_max_attempts", 3)
 	adminViper.SetDefault("violation_proof_review_days", 7)
+
+	// CO_PRODUCING Refund Settings
+	adminViper.SetDefault("co_producing_refund_proof_max_attempts", 3)
+	adminViper.SetDefault("co_producing_refund_review_days", 7)
 
 	//Mock
 	//products
