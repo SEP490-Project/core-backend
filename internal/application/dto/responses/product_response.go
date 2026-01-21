@@ -584,7 +584,7 @@ func (pr *ProductResponseV2Partial) ToProductResponseV2(m *model.Product) *Produ
 
 	// IDs & Brand
 	pr.ID = m.ID
-	pr.BrandID = *m.BrandID
+	pr.BrandID = utils.DerefPtr(m.BrandID, uuid.Nil)
 	if m.Brand != nil {
 		pr.BrandName = m.Brand.Name
 		pr.BrandLogoURL = m.Brand.LogoURL // *string
