@@ -96,9 +96,10 @@ type AdminConfig struct {
 	// Cache TTLs
 	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"`
 
-	// Contract Violation Settings
-	ViolationProofMaxAttempts int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
-	ViolationProofReviewDays  int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
+	// Contract Violation Configuration
+	ViolationPaymentDeadlineDays int `mapstructure:"violation_payment_deadline_days"`
+	ViolationProofMaxAttempts    int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
+	ViolationProofReviewDays     int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
 
 	// CO_PRODUCING Refund Settings
 	CoProducingRefundProofMaxAttempts int `mapstructure:"co_producing_refund_proof_max_attempts"`          // Max times Marketing can resubmit rejected proof

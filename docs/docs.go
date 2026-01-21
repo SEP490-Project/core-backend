@@ -27614,6 +27614,9 @@ const docTemplate = `{
                 "brand_id": {
                     "type": "string"
                 },
+                "brand_place_holder": {
+                    "type": "string"
+                },
                 "category": {
                     "$ref": "#/definitions/model.ProductCategory"
                 },
@@ -29050,14 +29053,16 @@ const docTemplate = `{
         "requests.CreateStandardProductRequest": {
             "type": "object",
             "required": [
-                "brand_id",
+                "brand_place_holder",
                 "category_id",
                 "name"
             ],
             "properties": {
-                "brand_id": {
+                "brand_place_holder": {
                     "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Brand XYZ"
                 },
                 "category_id": {
                     "type": "string",
@@ -30461,6 +30466,12 @@ const docTemplate = `{
                 "endDate": {
                     "type": "string"
                 },
+                "milestones": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.UpdateMilestoneCampaignRequest"
+                    }
+                },
                 "name": {
                     "type": "string",
                     "maxLength": 255,
@@ -30888,6 +30899,30 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.UpdateMilestoneCampaignRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "example": "Milestone for initial launch."
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2023-06-15T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.UpdateTaskCampaignRequest"
+                    }
+                }
+            }
+        },
         "requests.UpdateProductCategoryRequest": {
             "type": "object",
             "properties": {
@@ -30935,10 +30970,16 @@ const docTemplate = `{
         },
         "requests.UpdateProductRequest": {
             "type": "object",
+            "required": [
+                "brand_place_holder"
+            ],
             "properties": {
-                "brand_id": {
+                "brand_place_holder": {
+                    "description": "BrandID *uuid.UUID ` + "`" + `json:\"brand_id\" validate:\"omitempty,uuid\" example:\"550e8400-e29b-41d4-a716-446655440000\"` + "`" + `",
                     "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                    "maxLength": 255,
+                    "minLength": 1,
+                    "example": "Brand XYZ"
                 },
                 "category_id": {
                     "type": "string",
@@ -31094,6 +31135,44 @@ const docTemplate = `{
                     "maxLength": 255,
                     "minLength": 1,
                     "example": "Technology"
+                }
+            }
+        },
+        "requests.UpdateTaskCampaignRequest": {
+            "type": "object",
+            "properties": {
+                "assigned_to": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "deadline": {
+                    "type": "string",
+                    "example": "2023-06-10T00:00:00Z"
+                },
+                "description": {},
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3,
+                    "example": "Design Banner Ads"
+                },
+                "scope_of_work_item_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "PRODUCT",
+                        "CONTENT",
+                        "EVENT",
+                        "OTHER"
+                    ],
+                    "example": "PRODUCT"
                 }
             }
         },
@@ -35410,6 +35489,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "company_revenue": {
+                    "type": "number"
+                },
                 "confirmation_image": {
                     "type": "string"
                 },
@@ -35442,6 +35524,9 @@ const docTemplate = `{
                 },
                 "is_self_picked_up": {
                     "type": "boolean"
+                },
+                "kol_revenue": {
+                    "type": "number"
                 },
                 "order_items": {
                     "type": "array",
@@ -36012,6 +36097,9 @@ const docTemplate = `{
                 "city": {
                     "type": "string"
                 },
+                "company_revenue": {
+                    "type": "number"
+                },
                 "confirmation_image": {
                     "type": "string"
                 },
@@ -36073,6 +36161,9 @@ const docTemplate = `{
                 },
                 "is_self_picked_up": {
                     "type": "boolean"
+                },
+                "kol_revenue": {
+                    "type": "number"
                 },
                 "length": {
                     "type": "integer"
@@ -36405,6 +36496,9 @@ const docTemplate = `{
                 },
                 "brand_name": {
                     "description": "optional",
+                    "type": "string"
+                },
+                "brand_place_holder": {
                     "type": "string"
                 },
                 "category": {

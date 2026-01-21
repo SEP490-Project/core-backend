@@ -2102,6 +2102,8 @@ definitions:
         type: number
       brand_id:
         type: string
+      brand_place_holder:
+        type: string
       category:
         $ref: '#/definitions/model.ProductCategory'
       category_id:
@@ -3137,8 +3139,10 @@ definitions:
     type: object
   requests.CreateStandardProductRequest:
     properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
+      brand_place_holder:
+        example: Brand XYZ
+        maxLength: 255
+        minLength: 1
         type: string
       category_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -3153,7 +3157,7 @@ definitions:
         minLength: 1
         type: string
     required:
-    - brand_id
+    - brand_place_holder
     - category_id
     - name
     type: object
@@ -4167,6 +4171,10 @@ definitions:
         type: string
       endDate:
         type: string
+      milestones:
+        items:
+          $ref: '#/definitions/requests.UpdateMilestoneCampaignRequest'
+        type: array
       name:
         example: Summer Sale Campaign
         maxLength: 255
@@ -4492,6 +4500,23 @@ definitions:
         minimum: 0
         type: integer
     type: object
+  requests.UpdateMilestoneCampaignRequest:
+    properties:
+      description:
+        example: Milestone for initial launch.
+        maxLength: 1000
+        type: string
+      due_date:
+        example: "2023-06-15T00:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/requests.UpdateTaskCampaignRequest'
+        type: array
+    type: object
   requests.UpdateProductCategoryRequest:
     properties:
       description:
@@ -4527,8 +4552,12 @@ definitions:
     type: object
   requests.UpdateProductRequest:
     properties:
-      brand_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
+      brand_place_holder:
+        description: BrandID *uuid.UUID `json:"brand_id" validate:"omitempty,uuid"
+          example:"550e8400-e29b-41d4-a716-446655440000"`
+        example: Brand XYZ
+        maxLength: 255
+        minLength: 1
         type: string
       category_id:
         example: 550e8400-e29b-41d4-a716-446655440000
@@ -4542,6 +4571,8 @@ definitions:
         maxLength: 255
         minLength: 1
         type: string
+    required:
+    - brand_place_holder
     type: object
   requests.UpdateProductVariantRequest:
     properties:
@@ -4648,6 +4679,35 @@ definitions:
         example: Technology
         maxLength: 255
         minLength: 1
+        type: string
+    type: object
+  requests.UpdateTaskCampaignRequest:
+    properties:
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      deadline:
+        example: "2023-06-10T00:00:00Z"
+        type: string
+      description: {}
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: Design Banner Ads
+        maxLength: 255
+        minLength: 3
+        type: string
+      scope_of_work_item_id:
+        example: 550e8400-e29b-41d4-a716-446655440000|ADVERTISING|1
+        type: string
+      type:
+        enum:
+        - PRODUCT
+        - CONTENT
+        - EVENT
+        - OTHER
+        example: PRODUCT
         type: string
     type: object
   requests.UpdateTaskRequest:
@@ -7593,6 +7653,8 @@ definitions:
         type: string
       city:
         type: string
+      company_revenue:
+        type: number
       confirmation_image:
         type: string
       created_at:
@@ -7615,6 +7677,8 @@ definitions:
         type: string
       is_self_picked_up:
         type: boolean
+      kol_revenue:
+        type: number
       order_items:
         items:
           $ref: '#/definitions/responses.OrderItemResponse'
@@ -7995,6 +8059,8 @@ definitions:
         $ref: '#/definitions/responses.OrderItemCategoryResponse'
       city:
         type: string
+      company_revenue:
+        type: number
       confirmation_image:
         type: string
       container_type:
@@ -8037,6 +8103,8 @@ definitions:
         type: boolean
       is_self_picked_up:
         type: boolean
+      kol_revenue:
+        type: number
       length:
         type: integer
       limited_properties:
@@ -8261,6 +8329,8 @@ definitions:
         type: string
       brand_name:
         description: optional
+        type: string
+      brand_place_holder:
         type: string
       category:
         $ref: '#/definitions/responses.ProductCategoryResponse'
