@@ -544,6 +544,7 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 			adminOnlyGroup.GET("", adminConfigHandler.GetAllConfigValues)
 			adminOnlyGroup.PUT(":key", adminConfigHandler.UpdateConfig)
 			adminOnlyGroup.PUT("", adminConfigHandler.UpdateConfigs)
+			adminOnlyGroup.GET("/:key", adminConfigHandler.GetConfigByKey)
 		}
 
 		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
@@ -555,6 +556,7 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 		{
 			publicGroup.GET("/term-of-service", adminConfigHandler.GetTermOfService)
 			publicGroup.GET("/privacy-policy", adminConfigHandler.GetPrivacyPolicy)
+			publicGroup.GET("/:key/value", adminConfigHandler.GetConfigValueByKey)
 		}
 	}
 }
