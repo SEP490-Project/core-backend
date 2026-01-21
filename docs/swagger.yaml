@@ -1351,13 +1351,36 @@ definitions:
     - PAID
     - OVERDUE
     - TERMINATED
+    - KOL_PENDING
+    - KOL_PROOF_SUBMITTED
+    - KOL_PROOF_REJECTED
+    - KOL_REFUND_APPROVED
     type: string
+    x-enum-comments:
+      ContractPaymentStatusKOLPending: System owes brand, awaiting refund proof
+      ContractPaymentStatusKOLProofRejected: Brand rejected proof, resubmission needed
+      ContractPaymentStatusKOLProofSubmitted: Proof submitted, awaiting brand review
+      ContractPaymentStatusKOLRefundApproved: Brand approved, refund complete (terminal)
+    x-enum-descriptions:
+    - ""
+    - ""
+    - ""
+    - ""
+    - ""
+    - System owes brand, awaiting refund proof
+    - Proof submitted, awaiting brand review
+    - Brand rejected proof, resubmission needed
+    - Brand approved, refund complete (terminal)
     x-enum-varnames:
     - ContractPaymentStatusNotStarted
     - ContractPaymentStatusPending
     - ContractPaymentStatusPaid
     - ContractPaymentStatusOverdue
     - ContractPaymentStatusTerminated
+    - ContractPaymentStatusKOLPending
+    - ContractPaymentStatusKOLProofSubmitted
+    - ContractPaymentStatusKOLProofRejected
+    - ContractPaymentStatusKOLRefundApproved
   enum.ContractType:
     enum:
     - ADVERTISING
@@ -3860,6 +3883,28 @@ definitions:
         maxLength: 2000
         type: string
     type: object
+  requests.ReviewCoProducingRefundProofRequest:
+    properties:
+      approved:
+        description: Approved indicates whether the brand approves or rejects the
+          refund proof
+        example: true
+        type: boolean
+      contract_payment_id:
+        description: ContractPaymentID is the ID of the contract payment in KOL_PROOF_SUBMITTED
+          status
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      reject_reason:
+        description: |-
+          RejectReason is required when Approved is false
+          This field is required if Approved is false
+        example: The bank transfer proof is unclear
+        maxLength: 1000
+        type: string
+    required:
+    - contract_payment_id
+    type: object
   requests.ReviewRefundProofRequest:
     properties:
       action:
@@ -3908,6 +3953,27 @@ definitions:
     - email
     - password
     - username
+    type: object
+  requests.SubmitCoProducingRefundProofRequest:
+    properties:
+      contract_payment_id:
+        description: ContractPaymentID is the ID of the contract payment in KOL_PENDING
+          or KOL_PROOF_REJECTED status
+        example: b3e1f9d2-8c4e-4f5a-9f1e-2d3c4b5a6e7f
+        type: string
+      refund_proof_note:
+        description: RefundProofNote is an optional note explaining the refund proof
+        example: Bank transfer completed on 2024-07-15
+        maxLength: 1000
+        type: string
+      refund_proof_url:
+        description: RefundProofURL is the URL to the proof of refund (e.g., bank
+          transfer screenshot)
+        example: https://s3.example.com/refund-proof.pdf
+        type: string
+    required:
+    - contract_payment_id
+    - refund_proof_url
     type: object
   requests.SubmitRefundProofRequest:
     properties:
@@ -6570,6 +6636,16 @@ definitions:
       base_amount:
         example: 4500
         type: number
+      brand_bank_account_holder:
+        example: NGUYEN VAN A
+        type: string
+      brand_bank_account_number:
+        example: "1234567890"
+        type: string
+      brand_bank_name:
+        description: Brand Bank Info (for refund proof submission UI)
+        example: Vietcombank
+        type: string
       brand_id:
         example: d4c3b2a1-0f9e-8d7c-6b5a-4c3b2a1f0e9d
         type: string
@@ -6577,6 +6653,10 @@ definitions:
         example: Tech Solutions Inc.
         type: string
       breakdown: {}
+      can_generate_payment_link:
+        description: Computed Fields
+        example: true
+        type: boolean
       contract_id:
         example: a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6
         type: string
@@ -6617,6 +6697,34 @@ definitions:
       performance_amount:
         example: 500
         type: number
+      refund_amount:
+        description: CO_PRODUCING Refund Fields
+        example: 150000
+        type: number
+      refund_attempts:
+        example: 1
+        type: integer
+      refund_proof_note:
+        example: Bank transfer completed
+        type: string
+      refund_proof_url:
+        example: https://s3.example.com/refund-proof.pdf
+        type: string
+      refund_reject_reason:
+        example: Proof image is unclear
+        type: string
+      refund_reviewed_at:
+        example: "2024-07-16T14:00:00Z"
+        type: string
+      refund_reviewed_by:
+        example: Brand Manager
+        type: string
+      refund_submitted_at:
+        example: "2024-07-15T10:30:00Z"
+        type: string
+      refund_submitted_by:
+        example: John Doe
+        type: string
       status:
         allOf:
         - $ref: '#/definitions/enum.ContractPaymentStatus'
@@ -16483,6 +16591,107 @@ paths:
       summary: Generate PayOS payment link for contract payment
       tags:
       - Contract Payments
+  /api/v1/contract_payments/{contract_payment_id}/refund-proof:
+    post:
+      consumes:
+      - application/json
+      description: Marketing staff submits proof of refund for CO_PRODUCING contracts
+        where net amount < 0
+      parameters:
+      - description: Contract Payment ID
+        in: path
+        name: contract_payment_id
+        required: true
+        type: string
+      - description: Refund proof data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SubmitCoProducingRefundProofRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Refund proof submitted successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractPaymentResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Payment not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit refund proof for CO_PRODUCING contract
+      tags:
+      - Contract Payments
+  /api/v1/contract_payments/{contract_payment_id}/refund-proof/review:
+    post:
+      consumes:
+      - application/json
+      description: Brand reviews (approves/rejects) the submitted refund proof
+      parameters:
+      - description: Contract Payment ID
+        in: path
+        name: contract_payment_id
+        required: true
+        type: string
+      - description: Review decision
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ReviewCoProducingRefundProofRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Review completed
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/responses.ContractPaymentResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "404":
+          description: Payment not found
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Review refund proof for CO_PRODUCING contract
+      tags:
+      - Contract Payments
   /api/v1/contract_payments/contract/{contract_id}:
     post:
       consumes:
@@ -16625,6 +16834,72 @@ paths:
       security:
       - BearerAuth: []
       summary: Get contract payments for the authenticated brand partner
+      tags:
+      - Contract Payments
+  /api/v1/contract_payments/refunds:
+    get:
+      consumes:
+      - application/json
+      description: Get all CO_PRODUCING contract payments that require brand's action
+        (KOL_PENDING or KOL_PROOF_SUBMITTED status)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Refund payments retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ContractPaymentResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get refund payments for brand
+      tags:
+      - Contract Payments
+  /api/v1/contract_payments/refunds/pending:
+    get:
+      consumes:
+      - application/json
+      description: Get all CO_PRODUCING payments with KOL_PROOF_SUBMITTED status awaiting
+        brand review
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pending proofs retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/responses.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/responses.ContractPaymentResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.APIResponse'
+      security:
+      - BearerAuth: []
+      summary: Get pending refund proofs for brand review
       tags:
       - Contract Payments
   /api/v1/contracts:
