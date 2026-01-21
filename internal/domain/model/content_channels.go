@@ -247,7 +247,9 @@ type ContentChannelMetadata struct {
 	UploadStatus *string `json:"upload_status,omitempty"` // "pending", "processing", "completed", "failed"
 
 	// For Facebook video publishing
-	VideoID *string `json:"video_id,omitempty"` // Facebook video ID (before post is published)
+	PostID   *string  `json:"post_id,omitempty"`  // Facebook post ID (after published)
+	VideoID  *string  `json:"video_id,omitempty"` // Facebook video ID (before post is published)
+	PhotoIDs []string `json:"photo_id,omitempty"`
 
 	// Generic metadata
 	Type *string `json:"type,omitempty"` // "video", "photo", "text", etc.

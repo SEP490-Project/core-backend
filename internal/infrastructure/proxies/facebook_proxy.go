@@ -6,6 +6,7 @@ import (
 	"core-backend/config"
 	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/interfaces/iproxies"
+	stringsbuilder "core-backend/pkg/strings_builder"
 	"core-backend/pkg/utils"
 	"fmt"
 	"net/http"
@@ -224,6 +225,7 @@ func (f *FacebookProxy) CreateMultiPhotoPost(ctx context.Context, accessToken st
 
 	body := map[string]any{
 		"caption":      publishRequest.Caption,
+		"message":      publishRequest.Caption,
 		"published":    publishRequest.Published,
 		"access_token": accessToken,
 	}
@@ -233,11 +235,16 @@ func (f *FacebookProxy) CreateMultiPhotoPost(ctx context.Context, accessToken st
 	}
 
 	if len(publishRequest.AttachedMedia) > 0 {
-		attachedMedias := make([]map[string]string, len(publishRequest.AttachedMedia))
+		builder := stringsbuilder.NewStringBuilder()
+		builder.Append("[")
 		for i, mediaID := range publishRequest.AttachedMedia {
-			attachedMedias[i] = map[string]string{"media_fbid": mediaID}
+			if i > 0 {
+				builder.Append(",")
+			}
+			builder.Append(fmt.Sprintf(`{"media_fbid": "%s"}`, mediaID))
 		}
-		body["attached_media"] = attachedMedias
+		builder.Append("]")
+		body["attached_media"] = builder.String()
 	}
 
 	var postResp dtos.FacebookPostResponse
@@ -502,6 +509,42 @@ func (f *FacebookProxy) GetPagePosts(ctx context.Context, pageID string, accessT
 	}
 
 	return &postsResp, nil
+}
+
+// GetPagePostIDFromPhotoID implements iproxies.FacebookProxy.
+// Retrieves the page post ID associated with a given photo ID
+// URL used: GET /{photo-id}?fields=id,page_story_id
+func (f *FacebookProxy) GetPagePostIDFromPhotoID(ctx context.Context, photoID, accessToken, _ string) (*dtos.FacebookPagePostIDFromVideoID, error) {
+	zap.L().Info("FacebookProxy - GetPagePostIDFromPhotoID called", zap.String("photo_id", photoID))
+
+	if photoID == "" {
+		zap.L().Error("Photo ID is empty")
+		return nil, fmt.Errorf("photo ID cannot be empty")
+	}
+	if strings.Contains(photoID, "_") {
+		splittedID := strings.Split(photoID, "_")
+		if len(splittedID) == 2 {
+			photoID = splittedID[1]
+		}
+	}
+
+	queryParams := map[string]string{
+		"access_token": accessToken,
+		"fields":       "id,page_story_id",
+	}
+
+	url, err := utils.AddQueryParams(photoID, queryParams)
+	if err != nil {
+		zap.L().Error("Failed to construct URL for getting Facebook page post ID from photo ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to construct URL: %w", err)
+	}
+	var postIDResp dtos.FacebookPagePostIDFromVideoID
+	if err := GetGeneric(f.BaseProxy, ctx, url, nil, &postIDResp); err != nil {
+		zap.L().Error("Failed to get Facebook page post ID from photo ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get page post ID from photo ID: %w", err)
+	}
+
+	return &postIDResp, nil
 }
 
 // GetPostMetrics implements iproxies.FacebookProxy.

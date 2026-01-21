@@ -14,6 +14,7 @@ type SuggestedTask struct {
 	Deadline          time.Time      `json:"deadline" example:"2024-12-31T23:59:59Z"`
 	Type              enum.TaskType  `json:"type" example:"CONTENT"`
 	ScopeOfWorkItemID *string        `json:"scope_of_work_item_id,omitempty" example:"SOW-12345"`
+	AssignedToID      *uuid.UUID     `json:"assigned_to_id" example:"550e8400-e29b-41d4-a716-446655440000"`
 }
 
 // SuggestedMilestone represents a suggested milestone with its tasks

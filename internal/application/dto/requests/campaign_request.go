@@ -118,7 +118,7 @@ type CreateTaskCampaignRequest struct {
 	Description  any       `json:"description" validate:"omitempty"`
 	Deadline     time.Time `json:"deadline" validate:"required" example:"2023-06-10T00:00:00Z"`
 	Type         string    `json:"type" validate:"required,oneof=PRODUCT CONTENT EVENT OTHER" example:"PRODUCT"`
-	AssignedToID *string   `json:"assigned_to" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
+	AssignedToID *string   `json:"assigned_to_id" validate:"omitempty,uuid" example:"550e8400-e29b-41d4-a716-446655440000"`
 
 	// ScopeOFWorkItemID is a composite ID in the format: "{CONTRACT_ID}|{CONTRACT_TYPE}|{SOW_ITEM_ID}"
 	// If only contain ScopeOfWorkItem Item number, then there will be logic to aggregate them when created.
