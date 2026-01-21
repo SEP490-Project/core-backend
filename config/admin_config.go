@@ -28,7 +28,7 @@ type AdminConfig struct {
 	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
 	RepresentativeCompanyAddress    string `mapstructure:"representative_company_address"`
 	// Representative use to create GHN Order
-	RepresentativeGHNCompanyName  string `mapstructure:"representative_company_name"` // From name: max:1024
+	RepresentativeGHNCompanyName  string `mapstructure:"representative_ghn_company_name"` // From name: max:1024
 	RepresentativeGHNPhone        string `mapstructure:"representative_ghn_phone"`
 	RepresentativeGHNWardName     string `mapstructure:"representative_ghn_ward_name"`
 	RepresentativeGHNDistrictName string `mapstructure:"representative_ghn_district_name"`

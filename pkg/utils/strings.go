@@ -8,6 +8,20 @@ import (
 	"golang.org/x/text/language"
 )
 
+// Define regexes globally to improve performance (avoids recompiling on every function call)
+var (
+	// Look for an uppercase letter, followed by an uppercase letter and a lowercase letter.
+	// This handles the boundary between an acronym and a word (e.g., "JSON" -> "Data" in "JSONData")
+	matchAcronym = regexp.MustCompile("([A-Z])([A-Z][a-z])")
+
+	// Look for a lowercase letter or number followed by an uppercase letter.
+	// This handles standard camelCase (e.g., "my" -> "Variable" in "myVariable")
+	matchCamel = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+	// Remove anything that isn't alphanumeric or underscore
+	matchNonAlpha = regexp.MustCompile("[^a-zA-Z0-9_]+")
+)
+
 // ToUsernameString converts an email or string to a valid username format
 // (alphanumeric and underscores only)
 func ToUsernameString(input string) string {
@@ -42,16 +56,27 @@ func ToTitleCase(input string) string {
 // It handles CamelCase (e.g. "RepresentativeName" -> "representative_name")
 // and replaces non-alphanumeric characters with underscores.
 func ToSnakeCase(input string) string {
-	// First, handle CamelCase to snake_case conversion
-	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+	specialCases := map[string]string{
+		"IPv4":   "ipv4",
+		"ID":     "id",
+		"URL":    "url",
+		"GHN":    "ghn",
+		"API":    "api",
+		"CTR":    "ctr",
+		"TikTok": "tiktok",
+	}
+	if val, ok := specialCases[input]; ok {
+		return val
+	}
 
-	snake := matchFirstCap.ReplaceAllString(input, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	// Split acronyms from words: "GHNCompany" -> "GHN_Company"
+	snake := matchAcronym.ReplaceAllString(input, "${1}_${2}")
 
-	// Then replace non-alphanumeric characters with underscores
-	regex := regexp.MustCompile("[^a-zA-Z0-9]+")
-	snake = regex.ReplaceAllString(snake, "_")
+	// Split words from camelCase: "RepresentativeGHN" -> "Representative_GHN"
+	snake = matchCamel.ReplaceAllString(snake, "${1}_${2}")
+
+	// 3. Clean up and lower case
+	snake = matchNonAlpha.ReplaceAllString(snake, "_")
 
 	return strings.ToLower(snake)
 }
