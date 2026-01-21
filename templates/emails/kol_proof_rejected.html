@@ -62,16 +62,17 @@
         <h2>Refund Proof Rejected</h2>
       </div>
       <div class="content">
-        <p>Dear {{.KOLName}},</p>
+        <p>Dear {{.RecipientName}},</p>
 
         <p>
-          Your refund proof for contract <strong>#{{.ContractNumber}}</strong>
-          has been <strong>rejected</strong>.
+          Your refund proof for contract
+          <strong>#{{.ContractNumber}}</strong> has been
+          <strong>rejected</strong>.
         </p>
 
         <div class="info-box">
           <p><strong>Rejection Reason:</strong></p>
-          <p>{{.RejectionReason}}</p>
+          <p>{{.RejectReason}}</p>
         </div>
 
         <div class="warning">
@@ -81,7 +82,8 @@
             to submit valid proof of refund.
           </p>
           <p>
-            Please ensure your next submission includes clear documentation of the refund transfer.
+            Please ensure your next submission includes clear documentation of
+            the refund transfer.
           </p>
         </div>
 
@@ -89,9 +91,7 @@
           <a href="{{.DashboardLink}}" class="button">Submit New Proof</a>
         </p>
 
-        <p>
-          If you need assistance, please contact our support team.
-        </p>
+        <p>If you need assistance, please contact our support team.</p>
       </div>
       <div class="footer">
         <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>

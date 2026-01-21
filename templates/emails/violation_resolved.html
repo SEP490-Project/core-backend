@@ -59,7 +59,7 @@
       </div>
       <div class="content">
         <div class="success-icon">✓</div>
-        
+
         <p>Dear {{.RecipientName}},</p>
 
         <p>
@@ -77,23 +77,21 @@
 
         <div class="resolution-box">
           <p><strong>Resolution Details:</strong></p>
-          <p>Resolution Method: {{.ResolutionMethod}}</p>
           {{if .AmountSettled}}
           <p>Amount Settled: {{.Currency}} {{.AmountSettled}}</p>
-          {{end}}
-          {{if .ResolutionNote}}
+          {{end}} {{if .ResolutionNote}}
           <p>Note: {{.ResolutionNote}}</p>
           {{end}}
         </div>
 
         <p>
-          The contract has been terminated as per our terms and conditions.
-          All related activities have been concluded.
+          The contract has been terminated as per our terms and conditions. All
+          related activities have been concluded.
         </p>
 
         <p>
-          If you have any questions regarding this resolution, please
-          contact our support team at <a href="{{.SupportLink}}">{{.SupportLink}}</a>.
+          If you have any questions regarding this resolution, please contact
+          our support team at <a href="{{.SupportLink}}">{{.SupportLink}}</a>.
         </p>
 
         <p>
