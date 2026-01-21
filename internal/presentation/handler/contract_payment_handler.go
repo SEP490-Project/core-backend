@@ -19,6 +19,7 @@ import (
 type ContractPaymentHandler struct {
 	contractPaymentService    iservice.ContractPaymentService
 	paymentTransactionService iservice.PaymentTransactionService
+	coProducingRefundService  iservice.CoProducingRefundService
 	unitOfWork                irepository.UnitOfWork
 	validator                 *validator.Validate
 }
@@ -26,12 +27,14 @@ type ContractPaymentHandler struct {
 func NewContractPaymentHandler(
 	contractPaymentService iservice.ContractPaymentService,
 	paymentTransactionService iservice.PaymentTransactionService,
+	coProducingRefundService iservice.CoProducingRefundService,
 	unitOfWork irepository.UnitOfWork,
 ) *ContractPaymentHandler {
 	validator := validator.New()
 	return &ContractPaymentHandler{
 		contractPaymentService:    contractPaymentService,
 		paymentTransactionService: paymentTransactionService,
+		coProducingRefundService:  coProducingRefundService,
 		unitOfWork:                unitOfWork,
 		validator:                 validator,
 	}
@@ -329,4 +332,198 @@ func (h *ContractPaymentHandler) GeneratePaymentLink(c *gin.Context) {
 
 	c.JSON(http.StatusOK,
 		responses.SuccessResponse("Payment link generated successfully", utils.PtrOrNil(http.StatusOK), payosResp))
+}
+
+// SubmitRefundProof godoc
+//
+//	@Summary		Submit refund proof for CO_PRODUCING contract
+//	@Description	Marketing staff submits proof of refund for CO_PRODUCING contracts where net amount < 0
+//	@Tags			Contract Payments
+//	@Accept			json
+//	@Produce		json
+//	@Param			contract_payment_id	path		string															true	"Contract Payment ID"
+//	@Param			data				body		requests.SubmitCoProducingRefundProofRequest					true	"Refund proof data"
+//	@Success		200					{object}	responses.APIResponse{data=responses.ContractPaymentResponse}	"Refund proof submitted successfully"
+//	@Failure		400					{object}	responses.APIResponse											"Invalid request"
+//	@Failure		401					{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		404					{object}	responses.APIResponse											"Payment not found"
+//	@Failure		500					{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contract_payments/{contract_payment_id}/refund-proof [post]
+func (h *ContractPaymentHandler) SubmitRefundProof(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	paymentIDStr := c.Param("contract_payment_id")
+	paymentID, err := uuid.Parse(paymentIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid contract payment ID", http.StatusBadRequest))
+		return
+	}
+
+	var req requests.SubmitCoProducingRefundProofRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	req.ContractPaymentID = paymentID
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	payment, err := h.coProducingRefundService.SubmitRefundProof(c.Request.Context(), &req, userID)
+	if err != nil {
+		zap.L().Error("Failed to submit refund proof", zap.Error(err))
+		statusCode := http.StatusInternalServerError
+		message := "Failed to submit refund proof"
+		if err.Error() == "contract payment not found" {
+			statusCode = http.StatusNotFound
+			message = err.Error()
+		} else if len(err.Error()) > 0 {
+			statusCode = http.StatusBadRequest
+			message = err.Error()
+		}
+		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
+		return
+	}
+
+	resp := (responses.ContractPaymentResponse{}).ToResponse(payment)
+	c.JSON(http.StatusOK, responses.SuccessResponse("Refund proof submitted successfully", nil, resp))
+}
+
+// ReviewRefundProof godoc
+//
+//	@Summary		Review refund proof for CO_PRODUCING contract
+//	@Description	Brand reviews (approves/rejects) the submitted refund proof
+//	@Tags			Contract Payments
+//	@Accept			json
+//	@Produce		json
+//	@Param			contract_payment_id	path		string															true	"Contract Payment ID"
+//	@Param			data				body		requests.ReviewCoProducingRefundProofRequest					true	"Review decision"
+//	@Success		200					{object}	responses.APIResponse{data=responses.ContractPaymentResponse}	"Review completed"
+//	@Failure		400					{object}	responses.APIResponse											"Invalid request"
+//	@Failure		401					{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		404					{object}	responses.APIResponse											"Payment not found"
+//	@Failure		500					{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contract_payments/{contract_payment_id}/refund-proof/review [post]
+func (h *ContractPaymentHandler) ReviewRefundProof(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	paymentIDStr := c.Param("contract_payment_id")
+	paymentID, err := uuid.Parse(paymentIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid contract payment ID", http.StatusBadRequest))
+		return
+	}
+
+	var req requests.ReviewCoProducingRefundProofRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Invalid request body: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	req.ContractPaymentID = paymentID
+
+	if err := h.validator.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Validation error: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+
+	payment, err := h.coProducingRefundService.ReviewRefundProof(c.Request.Context(), &req, userID)
+	if err != nil {
+		zap.L().Error("Failed to review refund proof", zap.Error(err))
+		statusCode := http.StatusInternalServerError
+		message := "Failed to review refund proof"
+		if err.Error() == "contract payment not found" {
+			statusCode = http.StatusNotFound
+			message = err.Error()
+		} else if len(err.Error()) > 0 {
+			statusCode = http.StatusBadRequest
+			message = err.Error()
+		}
+		c.JSON(statusCode, responses.ErrorResponse(message, statusCode))
+		return
+	}
+
+	resp := (responses.ContractPaymentResponse{}).ToResponse(payment)
+	c.JSON(http.StatusOK, responses.SuccessResponse("Refund proof reviewed successfully", nil, resp))
+}
+
+// GetRefundPayments godoc
+//
+//	@Summary		Get refund payments for brand
+//	@Description	Get all CO_PRODUCING contract payments that require brand's action (KOL_PENDING or KOL_PROOF_SUBMITTED status)
+//	@Tags			Contract Payments
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=[]responses.ContractPaymentResponse}	"Refund payments retrieved"
+//	@Failure		401	{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contract_payments/refunds [get]
+func (h *ContractPaymentHandler) GetRefundPayments(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	payments, err := h.coProducingRefundService.GetRefundPayments(c.Request.Context(), userID)
+	if err != nil {
+		zap.L().Error("Failed to get refund payments", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to retrieve refund payments", http.StatusInternalServerError))
+		return
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Refund payments retrieved successfully", nil, payments))
+}
+
+// GetPendingRefundProofs godoc
+//
+//	@Summary		Get pending refund proofs for brand review
+//	@Description	Get all CO_PRODUCING payments with KOL_PROOF_SUBMITTED status awaiting brand review
+//	@Tags			Contract Payments
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.APIResponse{data=[]responses.ContractPaymentResponse}	"Pending proofs retrieved"
+//	@Failure		401	{object}	responses.APIResponse											"Unauthorized"
+//	@Failure		500	{object}	responses.APIResponse											"Internal server error"
+//	@Security		BearerAuth
+//	@Router			/api/v1/contract_payments/refunds/pending [get]
+func (h *ContractPaymentHandler) GetPendingRefundProofs(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized))
+		return
+	}
+
+	// Get pending proofs for brand review (proofs submitted but not yet reviewed)
+	// Use nil for submittedBefore to get all pending proofs
+	payments, err := h.coProducingRefundService.GetPendingRefundProofs(c.Request.Context(), nil)
+	if err != nil {
+		zap.L().Error("Failed to get pending refund proofs", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse("Failed to retrieve pending refund proofs", http.StatusInternalServerError))
+		return
+	}
+
+	// Filter by brand user - only return proofs for this brand
+	var brandPayments []*responses.ContractPaymentResponse
+	for _, payment := range payments {
+		if payment.Contract != nil && payment.Contract.Brand != nil &&
+			payment.Contract.Brand.UserID != nil && *payment.Contract.Brand.UserID == userID {
+			resp := (responses.ContractPaymentResponse{}).ToResponse(payment)
+			brandPayments = append(brandPayments, resp)
+		}
+	}
+
+	c.JSON(http.StatusOK, responses.SuccessResponse("Pending refund proofs retrieved successfully", nil, brandPayments))
 }
