@@ -5,6 +5,7 @@ import (
 	"core-backend/internal/application/interfaces/irepository"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // genericRepository implementation
@@ -124,6 +125,40 @@ func (r *genericRepository[T]) BulkAdd(ctx context.Context, entities []*T, batch
 	var result *gorm.DB
 	db := r.db.WithContext(ctx)
 
+	if batchSize <= 100 {
+		result = db.Create(entities)
+	} else {
+		result = db.CreateInBatches(entities, batchSize)
+	}
+
+	return result.RowsAffected, result.Error
+}
+
+func (r *genericRepository[T]) BulkUpsert(ctx context.Context, entities []*T, batchSize int, conflictColumns []string, updateColumns []string) (rowsAffected int64, err error) {
+	if len(entities) == 0 {
+		return 0, nil
+	}
+
+	db := r.db.WithContext(ctx)
+
+	cols := make([]clause.Column, len(conflictColumns))
+	for i, c := range conflictColumns {
+		cols[i] = clause.Column{Name: c}
+	}
+
+	onConflict := clause.OnConflict{
+		Columns: cols,
+	}
+
+	if len(updateColumns) > 0 {
+		onConflict.DoUpdates = clause.AssignmentColumns(updateColumns)
+	} else {
+		onConflict.UpdateAll = true
+	}
+
+	db = db.Clauses(onConflict)
+
+	var result *gorm.DB
 	if batchSize <= 100 {
 		result = db.Create(entities)
 	} else {
