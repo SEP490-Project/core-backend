@@ -737,11 +737,15 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 ) {
 	// O(1) lookup from pre-fetched map instead of database query
 	cc, exists := ccMap[post.ID]
-	firstAttachment := post.Attachments.Data[0]
-	if !exists && firstAttachment.MediaType != "photo" && firstAttachment.MediaType != "video" {
-		// Post not tracked in our system, skip
-		return
-	} else if firstAttachment.MediaType == "photo" || firstAttachment.MediaType == "video" {
+	var firstAttachment *dtos.FacebookAttachment
+	if post.Attachments != nil && len(post.Attachments.Data) > 0 {
+		firstAttachment = &post.Attachments.Data[0]
+	}
+	if !exists {
+		if firstAttachment == nil || (firstAttachment.MediaType != "photo" && firstAttachment.MediaType != "video") {
+			// Post not tracked in our system, skip
+			return
+		}
 		oldExternalPostID := firstAttachment.Target.ID
 		temp, ok := ccMap[oldExternalPostID]
 		if !ok {
@@ -768,6 +772,9 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 
 			cc = temp
 			exists = true
+		} else {
+			// Post not tracked in our system even after best effort to find it, skip
+			return
 		}
 	}
 
@@ -783,7 +790,6 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 
 	if post.Reactions != nil {
 		reactions = post.Reactions.Summary.TotalCount
-
 		rawMetrics["reactions"] = reactions
 	}
 	if post.Comments != nil {
@@ -1285,6 +1291,9 @@ func (j *ContentMetricsPollerJob) updateExternalPostIDForContentChannel(ctx cont
 		externalPostType = cc.ExternalPostType
 		metadata         = cc.Metadata
 	)
+	if metadata == nil {
+		metadata = &model.ContentChannelMetadata{}
+	}
 
 	var allowedExternalPostTypes []enum.ExternalPostType
 	switch attachmentMediaType {
@@ -1292,12 +1301,10 @@ func (j *ContentMetricsPollerJob) updateExternalPostIDForContentChannel(ctx cont
 		metadata.VideoID = cc.ExternalPostID
 		allowedExternalPostTypes = []enum.ExternalPostType{enum.ExternalPostTypeVideo, enum.ExternalPostTypeLongVideo}
 	case "photo":
-		// metadata.
-		// newSlice := make()
 		if cc.ExternalPostID != nil {
 			newPhotoIDs := make([]string, 0)
-			for _, id := range metadata.PhotoIDs {
-				newPhotoIDs = append(newPhotoIDs, id)
+			if metadata != nil && len(metadata.PhotoIDs) > 0 {
+				newPhotoIDs = append(newPhotoIDs, metadata.PhotoIDs...)
 			}
 			newPhotoIDs = append(newPhotoIDs, *cc.ExternalPostID)
 			metadata.PhotoIDs = newPhotoIDs
