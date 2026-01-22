@@ -263,6 +263,20 @@ func (ContractPaymentResponse) ToResponseList(sources []model.ContractPayment, f
 	return finalResponses
 }
 
+func (ContractPaymentResponse) ToSimpleResponseList(sources []model.ContractPayment) []ContractPaymentResponse {
+	if len(sources) == 0 {
+		return []ContractPaymentResponse{}
+	}
+
+	// var response []ContractPaymentResponse
+	list := make([]ContractPaymentResponse, len(sources))
+	for i, source := range sources {
+		// list = append(list, *ContractPaymentResponse{}.ToResponse(&source))
+		list[i] = *ContractPaymentResponse{}.ToResponse(&source)
+	}
+	return list
+}
+
 // endregion
 
 type ContractPaymentPaginationResponse PaginationResponse[ContractPaymentResponse]

@@ -3177,7 +3177,7 @@ definitions:
     type: object
   requests.CreateTaskCampaignRequest:
     properties:
-      assigned_to:
+      assigned_to_id:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
       deadline:
@@ -9147,6 +9147,9 @@ definitions:
     type: object
   responses.SuggestedTask:
     properties:
+      assigned_to_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
       deadline:
         example: "2024-12-31T23:59:59Z"
         type: string

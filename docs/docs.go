@@ -29204,7 +29204,7 @@ const docTemplate = `{
                 "type"
             ],
             "properties": {
-                "assigned_to": {
+                "assigned_to_id": {
                     "type": "string",
                     "example": "550e8400-e29b-41d4-a716-446655440000"
                 },
@@ -37821,6 +37821,10 @@ const docTemplate = `{
         "responses.SuggestedTask": {
             "type": "object",
             "properties": {
+                "assigned_to_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
                 "deadline": {
                     "type": "string",
                     "example": "2024-12-31T23:59:59Z"

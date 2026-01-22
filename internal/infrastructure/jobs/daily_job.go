@@ -189,7 +189,8 @@ func (j *DailyJob) registerContractPaymentOverdue(ctx context.Context) error {
 	filterQuery := func(db *gorm.DB) *gorm.DB {
 		return db.Joins("Contract").Joins("Contract.Brand").
 			Where("contract_payments.status = ?", enum.ContractPaymentStatusPending).
-			Where("contract_payments.due_date < ?", currentTime)
+			Where("contract_payments.due_date < ?", currentTime).
+			Where("contracts.status IN ?", []enum.ContractStatus{enum.ContractStatusActive})
 	}
 	overduedContractPayment := make([]model.ContractPayment, 0)
 	contractPayments, contractPaymentCount, err := j.contractPaymentRepo.GetAll(ctx, filterQuery, nil, 0, 0)
@@ -889,7 +890,7 @@ func (j *DailyJob) checkZeroAmountPaymentsToPaid(ctx context.Context) error {
 		Where("contract_payments.status = ?", enum.ContractPaymentStatusPending).
 		Where("contract_payments.amount = 0").
 		Where("contract_payments.due_date < ?", currentTime).
-		Where("Contract.type = ?", enum.ContractTypeCoProduce).
+		Where("\"Contract\".type = ?", enum.ContractTypeCoProduce).
 		Find(&payments).Error
 
 	if err != nil {

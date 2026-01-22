@@ -113,7 +113,12 @@ func NewApplicationRegistry(
 		configs,
 		infrastructureRegistry.VaultService,
 	)
-	contractService := service.NewContractService(databaseRegistry, infrastructureRegistry)
+	contractService := service.NewContractService(
+		databaseRegistry,
+		infrastructureRegistry,
+		notificationService,
+		configs,
+	)
 
 	contentService := service.NewContentService(
 		configs,
@@ -207,7 +212,7 @@ func NewApplicationRegistry(
 		BrandService:                  service.NewBrandService(databaseRegistry.BrandRepository, databaseRegistry.ProductRepository),
 		StateTransferService:          stateTransferService,
 		ContractService:               contractService,
-		CampaignService:               service.NewCampaignService(databaseRegistry, infrastructureRegistry),
+		CampaignService:               service.NewCampaignService(databaseRegistry, infrastructureRegistry, notificationService, configs),
 		ModifiedHistoryService:        service.NewModifiedHistoryService(databaseRegistry.ModifiedHistoryRepository),
 		ProductCategoryService:        service.NewProductCategoryService(databaseRegistry.ProductCategoryRepository),
 		AdminConfigService:            service.NewAdminConfigService(&configs.AdminConfig, databaseRegistry.AdminConfigRepository, infrastructureRegistry.CronJobsRegistry),
@@ -218,7 +223,7 @@ func NewApplicationRegistry(
 		ContentService:                contentService,
 		ContentPublishingService:      contentPublishingService,
 		BlogService:                   service.NewBlogService(databaseRegistry.BlogRepository, databaseRegistry.ContentRepository),
-		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository),
+		TaskService:                   service.NewTaskService(databaseRegistry.TaskRepository, databaseRegistry.UserRepository, databaseRegistry.MilestoneRepository, notificationService, configs),
 		NotificationService:           notificationService,
 		LocationService:               service.NewLocationService(databaseRegistry),
 		TagService:                    service.NewTagService(databaseRegistry.TagRepository),
