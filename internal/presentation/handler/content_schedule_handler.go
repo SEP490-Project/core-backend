@@ -6,6 +6,7 @@ import (
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
 	"core-backend/internal/application/interfaces/iservice"
+	"core-backend/pkg/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -92,6 +93,10 @@ func (h *ContentScheduleHandler) BatchScheduleContent(c *gin.Context) {
 	result, err := h.scheduleService.BatchScheduleContent(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("Failed to batch schedule content: "+err.Error(), http.StatusBadRequest))
+		return
+	}
+	if result.TotalFailed > 0 { // Partial failure
+		c.JSON(http.StatusBadRequest, responses.SuccessResponse("Batch scheduling completed with some failures", utils.PtrOrNil(http.StatusBadRequest), result))
 		return
 	}
 
