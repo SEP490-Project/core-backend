@@ -956,6 +956,14 @@ func (r *Router) SetupSalesStaffAnalyticsRoutes(group *gin.RouterGroup) {
 			protectedGroup.GET("/financials/trend", salesAnalyticsHandler.GetRevenueTrend)
 			protectedGroup.GET("/orders/trend", salesAnalyticsHandler.GetOrdersTrend)
 			protectedGroup.GET("/financials/growth", salesAnalyticsHandler.GetRevenueGrowth)
+
+			// Revenue Detail APIs - Orders contributing to each revenue metric
+			protectedGroup.GET("/financials/revenue/total/orders", salesAnalyticsHandler.GetTotalRevenueOrders)
+			protectedGroup.GET("/financials/revenue/standard/orders", salesAnalyticsHandler.GetStandardRevenueOrders)
+			protectedGroup.GET("/financials/revenue/limited/orders", salesAnalyticsHandler.GetLimitedRevenueOrders)
+			//protectedGroup.GET("/financials/revenue/standard-net/orders", salesAnalyticsHandler.GetStandardNetRevenueOrders)
+			protectedGroup.GET("/financials/revenue/limited-net/orders", salesAnalyticsHandler.GetLimitedNetRevenueOrders)
+			protectedGroup.GET("/financials/refunded/orders", salesAnalyticsHandler.GetRefundedOrders)
 		}
 	}
 }

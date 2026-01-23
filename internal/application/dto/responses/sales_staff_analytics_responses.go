@@ -22,9 +22,9 @@ type FinancialsSummary struct {
 	TotalSoldRevenue       float64    `json:"total_sold_revenue"`
 	TotalStandardRevenue   float64    `json:"standard_revenue"`
 	TotalLimitedRevenue    float64    `json:"limited_revenue"`
-	StandardNetRevenue     float64    `json:"standard_net_revenue"`     // Standard orders without shipping fee
-	LimitedGrossRevenue    float64    `json:"limited_gross_revenue"`    // Limited orders + PreOrders (including shipping)
-	LimitedNetRevenue      float64    `json:"limited_net_revenue"`      // Limited orders + PreOrders * KOL percentage (without shipping)
+	StandardNetRevenue     float64    `json:"standard_net_revenue"`  // Standard orders without shipping fee
+	LimitedGrossRevenue    float64    `json:"limited_gross_revenue"` // Limited orders + PreOrders (including shipping)
+	LimitedNetRevenue      float64    `json:"limited_net_revenue"`   // Limited orders + PreOrders * KOL percentage (without shipping)
 	TotalRefund            float64    `json:"total_refund"`
 	RevenueGrowth          float64    `json:"revenue_growth"` // Compared to previous period
 	AverageOrderValue      AOVMetrics `json:"average_order_value"`
@@ -124,4 +124,55 @@ type LatestOrder struct {
 	Status       string    `json:"status"`
 	Type         string    `json:"type"` // ORDER or PRE_ORDER
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// =============================================================================
+// REVENUE ORDER DETAIL RESPONSES
+// =============================================================================
+
+// RevenueOrderItem represents an order/preorder item for revenue detail listings
+type RevenueOrderItem struct {
+	ID            uuid.UUID `json:"id"`
+	Source        string    `json:"source"`     // ORDER or PRE_ORDER
+	OrderType     string    `json:"order_type"` // STANDARD or LIMITED
+	CustomerID    uuid.UUID `json:"customer_id"`
+	CustomerName  string    `json:"customer_name"`
+	CustomerEmail string    `json:"customer_email"`
+	Status        string    `json:"status"`
+	TotalAmount   float64   `json:"total_amount"`
+	ShippingFee   float64   `json:"shipping_fee"`
+	NetAmount     float64   `json:"net_amount"`            // Calculated based on revenue type
+	KOLPercent    *float64  `json:"kol_percent,omitempty"` // Only for LIMITED/PreOrder
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// RevenueOrderItemWithPayment represents an order/preorder item with payment transaction for revenue detail listings
+type RevenueOrderItemWithPayment struct {
+	ID                 uuid.UUID                   `json:"id"`
+	Source             string                      `json:"source"`     // ORDER or PRE_ORDER
+	OrderType          string                      `json:"order_type"` // STANDARD or LIMITED
+	CustomerID         uuid.UUID                   `json:"customer_id"`
+	CustomerName       string                      `json:"customer_name"`
+	CustomerEmail      string                      `json:"customer_email"`
+	Status             string                      `json:"status"`
+	TotalAmount        float64                     `json:"total_amount"`
+	ShippingFee        float64                     `json:"shipping_fee"`
+	NetAmount          float64                     `json:"net_amount"`  // Calculated based on revenue type (KOL net or refund amount)
+	KOLPercent         *float64                    `json:"kol_percent"` // Only for LIMITED/PreOrder
+	CreatedAt          time.Time                   `json:"created_at"`
+	PaymentTransaction *PaymentTransactionResponse `json:"payment_transaction"`
+}
+
+// RevenueOrdersResponse represents a paginated list of orders for a specific revenue type
+type RevenueOrdersResponse struct {
+	RevenueType  string             `json:"revenue_type"` // TOTAL, STANDARD, LIMITED, STANDARD_NET, LIMITED_GROSS, LIMITED_NET
+	TotalRevenue float64            `json:"total_revenue"`
+	Orders       []RevenueOrderItem `json:"orders"`
+}
+
+// RevenueOrdersWithPaymentResponse represents a paginated list of orders with payment transactions
+type RevenueOrdersWithPaymentResponse struct {
+	RevenueType  string                        `json:"revenue_type"` // LIMITED_NET, REFUNDED
+	TotalRevenue float64                       `json:"total_revenue"`
+	Orders       []RevenueOrderItemWithPayment `json:"orders"`
 }

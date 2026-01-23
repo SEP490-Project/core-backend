@@ -337,6 +337,9 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 	districtID := q.DistrictID
 	wardCode := q.WardCode
 	orderType := q.OrderType
+	createdFrom := q.CreatedFrom
+	createdTo := q.CreatedTo
+	brandID := q.BrandID
 
 	statuses := []string{}
 	for _, s := range status {
@@ -352,7 +355,7 @@ func (h *OrderHandler) GetStaffAvailableOrdersWithPagination(c *gin.Context) {
 		}
 	}
 
-	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, orderType.String(), statuses)
+	orders, total, err := h.orderService.GetStaffAvailableOrdersWithPagination(limit, page, search, fullName, phone, provinceID, districtID, wardCode, orderType.String(), createdFrom, createdTo, brandID, statuses)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to fetch staff orders: "+err.Error(), http.StatusBadRequest))
 		return

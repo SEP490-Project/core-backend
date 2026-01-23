@@ -164,6 +164,7 @@ type OrderItemResponse struct {
 	Length          int        `json:"length"`
 	Width           int        `json:"width"`
 	IsReviewed      bool       `json:"is_reviewed"`
+	BrandPlaceHolder *string     `json:"brand_place_holder"`
 
 	//product fields
 	ProductName       string                  `json:"product_name"`
@@ -318,6 +319,7 @@ func (OrderItemResponse) ToResponse(oi *model.OrderItem) *OrderItemResponse {
 		ItemImages:            itemImages,
 		Brand:                 brandResp,
 		Category:              categoryResp,
+		BrandPlaceHolder:      oi.Variant.Product.BrandPlaceHolder,
 	}
 }
 
