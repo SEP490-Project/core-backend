@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"sync"
 	"time"
 
@@ -103,6 +104,8 @@ func newMetricsCollector() *metricsCollector {
 }
 
 // addChannelUpdate adds a channel metrics update to the collector (thread-safe)
+// Note: KPI metrics for channels are NOT added here. They are added in persistCollectedData
+// after mergeAggregatedMetricsIntoChannels to ensure all aggregated metrics are included.
 func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics map[string]any, mappedMetrics map[string]float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -111,22 +114,6 @@ func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics m
 		channel:       channel,
 		rawMetrics:    rawMetrics,
 		mappedMetrics: mappedMetrics,
-	}
-
-	// Also add KPI metrics
-	now := time.Now()
-	for metricName, metricValue := range mappedMetrics {
-		kpiType := enum.KPIValueType(metricName)
-		if !kpiType.IsValid() {
-			continue
-		}
-		c.metrics = append(c.metrics, &model.KPIMetrics{
-			ReferenceID:   channel.ID,
-			ReferenceType: enum.KPIReferenceTypeChannel,
-			Type:          kpiType,
-			Value:         metricValue,
-			RecordedDate:  now,
-		})
 	}
 }
 
@@ -427,8 +414,34 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 	// 1. Merge aggregated post metrics into channel updates
 	j.mergeAggregatedMetricsIntoChannels(collector)
 
-	// 2. Bulk insert KPI metrics
+	// 2. Get existing metrics and add channel-level aggregated metrics
 	metrics := collector.getMetrics()
+
+	// 2.1 Add channel-level aggregated metrics to kpi_metrics
+	// This ensures FB/TikTok aggregated metrics are persisted with reference_type = CHANNEL
+	channelUpdates := collector.getChannelUpdates()
+	now := time.Now()
+	for channelID, update := range channelUpdates {
+		for metricName, metricValue := range update.mappedMetrics {
+			kpiType := enum.KPIValueType(metricName)
+			if !kpiType.IsValid() {
+				continue
+			}
+			// Skip if value is 0 (no data)
+			if metricValue == 0 {
+				continue
+			}
+			metrics = append(metrics, &model.KPIMetrics{
+				ReferenceID:   channelID,
+				ReferenceType: enum.KPIReferenceTypeChannel,
+				Type:          kpiType,
+				Value:         metricValue,
+				RecordedDate:  now,
+			})
+		}
+	}
+
+	// 3. Bulk insert all KPI metrics (content_channel + channel level)
 	if len(metrics) > 0 {
 		rowsAffected, err := j.kpiMetricsRepo.BulkAdd(ctx, metrics, 100)
 		if err != nil {
@@ -440,8 +453,7 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 		}
 	}
 
-	// 3. Update channels with metrics JSONB
-	channelUpdates := collector.getChannelUpdates()
+	// 4. Update channels with metrics JSONB (reuse channelUpdates from step 2.1)
 	for _, update := range channelUpdates {
 		metricsData := map[string]any{
 			"current_fetched": update.rawMetrics,
@@ -460,7 +472,7 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 		}
 	}
 
-	// 4. Update content channels with metrics JSONB
+	// 5. Update content channels with metrics JSONB
 	contentChannelUpdates := collector.getContentChannelUpdates()
 	for _, update := range contentChannelUpdates {
 		existingMetrics, _ := update.contentChannel.GetMetrics()
@@ -681,7 +693,7 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(
 
 		// Fetch posts with metrics using pagination
 		// fields := "id,created_time,message,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target}"
-		fields := "id,created_time,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target}"
+		fields := "id,created_time,reactions.limit(0).summary(total_count),comments.limit(0).summary(total_count),shares,attachments{media_type,target},insights.metric(post_impressions_unique).period(lifetime)"
 		var cursor *string
 
 		postsProcessed := 0
@@ -727,7 +739,7 @@ func (j *ContentMetricsPollerJob) fetchFacebookPostsMetrics(
 
 // processPostMetrics processes metrics for a single Facebook post
 func (j *ContentMetricsPollerJob) processPostMetrics(
-	_ context.Context,
+	ctx context.Context,
 	channel *model.Channel,
 	accessToken string,
 	post *dtos.FacebookPagePost,
@@ -737,9 +749,45 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 ) {
 	// O(1) lookup from pre-fetched map instead of database query
 	cc, exists := ccMap[post.ID]
+	var firstAttachment *dtos.FacebookAttachment
+	if post.Attachments != nil && len(post.Attachments.Data) > 0 {
+		firstAttachment = &post.Attachments.Data[0]
+	}
 	if !exists {
-		// Post not tracked in our system, skip
-		return
+		if firstAttachment == nil || (firstAttachment.MediaType != "photo" && firstAttachment.MediaType != "video") {
+			// Post not tracked in our system, skip
+			return
+		}
+		oldExternalPostID := firstAttachment.Target.ID
+		temp, ok := ccMap[oldExternalPostID]
+		if !ok {
+			oldExternalPostID = fmt.Sprintf("%s_%s", utils.DerefPtr(channel.ExternalID, "null"), firstAttachment.Target.ID)
+			temp, ok = ccMap[oldExternalPostID]
+		}
+
+		if ok {
+			var baseURL string
+			switch channel.Code {
+			case constant.ChannelCodeFacebook:
+				baseURL = "https://www.facebook.com/"
+			case constant.ChannelCodeTikTok:
+				baseURL = "https://www.tiktok.com/@"
+			}
+
+			if err := j.updateExternalPostIDForContentChannel(ctx, temp, baseURL, post.ID, firstAttachment.MediaType); err != nil {
+				zap.L().Warn("Failed to update external_post_id for content channel",
+					zap.String("content_channel_id", temp.ID.String()),
+					zap.String("old_external_post_id", oldExternalPostID),
+					zap.String("new_external_post_id", post.ID),
+					zap.Error(err))
+			}
+
+			cc = temp
+			exists = true
+		} else {
+			// Post not tracked in our system even after best effort to find it, skip
+			return
+		}
 	}
 
 	// Extract metrics from post response
@@ -750,6 +798,7 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	reactions := 0
 	comments := 0
 	shares := 0
+	views := 0
 
 	if post.Reactions != nil {
 		reactions = post.Reactions.Summary.TotalCount
@@ -762,6 +811,15 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	if post.Shares != nil {
 		shares = post.Shares.Count
 		rawMetrics["shares"] = shares
+	}
+	if post.Insights != nil && len(post.Insights.Data) > 0 {
+		firstData := post.Insights.Data[0]
+		if len(firstData.Values) > 0 {
+			if value, ok := firstData.Values[0].Value.(float64); ok {
+				views = int(math.Round(value))
+				rawMetrics["views"] = value
+			}
+		}
 	}
 
 	// Map to KPI metrics using helper
@@ -795,6 +853,14 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 		})
 	}
 
+	if views > 0 { // Views -> Views + UniqueViews + Reach
+		utils.AddValuesToMap(mappedMetrics, map[enum.KPIValueType]float64{
+			enum.KPIValueTypeViews:       float64(views),
+			enum.KPIValueTypeUniqueViews: float64(views),
+			enum.KPIValueTypeReach:       float64(views),
+		})
+	}
+
 	// If video post, submit video insights fetch to worker pool
 	if post.Attachments != nil && len(post.Attachments.Data) > 0 {
 		for _, attachment := range post.Attachments.Data {
@@ -811,7 +877,7 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 
 				// Submit to worker pool for async processing
 				videoInsightsPool.Submit(func(ctx context.Context) error {
-					views := j.fetchAndMergeVideoInsightsAsync(ctx, token, videoID, rawM, mappedM)
+					views = j.fetchAndMergeVideoInsightsAsync(ctx, token, videoID, rawM, mappedM)
 					// After video insights are fetched, add to collector
 					col.addContentChannelUpdate(contentChannel, rawM, mappedM)
 					// Aggregate post metrics with video views to channel level
@@ -828,7 +894,7 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 
 	// Aggregate post metrics to channel level (for page-level totals)
 	// Views will be 0 for non-video posts
-	collector.aggregatePostMetricsToChannel(channel.ID, reactions, comments, shares, 0)
+	collector.aggregatePostMetricsToChannel(channel.ID, reactions, comments, shares, views)
 }
 
 // fetchAndMergeVideoInsightsAsync fetches video insights (for use in worker pool)
@@ -1159,7 +1225,7 @@ func (j *ContentMetricsPollerJob) processWebsiteChannel(
 // getWebsiteContentMetrics retrieves metrics for a single website content channel
 // from stored Metrics (likes/shares/views/comments) which are maintained by consumers
 func (j *ContentMetricsPollerJob) getWebsiteContentMetrics(
-	ctx context.Context,
+	_ context.Context,
 	cc *model.ContentChannel,
 ) (views, uniqueViews, comments, likes, shares int64) {
 	if cc.Metrics == nil {
@@ -1228,6 +1294,66 @@ func castToInt64(v any) int64 {
 	default:
 		return 0
 	}
+}
+
+func (j *ContentMetricsPollerJob) updateExternalPostIDForContentChannel(ctx context.Context, cc *model.ContentChannel, baseURL, newExternalPostID, attachmentMediaType string) error {
+	var (
+		externalPostID   = newExternalPostID
+		externalPostURL  = utils.PtrOrNil(fmt.Sprintf("%s/%s", baseURL, newExternalPostID))
+		externalPostType = cc.ExternalPostType
+		metadata         = cc.Metadata
+	)
+	if metadata == nil {
+		metadata = &model.ContentChannelMetadata{}
+	}
+
+	var allowedExternalPostTypes []enum.ExternalPostType
+	switch attachmentMediaType {
+	case "video":
+		metadata.VideoID = cc.ExternalPostID
+		allowedExternalPostTypes = []enum.ExternalPostType{enum.ExternalPostTypeVideo, enum.ExternalPostTypeLongVideo}
+	case "photo":
+		if cc.ExternalPostID != nil {
+			newPhotoIDs := make([]string, 0)
+			if metadata != nil && len(metadata.PhotoIDs) > 0 {
+				newPhotoIDs = append(newPhotoIDs, metadata.PhotoIDs...)
+			}
+			newPhotoIDs = append(newPhotoIDs, *cc.ExternalPostID)
+			metadata.PhotoIDs = newPhotoIDs
+		}
+		allowedExternalPostTypes = []enum.ExternalPostType{enum.ExternalPostTypeMultiImage, enum.ExternalPostTypeSingleImage}
+	}
+
+	if externalPostType != nil && !utils.ContainsSlice(allowedExternalPostTypes, *externalPostType) {
+		switch attachmentMediaType {
+		case "video":
+			externalPostType = utils.PtrOrNil(enum.ExternalPostTypeVideo)
+		case "photo":
+			externalPostType = utils.PtrOrNil(enum.ExternalPostTypeMultiImage)
+		default:
+			externalPostType = utils.PtrOrNil(enum.ExternalPostTypeText)
+		}
+	} else if cc.ExternalPostType == nil {
+		externalPostType = utils.PtrOrNil(enum.ExternalPostTypeText)
+	}
+
+	return helper.WithTransaction(ctx, j.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err := uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", cc.ID)
+		}, map[string]any{
+			"external_post_id":   externalPostID,
+			"external_post_url":  externalPostURL,
+			"external_post_type": externalPostType,
+			"metadata":           metadata,
+		}); err != nil {
+			zap.L().Error("Failed to update content channel external post ID",
+				zap.String("content_channel_id", cc.ID.String()),
+				zap.Error(err))
+			return err
+		}
+
+		return nil
+	})
 }
 
 // endregion

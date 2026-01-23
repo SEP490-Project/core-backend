@@ -83,7 +83,7 @@ func (h *ContentStaffAnalyticsHandler) GetDashboard(c *gin.Context) {
 //	@Failure		404						{object}	responses.APIResponse
 //	@Failure		500						{object}	responses.APIResponse
 //	@Security		BearerAuth
-//	@Router			/api/v1/analytics/content/channels/{id} [get]
+//	@Router			/api/v1/analytics/contents/channels/{id} [get]
 func (h *ContentStaffAnalyticsHandler) GetChannelDetails(c *gin.Context) {
 	channelIDStr := c.Param("id")
 	channelID, err := uuid.Parse(channelIDStr)

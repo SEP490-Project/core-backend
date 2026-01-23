@@ -82,7 +82,13 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		return nil, fmt.Errorf("payment link can only be generated for pending payments, current status: %s", contractPayment.Status)
 	}
 
-	// 3. For AFFILIATE/CO_PRODUCING contracts, lock the calculated amount
+	// 3. Validate due date - payment link can only be generated after the due date
+	now := time.Now()
+	if now.Before(contractPayment.DueDate) {
+		return nil, fmt.Errorf("payment link can only be generated after the due date (%s)", contractPayment.DueDate.Format("2006-01-02"))
+	}
+
+	// 4. For AFFILIATE/CO_PRODUCING contracts, lock the calculated amount
 	//    This ensures new clicks/revenue go to the next payment period
 	if contractPayment.Contract.Type == enum.ContractTypeAffiliate ||
 		contractPayment.Contract.Type == enum.ContractTypeCoProduce {
@@ -92,7 +98,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		}
 	}
 
-	// 4. Build payment request using the (potentially locked) amount
+	// 5. Build payment request using the (potentially locked) amount
 	contractNumber := "Unknown"
 	if contractPayment.Contract.ContractNumber != nil {
 		contractNumber = *contractPayment.Contract.ContractNumber
@@ -131,7 +137,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 		},
 	}
 
-	// 4. Generate payment link using PaymentTransactionService
+	// 6. Generate payment link using PaymentTransactionService
 	payosResp, err := paymentTransactionService.GeneratePaymentLink(ctx, uow, paymentReq)
 	if err != nil {
 		zap.L().Error("Failed to generate payment link", zap.Error(err))
@@ -544,6 +550,7 @@ func (c *contractPaymentService) isCurrentPeriod(payment *model.ContractPayment)
 
 // recalculateIfNeeded performs recalculation for AFFILIATE or CO_PRODUCING payments
 // if conditions are met. Updates the payment in the database if amount changed.
+// For CO_PRODUCING: handles negative/zero net amounts (refund flow).
 func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, payment *model.ContractPayment) error {
 	// Double-check conditions (for thread safety)
 	if !c.shouldRecalculate(payment) {
@@ -551,7 +558,10 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 	}
 
 	var performanceAmount float64
+	var newTotalAmount float64
 	var breakdownJSON []byte
+	var refundAmount *float64
+	var newStatus *enum.ContractPaymentStatus
 	var err error
 
 	switch payment.Contract.Type {
@@ -561,6 +571,7 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 			return fmt.Errorf("failed to calculate affiliate payment: %w", calcErr)
 		}
 		performanceAmount = calculation.NetPayment
+		newTotalAmount = payment.BaseAmount + performanceAmount
 		breakdownJSON, err = json.Marshal(calculation)
 		if err != nil {
 			return fmt.Errorf("failed to marshal affiliate calculation breakdown: %w", err)
@@ -571,35 +582,63 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 		if calcErr != nil {
 			return fmt.Errorf("failed to calculate co-producing payment: %w", calcErr)
 		}
-		performanceAmount = calculation.BrandShare
+		performanceAmount = calculation.CompanyShare // Use CompanyShare for CO_PRODUCING
+		newTotalAmount = calculation.NetAmount       // Use NetAmount directly (can be 0 or negative)
 		breakdownJSON, err = json.Marshal(calculation)
 		if err != nil {
 			return fmt.Errorf("failed to marshal co-producing calculation breakdown: %w", err)
 		}
+
+		// Handle negative/zero net amount cases
+		if calculation.IsRefundRequired {
+			// NetAmount < 0: System owes brand → transition to KOL_PENDING
+			refundAmt := calculation.RefundAmount
+			refundAmount = &refundAmt
+			kolPending := enum.ContractPaymentStatusKOLPending
+			newStatus = &kolPending
+			zap.L().Info("CO_PRODUCING payment requires refund",
+				zap.String("payment_id", payment.ID.String()),
+				zap.Float64("refund_amount", refundAmt))
+		} else if calculation.NetAmount == 0 {
+			// NetAmount = 0: No payment needed, stays PENDING
+			// Daily job will mark as PAID after due date
+			zap.L().Info("CO_PRODUCING payment has zero net amount",
+				zap.String("payment_id", payment.ID.String()))
+		}
+		// NetAmount > 0: Normal payment flow, status stays PENDING
 
 	default:
 		return nil
 	}
 
 	// Only update if amount changed (avoid unnecessary DB writes)
-	newTotalAmount := payment.BaseAmount + performanceAmount
 	if payment.Amount == newTotalAmount && payment.CalculatedAt != nil {
 		return nil
 	}
 
 	current := time.Now()
+
+	// Build update map
+	updateMap := map[string]any{
+		"amount":                newTotalAmount,
+		"performance_amount":    performanceAmount,
+		"calculated_at":         &current,
+		"calculation_breakdown": breakdownJSON,
+	}
+	if refundAmount != nil {
+		updateMap["refund_amount"] = refundAmount
+	}
+	if newStatus != nil {
+		updateMap["status"] = *newStatus
+	}
+
 	// Perform DB update in a separate goroutine with retry to avoid blocking
 	go func() {
 		if err := utils.RunWithRetry(context.Background(), utils.DefaultRetryOptions, func(ctx context.Context) error {
 			return helper.WithTransaction(ctx, c.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
 				return uow.ContractPayments().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
 					return db.Where("id = ?", payment.ID)
-				}, map[string]any{
-					"amount":                newTotalAmount,
-					"performance_amount":    performanceAmount,
-					"calculated_at":         &current,
-					"calculation_breakdown": breakdownJSON,
-				})
+				}, updateMap)
 			})
 		}); err != nil {
 			zap.L().Error("Failed to update payment after retries",
@@ -613,10 +652,17 @@ func (c *contractPaymentService) recalculateIfNeeded(ctx context.Context, paymen
 	payment.PerformanceAmount = performanceAmount
 	payment.CalculatedAt = &current
 	payment.CalculationBreakdown = breakdownJSON
+	if refundAmount != nil {
+		payment.RefundAmount = *refundAmount
+	}
+	if newStatus != nil {
+		payment.Status = *newStatus
+	}
 
 	zap.L().Info("Payment amount recalculated",
 		zap.String("payment_id", payment.ID.String()),
-		zap.Float64("new_amount", performanceAmount),
+		zap.Float64("new_amount", newTotalAmount),
+		zap.Float64("performance_amount", performanceAmount),
 		zap.String("contract_type", payment.Contract.Type.String()))
 
 	return nil
@@ -725,6 +771,10 @@ func (c *contractPaymentService) calculateTieredPayment(
 }
 
 // calculateCoProducingPayment calculates the revenue distribution for a CO_PRODUCING contract.
+// For CO_PRODUCING: Net Amount = Base Amount - Company Share
+// - If NetAmount > 0: Brand owes system → normal payment flow
+// - If NetAmount = 0: No payment needed → stays PENDING, daily job marks PAID after due date
+// - If NetAmount < 0: System owes brand → refund proof flow (KOL_PENDING status)
 func (c *contractPaymentService) calculateCoProducingPayment(
 	ctx context.Context,
 	payment *model.ContractPayment,
@@ -746,19 +796,32 @@ func (c *contractPaymentService) calculateCoProducingPayment(
 		return nil, fmt.Errorf("failed to get limited product revenue: %w", err)
 	}
 
-	// Calculate distribution
+	// Calculate revenue distribution
 	companyShare := revenueResult.TotalRevenue * float64(terms.CompanyPercent) / 100
 	brandShare := revenueResult.TotalRevenue * float64(terms.KolPercent) / 100
 
+	// Calculate net amount: what brand owes after offsetting company's earnings
+	// Net Amount = Base Amount - Company Share
+	netAmount := payment.BaseAmount - companyShare
+	isRefundRequired := netAmount < 0
+	refundAmount := 0.0
+	if isRefundRequired {
+		refundAmount = -netAmount // Absolute value
+	}
+
 	return &dtos.CoProducingPaymentCalculation{
-		ContractID:     payment.ContractID,
-		PeriodStart:    *payment.PeriodStart,
-		PeriodEnd:      *payment.PeriodEnd,
-		TotalRevenue:   revenueResult.TotalRevenue,
-		CompanyPercent: terms.CompanyPercent,
-		BrandPercent:   terms.KolPercent,
-		CompanyShare:   companyShare,
-		BrandShare:     brandShare,
+		ContractID:       payment.ContractID,
+		PeriodStart:      *payment.PeriodStart,
+		PeriodEnd:        *payment.PeriodEnd,
+		BaseAmount:       payment.BaseAmount,
+		TotalRevenue:     revenueResult.TotalRevenue,
+		CompanyPercent:   terms.CompanyPercent,
+		BrandPercent:     terms.KolPercent,
+		CompanyShare:     companyShare,
+		BrandShare:       brandShare,
+		NetAmount:        netAmount,
+		IsRefundRequired: isRefundRequired,
+		RefundAmount:     refundAmount,
 		RevenueBreakdown: &dtos.LimitedProductRevenueBreakdown{
 			PreOrderRevenue: revenueResult.PreOrderRevenue,
 			OrderRevenue:    revenueResult.OrderRevenue,

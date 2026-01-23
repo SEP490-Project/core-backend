@@ -114,6 +114,7 @@ type ContentChannelMetrics struct {
 	CurrentMapped  map[enum.KPIValueType]float64 `json:"current_mapped"`  // Mapped metrics for KPIs
 	LastFetched    map[string]any                `json:"last_fetched"`    // Values from previous fetch
 	LastMapped     map[enum.KPIValueType]float64 `json:"last_mapped"`     // Mapped metrics from previous fetch
+	LastUpdatedAt  *time.Time                    `json:"last_updated_at"` // When metrics were last updated
 }
 
 // region: ======== Website-Specific Metrics Helpers ========
@@ -246,7 +247,9 @@ type ContentChannelMetadata struct {
 	UploadStatus *string `json:"upload_status,omitempty"` // "pending", "processing", "completed", "failed"
 
 	// For Facebook video publishing
-	VideoID *string `json:"video_id,omitempty"` // Facebook video ID (before post is published)
+	PostID   *string  `json:"post_id,omitempty"`  // Facebook post ID (after published)
+	VideoID  *string  `json:"video_id,omitempty"` // Facebook video ID (before post is published)
+	PhotoIDs []string `json:"photo_id,omitempty"`
 
 	// Generic metadata
 	Type *string `json:"type,omitempty"` // "video", "photo", "text", etc.

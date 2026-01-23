@@ -47,7 +47,14 @@ func (a *AdminConfigService) findStructFieldByKey(key string) (reflect.StructFie
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		tag := strings.ToLower(field.Tag.Get("mapstructure"))
-		if tag == key {
+		if tag != key {
+			// structFieldKey :=
+			snakeCaseName := utils.ToSnakeCase(field.Name)
+			if snakeCaseName != key {
+				continue
+			}
+			return field, true
+		} else {
 			return field, true
 		}
 	}

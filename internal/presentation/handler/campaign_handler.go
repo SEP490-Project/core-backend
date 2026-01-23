@@ -558,6 +558,13 @@ func (h *CampaignHandler) GetCampaignsByBrandProfile(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Router			/api/v1/campaigns/{id}/suggest [get]
 func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
+	userID, err := extractUserID(c)
+	if err != nil {
+		response := responses.ErrorResponse("Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
 	campaignID, err := extractParamID(c, "id")
 	if err != nil {
 		response := responses.ErrorResponse("Invalid campaign ID: "+err.Error(), http.StatusBadRequest)
@@ -566,7 +573,7 @@ func (h *CampaignHandler) SuggestCampaign(c *gin.Context) {
 	}
 
 	// Call service to generate campaign suggestion
-	suggestion, err := h.campaignService.SuggestCampaignFromContract(c.Request.Context(), campaignID)
+	suggestion, err := h.campaignService.SuggestCampaignFromContract(c.Request.Context(), campaignID, &userID)
 	if err != nil {
 		// Determine appropriate status code based on error message
 		statusCode := http.StatusInternalServerError

@@ -21,7 +21,10 @@ type SystemAlertRepository interface {
 	Update(ctx context.Context, alert *model.SystemAlert) error
 
 	// GetActiveAlerts returns all active (non-resolved, non-expired) alerts
-	GetActiveAlerts(ctx context.Context, category *enum.AlertCategory, severity *enum.AlertSeverity) ([]*model.SystemAlert, error)
+	GetActiveAlerts(
+		ctx context.Context, category *enum.AlertCategory, severity *enum.AlertSeverity, targetRoles []enum.UserRole,
+		userID *uuid.UUID, isAcknowledged *bool,
+	) ([]*model.SystemAlert, error)
 
 	// GetAlertsByReferenceID returns alerts for a specific reference
 	GetAlertsByReferenceID(ctx context.Context, referenceID uuid.UUID) ([]*model.SystemAlert, error)

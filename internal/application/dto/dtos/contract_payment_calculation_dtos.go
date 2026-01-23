@@ -45,12 +45,15 @@ type CoProducingPaymentCalculation struct {
 	ContractID       uuid.UUID                       `json:"contract_id"`
 	PeriodStart      time.Time                       `json:"period_start"`
 	PeriodEnd        time.Time                       `json:"period_end"`
-	BaseAmount       float64                         `json:"base_amount"`     // Divided amount based on contract total value
-	TotalRevenue     float64                         `json:"total_revenue"`   // Total revenue from limited products
-	CompanyPercent   int                             `json:"company_percent"` // Company's share percentage
-	BrandPercent     int                             `json:"brand_percent"`   // Brand/KOL's share percentage
-	CompanyShare     float64                         `json:"company_share"`   // Calculated company share amount
-	BrandShare       float64                         `json:"brand_share"`     // Calculated brand share amount (this is the payment)
+	BaseAmount       float64                         `json:"base_amount"`        // Divided amount based on contract total value
+	TotalRevenue     float64                         `json:"total_revenue"`      // Total revenue from limited products
+	CompanyPercent   int                             `json:"company_percent"`    // Company's share percentage
+	BrandPercent     int                             `json:"brand_percent"`      // Brand/KOL's share percentage
+	CompanyShare     float64                         `json:"company_share"`      // Calculated company share amount
+	BrandShare       float64                         `json:"brand_share"`        // Calculated brand share amount
+	NetAmount        float64                         `json:"net_amount"`         // BaseAmount - CompanyShare (can be negative)
+	IsRefundRequired bool                            `json:"is_refund_required"` // true when NetAmount < 0
+	RefundAmount     float64                         `json:"refund_amount"`      // Absolute value when NetAmount < 0
 	RevenueBreakdown *LimitedProductRevenueBreakdown `json:"revenue_breakdown"`
 	CalculatedAt     time.Time                       `json:"calculated_at"`
 }

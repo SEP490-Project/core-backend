@@ -147,17 +147,16 @@ func (j *TikTokStatusPollerJob) Run() {
 	completedCount := 0
 	failedCount := 0
 
+	// Extract publish_id from ExternalPostID
+	// Get decrypted access token
+	accessToken, err := j.channelService.GetDecryptedToken(ctx, "TIKTOK")
+	if err != nil {
+		zap.L().Error("Failed to decrypt access token for TikTok channel",
+			zap.String("channel_name", "TIKTOK"),
+			zap.Error(err))
+		return
+	}
 	for _, cc := range contentChannels {
-		// Extract publish_id from ExternalPostID
-		// Get decrypted access token
-		accessToken, err := j.channelService.GetDecryptedToken(ctx, cc.Channel.Name)
-		if err != nil {
-			zap.L().Error("Failed to decrypt access token for TikTok channel",
-				zap.String("channel_name", cc.Channel.Name),
-				zap.Error(err))
-			continue
-		}
-
 		// Check post status via TikTok API
 		// Extract upload_id (publish_id) from metadata instead of ExternalPostID
 		metadata, err := cc.GetMetadata()
@@ -181,6 +180,13 @@ func (j *TikTokStatusPollerJob) Run() {
 				zap.String("content_channel_id", cc.ID.String()),
 				zap.String("upload_id", utils.DerefPtr(metadata.UploadID, "UNKNOWN")),
 				zap.Error(err))
+			continue
+		}
+		if statusResp == nil || len(statusResp.Data.PubliclyAvailablePostID) == 0 || statusResp.Data.FailReason != nil {
+			zap.L().Warn("Received invalid TikTok post status response",
+				zap.String("content_channel_id", cc.ID.String()),
+				zap.String("upload_id", utils.DerefPtr(metadata.UploadID, "UNKNOWN")),
+				zap.Any("status_resp", statusResp))
 			continue
 		}
 
@@ -252,6 +258,12 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 	postID := statusResp.Data.PubliclyAvailablePostID
 	failReason := statusResp.Data.FailReason
 
+	zap.L().Info("Updating TikTok content channel status",
+		zap.String("content_channel_id", cc.ID.String()),
+		zap.String("status", string(status)),
+		zap.Any("post_id", postID),
+		zap.String("fail_reason", utils.DerefPtr(failReason, "N/A")))
+
 	// Begin transaction for atomic update
 	uow := j.uow.Begin(ctx)
 	defer func() {
@@ -276,6 +288,7 @@ func (j *TikTokStatusPollerJob) updateContentChannelStatus(
 		if len(postID) > 0 {
 			// Update ExternalPostID with the final TikTok post ID
 			cc.ExternalPostID = utils.PtrOrNil(fmt.Sprintf("%d", postID[len(postID)-1]))
+			cc.ExternalPostURL = utils.PtrOrNil(fmt.Sprintf("https://www.tiktok.com/@%s/video/%d", cc.Channel.Name, postID[len(postID)-1]))
 		}
 		cc.LastError = nil
 		cc.PublishedAt = utils.PtrOrNil(time.Now())

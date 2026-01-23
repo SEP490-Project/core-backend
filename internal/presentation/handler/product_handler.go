@@ -320,16 +320,16 @@ func (h *ProductHandler) GetAllProductsV2(c *gin.Context) {
 //	@Tags			Products.Standard
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit		query		int		false	"Number of items per page"		default(10)
-//	@Param			page		query		int		false	"Page number"					default(1)
-//	@Param			search		query		string	false	"Search term for product name"
-//	@Param			category_id	query		string	false	"Filter by category UUID"
-//	@Param			brand_id		query		string	false	"Filter by brand UUID"
-//	@Param			user_id			query		string	false	"Filter by brand owner user UUID"
-//	@Param			status		query		string	false	"Filter by product status"		Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			limit		query		int																			false	"Number of items per page"	default(10)
+//	@Param			page		query		int																			false	"Page number"				default(1)
+//	@Param			search		query		string																		false	"Search term for product name"
+//	@Param			category_id	query		string																		false	"Filter by category UUID"
+//	@Param			brand_id	query		string																		false	"Filter by brand UUID"
+//	@Param			user_id		query		string																		false	"Filter by brand owner user UUID"
+//	@Param			status		query		string																		false	"Filter by product status"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
 //	@Success		200			{object}	object{data=[]responses.ProductResponseV2,pagination=responses.Pagination}	"Standard products retrieved successfully"
-//	@Failure		400			{object}	object{error=string}	"Bad request"
-//	@Failure		500			{object}	object{error=string}	"Internal server error"
+//	@Failure		400			{object}	object{error=string}														"Bad request"
+//	@Failure		500			{object}	object{error=string}														"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/standard [get]
 func (h *ProductHandler) GetAllStandardProducts(c *gin.Context) {
@@ -449,24 +449,24 @@ func (h *ProductHandler) GetAllStandardProducts(c *gin.Context) {
 //	@Tags			Products.Limited
 //	@Accept			json
 //	@Produce		json
-//	@Param			limit						query		int		false	"Number of items per page"									default(10)
-//	@Param			page						query		int		false	"Page number"												default(1)
-//	@Param			search						query		string	false	"Search term for product name"
-//	@Param			category_id					query		string	false	"Filter by category UUID"
-//	@Param			brand_id					query		string	false	"Filter by brand UUID"
-//	@Param			user_id						query		string	false	"Filter by brand owner user UUID"
-//	@Param			status						query		string	false	"Filter by product status"									Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
-//	@Param			filter_preorder				query		boolean	false	"Filter products in PreOrder window (between PremiereDate and AvailabilityStartDate)"
-//	@Param			filter_order				query		boolean	false	"Filter products in Order window (between AvailabilityStartDate and AvailabilityEndDate)"
-//	@Param			premiere_date_from			query		string	false	"Filter PremiereDate from (ISO8601)"						example("2023-10-01T00:00:00Z")
-//	@Param			premiere_date_to			query		string	false	"Filter PremiereDate to (ISO8601)"							example("2023-10-31T23:59:59Z")
-//	@Param			availability_start_date_from	query	string	false	"Filter AvailabilityStartDate from (ISO8601)"				example("2023-10-01T00:00:00Z")
-//	@Param			availability_start_date_to	query		string	false	"Filter AvailabilityStartDate to (ISO8601)"					example("2023-10-31T23:59:59Z")
-//	@Param			availability_end_date_from	query		string	false	"Filter AvailabilityEndDate from (ISO8601)"					example("2023-10-01T00:00:00Z")
-//	@Param			availability_end_date_to	query		string	false	"Filter AvailabilityEndDate to (ISO8601)"					example("2023-10-31T23:59:59Z")
-//	@Success		200							{object}	object{data=[]responses.ProductResponseV2,pagination=responses.Pagination}	"Limited products retrieved successfully"
-//	@Failure		400							{object}	object{error=string}	"Bad request"
-//	@Failure		500							{object}	object{error=string}	"Internal server error"
+//	@Param			limit							query		int																			false	"Number of items per page"	default(10)
+//	@Param			page							query		int																			false	"Page number"				default(1)
+//	@Param			search							query		string																		false	"Search term for product name"
+//	@Param			category_id						query		string																		false	"Filter by category UUID"
+//	@Param			brand_id						query		string																		false	"Filter by brand UUID"
+//	@Param			user_id							query		string																		false	"Filter by brand owner user UUID"
+//	@Param			status							query		string																		false	"Filter by product status"	Enums(DRAFT, SUBMITTED, REVISION, APPROVED, ACTIVED, INACTIVED)
+//	@Param			filter_preorder					query		boolean																		false	"Filter products in PreOrder window (between PremiereDate and AvailabilityStartDate)"
+//	@Param			filter_order					query		boolean																		false	"Filter products in Order window (between AvailabilityStartDate and AvailabilityEndDate)"
+//	@Param			premiere_date_from				query		string																		false	"Filter PremiereDate from (ISO8601)"			example("2023-10-01T00:00:00Z")
+//	@Param			premiere_date_to				query		string																		false	"Filter PremiereDate to (ISO8601)"				example("2023-10-31T23:59:59Z")
+//	@Param			availability_start_date_from	query		string																		false	"Filter AvailabilityStartDate from (ISO8601)"	example("2023-10-01T00:00:00Z")
+//	@Param			availability_start_date_to		query		string																		false	"Filter AvailabilityStartDate to (ISO8601)"		example("2023-10-31T23:59:59Z")
+//	@Param			availability_end_date_from		query		string																		false	"Filter AvailabilityEndDate from (ISO8601)"		example("2023-10-01T00:00:00Z")
+//	@Param			availability_end_date_to		query		string																		false	"Filter AvailabilityEndDate to (ISO8601)"		example("2023-10-31T23:59:59Z")
+//	@Success		200								{object}	object{data=[]responses.ProductResponseV2,pagination=responses.Pagination}	"Limited products retrieved successfully"
+//	@Failure		400								{object}	object{error=string}														"Bad request"
+//	@Failure		500								{object}	object{error=string}														"Internal server error"
 //	@Security		BearerAuth
 //	@Router			/api/v1/products/limited [get]
 func (h *ProductHandler) GetAllLimitedProducts(c *gin.Context) {
@@ -1816,7 +1816,7 @@ func (h *ProductHandler) GetProductReviewPagination(c *gin.Context) {
 	var req requests.ProductReviewFilter
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(http.StatusBadRequest,
-		
+
 			responses.ErrorResponse("invalid query parameters", http.StatusBadRequest))
 		return
 	}

@@ -77,6 +77,10 @@ type FacebookProxy interface {
 	// cursor is used for pagination (pass nil for first page)
 	GetPagePosts(ctx context.Context, pageID string, accessToken string, fields string, cursor *string) (*dtos.FacebookPagePostsResponse, error)
 
+	// GetPagePostIDFromVideoID retrieves the Facebook Page Post ID associated with a given Video ID
+	// URL used: GET /{video-id}?fields=id,page_story_id
+	GetPagePostIDFromPhotoID(ctx context.Context, photoID, accessToken, _ string) (*dtos.FacebookPagePostIDFromVideoID, error)
+
 	// GetPostMetrics retrieves metrics for a specific post
 	GetPostMetrics(ctx context.Context, postID string, accessToken string, metrics []string, period dtos.FacebookInsightsPeriod) (*dtos.FacebookPostMetricsResponse, error)
 
