@@ -55,12 +55,38 @@ func (r *systemAlertRepository) Update(ctx context.Context, alert *model.SystemA
 }
 
 // GetActiveAlerts returns all active (non-resolved, non-expired) alerts
-func (r *systemAlertRepository) GetActiveAlerts(ctx context.Context, category *enum.AlertCategory, severity *enum.AlertSeverity) ([]*model.SystemAlert, error) {
+func (r *systemAlertRepository) GetActiveAlerts(
+	ctx context.Context, category *enum.AlertCategory, severity *enum.AlertSeverity, targetRoles []enum.UserRole,
+	acknowledgedByID *uuid.UUID, isAcknowledged *bool,
+) ([]*model.SystemAlert, error) {
 	var alerts []*model.SystemAlert
 
 	query := r.db.WithContext(ctx).
 		Where("status = ?", enum.AlertStatusActive.String()).
 		Where("(expires_at IS NULL OR expires_at > ?)", time.Now())
+
+	if len(targetRoles) > 0 {
+		query = query.Where(
+			`target_roles IS NULL 
+            OR target_roles->'roles' IS NULL 
+            OR jsonb_array_length(target_roles->'roles') = 0 
+            OR EXISTS (
+                SELECT 1 
+                FROM jsonb_array_elements_text(target_roles->'roles') AS role 
+                WHERE role IN (?)
+            )`,
+			targetRoles,
+		)
+	}
+	if acknowledgedByID != nil && *acknowledgedByID != uuid.Nil {
+		query = query.Where("acknowledgement IS NOT NULL").
+			Where("acknowledgement->>'user_id' = ?", acknowledgedByID)
+	}
+	if isAcknowledged != nil && *isAcknowledged {
+		query = query.Where("acknowledgement IS NOT NULL AND acknowledgement::text != 'null'")
+	} else if isAcknowledged != nil && !*isAcknowledged {
+		query = query.Where("acknowledgement IS NULL OR acknowledgement::text = 'null'")
+	}
 
 	if category != nil {
 		query = query.Where("category = ?", category.String())

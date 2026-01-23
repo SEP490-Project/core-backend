@@ -268,7 +268,7 @@ func preOrderFileAssurance(preOrder *model.PreOrder, targetState enum.PreOrderSt
 	isSelfPick := preOrder.IsSelfPickedUp
 	//isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
 	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
-	if (isSelfPick && isStatusReceived) {
+	if isSelfPick && isStatusReceived {
 		if fileURL == nil || *fileURL == "" {
 			errMsg := fmt.Sprintf("proof of delivery file is required when transitioning to %s", targetState.String())
 			zap.L().Error(errMsg, zap.String("preorder_id", preOrder.ID.String()))
@@ -690,7 +690,11 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 		}
 
 	// Terminate contract -> cascade cancel related campaign, milestones, tasks, contents, and products
-	case enum.ContractStatusTerminated:
+	case enum.ContractStatusTerminated, enum.ContractStatusKOLViolated, enum.ContractStatusBrandViolated:
+		zap.L().Info("Contract terminated or violated - cascading cancellations",
+			zap.String("status", targetState.String()),
+			zap.String("contract_id", contractID.String()))
+
 		if contract.Campaign == nil {
 			break
 		}
@@ -867,37 +871,6 @@ func (t stateTransferService) MoveContractToState(ctx context.Context, trx irepo
 			zap.String("contract_id", contractID.String()),
 			zap.String("user_id", updatedBy.String()))
 
-	// Brand Violation Flow - notify brand and staff about violation status changes
-	case enum.ContractStatusBrandViolated:
-		zap.L().Info("Contract moved to BRAND_VIOLATED state",
-			zap.String("contract_id", contractID.String()),
-			zap.String("brand_id", contract.BrandID.String()))
-		// Notification to brand will be handled by violation service
-
-	case enum.ContractStatusBrandPenaltyPending:
-		zap.L().Info("Contract moved to BRAND_PENALTY_PENDING state - payment link should be sent",
-			zap.String("contract_id", contractID.String()))
-
-	// Brand penalty paid log handled above in merge case
-
-	// KOL Violation Flow - notify KOL and staff about refund status changes
-	case enum.ContractStatusKOLViolated:
-		zap.L().Info("Contract moved to KOL_VIOLATED state",
-			zap.String("contract_id", contractID.String()))
-		// Notification to KOL will be handled by violation service
-
-	case enum.ContractStatusKOLRefundPending:
-		zap.L().Info("Contract moved to KOL_REFUND_PENDING state - waiting for KOL proof",
-			zap.String("contract_id", contractID.String()))
-
-	case enum.ContractStatusKOLProofSubmitted:
-		zap.L().Info("KOL proof submitted - awaiting admin review",
-			zap.String("contract_id", contractID.String()))
-
-	// KOL proof rejected log handled above in merge case
-
-	// KOL refund approved log handled above in merge case
-
 	default:
 		zap.L().Debug("There are no side-effects to be applied to the contract after transitioning",
 			zap.String("contract_id", contractID.String()),
@@ -1055,8 +1028,8 @@ func (t *stateTransferService) handleContentSideEffects(
 // - May need to queue async unpublish jobs via RabbitMQ
 // - Should update content_channel.external_post_id and related fields
 func (t *stateTransferService) triggerSocialMediaUnpublish(
-	ctx context.Context,
-	uow irepository.UnitOfWork,
+	_ context.Context,
+	_ irepository.UnitOfWork,
 	content *model.Content,
 ) error {
 	// Placeholder: Log the unpublish request for now

@@ -24,6 +24,11 @@ type GenericRepository[T any] interface {
 	// If batchSize is less than or equal to 100, the operations will be performed using the default batch size defined in config.
 	BulkAdd(ctx context.Context, entities []*T, batchSize int) (rowsAffected int64, err error)
 
+	// BulkUpsert adds or updates multiple entities to the database in batches.
+	// conflictColumns are the unique key columns to check for conflicts provided as snake_case.
+	// updateColumns are the columns to update when conflict occurs provided as snake_case. If empty, all columns are updated.
+	BulkUpsert(ctx context.Context, entities []*T, batchSize int, conflictColumns []string, updateColumns []string) (rowsAffected int64, err error)
+
 	// AddAndGet adds a new entity to the database and retrieves it with all fields populated (e.g., auto-generated fields).
 	AddAndGet(ctx context.Context, entity *T) (*T, error)
 	Update(ctx context.Context, entity *T) error

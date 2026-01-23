@@ -36,7 +36,7 @@
         display: inline-block;
         padding: 10px 20px;
         background-color: #dc3545;
-        color: white;
+        color: #ffffff;
         text-decoration: none;
         border-radius: 5px;
         margin-top: 10px;
@@ -47,11 +47,16 @@
         border-radius: 5px;
         margin: 15px 0;
       }
-      .warning {
-        background-color: #fff3cd;
-        border: 1px solid #ffc107;
+      .error-box {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
         padding: 15px;
-        border-radius: 5px;
+        margin: 15px 0;
+      }
+      .warning-box {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
         margin: 15px 0;
       }
     </style>
@@ -59,39 +64,44 @@
   <body>
     <div class="container">
       <div class="header">
-        <h2>Refund Proof Rejected</h2>
+        <h2>✗ Refund Proof Rejected</h2>
       </div>
       <div class="content">
-        <p>Dear {{.RecipientName}},</p>
+        <p>Dear Marketing Staff,</p>
 
         <p>
-          Your refund proof for contract
-          <strong>#{{.ContractNumber}}</strong> has been
-          <strong>rejected</strong>.
+          The refund proof for contract <strong>#{{.ContractNumber}}</strong> has been
+          <strong>rejected</strong> by the brand.
         </p>
 
-        <div class="info-box">
+        <div class="error-box">
           <p><strong>Rejection Reason:</strong></p>
           <p>{{.RejectReason}}</p>
         </div>
 
-        <div class="warning">
-          <p><strong>⚠️ Important:</strong></p>
-          <p>
-            You have <strong>{{.RemainingAttempts}} attempts remaining</strong>
-            to submit valid proof of refund.
-          </p>
-          <p>
-            Please ensure your next submission includes clear documentation of
-            the refund transfer.
-          </p>
+        <div class="info-box">
+          <p><strong>Payment Details:</strong></p>
+          <p>Brand: {{.BrandName}}</p>
+          <p>Refund Amount: {{.Currency}} {{.RefundAmount}}</p>
+          <p>Rejected At: {{.RejectedDate}}</p>
         </div>
 
-        <p>
-          <a href="{{.DashboardLink}}" class="button">Submit New Proof</a>
-        </p>
+        <div class="warning-box">
+          <p><strong>Remaining Attempts: {{.RemainingAttempts}}</strong></p>
+          {{if gt .RemainingAttempts 0}}
+          <p>
+            Please resubmit the refund proof with valid documentation.
+          </p>
+          {{else}}
+          <p>
+            <strong>Warning:</strong> This was the final attempt. The next submission will be automatically approved regardless of the brand's review.
+          </p>
+          {{end}}
+        </div>
 
-        <p>If you need assistance, please contact our support team.</p>
+        <p style="text-align: center; margin-top: 20px;">
+          <a href="{{.ResubmitLink}}" class="button">Resubmit Proof</a>
+        </p>
       </div>
       <div class="footer">
         <p>&copy; {{.CurrentYear}} SEP490. All rights reserved.</p>

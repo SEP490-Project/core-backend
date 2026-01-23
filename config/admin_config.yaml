@@ -13,7 +13,7 @@ representative_bank_account_number: "6330871111"
 representative_bank_account_holder: "TRAN MAI QUANG KHAI"
 representative_company_address: "số 7, đường D2"
 # Representative use to create GHN Order
-representative_company_name: "Công ty TNHH Thương Mại Dịch Vụ BShowSell"
+representative_ghn_company_name: "Công ty TNHH Thương Mại Dịch Vụ BShowSell"
 representative_ghn_phone: "0944488274"
 representative_ghn_ward_name: "phường Long Thạnh Mỹ"
 representative_ghn_district_name: "Thủ Đức"
@@ -165,8 +165,13 @@ affiliate_url_format: "{base_url}/f/{hash}"
 content_view_unique_cache_ttl_hours: 24
 
 # Contract Violation Settings
+violation_payment_deadline_days: 7
 violation_proof_max_attempts: 3  # Max times KOL can resubmit rejected proof
 violation_proof_review_days: 7   # Days brand has to review proof before auto-approval
+
+# CO_PRODUCING Refund Settings
+co_producing_refund_proof_max_attempts: 3  # Max times Marketing Staff can resubmit rejected refund proof
+co_producing_refund_review_days: 7         # Days brand has to review refund proof before auto-approval
 
 term_of_service: |
   {

@@ -118,3 +118,14 @@ func ParseLocalTimeWithFallback(dateStr, layout string) *time.Time {
 	}
 	return t
 }
+
+// GetCurrentDateWithZeroTime returns the current date with time components set to zero.
+func GetCurrentDateWithZeroTime() time.Time {
+	now := time.Now()
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+}
+
+// GetDateWithZeroTime returns the date part of the given time with time components set to zero.
+func GetDateWithZeroTime(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+}

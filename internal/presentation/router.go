@@ -545,6 +545,7 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 			adminOnlyGroup.GET("", adminConfigHandler.GetAllConfigValues)
 			adminOnlyGroup.PUT(":key", adminConfigHandler.UpdateConfig)
 			adminOnlyGroup.PUT("", adminConfigHandler.UpdateConfigs)
+			adminOnlyGroup.GET("/:key", adminConfigHandler.GetConfigByKey)
 		}
 
 		readGroup := configGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, content))
@@ -556,6 +557,7 @@ func (r *Router) SetupAdminConfigRouter(group *gin.RouterGroup) {
 		{
 			publicGroup.GET("/term-of-service", adminConfigHandler.GetTermOfService)
 			publicGroup.GET("/privacy-policy", adminConfigHandler.GetPrivacyPolicy)
+			publicGroup.GET("/:key/value", adminConfigHandler.GetConfigValueByKey)
 		}
 	}
 }
@@ -568,6 +570,8 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		marketingGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(marketing))
 		{
 			marketingGroup.POST("/contract/:contract_id", contractPaymentHandler.CreateContractPaymentsFromContract)
+			// CO_PRODUCING refund proof submission (Marketing Staff submits proof)
+			marketingGroup.POST("/:contract_payment_id/refund-proof", contractPaymentHandler.SubmitRefundProof)
 		}
 
 		viewGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(admin, marketing, sales, brand))
@@ -580,6 +584,10 @@ func (r *Router) SetupContractPaymentRoutes(group *gin.RouterGroup) {
 		brandGroup := cPaymentGroup.Group("").Use(r.middlewareRegistry.Auth.RequireRole(brand))
 		{
 			brandGroup.GET("/profile", contractPaymentHandler.GetContractPaymentByProfile)
+			// CO_PRODUCING refund endpoints for Brand
+			brandGroup.GET("/refunds", contractPaymentHandler.GetRefundPayments)
+			brandGroup.GET("/refunds/pending", contractPaymentHandler.GetPendingRefundProofs)
+			brandGroup.POST("/:contract_payment_id/refund-proof/review", contractPaymentHandler.ReviewRefundProof)
 		}
 	}
 }
@@ -1099,6 +1107,8 @@ func (r *Router) setupTestRoutes(group *gin.RouterGroup) {
 		testGroup.GET("/tiktok/get-creator-info", testHandler.TikTokGetCreatorInfo)
 		testGroup.POST("/migrate-sow-ids", testHandler.MigrateScopeOfWorkIDs)
 		testGroup.PUT("/contracts/:id/update-sow", testHandler.UpdateContractScopeOfWork)
+		testGroup.PUT("/contracts/update-all-contracts-sow", testHandler.UpdateAllContractScopeOfWork)
+		testGroup.POST("/sync-milestone-completion", testHandler.SyncMilestoneCompletionPercentage)
 	}
 }
 

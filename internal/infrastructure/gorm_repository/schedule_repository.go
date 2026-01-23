@@ -120,6 +120,11 @@ func (r *scheduleRepository) GetSchedulesWithDetails(ctx context.Context, filter
 		if filter.CreatedBy != nil {
 			db = db.Where("s.created_by = ?", *filter.CreatedBy)
 		}
+		if filter.FromDate == nil && filter.ToDate == nil && filter.Days != nil {
+			fromDate := utils.GetCurrentDateWithZeroTime()
+			toDate := fromDate.AddDate(0, 0, *filter.Days+1) // +1 to include the end date
+			db = db.Where("s.scheduled_at >= ? AND s.scheduled_at < ?", fromDate, toDate)
+		}
 		if filter.FromDate != nil {
 			fromDate := utils.ParseLocalTimeWithFallback(*filter.FromDate, utils.TimeFormat)
 			if fromDate != nil {

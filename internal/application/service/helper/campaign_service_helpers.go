@@ -360,6 +360,7 @@ func AssignAffiliateTasksToMilestones(
 	contentTasks []responses.SuggestedTask,
 	milestones []responses.SuggestedMilestone,
 	trackingLink string,
+	updatedByID *uuid.UUID,
 ) []responses.SuggestedMilestone {
 	if len(milestones) == 0 {
 		return milestones
@@ -374,6 +375,7 @@ func AssignAffiliateTasksToMilestones(
 			milestones[i],
 			"AFFILIATE",
 			trackingLink,
+			updatedByID,
 		)
 		milestones[i].Tasks = []responses.SuggestedTask{trackingTask}
 	}
@@ -386,6 +388,7 @@ func AssignCoProducingTasksToMilestones(
 	allDevelopmentTasks []responses.SuggestedTask,
 	milestones []responses.SuggestedMilestone,
 	productNames []string,
+	updatedByID *uuid.UUID,
 ) []responses.SuggestedMilestone {
 	if len(milestones) == 0 {
 		return milestones
@@ -400,6 +403,7 @@ func AssignCoProducingTasksToMilestones(
 			milestones[i],
 			"CO_PRODUCING",
 			fmt.Sprintf("Products: %v", productNames),
+			updatedByID,
 		)
 		milestones[i].Tasks = []responses.SuggestedTask{trackingTask}
 	}
@@ -416,6 +420,7 @@ func GeneratePerformanceTrackingTask(
 	milestone responses.SuggestedMilestone,
 	contractType string,
 	metadata string,
+	updatedByID *uuid.UUID,
 ) responses.SuggestedTask {
 	dueDate := milestone.DueDate
 
@@ -445,10 +450,11 @@ func GeneratePerformanceTrackingTask(
 	}
 
 	return responses.SuggestedTask{
-		Name:        taskName,
-		Description: description,
-		Type:        enum.TaskTypeOther,
-		Deadline:    dueDate,
+		Name:         taskName,
+		Description:  description,
+		Type:         enum.TaskTypeOther,
+		Deadline:     dueDate,
+		AssignedToID: updatedByID,
 	}
 }
 

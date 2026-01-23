@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Refund Proof Approved</title>
+    <title>KOL Violation Notice</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -17,8 +17,8 @@
         border-radius: 5px;
       }
       .header {
-        background-color: #d4edda;
-        color: #155724;
+        background-color: #fff3cd;
+        color: #856404;
         padding: 10px;
         text-align: center;
         border-radius: 5px 5px 0 0;
@@ -32,45 +32,53 @@
         color: #777;
         margin-top: 20px;
       }
-      .checkmark {
-        font-size: 48px;
-        color: #28a745;
-        text-align: center;
-      }
       .info-box {
         background-color: #f8f9fa;
         padding: 15px;
         border-radius: 5px;
         margin: 15px 0;
       }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="header">
-        <h2>Refund Proof Approved</h2>
+        <h2>Contract Violation Reported</h2>
       </div>
       <div class="content">
-        <div class="checkmark">✓</div>
-
-        <p>Dear {{.RecipientName}},</p>
+        <p>Dear {{.BrandName}},</p>
 
         <p>
-          Your refund proof for contract
-          <strong>#{{.ContractNumber}}</strong> has been
-          <strong>approved</strong>.
+          We have received a report regarding a violation by the KOL for contract
+          <strong>#{{.ContractNumber}}</strong>.
         </p>
 
         <div class="info-box">
-          <p><strong>Verification Details:</strong></p>
-          <p>Refund Amount: {{.Currency}} {{.RefundAmount}}</p>
-          <p>Approved By: {{.ReviewerName}}</p>
-          <p>Approved Date: {{.ApprovalDate}}</p>
+          <p><strong>Violation Details:</strong></p>
+          <p>Reason: {{.Reason}}</p>
+          <p>Expected Refund Amount: {{.RefundAmount}}</p>
         </div>
 
         <p>
-          The violation has been resolved and the contract has been closed.
-          Thank you for your cooperation.
+          Our team is reviewing the case and will process the refund according to the contract terms.
+          We will notify you once the refund has been settled.
+        </p>
+
+        <p>
+          You can track the status of this violation in your dashboard.
+        </p>
+
+        <p>
+          <a href="{{.SupportLink}}" class="button">Contact Support</a>
         </p>
       </div>
       <div class="footer">

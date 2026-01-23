@@ -6,10 +6,11 @@ import "database/sql/driver"
 type PaymentTransactionReferenceType string
 
 const (
-	PaymentTransactionReferenceTypeOrder             PaymentTransactionReferenceType = "ORDER"
-	PaymentTransactionReferenceTypeContractPayment   PaymentTransactionReferenceType = "CONTRACT_PAYMENT"
-	PaymentTransactionReferenceTypePreOrder          PaymentTransactionReferenceType = "PREORDER"
-	PaymentTransactionReferenceTypeContractViolation PaymentTransactionReferenceType = "CONTRACT_VIOLATION"
+	PaymentTransactionReferenceTypeOrder                 PaymentTransactionReferenceType = "ORDER"
+	PaymentTransactionReferenceTypeContractPayment       PaymentTransactionReferenceType = "CONTRACT_PAYMENT"
+	PaymentTransactionReferenceTypePreOrder              PaymentTransactionReferenceType = "PREORDER"
+	PaymentTransactionReferenceTypeContractViolation     PaymentTransactionReferenceType = "CONTRACT_VIOLATION"
+	PaymentTransactionReferenceTypeKOLViolationRefunding PaymentTransactionReferenceType = "KOL_VIOLATION_REFUNDING"
 )
 
 // IsValid checks if the payment transaction status is valid
@@ -18,7 +19,8 @@ func (rt PaymentTransactionReferenceType) IsValid() bool {
 	case PaymentTransactionReferenceTypeOrder,
 		PaymentTransactionReferenceTypeContractPayment,
 		PaymentTransactionReferenceTypePreOrder,
-		PaymentTransactionReferenceTypeContractViolation:
+		PaymentTransactionReferenceTypeContractViolation,
+		PaymentTransactionReferenceTypeKOLViolationRefunding:
 		return true
 	}
 	return false

@@ -16,6 +16,7 @@ import (
 	"core-backend/pkg/utils"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -70,9 +71,11 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 	blogRepo := uow.Blogs()
 	tagRepo := uow.Tags()
 	contentChannelRepo := uow.ContentChannels()
+	contractRepo := uow.Contracts()
 
 	validationFuncs := make([]func(ctx context.Context) error, 0)
 	if req.TaskID != nil {
+		// Validate if task exists
 		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
 			if exists, err := taskRepo.ExistsByID(ctx, *req.TaskID); err != nil {
 				zap.L().Error("Failed to check task existence", zap.Error(err))
@@ -80,6 +83,32 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			} else if !exists {
 				return errors.New("task not found")
 			}
+			return nil
+		})
+		// Validate if task is a part of affiliate contract and the affilaite link is used in content body
+		validationFuncs = append(validationFuncs, func(ctx context.Context) error {
+			trackingLink, err := contractRepo.GetTrackingLinkByTaskID(ctx, *req.TaskID)
+			if err != nil {
+				zap.L().Error("Failed to get tracking link for task", zap.Error(err))
+				return fmt.Errorf("failed to get tracking link for task: %v", err)
+			}
+			if trackingLink == "" {
+				zap.L().Warn("Tracking link is empty for task, not error", zap.String("task_id", req.TaskID.String()))
+				return nil
+			}
+
+			if req.Body != nil && trackingLink != "" {
+				rawBody, err := json.Marshal(req.Body)
+				if err != nil {
+					zap.L().Error("Failed to marshal body", zap.Error(err))
+					return fmt.Errorf("failed to marshal body: %v", err)
+				}
+				if !bytes.Contains(rawBody, []byte(trackingLink)) {
+					zap.L().Warn("Tracking link not found in content body", zap.String("task_id", req.TaskID.String()))
+					return fmt.Errorf("tracking link must be included in content body for affiliate contracts")
+				}
+			}
+
 			return nil
 		})
 	}
@@ -94,7 +123,10 @@ func (s *ContentService) Create(ctx context.Context, uow irepository.UnitOfWork,
 			return nil
 		})
 	}
-	utils.RunParallel(ctx, 3, validationFuncs...)
+	if err := utils.RunParallel(ctx, 3, validationFuncs...); err != nil {
+		zap.L().Warn("Validation failed for create content request", zap.Error(err))
+		return nil, err
+	}
 
 	// Start transaction
 	rawBody, err := json.Marshal(req.Body)
@@ -647,7 +679,7 @@ func (s *ContentService) List(ctx context.Context, req *requests.ContentFilterRe
 	}
 
 	// Preload relationships
-	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task"}
+	includes := []string{"Blog", "Blog.Author", "Blog.Tags", "ContentChannels", "ContentChannels.Channel", "Task", "CreatedUser", "UpdatedUser"}
 
 	// Execute query
 	contents, total, err := s.contentRepo.GetAll(ctx, filterFunc, includes, req.Limit, req.Page)

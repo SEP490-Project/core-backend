@@ -28,7 +28,7 @@ type AdminConfig struct {
 	RepresentativeBankAccountHolder string `mapstructure:"representative_bank_account_holder"`
 	RepresentativeCompanyAddress    string `mapstructure:"representative_company_address"`
 	// Representative use to create GHN Order
-	RepresentativeGHNCompanyName  string `mapstructure:"representative_company_name"` // From name: max:1024
+	RepresentativeGHNCompanyName  string `mapstructure:"representative_ghn_company_name"` // From name: max:1024
 	RepresentativeGHNPhone        string `mapstructure:"representative_ghn_phone"`
 	RepresentativeGHNWardName     string `mapstructure:"representative_ghn_ward_name"`
 	RepresentativeGHNDistrictName string `mapstructure:"representative_ghn_district_name"`
@@ -60,9 +60,9 @@ type AdminConfig struct {
 	ContractPaymentNotificationHour   int `mapstructure:"contract_payment_notification_hour"`
 
 	// Order - PreOrder
-	CensorshipIntervalMinutes          int   `mapstructure:"censorship_interval_minutes"`
-	AutoReceiveOrderIntervalMs         int64 `mapstructure:"auto_receive_order_interval_ms"`          // Milliseconds (default: 72 hours = 259200000ms)
-	AutoReceivePreOrderIntervalMs      int64 `mapstructure:"auto_receive_preorder_interval_ms"`       // Milliseconds (default: 30 days = 2592000000ms)
+	CensorshipIntervalMinutes     int   `mapstructure:"censorship_interval_minutes"`
+	AutoReceiveOrderIntervalMs    int64 `mapstructure:"auto_receive_order_interval_ms"`    // Milliseconds (default: 72 hours = 259200000ms)
+	AutoReceivePreOrderIntervalMs int64 `mapstructure:"auto_receive_preorder_interval_ms"` // Milliseconds (default: 30 days = 2592000000ms)
 
 	// Products
 	ProductMaximumVariants int `mapstructure:"product_maximum_variants"`
@@ -96,9 +96,14 @@ type AdminConfig struct {
 	// Cache TTLs
 	ContentViewUniqueCacheTTLHours int `mapstructure:"content_view_unique_cache_ttl_hours"`
 
-	// Contract Violation Settings
-	ViolationProofMaxAttempts int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
-	ViolationProofReviewDays  int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
+	// Contract Violation Configuration
+	ViolationPaymentDeadlineDays int `mapstructure:"violation_payment_deadline_days"`
+	ViolationProofMaxAttempts    int `mapstructure:"violation_proof_max_attempts"`                // Max times KOL can resubmit rejected proof
+	ViolationProofReviewDays     int `mapstructure:"violation_proof_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
+
+	// CO_PRODUCING Refund Settings
+	CoProducingRefundProofMaxAttempts int `mapstructure:"co_producing_refund_proof_max_attempts"`          // Max times Marketing can resubmit rejected proof
+	CoProducingRefundReviewDays       int `mapstructure:"co_producing_refund_review_days" job:"daily_job"` // Days brand has to review proof before auto-approval
 }
 
 // loadAdminConfig loads the admin configuration from file and environment variables
@@ -190,11 +195,15 @@ func setDefaultAdminConfig(adminViper *viper.Viper) {
 	adminViper.SetDefault("violation_proof_max_attempts", 3)
 	adminViper.SetDefault("violation_proof_review_days", 7)
 
+	// CO_PRODUCING Refund Settings
+	adminViper.SetDefault("co_producing_refund_proof_max_attempts", 3)
+	adminViper.SetDefault("co_producing_refund_review_days", 7)
+
 	//Mock
 	//products
 	adminViper.SetDefault("product_maximum_variants", 3)
 	//orders - Auto receive intervals in milliseconds
-	adminViper.SetDefault("auto_receive_order_interval_ms", 259200000)    // 72 hours = 72 * 60 * 60 * 1000 ms
+	adminViper.SetDefault("auto_receive_order_interval_ms", 259200000)     // 72 hours = 72 * 60 * 60 * 1000 ms
 	adminViper.SetDefault("auto_receive_preorder_interval_ms", 2592000000) // 30 days = 30 * 24 * 60 * 60 * 1000 ms
 }
 

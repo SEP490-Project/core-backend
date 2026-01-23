@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -38,40 +39,96 @@ type ContractPaymentResponse struct {
 	PayNow                bool                       `json:"pay_now" example:"false"`
 	CreatedAt             string                     `json:"created_at" example:"2006-01-02T15:04:05Z07:00"`
 	UpdatedAt             string                     `json:"updated_at" example:"2006-01-02T15:04:05Z07:00"`
+
+	// CO_PRODUCING Refund Fields
+	RefundAmount       *float64 `json:"refund_amount,omitempty" example:"150000.00"`
+	RefundProofURL     *string  `json:"refund_proof_url,omitempty" example:"https://s3.example.com/refund-proof.pdf"`
+	RefundProofNote    *string  `json:"refund_proof_note,omitempty" example:"Bank transfer completed"`
+	RefundSubmittedAt  *string  `json:"refund_submitted_at,omitempty" example:"2024-07-15T10:30:00Z"`
+	RefundSubmittedBy  *string  `json:"refund_submitted_by,omitempty" example:"John Doe"`
+	RefundReviewedAt   *string  `json:"refund_reviewed_at,omitempty" example:"2024-07-16T14:00:00Z"`
+	RefundReviewedBy   *string  `json:"refund_reviewed_by,omitempty" example:"Brand Manager"`
+	RefundRejectReason *string  `json:"refund_reject_reason,omitempty" example:"Proof image is unclear"`
+	RefundAttempts     int      `json:"refund_attempts" example:"1"`
+
+	// Brand Bank Info (for refund proof submission UI)
+	BrandBankName          *string `json:"brand_bank_name,omitempty" example:"Vietcombank"`
+	BrandBankAccountNumber *string `json:"brand_bank_account_number,omitempty" example:"1234567890"`
+	BrandBankAccountHolder *string `json:"brand_bank_account_holder,omitempty" example:"NGUYEN VAN A"`
+
+	// Computed Fields
+	CanGeneratePaymentLink bool `json:"can_generate_payment_link" example:"true"`
 }
 
 // ToResponse converts a ContractPayment model to a ContractPaymentResponse
-func (ContractPaymentResponse) ToResponse(model *model.ContractPayment) *ContractPaymentResponse {
-	if model == nil {
+func (ContractPaymentResponse) ToResponse(m *model.ContractPayment) *ContractPaymentResponse {
+	if m == nil {
 		return nil
 	}
 
 	response := &ContractPaymentResponse{
-		ID:                    model.ID.String(),
-		ContractID:            model.ContractID.String(),
-		InstallmentPercentage: model.InstallmentPercentage,
-		Amount:                model.Amount,
-		BaseAmount:            model.BaseAmount,
-		PerformanceAmount:     model.PerformanceAmount,
-		Breakdown:             utils.PtrOrNil(model.CalculationBreakdown),
-		Status:                model.Status,
-		DueDate:               utils.FormatLocalTime(&model.DueDate, utils.DateFormat),
-		PaymentMethod:         model.PaymentMethod.String(),
-		Note:                  model.Note,
-		IsDeposit:             model.IsDeposit,
-		CreatedAt:             utils.FormatLocalTime(&model.CreatedAt, utils.TimezoneFormat),
-		UpdatedAt:             utils.FormatLocalTime(&model.UpdatedAt, utils.TimezoneFormat),
+		ID:                    m.ID.String(),
+		ContractID:            m.ContractID.String(),
+		InstallmentPercentage: m.InstallmentPercentage,
+		Amount:                m.Amount,
+		BaseAmount:            m.BaseAmount,
+		PerformanceAmount:     m.PerformanceAmount,
+		Breakdown:             utils.PtrOrNil(m.CalculationBreakdown),
+		Status:                m.Status,
+		DueDate:               utils.FormatLocalTime(&m.DueDate, utils.DateFormat),
+		PaymentMethod:         m.PaymentMethod.String(),
+		Note:                  m.Note,
+		IsDeposit:             m.IsDeposit,
+		CreatedAt:             utils.FormatLocalTime(&m.CreatedAt, utils.TimezoneFormat),
+		UpdatedAt:             utils.FormatLocalTime(&m.UpdatedAt, utils.TimezoneFormat),
+		RefundAttempts:        m.RefundAttempts,
 	}
-	if model.ContractID != uuid.Nil && model.Contract != nil {
-		response.ContractID = model.Contract.ID.String()
-		response.ContractTitle = *model.Contract.Title
-		response.ContractNumber = *model.Contract.ContractNumber
-		response.ContractType = model.Contract.Type
-		if model.Contract.Brand != nil {
-			response.BrandID = model.Contract.Brand.ID.String()
-			response.BrandName = model.Contract.Brand.Name
+
+	// Populate contract and brand info
+	if m.ContractID != uuid.Nil && m.Contract != nil {
+		response.ContractID = m.Contract.ID.String()
+		response.ContractTitle = *m.Contract.Title
+		response.ContractNumber = *m.Contract.ContractNumber
+		response.ContractType = m.Contract.Type
+		if m.Contract.Brand != nil {
+			response.BrandID = m.Contract.Brand.ID.String()
+			response.BrandName = m.Contract.Brand.Name
 		}
+
+		// Brand bank info (for refund proof submission UI)
+		response.BrandBankName = m.Contract.BrandBankName
+		response.BrandBankAccountNumber = m.Contract.BrandBankAccountNumber
+		response.BrandBankAccountHolder = m.Contract.BrandBankAccountHolder
 	}
+
+	// Populate refund fields (only when in refund flow)
+	if m.IsInRefundFlow() {
+		refundAmount := m.RefundAmount
+		response.RefundAmount = &refundAmount
+		response.RefundProofURL = m.RefundProofURL
+		response.RefundProofNote = m.RefundProofNote
+		if m.RefundSubmittedAt != nil {
+			formatted := utils.FormatLocalTime(m.RefundSubmittedAt, utils.TimezoneFormat)
+			response.RefundSubmittedAt = &formatted
+		}
+		if m.RefundSubmitter != nil {
+			response.RefundSubmittedBy = &m.RefundSubmitter.Username
+		}
+		if m.RefundReviewedAt != nil {
+			formatted := utils.FormatLocalTime(m.RefundReviewedAt, utils.TimezoneFormat)
+			response.RefundReviewedAt = &formatted
+		}
+		if m.RefundReviewer != nil {
+			response.RefundReviewedBy = &m.RefundReviewer.Username
+		}
+		response.RefundRejectReason = m.RefundRejectReason
+	}
+
+	// Compute CanGeneratePaymentLink:
+	// - Status must be PENDING
+	// - Current time must be after due date
+	now := time.Now()
+	response.CanGeneratePaymentLink = m.Status == enum.ContractPaymentStatusPending && now.After(m.DueDate)
 
 	return response
 }

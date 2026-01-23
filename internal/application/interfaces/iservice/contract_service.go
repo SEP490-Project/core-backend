@@ -52,4 +52,6 @@ type ContractService interface {
 
 	// UpdateContractScopeOfWork updates the scope of work for a contract
 	UpdateContractScopeOfWorkWithReferencinnTaskIDs(ctx context.Context, contractID uuid.UUID) error
+
+	UpdateAllContractScopeOfWorkWithReferencinnTaskIDs(ctx context.Context) error
 }
