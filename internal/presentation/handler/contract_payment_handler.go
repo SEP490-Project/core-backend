@@ -111,7 +111,7 @@ func (h *ContractPaymentHandler) CreateContractPaymentsFromContract(c *gin.Conte
 //	@Param		brand_id		query		string										false	"Brand ID"			example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		brand_user_id	query		string										false	"Brand User ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
-//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE)		example("PAID")
+//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)		example("PAID")
 //	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
 //	@Param		due_date_to		query		string										false	"Due Date To"		format(date)					example("2023-12-31")
 //	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
@@ -201,7 +201,7 @@ func (h *ContractPaymentHandler) GetContractPaymentByID(c *gin.Context) {
 //	@Accept		json
 //	@Produce	json
 //	@Param		contract_id		query		string										false	"Contract ID"		example("a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6")
-//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE)		example("PAID")
+//	@Param		status			query		string										false	"Payment Status"	enums(PENDING,PAID,OVERDUE, KOL_PENDING, KOL_PROOF_SUBMITTED, KOL_PROOF_REJECTED, KOL_REFUND_APPROVED)		example("PAID")
 //	@Param		due_date_from	query		string										false	"Due Date From"		format(date)					example("2023-01-01")
 //	@Param		due_date_to		query		string										false	"Due Date To"		format(date)					example("2023-12-31")
 //	@Param		payment_method	query		string										false	"Payment Method"	enums(BANK_TRANSFER,CASH,CHECK)	example("BANK_TRANSFER")
