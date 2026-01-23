@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
@@ -27,6 +29,7 @@ type PreOrderHandler struct {
 	unitOfWork           irepository.UnitOfWork
 	stateTransferService iservice.StateTransferService
 	fileService          iservice.FileService
+	ghnProxy             iproxies.GHNProxy
 }
 
 // GetAllPreorders godoc
@@ -157,12 +160,36 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 		}
 	}()
 
+	//0. Check is it self picked up
+	var deliveryFee *dtos.DeliveryFeeSuccess
+	if !req.IsSelfPickup {
+		//*1 Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
+		deliveryFee, err = p.ghnProxy.CalculateDeliveryPriceByShippingAddressAndPreOrder(ctx, req, uow)
+		if err != nil {
+			zap.L().Error("failed to calculate delivery fee", zap.Error(err))
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusBadRequest))
+			return
+		}
+	}
+
 	//1. Preserve order
 	preorder, err := p.preOrderService.PreserverOrder(ctx, req, uow, userID)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to create preorder: "+err.Error(), http.StatusBadRequest))
 		return
+	}
+
+	// Set shipping fee on preorder (customer doesn't pay this - it's covered by company policy)
+	// This fee will be subtracted from KOL's net revenue during analytics calculation
+	if deliveryFee != nil && deliveryFee.Total > 0 {
+		preorder.ShippingFee = deliveryFee.Total
+		// Update the preorder with shipping fee
+		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+			_ = uow.Rollback()
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to update preorder with shipping fee: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
 	}
 
 	//2. Initiate payment
@@ -990,12 +1017,13 @@ func (p *PreOrderHandler) GetPreOrderPricePercentage(c *gin.Context) {
 	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
 }
 
-func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {
+func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService, ghnProxy iproxies.GHNProxy) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService:      preOrderService,
 		unitOfWork:           uow,
 		stateTransferService: stateSvc,
 		fileService:          fileSvc,
+		ghnProxy:             ghnProxy,
 	}
 }
 

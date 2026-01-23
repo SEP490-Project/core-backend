@@ -94,7 +94,7 @@ func NewHandlerRegistry(applicationReg *application.ApplicationRegistry, appConf
 		AffiliateLinkHandler:          NewAffiliateLinkHandler(applicationReg.AffiliateLinkService),
 		RedirectHandler:               NewRedirectHandler(applicationReg.ClickTrackingService, appConfig),
 		AffiliateLinkAnalyticsHandler: NewAffiliateLinkAnalyticsHandler(applicationReg.AffiliateLinkAnalyticsService),
-		PreOrderHandler:               NewPreOrderHandler(applicationReg.PreOrderService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.StateTransferService, applicationReg.FileService),
+		PreOrderHandler:               NewPreOrderHandler(applicationReg.PreOrderService, applicationReg.InfrastructureRegistry.UnitOfWork, applicationReg.StateTransferService, applicationReg.FileService, applicationReg.InfrastructureRegistry.ProxiesRegistry.GHNProxy),
 		MarketingAnalyticsHandler:     NewMarketingAnalyticsHandler(applicationReg.MarketingAnalyticsService),
 		SalesStaffAnalyticsHandler:    NewSalesStaffAnalyticsHandler(applicationReg.SalesStaffAnalyticsService),
 		ContentStaffAnalyticsHandler:  NewContentStaffAnalyticsHandler(applicationReg.ContentStaffAnalyticsService),

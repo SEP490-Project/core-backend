@@ -33,6 +33,31 @@ var (
 	mockSessionOnce sync.Once
 )
 
+// GHNOrderHolder is an interface that abstracts Order and PreOrder for GHN webhook handling
+type GHNOrderHolder interface {
+	GetID() uuid.UUID
+	GetGHNOrderCode() *string
+	IsPreOrder() bool
+}
+
+// orderHolder wraps model.Order to implement GHNOrderHolder
+type orderHolder struct {
+	order *model.Order
+}
+
+func (o *orderHolder) GetID() uuid.UUID         { return o.order.ID }
+func (o *orderHolder) GetGHNOrderCode() *string { return o.order.GHNOrderCode }
+func (o *orderHolder) IsPreOrder() bool         { return false }
+
+// preOrderHolder wraps model.PreOrder to implement GHNOrderHolder
+type preOrderHolder struct {
+	preOrder *model.PreOrder
+}
+
+func (p *preOrderHolder) GetID() uuid.UUID         { return p.preOrder.ID }
+func (p *preOrderHolder) GetGHNOrderCode() *string { return p.preOrder.GHNOrderCode }
+func (p *preOrderHolder) IsPreOrder() bool         { return true }
+
 type ghnProxy struct {
 	*BaseProxy
 	cfg      *config.AppConfig
@@ -46,6 +71,53 @@ type ghnProxy struct {
 	provinceRepo irepository.GenericRepository[model.Province]
 	districtRepo irepository.GenericRepository[model.District]
 	wardRepo     irepository.GenericRepository[model.Ward]
+	preOrderRepo irepository.GenericRepository[model.PreOrder]
+}
+
+func (g *ghnProxy) CalculateDeliveryPriceByShippingAddressAndPreOrder(ctx context.Context, item requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error) {
+	deliveryFeePath := g.cfg.GHN.BaseURL + "/v2/shipping-order/fee"
+	var deliveryFee dtos.DeliveryFeeSuccess
+
+	err := helper.WithTransaction(ctx, unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		//Get shipping address
+		address, err := uow.ShippingAddresses().GetByID(ctx, item.AddressID, []string{})
+		if err != nil {
+			return fmt.Errorf("shipping address not found: %w", err)
+		}
+
+		appDeliveryFeeItems, err := convertPreOrderRequestToApplicationDeliveryFeeItem(ctx, item, uow)
+		if err != nil {
+			return fmt.Errorf("failed to convert order items: %w", err)
+		}
+
+		body, err := dtos.DeliveryFeeBody{}.ToDeliveryFeeBodyDTOWithValidationV3(*address, appDeliveryFeeItems)
+		if err != nil {
+			return fmt.Errorf("invalid delivery fee body: %w", err)
+		}
+
+		headers := map[string]string{
+			"Content-Type": "application/json",
+			"Token":        g.cfg.GHN.Token,
+			"ShopId":       fmt.Sprintf("%d", g.cfg.GHN.ShopID),
+		}
+
+		resp, err := doGHNRequest[dtos.DeliveryFeeSuccess](ctx, http.MethodPost, deliveryFeePath, headers, body)
+		if err != nil {
+			zap.L().Info("failed to calculate delivery price, use default: 23.450k", zap.Error(err))
+			deliveryFee = dtos.DeliveryFeeSuccess{}
+			deliveryFee.Total = 23500
+			deliveryFee.ServiceFee = 23500
+		} else {
+			deliveryFee = *resp
+		}
+		return err
+	})
+
+	if err != nil {
+		zap.L().Info("failed to calculate delivery price", zap.Error(err))
+	}
+
+	return &deliveryFee, nil
 }
 
 func (g *ghnProxy) GetAvailableNextActions(info *dtos.OrderInfo) (map[string]bool, error) {
@@ -73,6 +145,33 @@ func (g *ghnProxy) CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.Cr
 	}
 
 	dto := g.convertOrderToGHNOrderCreationDTO(&order)
+
+	// call GHN create endpoint
+	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/create"
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"ShopId":       fmt.Sprintf("%d", g.cfg.GHN.ShopID),
+		"Token":        g.cfg.GHN.Token,
+	}
+
+	return doGHNRequest[dtos.CreatedGHNOrderResponse](ctx, http.MethodPost, url, headers, dto)
+}
+
+// CreatePreOrder creates a GHN shipping order for a pre-order
+func (g *ghnProxy) CreatePreOrder(ctx context.Context, preOrderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error) {
+	// find pre-order with variant/product data
+	var preOrder model.PreOrder
+	if err := g.db.WithContext(ctx).
+		Preload("ProductVariant").
+		Preload("ProductVariant.Product").
+		First(&preOrder, "id = ?", preOrderID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("pre-order not found: %w", err)
+		}
+		return nil, fmt.Errorf("failed to query pre-order: %w", err)
+	}
+
+	dto := g.convertPreOrderToGHNOrderCreationDTO(&preOrder)
 
 	// call GHN create endpoint
 	url := g.cfg.GHN.BaseURL + "/v2/shipping-order/create"
@@ -387,16 +486,33 @@ func (g *ghnProxy) GetExpectedDeliveryTime(ctx context.Context, toDistrictID int
 func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string, deliveryStatus enum.GHNDeliveryStatus) (*dtos.UpdateGHNDeliveryStatusResponse, error) {
 
 	//1. Validate If the orderBelong to orderCode existed?
-	var order model.Order
-	//Find order by GHNOrderCode
+	// First, try to find in PreOrder table
+	var holder GHNOrderHolder
+	var preOrder model.PreOrder
 	if err := g.db.WithContext(ctx).
 		Where("ghn_order_code = ?", orderCode).
-		First(&order).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			zap.L().Warn("Order not found for GHN order code", zap.String("order_code", orderCode))
-			return nil, fmt.Errorf("order not found for GHN order code")
+		First(&preOrder).Error; err == nil {
+		// Found in PreOrder
+		zap.L().Info("Found GHN order code in PreOrder", zap.String("order_code", orderCode), zap.String("preorder_id", preOrder.ID.String()))
+		holder = &preOrderHolder{preOrder: &preOrder}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("failed to find preorder by GHNOrderCode: %w", err)
+	}
+
+	// If not found in PreOrder, fallback to Order table
+	if holder == nil {
+		var order model.Order
+		if err := g.db.WithContext(ctx).
+			Where("ghn_order_code = ?", orderCode).
+			First(&order).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				zap.L().Warn("Order not found for GHN order code in both PreOrder and Order tables", zap.String("order_code", orderCode))
+				return nil, fmt.Errorf("order not found for GHN order code")
+			}
+			return nil, fmt.Errorf("failed to find order by GHNOrderCode: %w", err)
 		}
-		return nil, fmt.Errorf("failed to find order by GHNOrderCode: %w", err)
+		zap.L().Info("Found GHN order code in Order", zap.String("order_code", orderCode), zap.String("order_id", order.ID.String()))
+		holder = &orderHolder{order: &order}
 	}
 
 	url := "https://dev-online-gateway.ghn.vn/integration/tool-support/public-api/v2/order/switchStatus"
@@ -444,9 +560,9 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 	if firstRes.Result {
 		zap.L().Info("Handling Side Effect")
 		if firstRes.Result {
-			zap.L().Info("Handling Side Effect for GHN status", zap.String("status", string(deliveryStatus)))
+			zap.L().Info("Handling Side Effect for GHN status", zap.String("status", string(deliveryStatus)), zap.Bool("is_preorder", holder.IsPreOrder()))
 			go func() {
-				if err := g.handleSideEffect(context.Background(), deliveryStatus, &order); err != nil {
+				if err := g.handleSideEffect(context.Background(), deliveryStatus, holder); err != nil {
 					zap.L().Error("Failed to fire webhook", zap.Error(err))
 				}
 			}()
@@ -456,11 +572,17 @@ func (g *ghnProxy) UpdateGHNDeliveryStatus(ctx context.Context, orderCode string
 	return &firstRes, nil
 }
 
-func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, order *model.Order) error {
+func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHNDeliveryStatus, holder GHNOrderHolder) error {
+	orderType := "ORDER"
+	if holder.IsPreOrder() {
+		orderType = "PREORDER"
+	}
+
 	webhookURL := fmt.Sprintf(
-		"http://localhost:8080/api/v1/ghn/webhook?status=%s&code=%s",
+		"https://api.bshowsell.site/api/v1/ghn/webhook?status=%s&code=%s&orderType=%s",
 		string(deliveryStatus),
-		*order.GHNOrderCode,
+		*holder.GetGHNOrderCode(),
+		orderType,
 	)
 
 	// Make HTTP GET request to the webhook
@@ -482,9 +604,10 @@ func (g *ghnProxy) handleSideEffect(ctx context.Context, deliveryStatus enum.GHN
 	}
 
 	zap.L().Info("GHN webhook called successfully",
-		zap.String("order_id", order.ID.String()),
-		zap.String("order_code", *order.GHNOrderCode),
+		zap.String("id", holder.GetID().String()),
+		zap.String("order_code", *holder.GetGHNOrderCode()),
 		zap.String("sent status", deliveryStatus.String()),
+		zap.Bool("is_preorder", holder.IsPreOrder()),
 	)
 
 	return nil
@@ -578,6 +701,7 @@ func NewGHNProxy(httpClient *http.Client, cfg *config.AppConfig, db *gorm.DB, db
 		provinceRepo: dbReg.ProvinceRepository,
 		districtRepo: dbReg.DistrictRepository,
 		wardRepo:     dbReg.WardRepository,
+		preOrderRepo: dbReg.PreOrderRepository,
 	}
 }
 
@@ -603,6 +727,28 @@ func convertOrderItemRequestToApplicationDeliveryFeeItem(ctx context.Context, it
 		}
 		appDeliveryFeeItems = append(appDeliveryFeeItems, appDeliveryFeeItem)
 	}
+	return appDeliveryFeeItems, nil
+
+}
+
+func convertPreOrderRequestToApplicationDeliveryFeeItem(ctx context.Context, item requests.PreOrderRequest, uow irepository.UnitOfWork) ([]dtos.ApplicationDeliveryFeeItem, error) {
+	var appDeliveryFeeItems []dtos.ApplicationDeliveryFeeItem
+	variant, err := uow.ProductVariant().GetByID(ctx, item.VariantID, []string{"Product"})
+	if err != nil {
+		return nil, fmt.Errorf("product variant not found, id: %s", item.VariantID.String())
+	}
+	variantPropConcat := fmt.Sprintf("%d", variant.Capacity) + utils.ToTitleCase(variant.CapacityUnit) + " - " + utils.ToTitleCase(variant.ContainerType) + " - " + utils.ToTitleCase(variant.DispenserType)
+	variantName := utils.ToTitleCase(variant.Product.Name) + fmt.Sprintf(" (%s) ", variantPropConcat)
+
+	appDeliveryFeeItem := dtos.ApplicationDeliveryFeeItem{
+		Name:     variantName,
+		Quantity: item.Quantity,
+		Height:   variant.Height,
+		Weight:   variant.Weight,
+		Length:   variant.Length,
+		Width:    variant.Width,
+	}
+	appDeliveryFeeItems = append(appDeliveryFeeItems, appDeliveryFeeItem)
 	return appDeliveryFeeItems, nil
 
 }
@@ -652,6 +798,64 @@ func (g *ghnProxy) convertOrderToGHNOrderCreationDTO(order *model.Order) *dtos.C
 		ToAddress:       order.AddressLine2,
 		ToWardCode:      order.GhnWardCode,
 		ToDistrictID:    order.GhnDistrictID,
+		Content:         "",
+		Weight:          totalWeight,
+		Length:          totalLength,
+		Width:           totalWidth,
+		Height:          totalHeight,
+		InsuranceValue:  totalWidth,
+		ServiceID:       0,
+		ServiceTypeID:   2,
+		Items:           dtoItems,
+	}
+}
+
+func (g *ghnProxy) convertPreOrderToGHNOrderCreationDTO(preOrder *model.PreOrder) *dtos.CreateGHNOrderDTO {
+	// Pre-order is a single item order
+	totalWeight := preOrder.Weight * preOrder.Quantity
+	totalLength := preOrder.Length * preOrder.Quantity
+	totalHeight := preOrder.Height * preOrder.Quantity
+	totalWidth := preOrder.Width * preOrder.Quantity
+
+	dtoItems := []dtos.ApplicationDeliveryFeeItem{
+		{
+			Name:     preOrder.ProductName,
+			Quantity: preOrder.Quantity,
+			Height:   preOrder.Height,
+			Weight:   preOrder.Weight,
+			Length:   preOrder.Length,
+			Width:    preOrder.Width,
+			Price:    int(preOrder.UnitPrice),
+		},
+	}
+
+	userNote := ""
+	if preOrder.UserNote != nil {
+		userNote = *preOrder.UserNote
+	}
+
+	clientOrderCode := preOrder.ID.String()
+	if clientOrderCode == "" {
+		clientOrderCode = preOrder.UserID.String()
+	}
+
+	fromName := g.adminCfg.RepresentativeGHNCompanyName
+	fromPhone := g.adminCfg.RepresentativeGHNPhone
+	fromAddress := g.adminCfg.RepresentativeCompanyAddress
+
+	return &dtos.CreateGHNOrderDTO{
+		PaymentTypeID:   2,
+		Note:            userNote,
+		RequiredNote:    "CHOXEMHANGKHONGTHU",
+		FromName:        fromName,
+		FromPhone:       fromPhone,
+		FromAddress:     fromAddress,
+		ClientOrderCode: clientOrderCode,
+		ToName:          preOrder.FullName,
+		ToPhone:         preOrder.PhoneNumber,
+		ToAddress:       preOrder.AddressLine2,
+		ToWardCode:      preOrder.GhnWardCode,
+		ToDistrictID:    preOrder.GhnDistrictID,
 		Content:         "",
 		Weight:          totalWeight,
 		Length:          totalLength,
@@ -736,26 +940,36 @@ func getAvailableState(currentState string) (map[string]bool, error) {
 		}, nil
 	case "storing":
 		return map[string]bool{
+			"storing":    true,
 			"delivering": true,
-			"lost":       false,
-			"return":     false, // seller request return
+			//"lost":       false,
+			//"return":     false, // seller request return
 		}, nil
 	case "delivering":
 		return map[string]bool{
-			"delivered":     true, //end
-			"delivery_fail": false,
+			"storing":    true,
+			"delivering": true,
+			"delivered":  true, //end
+			//"delivery_fail": false,
 		}, nil
 	case "delivery_fail":
 		return map[string]bool{
 			"storing": true, // loops
-			"lost":    false,
+			//"lost":    false,
 		}, nil
 	case "return":
 		return map[string]bool{
 			"returned": true, //end
 		}, nil
-	case "lost", "delivered", "returned":
+	case "lost", "returned":
 		return map[string]bool{}, nil
+	case "delivered":
+		return map[string]bool{
+			"storing":                  true,
+			"delivering":               true,
+			"delivered":                true,
+			"THIS ORDER HAS COMPLETED": true,
+		}, nil
 	}
 
 	return nil, fmt.Errorf("unknown current state: %s", currentState)

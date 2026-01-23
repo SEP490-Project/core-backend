@@ -63,11 +63,45 @@ type stateTransferService struct {
 	asynqConfig                 *config.AsynqConfig
 }
 
-func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus) error {
-	//find order By GHN code
+func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, ghnCode string, ghnStatus enum.GHNDeliveryStatus, orderType string) error {
 	filter := func(db *gorm.DB) *gorm.DB {
 		return db.Where("ghn_order_code = ?", ghnCode)
 	}
+
+	// Handle PreOrder
+	if orderType == "PREORDER" {
+		preOrder, err := t.preOrderRepository.GetByCondition(ctx, filter, []string{"ProductVariant", "ProductVariant.Product", "ProductVariant.Product.Limited"})
+		if err != nil {
+			zap.L().Error("Failed to load preorder from DB by GHN code",
+				zap.String("ghn_order_code", ghnCode),
+				zap.Error(err))
+			return errors.New("Unable to find preorder by GHN code: " + err.Error())
+		}
+
+		// Map GHN status to PreOrder status
+		var newStatus enum.PreOrderStatus
+		switch ghnStatus {
+		case enum.GHNDeliveryStatusStoring:
+			newStatus = enum.PreOrderStatusShipped
+		case enum.GHNDeliveryStatusDelivering:
+			newStatus = enum.PreOrderStatusInTransit
+		case enum.GHNDeliveryStatusDelivered:
+			newStatus = enum.PreOrderStatusDelivered
+		default:
+			zap.L().Info("GHN status does not trigger side effect for PreOrder", zap.String("status", string(ghnStatus)))
+			return nil
+		}
+
+		// Use system user ID for webhook-triggered state changes
+		systemUserID := uuid.Nil
+		err = t.MovePreOrderToState(ctx, preOrder.ID, newStatus, systemUserID, nil, nil)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Handle Order (default)
 	order, err := t.orderRepository.GetByCondition(ctx, filter, []string{})
 	if err != nil {
 		zap.L().Error("Failed to load order from DB by GHN code",
@@ -86,6 +120,7 @@ func (t stateTransferService) MoveOrderToStateByGHNWebhook(ctx context.Context, 
 		newStatus = enum.OrderStatusDelivered
 	default:
 		zap.L().Info("GHN status does not trigger side effect", zap.String("status", string(ghnStatus)))
+		return nil
 	}
 
 	err = t.MoveOrderToState(ctx, order.ID, newStatus, nil, nil)
@@ -113,7 +148,31 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 		return err
 	}
 
+	// If moving to PreOrdered status and not self-pickup, create GHN order first
+	// so we can persist GHNOrderCode together with status in a single DB update
+	var ghnOrderCode string
+	if targetState == enum.PreOrderStatusPreOrdered && !preOrder.IsSelfPickedUp {
+		ghnOrder, ghnErr := t.ghnProxy.CreatePreOrder(ctx, preOrderID)
+		if ghnErr != nil {
+			zap.L().Error("Failed to create GHN order for pre-order",
+				zap.String("preorder_id", preOrderID.String()),
+				zap.Error(ghnErr))
+			return fmt.Errorf("failed to create GHN order for pre-order: %w", ghnErr)
+		}
+		if ghnOrder != nil && ghnOrder.OrderCode != "" {
+			ghnOrderCode = ghnOrder.OrderCode
+			zap.L().Info("Created GHN order for pre-order",
+				zap.String("preorder_id", preOrderID.String()),
+				zap.String("ghn_order_code", ghnOrderCode))
+		}
+	}
+
 	err = helper.WithTransaction(ctx, t.uow, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		// Update GHN order code if available
+		if targetState == enum.PreOrderStatusPreOrdered && ghnOrderCode != "" {
+			preOrder.GHNOrderCode = &ghnOrderCode
+		}
+
 		if err := uow.PreOrder().Update(ctx, preOrder); err != nil {
 			zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
 			return errors.New("failed to update PreOrder state: " + err.Error())
@@ -121,27 +180,31 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 
 		// schedule to auto update status after opening day
 		if targetState == enum.PreOrderStatusPreOrdered {
-			openDay := limitedProduct.AvailabilityStartDate
-			//isSelfPickedUp := preOrder.IsSelfPickedUp
-			//limitedProduct := preOrder.ProductVariant.Product.Limited
+			// OLD LOGIC
+			//openDay := limitedProduct.AvailabilityStartDate
+			////isSelfPickedUp := preOrder.IsSelfPickedUp
+			////limitedProduct := preOrder.ProductVariant.Product.Limited
+			//
+			//preOrderOpeningSchedule := &model.Schedule{
+			//	ReferenceID:   &preOrder.ID,
+			//	Type:          enum.ScheduleTypeOther,
+			//	ReferenceType: utils.PtrOrNil(enum.ReferenceTypePreOrderOpening),
+			//	ScheduledAt:   openDay,
+			//	Status:        enum.ScheduleStatusPending,
+			//	RetryCount:    0,
+			//	CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
+			//}
+			//
+			//if err := uow.Schedules().Add(ctx, preOrderOpeningSchedule); err != nil {
+			//	zap.L().Error("Failed to create PreOrder opening schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
+			//	return errors.New("failed to create PreOrder opening schedule: " + err.Error())
+			//}
+			//
+			//// publish to asynq
+			//t.publishPreOrderOpeningDelayMessage(ctx, preOrderOpeningSchedule, uow)
 
-			preOrderOpeningSchedule := &model.Schedule{
-				ReferenceID:   &preOrder.ID,
-				Type:          enum.ScheduleTypeOther,
-				ReferenceType: utils.PtrOrNil(enum.ReferenceTypePreOrderOpening),
-				ScheduledAt:   openDay,
-				Status:        enum.ScheduleStatusPending,
-				RetryCount:    0,
-				CreatedBy:     utils.DerefPtr(&preOrder.UserID, uuid.Nil),
-			}
+			// NEW LOGIC
 
-			if err := uow.Schedules().Add(ctx, preOrderOpeningSchedule); err != nil {
-				zap.L().Error("Failed to create PreOrder opening schedule", zap.String("preorder_id", preOrder.ID.String()), zap.Error(err))
-				return errors.New("failed to create PreOrder opening schedule: " + err.Error())
-			}
-
-			// publish to asynq
-			t.publishPreOrderOpeningDelayMessage(ctx, preOrderOpeningSchedule, uow)
 		}
 
 		// Schedule auto-receive when preorder is delivered (not self-pickup)
@@ -203,9 +266,9 @@ func (t stateTransferService) MovePreOrderToState(ctx context.Context, preOrderI
 // preOrderFileAssurance (Special case): proof of delivery file is required when moving to Delivered/Received
 func preOrderFileAssurance(preOrder *model.PreOrder, targetState enum.PreOrderStatus, fileURL *string) error {
 	isSelfPick := preOrder.IsSelfPickedUp
-	isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
+	//isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
 	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
-	if (isSelfPick && isStatusReceived) || (!isSelfPick && isStatusDelivered) {
+	if isSelfPick && isStatusReceived {
 		if fileURL == nil || *fileURL == "" {
 			errMsg := fmt.Sprintf("proof of delivery file is required when transitioning to %s", targetState.String())
 			zap.L().Error(errMsg, zap.String("preorder_id", preOrder.ID.String()))
@@ -1996,6 +2059,8 @@ func ConvertPreOrderToNotificationType(preorder *model.PreOrder) (notification_b
 		return notification_builder.PreOrderNotifyCompensated, nil
 	case enum.PreOrderStatusCancelled:
 		return notification_builder.PreOrderNotifyCancelled, nil
+	case enum.PreOrderStatusShipped:
+		return notification_builder.PreOrderNotifyShipped, nil
 	default:
 		return "", fmt.Errorf("unrecognized preorder status: %s", status)
 	}
