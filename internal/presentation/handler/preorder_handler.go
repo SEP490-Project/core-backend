@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"core-backend/internal/application/dto/dtos"
 	"core-backend/internal/application/dto/requests"
 	"core-backend/internal/application/dto/responses"
+	"core-backend/internal/application/interfaces/iproxies"
 	"core-backend/internal/application/interfaces/irepository"
 	"core-backend/internal/application/interfaces/iservice"
 	"core-backend/internal/domain/enum"
@@ -27,6 +29,7 @@ type PreOrderHandler struct {
 	unitOfWork           irepository.UnitOfWork
 	stateTransferService iservice.StateTransferService
 	fileService          iservice.FileService
+	ghnProxy             iproxies.GHNProxy
 }
 
 // GetAllPreorders godoc
@@ -157,12 +160,36 @@ func (p *PreOrderHandler) CreatePreOrderAndPay(c *gin.Context) {
 		}
 	}()
 
+	//0. Check is it self picked up
+	var deliveryFee *dtos.DeliveryFeeSuccess
+	if !req.IsSelfPickup {
+		//*1 Calcucate delivery fee first as we need to validate order dimensions/weight before placing order
+		deliveryFee, err = p.ghnProxy.CalculateDeliveryPriceByShippingAddressAndPreOrder(ctx, req, uow)
+		if err != nil {
+			zap.L().Error("failed to calculate delivery fee", zap.Error(err))
+			c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to calculate delivery fee: "+err.Error(), http.StatusBadRequest))
+			return
+		}
+	}
+
 	//1. Preserve order
 	preorder, err := p.preOrderService.PreserverOrder(ctx, req, uow, userID)
 	if err != nil {
 		_ = uow.Rollback()
 		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to create preorder: "+err.Error(), http.StatusBadRequest))
 		return
+	}
+
+	// Set shipping fee on preorder (customer doesn't pay this - it's covered by company policy)
+	// This fee will be subtracted from KOL's net revenue during analytics calculation
+	if deliveryFee != nil && deliveryFee.Total > 0 {
+		preorder.ShippingFee = deliveryFee.Total
+		// Update the preorder with shipping fee
+		if err := uow.PreOrder().Update(ctx, preorder); err != nil {
+			_ = uow.Rollback()
+			c.JSON(http.StatusInternalServerError, responses.ErrorResponse("failed to update preorder with shipping fee: "+err.Error(), http.StatusInternalServerError))
+			return
+		}
 	}
 
 	//2. Initiate payment
@@ -989,13 +1016,67 @@ func (p *PreOrderHandler) GetPreOrderPricePercentage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, responses.SuccessResponse("Preorder price breakdown retrieved successfully", ptr.Int(http.StatusOK), breakdowns))
 }
+ 
+// MovePreOrderToAwaitingPickup godoc
+//
+//	@Summary		Move preorder to AWAITING_PICKUP (Staff)
+//	@Description	Move a preorder from PRE_ORDERED status to AWAITING_PICKUP status. This is typically used for self-pickup orders when the product is ready for customer pickup.
+//	@Tags			Preorders.States
+//	@Accept			json
+//	@Produce		json
+//	@Param			preOrderID	path		string	true	"PreOrder ID (UUID)"
+//	@Success		200			{object}	responses.APIResponse
+//	@Failure		400			{object}	responses.APIResponse
+//	@Failure		401			{object}	responses.APIResponse
+//	@Failure		500			{object}	responses.APIResponse
+//	@Security		BearerAuth
+//	@Router			/api/v1/preorders/staff/{preOrderID}/awaiting-pickup [post]
+func (p *PreOrderHandler) MovePreOrderToAwaitingPickup(c *gin.Context) {
+	// --- Path ID ---
+	preOrderID, err := parseUUIDParam(c, "preOrderID")
+	if err != nil {
+		return
+	}
 
-func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService) *PreOrderHandler {
+	// --- User ---
+	updatedBy, err := extractUserID(c)
+	if err != nil {
+		msg := "unauthorized: " + err.Error()
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse(msg, http.StatusUnauthorized))
+		return
+	}
+
+	// --- Begin transaction ---
+	ctx := c.Request.Context()
+	uow := p.unitOfWork.Begin(ctx)
+	defer func() {
+		if uow.InTransaction() {
+			_ = uow.Rollback()
+		}
+	}()
+
+	// Perform state transfer using stateTransferService
+	// The FSM will validate that the preorder is in PRE_ORDERED status before allowing transition
+	targetStatus := enum.PreOrderStatusAwaitingPickup
+	if err := p.stateTransferService.MovePreOrderToState(ctx, preOrderID, targetStatus, updatedBy, nil, nil); err != nil {
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse("failed to move preorder to awaiting pickup: "+err.Error(), http.StatusBadRequest))
+		_ = uow.Rollback()
+		return
+	}
+
+	_ = uow.Commit()
+	resp := responses.SuccessResponse("PreOrder moved to AWAITING_PICKUP successfully", ptr.Int(http.StatusOK), nil)
+	c.JSON(http.StatusOK, resp)
+}
+
+
+func NewPreOrderHandler(preOrderService iservice.PreOrderService, uow irepository.UnitOfWork, stateSvc iservice.StateTransferService, fileSvc iservice.FileService, ghnProxy iproxies.GHNProxy) *PreOrderHandler {
 	return &PreOrderHandler{
 		preOrderService:      preOrderService,
 		unitOfWork:           uow,
 		stateTransferService: stateSvc,
 		fileService:          fileSvc,
+		ghnProxy:             ghnProxy,
 	}
 }
 

@@ -50,6 +50,12 @@ type preOrderService struct {
 	scheduleRepository           irepository.ScheduleRepository
 	taskScheduler                *asynq.AsynqClient
 	asynqConfig                  *config.AsynqConfig
+	unitOfWork                   irepository.UnitOfWork
+}
+
+func (p preOrderService) PreOrderOpeningManualTrigger(ctx context.Context, preOrderID, actionBy uuid.UUID) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (p preOrderService) GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error) {
@@ -180,7 +186,33 @@ func (p preOrderService) ApproveRefundRequest(ctx context.Context, preOrderID, a
 	}
 
 	preOrder.StaffResource = fileURL
-	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+	if err = helper.WithTransaction(ctx, p.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.PreOrder().Update(ctx, preOrder); err != nil {
+			zap.L().Error("Failed to update PreOrder state", zap.Error(err))
+			return err
+		}
+
+		// Record refunded payment transaction
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     preOrder.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:          utils.PtrOrNil(-preOrder.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(preOrder.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during refund proof review", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Failed to update PreOrder state", zap.Error(err))
 		return err
 	}
 
@@ -226,7 +258,38 @@ func (p preOrderService) ObligateRefund(ctx context.Context, preOrderID, actionB
 		return err
 	}
 	preOrder.StaffResource = fileURL
-	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+	if err = helper.WithTransaction(ctx, p.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.PreOrder().Update(ctx, preOrder); err != nil {
+			zap.L().Error("Failed to update PreOrder state",
+				zap.String("preorder_id", preOrderID.String()),
+				zap.Error(err))
+			return err
+		}
+
+		// Record refunded payment transaction
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     preOrderID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:          utils.PtrOrNil(-preOrder.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(preOrder.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during refund proof review",
+				zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Failed to update PreOrder state",
+			zap.String("preorder_id", preOrderID.String()),
+			zap.Error(err))
 		return err
 	}
 
@@ -249,6 +312,30 @@ func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID,
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// UpdateGHNOrderCode updates the GHN order code for a pre-order
+func (p preOrderService) UpdateGHNOrderCode(ctx context.Context, preOrderID uuid.UUID, ghnOrderCode string) error {
+	preOrder, err := p.preOrderRepository.GetByID(ctx, preOrderID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to find pre-order: %w", err)
+	}
+
+	preOrder.GHNOrderCode = &ghnOrderCode
+
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder GHN order code",
+			zap.String("preorder_id", preOrderID.String()),
+			zap.String("ghn_order_code", ghnOrderCode),
+			zap.Error(err))
+		return fmt.Errorf("failed to update pre-order GHN order code: %w", err)
+	}
+
+	zap.L().Info("Updated PreOrder GHN order code",
+		zap.String("preorder_id", preOrderID.String()),
+		zap.String("ghn_order_code", ghnOrderCode))
+
 	return nil
 }
 
@@ -316,9 +403,43 @@ func (p preOrderService) ProcessCompensation(ctx context.Context, preOrderID, ac
 		notiStatus = notiBuilder.PreOrderNotifyCompensateDenied
 	}
 
-	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
-		zap.L().Error("Failed to update PreOrder state", zap.String("preorder_id", preOrderID.String()), zap.Error(err))
-		return errors.New("failed to update PreOrder state: " + err.Error())
+	if err = helper.WithTransaction(ctx, p.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.PreOrder().Update(ctx, preOrder); err != nil {
+			zap.L().Error("Failed to update PreOrder state",
+				zap.String("preorder_id", preOrderID.String()),
+				zap.Error(err))
+			return errors.New("failed to update PreOrder state: " + err.Error())
+		}
+
+		if !isApproved {
+			return nil
+		}
+
+		// Record compensated payment transaction if approved
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     preOrder.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypePreOrder,
+			Amount:          utils.PtrOrNil(-preOrder.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(preOrder.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during compensation processing",
+				zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Failed to update PreOrder state",
+			zap.String("preorder_id", preOrderID.String()),
+			zap.Error(err))
+		return err
 	}
 
 	// Notification
@@ -369,9 +490,33 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	for _, preOrder := range preOrders {
 		var err error
 		if preOrder.IsSelfPickedUp {
+			// Self-pickup: just move to AwaitingPickup status
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
-			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
+			// err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
+			// Delivery: Create GHN order first, then move to Shipped status
+			ghnResponse, ghnErr := p.ghnService.CreatePreOrder(ctx, preOrder.ID)
+			if ghnErr != nil {
+				zap.L().Error("Failed to create GHN order for pre-order",
+					zap.String("preorder_id", preOrder.ID.String()),
+					zap.Error(ghnErr))
+				failed++
+				continue
+			}
+
+			// Update the pre-order with the GHN order code
+			if ghnResponse != nil && ghnResponse.OrderCode != "" {
+				if updateErr := p.UpdateGHNOrderCode(ctx, preOrder.ID, ghnResponse.OrderCode); updateErr != nil {
+					zap.L().Error("Failed to update GHN order code for pre-order",
+						zap.String("preorder_id", preOrder.ID.String()),
+						zap.String("ghn_order_code", ghnResponse.OrderCode),
+						zap.Error(updateErr))
+					// Continue even if update fails - the GHN order was created
+				}
+			}
+
+			// Move to Shipped status (will be updated to InTransit by GHN webhook)
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusShipped, uuid.UUID{}, nil, nil)
 		}
 		if err != nil {
 			msg := fmt.Sprintf("Failed to update pre-order status with ID: %s , Detail: %s", preOrder.ID.String(), err.Error())
@@ -418,6 +563,7 @@ func (p *preOrderService) OpeningPreOrderEarly(ctx context.Context, uow ireposit
 	failedPreOrdersIDs := make([]uuid.UUID, 0)
 	for _, preOrder := range upcomingPreOrders {
 		if preOrder.IsSelfPickedUp {
+			// Self-pickup: just move to AwaitingPickup status
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
@@ -765,6 +911,7 @@ func NewPreOrderService(cfg *config.AppConfig, dbRegistry *gormrepository.Databa
 		scheduleRepository:           dbRegistry.ScheduleRepository,
 		taskScheduler:                registry.AsynqClient,
 		asynqConfig:                  &cfg.Asynq,
+		unitOfWork:                   registry.UnitOfWork,
 	}
 }
 

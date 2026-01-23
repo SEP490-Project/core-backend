@@ -385,6 +385,7 @@ func (r *Router) SetupV1Routes(engine *gin.Engine) {
 			staffPreOrderGroup.POST("/:preOrderID/received", preOrderHandler.MarkPreOrderAsReceivedByStaff)
 			staffPreOrderGroup.POST("/:preOrderID/delivered", preOrderHandler.MarkPreOrderAsDelivered)
 			staffPreOrderGroup.POST("/self-delivering/:preOrderID/delivered", preOrderHandler.MarkPreOrderAsDelivered)
+			staffPreOrderGroup.POST("/:preOrderID/awaiting-pickup", preOrderHandler.MovePreOrderToAwaitingPickup)
 			staffPreOrderGroup.PATCH("/products/:productID/open-early", preOrderHandler.OpeningPreOrderEarly)
 		}
 

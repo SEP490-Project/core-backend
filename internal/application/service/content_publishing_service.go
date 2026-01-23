@@ -39,10 +39,11 @@ type contentPublishingService struct {
 	fileService          iservice.FileService
 	notificationService  iservice.NotificationService
 	scheduleService      iservice.ScheduleService
-	s3Storage            irepository_third_party.S3Storage
-	s3StreamingStorage   irepository_third_party.S3StreamingStorage
-	uow                  irepository.UnitOfWork
-	config               *config.AppConfig
+	// contentScheduleService iservice.ContentScheduleService
+	s3Storage          irepository_third_party.S3Storage
+	s3StreamingStorage irepository_third_party.S3StreamingStorage
+	uow                irepository.UnitOfWork
+	config             *config.AppConfig
 }
 
 // PublishToChannel implements iservice.ContentPublishingService.
@@ -72,7 +73,7 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 			return fmt.Errorf("content not found: %w", funcErr)
 		}
 
-		if content.Status != enum.ContentStatusApproved {
+		if content.Status != enum.ContentStatusApproved && content.Status != enum.ContentStatusScheduled {
 			zap.L().Warn("Content not approved for publishing",
 				zap.String("content_id", contentID.String()),
 				zap.String("status", string(content.Status)))
@@ -121,6 +122,8 @@ func (s *contentPublishingService) PublishToChannel(ctx context.Context, content
 
 	if err = utils.RunParallel(ctx, 4, funcs...); err != nil {
 		zap.L().Error("Failed to load content in parallel", zap.Error(err))
+		// Rescheduling content if there are schedules and content failed to publish
+
 		return nil, err
 	}
 
@@ -251,7 +254,7 @@ func (s *contentPublishingService) PublishToAllChannels(ctx context.Context, con
 	response := &responses.PublishAllChannelsResponse{
 		TotalChannels: len(content.ContentChannels),
 		Results:       make([]responses.PublishContentResponse, len(content.ContentChannels)),
-		Errors:        make([]responses.PublishChannelError, len(content.ContentChannels)),
+		Errors:        make([]responses.PublishChannelError, 0, len(content.ContentChannels)),
 	}
 
 	// Publish to each channel
@@ -651,6 +654,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatus,
 		Type:         &contentType,
 	}
+	contentChannel.Metadata = initialMetadata
 	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, initialMetadata, enum.ExternalPostTypeVideo)
 
 	// 1. Get creator info (required - validates token and gets allowed privacy levels)
@@ -740,6 +744,7 @@ func (s *contentPublishingService) publishToTikTok(ctx context.Context, content 
 		UploadStatus: &uploadStatusProcessing,
 		Type:         &contentType,
 	}
+	contentChannel.Metadata = updatedMetadata
 	go s.saveUploadMetadataAsync(ctx, contentChannel.ID, updatedMetadata, enum.ExternalPostTypeVideo)
 
 	// Return empty external_post_id and URL since the upload is not yet complete
@@ -842,6 +847,31 @@ func (s *contentPublishingService) saveUploadMetadataAsync(
 		zap.String("content_channel_id", contentChannelID.String()))
 }
 
+/* func (s *contentPublishingService) rescheduleFailedContent(ctx context.Context, contentID uuid.UUID, schedules []*model.Schedule) error {
+	for _, schedule := range schedules {
+		if schedule.Status != enum.ScheduleStatusFailed {
+			continue
+		}
+		// Reschedule content
+		// if err := s.contentScheduleService.RescheduleContent(ctx, schedule.ID, &requests.RescheduleContentRequest{
+		// 	ScheduledAt: schedule.ScheduledAt,
+		// }); err != nil {
+		// 	zap.L().Error("Failed to reschedule content", zap.Error(err))
+		// 	return err
+		// }
+		zap.L().Info("Rescheduling failed content", zap.String("content_id", contentID.String()), zap.String("schedule_id", schedule.ID.String()))
+
+		if _, err := s.contentScheduleService.RescheduleContent(ctx, schedule.ID, &requests.RescheduleContentRequest{
+			ScheduledAt: utils.FormatLocalTime(&schedule.ScheduledAt, utils.TimeFormat),
+		}); err != nil {
+			zap.L().Error("Failed to reschedule content", zap.Error(err))
+			return err
+		}
+	}
+
+	return nil
+} */
+
 // endregion 1.
 
 // NewContentPublishingService creates a new instance of ContentPublishingService
@@ -853,6 +883,7 @@ func NewContentPublishingService(
 	fileService iservice.FileService,
 	notificationService iservice.NotificationService,
 	scheduleService iservice.ScheduleService,
+	// contentScheduleService iservice.ContentScheduleService,
 	config *config.AppConfig,
 ) iservice.ContentPublishingService {
 	return &contentPublishingService{
@@ -867,9 +898,10 @@ func NewContentPublishingService(
 		fileService:          fileService,
 		notificationService:  notificationService,
 		scheduleService:      scheduleService,
-		s3Storage:            infraReg.ThirdPartyStorage.S3Storage,
-		s3StreamingStorage:   infraReg.ThirdPartyStorage.S3StreamStorage,
-		uow:                  infraReg.UnitOfWork,
-		config:               config,
+		// contentScheduleService: contentScheduleService,
+		s3Storage:          infraReg.ThirdPartyStorage.S3Storage,
+		s3StreamingStorage: infraReg.ThirdPartyStorage.S3StreamStorage,
+		uow:                infraReg.UnitOfWork,
+		config:             config,
 	}
 }
