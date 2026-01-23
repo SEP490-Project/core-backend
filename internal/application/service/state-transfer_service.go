@@ -1007,8 +1007,8 @@ func (t *stateTransferService) handleContentSideEffects(
 				zap.String("new_status", string(targetState)))
 		}
 	}
-  
-  	// 6. Side-effects: Send notifications based on state transitions
+
+	// 6. Side-effects: Send notifications based on state transitions
 	switch targetState {
 	case enum.ContentStatusAwaitStaff:
 		// Content submitted for review - notify all marketing staff
@@ -1025,8 +1025,7 @@ func (t *stateTransferService) handleContentSideEffects(
 			rejectReason = *content.RejectionFeedback
 		}
 		t.notifyCreatorContentRejected(content, rejectReason)
-  }
-
+	}
 
 	// 2. Move Task state to DONE if content is POSTED and has associated Task
 	if targetState == enum.ContentStatusPosted && content.TaskID != nil {
