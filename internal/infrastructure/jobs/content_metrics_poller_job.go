@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"sync"
 	"time"
 
@@ -103,6 +104,8 @@ func newMetricsCollector() *metricsCollector {
 }
 
 // addChannelUpdate adds a channel metrics update to the collector (thread-safe)
+// Note: KPI metrics for channels are NOT added here. They are added in persistCollectedData
+// after mergeAggregatedMetricsIntoChannels to ensure all aggregated metrics are included.
 func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics map[string]any, mappedMetrics map[string]float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -111,22 +114,6 @@ func (c *metricsCollector) addChannelUpdate(channel *model.Channel, rawMetrics m
 		channel:       channel,
 		rawMetrics:    rawMetrics,
 		mappedMetrics: mappedMetrics,
-	}
-
-	// Also add KPI metrics
-	now := time.Now()
-	for metricName, metricValue := range mappedMetrics {
-		kpiType := enum.KPIValueType(metricName)
-		if !kpiType.IsValid() {
-			continue
-		}
-		c.metrics = append(c.metrics, &model.KPIMetrics{
-			ReferenceID:   channel.ID,
-			ReferenceType: enum.KPIReferenceTypeChannel,
-			Type:          kpiType,
-			Value:         metricValue,
-			RecordedDate:  now,
-		})
 	}
 }
 
@@ -427,8 +414,34 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 	// 1. Merge aggregated post metrics into channel updates
 	j.mergeAggregatedMetricsIntoChannels(collector)
 
-	// 2. Bulk insert KPI metrics
+	// 2. Get existing metrics and add channel-level aggregated metrics
 	metrics := collector.getMetrics()
+
+	// 2.1 Add channel-level aggregated metrics to kpi_metrics
+	// This ensures FB/TikTok aggregated metrics are persisted with reference_type = CHANNEL
+	channelUpdates := collector.getChannelUpdates()
+	now := time.Now()
+	for channelID, update := range channelUpdates {
+		for metricName, metricValue := range update.mappedMetrics {
+			kpiType := enum.KPIValueType(metricName)
+			if !kpiType.IsValid() {
+				continue
+			}
+			// Skip if value is 0 (no data)
+			if metricValue == 0 {
+				continue
+			}
+			metrics = append(metrics, &model.KPIMetrics{
+				ReferenceID:   channelID,
+				ReferenceType: enum.KPIReferenceTypeChannel,
+				Type:          kpiType,
+				Value:         metricValue,
+				RecordedDate:  now,
+			})
+		}
+	}
+
+	// 3. Bulk insert all KPI metrics (content_channel + channel level)
 	if len(metrics) > 0 {
 		rowsAffected, err := j.kpiMetricsRepo.BulkAdd(ctx, metrics, 100)
 		if err != nil {
@@ -440,8 +453,7 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 		}
 	}
 
-	// 3. Update channels with metrics JSONB
-	channelUpdates := collector.getChannelUpdates()
+	// 4. Update channels with metrics JSONB (reuse channelUpdates from step 2.1)
 	for _, update := range channelUpdates {
 		metricsData := map[string]any{
 			"current_fetched": update.rawMetrics,
@@ -460,7 +472,7 @@ func (j *ContentMetricsPollerJob) persistCollectedData(ctx context.Context, coll
 		}
 	}
 
-	// 4. Update content channels with metrics JSONB
+	// 5. Update content channels with metrics JSONB
 	contentChannelUpdates := collector.getContentChannelUpdates()
 	for _, update := range contentChannelUpdates {
 		existingMetrics, _ := update.contentChannel.GetMetrics()
@@ -803,8 +815,8 @@ func (j *ContentMetricsPollerJob) processPostMetrics(
 	if post.Insights != nil && len(post.Insights.Data) > 0 {
 		firstData := post.Insights.Data[0]
 		if len(firstData.Values) > 0 {
-			if value, ok := firstData.Values[0].Value.(int); ok {
-				views = value
+			if value, ok := firstData.Values[0].Value.(float64); ok {
+				views = int(math.Round(value))
 				rawMetrics["views"] = value
 			}
 		}
