@@ -29,6 +29,9 @@ type ContractPayment struct {
 	UpdatedBy             *uuid.UUID                 `json:"updated_by" gorm:"type:uuid;column:updated_by"`
 	DeletedAt             gorm.DeletedAt             `json:"deleted_at" gorm:"column:deleted_at;index"`
 
+	// Payment fields
+	PaidAt *time.Time `json:"paid_at" gorm:"column:paid_at"`
+
 	// Payment period fields (for AFFILIATE/CO_PRODUCING contracts)
 	PeriodStart *time.Time `json:"period_start" gorm:"column:period_start"`
 	PeriodEnd   *time.Time `json:"period_end" gorm:"column:period_end"`

@@ -107,15 +107,11 @@
         <p>You have been assigned a new task that requires your attention.</p>
 
         <div class="task-details">
-          <p><strong>Task Title:</strong> {{.TaskTitle}}</p>
-          <p><strong>Description:</strong> {{.TaskDescription}}</p>
-          <p>
-            <strong>Priority:</strong>
-            <span class="priority-{{.Priority}}">{{.Priority}}</span>
-          </p>
-          <p><strong>Due Date:</strong> {{.DueDate}}</p>
-          <p><strong>Assigned By:</strong> {{.AssignedBy}}</p>
+          <p><strong>Task Name:</strong> {{.TaskName}}</p>
           <p><strong>Campaign:</strong> {{.CampaignName}}</p>
+          <p><strong>Brand:</strong> {{.BrandName}}</p>
+          <p><strong>Assigned By:</strong> {{.AssignerName}}</p>
+          <p><strong>Due Date:</strong> {{.DueDate}}</p>
         </div>
 
         <p>
@@ -129,7 +125,7 @@
       </div>
 
       <div class="footer">
-        <p>&copy; {{.Year}} Your Company. All rights reserved.</p>
+        <p>&copy; {{.CurrentYear}} Your Company. All rights reserved.</p>
         <p>This is an automated message. Please do not reply to this email.</p>
       </div>
     </div>

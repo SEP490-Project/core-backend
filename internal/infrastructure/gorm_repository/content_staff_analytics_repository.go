@@ -115,7 +115,9 @@ func (r *contentStaffAnalyticsRepository) GetTotalViews(ctx context.Context, sta
 	return totalViews, nil
 }
 
-// GetTotalEngagement returns total engagement by getting the LATEST value for each content_channel
+// GetTotalEngagement returns total engagement gained during the period
+// Engagement = Likes + Comments + Shares (delta for each)
+// All engagement metrics are cumulative snapshots, so we calculate delta = last - first
 func (r *contentStaffAnalyticsRepository) GetTotalEngagement(ctx context.Context, startDate, endDate time.Time, channelID *uuid.UUID) (int64, error) {
 	var engagement float64
 
