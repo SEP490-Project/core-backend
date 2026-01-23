@@ -191,6 +191,9 @@ type ChannelDetailsResponse struct {
 	// Channel information
 	Channel ChannelInfo `json:"channel"`
 
+	// Total published contents count
+	PublishedContentsCount int64 `json:"published_contents_count"`
+
 	// Period information
 	Period DashboardPeriodInfo `json:"period"`
 

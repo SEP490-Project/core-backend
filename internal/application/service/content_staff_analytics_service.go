@@ -763,6 +763,16 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 			}
 			return nil
 		},
+		// Channel Published Contents
+		func(ctx context.Context) error {
+			if channelPublishedContents, err := s.dashboardRepo.GetPostCountByDateRange(ctx, currentRange.Start, currentRange.End, &channelID); err == nil {
+				mu.Lock()
+				response.PublishedContentsCount = channelPublishedContents
+				mu.Unlock()
+			}
+
+			return nil
+		},
 		// Content Trend
 		func(ctx context.Context) error {
 			trend, err := s.getChannelContentTrend(ctx, channelID, currentRange.Start, currentRange.End)
