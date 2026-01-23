@@ -13,6 +13,7 @@ import (
 	"core-backend/internal/domain/constant"
 	"core-backend/internal/domain/enum"
 	"core-backend/internal/domain/model"
+	"core-backend/internal/infrastructure"
 	asynqClient "core-backend/internal/infrastructure/asynq"
 	gormrepository "core-backend/internal/infrastructure/gorm_repository"
 	"core-backend/pkg/utils"
@@ -34,6 +35,7 @@ type contentScheduleService struct {
 	channelRepo              irepository.GenericRepository[model.Channel]
 	unitOfWork               irepository.UnitOfWork
 	contentPublishingService iservice.ContentPublishingService
+	stateTransferService     iservice.StateTransferService
 	taskScheduler            *asynqClient.AsynqClient
 	asynqConfig              *config.AsynqConfig
 }
@@ -41,7 +43,9 @@ type contentScheduleService struct {
 // NewContentScheduleService creates a new content schedule service
 func NewContentScheduleService(
 	dbReg *gormrepository.DatabaseRegistry,
+	infraReg *infrastructure.InfrastructureRegistry,
 	contentPublishingService iservice.ContentPublishingService,
+	stateTransferService iservice.StateTransferService,
 	taskScheduler *asynqClient.AsynqClient,
 	asynqConfig *config.AsynqConfig,
 ) iservice.ContentScheduleService {
@@ -51,8 +55,10 @@ func NewContentScheduleService(
 		contentRepo:              dbReg.ContentRepository,
 		channelRepo:              dbReg.ChannelRepository,
 		contentPublishingService: contentPublishingService,
+		stateTransferService:     stateTransferService,
 		taskScheduler:            taskScheduler,
 		asynqConfig:              asynqConfig,
+		unitOfWork:               infraReg.UnitOfWork,
 	}
 }
 
@@ -107,6 +113,21 @@ func (s *contentScheduleService) ScheduleContent(ctx context.Context, req *reque
 		if err = uow.Schedules().Add(ctx, schedule); err != nil {
 			zap.L().Error("Failed to create schedule", zap.Error(err))
 			return errors.New("failed to create schedule")
+		}
+
+		if err = s.stateTransferService.MoveContentToState(ctx, uow, content.ID, enum.ContentStatusScheduled, req.UserID); err != nil {
+			zap.L().Error("Failed to move content to scheduled state", zap.Error(err))
+			return errors.New("failed to update content status: " + err.Error())
+		}
+
+		if err = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+			return db.Where("id = ?", contentChannel.ID)
+		}, map[string]any{
+			"post_date":        scheduledAt,
+			"auto_post_status": enum.AutoPostStatusInProgress,
+		}); err != nil {
+			zap.L().Error("Failed to update content channel post date", zap.Error(err))
+			return errors.New("failed to update content channel: " + err.Error())
 		}
 
 		// 7. Publish delayed message to RabbitMQ
@@ -234,23 +255,40 @@ func (s *contentScheduleService) BatchScheduleContent(ctx context.Context, req *
 			CreatedBy:     req.UserID,
 		}
 
-		if err := s.scheduleRepo.Add(ctx, schedule); err != nil {
-			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
-				ChannelID:   channelID,
-				ChannelName: cc.Channel.Name,
-				Error:       "failed to create schedule",
-			})
-			continue
-		}
+		if err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+			if err = uow.Schedules().Add(ctx, schedule); err != nil {
+				zap.L().Error("Failed to create schedule", zap.Error(err))
+				return fmt.Errorf("failed to create schedule: %w", err)
+			}
 
-		// Publish delayed message
-		if err := s.publishDelayedMessage(ctx, schedule); err != nil {
-			// Rollback schedule creation
-			_ = s.scheduleRepo.DeleteByID(ctx, schedule.ID)
+			if err = s.stateTransferService.MoveContentToState(ctx, uow, content.ID, enum.ContentStatusScheduled, req.UserID); err != nil { // Move to SCHEDULED
+				zap.L().Error("Failed to move content to scheduled state", zap.Error(err))
+				return fmt.Errorf("failed to update content status: %w", err)
+			}
+
+			if err = uow.ContentChannels().UpdateByCondition(ctx, func(db *gorm.DB) *gorm.DB {
+				return db.Where("id = ?", cc.ID)
+			}, map[string]any{
+				"post_date":        scheduledAt,
+				"auto_post_status": enum.AutoPostStatusInProgress,
+			}); err != nil {
+				zap.L().Error("Failed to update content channel post date", zap.Error(err))
+				return errors.New("failed to update content channel: " + err.Error())
+			}
+
+			// Publish delayed message
+			if err = s.publishDelayedMessage(ctx, schedule); err != nil {
+				zap.L().Error("Failed to queue schedule", zap.Error(err))
+				return fmt.Errorf("failed to queue schedule: %w", err)
+			}
+
+			return nil
+		}); err != nil {
+			zap.L().Error("Failed to create schedule in transaction", zap.Error(err))
 			response.FailedChannels = append(response.FailedChannels, responses.BatchContentScheduleFailureItem{
 				ChannelID:   channelID,
 				ChannelName: cc.Channel.Name,
-				Error:       "failed to queue schedule: " + err.Error(),
+				Error:       err.Error(),
 			})
 			continue
 		}

@@ -14,6 +14,7 @@ type GHNProxy interface {
 	// Delivery Management
 	CalculateDeliveryPriceByID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
 	CalculateDeliveryPriceByShippingAddressAndOrderItem(ctx context.Context, shippingAddressID uuid.UUID, items []requests.OrderItemRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
+	CalculateDeliveryPriceByShippingAddressAndPreOrder(ctx context.Context, item requests.PreOrderRequest, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)
 	// GetAvailableDeliveryServicesByOrderID
 	//@Deprecated
 	GetAvailableDeliveryServicesByOrderID(ctx context.Context, orderID uuid.UUID, unitOfWork irepository.UnitOfWork) ([]dtos.DeliveryAvailableServiceDTO, error)
@@ -24,6 +25,7 @@ type GHNProxy interface {
 	GetAvailableNextActions(*dtos.OrderInfo) (map[string]bool, error)
 	CancelOrder(ctx context.Context, orderCode string) (*dtos.CancelOrder, error)
 	CreateOrder(ctx context.Context, orderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error)
+	CreatePreOrder(ctx context.Context, preOrderID uuid.UUID) (*dtos.CreatedGHNOrderResponse, error)
 
 	//PublicAPI
 	CalculateDeliveryPriceByDimensionItems(ctx context.Context, toDistrictID int, toWardCode string, items []dtos.ApplicationDeliveryFeeItem, unitOfWork irepository.UnitOfWork) (*dtos.DeliveryFeeSuccess, error)

@@ -12,7 +12,7 @@ func (s *PreOrderedState) Name() enum.PreOrderStatus { return enum.PreOrderStatu
 func (s *PreOrderedState) AllowedTransitions() map[enum.PreOrderStatus]bool {
 	return map[enum.PreOrderStatus]bool{
 		enum.PreOrderStatusAwaitingPickup: true,
-		enum.PreOrderStatusInTransit:      true,
+		enum.PreOrderStatusShipped:        true, // preordered -> shipped -> intransit (same as order flow)
 		enum.PreOrderStatusCancelled:      true,
 	}
 }

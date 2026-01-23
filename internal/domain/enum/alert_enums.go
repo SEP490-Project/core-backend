@@ -216,10 +216,11 @@ const (
 
 func (r ReferenceType) IsValid() bool {
 	switch r {
-	case ReferenceTypeContent, ReferenceTypeSchedule, ReferenceTypeMilestone,
-		ReferenceTypeCampaign, ReferenceTypeContract, ReferenceTypeOrder,
-		ReferenceTypeUser, ReferenceTypeBrand, ReferenceTypePaymentTransaction,
-		ReferenceTypePreOrderOpening, ReferenceTypeContractViolation:
+	case ReferenceTypeContentChannel, ReferenceTypeNotification, ReferenceTypeContent,
+		ReferenceTypeSchedule, ReferenceTypeMilestone, ReferenceTypeCampaign, ReferenceTypeContract,
+		ReferenceTypeContractViolation, ReferenceTypeOrder, ReferenceTypeUser,
+		ReferenceTypeBrand, ReferenceTypePaymentTransaction, ReferenceTypePreOrderOpening,
+		ReferenceTypePreOrderAutoReceive, ReferenceTypeOrderAutoReceive, ReferenceTypeOther:
 		return true
 	}
 	return false

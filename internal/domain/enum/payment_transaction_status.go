@@ -11,6 +11,7 @@ const (
 	PaymentTransactionStatusFailed    PaymentTransactionStatus = "FAILED"
 	PaymentTransactionStatusCancelled PaymentTransactionStatus = "CANCELLED"
 	PaymentTransactionStatusExpired   PaymentTransactionStatus = "EXPIRED"
+	PaymentTransactionStatusRefunded  PaymentTransactionStatus = "REFUNDED"
 )
 
 // IsValid checks if the payment transaction status is valid
@@ -20,7 +21,8 @@ func (s PaymentTransactionStatus) IsValid() bool {
 		PaymentTransactionStatusCompleted,
 		PaymentTransactionStatusFailed,
 		PaymentTransactionStatusCancelled,
-		PaymentTransactionStatusExpired:
+		PaymentTransactionStatusExpired,
+		PaymentTransactionStatusRefunded:
 		return true
 	}
 	return false

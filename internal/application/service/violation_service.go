@@ -293,18 +293,18 @@ func (s *violationService) InitiateKOLViolation(
 		CreatedBy:            &reportedBy,
 	}
 
-	if err := helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
-		if err := uow.ContractViolations().Add(ctx, violation); err != nil {
+	if err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.ContractViolations().Add(ctx, violation); err != nil {
 			return fmt.Errorf("failed to create violation record: %w", err)
 		}
 
 		// Transition contract state to KOL_VIOLATED
-		if err := s.stateTransferService.MoveContractToState(ctx, uow, contractID, enum.ContractStatusKOLViolated, reportedBy); err != nil {
+		if err = s.stateTransferService.MoveContractToState(ctx, uow, contractID, enum.ContractStatusKOLViolated, reportedBy); err != nil {
 			return fmt.Errorf("failed to move contract to KOL_VIOLATED status: %w", err)
 		}
 
 		// Transition contract state to KOL_REFUND_PENDING
-		if err := s.stateTransferService.MoveContractToState(ctx, uow, contractID, enum.ContractStatusKOLRefundPending, reportedBy); err != nil {
+		if err = s.stateTransferService.MoveContractToState(ctx, uow, contractID, enum.ContractStatusKOLRefundPending, reportedBy); err != nil {
 			return fmt.Errorf("failed to move contract to KOL_REFUND_PENDING status: %w", err)
 		}
 
@@ -709,8 +709,35 @@ func (s *violationService) ReviewRefundProof(
 		}
 	}
 
-	if err := s.contractViolationRepo.Update(ctx, violation); err != nil {
-		return nil, fmt.Errorf("failed to update violation: %w", err)
+	if err = helper.WithTransaction(ctx, s.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = uow.ContractViolations().Update(ctx, violation); err != nil {
+			return fmt.Errorf("failed to update violation: %w", err)
+		}
+
+		if !req.IsApprove() {
+			return nil
+		}
+		// Create a negative payment transaction to refund back to brand
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     violation.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypeKOLViolationRefunding,
+			Amount:          utils.PtrOrNil(-violation.RefundAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         violation.ProofSubmittedBy,
+			ReceivedByID:    utils.PtrOrNil(reviewedBy),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			return fmt.Errorf("failed to add negative payment: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("ViolationService - Failed to review refund proof", zap.Error(err))
+		return nil, fmt.Errorf("failed to review refund proof: %w", err)
 	}
 
 	zap.L().Info("ViolationService - Refund proof reviewed",
