@@ -437,8 +437,32 @@ func (o *orderService) ApproveEarlyRefund(ctx context.Context, orderID, actionBy
 		return err
 	}
 	order.StaffResource = &fileURL
-	err = o.orderRepository.Update(ctx, order)
-	if err != nil {
+	if err = helper.WithTransaction(ctx, o.unitOfWork, func(ctx context.Context, uow irepository.UnitOfWork) error {
+		if err = o.orderRepository.Update(ctx, order); err != nil {
+			zap.L().Error("Failed to update order during approve early refund", zap.Error(err), zap.String("orderID", order.ID.String()))
+			return err
+		}
+
+		negativePayment := &model.PaymentTransaction{
+			ReferenceID:     order.ID,
+			ReferenceType:   enum.PaymentTransactionReferenceTypeOrder,
+			Amount:          utils.PtrOrNil(-order.TotalAmount),
+			Status:          enum.PaymentTransactionStatusRefunded,
+			Method:          enum.ContractPaymentMethodBankTransfer.String(),
+			TransactionDate: time.Now(),
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+			PayerID:         utils.PtrOrNil(actionBy),
+			ReceivedByID:    utils.PtrOrNil(order.UserID),
+		}
+		if err = uow.PaymentTransaction().Add(ctx, negativePayment); err != nil {
+			zap.L().Error("Failed to add negative payment transaction during approve early refund", zap.Error(err))
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		zap.L().Error("Transaction failed during approve early refund", zap.Error(err))
 		return err
 	}
 
