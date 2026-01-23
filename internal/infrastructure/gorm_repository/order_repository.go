@@ -19,7 +19,7 @@ type OrderRepository struct {
 	*genericRepository[model.Order]
 }
 
-func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode, orderType string, statuses []string) ([]model.Order, int, error) {
+func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode, orderType, createdFrom, createdTo, brandID string, statuses []string) ([]model.Order, int, error) {
 	pageNum := page
 	pageSize := limit
 	if pageNum < 1 {
@@ -102,6 +102,20 @@ func (r *OrderRepository) GetStaffAvailableOrdersWithPagination(ctx context.Cont
 		if ot.IsValid() {
 			whereClauses = append(whereClauses, "orders.order_type = ?")
 			args = append(args, ot)
+		}
+	}
+	if createdFrom != "" {
+		whereClauses = append(whereClauses, "orders.created_at >= ?")
+		args = append(args, createdFrom)
+	}
+	if createdTo != "" {
+		whereClauses = append(whereClauses, "orders.created_at <= ?")
+		args = append(args, createdTo+" 23:59:59")
+	}
+	if brandID != "" {
+		if _, err := uuid.Parse(brandID); err == nil {
+			whereClauses = append(whereClauses, "EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id AND oi.brand_id = ?)")
+			args = append(args, brandID)
 		}
 	}
 

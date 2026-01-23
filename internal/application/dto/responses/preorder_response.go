@@ -63,12 +63,14 @@ type PreOrdersProps struct {
 	Instructions          *string         `json:"instructions"`
 	AttributesDescription *datatypes.JSON `json:"attributes_description" swaggerignore:"true"`
 
-	Weight     int  `json:"weight"`
-	Height     int  `json:"height"`
-	Length     int  `json:"length"`
-	Width      int  `json:"width"`
-	IsReviewed bool `json:"is_reviewed"`
-
+	Weight           int     `json:"weight"`
+	Height           int     `json:"height"`
+	Length           int     `json:"length"`
+	Width            int     `json:"width"`
+	IsReviewed       bool    `json:"is_reviewed"`
+	GHNOrderCode     *string `json:"ghn_order_code" gorm:"column:ghn_order_code;type:text"`
+	ShippingFee      int     `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
+	BrandPlaceHolder *string `json:"brand_place_holder"`
 	// Product Info
 	ProductName       string                  `json:"product_name"`
 	Description       *string                 `json:"description"`
@@ -89,6 +91,7 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 	var categoryResp *OrderItemCategoryResponse
 	var itemImages []OrderItemImage
 	var limitedProps *OrderLimitedProperties
+	var brandPlaceHolder *string
 
 	if po.Brand != nil {
 		brandResp = OrderItemBrandResponse{}.ToResponse(po.Brand)
@@ -103,6 +106,9 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 	var pmResp PaymentTransactionResponse
 	if pm != nil {
 		pmResp = *PaymentTransactionResponse{}.ToResponse(pm, nil)
+	}
+	if po.ProductVariant.Product != nil {
+		brandPlaceHolder = po.ProductVariant.Product.BrandPlaceHolder
 	}
 	if po.ProductVariant.Product.Limited != nil {
 		limitedProps = OrderLimitedProperties{}.ToResponse(po.ProductVariant.Product.Limited)
@@ -152,6 +158,9 @@ func (p PreOrderResponse) ToPreOrderResponse(po model.PreOrder, pm *model.Paymen
 			Length:                po.Length,
 			Width:                 po.Width,
 			IsReviewed:            po.IsReviewed,
+			GHNOrderCode:          po.GHNOrderCode,
+			ShippingFee:           po.ShippingFee,
+			BrandPlaceHolder:      brandPlaceHolder,
 			ProductName:           po.ProductName,
 			Description:           po.Description,
 			Type:                  po.Type,
