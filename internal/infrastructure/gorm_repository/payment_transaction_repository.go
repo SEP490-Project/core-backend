@@ -66,12 +66,14 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 	}
 
 	var (
-		OrderIDs            []uuid.UUID
-		PreOrderIDs         []uuid.UUID
-		ContractPaymentIDs  []uuid.UUID
-		OrdersMap           = make(map[uuid.UUID]*model.Order)
-		PreOrdersMap        = make(map[uuid.UUID]*model.PreOrder)
-		ContractPaymentsMap = make(map[uuid.UUID]*model.ContractPayment)
+		OrderIDs              []uuid.UUID
+		PreOrderIDs           []uuid.UUID
+		ContractPaymentIDs    []uuid.UUID
+		ContractViolationIDs  []uuid.UUID
+		OrdersMap             = make(map[uuid.UUID]*model.Order)
+		PreOrdersMap          = make(map[uuid.UUID]*model.PreOrder)
+		ContractPaymentsMap   = make(map[uuid.UUID]*model.ContractPayment)
+		ContractViolationsMap = make(map[uuid.UUID]*model.ContractViolation)
 	)
 
 	for _, pt := range paymentTransactions {
@@ -85,12 +87,16 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 		case enum.PaymentTransactionReferenceTypeContractPayment:
 			ContractPaymentIDs = append(ContractPaymentIDs, pt.ReferenceID)
 
+		case enum.PaymentTransactionReferenceTypeContractViolation,
+			enum.PaymentTransactionReferenceTypeKOLViolationRefunding:
+			ContractViolationIDs = append(ContractViolationIDs, pt.ReferenceID)
 		}
 	}
 
 	OrdersMap, _ = p.GetReferenceOrderByIDs(ctx, OrderIDs)
 	PreOrdersMap, _ = p.GetReferencePreOrderByIDs(ctx, PreOrderIDs)
 	ContractPaymentsMap, _ = p.GetReferenceContractPaymentByIDs(ctx, ContractPaymentIDs)
+	ContractViolationsMap, _ = p.GetReferenceContractViolationByIDs(ctx, ContractViolationIDs)
 
 	paymentResponses := make([]responses.PaymentTransactionResponse, len(paymentTransactions))
 	for i, pt := range paymentTransactions {
@@ -105,8 +111,14 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByFilter(ctx context
 				additionalInfo = responses.PaymentTransactionReferencePreOrder{}.FromPreOrderModel(preOrder)
 			}
 		case enum.PaymentTransactionReferenceTypeContractPayment:
-			if contractPayment, ok := ContractPaymentsMap[pt.ReferenceID]; ok && ContractPaymentsMap[pt.ReferenceID] != nil {
+			if contractPayment, ok := ContractPaymentsMap[pt.ReferenceID]; ok && contractPayment != nil {
 				additionalInfo = responses.PaymentTransactionReferenceContractPayment{}.FromContractPaymentModel(contractPayment)
+			}
+
+		case enum.PaymentTransactionReferenceTypeContractViolation,
+			enum.PaymentTransactionReferenceTypeKOLViolationRefunding:
+			if violation, ok := ContractViolationsMap[pt.ReferenceID]; ok && violation != nil {
+				additionalInfo = responses.PaymentTransactionReferenceContractViolation{}.FromContractViolationModel(violation)
 			}
 		}
 
@@ -147,6 +159,13 @@ func (p *paymentTransactionRepository) GetPaymentTransactionByID(ctx context.Con
 				additionalInfo = responses.PaymentTransactionReferenceContractPayment{}.FromContractPaymentModel(contractPaymentInfo)
 			}
 		}
+
+	case enum.PaymentTransactionReferenceTypeContractViolation, enum.PaymentTransactionReferenceTypeKOLViolationRefunding:
+		if violations, err := p.GetReferenceContractViolationByIDs(ctx, []uuid.UUID{paymentTransaction.ReferenceID}); err == nil {
+			if violation, ok := violations[paymentTransaction.ReferenceID]; ok && violation != nil {
+				additionalInfo = responses.PaymentTransactionReferenceContractViolation{}.FromContractViolationModel(violation)
+			}
+		}
 	}
 
 	paymentResponse := *responses.PaymentTransactionResponse{}.ToResponse(&paymentTransaction, additionalInfo)
@@ -163,8 +182,11 @@ func (p *paymentTransactionRepository) applyFilter(query *gorm.DB, filter *reque
 	if filter.ReferenceType != nil {
 		query = query.Where("payment_transactions.reference_type = ?", filter.ReferenceType.String())
 	}
+	if filter.ReferenceTypes != nil && len(filter.GetReferenceTypesParam()) > 0 {
+		query = query.Where("payment_transactions.reference_type IN ?", filter.GetReferenceTypesParam())
+	}
 	if filter.PayerID != nil {
-		query = query.Where("payment_transactions.payer_id = ?", filter.PayerID)
+		query = query.Where("payment_transactions.payer_id = ? OR payment_transactions.received_by_id = ?", filter.PayerID, filter.PayerID)
 	}
 	if filter.Status != nil {
 		query = query.Where("payment_transactions.status = ?", filter.Status.String())
@@ -281,9 +303,34 @@ func (p *paymentTransactionRepository) GetReferenceContractPaymentByIDs(ctx cont
 	return contractPaymentsMap, nil
 }
 
+func (p *paymentTransactionRepository) GetReferenceContractViolationByIDs(ctx context.Context, contractViolationIDs []uuid.UUID) (map[uuid.UUID]*model.ContractViolation, error) {
+	var contractViolationsMap = make(map[uuid.UUID]*model.ContractViolation)
+	if len(contractViolationIDs) == 0 {
+		return contractViolationsMap, nil
+	}
+
+	var violations []model.ContractViolation
+	contractViolationQuery := p.db.WithContext(ctx).
+		Model(new(model.ContractViolation)).
+		Joins("Contract").
+		Joins("Contract.Brand").
+		Joins("Campaign").
+		Joins("ProofSubmitter").
+		Where("contract_violations.id IN ?", contractViolationIDs)
+
+	if err := contractViolationQuery.Find(&violations).Error; err != nil {
+		return nil, err
+	}
+
+	for i := range violations {
+		contractViolationsMap[violations[i].ID] = &violations[i]
+	}
+
+	return contractViolationsMap, nil
+}
+
 func (p *paymentTransactionRepository) GetPaymentTransactionByOrderCode(ctx context.Context, orderCode string) (*model.PaymentTransaction, error) {
 	var paymentTransaction model.PaymentTransaction
-	// db := p.db.WithContext(ctx).Model(new(model.PaymentTransaction))
 	if err := p.db.WithContext(ctx).
 		Model(new(model.PaymentTransaction)).
 		Where("payment_transactions.payos_metadata->>'order_code' = ?", orderCode).
