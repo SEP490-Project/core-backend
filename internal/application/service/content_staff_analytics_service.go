@@ -375,7 +375,7 @@ func (s *contentStaffAnalyticsService) getChannelMetrics(
 				ContentID: topPost.ContentID,
 				Title:     topPost.Title,
 				Views:     topPost.Views,
-				Likes:     topPost.Likes,
+				Likes:     topPost.Likes + topPost.Comments + topPost.Shares,
 			}
 		}
 
@@ -398,21 +398,21 @@ func (s *contentStaffAnalyticsService) getCharts(
 
 	tasks := []func(ctx context.Context) error{
 		// Reach by Channel (bar chart)
-		func(ctx context.Context) error {
-			metrics, _ := s.dashboardRepo.GetChannelMetrics(ctx, currentRange.Start, currentRange.End)
-			reachData := make([]responses.BarChartDataPoint, 0, len(metrics))
-			for _, m := range metrics {
-				reachData = append(reachData, responses.BarChartDataPoint{
-					Label:      m.ChannelName,
-					Reach:      m.TotalReach,
-					Engagement: m.TotalEngagement,
-				})
-			}
-			mu.Lock()
-			charts.ReachByChannel = reachData
-			mu.Unlock()
-			return nil
-		},
+		// func(ctx context.Context) error {
+		// 	metrics, _ := s.dashboardRepo.GetChannelMetrics(ctx, currentRange.Start, currentRange.End)
+		// 	reachData := make([]responses.BarChartDataPoint, 0, len(metrics))
+		// 	for _, m := range metrics {
+		// 		reachData = append(reachData, responses.BarChartDataPoint{
+		// 			Label:      m.ChannelName,
+		// 			Reach:      m.TotalReach,
+		// 			Engagement: m.TotalEngagement,
+		// 		})
+		// 	}
+		// 	mu.Lock()
+		// 	charts.ReachByChannel = reachData
+		// 	mu.Unlock()
+		// 	return nil
+		// },
 
 		// Trend Data (line chart)
 		func(ctx context.Context) error {
@@ -434,22 +434,22 @@ func (s *contentStaffAnalyticsService) getCharts(
 			return nil
 		},
 
-		// Content Type Distribution (pie chart)
-		func(ctx context.Context) error {
-			distribution, _ := s.dashboardRepo.GetContentTypeDistribution(ctx, currentRange.Start, currentRange.End)
-			pieData := make([]responses.PieChartDataPoint, 0, len(distribution))
-			for _, d := range distribution {
-				pieData = append(pieData, responses.PieChartDataPoint{
-					Label: d.ContentType,
-					Value: d.Count,
-					Ratio: d.Percentage,
-				})
-			}
-			mu.Lock()
-			charts.ContentTypeDistribution = pieData
-			mu.Unlock()
-			return nil
-		},
+		// // Content Type Distribution (pie chart)
+		// func(ctx context.Context) error {
+		// 	distribution, _ := s.dashboardRepo.GetContentTypeDistribution(ctx, currentRange.Start, currentRange.End)
+		// 	pieData := make([]responses.PieChartDataPoint, 0, len(distribution))
+		// 	for _, d := range distribution {
+		// 		pieData = append(pieData, responses.PieChartDataPoint{
+		// 			Label: d.ContentType,
+		// 			Value: d.Count,
+		// 			Ratio: d.Percentage,
+		// 		})
+		// 	}
+		// 	mu.Lock()
+		// 	charts.ContentTypeDistribution = pieData
+		// 	mu.Unlock()
+		// 	return nil
+		// },
 
 		// Channel Distribution (pie chart - posts per channel)
 		func(ctx context.Context) error {
@@ -975,6 +975,7 @@ func (s *contentStaffAnalyticsService) getChannelRecentContent(
 }
 
 // getChannelAffiliateStats returns affiliate link statistics for a channel
+// CTR = (Total Clicks / Total Views of content with affiliate links) * 100
 func (s *contentStaffAnalyticsService) getChannelAffiliateStats(
 	ctx context.Context,
 	channelID uuid.UUID,
@@ -990,31 +991,34 @@ func (s *contentStaffAnalyticsService) getChannelAffiliateStats(
 
 	// Count unique users (by UserID or IP hash)
 	uniqueUsers := make(map[string]struct{})
-	for _, ce := range clickEvents {
-		var key string
-		if ce.UserID != nil {
-			key = ce.UserID.String()
-		} else if ce.IPAddress != nil {
-			key = *ce.IPAddress
-		}
-		if key != "" {
-			uniqueUsers[key] = struct{}{}
-		}
-	}
-	uniqueCount := int64(len(uniqueUsers))
-
-	// hasLinks := totalClicks > 0 || uniqueCount > 0
+	// Count unique affiliate links
 	uniqueLinks := make(map[uuid.UUID]struct{})
 	for _, ce := range clickEvents {
+		// Track unique users
+		var userKey string
 		if ce.UserID != nil {
-			uniqueLinks[*ce.UserID] = struct{}{}
+			userKey = ce.UserID.String()
+		} else if ce.IPAddress != nil {
+			userKey = *ce.IPAddress
 		}
+		if userKey != "" {
+			uniqueUsers[userKey] = struct{}{}
+		}
+		// Track unique affiliate links
+		uniqueLinks[ce.AffiliateLinkID] = struct{}{}
 	}
+	uniqueCount := int64(len(uniqueUsers))
 	hasLinks := len(uniqueLinks) > 0
 
+	// Calculate CTR: Clicks / Views * 100
+	// Get views for content that has affiliate links in this channel
 	var ctr any = "N/A"
-	if hasLinks && uniqueCount > 0 {
-		ctr = float64(totalClicks) / float64(uniqueCount) * 100
+	if hasLinks {
+		// Get total views for this channel in the date range
+		totalViews, _ := s.dashboardRepo.GetTotalViews(ctx, startDate, endDate, &channelID)
+		if totalViews > 0 {
+			ctr = (float64(totalClicks) / float64(totalViews)) * 100
+		}
 	}
 
 	return &responses.AffiliateStatsResponse{
