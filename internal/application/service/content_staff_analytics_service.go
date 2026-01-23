@@ -860,7 +860,7 @@ func (s *contentStaffAnalyticsService) GetChannelDetails(
 }
 
 // getChannelMappedMetrics aggregates KPI metrics for a channel from content_channels
-// Uses the repository method with DISTINCT ON to get LATEST values
+// Uses delta logic: (last value in period) - (first value in period)
 func (s *contentStaffAnalyticsService) getChannelMappedMetrics(
 	ctx context.Context,
 	channelID uuid.UUID,
