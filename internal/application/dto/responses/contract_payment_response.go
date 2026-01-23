@@ -37,6 +37,7 @@ type ContractPaymentResponse struct {
 	Note                  *string                    `json:"note" example:"First installment payment"`
 	IsDeposit             bool                       `json:"is_deposit" example:"true"`
 	PayNow                bool                       `json:"pay_now" example:"false"`
+	PaidAt                *string                    `json:"paid_at" example:"2006-01-02T15:04:05Z07:00"`
 	CreatedAt             string                     `json:"created_at" example:"2006-01-02T15:04:05Z07:00"`
 	UpdatedAt             string                     `json:"updated_at" example:"2006-01-02T15:04:05Z07:00"`
 
@@ -82,6 +83,11 @@ func (ContractPaymentResponse) ToResponse(m *model.ContractPayment) *ContractPay
 		CreatedAt:             utils.FormatLocalTime(&m.CreatedAt, utils.TimezoneFormat),
 		UpdatedAt:             utils.FormatLocalTime(&m.UpdatedAt, utils.TimezoneFormat),
 		RefundAttempts:        m.RefundAttempts,
+	}
+
+	if m.PaidAt != nil {
+		paidAt := utils.FormatLocalTime(m.PaidAt, utils.TimezoneFormat)
+		response.PaidAt = &paidAt
 	}
 
 	// Populate contract and brand info

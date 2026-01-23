@@ -1325,6 +1325,10 @@ func (t stateTransferService) handleContractPaymentSideEffect(
 	switch transactionStatus {
 	case enum.PaymentTransactionStatusCompleted:
 		newStatus = enum.ContractPaymentStatusPaid
+		// Set PaidAt timestamp when payment is completed
+		now := time.Now()
+		contractPayment.PaidAt = &now
+
 		zap.L().Info("Updating contract payment to PAID",
 			zap.String("contract_payment_id", contractPayment.ID.String()))
 
