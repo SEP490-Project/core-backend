@@ -268,7 +268,7 @@ func preOrderFileAssurance(preOrder *model.PreOrder, targetState enum.PreOrderSt
 	isSelfPick := preOrder.IsSelfPickedUp
 	//isStatusDelivered := targetState.String() == enum.PreOrderStatusDelivered.String()
 	isStatusReceived := targetState.String() == enum.PreOrderStatusReceived.String()
-	if isSelfPick && isStatusReceived {
+	if (isSelfPick && isStatusReceived) {
 		if fileURL == nil || *fileURL == "" {
 			errMsg := fmt.Sprintf("proof of delivery file is required when transitioning to %s", targetState.String())
 			zap.L().Error(errMsg, zap.String("preorder_id", preOrder.ID.String()))
