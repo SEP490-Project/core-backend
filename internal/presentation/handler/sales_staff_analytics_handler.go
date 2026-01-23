@@ -48,6 +48,7 @@ func (h *SalesStaffAnalyticsHandler) GetFinancialsDashboard(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+
 	result, err := h.service.GetFinancialsDashboard(ctx, h.getDefaultFilterRequest(&req))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, responses.ErrorResponse(err.Error(), http.StatusInternalServerError))

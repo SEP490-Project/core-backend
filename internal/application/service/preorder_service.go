@@ -53,6 +53,11 @@ type preOrderService struct {
 	unitOfWork                   irepository.UnitOfWork
 }
 
+func (p preOrderService) PreOrderOpeningManualTrigger(ctx context.Context, preOrderID, actionBy uuid.UUID) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (p preOrderService) GetPreOrderPricePercentage(ctx context.Context, preOrderID uuid.UUID) ([]responses.PriceBreakdown, error) {
 	var breakdowns []responses.PriceBreakdown
 
@@ -310,6 +315,30 @@ func (p preOrderService) MarkPreOrderAsReceived(ctx context.Context, preOrderID,
 	return nil
 }
 
+// UpdateGHNOrderCode updates the GHN order code for a pre-order
+func (p preOrderService) UpdateGHNOrderCode(ctx context.Context, preOrderID uuid.UUID, ghnOrderCode string) error {
+	preOrder, err := p.preOrderRepository.GetByID(ctx, preOrderID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to find pre-order: %w", err)
+	}
+
+	preOrder.GHNOrderCode = &ghnOrderCode
+
+	if err := p.preOrderRepository.Update(ctx, preOrder); err != nil {
+		zap.L().Error("Failed to update PreOrder GHN order code",
+			zap.String("preorder_id", preOrderID.String()),
+			zap.String("ghn_order_code", ghnOrderCode),
+			zap.Error(err))
+		return fmt.Errorf("failed to update pre-order GHN order code: %w", err)
+	}
+
+	zap.L().Info("Updated PreOrder GHN order code",
+		zap.String("preorder_id", preOrderID.String()),
+		zap.String("ghn_order_code", ghnOrderCode))
+
+	return nil
+}
+
 func (p preOrderService) RequestCompensation(ctx context.Context, preOrderID, actionBy uuid.UUID, reason, fileURL *string) error {
 	preOrder, limitedProduct, user, err := p.lookupPreOrderWithLimitedProductAndUser(ctx, preOrderID, actionBy)
 	if err != nil {
@@ -461,9 +490,33 @@ func (p preOrderService) PreOrderOpeningChecker(ctx context.Context) (int, int, 
 	for _, preOrder := range preOrders {
 		var err error
 		if preOrder.IsSelfPickedUp {
+			// Self-pickup: just move to AwaitingPickup status
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
-			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
+			// err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)
+			// Delivery: Create GHN order first, then move to Shipped status
+			ghnResponse, ghnErr := p.ghnService.CreatePreOrder(ctx, preOrder.ID)
+			if ghnErr != nil {
+				zap.L().Error("Failed to create GHN order for pre-order",
+					zap.String("preorder_id", preOrder.ID.String()),
+					zap.Error(ghnErr))
+				failed++
+				continue
+			}
+
+			// Update the pre-order with the GHN order code
+			if ghnResponse != nil && ghnResponse.OrderCode != "" {
+				if updateErr := p.UpdateGHNOrderCode(ctx, preOrder.ID, ghnResponse.OrderCode); updateErr != nil {
+					zap.L().Error("Failed to update GHN order code for pre-order",
+						zap.String("preorder_id", preOrder.ID.String()),
+						zap.String("ghn_order_code", ghnResponse.OrderCode),
+						zap.Error(updateErr))
+					// Continue even if update fails - the GHN order was created
+				}
+			}
+
+			// Move to Shipped status (will be updated to InTransit by GHN webhook)
+			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusShipped, uuid.UUID{}, nil, nil)
 		}
 		if err != nil {
 			msg := fmt.Sprintf("Failed to update pre-order status with ID: %s , Detail: %s", preOrder.ID.String(), err.Error())
@@ -510,6 +563,7 @@ func (p *preOrderService) OpeningPreOrderEarly(ctx context.Context, uow ireposit
 	failedPreOrdersIDs := make([]uuid.UUID, 0)
 	for _, preOrder := range upcomingPreOrders {
 		if preOrder.IsSelfPickedUp {
+			// Self-pickup: just move to AwaitingPickup status
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusAwaitingPickup, uuid.UUID{}, nil, nil)
 		} else {
 			err = p.stateTransferService.MovePreOrderToState(ctx, preOrder.ID, enum.PreOrderStatusInTransit, uuid.UUID{}, nil, nil)

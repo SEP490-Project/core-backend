@@ -101,6 +101,8 @@ type PreOrder struct {
 	Height                int             `json:"height" gorm:"column:height"` // in centimeters
 	Length                int             `json:"length" gorm:"column:length"` // in centimeters
 	Width                 int             `json:"width" gorm:"column:width"`   // in centimeters
+	GHNOrderCode          *string         `json:"ghn_order_code" gorm:"column:ghn_order_code;type:text"`
+	ShippingFee           int             `json:"shipping_fee" gorm:"column:shipping_fee;default:0"`
 
 	//product fields
 	ProductName string  `json:"product_name" gorm:"column:product_name;not null"`
