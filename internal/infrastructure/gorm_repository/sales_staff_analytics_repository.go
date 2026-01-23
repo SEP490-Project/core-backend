@@ -41,7 +41,7 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 	// =========================================================================
 	type BaseStats struct {
 		TotalRevenue         float64
-		TotalStandardRevenue float64 
+		TotalStandardRevenue float64
 		TotalLimitedRevenue  float64
 		StandardNetRevenue   float64 // Standard orders without shipping fee
 		LimitedGrossRevenue  float64 // Limited orders + PreOrders (including shipping)
@@ -70,7 +70,7 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 				AND deleted_at IS NULL
 		),
 		valid_pre_orders AS (
-			SELECT user_id, total_amount, 'LIMITED' as order_type, 0 as shipping_fee, 'PRE_ORDER' as source
+			SELECT user_id, total_amount, 'LIMITED' as order_type, shipping_fee, 'PRE_ORDER' as source
 			FROM pre_orders
 			WHERE status IN ? 
 				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR created_at >= ?)
@@ -107,12 +107,16 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 			).Scan(&stats).Error
 		},
 		func(ctx context.Context) error {
-			// Calculate Limited Net Revenue (KOL share) for Orders with LIMITED type
+			// Calculate Limited Net Revenue (KOL share) for Orders with LIMITED type and PreOrders
 			// Join through: order_items -> product_variants -> products -> tasks -> milestones -> campaigns -> contracts
+			// KOL Net Revenue = (item_total) * kol_percent / 100 - shipping_fee
+			// Note: Shipping fee is covered by company policy, so it's subtracted from KOL's revenue
 			limitedOrderNetQuery := `
 		WITH limited_order_items AS (
 			SELECT 
-				oi.unit_price * oi.quantity as item_total,
+				o.id as order_id,
+				SUM(oi.unit_price * oi.quantity) as item_total,
+				o.shipping_fee as shipping_fee,
 				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent
 			FROM orders o
 			JOIN order_items oi ON o.id = oi.order_id
@@ -127,10 +131,13 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at >= ?)
 				AND (?::timestamp IS NULL OR ? = TIMESTAMP '0001-01-01 00:00:00' OR o.created_at <= ?)
 				AND o.deleted_at IS NULL
+			GROUP BY o.id, o.shipping_fee, c.financial_terms
 		),
 		pre_order_items AS (
 			SELECT 
+				po.id as order_id,
 				po.total_amount as item_total,
+				po.shipping_fee as shipping_fee,
 				COALESCE((c.financial_terms->>'profit_split_kol_percent')::float, 0) as kol_percent
 			FROM pre_orders po
 			JOIN product_variants pv ON po.variant_id = pv.id
@@ -145,11 +152,11 @@ func (r *SalesStaffAnalyticsRepository) GetFinancialsSummary(ctx context.Context
 				AND po.deleted_at IS NULL
 		),
 		combined AS (
-			SELECT item_total, kol_percent FROM limited_order_items
+			SELECT item_total, shipping_fee, kol_percent FROM limited_order_items
 			UNION ALL
-			SELECT item_total, kol_percent FROM pre_order_items
+			SELECT item_total, shipping_fee, kol_percent FROM pre_order_items
 		)
-		SELECT COALESCE(SUM(item_total * kol_percent / 100.0), 0)
+		SELECT COALESCE(SUM((item_total * kol_percent / 100.0) - COALESCE(shipping_fee, 0)), 0)
 		FROM combined
 	`
 			return r.db.WithContext(ctx).Raw(limitedOrderNetQuery,
