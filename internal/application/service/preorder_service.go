@@ -1016,12 +1016,12 @@ func toPaymentItemRequestWithTotalPrice(preOrder model.PreOrder) ([]requests.Pay
 // GetStaffAvailablePreOrdersWithPagination returns preorders for staff with same filtering/search as staff orders
 func (s preOrderService) GetStaffAvailablePreOrdersWithPagination(
 	limit, page int,
-	search, fullName, phone, provinceID, districtID, wardCode string,
+	search, fullName, phone, provinceID, districtID, wardCode, createdFrom, createdTo, brandID string,
 	statuses []string,
 ) ([]responses.PreOrderResponse, int, error) {
 
 	ctx := context.Background()
-	preOrders, total, err := s.preOrderRepository.GetStaffAvailablePreOrdersWithPagination(ctx, limit, page, search, fullName, phone, provinceID, districtID, wardCode, statuses)
+	preOrders, total, err := s.preOrderRepository.GetStaffAvailablePreOrdersWithPagination(ctx, limit, page, search, fullName, phone, provinceID, districtID, wardCode, createdFrom, createdTo, brandID, statuses)
 	if err != nil {
 		return nil, 0, err
 	}

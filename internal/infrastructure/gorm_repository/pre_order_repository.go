@@ -17,7 +17,7 @@ type PreOrderRepository struct {
 	*genericRepository[model.PreOrder]
 }
 
-func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode string, statuses []string) ([]model.PreOrder, int, error) {
+func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx context.Context, limit, page int, search, fullName, phone, provinceID, districtID, wardCode, createdFrom, createdTo, brandID string, statuses []string) ([]model.PreOrder, int, error) {
 	pageNum := page
 	pageSize := limit
 	if pageNum < 1 {
@@ -96,6 +96,17 @@ func (r *PreOrderRepository) GetStaffAvailablePreOrdersWithPagination(ctx contex
 	}
 	if wardCode != "" {
 		db = db.Where("pre_orders.ghn_ward_code = ?", wardCode)
+	}
+	if createdFrom != "" {
+		db = db.Where("pre_orders.created_at >= ?", createdFrom)
+	}
+	if createdTo != "" {
+		db = db.Where("pre_orders.created_at <= ?", createdTo+" 23:59:59")
+	}
+	if brandID != "" {
+		if _, err := uuid.Parse(brandID); err == nil {
+			db = db.Where("pre_orders.brand_id = ?", brandID)
+		}
 	}
 
 	// Count total before pagination
