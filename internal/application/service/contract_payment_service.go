@@ -84,7 +84,7 @@ func (c *contractPaymentService) CreatePaymentLinkFromContractPayment(
 
 	// 3. Validate due date - payment link can only be generated after the due date
 	now := time.Now()
-	if now.Before(contractPayment.DueDate) {
+	if now.After(contractPayment.DueDate) {
 		return nil, fmt.Errorf("payment link can only be generated after the due date (%s)", contractPayment.DueDate.Format("2006-01-02"))
 	}
 
